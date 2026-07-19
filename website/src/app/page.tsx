@@ -4,6 +4,7 @@ import { Container, Section, SectionHeading } from "@/components/section";
 import { ServiceCard } from "@/components/service-card";
 import { GalleryGrid } from "@/components/gallery-grid";
 import { CTASection } from "@/components/cta-section";
+import { ProjectSpotlight } from "@/components/project-spotlight";
 import { StarRating } from "@/components/star-rating";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -11,11 +12,13 @@ import { serviceCategories } from "@/config/serviceCategories";
 import { services } from "@/config/services";
 import { featuredGallery } from "@/config/gallery";
 import { reviews, averageRating } from "@/config/reviews";
+import { featuredProject } from "@/config/projects";
 import { company } from "@/config/company";
 
 export default function HomePage() {
   const featured = featuredGallery(6);
   const topReviews = reviews.slice(0, 3);
+  const spotlight = featuredProject();
 
   return (
     <>
@@ -104,6 +107,9 @@ export default function HomePage() {
           </div>
         </Container>
       </Section>
+
+      {/* FEATURED PROJECT (spotlight) */}
+      {spotlight && <ProjectSpotlight project={spotlight} variant="feature" />}
 
       {/* REVIEWS */}
       <Section>
