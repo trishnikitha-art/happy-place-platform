@@ -21,7 +21,6 @@ function buildEmailBody(req: EstimateRequest, companyName: string): string {
   lines.push(`Phone: ${req.customer.phone ?? "n/a"}`);
   lines.push(`Service: ${req.service}`);
   lines.push(`Property: ${req.property.address ?? ""}, ${req.property.county ?? ""}`);
-  lines.push(`Preferred contact: ${req.preferredContact ?? "email"}`);
   lines.push("");
   lines.push("Answers:");
   for (const [k, v] of Object.entries(req.answers)) lines.push(`- ${k}: ${v}`);
