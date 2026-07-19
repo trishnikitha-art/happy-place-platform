@@ -7,9 +7,20 @@ website/.vercel
 website/*.tsbuildinfo
 website/next-env.d.ts
 
-# Env
-.env*.local
-.env
+# Env / secrets — NEVER commit credentials or tokens
+.env*
+!.env.example
+!.env.*.example
+# Secret patterns (defense-in-depth)
+**/*token*
+**/*secret*
+**/*credential*
+**/.vercel
+**/auth.json
+
+# Vercel tokens must live in env only, never in repo
+.vscode/
+.vscode/sftp.json
 
 # OS / editor
 .DS_Store
