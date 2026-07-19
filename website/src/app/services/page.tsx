@@ -17,7 +17,7 @@ export const metadata: Metadata = {
 export default function ServicesPage() {
   return (
     <>
-      <Section className="bg-stone-50">
+      <Section className="bg-surface-muted">
         <Container>
           <SectionHeading
             eyebrow="Services"
@@ -28,12 +28,12 @@ export default function ServicesPage() {
             {serviceCategories.map((cat) => (
               <div key={cat.slug} id={cat.slug} className="scroll-mt-20">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-accent">
                     <Icon name={cat.icon} className="h-5 w-5" />
                   </span>
-                  <h2 className="text-2xl font-bold text-stone-900">{cat.title}</h2>
+                  <h2 className="text-2xl font-bold text-text">{cat.title}</h2>
                 </div>
-                <p className="mb-6 mt-2 max-w-2xl text-stone-600">{cat.description}</p>
+                <p className="mb-6 mt-2 max-w-2xl text-text-muted">{cat.description}</p>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   {services
                     .filter((s) => s.category === cat.slug)
@@ -47,7 +47,7 @@ export default function ServicesPage() {
           <div className="mt-12">
             <Link
               href="/estimate"
-              className="inline-flex items-center gap-1 text-base font-semibold text-amber-700 hover:underline"
+              className="inline-flex items-center gap-1 text-base font-semibold text-accent hover:underline"
             >
               Start a free estimate →
             </Link>

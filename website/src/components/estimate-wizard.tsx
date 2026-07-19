@@ -71,15 +71,15 @@ export function EstimateWizard() {
 
   if (submitted) {
     return (
-      <div className="rounded-2xl border border-stone-200 bg-white p-10 text-center shadow-sm">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-forest/10 text-forest">
+      <div className="rounded-2xl border border-border bg-white p-10 text-center shadow-sm">
+        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent">
           <Check className="h-8 w-8" />
         </div>
-        <h2 className="mt-4 text-2xl font-bold text-stone-900">Your estimate request is ready</h2>
-        <p className="mt-2 text-stone-600">
+        <h2 className="mt-4 text-2xl font-bold text-text">Your estimate request is ready</h2>
+        <p className="mt-2 text-text-muted">
           Your email app should have opened with the details. Just hit send and we&apos;ll be in
           touch within one business day. If it didn&apos;t open, email us at{" "}
-          <a href={`mailto:${company.email}`} className="font-semibold text-amber-700">{company.email}</a>.
+          <a href={`mailto:${company.email}`} className="font-semibold text-accent">{company.email}</a>.
         </p>
         <button
           onClick={() => router.push("/")}
@@ -100,7 +100,7 @@ export function EstimateWizard() {
             key={s}
             className={cn(
               "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold",
-              i === step ? "bg-amber-500 text-stone-900" : i < step ? "bg-forest/10 text-forest" : "bg-stone-100 text-stone-400"
+              i === step ? "bg-primary text-text" : i < step ? "bg-accent/10 text-accent" : "bg-surface-muted text-text-subtle"
             )}
           >
             {i < step && <Check className="h-3 w-3" />}
@@ -109,11 +109,11 @@ export function EstimateWizard() {
         ))}
       </ol>
 
-      <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm sm:p-8">
+      <div className="rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8">
         {/* STEP 1: Service */}
         {STEPS[step] === "Service" && (
           <div>
-            <h2 className="text-xl font-bold text-stone-900">What work do you need?</h2>
+            <h2 className="text-xl font-bold text-text">What work do you need?</h2>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
               {services.map((s) => (
                 <button
@@ -122,11 +122,11 @@ export function EstimateWizard() {
                   onClick={() => handleServiceSelect(s.slug)}
                   className={cn(
                     "rounded-xl border p-4 text-left transition-colors",
-                    serviceSlug === s.slug ? "border-amber-500 bg-amber-50" : "border-stone-200 hover:border-stone-300"
+                    serviceSlug === s.slug ? "border-primary bg-primary/10" : "border-border hover:border-border"
                   )}
                 >
-                  <span className="font-semibold text-stone-900">{s.title}</span>
-                  <span className="block text-sm text-stone-500">{s.summary}</span>
+                  <span className="font-semibold text-text">{s.title}</span>
+                  <span className="block text-sm text-text-subtle">{s.summary}</span>
                 </button>
               ))}
             </div>
@@ -136,12 +136,12 @@ export function EstimateWizard() {
         {/* STEP 2: Photos */}
         {STEPS[step] === "Photos" && (
           <div>
-            <h2 className="text-xl font-bold text-stone-900">Add a few photos (optional)</h2>
-            <p className="mt-1 text-stone-600">
+            <h2 className="text-xl font-bold text-text">Add a few photos (optional)</h2>
+            <p className="mt-1 text-text-muted">
               Photos help us give a better estimate. In this demo your photos stay on your device —
               you&apos;ll attach them when your email opens.
             </p>
-            <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-stone-300 p-8 text-stone-500 hover:border-amber-400">
+            <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-text-subtle hover:border-primary">
               <Upload className="h-8 w-8" />
               <span className="text-sm font-medium">Tap to choose photos</span>
               <input
@@ -159,13 +159,13 @@ export function EstimateWizard() {
               />
             </label>
             {photos.length > 0 && (
-              <ul className="mt-4 space-y-1 text-sm text-stone-600">
+              <ul className="mt-4 space-y-1 text-sm text-text-muted">
                 {photos.map((p, i) => (
-                  <li key={i} className="flex items-center justify-between rounded bg-stone-50 px-3 py-2">
+                  <li key={i} className="flex items-center justify-between rounded bg-surface-muted px-3 py-2">
                     <span>{p.name}</span>
                     <button
                       type="button"
-                      className="text-stone-400 hover:text-red-500"
+                      className="text-text-subtle hover:text-red-500"
                       onClick={() => setPhotos((prev) => prev.filter((_, j) => j !== i))}
                     >
                       Remove
@@ -180,20 +180,20 @@ export function EstimateWizard() {
         {/* STEP 3: Questions (service-driven) */}
         {STEPS[step] === "Questions" && (
           <div>
-            <h2 className="text-xl font-bold text-stone-900">A couple quick questions</h2>
+            <h2 className="text-xl font-bold text-text">A couple quick questions</h2>
             {questions.length === 0 && (
-              <p className="mt-2 text-stone-600">No extra questions for this service — just continue.</p>
+              <p className="mt-2 text-text-muted">No extra questions for this service — just continue.</p>
             )}
             <div className="mt-4 space-y-4">
               {questions.map((q) => (
                 <div key={q.id}>
-                  <label className="block text-sm font-semibold text-stone-800">
+                  <label className="block text-sm font-semibold text-text">
                     {q.label}
                     {q.required && <span className="text-red-500"> *</span>}
                   </label>
                   {q.type === "textarea" && (
                     <textarea
-                      className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+                      className="mt-1 w-full rounded-lg border border-border p-3"
                       rows={3}
                       placeholder={q.placeholder}
                       value={(answers[q.id] as string) ?? ""}
@@ -202,7 +202,7 @@ export function EstimateWizard() {
                   )}
                   {q.type === "text" && (
                     <input
-                      className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+                      className="mt-1 w-full rounded-lg border border-border p-3"
                       placeholder={q.placeholder}
                       value={(answers[q.id] as string) ?? ""}
                       onChange={(e) => setAnswer(q.id, e.target.value)}
@@ -211,7 +211,7 @@ export function EstimateWizard() {
                   {q.type === "number" && (
                     <input
                       type="number"
-                      className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+                      className="mt-1 w-full rounded-lg border border-border p-3"
                       placeholder={q.placeholder}
                       value={(answers[q.id] as number) ?? ""}
                       onChange={(e) => setAnswer(q.id, Number(e.target.value))}
@@ -219,7 +219,7 @@ export function EstimateWizard() {
                   )}
                   {q.type === "select" && (
                     <select
-                      className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+                      className="mt-1 w-full rounded-lg border border-border p-3"
                       value={(answers[q.id] as string) ?? ""}
                       onChange={(e) => setAnswer(q.id, e.target.value)}
                     >
@@ -238,7 +238,7 @@ export function EstimateWizard() {
                           onClick={() => setAnswer(q.id, b)}
                           className={cn(
                             "rounded-lg border px-4 py-2 text-sm",
-                            answers[q.id] === b ? "border-amber-500 bg-amber-50" : "border-stone-300"
+                            answers[q.id] === b ? "border-primary bg-primary/10" : "border-border"
                           )}
                         >
                           {b ? "Yes" : "No"}
@@ -255,12 +255,12 @@ export function EstimateWizard() {
         {/* STEP 4: Property */}
         {STEPS[step] === "Property" && (
           <div>
-            <h2 className="text-xl font-bold text-stone-900">Where is the work?</h2>
+            <h2 className="text-xl font-bold text-text">Where is the work?</h2>
             <div className="mt-4 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-stone-800">Street address</label>
+                <label className="block text-sm font-semibold text-text">Street address</label>
                 <input
-                  className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+                  className="mt-1 w-full rounded-lg border border-border p-3"
                   placeholder="123 Main St (optional)"
                   value={property.address}
                   onChange={(e) => setProperty((p) => ({ ...p, address: e.target.value }))}
@@ -268,17 +268,17 @@ export function EstimateWizard() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-semibold text-stone-800">City *</label>
+                  <label className="block text-sm font-semibold text-text">City *</label>
                   <input
-                    className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+                    className="mt-1 w-full rounded-lg border border-border p-3"
                     value={property.city}
                     onChange={(e) => setProperty((p) => ({ ...p, city: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-stone-800">County *</label>
+                  <label className="block text-sm font-semibold text-text">County *</label>
                   <select
-                    className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+                    className="mt-1 w-full rounded-lg border border-border p-3"
                     value={property.county}
                     onChange={(e) => setProperty((p) => ({ ...p, county: e.target.value }))}
                   >
@@ -290,9 +290,9 @@ export function EstimateWizard() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-stone-800">Anything else about the property?</label>
+                <label className="block text-sm font-semibold text-text">Anything else about the property?</label>
                 <textarea
-                  className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+                  className="mt-1 w-full rounded-lg border border-border p-3"
                   rows={3}
                   placeholder="access, parking, gate code, HOA…"
                   value={property.details}
@@ -306,31 +306,31 @@ export function EstimateWizard() {
         {/* STEP 5: Contact */}
         {STEPS[step] === "Contact" && (
           <div>
-            <h2 className="text-xl font-bold text-stone-900">How do we reach you?</h2>
+            <h2 className="text-xl font-bold text-text">How do we reach you?</h2>
             <div className="mt-4 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-stone-800">Name *</label>
+                <label className="block text-sm font-semibold text-text">Name *</label>
                 <input
-                  className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+                  className="mt-1 w-full rounded-lg border border-border p-3"
                   value={customer.name}
                   onChange={(e) => setCustomer((c) => ({ ...c, name: e.target.value }))}
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-semibold text-stone-800">Email *</label>
+                  <label className="block text-sm font-semibold text-text">Email *</label>
                   <input
                     type="email"
-                    className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+                    className="mt-1 w-full rounded-lg border border-border p-3"
                     value={customer.email}
                     onChange={(e) => setCustomer((c) => ({ ...c, email: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-stone-800">Phone *</label>
+                  <label className="block text-sm font-semibold text-text">Phone *</label>
                   <input
                     type="tel"
-                    className="mt-1 w-full rounded-lg border border-stone-300 p-3"
+                    className="mt-1 w-full rounded-lg border border-border p-3"
                     value={customer.phone}
                     onChange={(e) => setCustomer((c) => ({ ...c, phone: e.target.value }))}
                   />
@@ -343,14 +343,14 @@ export function EstimateWizard() {
         {/* STEP 6: Confirm */}
         {STEPS[step] === "Confirm" && (
           <div>
-            <h2 className="text-xl font-bold text-stone-900">Review &amp; send</h2>
-            <dl className="mt-4 space-y-2 rounded-lg bg-stone-50 p-4 text-sm">
-              <div className="flex justify-between"><dt className="text-stone-500">Service</dt><dd className="font-semibold">{service?.title}</dd></div>
-              <div className="flex justify-between"><dt className="text-stone-500">Photos</dt><dd>{photos.length} attached in email</dd></div>
-              <div className="flex justify-between"><dt className="text-stone-500">Location</dt><dd>{property.city} ({property.county})</dd></div>
-              <div className="flex justify-between"><dt className="text-stone-500">Contact</dt><dd>{customer.name} · {customer.email}</dd></div>
+            <h2 className="text-xl font-bold text-text">Review &amp; send</h2>
+            <dl className="mt-4 space-y-2 rounded-lg bg-surface-muted p-4 text-sm">
+              <div className="flex justify-between"><dt className="text-text-subtle">Service</dt><dd className="font-semibold">{service?.title}</dd></div>
+              <div className="flex justify-between"><dt className="text-text-subtle">Photos</dt><dd>{photos.length} attached in email</dd></div>
+              <div className="flex justify-between"><dt className="text-text-subtle">Location</dt><dd>{property.city} ({property.county})</dd></div>
+              <div className="flex justify-between"><dt className="text-text-subtle">Contact</dt><dd>{customer.name} · {customer.email}</dd></div>
             </dl>
-            <p className="mt-3 text-sm text-stone-500">
+            <p className="mt-3 text-sm text-text-subtle">
               We&apos;ll open your email app with everything filled in. Just press send.
             </p>
           </div>

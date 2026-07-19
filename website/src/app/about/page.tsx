@@ -23,7 +23,7 @@ export default function AboutPage() {
               title="We build your happy place"
               description={company.description}
             />
-            <div className="mt-6 space-y-4 text-stone-600">
+            <div className="mt-6 space-y-4 text-text-muted">
               <p>
                 We started {company.name} with one idea: your home should be a happy place, and
                 good carpentry is how we get you there. From the first conversation to the final
@@ -46,20 +46,20 @@ export default function AboutPage() {
               alt="The Happy Place Carpentry team at work"
               width={1200}
               height={800}
-              className="rounded-2xl border border-stone-200 object-cover"
+              className="rounded-2xl border border-border object-cover"
             />
           </div>
         </Container>
       </Section>
 
-      <Section className="bg-stone-50">
+      <Section className="bg-surface-muted">
         <Container>
           <SectionHeading eyebrow="Where we work" title="Serving the mid-Willamette Valley" />
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {counties.map((c) => (
-              <div key={c.slug} className="rounded-2xl border border-stone-200 bg-white p-5">
-                <h3 className="font-bold text-stone-900">{c.name}</h3>
-                <p className="mt-2 text-sm text-stone-500">{c.cities?.join(", ")}</p>
+              <div key={c.slug} className="rounded-2xl border border-border bg-white p-5">
+                <h3 className="font-bold text-text">{c.name}</h3>
+                <p className="mt-2 text-sm text-text-subtle">{c.cities?.join(", ")}</p>
               </div>
             ))}
           </div>

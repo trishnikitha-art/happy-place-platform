@@ -22,7 +22,7 @@ export default function EstimatePage() {
         <div className="mt-8">
           <EstimateWizard />
         </div>
-        <p className="mt-6 text-center text-sm text-stone-500">
+        <p className="mt-6 text-center text-sm text-text-subtle">
           Prefer to talk? Call {company.phoneDisplay} or email {company.email}.
         </p>
       </Container>

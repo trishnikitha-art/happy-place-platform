@@ -22,16 +22,16 @@ const adminLinks = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="min-h-screen bg-stone-50">
+    <div className="min-h-screen bg-surface-muted">
       <div className="mx-auto flex max-w-6xl flex-col gap-6 px-4 py-8 sm:px-6 lg:flex-row lg:px-8">
         <aside className="lg:w-56">
-          <Link href="/" className="text-sm font-semibold text-amber-700">← Back to site</Link>
+          <Link href="/" className="text-sm font-semibold text-accent">← Back to site</Link>
           <nav className="mt-4 flex flex-wrap gap-2 lg:flex-col" aria-label="Admin">
             {adminLinks.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-stone-600 hover:bg-stone-100"
+                className="rounded-lg px-3 py-2 text-sm font-medium text-text-muted hover:bg-surface-muted"
               >
                 {l.label}
               </Link>
@@ -39,8 +39,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </nav>
         </aside>
         <main className="flex-1">
-          <div className="rounded-2xl border border-dashed border-stone-300 bg-white p-8 text-stone-500">
-            <span className="rounded-full bg-stone-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-stone-500">
+          <div className="rounded-2xl border border-dashed border-border bg-white p-8 text-text-subtle">
+            <span className="rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold uppercase tracking-wide text-text-subtle">
               Planned · Horizon 2
             </span>
             {children}

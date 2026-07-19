@@ -9,7 +9,7 @@ export function StarRating({ rating, className }: { rating: number; className?: 
           key={i}
           className={cn(
             "h-4 w-4",
-            i <= rating ? "fill-amber-400 text-amber-400" : "fill-stone-200 text-stone-200"
+            i <= rating ? "fill-primary text-primary" : "fill-border text-text-subtle"
           )}
           aria-hidden="true"
         />

@@ -21,7 +21,7 @@ export default function ContactPage() {
               title="Let's talk about your project"
               description="The fastest way to a quote is the free estimate wizard — but you're welcome to reach out directly."
             />
-            <dl className="mt-8 space-y-4 text-stone-700">
+            <dl className="mt-8 space-y-4 text-text-muted">
               <div>
                 <dt className="text-sm font-semibold uppercase text-text-subtle">Phone</dt>
                 <dd><PhoneLink phone={company.phone} className="text-lg font-semibold text-accent">{company.phoneDisplay}</PhoneLink></dd>
@@ -31,24 +31,24 @@ export default function ContactPage() {
                 <dd><EmailLink email={company.email} className="text-lg font-semibold text-accent">{company.email}</EmailLink></dd>
               </div>
               <div>
-                <dt className="text-sm font-semibold uppercase text-stone-500">Service area</dt>
+                <dt className="text-sm font-semibold uppercase text-text-subtle">Service area</dt>
                 <dd className="text-lg">{company.serviceArea}</dd>
               </div>
               <div>
-                <dt className="text-sm font-semibold uppercase text-stone-500">Hours</dt>
+                <dt className="text-sm font-semibold uppercase text-text-subtle">Hours</dt>
                 <dd className="text-lg">{company.businessHours}</dd>
               </div>
             </dl>
           </div>
-          <div className="rounded-2xl border border-stone-200 bg-stone-50 p-8">
-            <h2 className="text-xl font-bold text-stone-900">Start a free estimate</h2>
-            <p className="mt-2 text-stone-600">
+          <div className="rounded-2xl border border-border bg-surface-muted p-8">
+            <h2 className="text-xl font-bold text-text">Start a free estimate</h2>
+            <p className="mt-2 text-text-muted">
               Pick your service, upload a few photos, answer a couple of quick questions, and we&apos;ll
               be in touch. It takes about two minutes.
             </p>
             <a
               href="/estimate"
-              className="mt-6 inline-flex h-12 items-center justify-center rounded-full bg-amber-500 px-8 font-semibold text-stone-900 transition-colors hover:bg-amber-400"
+              className="mt-6 inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 font-semibold text-text transition-colors hover:bg-primary-hover"
             >
               Get a Free Estimate
             </a>

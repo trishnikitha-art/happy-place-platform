@@ -14,7 +14,7 @@ export default function GalleryPage() {
   const items = mockGalleryService.all();
   return (
     <>
-      <Section className="bg-stone-50">
+      <Section className="bg-surface-muted">
         <Container>
           <SectionHeading
             eyebrow="Our Work"

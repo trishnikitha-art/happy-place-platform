@@ -12,10 +12,10 @@ export function CTASection({
   subtitle?: string;
 }) {
   return (
-    <Section className="bg-amber-50">
+    <Section className="bg-primary/10">
       <Container className="flex flex-col items-center text-center">
-        <h2 className="text-3xl font-bold text-stone-900 sm:text-4xl">{title}</h2>
-        <p className="mt-4 max-w-2xl text-lg text-stone-600">{subtitle}</p>
+        <h2 className="text-3xl font-bold text-text sm:text-4xl">{title}</h2>
+        <p className="mt-4 max-w-2xl text-lg text-text-muted">{subtitle}</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link href="/estimate" className={cn(buttonVariants({ variant: "primary", size: "lg" }))}>
             Get a Free Estimate

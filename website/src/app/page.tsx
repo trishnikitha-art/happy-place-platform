@@ -23,7 +23,7 @@ export default function HomePage() {
   return (
     <>
       {/* HERO */}
-      <section className="relative overflow-hidden bg-stone-900 text-white">
+      <section className="relative overflow-hidden bg-secondary text-white">
         <Image
           src="/images/hero.svg"
           alt=""
@@ -33,13 +33,13 @@ export default function HomePage() {
           className="absolute inset-0 h-full w-full object-cover opacity-30"
         />
         <Container className="relative flex min-h-[70vh] flex-col justify-center py-20">
-          <p className="text-sm font-semibold uppercase tracking-wide text-amber-400">
+          <p className="text-sm font-semibold uppercase tracking-wide text-primary">
             Licensed Oregon Contractor · {company.ccbNumber}
           </p>
           <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-tight sm:text-6xl">
             {company.tagline}
           </h1>
-          <p className="mt-5 max-w-xl text-lg text-stone-200">
+          <p className="mt-5 max-w-xl text-lg text-text-subtle">
             Decks, fences, pergolas, kitchens, baths, and custom carpentry across the
             mid-Willamette Valley — built with care, on time, and on budget.
           </p>
@@ -54,7 +54,7 @@ export default function HomePage() {
               Explore Services
             </Link>
           </div>
-          <div className="mt-10 flex items-center gap-3 text-sm text-stone-200">
+          <div className="mt-10 flex items-center gap-3 text-sm text-text-subtle">
             <StarRating rating={5} />
             <span>
               {averageRating()} / 5 from {reviews.length}+ local reviews
@@ -74,8 +74,8 @@ export default function HomePage() {
           <div className="mt-10 space-y-12">
             {serviceCategories.map((cat) => (
               <div key={cat.slug} id={cat.slug}>
-                <h3 className="text-xl font-bold text-stone-900">{cat.title}</h3>
-                <p className="mb-5 mt-1 text-stone-600">{cat.description}</p>
+                <h3 className="text-xl font-bold text-text">{cat.title}</h3>
+                <p className="mb-5 mt-1 text-text-muted">{cat.description}</p>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   {services
                     .filter((s) => s.category === cat.slug)
@@ -90,7 +90,7 @@ export default function HomePage() {
       </Section>
 
       {/* GALLERY */}
-      <Section className="bg-stone-50">
+      <Section className="bg-surface-muted">
         <Container>
           <SectionHeading
             eyebrow="Our work"
@@ -101,7 +101,7 @@ export default function HomePage() {
             <GalleryLightbox items={featured} />
           </div>
           <div className="mt-8">
-            <Link href="/gallery" className="inline-flex items-center gap-1 font-semibold text-amber-700 hover:underline">
+            <Link href="/gallery" className="inline-flex items-center gap-1 font-semibold text-accent hover:underline">
               View the full gallery →
             </Link>
           </div>
@@ -122,18 +122,18 @@ export default function HomePage() {
           />
           <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
             {topReviews.map((r) => (
-              <figure key={r.id} className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
+              <figure key={r.id} className="rounded-2xl border border-border bg-white p-6 shadow-sm">
                 <StarRating rating={r.rating} />
-                <h3 className="mt-3 font-bold text-stone-900">{r.title}</h3>
-                <blockquote className="mt-2 text-stone-600">“{r.body}”</blockquote>
-                <figcaption className="mt-4 text-sm text-stone-500">
+                <h3 className="mt-3 font-bold text-text">{r.title}</h3>
+                <blockquote className="mt-2 text-text-muted">“{r.body}”</blockquote>
+                <figcaption className="mt-4 text-sm text-text-subtle">
                   {r.author} · {r.location}
                 </figcaption>
               </figure>
             ))}
           </div>
           <div className="mt-8 text-center">
-            <Link href="/reviews" className="inline-flex items-center gap-1 font-semibold text-amber-700 hover:underline">
+            <Link href="/reviews" className="inline-flex items-center gap-1 font-semibold text-accent hover:underline">
               Read all reviews →
             </Link>
           </div>

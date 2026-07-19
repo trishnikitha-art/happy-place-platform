@@ -22,14 +22,14 @@ export default function FaqPage() {
       <Section>
         <Container>
           <SectionHeading eyebrow="FAQ" title="Questions, answered" />
-          <div className="mt-8 divide-y divide-stone-200 border-y border-stone-200">
+          <div className="mt-8 divide-y divide-border border-y border-border">
             {items.map((it) => (
               <details key={it.q} className="group py-5">
-                <summary className="flex cursor-pointer list-none items-center justify-between font-semibold text-stone-900">
+                <summary className="flex cursor-pointer list-none items-center justify-between font-semibold text-text">
                   {it.q}
-                  <span className="text-amber-600 transition-transform group-open:rotate-45">+</span>
+                  <span className="text-accent transition-transform group-open:rotate-45">+</span>
                 </summary>
-                <p className="mt-3 text-stone-600">{it.a}</p>
+                <p className="mt-3 text-text-muted">{it.a}</p>
               </details>
             ))}
           </div>
