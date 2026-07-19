@@ -12,6 +12,19 @@ import { getService } from "@/config/services";
 export interface EstimateService {
   /** Build a shareable submission (mailto link today; API payload later). */
   prepare(request: EstimateRequest): { kind: "mailto"; href: string } | { kind: "api"; body: unknown };
+  /**
+   * Submit the request. UI calls this and awaits a uniform result — identical
+   * to the future API workflow. Today it opens the user's mail client. When a
+   * backend exists, swap this implementation to POST; the wizard does not change.
+   */
+  submit(request: EstimateRequest): Promise<EstimateSubmitResult>;
+}
+
+export interface EstimateSubmitResult {
+  ok: boolean;
+  /** transport actually used, for analytics/telemetry */
+  transport: "mailto" | "api";
+  message?: string;
 }
 
 function answersToText(req: EstimateRequest): string {
@@ -61,6 +74,18 @@ export const mockEstimateService: EstimateService = {
 
     const href = `mailto:${company.email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
     return { kind: "mailto", href };
+  },
+
+  async submit(req) {
+    const prepared = this.prepare(req);
+    if (prepared.kind === "mailto") {
+      if (typeof window !== "undefined") {
+        window.location.href = prepared.href;
+      }
+      return { ok: true, transport: "mailto", message: "Opened email client with your request." };
+    }
+    // Future API path — not used in the MVP. Swap this implementation to POST.
+    return { ok: true, transport: "api" };
   },
 };
 

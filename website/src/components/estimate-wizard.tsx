@@ -8,6 +8,7 @@ import { services } from "@/config/services";
 import { counties } from "@/config/counties";
 import { company } from "@/config/company";
 import { estimateService } from "@/services/estimate";
+import { analytics } from "@/services/analytics";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -56,19 +57,16 @@ export function EstimateWizard() {
     };
   }
 
-  function handleSubmit() {
+  function handleServiceSelect(slug: string) {
+    setServiceSlug(slug);
+    analytics.trackEstimateStarted(slug);
+  }
+
+  async function handleSubmit() {
     const req = buildRequest();
-    const result = estimateService.prepare(req);
-    if (result.kind === "mailto") {
-      // Open the user's mail client pre-filled. Photos are attached by the user
-      // in their mail app (MVP: bytes never leave the browser).
-      window.location.href = result.href;
-      setSubmitted(true);
-    } else {
-      // Future API path — not used in MVP.
-      void result;
-      setSubmitted(true);
-    }
+    const result = await estimateService.submit(req);
+    analytics.trackEstimateSubmitted(req.service, result.transport);
+    setSubmitted(true);
   }
 
   if (submitted) {
@@ -121,7 +119,7 @@ export function EstimateWizard() {
                 <button
                   key={s.slug}
                   type="button"
-                  onClick={() => setServiceSlug(s.slug)}
+                  onClick={() => handleServiceSelect(s.slug)}
                   className={cn(
                     "rounded-xl border p-4 text-left transition-colors",
                     serviceSlug === s.slug ? "border-amber-500 bg-amber-50" : "border-stone-200 hover:border-stone-300"

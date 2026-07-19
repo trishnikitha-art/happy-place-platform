@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { CTASection } from "@/components/cta-section";
+import { PhoneLink, EmailLink } from "@/components/tracked-contact";
 import { company } from "@/config/company";
 
 export const metadata: Metadata = {
@@ -22,12 +23,12 @@ export default function ContactPage() {
             />
             <dl className="mt-8 space-y-4 text-stone-700">
               <div>
-                <dt className="text-sm font-semibold uppercase text-stone-500">Phone</dt>
-                <dd><a href={`tel:${company.phone}`} className="text-lg font-semibold text-amber-700">{company.phoneDisplay}</a></dd>
+                <dt className="text-sm font-semibold uppercase text-text-subtle">Phone</dt>
+                <dd><PhoneLink phone={company.phone} className="text-lg font-semibold text-accent">{company.phoneDisplay}</PhoneLink></dd>
               </div>
               <div>
-                <dt className="text-sm font-semibold uppercase text-stone-500">Email</dt>
-                <dd><a href={`mailto:${company.email}`} className="text-lg font-semibold text-amber-700">{company.email}</a></dd>
+                <dt className="text-sm font-semibold uppercase text-text-subtle">Email</dt>
+                <dd><EmailLink email={company.email} className="text-lg font-semibold text-accent">{company.email}</EmailLink></dd>
               </div>
               <div>
                 <dt className="text-sm font-semibold uppercase text-stone-500">Service area</dt>

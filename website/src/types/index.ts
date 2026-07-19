@@ -146,3 +146,33 @@ export interface SeoMeta {
   keywords?: string[];
   ogImage?: string;
 }
+
+/** ---- Structured image asset (image pipeline is a first-class feature) ---- */
+export interface ImageAsset {
+  /** path to the display image (optimized variant or original) */
+  src: string;
+  alt: string;
+  width: number;
+  height: number;
+  /** tiny base64 blur placeholder (data URL) for next/image placeholder="blur" */
+  blurDataURL?: string;
+  caption?: string;
+}
+
+/** ---- Project (Project Spotlight: tells a completed-project story) ---- */
+export interface Project {
+  slug: string;
+  title: string;
+  service: string; // Service.slug
+  county?: string;
+  summary: string;
+  challenge: string;
+  solution: string;
+  materials: string[];
+  outcome: string;
+  /** ordered photos; first is the hero */
+  photos: ImageAsset[];
+  featured?: boolean;
+  completedAt?: string; // ISO
+}
+

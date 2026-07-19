@@ -3,6 +3,7 @@ import { MapPin, Phone, Mail, Hammer } from "lucide-react";
 import { company } from "@/config/company";
 import { navigation } from "@/config/navigation";
 import { serviceCategories } from "@/config/serviceCategories";
+import { PhoneLink, EmailLink } from "@/components/tracked-contact";
 
 export function SiteFooter() {
   return (
@@ -47,14 +48,14 @@ export function SiteFooter() {
               {company.address.city}, {company.address.region}
             </li>
             <li>
-              <a href={`tel:${company.phone}`} className="flex items-center gap-2 hover:text-amber-400">
-                <Phone className="h-4 w-4 text-amber-400" aria-hidden="true" /> {company.phoneDisplay}
-              </a>
+              <PhoneLink phone={company.phone} className="flex items-center gap-2 hover:text-primary">
+                <Phone className="h-4 w-4 text-primary" aria-hidden="true" /> {company.phoneDisplay}
+              </PhoneLink>
             </li>
             <li>
-              <a href={`mailto:${company.email}`} className="flex items-center gap-2 hover:text-amber-400">
-                <Mail className="h-4 w-4 text-amber-400" aria-hidden="true" /> {company.email}
-              </a>
+              <EmailLink email={company.email} className="flex items-center gap-2 hover:text-primary">
+                <Mail className="h-4 w-4 text-primary" aria-hidden="true" /> {company.email}
+              </EmailLink>
             </li>
             <li className="text-stone-400">{company.businessHours}</li>
           </ul>
