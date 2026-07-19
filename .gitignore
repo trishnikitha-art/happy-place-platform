@@ -1,0 +1,27 @@
+# Frontend (Next.js app)
+website/node_modules/
+website/.next/
+website/out/
+website/build/
+website/.vercel
+website/*.tsbuildinfo
+website/next-env.d.ts
+
+# Env
+.env*.local
+.env
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Logs
+*.log
+npm-debug.log*
+
+# Python (archived prototype)
+archive/**/__pycache__/
+archive/**/*.pyc
+archive/**/.venv/

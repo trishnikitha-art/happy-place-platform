@@ -1,36 +1,29 @@
-# Roadmap — Happy Place Platform v1
+# Roadmap — Happy Place Platform
 
-## Phase 0 — Foundation (this task)
-- [x] Clean repository structure (generic, reusable)
-- [x] Archive previous backend prototype
-- [x] Next.js 15 + React 19 + TypeScript + Tailwind scaffold
-- [x] shadcn/ui, Framer Motion, Lucide
-- [x] Centralized configuration (`company`, `services`, `counties`, `contact`, `reviews`, `seo`, `social`, `navigation`)
-- [x] Mock service layer (`services/` + `mock/`)
-- [ ] Premium components: hero, services, gallery, before/after, about, counties, reviews, faq, footer, contact
-- [ ] Image pipeline: download client-owned photos, generate WebP/AVIF/responsive + blur placeholders, metadata objects
-- [ ] Contact form (MVP) → routes to business email (feature-flagged photo upload)
-- [ ] SEO: Metadata API, JSON-LD LocalBusiness, sitemap, robots, OG/Twitter, canonicals
-- [ ] Accessibility: WCAG AA, keyboard nav, reduced motion, semantic HTML
-- [ ] Performance: Lighthouse 100/100/100/100 target
-- [ ] Vercel deploy green (preview per PR)
+Aligned to **CEO Directive 021 (Execution Lock)**: build the MVP, design (don't
+implement) Horizon 2, defer Horizon 3.
 
-## Phase 1 — Backend integration (future, no frontend rewrite)
-- Replace `mock/` with `api/` implementations behind the same `services/` interfaces.
-- Reuse durable-outbox / retry / provider-interface infrastructure from `archive/`.
-- Lead capture → backend (outbox → email/calendar/drive) instead of direct email.
+## Horizon 1 — MVP (BUILD NOW) ✅
+- [x] Public website (Next.js App Router, TS, Tailwind, Vercel)
+- [x] Content: company, services, gallery, about, contact, estimate, reviews, faq, privacy, 404
+- [x] Estimate wizard end-to-end via email (mock service, swap-ready)
+- [x] Configuration-first content (src/config/*)
+- [x] Stable domain objects (src/types)
+- [x] SEO: metadata, JSON-LD, sitemap, robots, OG/Twitter
+- [x] Accessibility + responsiveness
+- [x] Vercel deploy config + CI
 
-## Phase 2 — Operations
-- Admin application mounted at reserved routes (`/admin`, `/dashboard`, `/leads`, ...).
-- Event log, queue + dead-letter visibility, replay.
+## Horizon 2 — Platform Foundation (DESIGN ONLY, routes reserved)
+- [x] /admin, /dashboard, /customers, /projects, /estimates, /photos, /settings, /logs, /integrations
+- [ ] Implement when the platform phase is authorized (deferred — not MVP)
+- [ ] These map to domain objects already defined in src/types
 
-## Phase 3 — Multi-tenant
-- Onboard contractor #2 by swapping `config/` only.
-- Per-tenant theming, services, counties, integrations.
+## Horizon 3 — Business Operating System (DEFERRED, out of scope)
+- AI estimate generation
+- Scheduling optimization
+- Google Drive / Calendar automation
+- Workflow engine / durable outbox
+- CRM / accounting / inventory
+- Customer & employee portals / mobile / analytics / marketing automation
 
-## Lessons carried from the archived prototype
-- Persist-then-publish: never call external APIs inline in a request.
-- Durable outbox + retry/backoff + dead-letter for any side effect.
-- Provider interfaces so Google can be swapped for M365/CalDAV.
-- Append-only event log for debugging timelines.
-- Logs in the database, not Google Sheets.
+These belong to the platform roadmap, not the MVP.
