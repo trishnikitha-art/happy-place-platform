@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Operations — Happy Place Platform</title>
+<style>
+  :root { --bg:#0f1720; --card:#16212e; --ink:#e8eef5; --muted:#8aa0b6; --ok:#3ecf8e; --warn:#f5b14c; --bad:#ff6b6b; --line:#22303f; --accent:#5b8def; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif; background:var(--bg); color:var(--ink); }
+  header { padding:18px 24px; border-bottom:1px solid var(--line); display:flex; align-items:center; justify-content:space-between; }
+  header h1 { font-size:18px; margin:0; }
+  .wrap { padding:24px; max-width:1200px; margin:0 auto; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:16px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:12px; padding:16px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin:28px 0 12px; }
+  .pill { display:inline-flex; align-items:center; gap:6px; font-size:12px; padding:3px 9px; border-radius:999px; background:#0c141d; }
+  .dot { width:8px; height:8px; border-radius:50%; }
+  .ok { color:var(--ok); } .ok .dot{background:var(--ok);} .warn{color:var(--warn);} .warn .dot{background:var(--warn);} .bad{color:var(--bad);} .bad .dot{background:var(--bad);}
+  .big { font-size:30px; font-weight:600; }
+  .sub { color:var(--muted); font-size:12px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th,td { text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); }
+  th { color:var(--muted); font-weight:500; }
+  button { background:var(--accent); color:white; border:0; border-radius:8px; padding:6px 12px; cursor:pointer; font-size:12px; }
+  button.ghost { background:#0c141d; color:var(--ink); border:1px solid var(--line); }
+  input { background:#0c141d; color:var(--ink); border:1px solid var(--line); border-radius:8px; padding:5px 8px; width:240px; }
+  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  code { background:#0c141d; padding:1px 5px; border-radius:5px; font-size:12px; }
+  .timeline li { margin:6px 0; }
+  .err { color:var(--bad); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🔧 Operations — Service Business Platform</h1>
+  <span class="sub" id="env"></span>
+</header>
+<div class="wrap">
+
+  <h2>Integration Health</h2>
+  <div class="grid" id="health"></div>
+
+  <h2>Queue</h2>
+  <div class="grid" id="queue-summary"></div>
+  <div class="card" style="margin-top:12px; overflow:auto;">
+    <table id="queue-table">
+      <thead><tr><th>ID</th><th>Type</th><th>Subject</th><th>Status</th><th>Attempts</th><th>Next</th><th>Error</th><th></th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+
+  <h2>Dead-Letter Queue</h2>
+  <div class="card" id="dlq"><p class="sub">Nothing stuck. 🎉</p></div>
+
+  <h2>Business Event Timeline</h2>
+  <div class="card"><ul class="timeline" id="events"></ul></div>
+
+  <h2>Recent Errors &amp; Workflow Logs</h2>
+  <div class="card" style="overflow:auto;"><table id="logs"><thead><tr><th>When</th><th>Type</th><th>Level</th><th>Message</th></tr></thead><tbody></tbody></table></div>
+
+  <h2>Metrics</h2>
+  <div class="grid" id="metrics"></div>
+
+  <h2>Configuration</h2>
+  <div class="card" style="overflow:auto;"><table id="config"><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody></tbody></table></div>
+
+  <h2>Replay (idempotent re-run)</h2>
+  <div class="card row">
+    <input id="replay-id" placeholder="Lead or Project ID" />
+    <select id="replay-type"><option value="lead">Lead</option><option value="project">Project</option></select>
+    <button onclick="replay()">Replay automation</button>
+    <span class="sub" id="replay-out"></span>
+  </div>
+
+</div>
+
+<script>
+const A = "/ops/api";
+async function get(p){ const r = await fetch(A+p); return r.json(); }
+async function post(p){ const r = await fetch(A+p, {method:"POST"}); return r.json(); }
+
+function pill(ok, label){ const c = ok?"ok":"bad"; return `<span class="pill ${c}"><span class="dot"></span>${label}</span>`; }
+
+async function loadHealth(){
+  const h = await get("/health");
+  document.getElementById("env").textContent = `${h.environment} • mock=${h.google_mock} • mail=${h.mail_mode}`;
+  const el = document.getElementById("health");
+  el.innerHTML = h.checks.map(c=>{
+    return `<div class="card"><div>${c.name}</div><div style="margin-top:8px">${pill(c.ok, c.ok?"Healthy":"Issue")}</div><div class="sub" style="margin-top:4px">${c.detail}</div></div>`;
+  }).join("");
+}
+
+async function loadQueue(){
+  const q = await get("/queue?limit=40");
+  const s = q.summary;
+  document.getElementById("queue-summary").innerHTML = [
+    ["Pending", s.pending, "warn"], ["Running", s.running, "warn"],
+    ["Completed", s.completed, "ok"], ["Dead", s.dead, "bad"], ["Canceled", s.canceled, "muted"]
+  ].map(([n,v,c])=>`<div class="card"><div class="big">${v}</div><div class="${c==='muted'?'sub':c}">${n}</div></div>`).join("");
+  const tb = document.querySelector("#queue-table tbody");
+  tb.innerHTML = q.jobs.map(j=>{
+    const canRetry = (j.status==="dead"||j.status==="pending");
+    return `<tr><td>${j.id}</td><td>${j.job_type}</td><td>${j.subject||""}</td><td>${j.status}</td><td>${j.attempts}/${j.max_attempts}</td><td>${j.next_attempt_at||""}</td><td class="err">${(j.last_error||"").slice(0,60)}</td><td>${canRetry?`<button onclick="retry(${j.id})">Retry</button>`:""} ${j.status!=="canceled"?`<button class="ghost" onclick="cancel(${j.id})">Cancel</button>`:""}</td></tr>`;
+  }).join("");
+
+  const dead = q.jobs.filter(j=>j.status==="dead");
+  const dlq = document.getElementById("dlq");
+  if(dead.length===0){ dlq.innerHTML = `<p class="sub">Nothing stuck. 🎉</p>`; }
+  else {
+    dlq.innerHTML = `<table><thead><tr><th>ID</th><th>Type</th><th>Error</th><th></th></tr></thead><tbody>` +
+      dead.map(j=>`<tr><td>${j.id}</td><td>${j.job_type}</td><td class="err">${(j.last_error||"").slice(0,80)}</td><td><button onclick="retry(${j.id})">Retry</button></td></tr>`).join("") + `</tbody></table>`;
+  }
+}
+
+async function loadEvents(){
+  const ev = await get("/events?limit=30");
+  document.getElementById("events").innerHTML = ev.map(e=>`<li><code>${e.event_type}</code> — ${e.aggregate_type} #${e.aggregate_id||""} <span class="sub">(${e.status}, ${e.created_at||""})</span></li>`).join("");
+}
+
+async function loadLogs(){
+  const lg = await get("/logs?level=ERROR&limit=25");
+  const tb = document.querySelector("#logs tbody");
+  tb.innerHTML = lg.map(l=>`<tr><td>${l.created_at||""}</td><td>${l.log_type}</td><td class="${l.level==='ERROR'?'err':'sub'}">${l.level}</td><td>${l.message}</td></tr>`).join("");
+}
+
+async function loadMetrics(){
+  const m = await get("/metrics");
+  document.getElementById("metrics").innerHTML = [
+    ["New Leads Today", m.new_leads_today], ["Emails Sent", m.emails_sent],
+    ["Jobs Completed", m.jobs_completed], ["Jobs Pending", m.jobs_pending], ["Jobs Dead", m.jobs_dead]
+  ].map(([n,v])=>`<div class="card"><div class="big">${v}</div><div class="sub">${n}</div></div>`).join("");
+}
+
+async function loadConfig(){
+  const c = await get("/config");
+  const tb = document.querySelector("#config tbody");
+  tb.innerHTML = c.map(r=>`<tr><td>${r.key}</td><td><input data-key="${r.key}" value="${(r.value||"").replace(/"/g,'&quot;')}" ${r.editable?"":"disabled"}></td></tr>`).join("");
+  tb.querySelectorAll("input").forEach(inp=>{
+    inp.addEventListener("change", async ()=>{
+      await fetch(A+"/config/"+encodeURIComponent(inp.dataset.key), {method:"PUT", headers:{"Content-Type":"application/json"}, body: JSON.stringify({value: inp.value})});
+    });
+  });
+}
+
+async function retry(id){ await post(`/queue/${id}/retry`); loadQueue(); }
+async function cancel(id){ await post(`/queue/${id}/cancel`); loadQueue(); }
+async function replay(){
+  const id = document.getElementById("replay-id").value;
+  const type = document.getElementById("replay-type").value;
+  const r = await post(`/replay/${type}/${id}`);
+  document.getElementById("replay-out").textContent = r.ok ? "Replayed ✅ (idempotent)" : "Failed: "+(r.error||"");
+  loadQueue();
+}
+
+async function loadAll(){ await Promise.all([loadHealth(),loadQueue(),loadEvents(),loadLogs(),loadMetrics(),loadConfig()]); }
+loadAll();
+setInterval(loadAll, 8000);
+</script>
+</body>
+</html>
