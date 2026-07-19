@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Container, Section, SectionHeading } from "@/components/section";
-import { GalleryGrid } from "@/components/gallery-grid";
+import { GalleryLightbox } from "@/components/gallery-lightbox";
 import { CTASection } from "@/components/cta-section";
 import { mockGalleryService } from "@/services/gallery";
 
@@ -22,7 +22,7 @@ export default function GalleryPage() {
             description="Real projects from Benton, Linn, Marion, and Polk Counties. Tap a service below to filter."
           />
           <div className="mt-10">
-            <GalleryGrid items={items} />
+            <GalleryLightbox items={items} />
           </div>
         </Container>
       </Section>

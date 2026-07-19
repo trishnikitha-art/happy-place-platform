@@ -39,3 +39,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# image pipeline — ignore client source originals, keep the folder README
+/scripts/source-images/*
+!/scripts/source-images/README.md
+

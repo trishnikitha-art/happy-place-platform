@@ -76,6 +76,8 @@ export interface GalleryItem {
   tags: string[];
   width: number;
   height: number;
+  /** optional base64 blur placeholder for next/image placeholder="blur" */
+  blurDataURL?: string;
 }
 
 export interface Review {

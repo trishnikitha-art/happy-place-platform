@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { ServiceCard } from "@/components/service-card";
-import { GalleryGrid } from "@/components/gallery-grid";
+import { GalleryLightbox } from "@/components/gallery-lightbox";
 import { CTASection } from "@/components/cta-section";
 import { ProjectSpotlight } from "@/components/project-spotlight";
 import { StarRating } from "@/components/star-rating";
@@ -98,7 +98,7 @@ export default function HomePage() {
             description="A look at recent projects across Benton, Linn, Marion, and Polk Counties."
           />
           <div className="mt-10">
-            <GalleryGrid items={featured} />
+            <GalleryLightbox items={featured} />
           </div>
           <div className="mt-8">
             <Link href="/gallery" className="inline-flex items-center gap-1 font-semibold text-amber-700 hover:underline">
