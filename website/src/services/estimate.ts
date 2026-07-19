@@ -1,6 +1,7 @@
 import type { EstimateRequest } from "@/types";
 import { company } from "@/config/company";
 import { getService } from "@/config/services";
+import { features } from "@/config/featureFlags";
 
 /**
  * Estimate submission service — INTERFACE.
@@ -44,7 +45,10 @@ function photoText(req: EstimateRequest): string {
 
 /** Default mock implementation: composes a mailto: link to the business inbox. */
 export const mockEstimateService: EstimateService = {
-  prepare(req) {
+  prepare(req, forceMailto = false): { kind: "mailto"; href: string } | { kind: "api"; body: unknown } {
+    if (features.estimateApi && !forceMailto) {
+      return { kind: "api", body: req };
+    }
     const svc = getService(req.service);
     const subject = `Estimate request: ${svc?.title ?? req.service}`;
     const body = [
@@ -78,14 +82,26 @@ export const mockEstimateService: EstimateService = {
 
   async submit(req) {
     const prepared = this.prepare(req);
-    if (prepared.kind === "mailto") {
-      if (typeof window !== "undefined") {
-        window.location.href = prepared.href;
+    if (prepared.kind === "api") {
+      // Server-side Google Workspace flow (Horizon 2, gated by featureFlags).
+      try {
+        const res = await fetch("/api/estimate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(req),
+        });
+        if (!res.ok) throw new Error(`api ${res.status}`);
+        return { ok: true, transport: "api", message: "Request sent. We'll be in touch soon." };
+      } catch {
+        // Fallback to mailto so the customer is never blocked.
+        if (typeof window !== "undefined") window.location.href = this.prepare(req, true).href;
+        return { ok: true, transport: "mailto", message: "Request sent via email." };
       }
-      return { ok: true, transport: "mailto", message: "Opened email client with your request." };
     }
-    // Future API path — not used in the MVP. Swap this implementation to POST.
-    return { ok: true, transport: "api" };
+    if (typeof window !== "undefined") {
+      window.location.href = prepared.href;
+    }
+    return { ok: true, transport: "mailto", message: "Opened email client with your request." };
   },
 };
 
