@@ -36,10 +36,13 @@ function t(
 }
 
 export const Transformation: Transformation[] = [
-  t("bathroom-wall", "Bathroom Remodel", "Tile, fixtures, and finish — built to feel calm.", "FeaturedTransformation", { county: "Willamette Valley", service: "Bathroom" }),
-  t("fence-stain", "Cedar Fence, Re-Stained", "Matching stain, straight lines, clean posts.", "FenceCover", { county: "Willamette Valley", service: "Fences" }),
+  // Aspirational first — the homepage leads with what life looks like.
+  t("fence-build", "Cedar Fence, Built", "Straight lines, matched stain, posts that stay put.", "FenceCover", { county: "Willamette Valley", service: "Fences" }),
+  t("fence-stain", "Cedar Fence, Re-Stained", "Matching stain, clean lines, refreshed curb appeal.", "FenceCover", { county: "Willamette Valley", service: "Fences" }),
+  t("bathroom-wall", "Bathroom Remodel", "Tile, fixtures, and finish — built to feel calm.", "BathroomCover", { county: "Willamette Valley", service: "Bathroom" }),
+  t("vanity", "Vanity Reface", "Custom carpentry that fits the room.", "KitchenCover", { county: "Willamette Valley", service: "Built-Ins" }),
+  // Trust-builders lower — repairs earn their place, they do not lead.
   t("trim-repair", "Rotten Trim, Repaired", "Corner board rebuilt and sealed against the foundation.", "GalleryHighlight", { county: "Willamette Valley", service: "Repairs" }),
   t("gutter-clean", "Gutters, Restored", "From moss-covered to clean and maintained.", "GallerySupporting", { county: "Willamette Valley", service: "Repairs" }),
   t("flooring", "Flooring, Refreshed", "From worn carpet to clean finished floor.", "ServicesFeature", { county: "Willamette Valley", service: "Repairs" }),
-  t("vanity", "Vanity Reface", "Custom carpentry that fits the room.", "KitchenCover", { county: "Willamette Valley", service: "Built-Ins" }),
 ];

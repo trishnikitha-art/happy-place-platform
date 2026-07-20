@@ -145,27 +145,38 @@ export function servicePhoto(slug: string): MediaImage | null {
     .filter((r): r is GalleryRecord => !!r && !!r.src);
   if (hits.length) return toMedia(hits[0]);
   // never blank: borrow the strongest homepage highlight
-  const hl = homepageHighlights();
+  const hl = homepageSelection();
   return hl.length ? hl[0] : null;
 }
 
-/** Homepage selection — emotional highlights, DISTINCT from the gallery.
- *  Picks the single strongest image per emotional beat (no duplicates). */
-export function homepageHighlights(): MediaImage[] {
-  const roles: Role[] = ["FeaturedTransformation", "FenceCover", "BathroomCover", "HomepageFeature"];
-  const seen = new Set<string>();
-  const out: MediaImage[] = [];
-  for (const role of roles) {
-    const hit = PHOTO_ROLES.filter((m) => m.roles.includes(role) && m.quality.gallery)
-      .sort((a, b) => b.priority - a.priority)
-      .map((m) => BY_ID.get(m.id))
-      .find((r): r is GalleryRecord => !!r && !!r.src && !seen.has(r.id));
-    if (hit) {
-      seen.add(hit.id);
-      out.push(toMedia(hit));
-    }
-  }
-  return out;
+/**
+ * HOMEPAGE = hand-curated, emotional (Directive 034). The creative director picks
+ * — 6 max, story-led, distinct. The archive (galleryAll) is the automatic,
+ * exhaustive product. Two different goals, two different selectors.
+ */
+const HOMEPAGE_CURATION: string[] = [
+  "fences/fence-build",                  // opening emotional image: warm cedar
+  "outdoor-living/img-0737",            // outdoor living = emotional glue
+  "bathroom-remodeling/bathroom-wall",  // bathroom transformation (grouped, not scattered)
+  "fences/fencerebuildmatchingstain",   // fence staining transformation
+  "outdoor-living/img-0841",            // project cover (garage sequence)
+  "built-ins/finishedcarpentry",        // craftsmanship detail
+];
+
+/** The single most important image after the hero: warm + aspirational cedar fence. */
+export function featuredTransformation(): MediaImage | null {
+  return byId("fences/fence-build");
+}
+
+/** Curated homepage set (magazine cover). Repairs excluded here — trust-builders,
+ *  surfaced lower / in the archive, not as aspiration. */
+export function homepageSelection(): MediaImage[] {
+  return HOMEPAGE_CURATION.map(byId).filter((m) => !!m) as MediaImage[];
+}
+
+function byId(id: string): MediaImage | null {
+  const r = BY_ID.get(id);
+  return r && r.src ? toMedia(r) : null;
 }
 
 /** Gallery selection — the FULL museum. Every cataloged photo, grouped by project,
