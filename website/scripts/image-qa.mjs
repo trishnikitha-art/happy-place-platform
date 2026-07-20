@@ -91,5 +91,27 @@ if (existsSync(manifestPath)) {
 const svgCount = publicImages.filter((f) => /\.svg$/i.test(f)).length;
 if (svgCount > 0) console.log(`  ⚠ ${svgCount} SVG placeholder(s) still in use — replace with real photography before launch`);
 
+// 6) Release gate (Directive 031): once gallery.json has real photos, customer
+//    pages must not hardcode /images/*.svg. Scan component/src for raw svg srcs.
+const galleryJson = join(root, "src", "config", "gallery.json");
+let hasReal = false;
+try { hasReal = (JSON.parse(readFileSync(galleryJson, "utf8")).images?.length ?? 0) > 0; } catch {}
+if (hasReal) {
+  const appDir = join(root, "src", "app");
+  const compDir = join(root, "src", "components");
+  let hardSvg = 0;
+  for (const dir of [appDir, compDir]) {
+    if (!existsSync(dir)) continue;
+    for (const e of walk(dir)) {
+      if (!/\.(ts|tsx)$/.test(e)) continue;
+      const s = readFileSync(e, "utf8");
+      if (/src=["'`]\/images\/[^"'`]+\.svg["'`]/.test(s)) { fail(`hardcoded placeholder SVG in ${relative(root, e)}`); hardSvg++; }
+    }
+  }
+  if (hardSvg === 0) ok("real photos active — no hardcoded placeholder SVGs on customer pages");
+} else {
+  ok("no real photos yet — placeholder SVGs permitted until gallery.json populates");
+}
+
 console.log(failures === 0 ? "\nIMAGE QA PASSED" : `\nIMAGE QA FAILED (${failures})`);
 process.exit(failures === 0 ? 0 : 1);

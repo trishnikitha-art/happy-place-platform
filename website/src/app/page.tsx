@@ -18,6 +18,7 @@ import { company } from "@/config/company";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { CedarDivider } from "@/components/cedar-divider";
 import { CedarCorner } from "@/components/cedar-corner";
+import { media } from "@/lib/media";
 
 export default function HomePage() {
   const spotlight = featuredProject();
@@ -34,7 +35,7 @@ export default function HomePage() {
         {/* full-bleed background photo (parallax) */}
         <div className="absolute inset-0 -z-10">
           <Image
-            src="/images/hero.svg"
+            src={media("hero").src}
             alt=""
             fill
             priority
@@ -86,7 +87,7 @@ export default function HomePage() {
           <div className="relative mt-10 lg:col-span-5 lg:mt-0 lg:self-center">
             <div className="relative mx-auto aspect-[4/5] w-2/3 overflow-hidden rounded-card shadow-float ring-1 ring-text-on-dark/20 sm:w-1/2 lg:ml-auto lg:w-full lg:translate-y-6">
               <Image
-                src="/images/about.svg"
+                src={media("about").src}
                 alt="Taylor & Lanie of Happy Place Carpentry"
                 fill
                 sizes="(max-width: 1024px) 60vw, 40vw"
@@ -96,6 +97,9 @@ export default function HomePage() {
           </div>
         </Container>
       </section>
+
+      {/* soft gradient seam — depth between hero and content (cedar principle) */}
+      <div className="h-2 bg-gradient-to-r from-deep via-primary to-deep/60" aria-hidden="true" />
 
       {/* FEATURED TRANSFORMATION — people buy transformations, not services.
           Editorial: large image + offset floating quote card (cedar principle:
@@ -140,16 +144,16 @@ export default function HomePage() {
 
       {/* TRUST / MICRO-PROOF STRIP — woven, not isolated */}
       <section className="border-y border-border-soft bg-background">
-        <Container className="grid grid-cols-2 gap-6 py-10 text-center sm:grid-cols-4">
+        <Container className="grid grid-cols-2 gap-x-6 gap-y-8 py-12 text-center sm:grid-cols-4">
           {[
             [company.proof.projectsCompleted, "Projects completed"],
             [`${company.proof.yearsInBusiness} yrs`, "In business"],
             [company.ccbNumber, "Licensed · Insured"],
             ["1–2 days", "Estimate response"],
           ].map(([stat, label]) => (
-            <div key={label as string}>
-              <p className="font-display text-3xl font-bold text-primary">{stat}</p>
-              <p className="mt-1 text-sm text-text-muted">{label}</p>
+            <div key={label as string} className="relative">
+              <p className="font-display text-4xl font-bold text-primary sm:text-5xl">{stat}</p>
+              <p className="mt-2 text-sm font-medium uppercase tracking-wide text-text-muted">{label}</p>
             </div>
           ))}
         </Container>
@@ -208,7 +212,7 @@ export default function HomePage() {
       <Section className="bg-background">
         <Container className="grid items-center gap-10 lg:grid-cols-2">
           <div className="relative aspect-[4/3] overflow-hidden rounded-card shadow-float ring-1 ring-border-soft">
-            <Image src="/images/about.svg" alt="Taylor & Lanie working with a client" width={1200} height={900} className="h-full w-full object-cover photo-breathe" />
+            <Image src={media("about").src} alt="Taylor & Lanie working with a client" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover photo-breathe" />
             <CedarCorner className="absolute -left-2 -top-2 h-8 w-8 text-honey" />
           </div>
           <div>

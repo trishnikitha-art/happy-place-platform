@@ -3,18 +3,20 @@ import Link from "next/link";
 import type { Service } from "@/types";
 import { Icon } from "@/components/icon";
 import { Card } from "@/components/ui/card";
+import { media } from "@/lib/media";
 
 /**
  * ServiceCard — photo-led and dense (CEO review): one iconic image, title,
  * a one-line micro-proof stat, and a clear next step. No large empty areas.
  */
 export function ServiceCard({ service }: { service: Service }) {
+  const img = media(`service:${service.slug}`);
   return (
     <Card className="group flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-float">
       <div className="relative aspect-[4/3] overflow-hidden bg-[#E4DFD4]">
         <Image
-          src={service.heroImage}
-          alt={`${service.title} by Happy Place Carpentry`}
+          src={img.src}
+          alt={img.alt}
           fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
