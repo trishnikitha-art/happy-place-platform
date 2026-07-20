@@ -5,12 +5,11 @@ import { Container, Section, SectionHeading } from "@/components/section";
 import { GalleryLightbox } from "@/components/gallery-lightbox";
 import { CTASection } from "@/components/cta-section";
 import { Reveal } from "@/components/reveal";
-import { BeforeAfterSlider } from "@/components/before-after-slider";
-import { beforeAfterPairs } from "@/config/beforeAfter";
-import { mockGalleryService } from "@/services/gallery";
+import { BeforeAfterCard } from "@/components/before-after-card";
 import { getProjects } from "@/config/projects";
-import { galleryData, hasRealPhotos, realGalleryItems } from "@/lib/media";
+import { galleryAll, hasRealPhotos, realGalleryItems } from "@/lib/media";
 import { company } from "@/config/company";
+import { Transformation } from "@/config/transformations";
 
 export const metadata: Metadata = {
   title: "Our Work",
@@ -20,24 +19,24 @@ export const metadata: Metadata = {
 };
 
 export default function OurWorkPage() {
-  // Real photos (from the pipeline) take over the gallery the moment they exist;
-  // the curated placeholder set is the fallback until then. No hardcoded filenames.
-  const items = hasRealPhotos() ? realGalleryItems() : mockGalleryService.all();
+  // Real photos (from the pipeline) take over the gallery the moment they exist.
+  const items = hasRealPhotos() ? realGalleryItems() : [];
   const projects = getProjects();
+  const museum = galleryAll(); // every cataloged photo, grouped by project — no orphans
 
   return (
     <>
       {/* HERO */}
-      <section className="relative overflow-hidden bg-deep text-secondary-foreground">
-        <div className="absolute inset-0 bg-gradient-to-br from-deep via-deep to-deep-2" />
+      <section className="relative overflow-hidden bg-deep text-text-on-dark">
+        <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(217,154,78,0.18),transparent_55%),radial-gradient(90%_90%_at_10%_110%,rgba(31,63,60,0.6),transparent_60%)]" aria-hidden="true" />
         <Container className="relative py-24">
-          <p className="text-sm font-semibold uppercase tracking-wide text-primary">
+          <p className="text-sm font-semibold uppercase tracking-wide text-honey">
             {company.proof.projectsCompleted} projects · {company.ccbNumber}
           </p>
-          <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-tight sm:text-6xl">
+          <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-tight text-text-on-dark sm:text-6xl">
             Our Work
           </h1>
-          <p className="mt-5 max-w-xl text-lg text-secondary-foreground/70">
+          <p className="mt-5 max-w-xl text-lg text-text-on-dark/70">
             Every project is built to last in Oregon&rsquo;s climate — cedar that ages
             gracefully, trim that fits, details you can feel.
           </p>
@@ -91,39 +90,56 @@ export default function OurWorkPage() {
         </Container>
       </Section>
 
-      {/* FULL GALLERY GRID — driven by metadata (gallery.json via media.ts) */}
+      {/* FULL GALLERY GRID — the museum: every cataloged photo, no orphans */}
       <Section className="bg-surface-muted">
         <Container>
           <SectionHeading
             eyebrow="Gallery"
-            title="More happy places"
-            description="A look across Benton, Linn, Marion, and Polk Counties. Filter by service below."
+            title="Every happy place"
+            description="The complete portfolio — organized by project. Nothing is hidden."
           />
-          <div className="mt-10">
-            <GalleryLightbox items={items} />
+          <div className="mt-10 space-y-12">
+            {museum.map((group) => (
+              <div key={group.project}>
+                <h3 className="mb-4 font-display text-xl font-bold text-text">{group.category}</h3>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                  {group.images.map((img, i) => (
+                    <div key={i} className="relative aspect-[4/3] overflow-hidden rounded-card ring-1 ring-border-soft">
+                      <Image
+                        src={img.src}
+                        alt={img.alt}
+                        fill
+                        sizes="(max-width: 640px) 50vw, 25vw"
+                        className="h-full w-full object-cover transition-transform duration-500 hover:scale-[1.04]"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
+          {items.length > 0 && (
+            <div className="mt-10">
+              <GalleryLightbox items={items} />
+            </div>
+          )}
         </Container>
       </Section>
 
-      {/* BEFORE / AFTER — grouped pairs */}
+      {/* TRANSFORMATIONS — honest cards (real before→after composites) */}
       <Section className="bg-cream">
         <Container>
           <SectionHeading
             eyebrow="Before & after"
-            title="Scrub through the transformations"
-            description="Drag any slider to see the work — from rough start to finished craft."
+            title="Real transformations"
+            description="A look at the work — start to finish."
           />
           <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
-            {beforeAfterPairs.map((pair, i) => (
-              <Reveal key={pair.id} delay={i * 50}>
-                <BeforeAfterSlider pair={pair} />
+            {Transformation.slice(0, 4).map((t, i) => (
+              <Reveal key={t.id} delay={i * 50}>
+                <BeforeAfterCard t={t} />
               </Reveal>
             ))}
-          </div>
-          <div className="mt-8">
-            <Link href="/gallery" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
-              Browse the full gallery →
-            </Link>
           </div>
         </Container>
       </Section>
