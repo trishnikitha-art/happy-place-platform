@@ -28,3 +28,27 @@ This version has breaking changes — APIs, conventions, and file structures may
 - Palette tokens in `globals.css @theme`: primary=evergreen #1F3F3C, honey #d99a4e, accent=taupe #B0A092, background=linen #EDEAE0, cream #E9DBC9, surface #EDEDED, deep #162b29.
 - Logo: simple tape-measure mark (`/brand/logo-*.svg`), recreated faithfully — original is login-walled.
 - Secrets never in repo; Google OAuth client-only (no refresh token) → Drive not readable without owner consent.
+
+# Standing Design Directives (CEO final polish — release gates)
+
+**A. Introduce owners ONCE.** Single "Meet Taylor & Lanie" block on homepage + full story on /about. No repeated owner name-drops elsewhere; other sections speak as "Happy Place Carpentry." Brand feels larger than two people yet personal.
+
+**B. Preserve original voice.** The old Google Site is source material — favorite phrases, tone, local refs, testimonials, project descriptions. Modernize *presentation*, never rewrite voice.
+
+**C. Photography leads.** Layout order = Hero photo → Composition → Typography → Copy → CTA. Never fit photos into a pre-made grid.
+
+**D. Every image is explicitly mapped** (`photo-intake/manifest.schema.json`): hero/cover/thumbnail/before[]/after[]/details[]/homeowner/galleryOrder. Deterministic + editable. No "first file in folder."
+
+**E. Project-centric media.** `Project → Hero/Before/After/Details/Homeowner/Timeline/Materials`. Galleries, project pages, home features all derive from the project.
+
+**F. Never crop craftsmanship.** Each image has a `focal:{x,y}` that survives desktop/tablet/mobile (joints, trim, railings, cabinetry).
+
+**G. Image QA is a release gate.** Before every deploy run `npm run qa:images` — hero crops, no stretch, before/after aligned, mobile/desktop crops, retina sharp, lazy-load, alt text, blur placeholders, no broken images. Fails → block deploy.
+
+**H. Simple V1 pipeline.** Owner drops photos in `photo-intake/<Category> - <Location>/` → `npm run images` archives originals, generates WebP/AVIF/thumb/blur, reads EXIF, writes gallery manifest, commits. No AI/db/hidden automation.
+
+**I. Folder = source of truth.** `Incoming Photos/Deck Build/`, `Pergola - Salem/`, etc. Folder name supplies category.
+
+**J. Every commit refines visuals** (Directive #10): each near-end commit adds ≥1 polish (spacing/type/alignment/composition/mobile rhythm/hover/loading) — site gets visibly better each commit, not just more features.
+
+**Priority rule:** When a feature conflicts with making the experience more trustworthy/beautiful/effortless, prioritize the experience. This is a premium marketing experience for craftsmanship, not a software project.

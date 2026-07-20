@@ -77,7 +77,7 @@ export default function HomePage() {
                 <span>{averageRating()} / 5 · {company.proof.projectsCompleted} projects completed</span>
               </div>
               <span className="mt-6 block font-signature text-3xl text-honey">
-                {taylor.name} &amp; {lanie.name}
+                Happy Place Carpentry
               </span>
             </div>
           </div>
@@ -125,9 +125,6 @@ export default function HomePage() {
                     {spotlight.title}
                   </p>
                   <p className="mt-4 text-text-muted">{spotlight.summary}</p>
-                  <div className="mt-6 flex items-center gap-3">
-                    <span className="font-signature text-2xl text-primary">{taylor.name} &amp; {lanie.name}</span>
-                  </div>
                   <Link
                     href={`/projects/${spotlight.slug}`}
                     className="mt-6 inline-flex items-center gap-1 font-semibold text-accent hover:underline"

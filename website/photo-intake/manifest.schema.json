@@ -1,0 +1,57 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Happy Place Project Photo Manifest",
+  "description": "Deterministic, human-editable mapping of real project photography. Folder name supplies category+location; this file supplies the intentional per-image roles and focal points. No guessing.",
+  "type": "object",
+  "required": ["projects"],
+  "properties": {
+    "projects": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["slug", "title", "category", "location", "images"],
+        "properties": {
+          "slug": { "type": "string" },
+          "title": { "type": "string" },
+          "category": { "type": "string", "description": "Decks | Pergolas | Fences | Kitchens | Baths | Trim | Repairs" },
+          "location": { "type": "string", "description": "City, OR" },
+          "images": {
+            "type": "object",
+            "description": "Every role is explicit (Directive #4).",
+            "required": ["hero", "cover", "thumbnail", "before", "after", "details", "galleryOrder"],
+            "properties": {
+              "hero": { "$ref": "#/definitions/mappedImage" },
+              "cover": { "$ref": "#/definitions/mappedImage" },
+              "thumbnail": { "$ref": "#/definitions/mappedImage" },
+              "before": { "type": "array", "items": { "$ref": "#/definitions/mappedImage" } },
+              "after": { "type": "array", "items": { "$ref": "#/definitions/mappedImage" } },
+              "details": { "type": "array", "items": { "$ref": "#/definitions/mappedImage" } },
+              "homeowner": { "$ref": "#/definitions/mappedImage" },
+              "galleryOrder": { "type": "array", "items": { "type": "string" }, "description": "Ordered list of image ids for the public gallery." }
+            }
+          }
+        }
+      }
+    }
+  },
+  "definitions": {
+    "mappedImage": {
+      "type": "object",
+      "required": ["id", "src", "alt"],
+      "properties": {
+        "id": { "type": "string" },
+        "src": { "type": "string", "description": "Public path under /gallery/<project>/" },
+        "alt": { "type": "string", "description": "Descriptive alt text (release gate: must exist)." },
+        "focal": {
+          "type": "object",
+          "description": "Directive #6: focal point that survives all breakpoints. Default {x:0.5,y:0.5}.",
+          "properties": {
+            "x": { "type": "number", "minimum": 0, "maximum": 1 },
+            "y": { "type": "number", "minimum": 0, "maximum": 1 }
+          }
+        },
+        "caption": { "type": "string" }
+      }
+    }
+  }
+}
