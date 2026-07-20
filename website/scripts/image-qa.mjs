@@ -27,7 +27,33 @@ const publicImages = walk(publicDir).filter((f) => /\.(svg|png|jpe?g|webp|avif)$
 if (publicImages.length === 0) fail("no images found under /public");
 else ok(`${publicImages.length} image files present`);
 
-// 2) Every raster (non-svg) must have a sibling blur placeholder OR be svg
+// 2) Every image path referenced from src/config must resolve to a real file.
+//    This catches the "config points at a path that 404s" class of bug (release gate).
+const configDir = join(root, "src", "config");
+const referenced = new Set();
+function scanRefs(dir) {
+  if (!existsSync(dir)) return;
+  for (const e of readdirSync(dir)) {
+    const p = join(dir, e);
+    if (statSync(p).isDirectory()) { scanRefs(p); continue; }
+    if (!/\.(ts|tsx|js|json)$/.test(e)) continue;
+    const src = readFileSync(p, "utf8");
+    const re = /(?:src|heroImage|image|cover|thumbnail|backgroundImage)\s*:\s*["'`](\/[^"'`]+)/g;
+    let m;
+    while ((m = re.exec(src))) referenced.add(m[1]);
+  }
+}
+scanRefs(configDir);
+scanRefs(join(root, "src", "components"));
+let brokenRefs = 0;
+for (const ref of referenced) {
+  if (/\.(svg|png|jpe?g|webp|avif)$/i.test(ref) && !existsSync(join(publicDir, ref.replace(/^\//, "")))) {
+    fail(`referenced image missing: ${ref}`); brokenRefs++;
+  }
+}
+if (brokenRefs === 0) ok(`all ${referenced.size} referenced image paths resolve`);
+
+// 3) Every raster (non-svg) must have a sibling blur placeholder OR be svg
 const missingBlur = publicImages.filter(
   (f) => !/\.svg$/i.test(f) && !existsSync(f.replace(/\.(jpe?g|png|webp|avif)$/i, ".blur.json"))
 );
@@ -35,7 +61,7 @@ if (missingBlur.length && publicImages.some((f) => !/\.svg$/i.test(f)))
   fail(`${missingBlur.length} raster image(s) missing blur placeholder`);
 else ok("blur placeholders present for rasters (or none yet)");
 
-// 3) Manifest present + valid shape (if real photos ingested)
+// 4) Manifest present + valid shape (if real photos ingested)
 const manifestPath = join(root, "photo-intake", "manifest.json");
 if (existsSync(manifestPath)) {
   try {
@@ -51,7 +77,6 @@ if (existsSync(manifestPath)) {
           if (!existsSync(join(publicDir, im.src.replace(/^\//, "")))) fail(`${p.slug}.${role}: missing file ${im.src}`);
           imgChecks++;
         }
-        // before/after alignment
         const b = p.images.before?.length ?? 0, a = p.images.after?.length ?? 0;
         if (b !== a) fail(`${p.slug}: before(${b})/after(${a}) counts differ`);
       }
@@ -62,7 +87,7 @@ if (existsSync(manifestPath)) {
   ok("manifest.json not yet present (placeholder mode) — skipping manifest checks");
 }
 
-// 4) SVG placeholders must not be used as if final (warn, don't fail in V1)
+// 5) SVG placeholders must not be used as if final (warn, don't fail in V1)
 const svgCount = publicImages.filter((f) => /\.svg$/i.test(f)).length;
 if (svgCount > 0) console.log(`  ⚠ ${svgCount} SVG placeholder(s) still in use — replace with real photography before launch`);
 
