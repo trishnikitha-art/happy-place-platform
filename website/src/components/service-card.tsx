@@ -11,14 +11,13 @@ import { Card } from "@/components/ui/card";
 export function ServiceCard({ service }: { service: Service }) {
   return (
     <Card className="group flex flex-col overflow-hidden transition-shadow hover:shadow-lg">
-      <div className="relative aspect-[4/3] overflow-hidden bg-surface">
+      <div className="relative aspect-[4/3] overflow-hidden bg-secondary">
         <Image
           src={service.heroImage}
           alt={`${service.title} by Happy Place Carpentry`}
-          width={800}
-          height={600}
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          fill
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
         />
         <span className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-xl bg-deep/80 text-honey">
           <Icon name={service.icon} className="h-5 w-5" />
