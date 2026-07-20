@@ -26,6 +26,20 @@ export function aggregate(reviews: Review[]): { average: number; count: number }
  * internal satisfaction check → Google review request → import → publish.
  * The website reads only `published` reviews. Manual copying is eliminated.
  */
+/** Follow-up timeline (P4) — automated, never manual copy. */
+export const FOLLOW_UP_TIMELINE = [
+  { day: 2,   message: "How is everything settling in?" },
+  { day: 30,  message: "Is there anything you would like adjusted?" },
+  { day: 180, message: "Seasonal maintenance tips for your new project." },
+  { day: 365, message: "We would love to see how its holding up." },
+] as const;
+
+/** Social-proof snippet for estimate emails / CTAs: "Based on 87 verified Google reviews." */
+export function verifiedSocialProof(reviews: Review[], source: "google" = "google"): string {
+  const n = reviews.filter((r) => r.source === source && r.published).length;
+  return `Based on ${n} verified Google reviews.`;
+}
+
 export class ReviewAuthority {
   constructor(private source: ReviewSource) {}
 

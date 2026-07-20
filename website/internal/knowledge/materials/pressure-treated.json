@@ -1,0 +1,19 @@
+{
+  "_meta": {
+    "material": "pressure-treated-pine",
+    "version": "2026.07.0",
+    "sourceDate": "2026-07-15",
+    "source": "Two regional lumberyard quote sheets (Mid-Willamette)",
+    "confidence": 0.78,
+    "lastVerified": "2026-07-15",
+    "countyApplicability": ["Benton", "Linn", "Marion", "Polk"]
+  },
+  "grades": {
+    "ground-contact-2x4": { "unit": "lf", "priceRange": [1.85, 2.4] },
+    "ground-contact-2x6": { "unit": "lf", "priceRange": [2.6, 3.3] },
+    "above-ground-1x6": { "unit": "lf", "priceRange": [1.4, 1.9] },
+    "4x4-post-8ft": { "unit": "ea", "priceRange": [16, 22] },
+    "6x6-post-8ft": { "unit": "ea", "priceRange": [42, 58] }
+  },
+  "notes": "Ground-contact rated (.40 ACQ) required for posts/soil contact per Oregon Residential Specialty Code."
+}

@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "topic": "disposal-excavation-concrete",
+    "version": "2026.07.0",
+    "sourceDate": "2026-07-15",
+    "source": "Local dump transfer-station rate sheets + concrete supplier",
+    "confidence": 0.7,
+    "lastVerified": "2026-07-15",
+    "countyApplicability": ["Benton", "Linn", "Marion", "Polk"]
+  },
+  "disposal": {
+    "constructionDebrisPerTon": { "priceRange": [55, 95] },
+    "cleanWoodPerTon": { "priceRange": [30, 55] },
+    "rollOff20yd": { "priceRange": [320, 480], "note": "Includes drop, haul, tipping." }
+  },
+  "excavation": {
+    "handDigPerHour": { "priceRange": [45, 70] },
+    "miniSkidPerHour": { "priceRange": [85, 130] }
+  },
+  "concrete": {
+    "yardDelivered3000psi": { "priceRange": [165, 210] },
+    "gravelPerTon": { "priceRange": [28, 45] },
+    "sonotubePer8ft": { "priceRange": [12, 20] }
+  },
+  "drainage": {
+    "frenchDrainPerFoot": { "priceRange": [18, 35], "note": "Includes pipe, gravel, fabric." }
+  }
+}

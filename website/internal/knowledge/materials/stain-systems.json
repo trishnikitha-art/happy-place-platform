@@ -1,0 +1,21 @@
+{
+  "_meta": {
+    "material": "stain-paint-systems",
+    "version": "2026.07.0",
+    "sourceDate": "2026-07-15",
+    "source": "Supplier quote aggregate + manufacturer spec sheets",
+    "confidence": 0.72,
+    "lastVerified": "2026-07-15",
+    "countyApplicability": ["Benton", "Linn", "Marion", "Polk"]
+  },
+  "oil-based": {
+    "perGallon": { "priceRange": [42, 65], "coverageSqFt": [150, 250], "note": "Penetrating; better for cedar in wet Willamette climate. Recoat 2-3 yr." }
+  },
+  "water-based": {
+    "perGallon": { "priceRange": [35, 52], "coverageSqFt": [200, 300], "note": "Lower VOC, easier cleanup, shorter recoat window." }
+  },
+  "solid-color": {
+    "perGallon": { "priceRange": [45, 70], "coverageSqFt": [250, 350] }
+  },
+  "recommendation": "For cedar fences/decks in this region, oil-based penetrating stain outperforms film-forming finishes."
+}

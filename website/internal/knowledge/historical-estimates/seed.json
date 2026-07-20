@@ -1,0 +1,17 @@
+{
+  "_meta": {
+    "topic": "historical-estimates",
+    "version": "2026.07.0",
+    "sourceDate": "2026-07-15",
+    "source": "Owner actuals (pre-Sheets baseline); to be replaced by Estimate Analytics sheet",
+    "confidence": 0.55,
+    "lastVerified": "2026-07-15",
+    "countyApplicability": ["Benton", "Linn", "Marion", "Polk"],
+    "note": "Seed values until the learning loop populates from completed projects."
+  },
+  "cedarFencePerLinearFoot": { "priceRange": [38, 62], "sampleN": 0 },
+  "trexDeckPerSqFt": { "priceRange": [55, 95], "sampleN": 0 },
+  "cedarDeckPerSqFt": { "priceRange": [45, 80], "sampleN": 0 },
+  "bathroomRemodel": { "priceRange": [9000, 28000], "sampleN": 0 },
+  "kitchenRemodel": { "priceRange": [18000, 55000], "sampleN": 0 }
+}

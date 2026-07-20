@@ -190,12 +190,28 @@ body {
    bevel + rounded corners. Replaces borderless float on photo frames. */
 .photo-mounted {
   border-radius: var(--radius-card);
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.5s cubic-bezier(0.22, 1, 0.36, 1);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.7) inset,             /* top inset highlight */
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,             /* subtle inner highlight */
     0 0 0 1px rgba(244, 239, 230, 0.75),                /* 1px warm ivory stroke */
-    0 20px 44px -26px rgba(22, 43, 41, 0.55),           /* soft mounted drop */
-    0 4px 12px -8px rgba(0, 0, 0, 0.22);
+    0 1px 2px rgba(22, 43, 41, 0.12) inset,             /* tiny bevel */
+    0 22px 46px -28px rgba(22, 43, 41, 0.5),            /* soft ambient shadow */
+    0 4px 14px -10px rgba(0, 0, 0, 0.2);
   overflow: hidden;
+}
+/* barely perceptible lift on hover — calm, confident, not flashy */
+.photo-mounted { will-change: transform; }
+@media (hover: hover) {
+  a:hover .photo-mounted,
+  .photo-mounted:hover {
+    transform: translateY(-4px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.8) inset,
+      0 0 0 1px rgba(244, 239, 230, 0.85),
+      0 1px 2px rgba(22, 43, 41, 0.14) inset,
+      0 30px 60px -30px rgba(22, 43, 41, 0.6),
+      0 6px 18px -10px rgba(0, 0, 0, 0.22);
+  }
 }
 /* tiny bevel on the inner edge */
 .photo-mounted > img,

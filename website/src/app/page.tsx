@@ -36,18 +36,16 @@ export default function HomePage() {
         <div className="hero-square" aria-hidden="true" />
         <div className="hero-ticks" aria-hidden="true" />
 
-        <Container className="relative z-10 flex min-h-[88svh] flex-col justify-center py-32 lg:py-44">
-          <div className="max-w-4xl">
+        <Container className="relative z-10 flex min-h-[88svh] flex-col justify-center py-28 lg:py-36">
+          <div className="max-w-3xl">
             <p className="font-signature text-2xl text-honey/90">Happy Place Carpentry</p>
             <h1 className="mt-5 font-display text-5xl font-bold leading-[1.03] tracking-tight text-text-on-dark sm:text-6xl lg:text-7xl">
               Building spaces you&rsquo;ll love coming home to.
             </h1>
-            <p className="measure mt-7 max-w-xl text-lg leading-relaxed text-text-on-dark/80">
-              Every family has that one space they avoid — and the one they dream
-              about. We build the decks, kitchens, baths, fences, and custom details
-              that turn a house into your happy place.
-            </p>
-            <div className="mt-9 flex flex-wrap gap-3">
+            <p className="measure mt-6 max-w-xl text-lg leading-relaxed text-text-on-dark/80">
+              Some homes have a space that quietly becomes the favorite.
+              We build the decks, kitchens, baths, and fences worth coming home to.</p>
+            <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 text-base font-semibold">
                 Get a Free Estimate
               </Link>
@@ -213,19 +211,18 @@ export default function HomePage() {
       <Section className="bg-background">
         <Container className="grid items-center gap-12 lg:grid-cols-2">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-accent">The family behind Happy Place</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-accent">Built by one family. Trusted by many more.</p>
             <h2 className="mt-3 font-display text-4xl font-bold leading-tight text-text sm:text-5xl">
               Happy Place isn&rsquo;t a slogan. It&rsquo;s why we exist.
             </h2>
             <div className="measure mt-7 space-y-5 text-text-muted">
               <p className="text-lg leading-relaxed">
-                We believe the best projects begin with one conversation and end with a
-                handshake you&rsquo;ll remember.</p>
+                Great craftsmanship starts long before the first board is cut.</p>
               <p>
-                <span className="font-semibold text-text">{taylor.name}</span> — Every project he builds is meant to be one he&rsquo;s proud to drive past years from now.
+                <span className="font-semibold text-text">{taylor.name}</span> — Taylor believes good craftsmanship should still look good twenty years from now. Every project is built expecting he&rsquo;ll proudly drive past it for years to come.
               </p>
               <p>
-                <span className="font-semibold text-text">{lanie.name}</span> — She keeps every homeowner informed from the first estimate through the final walkthrough.
+                <span className="font-semibold text-text">{lanie.name}</span> — Lanie makes sure every homeowner always knows what&rsquo;s happening next — from the first conversation to the final walkthrough.
               </p>
             </div>
           </div>

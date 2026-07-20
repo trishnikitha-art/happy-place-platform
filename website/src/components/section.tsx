@@ -6,9 +6,28 @@ export function Container({ className, children }: { className?: string; childre
   return <div className={cn("mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-8", className)}>{children}</div>;
 }
 
-/** Vertical rhythm section. */
-export function Section({ className, children }: { className?: string; children: React.ReactNode }) {
-  return <section className={cn("py-16 sm:py-20", className)}>{children}</section>;
+/** Vertical rhythm section. `size` controls breathing room:
+    major = emotional moments (hero, featured, family); minor = supporting. */
+export function Section({
+  className,
+  children,
+  size = "major",
+}: {
+  className?: string;
+  children: React.ReactNode;
+  size?: "major" | "minor";
+}) {
+  const pad = size === "minor" ? "py-12 sm:py-16" : "py-20 sm:py-28";
+  return <section className={cn(pad, className)}>{children}</section>;
+}
+
+/** A quiet section separator: thin cedar rule + tiny brass pin. Never obvious. */
+export function CraftDivider({ className }: { className?: string }) {
+  return (
+    <div className={cn("flex items-center justify-center", className)} aria-hidden="true">
+      <div className="craft-rule"><span /></div>
+    </div>
+  );
 }
 
 export function SectionHeading({

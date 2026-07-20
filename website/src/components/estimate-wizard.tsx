@@ -11,6 +11,7 @@ import { estimateService } from "@/services/estimate";
 import { analytics } from "@/services/analytics";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { preliminaryRange, formatRange } from "@/lib/planning-range";
 
 type PhotoMeta = { name: string; size: number };
 
@@ -90,15 +91,31 @@ export function EstimateWizard() {
   }
 
   if (submitted) {
+    const plan = preliminaryRange(selected);
     return (
       <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-sm">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent">
           <Check className="h-8 w-8" />
         </div>
-        <h2 className="mt-4 text-2xl font-bold text-text">Your estimate request is ready</h2>
+                <h2 className="mt-4 text-2xl font-bold text-text">Here&rsquo;s our understanding of your project</h2>
         <p className="mt-2 text-text-muted">
-          Your email app should have opened with the details. Just hit send and we&apos;ll be in
-          touch within one business day. If it didn&apos;t open, email us at{" "}
+          Thanks for the details{property.city ? `, ${property.city}` : ""}. We&rsquo;ve summarized what you told us below.
+        </p>
+        {plan ? (
+          <div className="mt-6 rounded-card border border-border bg-background/60 p-6 text-left">
+            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">Preliminary Planning Range</p>
+            <p className="mt-3 text-text-muted">
+              Based on similar Oregon projects, most projects like this typically fall somewhere between
+            </p>
+            <p className="mt-2 font-display text-3xl font-bold text-text">
+              {formatRange(plan.low)} &ndash; {formatRange(plan.high)}
+            </p>
+            <p className="mt-3 text-sm leading-relaxed text-text-subtle">{plan.note}</p>
+          </div>
+        ) : null}
+        <p className="mt-6 text-text-muted">
+          Your email app should have opened with the full summary. Just hit send and Taylor will be in
+          touch within one business day. If it didn&rsquo;t open, email us at{" "}
           <a href={`mailto:${company.email}`} className="font-semibold text-accent">{company.email}</a>.
         </p>
         <button

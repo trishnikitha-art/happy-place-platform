@@ -1,0 +1,19 @@
+{
+  "_meta": {
+    "material": "simpson-strong-tie-hardware",
+    "version": "2026.07.0",
+    "sourceDate": "2026-07-15",
+    "source": "Simpson Strong-Tie distributor price book",
+    "confidence": 0.8,
+    "lastVerified": "2026-07-15",
+    "countyApplicability": ["Benton", "Linn", "Marion", "Polk"]
+  },
+  "items": {
+    "DTT2Z-deck-tie": { "unit": "ea", "priceRange": [9, 13] },
+    "SD-connector-screw-box-100": { "unit": "box", "priceRange": [28, 38] },
+    "post-base-ABU": { "unit": "ea", "priceRange": [7, 11] },
+    "hurricane-tie-H2.5A": { "unit": "ea", "priceRange": [1.1, 1.8] },
+    "joist-hanger-LUS": { "unit": "ea", "priceRange": [2.2, 3.4] }
+  },
+  "notes": "Connectors/screws (not nails) required for lateral load paths on decks per IRC R507."
+}

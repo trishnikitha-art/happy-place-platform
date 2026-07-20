@@ -1,0 +1,28 @@
+{
+  "_meta": {
+    "topic": "oregon-building-practices",
+    "version": "2026.07.0",
+    "sourceDate": "2026-07-15",
+    "source": "Oregon Residential Specialty Code (ORSC) + local county amendments",
+    "confidence": 0.82,
+    "lastVerified": "2026-07-15",
+    "countyApplicability": ["Benton", "Linn", "Marion", "Polk"]
+  },
+  "deckCodes": {
+    "maxUncoveredHeightNoRail": "30 in", "minRailHeight": "36 in", "balusterGapMax": "4 in",
+    "footingDepthMin": "12 in below frost line (typically 18-24 in total in valley)",
+    "ledgerAttachment": "Lag screws + flashing required; nails not permitted for ledger."
+  },
+  "fenceHeights": {
+    "rearYardMaxNoPermit": "6 ft (per most county zoning)", "frontYardMaxNoPermit": "3.5 ft",
+    "over6ft": "Requires building permit + wind load calc in most counties."
+  },
+  "retainingWalls": {
+    "permitTrigger": "Over 4 ft tall measured from bottom of footing, or supporting a surcharge (driveway/slope)."
+  },
+  "footingRequirements": {
+    "deckPost": "Min 10-12 in diameter pier, 18-24 in deep, below frost line.",
+    "concreteStrength": "3000-4000 psi typical for residential."
+  },
+  "hoaNote": "Many subdivisions (especially newer in Albany/Corvallis) require HOA architectural review before fence/deck color, height, or placement."
+}

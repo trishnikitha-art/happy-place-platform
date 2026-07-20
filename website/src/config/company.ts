@@ -29,12 +29,12 @@ export const company: Company = {
     {
       name: "Taylor Happy",
       title: "Co-Owner · Lead Carpenter",
-      focus: "Every project Taylor builds is meant to be one he is proud to drive past years from now.",
+      focus: "Bringing decades of hands-on craftsmanship to every project.",
     },
     {
       name: "Lanie Happy",
       title: "Co-Owner · Client Experience",
-      focus: "Lanie keeps every homeowner informed from the first estimate through the final walkthrough.",
+      focus: "Helping every project feel clear, comfortable, and well cared for.",
     },
   ],
   proof: {
