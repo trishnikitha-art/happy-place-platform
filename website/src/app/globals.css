@@ -126,8 +126,8 @@ body {
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(244, 239, 230, 0.035) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(244, 239, 230, 0.035) 1px, transparent 1px);
+    linear-gradient(rgba(244, 239, 230, 0.055) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(244, 239, 230, 0.055) 1px, transparent 1px);
   background-size: 46px 46px;
   mask-image: radial-gradient(120% 90% at 70% 20%, black, transparent 75%);
   -webkit-mask-image: radial-gradient(120% 90% at 70% 20%, black, transparent 75%);
@@ -139,10 +139,10 @@ body {
   inset: 0;
   background-image: repeating-linear-gradient(
     91deg,
-    rgba(217, 154, 78, 0.05) 0px,
-    rgba(217, 154, 78, 0.018) 2px,
-    rgba(124, 90, 58, 0.05) 5px,
-    rgba(217, 154, 78, 0.018) 8px
+    rgba(217, 154, 78, 0.08) 0px,
+    rgba(217, 154, 78, 0.03) 2px,
+    rgba(124, 90, 58, 0.08) 5px,
+    rgba(217, 154, 78, 0.03) 8px
   );
   background-size: 14px 100%;
   mix-blend-mode: screen;
@@ -157,7 +157,7 @@ body {
   width: 84px;
   height: 84px;
   pointer-events: none;
-  opacity: 0.10;
+  opacity: 0.14;
   z-index: 0;
 }
 .hero-square::before,
@@ -176,7 +176,7 @@ body {
   width: 84px;
   height: 84px;
   pointer-events: none;
-  opacity: 0.09;
+  opacity: 0.13;
   z-index: 0;
   background-image: repeating-linear-gradient(
     180deg, transparent 0 9px, var(--color-text-on-dark) 9px 10px
@@ -216,6 +216,47 @@ body {
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Refined focus ring (calm, confident) */
+:focus-visible {
+  outline: 2px solid var(--color-honey);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
+/* CRAFT RULE — a hairline double separator with a single honey pin.
+   Used between major sections for quiet rhythm (no loud dividers). */
+.craft-rule {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  height: 1px;
+  background: transparent;
+}
+.craft-rule::before,
+.craft-rule::after {
+  content: "";
+  height: 1px;
+  flex: 1;
+  max-width: 120px;
+  background: linear-gradient(90deg, transparent, var(--color-accent));
+}
+.craft-rule::after { background: linear-gradient(90deg, var(--color-accent), transparent); }
+.craft-rule > span {
+  width: 6px; height: 6px;
+  transform: rotate(45deg);
+  background: var(--color-honey);
+  box-shadow: 0 0 0 3px rgba(217, 154, 78, 0.18);
+}
+
+/* Section eyebrow tool mark (small carpenter square) */
+.eyebrow-mark {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.eyebrow-mark svg { width: 16px; height: 16px; color: var(--color-honey); }
 
 /* ORGANIC divider — cedar PRINCIPLE, not a texture (CEO review).
    Asymmetric, hand-placed lengths instead of one identical rule. */

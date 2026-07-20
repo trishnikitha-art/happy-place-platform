@@ -7,6 +7,7 @@ import { StarRating } from "@/components/star-rating";
 import { Reveal } from "@/components/reveal";
 import { CedarDivider } from "@/components/cedar-divider";
 import { CedarCorner } from "@/components/cedar-corner";
+import { ToolMark } from "@/components/tool-mark";
 import { serviceCategories } from "@/config/serviceCategories";
 import { services } from "@/config/services";
 import { reviews, averageRating } from "@/config/reviews";
@@ -30,6 +31,10 @@ export default function HomePage() {
         <div className="absolute inset-0 z-0 bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(217,154,78,0.22),transparent_55%),radial-gradient(90%_90%_at_10%_110%,rgba(22,43,41,0.7),transparent_60%)]" aria-hidden="true" />
         <div className="absolute inset-0 z-0 bg-gradient-to-b from-deep/30 via-transparent to-deep" aria-hidden="true" />
         <div className="absolute inset-x-0 top-0 z-0 h-px bg-gradient-to-r from-transparent via-honey/25 to-transparent" aria-hidden="true" />
+
+        <div className="hero-craft" aria-hidden="true" />
+        <div className="hero-square" aria-hidden="true" />
+        <div className="hero-ticks" aria-hidden="true" />
 
         <Container className="relative z-10 flex min-h-[88svh] flex-col justify-center py-32 lg:py-44">
           <div className="max-w-4xl">
@@ -162,7 +167,7 @@ export default function HomePage() {
       <Section>
         <Container>
           <SectionHeading
-            eyebrow="What we do"
+            eyebrow={<span className="eyebrow-mark"><ToolMark /> What we do</span>}
             title="Craftsmanship for every part of your home"
             description="Pick a service to start a free estimate — we'll guide the rest."
           />
@@ -214,15 +219,13 @@ export default function HomePage() {
             </h2>
             <div className="measure mt-7 space-y-5 text-text-muted">
               <p className="text-lg leading-relaxed">
-                We aren&rsquo;t built around salespeople, project managers, and handoffs.
-                We&rsquo;re one family that believes your home should become your happy
-                place — from your first conversation to the final walkthrough.
+                We believe the best projects begin with one conversation and end with a
+                handshake you&rsquo;ll remember.</p>
+              <p>
+                <span className="font-semibold text-text">{taylor.name}</span> — Every project he builds is meant to be one he&rsquo;s proud to drive past years from now.
               </p>
               <p>
-                <span className="font-semibold text-text">{taylor.name} L.</span> — Craftsmanship, problem solving, and building spaces made to last.
-              </p>
-              <p>
-                <span className="font-semibold text-text">{lanie.name} L.</span> — Communication, planning, and making every project feel clear from beginning to end.
+                <span className="font-semibold text-text">{lanie.name}</span> — She keeps every homeowner informed from the first estimate through the final walkthrough.
               </p>
             </div>
           </div>
@@ -232,6 +235,11 @@ export default function HomePage() {
           </div>
         </Container>
       </Section>
+
+      {/* CRAFT RULE separator before reviews */}
+      <div className="py-6">
+        <div className="craft-rule"><span /></div>
+      </div>
 
       {/* REVIEWS */}
       <Section>

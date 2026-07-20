@@ -1,0 +1,17 @@
+{
+  "_meta": {
+    "category": "confidence-models",
+    "version": "2026.07.0",
+    "sourceDate": "2026-07-15",
+    "source": "Initial heuristic; refined by Estimate Analytics over time",
+    "confidence": 0.5,
+    "lastVerified": "2026-07-15",
+    "note": "Each estimate output carries a confidence score derived from the contributing authorities; this file documents how confidence compounds and when to widen the range."
+  },
+  "rules": {
+    "minConfidenceToPublish": 0.4,
+    "widenRangeBelowConfidence": 0.6,
+    "widenFactor": 1.12,
+    "bias": "conservative-high"
+  }
+}

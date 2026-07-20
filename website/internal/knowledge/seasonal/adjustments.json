@@ -1,0 +1,15 @@
+{
+  "_meta": {
+    "category": "seasonal",
+    "version": "2026.07.0",
+    "sourceDate": "2026-07-15",
+    "source": "Owner observed scheduling + regional climate notes",
+    "confidence": 0.6,
+    "lastVerified": "2026-07-15",
+    "note": "Multipliers widen the planning range during high-demand or weather-sensitive windows."
+  },
+  "spring": { "demandMultiplier": 1.05, "weatherRisk": "moderate" },
+  "summer": { "demandMultiplier": 1.1, "weatherRisk": "low" },
+  "fall":   { "demandMultiplier": 1.0, "weatherRisk": "moderate" },
+  "winter": { "demandMultiplier": 0.95, "weatherRisk": "high (concrete/footings delays)" }
+}
