@@ -29,17 +29,6 @@ export function BeforeAfterSlider({
   const [pos, setPos] = React.useState(50);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const dragging = React.useRef(false);
-  const [containerW, setContainerW] = React.useState(0);
-
-  React.useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver((entries) => {
-      setContainerW(entries[0].contentRect.width);
-    });
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
 
   const setFromClientX = React.useCallback((clientX: number) => {
     const el = containerRef.current;
@@ -78,10 +67,10 @@ export function BeforeAfterSlider({
         onTouchMove={(e) => setFromClientX(e.touches[0].clientX)}
       >
         {/* AFTER (base) */}
-        <Image src={pair.after.src} alt={pair.after.alt} width={pair.after.width} height={pair.after.height} className="absolute inset-0 h-full w-full object-cover" draggable={false} />
+        <Image src={pair.after.src} alt={pair.after.alt} fill sizes="(max-width: 768px) 100vw, 50vw" className="absolute inset-0 h-full w-full object-cover" draggable={false} />
         {/* BEFORE (clipped) */}
         <div className="absolute inset-0 overflow-hidden" style={{ width: `${pos}%` }}>
-          <Image src={pair.before.src} alt={pair.before.alt} width={pair.before.width} height={pair.before.height} className="absolute inset-0 h-full object-cover [filter:grayscale(0.6)_brightness(0.85)_sepia(0.15)]" style={{ width: containerW || "100%", maxWidth: "none" }} draggable={false} />
+          <Image src={pair.before.src} alt={pair.before.alt} fill sizes="(max-width: 768px) 100vw, 50vw" className="absolute inset-0 h-full object-cover [filter:grayscale(0.6)_brightness(0.85)_sepia(0.15)]" draggable={false} />
         </div>
         {/* Handle */}
         <div
