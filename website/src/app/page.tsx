@@ -11,72 +11,135 @@ import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { serviceCategories } from "@/config/serviceCategories";
 import { services } from "@/config/services";
-import { featuredGallery } from "@/config/gallery";
 import { reviews, averageRating } from "@/config/reviews";
 import { featuredProject } from "@/config/projects";
 import { beforeAfterPairs } from "@/config/beforeAfter";
 import { company } from "@/config/company";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { CedarDivider } from "@/components/cedar-divider";
+import { CedarCorner } from "@/components/cedar-corner";
 
 export default function HomePage() {
-  const featured = featuredGallery(6);
-  const topReviews = reviews.slice(0, 3);
   const spotlight = featuredProject();
+  const topReviews = reviews.slice(0, 3);
   const [taylor, lanie] = company.owners;
 
   return (
     <>
-      {/* HERO — owner photo + large type. Stacked on mobile, 2-col on desktop.
-          Structurally non-overlapping: photo column is self-stretching with
-          object-cover; text column is min-w-0 so it never bleeds into the photo. */}
-      <section className="relative overflow-hidden bg-deep text-text-on-dark">
-        <div className="absolute inset-0 bg-gradient-to-br from-deep via-deep to-primary/30" aria-hidden="true" />
-        <Container className="relative grid min-h-[82svh] grid-cols-1 items-center gap-12 py-20 lg:grid-cols-2 lg:gap-16 lg:py-24">
-          <div className="min-w-0">
-            <p className="font-display text-sm font-semibold uppercase tracking-[0.18em] text-honey">
-              {company.ccbNumber} · {company.proof.serviceCounties.join(" · ")}
-            </p>
-            <h1 className="mt-4 font-display text-4xl font-bold leading-[1.05] sm:text-5xl lg:text-6xl">
-              Building spaces you&rsquo;ll love coming home to.
-            </h1>
-            <p className="mt-6 max-w-xl text-lg text-text-on-dark/75">
-              Custom decks, kitchens, fences, and outdoor living across the
-              mid-Willamette Valley — crafted in cedar, finished by hand.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/estimate" className={cn(buttonVariants({ variant: "primary", size: "lg" }), "bg-honey text-honey-foreground hover:bg-honey-hover")}>
-                Get a Free Estimate
-              </Link>
-              <Link
-                href="/gallery"
-                className={cn(buttonVariants({ variant: "outline", size: "lg" }), "border-text-on-dark/30 bg-text-on-dark/10 text-text-on-dark hover:bg-text-on-dark/20")}
-              >
-                See Our Work
-              </Link>
-            </div>
-            <div className="mt-10 flex items-center gap-3 text-sm text-text-on-dark/70">
-              <StarRating rating={5} />
-              <span>{averageRating()} / 5 · {company.proof.projectsCompleted} projects completed</span>
-            </div>
-          </div>
-          <div className="relative min-h-[360px] self-stretch lg:min-h-0">
-            <div className="relative h-full min-h-[360px] overflow-hidden rounded-card border border-text-on-dark/20 shadow-2xl lg:min-h-full">
-              <Image
-                src="/images/hero.svg"
-                alt="Taylor & Lanie of Happy Place Carpentry on a finished cedar deck at golden hour"
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 45vw"
-                className="object-cover"
-              />
-              <span className="absolute bottom-4 left-4 rounded-full bg-deep/80 px-4 py-2 font-signature text-2xl text-honey">
+      {/* HERO — magazine composition: layered full-bleed background + golden
+          light + floating cedar card. Content lowered (~100px) so nav and hero
+          don't compete. Structurally non-overlapping (stacked < lg, layered
+          absolute bg behind a relative content card at lg). */}
+      <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
+        {/* full-bleed background photo (parallax) */}
+        <div className="absolute inset-0 -z-10">
+          <Image
+            src="/images/hero.svg"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className="hero-parallax object-cover opacity-60"
+          />
+          {/* golden-hour warm light wash */}
+          <div className="absolute inset-0 bg-gradient-to-tr from-deep via-deep/70 to-honey/20" aria-hidden="true" />
+          <div className="absolute inset-0 bg-gradient-to-b from-deep/40 via-transparent to-deep" aria-hidden="true" />
+        </div>
+
+        <Container className="relative grid min-h-[88svh] grid-cols-1 items-end pb-16 pt-36 lg:grid-cols-12 lg:items-center lg:pb-24 lg:pt-40">
+          {/* floating cedar card (owner + headline + CTA) */}
+          <div className="lg:col-span-7">
+            <div className="relative float-card bg-deep/55 p-7 backdrop-blur-md ring-1 ring-honey/15 sm:p-10 lg:bg-deep/45">
+              <CedarCorner className="absolute -left-2 -top-2 h-7 w-7 text-honey" />
+              <p className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-honey">
+                {company.ccbNumber} · {company.proof.serviceCounties.join(" · ")}
+              </p>
+              <h1 className="mt-4 font-display text-4xl font-bold leading-[1.04] text-text-on-dark sm:text-5xl lg:text-6xl">
+                Building spaces you&rsquo;ll love coming home to.
+              </h1>
+              <p className="mt-5 max-w-xl text-lg text-text-on-dark/80">
+                Custom decks, kitchens, fences, and outdoor living across the
+                mid-Willamette Valley — crafted in cedar, finished by hand.
+              </p>
+              <div className="mt-7 flex flex-wrap gap-3">
+                <Link href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-base font-semibold">
+                  Get a Free Estimate
+                </Link>
+                <Link
+                  href="/gallery"
+                  className="inline-flex items-center justify-center gap-2 rounded-full border border-text-on-dark/30 bg-text-on-dark/10 px-7 py-3.5 text-base font-semibold text-text-on-dark transition-colors hover:bg-text-on-dark/20"
+                >
+                  See Our Work
+                </Link>
+              </div>
+              <div className="mt-7 flex items-center gap-3 text-sm text-text-on-dark/70">
+                <StarRating rating={5} />
+                <span>{averageRating()} / 5 · {company.proof.projectsCompleted} projects completed</span>
+              </div>
+              <span className="mt-6 block font-signature text-3xl text-honey">
                 {taylor.name} &amp; {lanie.name}
               </span>
             </div>
           </div>
+
+          {/* floating owner photo, offset on desktop */}
+          <div className="relative mt-10 lg:col-span-5 lg:mt-0 lg:self-center">
+            <div className="relative mx-auto aspect-[4/5] w-2/3 overflow-hidden rounded-card shadow-float ring-1 ring-text-on-dark/20 sm:w-1/2 lg:ml-auto lg:w-full lg:translate-y-6">
+              <Image
+                src="/images/about.svg"
+                alt="Taylor & Lanie of Happy Place Carpentry"
+                fill
+                sizes="(max-width: 1024px) 60vw, 40vw"
+                className="object-cover"
+              />
+            </div>
+          </div>
         </Container>
       </section>
+
+      {/* FEATURED TRANSFORMATION — people buy transformations, not services.
+          Editorial: large image + offset floating quote card (cedar principle:
+          images overlap panels, no identical boxes). */}
+      {spotlight && (
+        <section className="bg-background">
+          <Container className="py-16 sm:py-20">
+            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">Featured transformation</p>
+            <div className="mt-6 grid grid-cols-1 items-center gap-8 lg:grid-cols-12 lg:gap-0">
+              {/* large image, slightly overlapping the quote panel */}
+              <div className="relative lg:col-span-8 lg:z-10">
+                <div className="relative aspect-[16/10] overflow-hidden rounded-card shadow-float ring-1 ring-border-soft">
+                  <Image
+                    src={spotlight.photos[0].src}
+                    alt={spotlight.title}
+                    fill
+                    sizes="(max-width: 1024px) 100vw, 66vw"
+                    className="photo-breathe object-cover"
+                  />
+                </div>
+              </div>
+              {/* floating quote card, pulled left over the image */}
+              <div className="relative lg:col-span-5 lg:-ml-16 lg:z-20">
+                <div className="float-card bg-surface p-7 sm:p-9">
+                  <CedarCorner className="absolute -right-2 -top-2 h-7 w-7 text-honey" />
+                  <p className="font-display text-2xl font-bold leading-snug text-text sm:text-3xl">
+                    {spotlight.title}
+                  </p>
+                  <p className="mt-4 text-text-muted">{spotlight.summary}</p>
+                  <div className="mt-6 flex items-center gap-3">
+                    <span className="font-signature text-2xl text-primary">{taylor.name} &amp; {lanie.name}</span>
+                  </div>
+                  <Link
+                    href={`/projects/${spotlight.slug}`}
+                    className="mt-6 inline-flex items-center gap-1 font-semibold text-accent hover:underline"
+                  >
+                    Read the full story →
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </Container>
+        </section>
+      )}
 
       {/* TRUST / MICRO-PROOF STRIP — woven, not isolated */}
       <section className="border-y border-border-soft bg-cream">
@@ -144,14 +207,12 @@ export default function HomePage() {
         </Container>
       </Section>
 
-      {/* FEATURED PROJECT */}
-      {spotlight && <ProjectSpotlight project={spotlight} variant="feature" />}
-
       {/* TAYLOR & LANIE — partnership */}
       <Section className="bg-cream">
         <Container className="grid items-center gap-10 lg:grid-cols-2">
-          <div className="relative aspect-[4/3] overflow-hidden rounded-card border border-border">
-            <Image src="/images/about.svg" alt="Taylor & Lanie working with a client" width={1200} height={900} className="h-full w-full object-cover" />
+          <div className="relative aspect-[4/3] overflow-hidden rounded-card shadow-float ring-1 ring-border-soft">
+            <Image src="/images/about.svg" alt="Taylor & Lanie working with a client" width={1200} height={900} className="h-full w-full object-cover photo-breathe" />
+            <CedarCorner className="absolute -left-2 -top-2 h-8 w-8 text-honey" />
           </div>
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-accent">The people behind the work</p>
@@ -181,7 +242,7 @@ export default function HomePage() {
           <SectionHeading eyebrow="Reviews" title="What neighbors say" align="center" description="Real feedback from homeowners across the Willamette Valley." />
           <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
             {topReviews.map((r) => (
-              <figure key={r.id} className="rounded-2xl border border-border bg-surface p-6 shadow-sm">
+              <figure key={r.id} className="float-card bg-surface p-6">
                 <StarRating rating={r.rating} />
                 <h3 className="mt-3 font-bold text-text">{r.title}</h3>
                 <blockquote className="mt-2 text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>

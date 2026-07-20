@@ -36,6 +36,7 @@ export const metadata: Metadata = {
     images: [seo.ogImage!],
   },
   alternates: { canonical: siteUrl },
+  icons: { icon: "/brand/favicon.svg", apple: "/brand/favicon.svg" },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

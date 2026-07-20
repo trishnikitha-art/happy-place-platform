@@ -57,6 +57,15 @@
 
   /* Radius scale */
   --radius-card: 1rem;
+
+  /* Secondary brand — warm graphite panel (dark sections / spotlight) */
+  --color-secondary: #2b2620;
+  --color-secondary-hover: #3a342c;
+  --color-secondary-foreground: #f4efe6;
+
+  /* Signature warm shadow (weighty, premium, not flat) */
+  --shadow-warm: 0 18px 40px -18px rgba(31, 63, 60, 0.45), 0 8px 20px -12px rgba(217, 154, 78, 0.25);
+  --shadow-float: 0 24px 60px -28px rgba(31, 63, 60, 0.55), 0 10px 30px -16px rgba(0, 0, 0, 0.25);
 }
 
 html {
@@ -94,6 +103,65 @@ body {
   opacity: 0.5;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
+
+/* ORGANIC divider — cedar PRINCIPLE, not a texture (CEO review).
+   Asymmetric, hand-placed lengths instead of one identical rule. */
+.organic-divider {
+  height: 2px;
+  width: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--color-accent) 8%,
+    var(--color-honey) 22%,
+    var(--color-accent) 70%,
+    transparent 100%
+  );
+  opacity: 0.6;
+  border-radius: 2px;
+}
+
+/* Floating content — depth over borders (CEO: "instead of boxes, floating"). */
+.float-card {
+  background: var(--color-surface);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-float);
+  border: none;
+}
+
+/* Weighty, premium CTA (no bounce). Shared signature across the site. */
+.cta-signature {
+  background: var(--color-honey);
+  color: var(--color-honey-foreground);
+  box-shadow: var(--shadow-warm);
+  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+}
+.cta-signature:hover {
+  transform: translateY(-2px);
+  background: var(--color-honey-hover);
+  box-shadow: 0 26px 50px -20px rgba(31, 63, 60, 0.5), 0 12px 26px -12px rgba(217, 154, 78, 0.4);
+}
+
+/* Hero parallax layer — subtle slow drift on the background photo. */
+@media (prefers-reduced-motion: no-preference) {
+  .hero-parallax {
+    will-change: transform;
+    animation: heroDrift 18s ease-in-out infinite alternate;
+  }
+  @keyframes heroDrift {
+    from { transform: scale(1.06) translateY(0); }
+    to { transform: scale(1.12) translateY(-2.5%); }
+  }
+  /* Editorial micro-motion: images breathe 1–2% while visible. */
+  .photo-breathe { transition: transform 0.7s ease-out; }
+  .group:hover .photo-breathe,
+  .photo-breathe:hover { transform: scale(1.03); }
+}
+
+/* Reveal: fade + slight upward (reuse Reveal component styles here for
+   sections that aren't React client components). */
+.reveal-up { opacity: 0; transform: translateY(18px); transition: opacity 0.7s ease-out, transform 0.7s ease-out; }
+.reveal-up.is-visible { opacity: 1; transform: none; }
 
 @media (prefers-reduced-motion: reduce) {
   *,

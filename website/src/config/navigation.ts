@@ -6,15 +6,15 @@ export interface NavItem {
 }
 
 /**
- * Primary navigation — deliberately lean (CEO review): Home · Services ·
- * Our Work · Estimate · About · Contact. Everything else lives lower on the
- * page or in the footer. "Our Work" is the merged Projects + Gallery hub.
+ * Primary navigation — equal visual weight, never wraps (CEO review).
+ * Order: Home · Services · Our Work · About · Reviews · Estimate.
+ * "Our Work" = merged Projects + Gallery hub. Estimate is a warm CTA, not a plain link.
  */
 export const navigation: NavItem[] = [
   { label: "Home", href: "/" },
   { label: "Services", href: "/services" },
   { label: "Our Work", href: "/gallery" },
   { label: "About", href: "/about" },
-  { label: "Contact", href: "/contact" },
-  { label: "Free Estimate", href: "/estimate", secondary: true },
+  { label: "Reviews", href: "/reviews" },
+  { label: "Estimate", href: "/estimate", secondary: true },
 ];
