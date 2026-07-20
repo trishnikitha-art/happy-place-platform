@@ -45,9 +45,9 @@ This version has breaking changes — APIs, conventions, and file structures may
 
 **G. Image QA is a release gate.** Before every deploy run `npm run qa:images` — hero crops, no stretch, before/after aligned, mobile/desktop crops, retina sharp, lazy-load, alt text, blur placeholders, no broken images. Fails → block deploy.
 
-**H. Simple V1 pipeline.** Owner drops photos in `photo-intake/<Category> - <Location>/` → `npm run images` archives originals, generates WebP/AVIF/thumb/blur, reads EXIF, writes gallery manifest, commits. No AI/db/hidden automation.
+**H. Simple V1 pipeline.** Owner drops photos in `photo-intake/<Folder>/` (flat names: `Decks`, `Fences`, `Pergolas`, `Kitchen Remodeling`, `Bathroom Remodeling`, `Built-Ins`, `Repairs`, `Outdoor Living`, `Misc`) → `npm run images` archives originals, generates AVIF/WebP/thumb/blur, writes `gallery.json`, commits. No AI/db/hidden automation.
 
-**I. Folder = source of truth.** `Incoming Photos/Deck Build/`, `Pergola - Salem/`, etc. Folder name supplies category.
+**I. Folder = source of truth.** `photo-intake/Decks/`, `photo-intake/Kitchen Remodeling/`, etc. Folder name supplies category; `CATEGORY_MAP` in the pipeline maps it to the canonical category.
 
 **J. Every commit refines visuals** (Directive #10): each near-end commit adds ≥1 polish (spacing/type/alignment/composition/mobile rhythm/hover/loading) — site gets visibly better each commit, not just more features.
 
