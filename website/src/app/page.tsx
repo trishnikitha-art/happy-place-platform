@@ -54,7 +54,7 @@ export default function HomePage() {
               <p className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-honey">
                 {company.ccbNumber} · {company.proof.serviceCounties.join(" · ")}
               </p>
-              <h1 className="mt-4 font-display text-4xl font-bold leading-[1.04] text-text-on-dark sm:text-5xl lg:text-6xl">
+              <h1 className="mt-4 font-display text-5xl font-bold leading-[1.02] text-text-on-dark sm:text-6xl lg:text-7xl">
                 Building spaces you&rsquo;ll love coming home to.
               </h1>
               <p className="mt-5 max-w-xl text-lg text-text-on-dark/80">
@@ -142,7 +142,7 @@ export default function HomePage() {
       )}
 
       {/* TRUST / MICRO-PROOF STRIP — woven, not isolated */}
-      <section className="border-y border-border-soft bg-cream">
+      <section className="border-y border-border-soft bg-background">
         <Container className="grid grid-cols-2 gap-6 py-10 text-center sm:grid-cols-4">
           {[
             [company.proof.projectsCompleted, "Projects completed"],
@@ -185,7 +185,7 @@ export default function HomePage() {
       </Section>
 
       {/* BEFORE / AFTER — major feature */}
-      <Section className="bg-surface-muted">
+      <Section className="bg-background">
         <Container>
           <SectionHeading
             eyebrow="Before & after"
@@ -208,7 +208,7 @@ export default function HomePage() {
       </Section>
 
       {/* TAYLOR & LANIE — partnership */}
-      <Section className="bg-cream">
+      <Section className="bg-background">
         <Container className="grid items-center gap-10 lg:grid-cols-2">
           <div className="relative aspect-[4/3] overflow-hidden rounded-card shadow-float ring-1 ring-border-soft">
             <Image src="/images/about.svg" alt="Taylor & Lanie working with a client" width={1200} height={900} className="h-full w-full object-cover photo-breathe" />
@@ -242,7 +242,7 @@ export default function HomePage() {
           <SectionHeading eyebrow="Reviews" title="What neighbors say" align="center" description="Real feedback from homeowners across the Willamette Valley." />
           <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
             {topReviews.map((r) => (
-              <figure key={r.id} className="float-card bg-surface p-6">
+              <figure key={r.id} className="float-card bg-surface p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-float">
                 <StarRating rating={r.rating} />
                 <h3 className="mt-3 font-bold text-text">{r.title}</h3>
                 <blockquote className="mt-2 text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>

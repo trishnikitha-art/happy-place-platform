@@ -10,8 +10,8 @@ import { Card } from "@/components/ui/card";
  */
 export function ServiceCard({ service }: { service: Service }) {
   return (
-    <Card className="group flex flex-col overflow-hidden transition-shadow hover:shadow-lg">
-      <div className="relative aspect-[4/3] overflow-hidden bg-secondary">
+    <Card className="group flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-float">
+      <div className="relative aspect-[4/3] overflow-hidden bg-[#E4DFD4]">
         <Image
           src={service.heroImage}
           alt={`${service.title} by Happy Place Carpentry`}
