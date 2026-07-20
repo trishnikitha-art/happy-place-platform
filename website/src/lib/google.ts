@@ -1,5 +1,7 @@
 import { google } from "googleapis";
 
+type OAuth2Client = InstanceType<typeof google.auth.OAuth2>;
+
 /**
  * SERVER-ONLY Google client (Directive 031 guardrail).
  *
@@ -11,8 +13,6 @@ import { google } from "googleapis";
  * store / env). For this MVP test account we read it from GOOGLE_REFRESH_TOKEN.
  * In production, store it in Vercel's encrypted env / a secret manager.
  */
-
-type OAuth2Client = ReturnType<typeof google.auth.OAuth2>;
 
 function required(name: string): string {
   const v = process.env[name];
