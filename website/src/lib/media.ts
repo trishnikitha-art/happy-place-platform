@@ -138,7 +138,7 @@ export function servicePhoto(slug: string): MediaImage | null {
   const score = (m: PhotoMeta) =>
     (m.category === cat ? 100 : 0) + (SERVICE_PROXY[slug] === m.category ? 60 : 0) + m.priority;
   const hits = PHOTO_ROLES.filter(
-    (m) => (m.category === cat || SERVICE_PROXY[slug] === m.category) && m.quality.service,
+    (m) => (m.category === cat && m.quality.service) || SERVICE_PROXY[slug] === m.category,
   )
     .sort((a, b) => score(b) - score(a))
     .map((m) => BY_ID.get(m.id))
