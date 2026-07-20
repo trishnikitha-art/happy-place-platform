@@ -1,0 +1,19 @@
+{
+  "_meta": {
+    "trade": "fencing",
+    "version": "2026.07.0",
+    "sourceDate": "2026-07-15",
+    "source": "Regional wage survey + owner actuals (Happy Place Carpentry)",
+    "confidence": 0.74
+  },
+  "unit": "per linear foot (installed labor, excludes material)",
+  "laborRange": [12.0, 22.0],
+  "crewClass": "fencing-crew",
+  "modifiers": {
+    "removal": { "perLinearFoot": [2.5, 4.5], "confidence": 0.7 },
+    "gateEach": [250, 650],
+    "elevatedTerrain": { "multiplier": 1.15, "confidence": 0.6 },
+    "rockyFootings": { "multiplier": 1.2, "confidence": 0.55 }
+  },
+  "estimatedDaysPer100ft": 1.5
+}

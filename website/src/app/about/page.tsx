@@ -34,8 +34,11 @@ export default function AboutPage() {
               walkthrough, you&rsquo;ll work with the same people who care about getting
               every detail right.
             </p>
+            <p className="mt-6 font-display text-xl text-honey/90">
+              Built carefully. Communicated clearly. Finished with pride.
+            </p>
           </div>
-          <div className="relative aspect-[4/3] overflow-hidden rounded-card border border-text-on-dark/20 shadow-2xl">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
             <Image src={ownerPortrait().src} alt="Taylor & Lanie of Happy Place Carpentry" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover" />
           </div>
         </Container>

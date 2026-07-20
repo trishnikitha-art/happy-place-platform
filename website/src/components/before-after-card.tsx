@@ -10,7 +10,7 @@ import type { Transformation } from "@/config/transformations";
  */
 export function BeforeAfterCard({ t }: { t: Transformation }) {
   return (
-    <figure className="group relative overflow-hidden rounded-card border border-border bg-surface shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-float">
+    <figure className="group relative overflow-hidden rounded-card border border-border bg-surface shadow-sm transition-all duration-300 hover:-translate-y-1 photo-mounted">
       <div className="relative aspect-[4/3] w-full overflow-hidden">
         <Image
           src={t.image.src}

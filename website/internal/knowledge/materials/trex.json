@@ -1,0 +1,16 @@
+{
+  "_meta": {
+    "material": "trex-composite",
+    "version": "2026.07.0",
+    "sourceDate": "2026-07-15",
+    "source": "Trex + TimberTech distributor price sheets (Willamette distributor)",
+    "confidence": 0.7,
+    "notes": "Deck board only; railing/hardware separate."
+  },
+  "unit": "per square foot (board only)",
+  "priceRange": [9.0, 16.0],
+  "lines": {
+    "trexEnhance": { "perSqFt": [9.0, 11.5], "confidence": 0.71 },
+    "trexTranscend": { "perSqFt": [13.0, 16.0], "confidence": 0.68 }
+  }
+}

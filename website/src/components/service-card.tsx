@@ -13,7 +13,7 @@ export function ServiceCard({ service }: { service: Service }) {
   const img = media(`service:${service.slug}`);
   return (
     <Card className="group flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-float">
-      <div className="relative aspect-[4/3] overflow-hidden bg-[#E4DFD4]">
+      <div className="relative aspect-[4/3] overflow-hidden bg-[#E4DFD4] photo-mounted">
         <Image
           src={img.src}
           alt={img.alt}
@@ -27,7 +27,7 @@ export function ServiceCard({ service }: { service: Service }) {
       </div>
       <div className="flex flex-1 flex-col p-5">
         <h3 className="font-display text-xl font-bold text-text">{service.title}</h3>
-        <p className="mt-2 flex-1 text-sm text-text-muted">{service.summary}</p>
+        <p className="clamp-2 mt-2 flex-1 text-sm text-text-muted">{service.summary}</p>
         {service.stat && (
           <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-accent">{service.stat}</p>
         )}

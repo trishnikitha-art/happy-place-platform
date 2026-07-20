@@ -1,0 +1,26 @@
+{
+  "_meta": {
+    "topic": "permits",
+    "version": "2026.07.0",
+    "sourceDate": "2026-07-12",
+    "source": "Benton / Linn / Marion / Polk county permit offices",
+    "confidence": 0.69
+  },
+  "fencing": {
+    "required": false,
+    "likelihood": 0.1,
+    "note": "Most fence replacements under 6ft do not require a building permit; verify property-line setbacks."
+  },
+  "decks": {
+    "required": true,
+    "likelihood": 0.95,
+    "feeRange": [180, 450],
+    "note": "Any deck > 30in above grade requires a building permit + footing inspection."
+  },
+  "kitchenBath": {
+    "required": true,
+    "likelihood": 0.9,
+    "feeRange": [200, 600],
+    "note": "Permit required when plumbing/electrical is moved; ventilation changes trigger mechanical review."
+  }
+}

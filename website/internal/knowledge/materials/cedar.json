@@ -1,0 +1,21 @@
+{
+  "_meta": {
+    "material": "cedar",
+    "version": "2026.07.0",
+    "sourceDate": "2026-07-15",
+    "source": "Mid-Willamette Valley supplier quote aggregate (3 local yards)",
+    "confidence": 0.72,
+    "notes": "Rough lumber + standard 1x6 fencing grade. Prices pre-inflation-adjustment."
+  },
+  "unit": "per linear foot (material only)",
+  "priceRange": [6.5, 11.0],
+  "grades": {
+    "standard": { "perLinearFoot": [6.5, 8.5], "confidence": 0.78 },
+    "clear": { "perLinearFoot": [9.0, 11.0], "confidence": 0.7 }
+  },
+  "stain": {
+    "oilBasedPerGal": [42, 58],
+    "coverageSqFtPerGal": 200,
+    "confidence": 0.65
+  }
+}

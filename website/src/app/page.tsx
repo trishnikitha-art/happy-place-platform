@@ -37,7 +37,7 @@ export default function HomePage() {
             <h1 className="mt-5 font-display text-5xl font-bold leading-[1.03] tracking-tight text-text-on-dark sm:text-6xl lg:text-7xl">
               Building spaces you&rsquo;ll love coming home to.
             </h1>
-            <p className="mt-7 max-w-xl text-lg leading-relaxed text-text-on-dark/80">
+            <p className="measure measure mt-7 max-w-xl text-lg leading-relaxed text-text-on-dark/80">
               Every family has that one space they avoid — and the one they dream
               about. We build the decks, kitchens, baths, fences, and custom details
               that turn a house into your happy place.
@@ -78,7 +78,7 @@ export default function HomePage() {
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">Featured transformation</p>
             <div className="mt-7 grid grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-0">
               <div className="relative lg:col-span-8 lg:z-10">
-                <div className="relative aspect-[16/10] overflow-hidden rounded-card shadow-float ring-1 ring-border-soft">
+                <div className="relative aspect-[16/10] overflow-hidden rounded-card photo-mounted">
                   <Image
                     src={featured.src}
                     alt="Cedar fence built by Happy Place Carpentry"
@@ -125,13 +125,13 @@ export default function HomePage() {
             />
             <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-12">
               <div className="relative lg:col-span-7">
-                <div className="relative aspect-[4/3] overflow-hidden rounded-card shadow-float ring-1 ring-border-soft">
+                <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
                   <Image src={outdoor[1].src} alt={outdoor[1].alt} fill sizes="(max-width: 1024px) 100vw, 58vw" className="object-cover photo-breathe" />
                 </div>
               </div>
               <div className="flex flex-col justify-center gap-6 lg:col-span-5">
                 {[outdoor[4], outdoor[5]].filter(Boolean).map((img, i) => (
-                  <div key={i} className="relative aspect-[16/10] overflow-hidden rounded-card shadow-float ring-1 ring-border-soft">
+                  <div key={i} className="relative aspect-[16/10] overflow-hidden rounded-card photo-mounted">
                     <Image src={img!.src} alt={img!.alt} fill sizes="(max-width: 768px) 100vw, 40vw" className="object-cover" />
                   </div>
                 ))}
@@ -212,7 +212,7 @@ export default function HomePage() {
             <h2 className="mt-3 font-display text-4xl font-bold leading-tight text-text sm:text-5xl">
               Happy Place isn&rsquo;t a slogan. It&rsquo;s why we exist.
             </h2>
-            <div className="mt-7 space-y-5 text-text-muted">
+            <div className="measure mt-7 space-y-5 text-text-muted">
               <p className="text-lg leading-relaxed">
                 We aren&rsquo;t built around salespeople, project managers, and handoffs.
                 We&rsquo;re one family that believes your home should become your happy
@@ -226,7 +226,7 @@ export default function HomePage() {
               </p>
             </div>
           </div>
-          <div className="relative aspect-[4/3] overflow-hidden rounded-card shadow-float ring-1 ring-border-soft">
+          <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
             <Image src={ownerPortrait().src} alt="Taylor & Lanie of Happy Place Carpentry" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover photo-breathe" />
             <CedarCorner className="absolute -left-2 -top-2 h-8 w-8 text-honey" />
           </div>
