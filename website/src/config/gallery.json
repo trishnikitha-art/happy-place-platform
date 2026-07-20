@@ -1,4 +1,2473 @@
 {
-  "projects": [],
-  "images": []
+  "projects": [
+    {
+      "slug": "bathroom-remodeling",
+      "title": "Bathroom Remodeling — Willamette Valley",
+      "category": "Bathroom Remodeling",
+      "county": "",
+      "images": {
+        "hero": {
+          "id": "bathroom-remodeling/bathroom-wall",
+          "title": "Bathroom Remodeling — Willamette Valley",
+          "project": "bathroom-remodeling",
+          "category": "Bathroom Remodeling",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Bathroom Remodeling — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 1280,
+          "height": 960,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "BATHROOM_WALL.png",
+          "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.webp",
+          "thumbnail": "/images/projects/bathroom-remodeling/BATHROOM_WALL-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRm4AAABXRUJQVlA4IGIAAADQAQCdASoQAAwAA4BaJQBOgBJxSzk/gAD+yckh4ywjjEJoM/ASRnw2QHgyTZGsxvBn4XfAPpDCsCUS89Way39Or+3iH3+f/R6WnIixH1evUO5+2lNIInR2i1gpQrGBVgAAAA==",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.webp"
+            },
+            {
+              "width": 768,
+              "format": "avif",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-768.avif"
+            },
+            {
+              "width": 768,
+              "format": "webp",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-768.webp"
+            },
+            {
+              "width": 1080,
+              "format": "avif",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.avif"
+            },
+            {
+              "width": 1080,
+              "format": "webp",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.webp"
+            }
+          ]
+        },
+        "cover": {
+          "id": "bathroom-remodeling/bathroom-wall",
+          "title": "Bathroom Remodeling — Willamette Valley",
+          "project": "bathroom-remodeling",
+          "category": "Bathroom Remodeling",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Bathroom Remodeling — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 1280,
+          "height": 960,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "BATHROOM_WALL.png",
+          "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.webp",
+          "thumbnail": "/images/projects/bathroom-remodeling/BATHROOM_WALL-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRm4AAABXRUJQVlA4IGIAAADQAQCdASoQAAwAA4BaJQBOgBJxSzk/gAD+yckh4ywjjEJoM/ASRnw2QHgyTZGsxvBn4XfAPpDCsCUS89Way39Or+3iH3+f/R6WnIixH1evUO5+2lNIInR2i1gpQrGBVgAAAA==",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.webp"
+            },
+            {
+              "width": 768,
+              "format": "avif",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-768.avif"
+            },
+            {
+              "width": 768,
+              "format": "webp",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-768.webp"
+            },
+            {
+              "width": 1080,
+              "format": "avif",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.avif"
+            },
+            {
+              "width": 1080,
+              "format": "webp",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.webp"
+            }
+          ]
+        },
+        "thumbnail": {
+          "id": "bathroom-remodeling/bathroom-wall",
+          "title": "Bathroom Remodeling — Willamette Valley",
+          "project": "bathroom-remodeling",
+          "category": "Bathroom Remodeling",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Bathroom Remodeling — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 1280,
+          "height": 960,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "BATHROOM_WALL.png",
+          "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.webp",
+          "thumbnail": "/images/projects/bathroom-remodeling/BATHROOM_WALL-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRm4AAABXRUJQVlA4IGIAAADQAQCdASoQAAwAA4BaJQBOgBJxSzk/gAD+yckh4ywjjEJoM/ASRnw2QHgyTZGsxvBn4XfAPpDCsCUS89Way39Or+3iH3+f/R6WnIixH1evUO5+2lNIInR2i1gpQrGBVgAAAA==",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.webp"
+            },
+            {
+              "width": 768,
+              "format": "avif",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-768.avif"
+            },
+            {
+              "width": 768,
+              "format": "webp",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-768.webp"
+            },
+            {
+              "width": 1080,
+              "format": "avif",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.avif"
+            },
+            {
+              "width": 1080,
+              "format": "webp",
+              "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.webp"
+            }
+          ]
+        },
+        "homeowner": null,
+        "before": [],
+        "after": [],
+        "details": [
+          {
+            "id": "bathroom-remodeling/bathroom-wall",
+            "title": "Bathroom Remodeling — Willamette Valley",
+            "project": "bathroom-remodeling",
+            "category": "Bathroom Remodeling",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Bathroom Remodeling — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 1280,
+            "height": 960,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "BATHROOM_WALL.png",
+            "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.webp",
+            "thumbnail": "/images/projects/bathroom-remodeling/BATHROOM_WALL-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRm4AAABXRUJQVlA4IGIAAADQAQCdASoQAAwAA4BaJQBOgBJxSzk/gAD+yckh4ywjjEJoM/ASRnw2QHgyTZGsxvBn4XfAPpDCsCUS89Way39Or+3iH3+f/R6WnIixH1evUO5+2lNIInR2i1gpQrGBVgAAAA==",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.webp"
+              },
+              {
+                "width": 768,
+                "format": "avif",
+                "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-768.avif"
+              },
+              {
+                "width": 768,
+                "format": "webp",
+                "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-768.webp"
+              },
+              {
+                "width": 1080,
+                "format": "avif",
+                "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.avif"
+              },
+              {
+                "width": 1080,
+                "format": "webp",
+                "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.webp"
+              }
+            ]
+          }
+        ]
+      },
+      "galleryOrder": [
+        "bathroom-remodeling/bathroom-wall"
+      ]
+    },
+    {
+      "slug": "built-ins",
+      "title": "Custom Carpentry — Willamette Valley",
+      "category": "Custom Carpentry",
+      "county": "",
+      "images": {
+        "hero": {
+          "id": "built-ins/finishedcarpentry0",
+          "title": "Custom Carpentry — Willamette Valley",
+          "project": "built-ins",
+          "category": "Custom Carpentry",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Custom Carpentry — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 1280,
+          "height": 823,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "FINISHEDCARPENTRY0.png",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp",
+          "thumbnail": "/images/projects/built-ins/FINISHEDCARPENTRY0-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRnQAAABXRUJQVlA4IGgAAADwAQCdASoQAAoAA4BaJZACdAD6jdHeQRAA/vSpCEugaI8wOYbuc/5PuEd2QYI789GCzauL/0+ilGEak8SqbF03WgssA7SOpTUV2Rankn89qX0zY5zNEYsqrXC8rSPgG4xdPSpFwAAAAA==",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp"
+            },
+            {
+              "width": 768,
+              "format": "avif",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.avif"
+            },
+            {
+              "width": 768,
+              "format": "webp",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.webp"
+            },
+            {
+              "width": 1080,
+              "format": "avif",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.avif"
+            },
+            {
+              "width": 1080,
+              "format": "webp",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.webp"
+            }
+          ]
+        },
+        "cover": {
+          "id": "built-ins/finishedcarpentry0",
+          "title": "Custom Carpentry — Willamette Valley",
+          "project": "built-ins",
+          "category": "Custom Carpentry",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Custom Carpentry — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 1280,
+          "height": 823,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "FINISHEDCARPENTRY0.png",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp",
+          "thumbnail": "/images/projects/built-ins/FINISHEDCARPENTRY0-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRnQAAABXRUJQVlA4IGgAAADwAQCdASoQAAoAA4BaJZACdAD6jdHeQRAA/vSpCEugaI8wOYbuc/5PuEd2QYI789GCzauL/0+ilGEak8SqbF03WgssA7SOpTUV2Rankn89qX0zY5zNEYsqrXC8rSPgG4xdPSpFwAAAAA==",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp"
+            },
+            {
+              "width": 768,
+              "format": "avif",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.avif"
+            },
+            {
+              "width": 768,
+              "format": "webp",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.webp"
+            },
+            {
+              "width": 1080,
+              "format": "avif",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.avif"
+            },
+            {
+              "width": 1080,
+              "format": "webp",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.webp"
+            }
+          ]
+        },
+        "thumbnail": {
+          "id": "built-ins/finishedcarpentry0",
+          "title": "Custom Carpentry — Willamette Valley",
+          "project": "built-ins",
+          "category": "Custom Carpentry",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Custom Carpentry — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 1280,
+          "height": 823,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "FINISHEDCARPENTRY0.png",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp",
+          "thumbnail": "/images/projects/built-ins/FINISHEDCARPENTRY0-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRnQAAABXRUJQVlA4IGgAAADwAQCdASoQAAoAA4BaJZACdAD6jdHeQRAA/vSpCEugaI8wOYbuc/5PuEd2QYI789GCzauL/0+ilGEak8SqbF03WgssA7SOpTUV2Rankn89qX0zY5zNEYsqrXC8rSPgG4xdPSpFwAAAAA==",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp"
+            },
+            {
+              "width": 768,
+              "format": "avif",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.avif"
+            },
+            {
+              "width": 768,
+              "format": "webp",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.webp"
+            },
+            {
+              "width": 1080,
+              "format": "avif",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.avif"
+            },
+            {
+              "width": 1080,
+              "format": "webp",
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.webp"
+            }
+          ]
+        },
+        "homeowner": null,
+        "before": [],
+        "after": [],
+        "details": [
+          {
+            "id": "built-ins/finishedcarpentry0",
+            "title": "Custom Carpentry — Willamette Valley",
+            "project": "built-ins",
+            "category": "Custom Carpentry",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Custom Carpentry — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 1280,
+            "height": 823,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "FINISHEDCARPENTRY0.png",
+            "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp",
+            "thumbnail": "/images/projects/built-ins/FINISHEDCARPENTRY0-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRnQAAABXRUJQVlA4IGgAAADwAQCdASoQAAoAA4BaJZACdAD6jdHeQRAA/vSpCEugaI8wOYbuc/5PuEd2QYI789GCzauL/0+ilGEak8SqbF03WgssA7SOpTUV2Rankn89qX0zY5zNEYsqrXC8rSPgG4xdPSpFwAAAAA==",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp"
+              },
+              {
+                "width": 768,
+                "format": "avif",
+                "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.avif"
+              },
+              {
+                "width": 768,
+                "format": "webp",
+                "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.webp"
+              },
+              {
+                "width": 1080,
+                "format": "avif",
+                "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.avif"
+              },
+              {
+                "width": 1080,
+                "format": "webp",
+                "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.webp"
+              }
+            ]
+          },
+          {
+            "id": "built-ins/finishedcarpentry",
+            "title": "Custom Carpentry — Willamette Valley",
+            "project": "built-ins",
+            "category": "Custom Carpentry",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Custom Carpentry — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 1280,
+            "height": 1078,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "FINISHEDCARPENTRY.png",
+            "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.webp",
+            "thumbnail": "/images/projects/built-ins/FINISHEDCARPENTRY-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRmoAAABXRUJQVlA4IF4AAABQAgCdASoQAA0AA4BaJQBOgMXI1Ocz5EZAWsAA/ueveCb/Y5aVz6uBnYN9sEn+0SXQqYovTuO3LF/2sp2ug/y7LFG9tRcO8Vcm1PtKB1ud7c6+Djr34925ZSzcAAAA",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.webp"
+              },
+              {
+                "width": 768,
+                "format": "avif",
+                "src": "/images/projects/built-ins/FINISHEDCARPENTRY-768.avif"
+              },
+              {
+                "width": 768,
+                "format": "webp",
+                "src": "/images/projects/built-ins/FINISHEDCARPENTRY-768.webp"
+              },
+              {
+                "width": 1080,
+                "format": "avif",
+                "src": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.avif"
+              },
+              {
+                "width": 1080,
+                "format": "webp",
+                "src": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.webp"
+              }
+            ]
+          }
+        ]
+      },
+      "galleryOrder": [
+        "built-ins/finishedcarpentry0",
+        "built-ins/finishedcarpentry"
+      ]
+    },
+    {
+      "slug": "fences",
+      "title": "Fencing — Willamette Valley",
+      "category": "Fencing",
+      "county": "",
+      "images": {
+        "hero": {
+          "id": "fences/fence-build",
+          "title": "Fencing — Willamette Valley",
+          "project": "fences",
+          "category": "Fencing",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Fencing — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 1280,
+          "height": 1436,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "FENCE BUILD.jpg",
+          "src": "/images/projects/fences/FENCE BUILD-480.webp",
+          "thumbnail": "/images/projects/fences/FENCE BUILD-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRnoAAABXRUJQVlA4IG4AAADwAwCdASoQABIAPu1iqU2ppaOiMAgBMB2JZACw7Btl7rbeX6rshvrAAP203cJZfx4HNJGQjqkIJ/1IqEhLDaptb+KTyO47hPELci+y56J6LicuYtVCuJkBvLc1vjmZ5nhVwkwwD2sKsPlM0wAAAA==",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/fences/FENCE BUILD-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/fences/FENCE BUILD-480.webp"
+            },
+            {
+              "width": 768,
+              "format": "avif",
+              "src": "/images/projects/fences/FENCE BUILD-768.avif"
+            },
+            {
+              "width": 768,
+              "format": "webp",
+              "src": "/images/projects/fences/FENCE BUILD-768.webp"
+            },
+            {
+              "width": 1080,
+              "format": "avif",
+              "src": "/images/projects/fences/FENCE BUILD-1080.avif"
+            },
+            {
+              "width": 1080,
+              "format": "webp",
+              "src": "/images/projects/fences/FENCE BUILD-1080.webp"
+            }
+          ]
+        },
+        "cover": {
+          "id": "fences/fence-build",
+          "title": "Fencing — Willamette Valley",
+          "project": "fences",
+          "category": "Fencing",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Fencing — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 1280,
+          "height": 1436,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "FENCE BUILD.jpg",
+          "src": "/images/projects/fences/FENCE BUILD-480.webp",
+          "thumbnail": "/images/projects/fences/FENCE BUILD-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRnoAAABXRUJQVlA4IG4AAADwAwCdASoQABIAPu1iqU2ppaOiMAgBMB2JZACw7Btl7rbeX6rshvrAAP203cJZfx4HNJGQjqkIJ/1IqEhLDaptb+KTyO47hPELci+y56J6LicuYtVCuJkBvLc1vjmZ5nhVwkwwD2sKsPlM0wAAAA==",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/fences/FENCE BUILD-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/fences/FENCE BUILD-480.webp"
+            },
+            {
+              "width": 768,
+              "format": "avif",
+              "src": "/images/projects/fences/FENCE BUILD-768.avif"
+            },
+            {
+              "width": 768,
+              "format": "webp",
+              "src": "/images/projects/fences/FENCE BUILD-768.webp"
+            },
+            {
+              "width": 1080,
+              "format": "avif",
+              "src": "/images/projects/fences/FENCE BUILD-1080.avif"
+            },
+            {
+              "width": 1080,
+              "format": "webp",
+              "src": "/images/projects/fences/FENCE BUILD-1080.webp"
+            }
+          ]
+        },
+        "thumbnail": {
+          "id": "fences/fence-build",
+          "title": "Fencing — Willamette Valley",
+          "project": "fences",
+          "category": "Fencing",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Fencing — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 1280,
+          "height": 1436,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "FENCE BUILD.jpg",
+          "src": "/images/projects/fences/FENCE BUILD-480.webp",
+          "thumbnail": "/images/projects/fences/FENCE BUILD-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRnoAAABXRUJQVlA4IG4AAADwAwCdASoQABIAPu1iqU2ppaOiMAgBMB2JZACw7Btl7rbeX6rshvrAAP203cJZfx4HNJGQjqkIJ/1IqEhLDaptb+KTyO47hPELci+y56J6LicuYtVCuJkBvLc1vjmZ5nhVwkwwD2sKsPlM0wAAAA==",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/fences/FENCE BUILD-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/fences/FENCE BUILD-480.webp"
+            },
+            {
+              "width": 768,
+              "format": "avif",
+              "src": "/images/projects/fences/FENCE BUILD-768.avif"
+            },
+            {
+              "width": 768,
+              "format": "webp",
+              "src": "/images/projects/fences/FENCE BUILD-768.webp"
+            },
+            {
+              "width": 1080,
+              "format": "avif",
+              "src": "/images/projects/fences/FENCE BUILD-1080.avif"
+            },
+            {
+              "width": 1080,
+              "format": "webp",
+              "src": "/images/projects/fences/FENCE BUILD-1080.webp"
+            }
+          ]
+        },
+        "homeowner": null,
+        "before": [],
+        "after": [],
+        "details": [
+          {
+            "id": "fences/fence-build",
+            "title": "Fencing — Willamette Valley",
+            "project": "fences",
+            "category": "Fencing",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Fencing — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 1280,
+            "height": 1436,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "FENCE BUILD.jpg",
+            "src": "/images/projects/fences/FENCE BUILD-480.webp",
+            "thumbnail": "/images/projects/fences/FENCE BUILD-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRnoAAABXRUJQVlA4IG4AAADwAwCdASoQABIAPu1iqU2ppaOiMAgBMB2JZACw7Btl7rbeX6rshvrAAP203cJZfx4HNJGQjqkIJ/1IqEhLDaptb+KTyO47hPELci+y56J6LicuYtVCuJkBvLc1vjmZ5nhVwkwwD2sKsPlM0wAAAA==",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/fences/FENCE BUILD-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/fences/FENCE BUILD-480.webp"
+              },
+              {
+                "width": 768,
+                "format": "avif",
+                "src": "/images/projects/fences/FENCE BUILD-768.avif"
+              },
+              {
+                "width": 768,
+                "format": "webp",
+                "src": "/images/projects/fences/FENCE BUILD-768.webp"
+              },
+              {
+                "width": 1080,
+                "format": "avif",
+                "src": "/images/projects/fences/FENCE BUILD-1080.avif"
+              },
+              {
+                "width": 1080,
+                "format": "webp",
+                "src": "/images/projects/fences/FENCE BUILD-1080.webp"
+              }
+            ]
+          },
+          {
+            "id": "fences/fencerebuildmatchingstain",
+            "title": "Fencing — Willamette Valley",
+            "project": "fences",
+            "category": "Fencing",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Fencing — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 1280,
+            "height": 1008,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "FENCEREBUILDMATCHINGSTAIN.png",
+            "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-480.webp",
+            "thumbnail": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRmAAAABXRUJQVlA4IFQAAADwAQCdASoQAA0AA4BaJbACdADRDHzQrQAA/qvg89rPqkr4vC+n26YZleQouc7LnPjSe7aiV8Bk46Isw4c1pXFZlR6lSC3kYu74+jPw1olB8dMkQAA=",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-480.webp"
+              },
+              {
+                "width": 768,
+                "format": "avif",
+                "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-768.avif"
+              },
+              {
+                "width": 768,
+                "format": "webp",
+                "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-768.webp"
+              },
+              {
+                "width": 1080,
+                "format": "avif",
+                "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.avif"
+              },
+              {
+                "width": 1080,
+                "format": "webp",
+                "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.webp"
+              }
+            ]
+          }
+        ]
+      },
+      "galleryOrder": [
+        "fences/fence-build",
+        "fences/fencerebuildmatchingstain"
+      ]
+    },
+    {
+      "slug": "outdoor-living",
+      "title": "Outdoor Living — Willamette Valley",
+      "category": "Outdoor Living",
+      "county": "",
+      "images": {
+        "hero": {
+          "id": "outdoor-living/img-0535",
+          "title": "Outdoor Living — Willamette Valley",
+          "project": "outdoor-living",
+          "category": "Outdoor Living",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Outdoor Living — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 480,
+          "height": 640,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "IMG_0535.JPG",
+          "src": "/images/projects/outdoor-living/IMG_0535-480.webp",
+          "thumbnail": "/images/projects/outdoor-living/IMG_0535-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRrIAAABXRUJQVlA4IKYAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JZgC7AYyUzSAo8CN+0kAA/uzX/NRtBA4fYxe1MYzZg9Yyg39mWRxyMuSXMbw2Ez/udSJkkKwmu1FWWaj3Yz9VTXfi7Bnb5RJN96gWJnhl4Y9u9NPtY9NlMAxXVvKGeXORmTR19rTl09cH1RRxff+/4fvon77FhBwL7sPXfWfLLcWwfin3CC+XXZ7eIQAA",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/outdoor-living/IMG_0535-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/outdoor-living/IMG_0535-480.webp"
+            }
+          ]
+        },
+        "cover": {
+          "id": "outdoor-living/img-0535",
+          "title": "Outdoor Living — Willamette Valley",
+          "project": "outdoor-living",
+          "category": "Outdoor Living",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Outdoor Living — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 480,
+          "height": 640,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "IMG_0535.JPG",
+          "src": "/images/projects/outdoor-living/IMG_0535-480.webp",
+          "thumbnail": "/images/projects/outdoor-living/IMG_0535-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRrIAAABXRUJQVlA4IKYAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JZgC7AYyUzSAo8CN+0kAA/uzX/NRtBA4fYxe1MYzZg9Yyg39mWRxyMuSXMbw2Ez/udSJkkKwmu1FWWaj3Yz9VTXfi7Bnb5RJN96gWJnhl4Y9u9NPtY9NlMAxXVvKGeXORmTR19rTl09cH1RRxff+/4fvon77FhBwL7sPXfWfLLcWwfin3CC+XXZ7eIQAA",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/outdoor-living/IMG_0535-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/outdoor-living/IMG_0535-480.webp"
+            }
+          ]
+        },
+        "thumbnail": {
+          "id": "outdoor-living/img-0535",
+          "title": "Outdoor Living — Willamette Valley",
+          "project": "outdoor-living",
+          "category": "Outdoor Living",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Outdoor Living — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 480,
+          "height": 640,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "IMG_0535.JPG",
+          "src": "/images/projects/outdoor-living/IMG_0535-480.webp",
+          "thumbnail": "/images/projects/outdoor-living/IMG_0535-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRrIAAABXRUJQVlA4IKYAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JZgC7AYyUzSAo8CN+0kAA/uzX/NRtBA4fYxe1MYzZg9Yyg39mWRxyMuSXMbw2Ez/udSJkkKwmu1FWWaj3Yz9VTXfi7Bnb5RJN96gWJnhl4Y9u9NPtY9NlMAxXVvKGeXORmTR19rTl09cH1RRxff+/4fvon77FhBwL7sPXfWfLLcWwfin3CC+XXZ7eIQAA",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/outdoor-living/IMG_0535-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/outdoor-living/IMG_0535-480.webp"
+            }
+          ]
+        },
+        "homeowner": null,
+        "before": [],
+        "after": [],
+        "details": [
+          {
+            "id": "outdoor-living/img-0535",
+            "title": "Outdoor Living — Willamette Valley",
+            "project": "outdoor-living",
+            "category": "Outdoor Living",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Outdoor Living — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 480,
+            "height": 640,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "IMG_0535.JPG",
+            "src": "/images/projects/outdoor-living/IMG_0535-480.webp",
+            "thumbnail": "/images/projects/outdoor-living/IMG_0535-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRrIAAABXRUJQVlA4IKYAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JZgC7AYyUzSAo8CN+0kAA/uzX/NRtBA4fYxe1MYzZg9Yyg39mWRxyMuSXMbw2Ez/udSJkkKwmu1FWWaj3Yz9VTXfi7Bnb5RJN96gWJnhl4Y9u9NPtY9NlMAxXVvKGeXORmTR19rTl09cH1RRxff+/4fvon77FhBwL7sPXfWfLLcWwfin3CC+XXZ7eIQAA",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/outdoor-living/IMG_0535-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/outdoor-living/IMG_0535-480.webp"
+              }
+            ]
+          },
+          {
+            "id": "outdoor-living/img-0555",
+            "title": "Outdoor Living — Willamette Valley",
+            "project": "outdoor-living",
+            "category": "Outdoor Living",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Outdoor Living — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 480,
+            "height": 640,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "IMG_0555.JPG",
+            "src": "/images/projects/outdoor-living/IMG_0555-480.webp",
+            "thumbnail": "/images/projects/outdoor-living/IMG_0555-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRpgAAABXRUJQVlA4IIwAAAAQBACdASoQABUAPu1iqU2ppaOiMAgBMB2JagCdACBQwFrkGXfKp6lpIAD9OkFVd8c0YfHYntYMjW2O0g95IKv+tGUSIURcmOUwB+rpdqDU6jnh5V6AkcTra3WVpy4A/iHXffrmMC+L2Pb/lLCy5H3QpxzLrQfs99yITXhmPg92uPtEh3/6tJaH+xIAAA==",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/outdoor-living/IMG_0555-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/outdoor-living/IMG_0555-480.webp"
+              }
+            ]
+          },
+          {
+            "id": "outdoor-living/img-0559",
+            "title": "Outdoor Living — Willamette Valley",
+            "project": "outdoor-living",
+            "category": "Outdoor Living",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Outdoor Living — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 640,
+            "height": 480,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "IMG_0559.JPG",
+            "src": "/images/projects/outdoor-living/IMG_0559-480.webp",
+            "thumbnail": "/images/projects/outdoor-living/IMG_0559-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAADwAQCdASoQAAwAA4BaJZACdAC9tYJ18jAA/sJ2J2+uBbAmhAZEbw8bk0QAAataPEwENnjJ9s687n7rdvJY8KGHzUrCEYEgNvYjQa+xQKJu86G+wD/KdxdipSAAAA==",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/outdoor-living/IMG_0559-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/outdoor-living/IMG_0559-480.webp"
+              }
+            ]
+          },
+          {
+            "id": "outdoor-living/img-0737",
+            "title": "Outdoor Living — Willamette Valley",
+            "project": "outdoor-living",
+            "category": "Outdoor Living",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Outdoor Living — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 480,
+            "height": 640,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "IMG_0737.JPG",
+            "src": "/images/projects/outdoor-living/IMG_0737-480.webp",
+            "thumbnail": "/images/projects/outdoor-living/IMG_0737-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4IIIAAAAwBACdASoQABUAPu1iqU2ppaOiMAgBMB2JZgCdACLG+RiryILpPo6sBAAA/nH3AbWRdxi+dGpTQJ7YzdppbuAjTEBcS4SwtEyCV49IqMnpCS9hEi7NYqRDm/0u48ZCfI7tuhBpSqzNx7gaxDxW2WpZVx+BsUzwXMYj+6XukRCLBpwA",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/outdoor-living/IMG_0737-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/outdoor-living/IMG_0737-480.webp"
+              }
+            ]
+          },
+          {
+            "id": "outdoor-living/img-0805",
+            "title": "Outdoor Living — Willamette Valley",
+            "project": "outdoor-living",
+            "category": "Outdoor Living",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Outdoor Living — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 480,
+            "height": 640,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "IMG_0805.JPG",
+            "src": "/images/projects/outdoor-living/IMG_0805-480.webp",
+            "thumbnail": "/images/projects/outdoor-living/IMG_0805-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRqQAAABXRUJQVlA4IJgAAABQBACdASoQABUAPu1iqU2ppaOiMAgBMB2JZAC2yYxY7WRUdFNTActeprwAAP5J8Zkn/YlF/BxEWm9Te2dpWfI1GDpOIxbMg97/Xf+nlFfKvXBQ/1fKw0CKdVmJlDkeo27LyMC1BFfrwYsY0avToVBEP+/VV2EJNWUFkgeIOe6EpHPZp2xgbv+CmIU9/J/4gvMrPoxj2augAA==",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/outdoor-living/IMG_0805-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/outdoor-living/IMG_0805-480.webp"
+              }
+            ]
+          },
+          {
+            "id": "outdoor-living/img-0841",
+            "title": "Outdoor Living — Willamette Valley",
+            "project": "outdoor-living",
+            "category": "Outdoor Living",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Outdoor Living — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 480,
+            "height": 640,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "IMG_0841.JPG",
+            "src": "/images/projects/outdoor-living/IMG_0841-480.webp",
+            "thumbnail": "/images/projects/outdoor-living/IMG_0841-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRqAAAABXRUJQVlA4IJQAAAAwBACdASoQABUAPu1iqU2ppaOiMAgBMB2JYgCdIKnDFXeldY3oE364NoAA/CxytM9C0L8Te4hvdHlJDY88BKqJYHenGtFvE1yqCWUXGKV3oUjtAzRZEHCbiwZBVsdreElLxkmhJfi7wffRBaeRy7aklWeGB9AR3Z/A3WEFOB3CBJk8NmDCzWgrsM7RLnU5yQHIOFAA",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/outdoor-living/IMG_0841-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/outdoor-living/IMG_0841-480.webp"
+              }
+            ]
+          }
+        ]
+      },
+      "galleryOrder": [
+        "outdoor-living/img-0535",
+        "outdoor-living/img-0555",
+        "outdoor-living/img-0559",
+        "outdoor-living/img-0737",
+        "outdoor-living/img-0805",
+        "outdoor-living/img-0841"
+      ]
+    },
+    {
+      "slug": "repairs",
+      "title": "Repairs — Willamette Valley",
+      "category": "Repairs",
+      "county": "",
+      "images": {
+        "hero": {
+          "id": "repairs/floor0",
+          "title": "Repairs — Willamette Valley",
+          "project": "repairs",
+          "category": "Repairs",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 1280,
+          "height": 1017,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "FLOOR0.jpg",
+          "src": "/images/projects/repairs/FLOOR0-480.webp",
+          "thumbnail": "/images/projects/repairs/FLOOR0-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRlQAAABXRUJQVlA4IEgAAACwAQCdASoQAA0AA4BaJYwAAaXQw9PwAP36Sm3DEtQbDkMvPkaMAEwcxyZHyWH+BeC/TJb0Ozzhf7Ml5Q5lvO5RynLHuJgeAAA=",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/repairs/FLOOR0-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/repairs/FLOOR0-480.webp"
+            },
+            {
+              "width": 768,
+              "format": "avif",
+              "src": "/images/projects/repairs/FLOOR0-768.avif"
+            },
+            {
+              "width": 768,
+              "format": "webp",
+              "src": "/images/projects/repairs/FLOOR0-768.webp"
+            },
+            {
+              "width": 1080,
+              "format": "avif",
+              "src": "/images/projects/repairs/FLOOR0-1080.avif"
+            },
+            {
+              "width": 1080,
+              "format": "webp",
+              "src": "/images/projects/repairs/FLOOR0-1080.webp"
+            }
+          ]
+        },
+        "cover": {
+          "id": "repairs/floor0",
+          "title": "Repairs — Willamette Valley",
+          "project": "repairs",
+          "category": "Repairs",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 1280,
+          "height": 1017,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "FLOOR0.jpg",
+          "src": "/images/projects/repairs/FLOOR0-480.webp",
+          "thumbnail": "/images/projects/repairs/FLOOR0-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRlQAAABXRUJQVlA4IEgAAACwAQCdASoQAA0AA4BaJYwAAaXQw9PwAP36Sm3DEtQbDkMvPkaMAEwcxyZHyWH+BeC/TJb0Ozzhf7Ml5Q5lvO5RynLHuJgeAAA=",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/repairs/FLOOR0-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/repairs/FLOOR0-480.webp"
+            },
+            {
+              "width": 768,
+              "format": "avif",
+              "src": "/images/projects/repairs/FLOOR0-768.avif"
+            },
+            {
+              "width": 768,
+              "format": "webp",
+              "src": "/images/projects/repairs/FLOOR0-768.webp"
+            },
+            {
+              "width": 1080,
+              "format": "avif",
+              "src": "/images/projects/repairs/FLOOR0-1080.avif"
+            },
+            {
+              "width": 1080,
+              "format": "webp",
+              "src": "/images/projects/repairs/FLOOR0-1080.webp"
+            }
+          ]
+        },
+        "thumbnail": {
+          "id": "repairs/floor0",
+          "title": "Repairs — Willamette Valley",
+          "project": "repairs",
+          "category": "Repairs",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 1280,
+          "height": 1017,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "FLOOR0.jpg",
+          "src": "/images/projects/repairs/FLOOR0-480.webp",
+          "thumbnail": "/images/projects/repairs/FLOOR0-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRlQAAABXRUJQVlA4IEgAAACwAQCdASoQAA0AA4BaJYwAAaXQw9PwAP36Sm3DEtQbDkMvPkaMAEwcxyZHyWH+BeC/TJb0Ozzhf7Ml5Q5lvO5RynLHuJgeAAA=",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/repairs/FLOOR0-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/repairs/FLOOR0-480.webp"
+            },
+            {
+              "width": 768,
+              "format": "avif",
+              "src": "/images/projects/repairs/FLOOR0-768.avif"
+            },
+            {
+              "width": 768,
+              "format": "webp",
+              "src": "/images/projects/repairs/FLOOR0-768.webp"
+            },
+            {
+              "width": 1080,
+              "format": "avif",
+              "src": "/images/projects/repairs/FLOOR0-1080.avif"
+            },
+            {
+              "width": 1080,
+              "format": "webp",
+              "src": "/images/projects/repairs/FLOOR0-1080.webp"
+            }
+          ]
+        },
+        "homeowner": null,
+        "before": [],
+        "after": [],
+        "details": [
+          {
+            "id": "repairs/floor0",
+            "title": "Repairs — Willamette Valley",
+            "project": "repairs",
+            "category": "Repairs",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 1280,
+            "height": 1017,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "FLOOR0.jpg",
+            "src": "/images/projects/repairs/FLOOR0-480.webp",
+            "thumbnail": "/images/projects/repairs/FLOOR0-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRlQAAABXRUJQVlA4IEgAAACwAQCdASoQAA0AA4BaJYwAAaXQw9PwAP36Sm3DEtQbDkMvPkaMAEwcxyZHyWH+BeC/TJb0Ozzhf7Ml5Q5lvO5RynLHuJgeAAA=",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/repairs/FLOOR0-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/repairs/FLOOR0-480.webp"
+              },
+              {
+                "width": 768,
+                "format": "avif",
+                "src": "/images/projects/repairs/FLOOR0-768.avif"
+              },
+              {
+                "width": 768,
+                "format": "webp",
+                "src": "/images/projects/repairs/FLOOR0-768.webp"
+              },
+              {
+                "width": 1080,
+                "format": "avif",
+                "src": "/images/projects/repairs/FLOOR0-1080.avif"
+              },
+              {
+                "width": 1080,
+                "format": "webp",
+                "src": "/images/projects/repairs/FLOOR0-1080.webp"
+              }
+            ]
+          },
+          {
+            "id": "repairs/img-0544",
+            "title": "Repairs — Willamette Valley",
+            "project": "repairs",
+            "category": "Repairs",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 480,
+            "height": 640,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "IMG_0544.JPG",
+            "src": "/images/projects/repairs/IMG_0544-480.webp",
+            "thumbnail": "/images/projects/repairs/IMG_0544-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRoYAAABXRUJQVlA4IHoAAAAwBACdASoQABUAPu1iqU2ppaQiMAgBMB2JZgCdMoRwABcEcLbRv2HolYAA/rnytW/cenOGcQHi6cYSz72pshOT8x0knb3JXswlVaNd6Wg8HeKTllkdKAa/SXaVwY1oc2k2zURgOIHCCqh0GVgz3u3Ew49rWj9yygAAAA==",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/repairs/IMG_0544-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/repairs/IMG_0544-480.webp"
+              }
+            ]
+          },
+          {
+            "id": "repairs/img-0546",
+            "title": "Repairs — Willamette Valley",
+            "project": "repairs",
+            "category": "Repairs",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 480,
+            "height": 640,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "IMG_0546.JPG",
+            "src": "/images/projects/repairs/IMG_0546-480.webp",
+            "thumbnail": "/images/projects/repairs/IMG_0546-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRooAAABXRUJQVlA4IH4AAAAwBACdASoQABUAPu1iqU2ppaOiMAgBMB2JbACdMoAC2YqzydVHDEyH5AAA/pjvNB6DOTuP5V7jvuZM0NcvMlU4YdOz/krhjJyWuY662JtQKtigpnBfGjuygOllmzoB21yflCirHhIjlRHoJhO57/wonXT6ywBMem7CaMEAAAA=",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/repairs/IMG_0546-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/repairs/IMG_0546-480.webp"
+              }
+            ]
+          },
+          {
+            "id": "repairs/drywall",
+            "title": "Repairs — Willamette Valley",
+            "project": "repairs",
+            "category": "Repairs",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 1280,
+            "height": 1600,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "DRYWALL.png",
+            "src": "/images/projects/repairs/DRYWALL-480.webp",
+            "thumbnail": "/images/projects/repairs/DRYWALL-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRnwAAABXRUJQVlA4IHAAAACQAwCdASoQABQAPu1iqU2ppaOiMAgBMB2JZwDCgBAR6pTlTkRAAN3u8Q4IPleDsaTZ7AoxY+7Ba6Q7QlVVqp3pFIhFZ6OTz92anLm4nP+6cvAEtcjXttZX6iAc/7xIx9vWfCDqhUbhVOCUmUuR2AAA",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/repairs/DRYWALL-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/repairs/DRYWALL-480.webp"
+              },
+              {
+                "width": 768,
+                "format": "avif",
+                "src": "/images/projects/repairs/DRYWALL-768.avif"
+              },
+              {
+                "width": 768,
+                "format": "webp",
+                "src": "/images/projects/repairs/DRYWALL-768.webp"
+              },
+              {
+                "width": 1080,
+                "format": "avif",
+                "src": "/images/projects/repairs/DRYWALL-1080.avif"
+              },
+              {
+                "width": 1080,
+                "format": "webp",
+                "src": "/images/projects/repairs/DRYWALL-1080.webp"
+              }
+            ]
+          },
+          {
+            "id": "repairs/floor",
+            "title": "Repairs — Willamette Valley",
+            "project": "repairs",
+            "category": "Repairs",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 1280,
+            "height": 823,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "FLOOR.png",
+            "src": "/images/projects/repairs/FLOOR-480.webp",
+            "thumbnail": "/images/projects/repairs/FLOOR-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRmAAAABXRUJQVlA4IFQAAAAwAgCdASoQAAoAA4BaJagCdAD7FuSds6ycAAD+wgbazRgn17MNNFfIG15koHLDfi1Wpi46FjdjG5SiL2k4K2Lp+EJuLDKCcw7Jyy5veU0wxWMgAAA=",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/repairs/FLOOR-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/repairs/FLOOR-480.webp"
+              },
+              {
+                "width": 768,
+                "format": "avif",
+                "src": "/images/projects/repairs/FLOOR-768.avif"
+              },
+              {
+                "width": 768,
+                "format": "webp",
+                "src": "/images/projects/repairs/FLOOR-768.webp"
+              },
+              {
+                "width": 1080,
+                "format": "avif",
+                "src": "/images/projects/repairs/FLOOR-1080.avif"
+              },
+              {
+                "width": 1080,
+                "format": "webp",
+                "src": "/images/projects/repairs/FLOOR-1080.webp"
+              }
+            ]
+          },
+          {
+            "id": "repairs/guttercleaning",
+            "title": "Repairs — Willamette Valley",
+            "project": "repairs",
+            "category": "Repairs",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 1280,
+            "height": 1352,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "GUTTERCLEANING.jpg",
+            "src": "/images/projects/repairs/GUTTERCLEANING-480.webp",
+            "thumbnail": "/images/projects/repairs/GUTTERCLEANING-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRnoAAABXRUJQVlA4IG4AAACwAwCdASoQABEAPu1iqU2ppaOiMAgBMB2JQBYdgyN1iNE5FhlLAAD9qKf2urLmgLfrkIwATI7alexyLkmHaZlTReDWCqRUTFumlTXWlQ90e1+SJm94xqyiC8clO1yomNWysaPk2UKIIX6keAAAAA==",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/repairs/GUTTERCLEANING-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/repairs/GUTTERCLEANING-480.webp"
+              },
+              {
+                "width": 768,
+                "format": "avif",
+                "src": "/images/projects/repairs/GUTTERCLEANING-768.avif"
+              },
+              {
+                "width": 768,
+                "format": "webp",
+                "src": "/images/projects/repairs/GUTTERCLEANING-768.webp"
+              },
+              {
+                "width": 1080,
+                "format": "avif",
+                "src": "/images/projects/repairs/GUTTERCLEANING-1080.avif"
+              },
+              {
+                "width": 1080,
+                "format": "webp",
+                "src": "/images/projects/repairs/GUTTERCLEANING-1080.webp"
+              }
+            ]
+          },
+          {
+            "id": "repairs/trimrepair",
+            "title": "Repairs — Willamette Valley",
+            "project": "repairs",
+            "category": "Repairs",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 1280,
+            "height": 1280,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "TRIMREPAIR.png",
+            "src": "/images/projects/repairs/TRIMREPAIR-480.webp",
+            "thumbnail": "/images/projects/repairs/TRIMREPAIR-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAADQAQCdASoQABAAA4BaJQBOgB02QinKAAD83VJNiygV8eykqEdIE1qSHSVNFOs102FdDTFTOrYHFJSqkCg2QozDXmBPH4uPVI6P8qxeEaN70X4HLFn2XzVvuL2KAA==",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/repairs/TRIMREPAIR-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/repairs/TRIMREPAIR-480.webp"
+              },
+              {
+                "width": 768,
+                "format": "avif",
+                "src": "/images/projects/repairs/TRIMREPAIR-768.avif"
+              },
+              {
+                "width": 768,
+                "format": "webp",
+                "src": "/images/projects/repairs/TRIMREPAIR-768.webp"
+              },
+              {
+                "width": 1080,
+                "format": "avif",
+                "src": "/images/projects/repairs/TRIMREPAIR-1080.avif"
+              },
+              {
+                "width": 1080,
+                "format": "webp",
+                "src": "/images/projects/repairs/TRIMREPAIR-1080.webp"
+              }
+            ]
+          }
+        ]
+      },
+      "galleryOrder": [
+        "repairs/floor0",
+        "repairs/img-0544",
+        "repairs/img-0546",
+        "repairs/drywall",
+        "repairs/floor",
+        "repairs/guttercleaning",
+        "repairs/trimrepair"
+      ]
+    }
+  ],
+  "images": [
+    {
+      "id": "bathroom-remodeling/bathroom-wall",
+      "title": "Bathroom Remodeling — Willamette Valley",
+      "project": "bathroom-remodeling",
+      "category": "Bathroom Remodeling",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Bathroom Remodeling — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 1280,
+      "height": 960,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "BATHROOM_WALL.png",
+      "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.webp",
+      "thumbnail": "/images/projects/bathroom-remodeling/BATHROOM_WALL-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRm4AAABXRUJQVlA4IGIAAADQAQCdASoQAAwAA4BaJQBOgBJxSzk/gAD+yckh4ywjjEJoM/ASRnw2QHgyTZGsxvBn4XfAPpDCsCUS89Way39Or+3iH3+f/R6WnIixH1evUO5+2lNIInR2i1gpQrGBVgAAAA==",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.webp"
+        }
+      ]
+    },
+    {
+      "id": "built-ins/finishedcarpentry0",
+      "title": "Custom Carpentry — Willamette Valley",
+      "project": "built-ins",
+      "category": "Custom Carpentry",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Custom Carpentry — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 1280,
+      "height": 823,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "FINISHEDCARPENTRY0.png",
+      "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp",
+      "thumbnail": "/images/projects/built-ins/FINISHEDCARPENTRY0-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRnQAAABXRUJQVlA4IGgAAADwAQCdASoQAAoAA4BaJZACdAD6jdHeQRAA/vSpCEugaI8wOYbuc/5PuEd2QYI789GCzauL/0+ilGEak8SqbF03WgssA7SOpTUV2Rankn89qX0zY5zNEYsqrXC8rSPgG4xdPSpFwAAAAA==",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.webp"
+        }
+      ]
+    },
+    {
+      "id": "built-ins/finishedcarpentry",
+      "title": "Custom Carpentry — Willamette Valley",
+      "project": "built-ins",
+      "category": "Custom Carpentry",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Custom Carpentry — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 1280,
+      "height": 1078,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "FINISHEDCARPENTRY.png",
+      "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.webp",
+      "thumbnail": "/images/projects/built-ins/FINISHEDCARPENTRY-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRmoAAABXRUJQVlA4IF4AAABQAgCdASoQAA0AA4BaJQBOgMXI1Ocz5EZAWsAA/ueveCb/Y5aVz6uBnYN9sEn+0SXQqYovTuO3LF/2sp2ug/y7LFG9tRcO8Vcm1PtKB1ud7c6+Djr34925ZSzcAAAA",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.webp"
+        }
+      ]
+    },
+    {
+      "id": "fences/fence-build",
+      "title": "Fencing — Willamette Valley",
+      "project": "fences",
+      "category": "Fencing",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Fencing — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 1280,
+      "height": 1436,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "FENCE BUILD.jpg",
+      "src": "/images/projects/fences/FENCE BUILD-480.webp",
+      "thumbnail": "/images/projects/fences/FENCE BUILD-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRnoAAABXRUJQVlA4IG4AAADwAwCdASoQABIAPu1iqU2ppaOiMAgBMB2JZACw7Btl7rbeX6rshvrAAP203cJZfx4HNJGQjqkIJ/1IqEhLDaptb+KTyO47hPELci+y56J6LicuYtVCuJkBvLc1vjmZ5nhVwkwwD2sKsPlM0wAAAA==",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/fences/FENCE BUILD-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/fences/FENCE BUILD-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "src": "/images/projects/fences/FENCE BUILD-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "src": "/images/projects/fences/FENCE BUILD-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "src": "/images/projects/fences/FENCE BUILD-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "src": "/images/projects/fences/FENCE BUILD-1080.webp"
+        }
+      ]
+    },
+    {
+      "id": "fences/fencerebuildmatchingstain",
+      "title": "Fencing — Willamette Valley",
+      "project": "fences",
+      "category": "Fencing",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Fencing — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 1280,
+      "height": 1008,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "FENCEREBUILDMATCHINGSTAIN.png",
+      "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-480.webp",
+      "thumbnail": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRmAAAABXRUJQVlA4IFQAAADwAQCdASoQAA0AA4BaJbACdADRDHzQrQAA/qvg89rPqkr4vC+n26YZleQouc7LnPjSe7aiV8Bk46Isw4c1pXFZlR6lSC3kYu74+jPw1olB8dMkQAA=",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.webp"
+        }
+      ]
+    },
+    {
+      "id": "outdoor-living/img-0535",
+      "title": "Outdoor Living — Willamette Valley",
+      "project": "outdoor-living",
+      "category": "Outdoor Living",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Outdoor Living — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 480,
+      "height": 640,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "IMG_0535.JPG",
+      "src": "/images/projects/outdoor-living/IMG_0535-480.webp",
+      "thumbnail": "/images/projects/outdoor-living/IMG_0535-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRrIAAABXRUJQVlA4IKYAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JZgC7AYyUzSAo8CN+0kAA/uzX/NRtBA4fYxe1MYzZg9Yyg39mWRxyMuSXMbw2Ez/udSJkkKwmu1FWWaj3Yz9VTXfi7Bnb5RJN96gWJnhl4Y9u9NPtY9NlMAxXVvKGeXORmTR19rTl09cH1RRxff+/4fvon77FhBwL7sPXfWfLLcWwfin3CC+XXZ7eIQAA",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/outdoor-living/IMG_0535-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/outdoor-living/IMG_0535-480.webp"
+        }
+      ]
+    },
+    {
+      "id": "outdoor-living/img-0555",
+      "title": "Outdoor Living — Willamette Valley",
+      "project": "outdoor-living",
+      "category": "Outdoor Living",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Outdoor Living — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 480,
+      "height": 640,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "IMG_0555.JPG",
+      "src": "/images/projects/outdoor-living/IMG_0555-480.webp",
+      "thumbnail": "/images/projects/outdoor-living/IMG_0555-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRpgAAABXRUJQVlA4IIwAAAAQBACdASoQABUAPu1iqU2ppaOiMAgBMB2JagCdACBQwFrkGXfKp6lpIAD9OkFVd8c0YfHYntYMjW2O0g95IKv+tGUSIURcmOUwB+rpdqDU6jnh5V6AkcTra3WVpy4A/iHXffrmMC+L2Pb/lLCy5H3QpxzLrQfs99yITXhmPg92uPtEh3/6tJaH+xIAAA==",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/outdoor-living/IMG_0555-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/outdoor-living/IMG_0555-480.webp"
+        }
+      ]
+    },
+    {
+      "id": "outdoor-living/img-0559",
+      "title": "Outdoor Living — Willamette Valley",
+      "project": "outdoor-living",
+      "category": "Outdoor Living",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Outdoor Living — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 640,
+      "height": 480,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "IMG_0559.JPG",
+      "src": "/images/projects/outdoor-living/IMG_0559-480.webp",
+      "thumbnail": "/images/projects/outdoor-living/IMG_0559-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAADwAQCdASoQAAwAA4BaJZACdAC9tYJ18jAA/sJ2J2+uBbAmhAZEbw8bk0QAAataPEwENnjJ9s687n7rdvJY8KGHzUrCEYEgNvYjQa+xQKJu86G+wD/KdxdipSAAAA==",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/outdoor-living/IMG_0559-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/outdoor-living/IMG_0559-480.webp"
+        }
+      ]
+    },
+    {
+      "id": "outdoor-living/img-0737",
+      "title": "Outdoor Living — Willamette Valley",
+      "project": "outdoor-living",
+      "category": "Outdoor Living",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Outdoor Living — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 480,
+      "height": 640,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "IMG_0737.JPG",
+      "src": "/images/projects/outdoor-living/IMG_0737-480.webp",
+      "thumbnail": "/images/projects/outdoor-living/IMG_0737-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4IIIAAAAwBACdASoQABUAPu1iqU2ppaOiMAgBMB2JZgCdACLG+RiryILpPo6sBAAA/nH3AbWRdxi+dGpTQJ7YzdppbuAjTEBcS4SwtEyCV49IqMnpCS9hEi7NYqRDm/0u48ZCfI7tuhBpSqzNx7gaxDxW2WpZVx+BsUzwXMYj+6XukRCLBpwA",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/outdoor-living/IMG_0737-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/outdoor-living/IMG_0737-480.webp"
+        }
+      ]
+    },
+    {
+      "id": "outdoor-living/img-0805",
+      "title": "Outdoor Living — Willamette Valley",
+      "project": "outdoor-living",
+      "category": "Outdoor Living",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Outdoor Living — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 480,
+      "height": 640,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "IMG_0805.JPG",
+      "src": "/images/projects/outdoor-living/IMG_0805-480.webp",
+      "thumbnail": "/images/projects/outdoor-living/IMG_0805-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRqQAAABXRUJQVlA4IJgAAABQBACdASoQABUAPu1iqU2ppaOiMAgBMB2JZAC2yYxY7WRUdFNTActeprwAAP5J8Zkn/YlF/BxEWm9Te2dpWfI1GDpOIxbMg97/Xf+nlFfKvXBQ/1fKw0CKdVmJlDkeo27LyMC1BFfrwYsY0avToVBEP+/VV2EJNWUFkgeIOe6EpHPZp2xgbv+CmIU9/J/4gvMrPoxj2augAA==",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/outdoor-living/IMG_0805-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/outdoor-living/IMG_0805-480.webp"
+        }
+      ]
+    },
+    {
+      "id": "outdoor-living/img-0841",
+      "title": "Outdoor Living — Willamette Valley",
+      "project": "outdoor-living",
+      "category": "Outdoor Living",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Outdoor Living — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 480,
+      "height": 640,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "IMG_0841.JPG",
+      "src": "/images/projects/outdoor-living/IMG_0841-480.webp",
+      "thumbnail": "/images/projects/outdoor-living/IMG_0841-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRqAAAABXRUJQVlA4IJQAAAAwBACdASoQABUAPu1iqU2ppaOiMAgBMB2JYgCdIKnDFXeldY3oE364NoAA/CxytM9C0L8Te4hvdHlJDY88BKqJYHenGtFvE1yqCWUXGKV3oUjtAzRZEHCbiwZBVsdreElLxkmhJfi7wffRBaeRy7aklWeGB9AR3Z/A3WEFOB3CBJk8NmDCzWgrsM7RLnU5yQHIOFAA",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/outdoor-living/IMG_0841-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/outdoor-living/IMG_0841-480.webp"
+        }
+      ]
+    },
+    {
+      "id": "repairs/floor0",
+      "title": "Repairs — Willamette Valley",
+      "project": "repairs",
+      "category": "Repairs",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 1280,
+      "height": 1017,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "FLOOR0.jpg",
+      "src": "/images/projects/repairs/FLOOR0-480.webp",
+      "thumbnail": "/images/projects/repairs/FLOOR0-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRlQAAABXRUJQVlA4IEgAAACwAQCdASoQAA0AA4BaJYwAAaXQw9PwAP36Sm3DEtQbDkMvPkaMAEwcxyZHyWH+BeC/TJb0Ozzhf7Ml5Q5lvO5RynLHuJgeAAA=",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/repairs/FLOOR0-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/repairs/FLOOR0-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "src": "/images/projects/repairs/FLOOR0-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "src": "/images/projects/repairs/FLOOR0-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "src": "/images/projects/repairs/FLOOR0-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "src": "/images/projects/repairs/FLOOR0-1080.webp"
+        }
+      ]
+    },
+    {
+      "id": "repairs/img-0544",
+      "title": "Repairs — Willamette Valley",
+      "project": "repairs",
+      "category": "Repairs",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 480,
+      "height": 640,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "IMG_0544.JPG",
+      "src": "/images/projects/repairs/IMG_0544-480.webp",
+      "thumbnail": "/images/projects/repairs/IMG_0544-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRoYAAABXRUJQVlA4IHoAAAAwBACdASoQABUAPu1iqU2ppaQiMAgBMB2JZgCdMoRwABcEcLbRv2HolYAA/rnytW/cenOGcQHi6cYSz72pshOT8x0knb3JXswlVaNd6Wg8HeKTllkdKAa/SXaVwY1oc2k2zURgOIHCCqh0GVgz3u3Ew49rWj9yygAAAA==",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/repairs/IMG_0544-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/repairs/IMG_0544-480.webp"
+        }
+      ]
+    },
+    {
+      "id": "repairs/img-0546",
+      "title": "Repairs — Willamette Valley",
+      "project": "repairs",
+      "category": "Repairs",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 480,
+      "height": 640,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "IMG_0546.JPG",
+      "src": "/images/projects/repairs/IMG_0546-480.webp",
+      "thumbnail": "/images/projects/repairs/IMG_0546-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRooAAABXRUJQVlA4IH4AAAAwBACdASoQABUAPu1iqU2ppaOiMAgBMB2JbACdMoAC2YqzydVHDEyH5AAA/pjvNB6DOTuP5V7jvuZM0NcvMlU4YdOz/krhjJyWuY662JtQKtigpnBfGjuygOllmzoB21yflCirHhIjlRHoJhO57/wonXT6ywBMem7CaMEAAAA=",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/repairs/IMG_0546-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/repairs/IMG_0546-480.webp"
+        }
+      ]
+    },
+    {
+      "id": "repairs/drywall",
+      "title": "Repairs — Willamette Valley",
+      "project": "repairs",
+      "category": "Repairs",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 1280,
+      "height": 1600,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "DRYWALL.png",
+      "src": "/images/projects/repairs/DRYWALL-480.webp",
+      "thumbnail": "/images/projects/repairs/DRYWALL-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRnwAAABXRUJQVlA4IHAAAACQAwCdASoQABQAPu1iqU2ppaOiMAgBMB2JZwDCgBAR6pTlTkRAAN3u8Q4IPleDsaTZ7AoxY+7Ba6Q7QlVVqp3pFIhFZ6OTz92anLm4nP+6cvAEtcjXttZX6iAc/7xIx9vWfCDqhUbhVOCUmUuR2AAA",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/repairs/DRYWALL-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/repairs/DRYWALL-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "src": "/images/projects/repairs/DRYWALL-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "src": "/images/projects/repairs/DRYWALL-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "src": "/images/projects/repairs/DRYWALL-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "src": "/images/projects/repairs/DRYWALL-1080.webp"
+        }
+      ]
+    },
+    {
+      "id": "repairs/floor",
+      "title": "Repairs — Willamette Valley",
+      "project": "repairs",
+      "category": "Repairs",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 1280,
+      "height": 823,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "FLOOR.png",
+      "src": "/images/projects/repairs/FLOOR-480.webp",
+      "thumbnail": "/images/projects/repairs/FLOOR-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRmAAAABXRUJQVlA4IFQAAAAwAgCdASoQAAoAA4BaJagCdAD7FuSds6ycAAD+wgbazRgn17MNNFfIG15koHLDfi1Wpi46FjdjG5SiL2k4K2Lp+EJuLDKCcw7Jyy5veU0wxWMgAAA=",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/repairs/FLOOR-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/repairs/FLOOR-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "src": "/images/projects/repairs/FLOOR-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "src": "/images/projects/repairs/FLOOR-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "src": "/images/projects/repairs/FLOOR-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "src": "/images/projects/repairs/FLOOR-1080.webp"
+        }
+      ]
+    },
+    {
+      "id": "repairs/guttercleaning",
+      "title": "Repairs — Willamette Valley",
+      "project": "repairs",
+      "category": "Repairs",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 1280,
+      "height": 1352,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "GUTTERCLEANING.jpg",
+      "src": "/images/projects/repairs/GUTTERCLEANING-480.webp",
+      "thumbnail": "/images/projects/repairs/GUTTERCLEANING-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRnoAAABXRUJQVlA4IG4AAACwAwCdASoQABEAPu1iqU2ppaOiMAgBMB2JQBYdgyN1iNE5FhlLAAD9qKf2urLmgLfrkIwATI7alexyLkmHaZlTReDWCqRUTFumlTXWlQ90e1+SJm94xqyiC8clO1yomNWysaPk2UKIIX6keAAAAA==",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/repairs/GUTTERCLEANING-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/repairs/GUTTERCLEANING-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "src": "/images/projects/repairs/GUTTERCLEANING-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "src": "/images/projects/repairs/GUTTERCLEANING-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "src": "/images/projects/repairs/GUTTERCLEANING-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "src": "/images/projects/repairs/GUTTERCLEANING-1080.webp"
+        }
+      ]
+    },
+    {
+      "id": "repairs/trimrepair",
+      "title": "Repairs — Willamette Valley",
+      "project": "repairs",
+      "category": "Repairs",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 1280,
+      "height": 1280,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "TRIMREPAIR.png",
+      "src": "/images/projects/repairs/TRIMREPAIR-480.webp",
+      "thumbnail": "/images/projects/repairs/TRIMREPAIR-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAADQAQCdASoQABAAA4BaJQBOgB02QinKAAD83VJNiygV8eykqEdIE1qSHSVNFOs102FdDTFTOrYHFJSqkCg2QozDXmBPH4uPVI6P8qxeEaN70X4HLFn2XzVvuL2KAA==",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/repairs/TRIMREPAIR-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/repairs/TRIMREPAIR-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "src": "/images/projects/repairs/TRIMREPAIR-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "src": "/images/projects/repairs/TRIMREPAIR-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "src": "/images/projects/repairs/TRIMREPAIR-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "src": "/images/projects/repairs/TRIMREPAIR-1080.webp"
+        }
+      ]
+    }
+  ]
 }

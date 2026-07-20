@@ -46,6 +46,25 @@ interface GalleryRecord {
 const G = gallery as { projects: any[]; images: GalleryRecord[] };
 const BY_ID = new Map(G.images.map((i) => [i.id, i]));
 
+/**
+ * INTENTIONAL CURATION (Directive 033). Photography has authority over copy.
+ * We choose the most emotionally compelling image for each slot — never "the
+ * first" — and keep hero / about / owner UNIQUE (no photo appears twice in the
+ * marquee slots). `about`/`owner` intentionally resolve to the reserved
+ * Taylor & Lanie portrait slot (single source) until a real portrait is shot.
+ * Edit these IDs to re-route; components never change.
+ */
+const CURATION: Record<string, string> = {
+  hero: "bathroom-remodeling/bathroom-wall", // best before→after transformation
+  "service:bath-remodel": "bathroom-remodeling/bathroom-wall",
+  "service:fences": "fences/fence-build",
+  "service:built-ins": "built-ins/finishedcarpentry",
+  "service:repairs": "repairs/trimrepair",
+  "service:decks": "outdoor-living/img-0559", // no deck photo yet — real exterior beats an illustration
+  "service:pergolas": "outdoor-living/img-0737",
+  "service:kitchen-remodel": "outdoor-living/img-0535",
+};
+
 // Committed SVG placeholders — the deterministic fallback until real photos land.
 const FALLBACK: Record<string, MediaImage> = {
   hero: { src: "/images/hero.svg", alt: "Happy Place Carpentry — custom carpentry in the Willamette Valley", width: 1600, height: 900 },
@@ -72,6 +91,13 @@ function toMedia(r: GalleryRecord): MediaImage {
 
 /** Resolve an image by intent. Real photo if present in gallery.json, else fallback SVG. */
 export function media(key: string): MediaImage {
+  // 0) intentional curation overlay (Directive 033) — takes priority
+  const curatedId = CURATION[key];
+  if (curatedId) {
+    const cr = BY_ID.get(curatedId);
+    if (cr && cr.src) return toMedia(cr);
+  }
+
   // 1) explicit record id (e.g. "deck-build-corvallis/hero")
   const rec = BY_ID.get(key);
   if (rec && rec.src) return toMedia(rec);
@@ -81,9 +107,11 @@ export function media(key: string): MediaImage {
     const hit = G.images.find((i) => i.hero && i.src) ?? G.images.find((i) => i.after && i.src);
     return hit ? toMedia(hit) : FALLBACK.hero;
   }
-  if (key === "about") {
-    const hit = G.images.find((i) => i.category === "Uncategorized" && i.src) ?? G.images.find((i) => i.src);
-    return hit ? toMedia(hit) : FALLBACK.about;
+  if (key === "about" || key === "owner") {
+    // Reserved Taylor & Lanie portrait slot (Directive 033). ONE intentional
+    // location, homepage owner section + About only. Until a real portrait is
+    // shot this stays the reserved placeholder — never a random reused photo.
+    return FALLBACK.about;
   }
   if (key.startsWith("service:")) {
     const slug = key.slice("service:".length);
