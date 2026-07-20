@@ -52,3 +52,7 @@ This version has breaking changes — APIs, conventions, and file structures may
 **J. Every commit refines visuals** (Directive #10): each near-end commit adds ≥1 polish (spacing/type/alignment/composition/mobile rhythm/hover/loading) — site gets visibly better each commit, not just more features.
 
 **Priority rule:** When a feature conflicts with making the experience more trustworthy/beautiful/effortless, prioritize the experience. This is a premium marketing experience for craftsmanship, not a software project.
+
+## Standing rule — Photography has authority over copy (Directive 033)
+
+If a strong photo communicates what a paragraph says, shorten or remove the paragraph. Never keep explanatory text that exists only because photography was previously missing. Every commit from here should make the site feel more premium in under five seconds — larger photography, stronger hierarchy, better contrast, improved section rhythm, quieter copy — not more engineering. Owner portrait appears exactly once (homepage owner section + About, same source). Hero never uses the owner photo; hero = best transformation, else best exterior, else fence, else bathroom.
