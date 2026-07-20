@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Playfair_Display, Playball } from "next/font/google";
 import "./globals.css";
 import { siteUrl } from "@/config/company";
 import { seo } from "@/config/seo";
@@ -9,6 +10,8 @@ import { SiteFooter } from "@/components/site-footer";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
+const playfair = Playfair_Display({ variable: "--font-playfair", subsets: ["latin"], weight: ["400", "500", "600", "700", "800", "900"] });
+const playball = Playball({ variable: "--font-playball", subsets: ["latin"], weight: "400" });
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
@@ -60,7 +63,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   };
 
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}>
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${playball.variable} h-full antialiased`}>
       <body className="min-h-full flex flex-col">
         <script
           type="application/ld+json"

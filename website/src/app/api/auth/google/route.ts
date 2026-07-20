@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getGoogleAuth, google } from "@/lib/google";
+import { getGoogleAuth, google, getAuthUrl } from "@/lib/google";
 
 /**
  * GET /api/auth/google  — ONE-TIME OAuth consent capture (server-only).

@@ -17,6 +17,7 @@ export const services: Service[] = [
     description:
       "From ground-level patios to multi-tier entertainer decks, we design and build decks that extend your happy place outdoors. Pressure-treated, cedar, or composite — built to code and built to last.",
     icon: "Layers",
+    stat: "150+ built",
     heroImage: "/images/services/decks.svg",
     galleryRefs: ["deck-corvallis", "deck-albany", "deck-salem"],
     estimateQuestions: [
@@ -35,6 +36,7 @@ export const services: Service[] = [
     description:
       "Wood, vinyl, or metal fencing and gates installed straight, plumb, and built to handle the elements. We handle permits and property-line care.",
     icon: "Fence",
+    stat: "Cedar & vinyl",
     heroImage: "/images/services/fences.svg",
     galleryRefs: ["fence-philomath", "fence-lebanon"],
     estimateQuestions: [
@@ -53,6 +55,7 @@ export const services: Service[] = [
     description:
       "Pergolas, arbors, and covered outdoor structures crafted to complement your home and create comfortable outdoor rooms.",
     icon: "Tent",
+    stat: "Custom shade",
     heroImage: "/images/services/pergolas.svg",
     galleryRefs: ["pergola-corvallis"],
     estimateQuestions: [
@@ -70,6 +73,7 @@ export const services: Service[] = [
     description:
       "Cabinetry, islands, flooring, and layout changes — full or partial kitchen remodels handled with care and clean job sites.",
     icon: "Refrigerator",
+    stat: "Islands & more",
     heroImage: "/images/services/kitchen.svg",
     galleryRefs: ["kitchen-salem", "kitchen-albany"],
     estimateQuestions: [
@@ -87,6 +91,7 @@ export const services: Service[] = [
     description:
       "Showers, vanities, tile, and full bath remodels with proper waterproofing and ventilation done the right way.",
     icon: "Bath",
+    stat: "Waterproofed",
     heroImage: "/images/services/bath.svg",
     galleryRefs: ["bath-corvallis"],
     estimateQuestions: [
@@ -104,6 +109,7 @@ export const services: Service[] = [
     description:
       "Built-in shelving, mudroom benches, wainscoting, and trim work crafted to your space and style.",
     icon: "BookOpen",
+    stat: "Fit to your home",
     heroImage: "/images/services/builtins.svg",
     galleryRefs: ["builtin-corvallis"],
     estimateQuestions: [
@@ -120,6 +126,7 @@ export const services: Service[] = [
     description:
       "Dry rot repair, trim, doors, and general carpentry repairs — honest advice and reliable work.",
     icon: "Wrench",
+    stat: "Honest advice",
     heroImage: "/images/services/repairs.svg",
     galleryRefs: [],
     estimateQuestions: [

@@ -1,15 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-label="Cedar Privacy Fence">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-label="Cedar Fence">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#fffbeb"/>
-      <stop offset="1" stop-color="#fef3c7"/>
+    <linearGradient id="g" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#EDEAE0"/>
+      <stop offset="1" stop-color="#E9DBC9"/>
     </linearGradient>
   </defs>
   <rect width="1200" height="800" fill="url(#g)"/>
-  <rect x="0" y="680" width="1200" height="120" fill="#15803d" opacity="0.12"/>
-  <rect x="80" y="120" width="160" height="22" rx="11" fill="#f59e0b"/>
-  <rect x="80" y="160" width="90" height="14" rx="7" fill="#15803d"/>
-  <text x="80" y="400" font-family="Georgia, serif" font-size="64" font-weight="700" fill="#1f2937">Cedar Privacy Fence</text>
-  <text x="80" y="456" font-family="Arial, sans-serif" font-size="30" fill="#57534e">Happy Place Carpentry project photo</text>
-  <text x="80" y="756" font-family="Arial, sans-serif" font-size="24" fill="#15803d" font-weight="700">Happy Place Carpentry</text>
+  <rect x="0" y="0" width="1200" height="40" fill="#9c7a52" opacity="0.05"/><line x1="0" y1="0" x2="1200" y2="0" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="40" width="1200" height="40" fill="#9c7a52" opacity="0.07"/><line x1="0" y1="40" x2="1200" y2="40" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="80" width="1200" height="40" fill="#9c7a52" opacity="0.09"/><line x1="0" y1="80" x2="1200" y2="80" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="120" width="1200" height="40" fill="#9c7a52" opacity="0.05"/><line x1="0" y1="120" x2="1200" y2="120" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="160" width="1200" height="40" fill="#9c7a52" opacity="0.07"/><line x1="0" y1="160" x2="1200" y2="160" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="200" width="1200" height="40" fill="#9c7a52" opacity="0.09"/><line x1="0" y1="200" x2="1200" y2="200" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="240" width="1200" height="40" fill="#9c7a52" opacity="0.05"/><line x1="0" y1="240" x2="1200" y2="240" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="280" width="1200" height="40" fill="#9c7a52" opacity="0.07"/><line x1="0" y1="280" x2="1200" y2="280" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="320" width="1200" height="40" fill="#9c7a52" opacity="0.09"/><line x1="0" y1="320" x2="1200" y2="320" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="360" width="1200" height="40" fill="#9c7a52" opacity="0.05"/><line x1="0" y1="360" x2="1200" y2="360" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="400" width="1200" height="40" fill="#9c7a52" opacity="0.07"/><line x1="0" y1="400" x2="1200" y2="400" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="440" width="1200" height="40" fill="#9c7a52" opacity="0.09"/><line x1="0" y1="440" x2="1200" y2="440" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="480" width="1200" height="40" fill="#9c7a52" opacity="0.05"/><line x1="0" y1="480" x2="1200" y2="480" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="520" width="1200" height="40" fill="#9c7a52" opacity="0.07"/><line x1="0" y1="520" x2="1200" y2="520" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="560" width="1200" height="40" fill="#9c7a52" opacity="0.09"/><line x1="0" y1="560" x2="1200" y2="560" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="600" width="1200" height="40" fill="#9c7a52" opacity="0.05"/><line x1="0" y1="600" x2="1200" y2="600" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="640" width="1200" height="40" fill="#9c7a52" opacity="0.07"/><line x1="0" y1="640" x2="1200" y2="640" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="680" width="1200" height="40" fill="#9c7a52" opacity="0.09"/><line x1="0" y1="680" x2="1200" y2="680" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="720" width="1200" height="40" fill="#9c7a52" opacity="0.05"/><line x1="0" y1="720" x2="1200" y2="720" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="760" width="1200" height="40" fill="#9c7a52" opacity="0.07"/><line x1="0" y1="760" x2="1200" y2="760" stroke="#000" stroke-opacity="0.04"/>
+  <circle cx="960" cy="160" r="360" fill="#d99a4e" opacity="0.12"/>
+  <rect x="72" y="656" width="192" height="18" rx="9" fill="#d99a4e" opacity="0.9"/>
+  <text x="72" y="400" font-family="Georgia, serif" font-size="58" font-weight="700" fill="#162b29">Cedar Fence</text>
+  <text x="72" y="468" font-family="Arial, sans-serif" font-size="30" fill="#B0A092">Philomath</text>
+  <text x="72" y="744" font-family="Arial, sans-serif" font-size="26" fill="#d99a4e" font-weight="700">Happy Place Carpentry</text>
 </svg>

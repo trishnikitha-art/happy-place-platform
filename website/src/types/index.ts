@@ -24,6 +24,21 @@ export interface Company {
   serviceArea: string;
   businessHours: string;
   social: SocialProfile[];
+  /** Public owners/faces of the company (partnership). */
+  owners: {
+    name: string;
+    title: string;
+    focus: string;
+  }[];
+  /** Micro-proof woven through the site (no big "why choose us" block needed). */
+  proof: {
+    projectsCompleted: string; // "150+"
+    estimateResponse: string;  // "Most estimates within 1–2 business days"
+    yearsInBusiness: string;   // "12"
+    insured: boolean;
+    bonded: boolean;
+    serviceCounties: string[];
+  };
 }
 
 export interface SocialProfile {
@@ -60,6 +75,8 @@ export interface Service {
   icon: string; // lucide icon name
   heroImage: string; // image asset path or id
   galleryRefs: string[]; // GalleryItem.id[]
+  /** Micro-proof line shown on the card (e.g. "150+ completed"). Optional. */
+  stat?: string;
   estimateQuestions: EstimateQuestion[];
   seo: SeoMeta;
 }
@@ -76,6 +93,11 @@ export interface GalleryItem {
   tags: string[];
   width: number;
   height: number;
+  /** Image Registry metadata (Directive 032): intent-based curation. */
+  category?: string; // Decks | Kitchens | Fences | Owner | BeforeAfter | ...
+  orientation?: "landscape" | "portrait" | "square";
+  hero?: boolean;
+  priority?: number; // 1–10; higher = more likely featured
   /** optional base64 blur placeholder for next/image placeholder="blur" */
   blurDataURL?: string;
 }

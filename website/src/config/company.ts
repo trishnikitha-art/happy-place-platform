@@ -25,6 +25,26 @@ export const company: Company = {
     { platform: "facebook", label: "Facebook", url: "https://facebook.com/happyplacecarpentry" },
     { platform: "instagram", label: "Instagram", url: "https://instagram.com/happyplacecarpentry" },
   ],
+  owners: [
+    {
+      name: "Taylor",
+      title: "Co-Owner · Lead Carpenter",
+      focus: "Craftsmanship, construction, and project execution.",
+    },
+    {
+      name: "Lanie",
+      title: "Co-Owner · Client Experience",
+      focus: "Communication, scheduling, estimates, and customer experience.",
+    },
+  ],
+  proof: {
+    projectsCompleted: "150+",
+    estimateResponse: "Most estimates scheduled within 1–2 business days",
+    yearsInBusiness: "12",
+    insured: true,
+    bonded: true,
+    serviceCounties: ["Benton", "Linn", "Marion", "Polk"],
+  },
 };
 
 export const siteUrl = "https://www.happyplacecarpentry.com";

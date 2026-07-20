@@ -71,7 +71,7 @@ export function EstimateWizard() {
 
   if (submitted) {
     return (
-      <div className="rounded-2xl border border-border bg-white p-10 text-center shadow-sm">
+      <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-sm">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent">
           <Check className="h-8 w-8" />
         </div>
@@ -109,7 +109,7 @@ export function EstimateWizard() {
         ))}
       </ol>
 
-      <div className="rounded-2xl border border-border bg-white p-6 shadow-sm sm:p-8">
+      <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8">
         {/* STEP 1: Service */}
         {STEPS[step] === "Service" && (
           <div>

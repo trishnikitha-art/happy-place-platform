@@ -39,7 +39,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           </nav>
         </aside>
         <main className="flex-1">
-          <div className="rounded-2xl border border-dashed border-border bg-white p-8 text-text-subtle">
+          <div className="rounded-2xl border border-dashed border-border bg-surface p-8 text-text-subtle">
             <span className="rounded-full bg-surface-muted px-3 py-1 text-xs font-semibold uppercase tracking-wide text-text-subtle">
               Planned · Horizon 2
             </span>

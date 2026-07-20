@@ -5,15 +5,16 @@ export interface NavItem {
   secondary?: boolean;
 }
 
-/** Primary navigation — order matters. */
+/**
+ * Primary navigation — deliberately lean (CEO review): Home · Services ·
+ * Our Work · Estimate · About · Contact. Everything else lives lower on the
+ * page or in the footer. "Our Work" is the merged Projects + Gallery hub.
+ */
 export const navigation: NavItem[] = [
   { label: "Home", href: "/" },
   { label: "Services", href: "/services" },
   { label: "Our Work", href: "/gallery" },
-  { label: "Projects", href: "/projects" },
   { label: "About", href: "/about" },
-  { label: "Reviews", href: "/reviews" },
-  { label: "FAQ", href: "/faq" },
   { label: "Contact", href: "/contact" },
   { label: "Free Estimate", href: "/estimate", secondary: true },
 ];

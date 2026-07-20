@@ -12,7 +12,7 @@ import { features } from "@/config/featureFlags";
  */
 export interface EstimateService {
   /** Build a shareable submission (mailto link today; API payload later). */
-  prepare(request: EstimateRequest): { kind: "mailto"; href: string } | { kind: "api"; body: unknown };
+  prepare(request: EstimateRequest, forceMailto?: boolean): { kind: "mailto"; href: string } | { kind: "api"; body: unknown };
   /**
    * Submit the request. UI calls this and awaits a uniform result — identical
    * to the future API workflow. Today it opens the user's mail client. When a
@@ -94,7 +94,10 @@ export const mockEstimateService: EstimateService = {
         return { ok: true, transport: "api", message: "Request sent. We'll be in touch soon." };
       } catch {
         // Fallback to mailto so the customer is never blocked.
-        if (typeof window !== "undefined") window.location.href = this.prepare(req, true).href;
+        const mailto = this.prepare(req, true);
+        if (mailto.kind === "mailto" && typeof window !== "undefined") {
+          window.location.href = mailto.href;
+        }
         return { ok: true, transport: "mailto", message: "Request sent via email." };
       }
     }

@@ -24,7 +24,7 @@ export default function ReviewsPage() {
           />
           <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-2 lg:grid-cols-3">
             {reviews.map((r) => (
-              <figure key={r.id} className="flex flex-col rounded-2xl border border-border bg-white p-6 shadow-sm">
+              <figure key={r.id} className="flex flex-col rounded-2xl border border-border bg-surface p-6 shadow-sm">
                 <div className="flex items-center justify-between">
                   <StarRating rating={r.rating} />
                   {r.verified && (

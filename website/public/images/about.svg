@@ -1,15 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800" role="img" aria-label="Our Story">
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" role="img" aria-label="Taylor & Lanie">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#fffbeb"/>
-      <stop offset="1" stop-color="#fef3c7"/>
+    <linearGradient id="g" x1="0" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#162b29"/>
+      <stop offset="1" stop-color="#1F3F3C"/>
     </linearGradient>
   </defs>
-  <rect width="1200" height="800" fill="url(#g)"/>
-  <rect x="0" y="680" width="1200" height="120" fill="#15803d" opacity="0.12"/>
-  <rect x="80" y="120" width="160" height="22" rx="11" fill="#f59e0b"/>
-  <rect x="80" y="160" width="90" height="14" rx="7" fill="#15803d"/>
-  <text x="80" y="400" font-family="Georgia, serif" font-size="64" font-weight="700" fill="#1f2937">Our Story</text>
-  <text x="80" y="456" font-family="Arial, sans-serif" font-size="30" fill="#57534e">Building trust in the Willamette Valley</text>
-  <text x="80" y="756" font-family="Arial, sans-serif" font-size="24" fill="#15803d" font-weight="700">Happy Place Carpentry</text>
+  <rect width="1200" height="900" fill="url(#g)"/>
+  <rect x="0" y="0" width="1200" height="45" fill="#7c5a3a" opacity="0.05"/><line x1="0" y1="0" x2="1200" y2="0" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="45" width="1200" height="45" fill="#7c5a3a" opacity="0.07"/><line x1="0" y1="45" x2="1200" y2="45" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="90" width="1200" height="45" fill="#7c5a3a" opacity="0.09"/><line x1="0" y1="90" x2="1200" y2="90" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="135" width="1200" height="45" fill="#7c5a3a" opacity="0.05"/><line x1="0" y1="135" x2="1200" y2="135" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="180" width="1200" height="45" fill="#7c5a3a" opacity="0.07"/><line x1="0" y1="180" x2="1200" y2="180" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="225" width="1200" height="45" fill="#7c5a3a" opacity="0.09"/><line x1="0" y1="225" x2="1200" y2="225" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="270" width="1200" height="45" fill="#7c5a3a" opacity="0.05"/><line x1="0" y1="270" x2="1200" y2="270" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="315" width="1200" height="45" fill="#7c5a3a" opacity="0.07"/><line x1="0" y1="315" x2="1200" y2="315" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="360" width="1200" height="45" fill="#7c5a3a" opacity="0.09"/><line x1="0" y1="360" x2="1200" y2="360" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="405" width="1200" height="45" fill="#7c5a3a" opacity="0.05"/><line x1="0" y1="405" x2="1200" y2="405" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="450" width="1200" height="45" fill="#7c5a3a" opacity="0.07"/><line x1="0" y1="450" x2="1200" y2="450" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="495" width="1200" height="45" fill="#7c5a3a" opacity="0.09"/><line x1="0" y1="495" x2="1200" y2="495" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="540" width="1200" height="45" fill="#7c5a3a" opacity="0.05"/><line x1="0" y1="540" x2="1200" y2="540" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="585" width="1200" height="45" fill="#7c5a3a" opacity="0.07"/><line x1="0" y1="585" x2="1200" y2="585" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="630" width="1200" height="45" fill="#7c5a3a" opacity="0.09"/><line x1="0" y1="630" x2="1200" y2="630" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="675" width="1200" height="45" fill="#7c5a3a" opacity="0.05"/><line x1="0" y1="675" x2="1200" y2="675" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="720" width="1200" height="45" fill="#7c5a3a" opacity="0.07"/><line x1="0" y1="720" x2="1200" y2="720" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="765" width="1200" height="45" fill="#7c5a3a" opacity="0.09"/><line x1="0" y1="765" x2="1200" y2="765" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="810" width="1200" height="45" fill="#7c5a3a" opacity="0.05"/><line x1="0" y1="810" x2="1200" y2="810" stroke="#000" stroke-opacity="0.04"/><rect x="0" y="855" width="1200" height="45" fill="#7c5a3a" opacity="0.07"/><line x1="0" y1="855" x2="1200" y2="855" stroke="#000" stroke-opacity="0.04"/>
+  <circle cx="936" cy="198" r="450" fill="#d99a4e" opacity="0.10"/>
+  <rect x="72" y="738" width="192" height="20" rx="10" fill="#d99a4e" opacity="0.9"/>
+  <text x="72" y="450" font-family="Georgia, serif" font-size="65" font-weight="700" fill="#f4efe6">Taylor & Lanie</text>
+  <text x="72" y="526" font-family="Arial, sans-serif" font-size="34" fill="rgba(244,239,230,0.72)">Craftsmanship meets care</text>
+  <text x="72" y="837" font-family="Arial, sans-serif" font-size="30" fill="#d99a4e" font-weight="700">Happy Place Carpentry</text>
 </svg>

@@ -4,7 +4,7 @@ import { getProjects } from "@/config/projects";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  const staticRoutes = ["", "/services", "/gallery", "/projects", "/about", "/reviews", "/faq", "/contact", "/estimate", "/privacy"];
+  const staticRoutes = ["", "/services", "/gallery", "/about", "/reviews", "/faq", "/contact", "/estimate", "/privacy"];
   const staticEntries: MetadataRoute.Sitemap = staticRoutes.map((r) => ({
     url: `${siteUrl}${r}`,
     lastModified: now,

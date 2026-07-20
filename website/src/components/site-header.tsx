@@ -21,14 +21,14 @@ export function SiteHeader() {
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-white/90 backdrop-blur">
-      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-50 border-b border-border-soft bg-background/90 backdrop-blur">
+      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-2 px-4 sm:px-6 lg:px-8">
         <Link href="/" className="flex items-center gap-2 font-bold text-text">
           <Hammer className="h-6 w-6 text-primary" aria-hidden="true" />
           <span className="text-lg">{company.name}</span>
         </Link>
 
-        <nav className="hidden md:flex items-center gap-1" aria-label="Primary">
+        <nav className="hidden md:flex items-center gap-0.5" aria-label="Primary">
           {navigation
             .filter((n) => !n.secondary)
             .map((item) => (
@@ -37,8 +37,8 @@ export function SiteHeader() {
                 href={item.href}
                 aria-current={isActive(item.href) ? "page" : undefined}
                 className={cn(
-                  "rounded-full px-3 py-2 text-sm font-medium transition-colors",
-                  isActive(item.href) ? "bg-primary/15 text-secondary" : "text-text-muted hover:bg-surface-muted"
+                  "whitespace-nowrap rounded-full px-2.5 py-2 text-[13px] font-medium transition-colors",
+                  isActive(item.href) ? "bg-primary/15 text-primary" : "text-text-muted hover:bg-surface-muted"
                 )}
               >
                 {item.label}
@@ -47,7 +47,7 @@ export function SiteHeader() {
         </nav>
 
         <div className="hidden md:block">
-          <Link href="/estimate" className={cn(buttonVariants({ variant: "primary", size: "sm" }))}>
+          <Link href="/estimate" className={cn(buttonVariants({ variant: "primary", size: "sm" }), "bg-honey text-honey-foreground hover:bg-honey-hover")}>
             Free Estimate
           </Link>
         </div>
@@ -65,7 +65,7 @@ export function SiteHeader() {
       </div>
 
       {open && (
-        <div id="mobile-menu" className="md:hidden border-t border-border bg-white">
+        <div id="mobile-menu" className="md:hidden border-t border-border bg-background">
           <nav className="flex flex-col p-4" aria-label="Mobile">
             {navigation.map((item) => (
               <Link
@@ -74,7 +74,7 @@ export function SiteHeader() {
                 aria-current={isActive(item.href) ? "page" : undefined}
                 className={cn(
                   "rounded-lg px-3 py-3 text-base font-medium",
-                  isActive(item.href) ? "bg-primary/15 text-secondary" : "text-text-muted hover:bg-surface-muted"
+                  isActive(item.href) ? "bg-primary/15 text-primary" : "text-text-muted hover:bg-surface-muted"
                 )}
               >
                 {item.label}
