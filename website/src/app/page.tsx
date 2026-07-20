@@ -72,7 +72,8 @@ export default function HomePage() {
               <span>{company.ccbNumber} · Licensed · Insured</span>
               <span className="text-text-on-dark/40">·</span>
               <span>{company.proof.serviceCounties.join(" · ")}</span>
-            </div>
+            
+            <span className="mt-6 block font-signature text-3xl text-honey">Let&rsquo;s start building your happy place.</span></div>
           </div>
         </Container>
       </section>
@@ -200,9 +201,9 @@ export default function HomePage() {
             <CedarCorner className="absolute -left-2 -top-2 h-8 w-8 text-honey" />
           </div>
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-accent">The people behind the work</p>
+            <p className="text-sm font-semibold uppercase tracking-wide text-accent">The family behind Happy Place</p>
             <h2 className="mt-2 font-display text-3xl font-bold text-text sm:text-4xl">
-              {taylor.name} builds it. {lanie.name} makes it easy.
+              Helping families find their happy place — one project at a time.
             </h2>
             <div className="mt-6 space-y-4 text-text-muted">
               <p>
