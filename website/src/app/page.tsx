@@ -27,17 +27,17 @@ export default function HomePage() {
       {/* HERO — frozen, intentionally restrained (Directive 034). No photo, no
           owner, no fake luxury. Beautiful type, warm depth, one CTA. */}
       <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
-        <div className="absolute inset-0 -z-10 bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(217,154,78,0.22),transparent_55%),radial-gradient(90%_90%_at_10%_110%,rgba(22,43,41,0.7),transparent_60%)]" aria-hidden="true" />
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-deep/30 via-transparent to-deep" aria-hidden="true" />
-        <div className="absolute inset-x-0 top-0 -z-10 h-px bg-gradient-to-r from-transparent via-honey/25 to-transparent" aria-hidden="true" />
+        <div className="absolute inset-0 z-0 bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(217,154,78,0.22),transparent_55%),radial-gradient(90%_90%_at_10%_110%,rgba(22,43,41,0.7),transparent_60%)]" aria-hidden="true" />
+        <div className="absolute inset-0 z-0 bg-gradient-to-b from-deep/30 via-transparent to-deep" aria-hidden="true" />
+        <div className="absolute inset-x-0 top-0 z-0 h-px bg-gradient-to-r from-transparent via-honey/25 to-transparent" aria-hidden="true" />
 
-        <Container className="relative flex min-h-[88svh] flex-col justify-center py-32 lg:py-44">
+        <Container className="relative z-10 flex min-h-[88svh] flex-col justify-center py-32 lg:py-44">
           <div className="max-w-4xl">
             <p className="font-signature text-2xl text-honey/90">Happy Place Carpentry</p>
             <h1 className="mt-5 font-display text-5xl font-bold leading-[1.03] tracking-tight text-text-on-dark sm:text-6xl lg:text-7xl">
               Building spaces you&rsquo;ll love coming home to.
             </h1>
-            <p className="measure measure mt-7 max-w-xl text-lg leading-relaxed text-text-on-dark/80">
+            <p className="measure mt-7 max-w-xl text-lg leading-relaxed text-text-on-dark/80">
               Every family has that one space they avoid — and the one they dream
               about. We build the decks, kitchens, baths, fences, and custom details
               that turn a house into your happy place.
