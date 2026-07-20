@@ -7,6 +7,16 @@ import { join, resolve, relative } from "node:path";
 
 const root = resolve(process.cwd());
 const publicDir = join(root, "public");
+
+// gallery.json (the single source of truth produced by `npm run images`)
+let G_IMAGES = [];
+let hasReal = false;
+try {
+  const g = JSON.parse(readFileSync(join(root, "src", "config", "gallery.json"), "utf8"));
+  G_IMAGES = g.images ?? [];
+  hasReal = G_IMAGES.some((i) => i.src);
+} catch {}
+
 let failures = 0;
 const fail = (m) => { console.error("  ✗ " + m); failures++; };
 const ok = (m) => console.log("  ✓ " + m);
@@ -53,13 +63,14 @@ for (const ref of referenced) {
 }
 if (brokenRefs === 0) ok(`all ${referenced.size} referenced image paths resolve`);
 
-// 3) Every raster (non-svg) must have a sibling blur placeholder OR be svg
-const missingBlur = publicImages.filter(
-  (f) => !/\.svg$/i.test(f) && !existsSync(f.replace(/\.(jpe?g|png|webp|avif)$/i, ".blur.json"))
-);
-if (missingBlur.length && publicImages.some((f) => !/\.svg$/i.test(f)))
-  fail(`${missingBlur.length} raster image(s) missing blur placeholder`);
-else ok("blur placeholders present for rasters (or none yet)");
+// 3) Blur placeholders — when gallery.json has real photos, each must carry blurDataURL.
+//    (The pipeline bakes blur into gallery.json; no sibling files needed.)
+let blurOk = true;
+if (hasReal) {
+  const noBlur = G_IMAGES.filter((i) => i.src && !i.blurDataURL);
+  if (noBlur.length) { fail(`${noBlur.length} gallery image(s) missing blurDataURL`); blurOk = false; }
+}
+if (blurOk) ok(hasReal ? "all real photos carry blur placeholders" : "blur placeholders present for rasters (or none yet)");
 
 // 4) Manifest present + valid shape (if real photos ingested)
 const manifestPath = join(root, "photo-intake", "manifest.json");
@@ -93,9 +104,6 @@ if (svgCount > 0) console.log(`  ⚠ ${svgCount} SVG placeholder(s) still in use
 
 // 6) Release gate (Directive 031): once gallery.json has real photos, customer
 //    pages must not hardcode /images/*.svg. Scan component/src for raw svg srcs.
-const galleryJson = join(root, "src", "config", "gallery.json");
-let hasReal = false;
-try { hasReal = (JSON.parse(readFileSync(galleryJson, "utf8")).images?.length ?? 0) > 0; } catch {}
 if (hasReal) {
   const appDir = join(root, "src", "app");
   const compDir = join(root, "src", "components");

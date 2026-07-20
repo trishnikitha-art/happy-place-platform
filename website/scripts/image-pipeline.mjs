@@ -55,10 +55,46 @@ async function walk(dir) {
   return out;
 }
 const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+
+// Deterministic folder → category/location (Directive 031). No AI.
+// Folder "Deck Build - Corvallis" → { category: "Decks", location: "Corvallis" }
+// Folder "Kitchen Remodel - Salem" → { category: "Kitchen Remodel", location: "Salem" }
+// Folder "Built Ins" (no location) → { category: "Custom Cabinetry", location: "" }
+const CATEGORY_MAP = {
+  "deck build": "Decks",
+  "decks": "Decks",
+  "fence": "Fencing",
+  "fences": "Fencing",
+  "pergola": "Pergolas",
+  "pergolas": "Pergolas",
+  "kitchen remodeling": "Kitchen Remodeling",
+  "kitchen remodel": "Kitchen Remodeling",
+  "kitchen": "Kitchen Remodeling",
+  "bathroom remodeling": "Bathroom Remodeling",
+  "bathroom remodel": "Bathroom Remodeling",
+  "bathroom": "Bathroom Remodeling",
+  "trim": "Trim",
+  "finish carpentry": "Finish Carpentry",
+  "built-ins": "Custom Carpentry",
+  "built ins": "Custom Carpentry",
+  "built-in": "Custom Carpentry",
+  "cabinetry": "Custom Carpentry",
+  "custom cabinetry": "Custom Carpentry",
+  "doors": "Doors",
+  "windows": "Windows",
+  "repairs": "Repairs",
+  "outdoor living": "Outdoor Living",
+  "accessibility": "Accessibility",
+  "general carpentry": "General Carpentry",
+  "misc": "Uncategorized",
+};
+
 function parseFolder(name) {
-  const [cat, loc] = name.split(" - ").map((s) => s.trim());
-  const category = cat || "Uncategorized";
-  return { category: KNOWN.includes(category) ? category : "Uncategorized", location: loc || "" };
+  const [rawCat, loc] = name.split(" - ").map((s) => s.trim());
+  const key = (rawCat || "").toLowerCase();
+  const category = CATEGORY_MAP[key] ?? "Uncategorized";
+  const slug = slugify(name); // e.g. "deck-build-corvallis", "built-ins"
+  return { category, location: loc || "", slug };
 }
 function roleOf(file) {
   const base = path.basename(file).toLowerCase();
@@ -95,8 +131,7 @@ async function main() {
   }
 
   for (const folder of folders) {
-    const { category, location } = parseFolder(folder);
-    const slug = slugify(`${category} ${location} ${folder}`);
+    const { category, location, slug } = parseFolder(folder);
     const title = `${category} — ${location || "Willamette Valley"}`;
     const projDir = path.join(INTAKE, folder);
     const files = (await walk(projDir)).sort((a, b) => orderKey(a) - orderKey(b));
@@ -118,16 +153,16 @@ async function main() {
       const variants = [];
       for (const vw of widths) {
         for (const fmt of ["avif", "webp"]) {
-          const outName = `${id}-${vw}.${fmt}`;
+          const outName = `${path.basename(file, path.extname(file))}-${vw}.${fmt}`;
           await sharp(file).resize({ width: vw, withoutEnlargement: true })
             [fmt === "avif" ? "avif" : "webp"]({ quality: fmt === "avif" ? 55 : 72 })
-            .toFile(path.join(ROOT, "public", outName));
-          variants.push({ width: vw, format: fmt, src: `/${outName}` });
+            .toFile(path.join(destDir, outName));
+          variants.push({ width: vw, format: fmt, src: `/images/projects/${slug}/${outName}` });
         }
       }
       // thumbnail + blur
-      const thumbName = `${id}-thumb.webp`;
-      await sharp(file).resize(480).webp({ quality: 70 }).toFile(path.join(ROOT, "public", thumbName));
+      const thumbName = `${path.basename(file, path.extname(file))}-thumb.webp`;
+      await sharp(file).resize(480).webp({ quality: 70 }).toFile(path.join(destDir, thumbName));
       const blurBuf = await sharp(file).resize(16).webp({ quality: 40 }).toBuffer();
       const blurDataURL = `data:image/webp;base64,${blurBuf.toString("base64")}`;
       const src = variants.find((v) => v.format === "webp")?.src ?? null;
@@ -137,7 +172,7 @@ async function main() {
         featured: false, before: role === "before", after: role === "after", hero: role === "hero",
         alt: `${title} — ${role} photo by Happy Place Carpentry`,
         width: w, height: h, focal: { x: 0.5, y: 0.5 },
-        original: origName, src, thumbnail: `/${thumbName}`, blurDataURL, variants,
+        original: origName, src, thumbnail: `/images/projects/${slug}/${thumbName}`, blurDataURL, variants,
       };
       images.push(rec);
       galleryOrder.push(id);

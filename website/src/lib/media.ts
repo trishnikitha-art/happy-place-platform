@@ -31,6 +31,7 @@ interface GalleryRecord {
   before: boolean;
   after: boolean;
   hero: boolean;
+  cover: boolean;
   alt: string;
   width: number;
   height: number;
@@ -71,30 +72,91 @@ function toMedia(r: GalleryRecord): MediaImage {
 
 /** Resolve an image by intent. Real photo if present in gallery.json, else fallback SVG. */
 export function media(key: string): MediaImage {
-  // 1) explicit project/hero id
+  // 1) explicit record id (e.g. "deck-build-corvallis/hero")
   const rec = BY_ID.get(key);
   if (rec && rec.src) return toMedia(rec);
-  // 2) intent key (hero, about, service:decks, ...)
-  if (FALLBACK[key]) return FALLBACK[key];
-  // 3) any project whose slug matches `project:<slug>` → its hero
+
+  // 2) intent keys resolve to REAL photos when present, else SVG fallback
+  if (key === "hero") {
+    const hit = G.images.find((i) => i.hero && i.src) ?? G.images.find((i) => i.after && i.src);
+    return hit ? toMedia(hit) : FALLBACK.hero;
+  }
+  if (key === "about") {
+    const hit = G.images.find((i) => i.category === "Uncategorized" && i.src) ?? G.images.find((i) => i.src);
+    return hit ? toMedia(hit) : FALLBACK.about;
+  }
+  if (key.startsWith("service:")) {
+    const slug = key.slice("service:".length);
+    const cat = SERVICE_CATEGORY[slug];
+    if (cat) {
+      const hit = G.images.find((i) => i.category === cat && i.src && (i.hero || i.after || i.cover))
+        ?? G.images.find((i) => i.category === cat && i.src);
+      if (hit) return toMedia(hit);
+    }
+    return FALLBACK[key] ?? FALLBACK.hero;
+  }
+  // 3) project:<slug> → its hero
   if (key.startsWith("project:")) {
     const slug = key.slice("project:".length);
     const proj = G.projects.find((p: any) => p.slug === slug);
     const hero = proj?.images?.hero?.src ? BY_ID.get(proj.images.hero.id) : null;
     if (hero && hero.src) return toMedia(hero);
   }
-  // 4) category → first featured real image, else fallback by category
+  // 4) category:<name> → first real image
   if (key.startsWith("category:")) {
     const cat = key.slice("category:".length);
     const hit = G.images.find((i) => i.category === cat && i.src && (i.hero || i.after));
     if (hit) return toMedia(hit);
   }
   // 5) graceful last resort
-  return FALLBACK.hero;
+  return FALLBACK[key] ?? FALLBACK.hero;
 }
+
+// Maps service slugs → pipeline category so real photos attach to the right card.
+const SERVICE_CATEGORY: Record<string, string> = {
+  "decks": "Decks",
+  "fences": "Fencing",
+  "pergolas": "Pergolas",
+  "kitchen-remodel": "Kitchen Remodeling",
+  "bath-remodel": "Bathroom Remodeling",
+  "built-ins": "Custom Carpentry",
+  "repairs": "Repairs",
+};
 
 export function hasRealPhotos(): boolean {
   return G.images.some((i) => i.src);
+}
+
+// Real pipeline images as GalleryItem[] (for the lightbox / full gallery grid).
+const CATEGORY_SERVICE: Record<string, string> = {
+  "Decks": "decks",
+  "Fencing": "fences",
+  "Pergolas": "pergolas",
+  "Kitchen Remodeling": "kitchen-remodel",
+  "Bathroom Remodeling": "bath-remodel",
+  "Custom Carpentry": "built-ins",
+  "Repairs": "repairs",
+  "Outdoor Living": "outdoor-living",
+};
+export function realGalleryItems() {
+  return G.images
+    .filter((i) => i.src && !i.before)
+    .map((i) => ({
+      id: i.id,
+      project: i.project,
+      service: CATEGORY_SERVICE[i.category] ?? "decks",
+      src: i.src as string,
+      alt: i.alt,
+      featured: Boolean(i.hero),
+      beforeAfter: null,
+      county: i.county,
+      tags: [i.category.toLowerCase()],
+      width: i.width,
+      height: i.height,
+      category: i.category,
+      orientation: (i.width >= i.height ? "landscape" : "portrait") as "landscape" | "portrait" | "square",
+      blurDataURL: i.blurDataURL,
+    }));
 }
 
 export const galleryData = G;

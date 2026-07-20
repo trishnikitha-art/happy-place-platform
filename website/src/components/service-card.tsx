@@ -35,7 +35,7 @@ export function ServiceCard({ service }: { service: Service }) {
           href={`/services#${service.slug}`}
           className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
         >
-          Start an estimate →
+          Learn more →
         </Link>
       </div>
     </Card>

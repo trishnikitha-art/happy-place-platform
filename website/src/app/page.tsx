@@ -58,9 +58,10 @@ export default function HomePage() {
               <h1 className="mt-4 font-display text-5xl font-bold leading-[1.02] text-text-on-dark sm:text-6xl lg:text-7xl">
                 Building spaces you&rsquo;ll love coming home to.
               </h1>
-              <p className="mt-5 max-w-xl text-lg text-text-on-dark/80">
-                Custom decks, kitchens, fences, and outdoor living across the
-                mid-Willamette Valley — crafted in cedar, finished by hand.
+              <p className="mt-5 max-w-xl text-lg leading-relaxed text-text-on-dark/85">
+                I&rsquo;m Taylor. I build decks, kitchens, fences, and the little
+                details that make a house feel like yours — right here in the
+                mid-Willamette Valley, in cedar, finished by hand.
               </p>
               <div className="mt-7 flex flex-wrap gap-3">
                 <Link href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-base font-semibold">

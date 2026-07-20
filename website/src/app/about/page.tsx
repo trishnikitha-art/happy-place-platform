@@ -5,6 +5,7 @@ import { CTASection } from "@/components/cta-section";
 import { Badge } from "@/components/ui/card";
 import { company } from "@/config/company";
 import { counties } from "@/config/counties";
+import { media } from "@/lib/media";
 
 export const metadata: Metadata = {
   title: "About",
@@ -33,7 +34,7 @@ export default function AboutPage() {
             </p>
           </div>
           <div className="relative aspect-[4/3] overflow-hidden rounded-card border border-text-on-dark/20 shadow-2xl">
-            <Image src="/images/about.svg" alt="Taylor & Lanie of Happy Place Carpentry" width={1200} height={900} className="h-full w-full object-cover" />
+            <Image src={media("about").src} alt="Taylor & Lanie of Happy Place Carpentry" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover" />
           </div>
         </Container>
       </section>

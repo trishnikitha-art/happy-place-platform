@@ -9,6 +9,7 @@ import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { beforeAfterPairs } from "@/config/beforeAfter";
 import { mockGalleryService } from "@/services/gallery";
 import { getProjects } from "@/config/projects";
+import { galleryData, hasRealPhotos, realGalleryItems } from "@/lib/media";
 import { company } from "@/config/company";
 
 export const metadata: Metadata = {
@@ -19,7 +20,9 @@ export const metadata: Metadata = {
 };
 
 export default function OurWorkPage() {
-  const items = mockGalleryService.all();
+  // Real photos (from the pipeline) take over the gallery the moment they exist;
+  // the curated placeholder set is the fallback until then. No hardcoded filenames.
+  const items = hasRealPhotos() ? realGalleryItems() : mockGalleryService.all();
   const projects = getProjects();
 
   return (
@@ -88,7 +91,7 @@ export default function OurWorkPage() {
         </Container>
       </Section>
 
-      {/* FULL GALLERY GRID */}
+      {/* FULL GALLERY GRID — driven by metadata (gallery.json via media.ts) */}
       <Section className="bg-surface-muted">
         <Container>
           <SectionHeading
