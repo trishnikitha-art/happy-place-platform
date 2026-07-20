@@ -121,17 +121,32 @@ export function photoFor(role: Role): MediaImage | null {
   return hits.length ? toMedia(hits[0]) : null;
 }
 
-/** Photo for a service card by slug (resolves to that service's category). */
+/**
+ * Photo for a service card by slug. Prefers that service's own category; if a
+ * service has no native photo yet (e.g. decks/pergolas/kitchen), it uses an honest
+ * proxy from a related category so the card is never blank. Last resort: a
+ * homepage highlight. Nothing maps to the reserved owner placeholder.
+ */
+const SERVICE_PROXY: Record<string, string> = {
+  decks: "Outdoor Living",        // no deck photo yet — real exterior stands in
+  pergolas: "Outdoor Living",     // no pergola photo yet — real exterior stands in
+  "kitchen-remodel": "Custom Carpentry", // no kitchen photo yet — real vanity/cabinetry stands in
+};
 export function servicePhoto(slug: string): MediaImage | null {
   const cat = SERVICE_CATEGORY[slug];
   if (!cat) return null;
+  const score = (m: PhotoMeta) =>
+    (m.category === cat ? 100 : 0) + (SERVICE_PROXY[slug] === m.category ? 60 : 0) + m.priority;
   const hits = PHOTO_ROLES.filter(
-    (m) => m.category === cat && m.roles.includes("ServicesFeature") && m.quality.service,
+    (m) => (m.category === cat || SERVICE_PROXY[slug] === m.category) && m.quality.service,
   )
-    .sort((a, b) => b.priority - a.priority)
+    .sort((a, b) => score(b) - score(a))
     .map((m) => BY_ID.get(m.id))
     .filter((r): r is GalleryRecord => !!r && !!r.src);
-  return hits.length ? toMedia(hits[0]) : null;
+  if (hits.length) return toMedia(hits[0]);
+  // never blank: borrow the strongest homepage highlight
+  const hl = homepageHighlights();
+  return hl.length ? hl[0] : null;
 }
 
 /** Homepage selection — emotional highlights, DISTINCT from the gallery.

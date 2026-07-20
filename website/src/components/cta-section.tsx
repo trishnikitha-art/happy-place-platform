@@ -5,8 +5,8 @@ import { Container, Section } from "@/components/section";
 
 /** Reusable call-to-action: drives to the estimate wizard. */
 export function CTASection({
-  title = "Ready to build your happy place?",
-  subtitle = "Get a free, no-pressure estimate in a few minutes.",
+  title = "Ready to love coming home again?",
+  subtitle = "Let's start building your happy place.",
 }: {
   title?: string;
   subtitle?: string;

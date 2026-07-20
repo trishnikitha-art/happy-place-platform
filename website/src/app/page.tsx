@@ -46,16 +46,17 @@ export default function HomePage() {
               Building spaces you&rsquo;ll love coming home to.
             </h1>
             <p className="mt-6 max-w-xl text-lg leading-relaxed text-text-on-dark/85">
-              I&rsquo;m Taylor. I build decks, kitchens, fences, and the little
-              details that make a house feel like yours — right here in the
-              mid-Willamette Valley, in cedar, finished by hand.
-            </p>
+                Every family has that one space they avoid — and the one they dream
+                about. We build the decks, kitchens, bathrooms, fences, and custom
+                details that turn a house into your happy place, right here in the
+                mid-Willamette Valley.
+              </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <Link href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-base font-semibold">
                 Get a Free Estimate
               </Link>
               <Link
-                href="/gallery"
+                href="/our-work"
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-text-on-dark/30 bg-text-on-dark/10 px-7 py-3.5 text-base font-semibold text-text-on-dark transition-colors hover:bg-text-on-dark/20"
               >
                 See Our Work
@@ -106,10 +107,10 @@ export default function HomePage() {
                     through Oregon&rsquo;s wet seasons.
                   </p>
                   <Link
-                    href="/gallery"
+                    href="/our-work"
                     className="mt-6 inline-flex items-center gap-1 font-semibold text-accent hover:underline"
                   >
-                    See the full gallery →
+                    See the full portfolio →
                   </Link>
                 </div>
               </div>
@@ -184,8 +185,8 @@ export default function HomePage() {
             ))}
           </div>
           <div className="mt-8">
-            <Link href="/gallery" className="inline-flex items-center gap-1 font-semibold text-accent hover:underline">
-              See more transformations →
+            <Link href="/our-work" className="inline-flex items-center gap-1 font-semibold text-accent hover:underline">
+              See the full portfolio →
             </Link>
           </div>
         </Container>
@@ -205,15 +206,17 @@ export default function HomePage() {
             </h2>
             <div className="mt-6 space-y-4 text-text-muted">
               <p>
-                <span className="font-semibold text-text">{taylor.name}</span> — {taylor.focus}
+                Happy Place Carpentry isn&rsquo;t built around salespeople, project
+                managers, and handoffs. It&rsquo;s built around one family that believes
+                your home should become your happy place — from your first conversation to
+                the final walkthrough, you&rsquo;ll work with the same people who care
+                about getting every detail right.
               </p>
               <p>
-                <span className="font-semibold text-text">{lanie.name}</span> — {lanie.focus}
+                <span className="font-semibold text-text">{taylor.name} L.</span> — Craftsmanship, problem solving, and building spaces made to last.
               </p>
               <p>
-                Homeowners tell us the best part isn&rsquo;t just the finished cedar or the
-                kitchen — it&rsquo;s knowing exactly who&rsquo;s showing up, and that the
-                person who estimates the job is the one who builds it.
+                <span className="font-semibold text-text">{lanie.name} L.</span> — Communication, planning, and making every project feel clear from beginning to end.
               </p>
             </div>
           </div>

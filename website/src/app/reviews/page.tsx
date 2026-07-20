@@ -18,7 +18,7 @@ export default function ReviewsPage() {
         <Container>
           <SectionHeading
             eyebrow="Reviews"
-            title="What neighbors say"
+            title="Helping neighbors find their happy place"
             align="center"
             description={`${averageRating()} / 5 across ${reviews.length} featured reviews from homeowners across the Willamette Valley.`}
           />

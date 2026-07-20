@@ -9,7 +9,7 @@ export const company: Company = {
   legalName: "Happy Place Carpentry LLC",
   tagline: "Building your happy place, one project at a time.",
   description:
-    "Happy Place Carpentry is a licensed Oregon carpentry contractor helping homeowners across the mid-Willamette Valley turn houses into happy places — from decks and fences to full remodels and custom builds.",
+    "Happy Place Carpentry is a licensed Oregon carpentry partnership helping families across the Mid-Willamette Valley find their happy place — through decks, fences, kitchens, baths, and custom carpentry built to last.",
   ccbNumber: "CCB# 254240",
   email: "taylor@happyplacecarpentry.com",
   phone: "+15419990870",

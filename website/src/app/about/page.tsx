@@ -5,11 +5,11 @@ import { CTASection } from "@/components/cta-section";
 import { Badge } from "@/components/ui/card";
 import { company } from "@/config/company";
 import { counties } from "@/config/counties";
-import { media } from "@/lib/media";
+import { ownerPortrait } from "@/lib/media";
 
 export const metadata: Metadata = {
   title: "About",
-  description: `About ${company.name} — Taylor & Lanie, a licensed Oregon carpentry partnership serving the mid-Willamette Valley.`,
+  description: `About ${company.name} — the family behind Happy Place Carpentry, helping homeowners across the mid-Willamette Valley find their happy place.`,
   alternates: { canonical: "/about" },
 };
 
@@ -25,26 +25,28 @@ export default function AboutPage() {
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-honey">Family-owned · {company.ccbNumber}</p>
             <h1 className="mt-3 font-display text-4xl font-bold leading-tight sm:text-5xl">
-              The people you&rsquo;ll actually be working with.
+              Every family deserves a happy place.
             </h1>
             <p className="mt-5 max-w-xl text-lg text-text-on-dark/75">
-              {company.name} is a hands-on carpentry partnership. The person who estimates
-              your job is the person who builds it — and the person who keeps you in the loop
-              the whole way through.
+              {company.name} isn&rsquo;t built around salespeople, project managers, and
+              handoffs. It&rsquo;s built around one family that believes your home should
+              become your happy place — from your first conversation to the final
+              walkthrough, you&rsquo;ll work with the same people who care about getting
+              every detail right.
             </p>
           </div>
           <div className="relative aspect-[4/3] overflow-hidden rounded-card border border-text-on-dark/20 shadow-2xl">
-            <Image src={media("about").src} alt="Taylor & Lanie of Happy Place Carpentry" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover" />
+            <Image src={ownerPortrait().src} alt="Taylor & Lanie of Happy Place Carpentry" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover" />
           </div>
         </Container>
       </section>
 
-      {/* PARTNERSHIP */}
+      {/* THE FAMILY — why we exist, not job titles */}
       <Section>
         <Container className="grid gap-8 md:grid-cols-2">
-          {[taylor, lanie].map((o, i) => (
+          {[taylor, lanie].map((o) => (
             <div key={o.name} className="rounded-card border border-border bg-surface p-8 shadow-sm">
-              <p className="font-signature text-3xl text-honey">{o.name}</p>
+              <p className="font-signature text-3xl text-honey">{o.name} L.</p>
               <h2 className="mt-1 font-display text-2xl font-bold text-text">{o.title}</h2>
               <p className="mt-4 text-text-muted">{o.focus}</p>
             </div>
@@ -75,7 +77,10 @@ export default function AboutPage() {
         </Container>
       </Section>
 
-      <CTASection />
+      <CTASection
+        title="Ready to love coming home again?"
+        subtitle="Let's start building your happy place."
+      />
     </>
   );
 }
