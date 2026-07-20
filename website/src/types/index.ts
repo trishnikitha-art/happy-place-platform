@@ -147,7 +147,8 @@ export interface Property {
 export interface EstimateRequest {
   customer: Customer;
   property: Property;
-  service: string; // Service.slug
+  services: string[]; // Service.slug[] — up to 3 (or 0 if otherNeed given)
+  otherNeed?: string; // "Don't see what you need?" free text
   answers: Record<string, string | boolean | number>;
   photos: { name: string; size: number }[]; // metadata only; bytes never leave the browser in MVP
   notes?: string;

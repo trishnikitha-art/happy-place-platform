@@ -19,7 +19,7 @@ function buildEmailBody(req: EstimateRequest, companyName: string): string {
   lines.push(`New estimate request from ${req.customer.name}`);
   lines.push(`Email: ${req.customer.email}`);
   lines.push(`Phone: ${req.customer.phone ?? "n/a"}`);
-  lines.push(`Service: ${req.service}`);
+  lines.push(`Services: ${(req.services ?? []).join(", ") || "(none)"}`);
   lines.push(`Property: ${req.property.address ?? ""}, ${req.property.county ?? ""}`);
   lines.push("");
   lines.push("Answers:");
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
 
     const raw = [
       `To: ${ownerEmail}`,
-      `Subject: New Estimate Request — ${req.service} (${req.customer.name})`,
+      `Subject: New Estimate Request — ${(req.services ?? []).join(", ") || "General"} (${req.customer.name})`,
       "Content-Type: text/plain; charset=utf-8",
       "",
       buildEmailBody(req, "Happy Place Carpentry"),

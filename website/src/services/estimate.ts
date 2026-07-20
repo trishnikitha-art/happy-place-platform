@@ -29,7 +29,7 @@ export interface EstimateSubmitResult {
 }
 
 function answersToText(req: EstimateRequest): string {
-  const svc = getService(req.service);
+  const svc = getService(req.services[0] ?? "");
   const lines: string[] = [];
   for (const [key, val] of Object.entries(req.answers)) {
     const q = svc?.estimateQuestions.find((q) => q.id === key);
@@ -49,8 +49,8 @@ export const mockEstimateService: EstimateService = {
     if (features.estimateApi && !forceMailto) {
       return { kind: "api", body: req };
     }
-    const svc = getService(req.service);
-    const subject = `Estimate request: ${svc?.title ?? req.service}`;
+    const svcTitles = req.services.map((sl) => getService(sl)?.title ?? sl);
+    const subject = `Estimate request: ${svcTitles.join(", ") || "General inquiry"}`;
     const body = [
       `New estimate request from ${req.customer.name}`,
       ``,
@@ -65,13 +65,16 @@ export const mockEstimateService: EstimateService = {
       `  County:  ${req.property.county}`,
       `  Details: ${req.property.details || "-"}`,
       ``,
-      `SERVICE: ${svc?.title ?? req.service}`,
+      `SERVICE: ${svcTitles.join(", ") || "(none selected)"}`,
       ``,
       `ANSWERS`,
       answersToText(req),
       ``,
       `PHOTOS (${req.photos.length})`,
       photoText(req),
+      ``,
+      `SERVICES SELECTED: ${req.services.length} (max 3)`,
+      `DIDN'T SEE WHAT YOU NEED: ${req.otherNeed || "-"}`,
       ``,
       `NOTES: ${req.notes || "-"}`,
     ].join("\n");

@@ -32,10 +32,10 @@ export function ServiceCard({ service }: { service: Service }) {
           <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-accent">{service.stat}</p>
         )}
         <Link
-          href={`/services#${service.slug}`}
+          href={`/estimate?service=${service.slug}`}
           className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
         >
-          Learn more →
+          Start a quote →
         </Link>
       </div>
     </Card>

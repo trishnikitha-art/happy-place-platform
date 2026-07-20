@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { EstimateWizard } from "@/components/estimate-wizard";
 import { company } from "@/config/company";
@@ -20,7 +21,9 @@ export default function EstimatePage() {
           description="About two minutes. Your details go straight to our inbox — no account, no spam."
         />
         <div className="mt-8">
-          <EstimateWizard />
+          <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl border border-border bg-surface" />}>
+            <EstimateWizard />
+          </Suspense>
         </div>
         <p className="mt-6 text-center text-sm text-text-subtle">
           Prefer to talk? Call {company.phoneDisplay} or email {company.email}.
