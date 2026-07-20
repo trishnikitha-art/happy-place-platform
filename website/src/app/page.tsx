@@ -84,12 +84,13 @@ export default function HomePage() {
             </div>
           </div>
 
-          {/* floating owner photo, offset on desktop */}
+          {/* floating craftsmanship photo, offset on desktop (NOT the owner —
+              owner portrait appears exactly once, in the owner section below) */}
           <div className="relative mt-10 lg:col-span-5 lg:mt-0 lg:self-center">
             <div className="relative mx-auto aspect-[4/5] w-2/3 overflow-hidden rounded-card shadow-float ring-1 ring-text-on-dark/20 sm:w-1/2 lg:ml-auto lg:w-full lg:translate-y-6">
               <Image
-                src={media("about").src}
-                alt="Taylor & Lanie of Happy Place Carpentry"
+                src={media("service:fences").src}
+                alt="Cedar fence built by Happy Place Carpentry"
                 fill
                 sizes="(max-width: 1024px) 60vw, 40vw"
                 className="object-cover"
@@ -114,7 +115,7 @@ export default function HomePage() {
               <div className="relative lg:col-span-8 lg:z-10">
                 <div className="relative aspect-[16/10] overflow-hidden rounded-card shadow-float ring-1 ring-border-soft">
                   <Image
-                    src={spotlight.photos[0].src}
+                    src={media("fences/fencerebuildmatchingstain").src}
                     alt={spotlight.title}
                     fill
                     sizes="(max-width: 1024px) 100vw, 66vw"
@@ -213,7 +214,7 @@ export default function HomePage() {
       <Section className="bg-background">
         <Container className="grid items-center gap-10 lg:grid-cols-2">
           <div className="relative aspect-[4/3] overflow-hidden rounded-card shadow-float ring-1 ring-border-soft">
-            <Image src={media("about").src} alt="Taylor & Lanie working with a client" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover photo-breathe" />
+            <Image src={media("owner").src} alt="Taylor & Lanie of Happy Place Carpentry" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover photo-breathe" />
             <CedarCorner className="absolute -left-2 -top-2 h-8 w-8 text-honey" />
           </div>
           <div>
