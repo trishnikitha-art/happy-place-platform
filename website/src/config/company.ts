@@ -12,8 +12,8 @@ export const company: Company = {
     "Happy Place Carpentry is a licensed Oregon carpentry partnership helping families across the Mid-Willamette Valley find their happy place — through decks, fences, kitchens, baths, and custom carpentry built to last.",
   ccbNumber: "CCB# 254240",
   email: "taylor@happyplacecarpentry.com",
-  phone: "+15419990870",
-  phoneDisplay: "(541) 999-0870",
+  phone: "+15412865190",
+  phoneDisplay: "541-286-5190",
   address: {
     city: "Adair Village",
     region: "OR",

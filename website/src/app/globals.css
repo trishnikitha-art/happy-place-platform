@@ -3,58 +3,72 @@
 /*
  * SEMANTIC DESIGN TOKENS — Pacific Northwest craftsmanship meets modern luxury.
  * (CEO visual direction) Color roles, not equal-weight colors:
- *   --color-primary   = Deep Evergreen  (brand: header, nav, buttons, footer, dark sections)
- *   --color-background= Warm Linen      (page bg, makes cedar glow)
- *   --color-surface-2 = Cream           (testimonials, FAQ, estimate — alternating warmth)
- *   --color-surface   = Soft Gray       (cards only, never large sections)
- *   --color-accent    = Taupe           (borders, icons, labels, dividers)
- *   --color-honey     = honey CTA pop  (single warm action accent)
+ *   --color-primary     = Deep Navy      (brand: header, nav, buttons, footer, dark sections)
+ *   --color-background  = Cloud White    (page bg, bright and calm)
+ *   --color-surface-2   = Steel Blue     (secondary sections, muted blues)
+ *   --color-surface     = Fog Blue       (cards only, never large sections)
+ *   --color-accent      = Charcoal       (borders, icons, labels, dividers)
+ *   --color-honey       = Cedar Gold     (single warm action accent, 5-8% usage)
+ *   --color-forest      = Forest Green   (grounding accent, 10% usage)
  * To re-skin for another business, change tokens only.
  */
 @theme {
-  /* Brand — Deep Evergreen (the recognizable Happy Place color) */
-  --color-primary: #1F3F3C;
-  --color-primary-hover: #2a5752;
-  --color-primary-foreground: #f4efe6;
+  /* Brand — Deep Navy (primary brand color) */
+  --color-primary: #17324A;
+  --color-primary-hover: #243746;
+  --color-primary-foreground: #FAFBFC;
 
-  /* Secondary brand — Honey (single warm CTA pop, used sparingly) */
+  /* Secondary brand — Cedar Gold (single warm CTA pop, 5-8% usage) */
   --color-honey: #d99a4e;
   --color-honey-hover: #e7ad63;
   --color-honey-foreground: #1c1917;
 
-  /* Accent — Taupe (borders, icons, labels) */
-  --color-accent: #B0A092;
-  --color-accent-foreground: #1c1917;
+  /* Accent — Charcoal (borders, icons, labels) */
+  --color-accent: #30424E;
+  --color-accent-foreground: #FAFBFC;
 
-  /* Backgrounds */
-  --color-background: #EDEAE0;       /* warm linen — page */
-  --color-cream: #E9DBC9;            /* cream — alt warm sections */
-  --color-surface: #EDEDED;          /* soft gray — cards only */
-  --color-surface-muted: #E4DFD4;    /* subtle warm section */
-  --color-border: #B0A092;           /* taupe borders/dividers */
-  --color-border-soft: #d8d2c6;
+  /* Forest Green (grounding accent, 10% usage) */
+  --color-forest: #2E5A4F;
+  --color-forest-hover: #355B4C;
+  --color-forest-foreground: #FAFBFC;
 
-  /* Deep (hero / cedar-dark overlays) */
-  --color-deep: #162b29;             /* darker evergreen for hero */
-  --color-deep-2: #1F3F3C;
+  /* Backgrounds — bright, calm whites */
+  --color-background: #FAFBFC;       /* cloud white — page */
+  --color-surface-2: #DCEAF3;         /* steel blue — secondary sections */
+  --color-surface: #E8F1F5;           /* fog blue — cards */
+  --color-surface-muted: #D8E3EA;    /* slate mist — subtle sections */
+  --color-border: #30424E;           /* charcoal borders/dividers */
+  --color-border-soft: #D8E3EA;
+
+  /* Deep (hero / dark sections) */
+  --color-deep: #17324A;             /* deep navy for hero */
+  --color-deep-2: #243746;           /* blue charcoal for dark sections */
 
   /* Text */
-  --color-text: #23211c;             /* warm near-black */
-  --color-text-muted: #5b564c;       /* warm secondary */
-  --color-text-subtle: #8a8378;      /* captions/meta */
-  --color-text-on-dark: #f4efe6;
+  --color-text: #1a202c;             /* near-black */
+  --color-text-muted: #4a5568;       /* secondary */
+  --color-text-subtle: #718096;      /* captions/meta */
+  --color-text-on-dark: #FAFBFC;
 
   /* Feedback */
-  --color-success: #2a5752;
+  --color-success: #2E5A4F;
   --color-warning: #d99a4e;
   --color-error: #b4543a;
 
-  /* Richer cedar tones (subtle accents only, never dominant) */
+  /* Cedar tones (subtle accents only, 5-8% usage) */
   --color-walnut: #5D4037;          /* deep walnut for dividers */
   --color-burnt-cedar: #8D6E63;     /* burnt cedar for borders */
   --color-aged-bronze: #A1887F;     /* aged bronze for accents */
-  --color-charcoal: #37474F;        /* charcoal for subtle text */
+  --color-charcoal: #30424E;        /* charcoal for text */
   --color-warm-ivory: #FFF8E1;      /* warm ivory for highlights */
+
+  /* Service category accents */
+  --color-accent-decks: #4A90A4;        /* ocean blue */
+  --color-accent-fences: #2E5A4F;      /* forest green */
+  --color-accent-pergolas: #d99a4e;     /* cedar gold */
+  --color-accent-remodeling: #5A6A7A;  /* slate blue */
+  --color-accent-repairs: #4A4A4A;      /* graphite */
+  --color-accent-builtins: #5D4037;     /* walnut brown */
 
   /* Typography — Playfair Display (display) + Georgia (body) + Playball (signature) */
   --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
@@ -65,14 +79,14 @@
   /* Radius scale */
   --radius-card: 1rem;
 
-  /* Secondary brand — warm graphite panel (dark sections / spotlight) */
-  --color-secondary: #2b2620;
-  --color-secondary-hover: #3a342c;
-  --color-secondary-foreground: #f4efe6;
+  /* Secondary brand — storm for dark sections */
+  --color-secondary: #30424E;
+  --color-secondary-hover: #243746;
+  --color-secondary-foreground: #FAFBFC;
 
-  /* Signature warm shadow (weighty, premium, not flat) */
-  --shadow-warm: 0 18px 40px -18px rgba(31, 63, 60, 0.45), 0 8px 20px -12px rgba(217, 154, 78, 0.25);
-  --shadow-float: 0 24px 60px -28px rgba(31, 63, 60, 0.55), 0 10px 30px -16px rgba(0, 0, 0, 0.25);
+  /* Signature shadow (weighty, premium, not flat) */
+  --shadow-warm: 0 18px 40px -18px rgba(23, 50, 74, 0.45), 0 8px 20px -12px rgba(217, 154, 78, 0.25);
+  --shadow-float: 0 24px 60px -28px rgba(23, 50, 74, 0.55), 0 10px 30px -16px rgba(0, 0, 0, 0.25);
 }
 
 html {
@@ -113,7 +127,7 @@ body {
     #5D4037 9px
   );
   background-size: 18px 100%;
-  opacity: 0.5;
+  opacity: 0.08;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.25);
 }
 
@@ -124,42 +138,39 @@ body {
    ========================================================================== */
 
 /* HERO CRAFTSMANSHIP LAYER
-   Faint blueprint grid + cedar grain + carpenter-square corner + pencil
-   tick marks, all sitting just above the radial lighting. Mounted on the
-   existing deep-evergreen hero. */
+   Faint blueprint grid + sky gradient + carpenter-square corner + pencil
+   tick marks, all sitting just above the deep navy hero. */
 .hero-craft {
   position: absolute;
   inset: 0;
   z-index: 0;
   pointer-events: none;
 }
-/* 1) extremely faint blueprint grid */
+/* 1) extremely faint blueprint grid (1% opacity) */
 .hero-craft::before {
   content: "";
   position: absolute;
   inset: 0;
   background-image:
-    linear-gradient(rgba(244, 239, 230, 0.055) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(244, 239, 230, 0.055) 1px, transparent 1px);
+    linear-gradient(rgba(250, 251, 252, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(250, 251, 252, 0.03) 1px, transparent 1px);
   background-size: 46px 46px;
   mask-image: radial-gradient(120% 90% at 70% 20%, black, transparent 75%);
   -webkit-mask-image: radial-gradient(120% 90% at 70% 20%, black, transparent 75%);
 }
-/* 2) cedar grain at ~4% opacity, drifting warm */
+/* 2) very subtle sky gradient overlay */
 .hero-craft::after {
   content: "";
   position: absolute;
   inset: 0;
-  background-image: repeating-linear-gradient(
-    91deg,
-    rgba(141, 110, 99, 0.08) 0px,
-    rgba(141, 110, 99, 0.03) 2px,
-    rgba(93, 64, 55, 0.08) 5px,
-    rgba(141, 110, 99, 0.03) 8px
+  background: linear-gradient(
+    135deg,
+    rgba(250, 251, 252, 0.15) 0%,
+    rgba(220, 234, 243, 0.1) 50%,
+    rgba(23, 50, 74, 0.05) 100%
   );
-  background-size: 14px 100%;
-  mix-blend-mode: screen;
-  opacity: 0.9;
+  mix-blend-mode: overlay;
+  opacity: 0.6;
 }
 
 /* carpenter-square corner + pencil construction ticks (top-right) */
@@ -170,7 +181,7 @@ body {
   width: 84px;
   height: 84px;
   pointer-events: none;
-  opacity: 0.14;
+  opacity: 0.12;
   z-index: 0;
 }
 .hero-square::before,
@@ -231,7 +242,7 @@ body {
   width: 84px;
   height: 84px;
   pointer-events: none;
-  opacity: 0.13;
+  opacity: 0.1;
   z-index: 0;
   background-image: repeating-linear-gradient(
     180deg, transparent 0 9px, var(--color-text-on-dark) 9px 10px
@@ -248,9 +259,9 @@ body {
   transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.7) inset,             /* subtle inner highlight */
-    0 0 0 1px rgba(244, 239, 230, 0.75),                /* 1px warm ivory stroke */
-    0 1px 2px rgba(22, 43, 41, 0.12) inset,             /* tiny bevel */
-    0 22px 46px -28px rgba(22, 43, 41, 0.5),            /* soft ambient shadow */
+    0 0 0 1px rgba(250, 251, 252, 0.75),                /* 1px cloud white stroke */
+    0 1px 2px rgba(23, 50, 74, 0.12) inset,             /* tiny bevel */
+    0 22px 46px -28px rgba(23, 50, 74, 0.5),            /* soft ambient shadow */
     0 4px 14px -10px rgba(0, 0, 0, 0.2);
   overflow: hidden;
 }
@@ -262,16 +273,16 @@ body {
     transform: translateY(-4px);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.8) inset,
-      0 0 0 1px rgba(244, 239, 230, 0.85),
-      0 1px 2px rgba(22, 43, 41, 0.14) inset,
-      0 30px 60px -30px rgba(22, 43, 41, 0.6),
+      0 0 0 1px rgba(250, 251, 252, 0.85),
+      0 1px 2px rgba(23, 50, 74, 0.14) inset,
+      0 30px 60px -30px rgba(23, 50, 74, 0.6),
       0 6px 18px -10px rgba(0, 0, 0, 0.22);
   }
 }
 /* tiny bevel on the inner edge */
 .photo-mounted > img,
 .photo-mounted > span {
-  box-shadow: inset 0 0 0 1px rgba(22, 43, 41, 0.06);
+  box-shadow: inset 0 0 0 1px rgba(23, 50, 74, 0.06);
 }
 
 /* REFINED TYPOGRAPHY HELPERS (magazine editor) */
@@ -447,4 +458,118 @@ body {
     min-height: 48px;
     padding: 12px 24px;
   }
+}
+
+/* ============================================================================
+   CRAFTSMANSHIP OVERLAY — reusable blueprint layer (1-3% opacity)
+   ========================================================================== */
+
+.craft-blueprint {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Faint architectural grid */
+.craft-blueprint::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(48, 66, 78, 0.02) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(48, 66, 78, 0.02) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 1;
+}
+
+/* Dimension arrows (subtle) */
+.craft-blueprint::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  opacity: 0.03;
+  background-image:
+    linear-gradient(90deg, transparent 49.5%, rgba(48, 66, 78, 0.3) 49.5%, rgba(48, 66, 78, 0.3) 50.5%, transparent 50.5%),
+    linear-gradient(transparent 49.5%, rgba(48, 66, 78, 0.3) 49.5%, rgba(48, 66, 78, 0.3) 50.5%, transparent 50.5%);
+  background-size: 80px 80px;
+  background-position: center;
+}
+
+/* Measurement ticks (tape measure style) */
+.measurement-ticks {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 8px;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 8px,
+    var(--color-charcoal) 8px 9px,
+    transparent 9px 16px
+  );
+}
+
+/* Carpenter square corner */
+.carpenter-corner {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 48px;
+  height: 48px;
+  pointer-events: none;
+  opacity: 0.06;
+}
+.carpenter-corner::before,
+.carpenter-corner::after {
+  content: "";
+  position: absolute;
+  background: var(--color-charcoal);
+}
+.carpenter-corner::before { top: 0; right: 0; width: 1px; height: 48px; }
+.carpenter-corner::after  { top: 0; right: 0; width: 48px; height: 1px; }
+
+/* Joinery outline (mortise-and-tenon hint) */
+.joinery-outline {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.03;
+  border: 1px solid var(--color-charcoal);
+  border-radius: var(--radius-card);
+}
+
+/* Pencil layout marks (random +, ×, ○) */
+.pencil-marks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.02;
+  background-image:
+    radial-gradient(circle at 10% 20%, var(--color-charcoal) 1px, transparent 1px),
+    radial-gradient(circle at 85% 75%, var(--color-charcoal) 1px, transparent 1px),
+    radial-gradient(circle at 45% 90%, var(--color-charcoal) 1px, transparent 1px);
+  background-size: 100% 100%;
+}
+
+/* Router bit path (rounded corner line art) */
+.router-path {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.02;
+  border-radius: var(--radius-card);
+  box-shadow: inset 0 0 0 1px var(--color-charcoal);
+}
+
+/* Soft paper texture (very subtle) */
+.paper-texture {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.015;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
 }
