@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "description": "Machine-generated image manifest. Human curation lives in presentation.v1.json.",
-  "generatedAt": "2026-07-21T16:38:53.765Z",
+  "generatedAt": "2026-07-21T18:00:17.045Z",
   "projects": [
     {
       "slug": "bathroom-remodeling",
@@ -82,7 +82,7 @@
       ],
       "thumbnailPath": "/images/projects/bathroom-remodeling/BATHROOM_WALL-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRm4AAABXRUJQVlA4IGIAAADQAQCdASoQAAwAA4BaJQBOgBJxSzk/gAD+yckh4ywjjEJoM/ASRnw2QHgyTZGsxvBn4XfAPpDCsCUS89Way39Or+3iH3+f/R6WnIixH1evUO5+2lNIInR2i1gpQrGBVgAAAA==",
-      "createdAt": "2026-07-21T16:38:44.400Z"
+      "createdAt": "2026-07-21T17:59:34.937Z"
     },
     {
       "uuid": "e4e92056-b4e1-504d-a0f1-7fabd34e1edd",
@@ -131,7 +131,7 @@
       ],
       "thumbnailPath": "/images/projects/built-ins/FINISHEDCARPENTRY0-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRnQAAABXRUJQVlA4IGgAAADwAQCdASoQAAoAA4BaJZACdAD6jdHeQRAA/vSpCEugaI8wOYbuc/5PuEd2QYI789GCzauL/0+ilGEak8SqbF03WgssA7SOpTUV2Rankn89qX0zY5zNEYsqrXC8rSPgG4xdPSpFwAAAAA==",
-      "createdAt": "2026-07-21T16:38:45.042Z"
+      "createdAt": "2026-07-21T17:59:35.560Z"
     },
     {
       "uuid": "4b20bdb7-e4ec-5233-8516-2e01fbd96698",
@@ -144,7 +144,7 @@
       "sourcePath": "Built-Ins/FINISHEDCARPENTRY.png",
       "width": 1280,
       "height": 1078,
-      "role": "detail",
+      "role": "hero",
       "priority": null,
       "variants": [
         {
@@ -180,7 +180,7 @@
       ],
       "thumbnailPath": "/images/projects/built-ins/FINISHEDCARPENTRY-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRmoAAABXRUJQVlA4IF4AAABQAgCdASoQAA0AA4BaJQBOgMXI1Ocz5EZAWsAA/ueveCb/Y5aVz6uBnYN9sEn+0SXQqYovTuO3LF/2sp2ug/y7LFG9tRcO8Vcm1PtKB1ud7c6+Djr34925ZSzcAAAA",
-      "createdAt": "2026-07-21T16:38:45.827Z"
+      "createdAt": "2026-07-21T17:59:36.365Z"
     },
     {
       "uuid": "da6d1b95-4d7d-5bcf-a991-de1286be232d",
@@ -229,7 +229,7 @@
       ],
       "thumbnailPath": "/images/projects/fences/FENCE BUILD-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRnoAAABXRUJQVlA4IG4AAADwAwCdASoQABIAPu1iqU2ppaOiMAgBMB2JZACw7Btl7rbeX6rshvrAAP203cJZfx4HNJGQjqkIJ/1IqEhLDaptb+KTyO47hPELci+y56J6LicuYtVCuJkBvLc1vjmZ5nhVwkwwD2sKsPlM0wAAAA==",
-      "createdAt": "2026-07-21T16:38:47.112Z"
+      "createdAt": "2026-07-21T17:59:37.702Z"
     },
     {
       "uuid": "a898cc66-01fc-50d5-952e-73a5080c0eb1",
@@ -278,7 +278,7 @@
       ],
       "thumbnailPath": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRmAAAABXRUJQVlA4IFQAAADwAQCdASoQAA0AA4BaJbACdADRDHzQrQAA/qvg89rPqkr4vC+n26YZleQouc7LnPjSe7aiV8Bk46Isw4c1pXFZlR6lSC3kYu74+jPw1olB8dMkQAA=",
-      "createdAt": "2026-07-21T16:38:47.905Z"
+      "createdAt": "2026-07-21T17:59:38.505Z"
     },
     {
       "uuid": "d372a0c3-cd76-5808-b16b-98b83c142743",
@@ -307,7 +307,7 @@
       ],
       "thumbnailPath": "/images/projects/outdoor-living/IMG_0535-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRrIAAABXRUJQVlA4IKYAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JZgC7AYyUzSAo8CN+0kAA/uzX/NRtBA4fYxe1MYzZg9Yyg39mWRxyMuSXMbw2Ez/udSJkkKwmu1FWWaj3Yz9VTXfi7Bnb5RJN96gWJnhl4Y9u9NPtY9NlMAxXVvKGeXORmTR19rTl09cH1RRxff+/4fvon77FhBwL7sPXfWfLLcWwfin3CC+XXZ7eIQAA",
-      "createdAt": "2026-07-21T16:38:48.124Z"
+      "createdAt": "2026-07-21T17:59:38.738Z"
     },
     {
       "uuid": "e0894b9f-fc10-5754-b30d-c009872dc85f",
@@ -336,7 +336,7 @@
       ],
       "thumbnailPath": "/images/projects/outdoor-living/IMG_0555-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRpgAAABXRUJQVlA4IIwAAAAQBACdASoQABUAPu1iqU2ppaOiMAgBMB2JagCdACBQwFrkGXfKp6lpIAD9OkFVd8c0YfHYntYMjW2O0g95IKv+tGUSIURcmOUwB+rpdqDU6jnh5V6AkcTra3WVpy4A/iHXffrmMC+L2Pb/lLCy5H3QpxzLrQfs99yITXhmPg92uPtEh3/6tJaH+xIAAA==",
-      "createdAt": "2026-07-21T16:38:48.336Z"
+      "createdAt": "2026-07-21T17:59:38.957Z"
     },
     {
       "uuid": "270d8215-1465-5dc5-81da-b4b0e4d78961",
@@ -365,7 +365,7 @@
       ],
       "thumbnailPath": "/images/projects/outdoor-living/IMG_0559-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAADwAQCdASoQAAwAA4BaJZACdAC9tYJ18jAA/sJ2J2+uBbAmhAZEbw8bk0QAAataPEwENnjJ9s687n7rdvJY8KGHzUrCEYEgNvYjQa+xQKJu86G+wD/KdxdipSAAAA==",
-      "createdAt": "2026-07-21T16:38:48.531Z"
+      "createdAt": "2026-07-21T17:59:39.158Z"
     },
     {
       "uuid": "bb47212a-253b-5941-a941-0c5d98511337",
@@ -394,7 +394,7 @@
       ],
       "thumbnailPath": "/images/projects/outdoor-living/IMG_0737-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4IIIAAAAwBACdASoQABUAPu1iqU2ppaOiMAgBMB2JZgCdACLG+RiryILpPo6sBAAA/nH3AbWRdxi+dGpTQJ7YzdppbuAjTEBcS4SwtEyCV49IqMnpCS9hEi7NYqRDm/0u48ZCfI7tuhBpSqzNx7gaxDxW2WpZVx+BsUzwXMYj+6XukRCLBpwA",
-      "createdAt": "2026-07-21T16:38:48.729Z"
+      "createdAt": "2026-07-21T17:59:39.382Z"
     },
     {
       "uuid": "88bed58f-11f7-5624-96d2-4ccf0d09ee19",
@@ -423,7 +423,7 @@
       ],
       "thumbnailPath": "/images/projects/outdoor-living/IMG_0805-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRqQAAABXRUJQVlA4IJgAAABQBACdASoQABUAPu1iqU2ppaOiMAgBMB2JZAC2yYxY7WRUdFNTActeprwAAP5J8Zkn/YlF/BxEWm9Te2dpWfI1GDpOIxbMg97/Xf+nlFfKvXBQ/1fKw0CKdVmJlDkeo27LyMC1BFfrwYsY0avToVBEP+/VV2EJNWUFkgeIOe6EpHPZp2xgbv+CmIU9/J/4gvMrPoxj2augAA==",
-      "createdAt": "2026-07-21T16:38:48.928Z"
+      "createdAt": "2026-07-21T17:59:39.593Z"
     },
     {
       "uuid": "c78d13c8-3be2-5909-86ff-fa290e25a7aa",
@@ -452,7 +452,7 @@
       ],
       "thumbnailPath": "/images/projects/outdoor-living/IMG_0841-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRqAAAABXRUJQVlA4IJQAAAAwBACdASoQABUAPu1iqU2ppaOiMAgBMB2JYgCdIKnDFXeldY3oE364NoAA/CxytM9C0L8Te4hvdHlJDY88BKqJYHenGtFvE1yqCWUXGKV3oUjtAzRZEHCbiwZBVsdreElLxkmhJfi7wffRBaeRy7aklWeGB9AR3Z/A3WEFOB3CBJk8NmDCzWgrsM7RLnU5yQHIOFAA",
-      "createdAt": "2026-07-21T16:38:49.105Z"
+      "createdAt": "2026-07-21T17:59:39.787Z"
     },
     {
       "uuid": "a7b5d396-6cc5-5b3f-b038-b827e3bc9c4f",
@@ -501,7 +501,7 @@
       ],
       "thumbnailPath": "/images/projects/repairs/FLOOR0-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRlQAAABXRUJQVlA4IEgAAACwAQCdASoQAA0AA4BaJYwAAaXQw9PwAP36Sm3DEtQbDkMvPkaMAEwcxyZHyWH+BeC/TJb0Ozzhf7Ml5Q5lvO5RynLHuJgeAAA=",
-      "createdAt": "2026-07-21T16:38:49.907Z"
+      "createdAt": "2026-07-21T17:59:40.607Z"
     },
     {
       "uuid": "fd200c13-e16d-5934-b7d2-d428b8a58b43",
@@ -530,7 +530,7 @@
       ],
       "thumbnailPath": "/images/projects/repairs/IMG_0544-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRoYAAABXRUJQVlA4IHoAAAAwBACdASoQABUAPu1iqU2ppaQiMAgBMB2JZgCdMoRwABcEcLbRv2HolYAA/rnytW/cenOGcQHi6cYSz72pshOT8x0knb3JXswlVaNd6Wg8HeKTllkdKAa/SXaVwY1oc2k2zURgOIHCCqh0GVgz3u3Ew49rWj9yygAAAA==",
-      "createdAt": "2026-07-21T16:38:50.034Z"
+      "createdAt": "2026-07-21T17:59:40.740Z"
     },
     {
       "uuid": "2dd3a4ff-bafb-5461-b66b-edcf0b1d1148",
@@ -559,7 +559,7 @@
       ],
       "thumbnailPath": "/images/projects/repairs/IMG_0546-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRooAAABXRUJQVlA4IH4AAAAwBACdASoQABUAPu1iqU2ppaOiMAgBMB2JbACdMoAC2YqzydVHDEyH5AAA/pjvNB6DOTuP5V7jvuZM0NcvMlU4YdOz/krhjJyWuY662JtQKtigpnBfGjuygOllmzoB21yflCirHhIjlRHoJhO57/wonXT6ywBMem7CaMEAAAA=",
-      "createdAt": "2026-07-21T16:38:50.249Z"
+      "createdAt": "2026-07-21T17:59:40.970Z"
     },
     {
       "uuid": "45fd65e1-e6f9-5695-857d-4ec429e155bc",
@@ -608,7 +608,7 @@
       ],
       "thumbnailPath": "/images/projects/repairs/DRYWALL-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRnwAAABXRUJQVlA4IHAAAACQAwCdASoQABQAPu1iqU2ppaOiMAgBMB2JZwDCgBAR6pTlTkRAAN3u8Q4IPleDsaTZ7AoxY+7Ba6Q7QlVVqp3pFIhFZ6OTz92anLm4nP+6cvAEtcjXttZX6iAc/7xIx9vWfCDqhUbhVOCUmUuR2AAA",
-      "createdAt": "2026-07-21T16:38:51.240Z"
+      "createdAt": "2026-07-21T17:59:41.985Z"
     },
     {
       "uuid": "6a9c0039-7f3a-5934-9038-ba29caa76aa8",
@@ -657,7 +657,7 @@
       ],
       "thumbnailPath": "/images/projects/repairs/FLOOR-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRmAAAABXRUJQVlA4IFQAAAAwAgCdASoQAAoAA4BaJagCdAD7FuSds6ycAAD+wgbazRgn17MNNFfIG15koHLDfi1Wpi46FjdjG5SiL2k4K2Lp+EJuLDKCcw7Jyy5veU0wxWMgAAA=",
-      "createdAt": "2026-07-21T16:38:51.962Z"
+      "createdAt": "2026-07-21T17:59:42.704Z"
     },
     {
       "uuid": "e2bf39d2-5d26-578b-aba2-1cb3e1dd1b89",
@@ -706,7 +706,7 @@
       ],
       "thumbnailPath": "/images/projects/repairs/GUTTERCLEANING-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRnoAAABXRUJQVlA4IG4AAACwAwCdASoQABEAPu1iqU2ppaOiMAgBMB2JQBYdgyN1iNE5FhlLAAD9qKf2urLmgLfrkIwATI7alexyLkmHaZlTReDWCqRUTFumlTXWlQ90e1+SJm94xqyiC8clO1yomNWysaPk2UKIIX6keAAAAA==",
-      "createdAt": "2026-07-21T16:38:52.697Z"
+      "createdAt": "2026-07-21T17:59:43.438Z"
     },
     {
       "uuid": "4478b403-34f2-58d6-986b-470b968ee497",
@@ -719,7 +719,7 @@
       "sourcePath": "Repairs/TRIMREPAIR.png",
       "width": 1280,
       "height": 1280,
-      "role": "detail",
+      "role": "hero",
       "priority": null,
       "variants": [
         {
@@ -755,7 +755,7 @@
       ],
       "thumbnailPath": "/images/projects/repairs/TRIMREPAIR-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAADQAQCdASoQABAAA4BaJQBOgB02QinKAAD83VJNiygV8eykqEdIE1qSHSVNFOs102FdDTFTOrYHFJSqkCg2QozDXmBPH4uPVI6P8qxeEaN70X4HLFn2XzVvuL2KAA==",
-      "createdAt": "2026-07-21T16:38:53.763Z"
+      "createdAt": "2026-07-21T17:59:44.539Z"
     }
   ]
 }

@@ -100,15 +100,24 @@ function parseFolder(name) {
   const slug = slugify(name);
   return { category, location: loc || "", slug };
 }
+// Role-by-filename mapping — the actual intake files don't follow a prefix
+// convention. This map assigns each known file its pipeline role. Matching is
+// case-insensitive against the stem (filename without extension).
+const KNOWN_ROLES = {
+  bathroomwall: "hero",
+  "fence build": "hero",
+  "fencerebuildmatchingstain": "detail",
+  "finishedcarpentry": "hero",
+  "finishedcarpentry0": "detail",
+  trimrepair: "hero",
+  floor0: "detail",
+  floor: "detail",
+  guttercleaning: "detail",
+  drywall: "detail",
+};
 function roleOf(filename) {
-  const base = filename.toLowerCase();
-  if (/^hero/.test(base)) return "hero";
-  if (/^cover/.test(base)) return "cover";
-  if (/^thumb/.test(base)) return "thumbnail";
-  if (/^homeowner/.test(base)) return "homeowner";
-  if (/^before/.test(base)) return "before";
-  if (/^after/.test(base)) return "after";
-  return "detail";
+  const stem = path.basename(filename, path.extname(filename)).toLowerCase().replace(/[^a-z0-9]/g, "");
+  return KNOWN_ROLES[stem] ?? "detail";
 }
 function orderKey(filename) {
   const m = filename.match(/(\d+)/);

@@ -2,6 +2,7 @@
   "projects": [
     {
       "slug": "bathroom-remodeling",
+      "uuid": "d7e00065-701c-59be-8f65-bd673143ce40",
       "title": "Bathroom Remodeling — Willamette Valley",
       "category": "Bathroom Remodeling",
       "county": "",
@@ -60,7 +61,12 @@
               "format": "webp",
               "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.webp"
             }
-          ]
+          ],
+          "provenance": {
+            "sourceFile": "Bathroom Remodeling/BATHROOM_WALL.png",
+            "importedAt": "2026-07-21T17:59:34.937Z",
+            "pipelineVersion": "1.0.0"
+          }
         },
         "cover": {
           "uuid": "37f28a01-0ea9-52a5-9842-a47e43f8398b",
@@ -116,7 +122,12 @@
               "format": "webp",
               "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.webp"
             }
-          ]
+          ],
+          "provenance": {
+            "sourceFile": "Bathroom Remodeling/BATHROOM_WALL.png",
+            "importedAt": "2026-07-21T17:59:34.937Z",
+            "pipelineVersion": "1.0.0"
+          }
         },
         "thumbnail": {
           "uuid": "37f28a01-0ea9-52a5-9842-a47e43f8398b",
@@ -172,69 +183,17 @@
               "format": "webp",
               "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.webp"
             }
-          ]
+          ],
+          "provenance": {
+            "sourceFile": "Bathroom Remodeling/BATHROOM_WALL.png",
+            "importedAt": "2026-07-21T17:59:34.937Z",
+            "pipelineVersion": "1.0.0"
+          }
         },
         "homeowner": null,
         "before": [],
         "after": [],
-        "details": [
-          {
-            "uuid": "37f28a01-0ea9-52a5-9842-a47e43f8398b",
-            "contentHash": "7804099b3a90f250341a8011ceaace8cfb56a02c30442c1239cebf1132c553ff",
-            "id": "bathroom-remodeling/bathroom-wall",
-            "title": "Bathroom Remodeling — Willamette Valley",
-            "project": "bathroom-remodeling",
-            "category": "Bathroom Remodeling",
-            "county": "",
-            "featured": false,
-            "before": false,
-            "after": false,
-            "hero": false,
-            "alt": "Bathroom Remodeling — Willamette Valley — detail photo by Happy Place Carpentry",
-            "width": 1280,
-            "height": 960,
-            "focal": {
-              "x": 0.5,
-              "y": 0.5
-            },
-            "original": "BATHROOM_WALL.png",
-            "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.webp",
-            "thumbnail": "/images/projects/bathroom-remodeling/BATHROOM_WALL-thumb.webp",
-            "blurDataURL": "data:image/webp;base64,UklGRm4AAABXRUJQVlA4IGIAAADQAQCdASoQAAwAA4BaJQBOgBJxSzk/gAD+yckh4ywjjEJoM/ASRnw2QHgyTZGsxvBn4XfAPpDCsCUS89Way39Or+3iH3+f/R6WnIixH1evUO5+2lNIInR2i1gpQrGBVgAAAA==",
-            "variants": [
-              {
-                "width": 480,
-                "format": "avif",
-                "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.avif"
-              },
-              {
-                "width": 480,
-                "format": "webp",
-                "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.webp"
-              },
-              {
-                "width": 768,
-                "format": "avif",
-                "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-768.avif"
-              },
-              {
-                "width": 768,
-                "format": "webp",
-                "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-768.webp"
-              },
-              {
-                "width": 1080,
-                "format": "avif",
-                "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.avif"
-              },
-              {
-                "width": 1080,
-                "format": "webp",
-                "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.webp"
-              }
-            ]
-          }
-        ]
+        "details": []
       },
       "galleryOrder": [
         "bathroom-remodeling/bathroom-wall"
@@ -242,14 +201,15 @@
     },
     {
       "slug": "built-ins",
+      "uuid": "79583591-a7b9-5631-b2d2-8e4bcb9054ce",
       "title": "Custom Carpentry — Willamette Valley",
       "category": "Custom Carpentry",
       "county": "",
       "images": {
         "hero": {
-          "uuid": "e4e92056-b4e1-504d-a0f1-7fabd34e1edd",
-          "contentHash": "c16f37d656c830146ee3f2b54ed0b62c5d821952c06b7e85cb9c465672cd093e",
-          "id": "built-ins/finishedcarpentry0",
+          "uuid": "4b20bdb7-e4ec-5233-8516-2e01fbd96698",
+          "contentHash": "89a9f5d4bb013fa3978d767755fbfe05b11c3c0330ca6cf7ac02fb0d011be90e",
+          "id": "built-ins/finishedcarpentry",
           "title": "Custom Carpentry — Willamette Valley",
           "project": "built-ins",
           "category": "Custom Carpentry",
@@ -257,55 +217,60 @@
           "featured": false,
           "before": false,
           "after": false,
-          "hero": false,
-          "alt": "Custom Carpentry — Willamette Valley — detail photo by Happy Place Carpentry",
+          "hero": true,
+          "alt": "Custom Carpentry — Willamette Valley — hero photo by Happy Place Carpentry",
           "width": 1280,
-          "height": 823,
+          "height": 1078,
           "focal": {
             "x": 0.5,
             "y": 0.5
           },
-          "original": "FINISHEDCARPENTRY0.png",
-          "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp",
-          "thumbnail": "/images/projects/built-ins/FINISHEDCARPENTRY0-thumb.webp",
-          "blurDataURL": "data:image/webp;base64,UklGRnQAAABXRUJQVlA4IGgAAADwAQCdASoQAAoAA4BaJZACdAD6jdHeQRAA/vSpCEugaI8wOYbuc/5PuEd2QYI789GCzauL/0+ilGEak8SqbF03WgssA7SOpTUV2Rankn89qX0zY5zNEYsqrXC8rSPgG4xdPSpFwAAAAA==",
+          "original": "FINISHEDCARPENTRY.png",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.webp",
+          "thumbnail": "/images/projects/built-ins/FINISHEDCARPENTRY-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRmoAAABXRUJQVlA4IF4AAABQAgCdASoQAA0AA4BaJQBOgMXI1Ocz5EZAWsAA/ueveCb/Y5aVz6uBnYN9sEn+0SXQqYovTuO3LF/2sp2ug/y7LFG9tRcO8Vcm1PtKB1ud7c6+Djr34925ZSzcAAAA",
           "variants": [
             {
               "width": 480,
               "format": "avif",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.avif"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.avif"
             },
             {
               "width": 480,
               "format": "webp",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.webp"
             },
             {
               "width": 768,
               "format": "avif",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.avif"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-768.avif"
             },
             {
               "width": 768,
               "format": "webp",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.webp"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-768.webp"
             },
             {
               "width": 1080,
               "format": "avif",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.avif"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.avif"
             },
             {
               "width": 1080,
               "format": "webp",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.webp"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.webp"
             }
-          ]
+          ],
+          "provenance": {
+            "sourceFile": "Built-Ins/FINISHEDCARPENTRY.png",
+            "importedAt": "2026-07-21T17:59:36.365Z",
+            "pipelineVersion": "1.0.0"
+          }
         },
         "cover": {
-          "uuid": "e4e92056-b4e1-504d-a0f1-7fabd34e1edd",
-          "contentHash": "c16f37d656c830146ee3f2b54ed0b62c5d821952c06b7e85cb9c465672cd093e",
-          "id": "built-ins/finishedcarpentry0",
+          "uuid": "4b20bdb7-e4ec-5233-8516-2e01fbd96698",
+          "contentHash": "89a9f5d4bb013fa3978d767755fbfe05b11c3c0330ca6cf7ac02fb0d011be90e",
+          "id": "built-ins/finishedcarpentry",
           "title": "Custom Carpentry — Willamette Valley",
           "project": "built-ins",
           "category": "Custom Carpentry",
@@ -313,55 +278,60 @@
           "featured": false,
           "before": false,
           "after": false,
-          "hero": false,
-          "alt": "Custom Carpentry — Willamette Valley — detail photo by Happy Place Carpentry",
+          "hero": true,
+          "alt": "Custom Carpentry — Willamette Valley — hero photo by Happy Place Carpentry",
           "width": 1280,
-          "height": 823,
+          "height": 1078,
           "focal": {
             "x": 0.5,
             "y": 0.5
           },
-          "original": "FINISHEDCARPENTRY0.png",
-          "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp",
-          "thumbnail": "/images/projects/built-ins/FINISHEDCARPENTRY0-thumb.webp",
-          "blurDataURL": "data:image/webp;base64,UklGRnQAAABXRUJQVlA4IGgAAADwAQCdASoQAAoAA4BaJZACdAD6jdHeQRAA/vSpCEugaI8wOYbuc/5PuEd2QYI789GCzauL/0+ilGEak8SqbF03WgssA7SOpTUV2Rankn89qX0zY5zNEYsqrXC8rSPgG4xdPSpFwAAAAA==",
+          "original": "FINISHEDCARPENTRY.png",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.webp",
+          "thumbnail": "/images/projects/built-ins/FINISHEDCARPENTRY-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRmoAAABXRUJQVlA4IF4AAABQAgCdASoQAA0AA4BaJQBOgMXI1Ocz5EZAWsAA/ueveCb/Y5aVz6uBnYN9sEn+0SXQqYovTuO3LF/2sp2ug/y7LFG9tRcO8Vcm1PtKB1ud7c6+Djr34925ZSzcAAAA",
           "variants": [
             {
               "width": 480,
               "format": "avif",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.avif"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.avif"
             },
             {
               "width": 480,
               "format": "webp",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.webp"
             },
             {
               "width": 768,
               "format": "avif",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.avif"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-768.avif"
             },
             {
               "width": 768,
               "format": "webp",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.webp"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-768.webp"
             },
             {
               "width": 1080,
               "format": "avif",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.avif"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.avif"
             },
             {
               "width": 1080,
               "format": "webp",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.webp"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.webp"
             }
-          ]
+          ],
+          "provenance": {
+            "sourceFile": "Built-Ins/FINISHEDCARPENTRY.png",
+            "importedAt": "2026-07-21T17:59:36.365Z",
+            "pipelineVersion": "1.0.0"
+          }
         },
         "thumbnail": {
-          "uuid": "e4e92056-b4e1-504d-a0f1-7fabd34e1edd",
-          "contentHash": "c16f37d656c830146ee3f2b54ed0b62c5d821952c06b7e85cb9c465672cd093e",
-          "id": "built-ins/finishedcarpentry0",
+          "uuid": "4b20bdb7-e4ec-5233-8516-2e01fbd96698",
+          "contentHash": "89a9f5d4bb013fa3978d767755fbfe05b11c3c0330ca6cf7ac02fb0d011be90e",
+          "id": "built-ins/finishedcarpentry",
           "title": "Custom Carpentry — Willamette Valley",
           "project": "built-ins",
           "category": "Custom Carpentry",
@@ -369,50 +339,55 @@
           "featured": false,
           "before": false,
           "after": false,
-          "hero": false,
-          "alt": "Custom Carpentry — Willamette Valley — detail photo by Happy Place Carpentry",
+          "hero": true,
+          "alt": "Custom Carpentry — Willamette Valley — hero photo by Happy Place Carpentry",
           "width": 1280,
-          "height": 823,
+          "height": 1078,
           "focal": {
             "x": 0.5,
             "y": 0.5
           },
-          "original": "FINISHEDCARPENTRY0.png",
-          "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp",
-          "thumbnail": "/images/projects/built-ins/FINISHEDCARPENTRY0-thumb.webp",
-          "blurDataURL": "data:image/webp;base64,UklGRnQAAABXRUJQVlA4IGgAAADwAQCdASoQAAoAA4BaJZACdAD6jdHeQRAA/vSpCEugaI8wOYbuc/5PuEd2QYI789GCzauL/0+ilGEak8SqbF03WgssA7SOpTUV2Rankn89qX0zY5zNEYsqrXC8rSPgG4xdPSpFwAAAAA==",
+          "original": "FINISHEDCARPENTRY.png",
+          "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.webp",
+          "thumbnail": "/images/projects/built-ins/FINISHEDCARPENTRY-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRmoAAABXRUJQVlA4IF4AAABQAgCdASoQAA0AA4BaJQBOgMXI1Ocz5EZAWsAA/ueveCb/Y5aVz6uBnYN9sEn+0SXQqYovTuO3LF/2sp2ug/y7LFG9tRcO8Vcm1PtKB1ud7c6+Djr34925ZSzcAAAA",
           "variants": [
             {
               "width": 480,
               "format": "avif",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.avif"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.avif"
             },
             {
               "width": 480,
               "format": "webp",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.webp"
             },
             {
               "width": 768,
               "format": "avif",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.avif"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-768.avif"
             },
             {
               "width": 768,
               "format": "webp",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.webp"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-768.webp"
             },
             {
               "width": 1080,
               "format": "avif",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.avif"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.avif"
             },
             {
               "width": 1080,
               "format": "webp",
-              "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.webp"
+              "src": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.webp"
             }
-          ]
+          ],
+          "provenance": {
+            "sourceFile": "Built-Ins/FINISHEDCARPENTRY.png",
+            "importedAt": "2026-07-21T17:59:36.365Z",
+            "pipelineVersion": "1.0.0"
+          }
         },
         "homeowner": null,
         "before": [],
@@ -472,63 +447,12 @@
                 "format": "webp",
                 "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.webp"
               }
-            ]
-          },
-          {
-            "uuid": "4b20bdb7-e4ec-5233-8516-2e01fbd96698",
-            "contentHash": "89a9f5d4bb013fa3978d767755fbfe05b11c3c0330ca6cf7ac02fb0d011be90e",
-            "id": "built-ins/finishedcarpentry",
-            "title": "Custom Carpentry — Willamette Valley",
-            "project": "built-ins",
-            "category": "Custom Carpentry",
-            "county": "",
-            "featured": false,
-            "before": false,
-            "after": false,
-            "hero": false,
-            "alt": "Custom Carpentry — Willamette Valley — detail photo by Happy Place Carpentry",
-            "width": 1280,
-            "height": 1078,
-            "focal": {
-              "x": 0.5,
-              "y": 0.5
-            },
-            "original": "FINISHEDCARPENTRY.png",
-            "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.webp",
-            "thumbnail": "/images/projects/built-ins/FINISHEDCARPENTRY-thumb.webp",
-            "blurDataURL": "data:image/webp;base64,UklGRmoAAABXRUJQVlA4IF4AAABQAgCdASoQAA0AA4BaJQBOgMXI1Ocz5EZAWsAA/ueveCb/Y5aVz6uBnYN9sEn+0SXQqYovTuO3LF/2sp2ug/y7LFG9tRcO8Vcm1PtKB1ud7c6+Djr34925ZSzcAAAA",
-            "variants": [
-              {
-                "width": 480,
-                "format": "avif",
-                "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.avif"
-              },
-              {
-                "width": 480,
-                "format": "webp",
-                "src": "/images/projects/built-ins/FINISHEDCARPENTRY-480.webp"
-              },
-              {
-                "width": 768,
-                "format": "avif",
-                "src": "/images/projects/built-ins/FINISHEDCARPENTRY-768.avif"
-              },
-              {
-                "width": 768,
-                "format": "webp",
-                "src": "/images/projects/built-ins/FINISHEDCARPENTRY-768.webp"
-              },
-              {
-                "width": 1080,
-                "format": "avif",
-                "src": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.avif"
-              },
-              {
-                "width": 1080,
-                "format": "webp",
-                "src": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.webp"
-              }
-            ]
+            ],
+            "provenance": {
+              "sourceFile": "Built-Ins/FINISHEDCARPENTRY0.png",
+              "importedAt": "2026-07-21T17:59:35.560Z",
+              "pipelineVersion": "1.0.0"
+            }
           }
         ]
       },
@@ -539,6 +463,7 @@
     },
     {
       "slug": "fences",
+      "uuid": "c6357e4e-a137-53ff-8a39-4181ef1ef084",
       "title": "Fencing — Willamette Valley",
       "category": "Fencing",
       "county": "",
@@ -597,7 +522,12 @@
               "format": "webp",
               "src": "/images/projects/fences/FENCE BUILD-1080.webp"
             }
-          ]
+          ],
+          "provenance": {
+            "sourceFile": "Fences/FENCE BUILD.jpg",
+            "importedAt": "2026-07-21T17:59:37.702Z",
+            "pipelineVersion": "1.0.0"
+          }
         },
         "cover": {
           "uuid": "da6d1b95-4d7d-5bcf-a991-de1286be232d",
@@ -653,7 +583,12 @@
               "format": "webp",
               "src": "/images/projects/fences/FENCE BUILD-1080.webp"
             }
-          ]
+          ],
+          "provenance": {
+            "sourceFile": "Fences/FENCE BUILD.jpg",
+            "importedAt": "2026-07-21T17:59:37.702Z",
+            "pipelineVersion": "1.0.0"
+          }
         },
         "thumbnail": {
           "uuid": "da6d1b95-4d7d-5bcf-a991-de1286be232d",
@@ -709,7 +644,12 @@
               "format": "webp",
               "src": "/images/projects/fences/FENCE BUILD-1080.webp"
             }
-          ]
+          ],
+          "provenance": {
+            "sourceFile": "Fences/FENCE BUILD.jpg",
+            "importedAt": "2026-07-21T17:59:37.702Z",
+            "pipelineVersion": "1.0.0"
+          }
         },
         "homeowner": null,
         "before": [],
@@ -769,7 +709,12 @@
                 "format": "webp",
                 "src": "/images/projects/fences/FENCE BUILD-1080.webp"
               }
-            ]
+            ],
+            "provenance": {
+              "sourceFile": "Fences/FENCE BUILD.jpg",
+              "importedAt": "2026-07-21T17:59:37.702Z",
+              "pipelineVersion": "1.0.0"
+            }
           },
           {
             "uuid": "a898cc66-01fc-50d5-952e-73a5080c0eb1",
@@ -825,7 +770,12 @@
                 "format": "webp",
                 "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.webp"
               }
-            ]
+            ],
+            "provenance": {
+              "sourceFile": "Fences/FENCEREBUILDMATCHINGSTAIN.png",
+              "importedAt": "2026-07-21T17:59:38.505Z",
+              "pipelineVersion": "1.0.0"
+            }
           }
         ]
       },
@@ -836,6 +786,7 @@
     },
     {
       "slug": "outdoor-living",
+      "uuid": "e484198b-17a4-525c-bc56-378542000597",
       "title": "Outdoor Living — Willamette Valley",
       "category": "Outdoor Living",
       "county": "",
@@ -874,7 +825,12 @@
               "format": "webp",
               "src": "/images/projects/outdoor-living/IMG_0535-480.webp"
             }
-          ]
+          ],
+          "provenance": {
+            "sourceFile": "Outdoor Living/IMG_0535.JPG",
+            "importedAt": "2026-07-21T17:59:38.738Z",
+            "pipelineVersion": "1.0.0"
+          }
         },
         "cover": {
           "uuid": "d372a0c3-cd76-5808-b16b-98b83c142743",
@@ -910,7 +866,12 @@
               "format": "webp",
               "src": "/images/projects/outdoor-living/IMG_0535-480.webp"
             }
-          ]
+          ],
+          "provenance": {
+            "sourceFile": "Outdoor Living/IMG_0535.JPG",
+            "importedAt": "2026-07-21T17:59:38.738Z",
+            "pipelineVersion": "1.0.0"
+          }
         },
         "thumbnail": {
           "uuid": "d372a0c3-cd76-5808-b16b-98b83c142743",
@@ -946,7 +907,12 @@
               "format": "webp",
               "src": "/images/projects/outdoor-living/IMG_0535-480.webp"
             }
-          ]
+          ],
+          "provenance": {
+            "sourceFile": "Outdoor Living/IMG_0535.JPG",
+            "importedAt": "2026-07-21T17:59:38.738Z",
+            "pipelineVersion": "1.0.0"
+          }
         },
         "homeowner": null,
         "before": [],
@@ -986,7 +952,12 @@
                 "format": "webp",
                 "src": "/images/projects/outdoor-living/IMG_0535-480.webp"
               }
-            ]
+            ],
+            "provenance": {
+              "sourceFile": "Outdoor Living/IMG_0535.JPG",
+              "importedAt": "2026-07-21T17:59:38.738Z",
+              "pipelineVersion": "1.0.0"
+            }
           },
           {
             "uuid": "e0894b9f-fc10-5754-b30d-c009872dc85f",
@@ -1022,7 +993,12 @@
                 "format": "webp",
                 "src": "/images/projects/outdoor-living/IMG_0555-480.webp"
               }
-            ]
+            ],
+            "provenance": {
+              "sourceFile": "Outdoor Living/IMG_0555.JPG",
+              "importedAt": "2026-07-21T17:59:38.957Z",
+              "pipelineVersion": "1.0.0"
+            }
           },
           {
             "uuid": "270d8215-1465-5dc5-81da-b4b0e4d78961",
@@ -1058,7 +1034,12 @@
                 "format": "webp",
                 "src": "/images/projects/outdoor-living/IMG_0559-480.webp"
               }
-            ]
+            ],
+            "provenance": {
+              "sourceFile": "Outdoor Living/IMG_0559.JPG",
+              "importedAt": "2026-07-21T17:59:39.158Z",
+              "pipelineVersion": "1.0.0"
+            }
           },
           {
             "uuid": "bb47212a-253b-5941-a941-0c5d98511337",
@@ -1094,7 +1075,12 @@
                 "format": "webp",
                 "src": "/images/projects/outdoor-living/IMG_0737-480.webp"
               }
-            ]
+            ],
+            "provenance": {
+              "sourceFile": "Outdoor Living/IMG_0737.JPG",
+              "importedAt": "2026-07-21T17:59:39.382Z",
+              "pipelineVersion": "1.0.0"
+            }
           },
           {
             "uuid": "88bed58f-11f7-5624-96d2-4ccf0d09ee19",
@@ -1130,7 +1116,12 @@
                 "format": "webp",
                 "src": "/images/projects/outdoor-living/IMG_0805-480.webp"
               }
-            ]
+            ],
+            "provenance": {
+              "sourceFile": "Outdoor Living/IMG_0805.JPG",
+              "importedAt": "2026-07-21T17:59:39.593Z",
+              "pipelineVersion": "1.0.0"
+            }
           },
           {
             "uuid": "c78d13c8-3be2-5909-86ff-fa290e25a7aa",
@@ -1166,7 +1157,12 @@
                 "format": "webp",
                 "src": "/images/projects/outdoor-living/IMG_0841-480.webp"
               }
-            ]
+            ],
+            "provenance": {
+              "sourceFile": "Outdoor Living/IMG_0841.JPG",
+              "importedAt": "2026-07-21T17:59:39.787Z",
+              "pipelineVersion": "1.0.0"
+            }
           }
         ]
       },
@@ -1181,14 +1177,15 @@
     },
     {
       "slug": "repairs",
+      "uuid": "a91fb997-715f-5e77-b2c0-c13f0139f6d2",
       "title": "Repairs — Willamette Valley",
       "category": "Repairs",
       "county": "",
       "images": {
         "hero": {
-          "uuid": "a7b5d396-6cc5-5b3f-b038-b827e3bc9c4f",
-          "contentHash": "eb41507f5cea45025ef68427cd9416c932ffc12033ad9bc1201f8504fbbbee6e",
-          "id": "repairs/floor0",
+          "uuid": "4478b403-34f2-58d6-986b-470b968ee497",
+          "contentHash": "5358901c87cd8fc7a4f665825b65e576d51b671ec8d1c71ca256ed6d90218657",
+          "id": "repairs/trimrepair",
           "title": "Repairs — Willamette Valley",
           "project": "repairs",
           "category": "Repairs",
@@ -1196,55 +1193,60 @@
           "featured": false,
           "before": false,
           "after": false,
-          "hero": false,
-          "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+          "hero": true,
+          "alt": "Repairs — Willamette Valley — hero photo by Happy Place Carpentry",
           "width": 1280,
-          "height": 1017,
+          "height": 1280,
           "focal": {
             "x": 0.5,
             "y": 0.5
           },
-          "original": "FLOOR0.jpg",
-          "src": "/images/projects/repairs/FLOOR0-480.webp",
-          "thumbnail": "/images/projects/repairs/FLOOR0-thumb.webp",
-          "blurDataURL": "data:image/webp;base64,UklGRlQAAABXRUJQVlA4IEgAAACwAQCdASoQAA0AA4BaJYwAAaXQw9PwAP36Sm3DEtQbDkMvPkaMAEwcxyZHyWH+BeC/TJb0Ozzhf7Ml5Q5lvO5RynLHuJgeAAA=",
+          "original": "TRIMREPAIR.png",
+          "src": "/images/projects/repairs/TRIMREPAIR-480.webp",
+          "thumbnail": "/images/projects/repairs/TRIMREPAIR-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAADQAQCdASoQABAAA4BaJQBOgB02QinKAAD83VJNiygV8eykqEdIE1qSHSVNFOs102FdDTFTOrYHFJSqkCg2QozDXmBPH4uPVI6P8qxeEaN70X4HLFn2XzVvuL2KAA==",
           "variants": [
             {
               "width": 480,
               "format": "avif",
-              "src": "/images/projects/repairs/FLOOR0-480.avif"
+              "src": "/images/projects/repairs/TRIMREPAIR-480.avif"
             },
             {
               "width": 480,
               "format": "webp",
-              "src": "/images/projects/repairs/FLOOR0-480.webp"
+              "src": "/images/projects/repairs/TRIMREPAIR-480.webp"
             },
             {
               "width": 768,
               "format": "avif",
-              "src": "/images/projects/repairs/FLOOR0-768.avif"
+              "src": "/images/projects/repairs/TRIMREPAIR-768.avif"
             },
             {
               "width": 768,
               "format": "webp",
-              "src": "/images/projects/repairs/FLOOR0-768.webp"
+              "src": "/images/projects/repairs/TRIMREPAIR-768.webp"
             },
             {
               "width": 1080,
               "format": "avif",
-              "src": "/images/projects/repairs/FLOOR0-1080.avif"
+              "src": "/images/projects/repairs/TRIMREPAIR-1080.avif"
             },
             {
               "width": 1080,
               "format": "webp",
-              "src": "/images/projects/repairs/FLOOR0-1080.webp"
+              "src": "/images/projects/repairs/TRIMREPAIR-1080.webp"
             }
-          ]
+          ],
+          "provenance": {
+            "sourceFile": "Repairs/TRIMREPAIR.png",
+            "importedAt": "2026-07-21T17:59:44.539Z",
+            "pipelineVersion": "1.0.0"
+          }
         },
         "cover": {
-          "uuid": "a7b5d396-6cc5-5b3f-b038-b827e3bc9c4f",
-          "contentHash": "eb41507f5cea45025ef68427cd9416c932ffc12033ad9bc1201f8504fbbbee6e",
-          "id": "repairs/floor0",
+          "uuid": "4478b403-34f2-58d6-986b-470b968ee497",
+          "contentHash": "5358901c87cd8fc7a4f665825b65e576d51b671ec8d1c71ca256ed6d90218657",
+          "id": "repairs/trimrepair",
           "title": "Repairs — Willamette Valley",
           "project": "repairs",
           "category": "Repairs",
@@ -1252,55 +1254,60 @@
           "featured": false,
           "before": false,
           "after": false,
-          "hero": false,
-          "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+          "hero": true,
+          "alt": "Repairs — Willamette Valley — hero photo by Happy Place Carpentry",
           "width": 1280,
-          "height": 1017,
+          "height": 1280,
           "focal": {
             "x": 0.5,
             "y": 0.5
           },
-          "original": "FLOOR0.jpg",
-          "src": "/images/projects/repairs/FLOOR0-480.webp",
-          "thumbnail": "/images/projects/repairs/FLOOR0-thumb.webp",
-          "blurDataURL": "data:image/webp;base64,UklGRlQAAABXRUJQVlA4IEgAAACwAQCdASoQAA0AA4BaJYwAAaXQw9PwAP36Sm3DEtQbDkMvPkaMAEwcxyZHyWH+BeC/TJb0Ozzhf7Ml5Q5lvO5RynLHuJgeAAA=",
+          "original": "TRIMREPAIR.png",
+          "src": "/images/projects/repairs/TRIMREPAIR-480.webp",
+          "thumbnail": "/images/projects/repairs/TRIMREPAIR-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAADQAQCdASoQABAAA4BaJQBOgB02QinKAAD83VJNiygV8eykqEdIE1qSHSVNFOs102FdDTFTOrYHFJSqkCg2QozDXmBPH4uPVI6P8qxeEaN70X4HLFn2XzVvuL2KAA==",
           "variants": [
             {
               "width": 480,
               "format": "avif",
-              "src": "/images/projects/repairs/FLOOR0-480.avif"
+              "src": "/images/projects/repairs/TRIMREPAIR-480.avif"
             },
             {
               "width": 480,
               "format": "webp",
-              "src": "/images/projects/repairs/FLOOR0-480.webp"
+              "src": "/images/projects/repairs/TRIMREPAIR-480.webp"
             },
             {
               "width": 768,
               "format": "avif",
-              "src": "/images/projects/repairs/FLOOR0-768.avif"
+              "src": "/images/projects/repairs/TRIMREPAIR-768.avif"
             },
             {
               "width": 768,
               "format": "webp",
-              "src": "/images/projects/repairs/FLOOR0-768.webp"
+              "src": "/images/projects/repairs/TRIMREPAIR-768.webp"
             },
             {
               "width": 1080,
               "format": "avif",
-              "src": "/images/projects/repairs/FLOOR0-1080.avif"
+              "src": "/images/projects/repairs/TRIMREPAIR-1080.avif"
             },
             {
               "width": 1080,
               "format": "webp",
-              "src": "/images/projects/repairs/FLOOR0-1080.webp"
+              "src": "/images/projects/repairs/TRIMREPAIR-1080.webp"
             }
-          ]
+          ],
+          "provenance": {
+            "sourceFile": "Repairs/TRIMREPAIR.png",
+            "importedAt": "2026-07-21T17:59:44.539Z",
+            "pipelineVersion": "1.0.0"
+          }
         },
         "thumbnail": {
-          "uuid": "a7b5d396-6cc5-5b3f-b038-b827e3bc9c4f",
-          "contentHash": "eb41507f5cea45025ef68427cd9416c932ffc12033ad9bc1201f8504fbbbee6e",
-          "id": "repairs/floor0",
+          "uuid": "4478b403-34f2-58d6-986b-470b968ee497",
+          "contentHash": "5358901c87cd8fc7a4f665825b65e576d51b671ec8d1c71ca256ed6d90218657",
+          "id": "repairs/trimrepair",
           "title": "Repairs — Willamette Valley",
           "project": "repairs",
           "category": "Repairs",
@@ -1308,50 +1315,55 @@
           "featured": false,
           "before": false,
           "after": false,
-          "hero": false,
-          "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+          "hero": true,
+          "alt": "Repairs — Willamette Valley — hero photo by Happy Place Carpentry",
           "width": 1280,
-          "height": 1017,
+          "height": 1280,
           "focal": {
             "x": 0.5,
             "y": 0.5
           },
-          "original": "FLOOR0.jpg",
-          "src": "/images/projects/repairs/FLOOR0-480.webp",
-          "thumbnail": "/images/projects/repairs/FLOOR0-thumb.webp",
-          "blurDataURL": "data:image/webp;base64,UklGRlQAAABXRUJQVlA4IEgAAACwAQCdASoQAA0AA4BaJYwAAaXQw9PwAP36Sm3DEtQbDkMvPkaMAEwcxyZHyWH+BeC/TJb0Ozzhf7Ml5Q5lvO5RynLHuJgeAAA=",
+          "original": "TRIMREPAIR.png",
+          "src": "/images/projects/repairs/TRIMREPAIR-480.webp",
+          "thumbnail": "/images/projects/repairs/TRIMREPAIR-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAADQAQCdASoQABAAA4BaJQBOgB02QinKAAD83VJNiygV8eykqEdIE1qSHSVNFOs102FdDTFTOrYHFJSqkCg2QozDXmBPH4uPVI6P8qxeEaN70X4HLFn2XzVvuL2KAA==",
           "variants": [
             {
               "width": 480,
               "format": "avif",
-              "src": "/images/projects/repairs/FLOOR0-480.avif"
+              "src": "/images/projects/repairs/TRIMREPAIR-480.avif"
             },
             {
               "width": 480,
               "format": "webp",
-              "src": "/images/projects/repairs/FLOOR0-480.webp"
+              "src": "/images/projects/repairs/TRIMREPAIR-480.webp"
             },
             {
               "width": 768,
               "format": "avif",
-              "src": "/images/projects/repairs/FLOOR0-768.avif"
+              "src": "/images/projects/repairs/TRIMREPAIR-768.avif"
             },
             {
               "width": 768,
               "format": "webp",
-              "src": "/images/projects/repairs/FLOOR0-768.webp"
+              "src": "/images/projects/repairs/TRIMREPAIR-768.webp"
             },
             {
               "width": 1080,
               "format": "avif",
-              "src": "/images/projects/repairs/FLOOR0-1080.avif"
+              "src": "/images/projects/repairs/TRIMREPAIR-1080.avif"
             },
             {
               "width": 1080,
               "format": "webp",
-              "src": "/images/projects/repairs/FLOOR0-1080.webp"
+              "src": "/images/projects/repairs/TRIMREPAIR-1080.webp"
             }
-          ]
+          ],
+          "provenance": {
+            "sourceFile": "Repairs/TRIMREPAIR.png",
+            "importedAt": "2026-07-21T17:59:44.539Z",
+            "pipelineVersion": "1.0.0"
+          }
         },
         "homeowner": null,
         "before": [],
@@ -1411,7 +1423,12 @@
                 "format": "webp",
                 "src": "/images/projects/repairs/FLOOR0-1080.webp"
               }
-            ]
+            ],
+            "provenance": {
+              "sourceFile": "Repairs/FLOOR0.jpg",
+              "importedAt": "2026-07-21T17:59:40.607Z",
+              "pipelineVersion": "1.0.0"
+            }
           },
           {
             "uuid": "fd200c13-e16d-5934-b7d2-d428b8a58b43",
@@ -1447,7 +1464,12 @@
                 "format": "webp",
                 "src": "/images/projects/repairs/IMG_0544-480.webp"
               }
-            ]
+            ],
+            "provenance": {
+              "sourceFile": "Repairs/IMG_0544.JPG",
+              "importedAt": "2026-07-21T17:59:40.740Z",
+              "pipelineVersion": "1.0.0"
+            }
           },
           {
             "uuid": "2dd3a4ff-bafb-5461-b66b-edcf0b1d1148",
@@ -1483,7 +1505,12 @@
                 "format": "webp",
                 "src": "/images/projects/repairs/IMG_0546-480.webp"
               }
-            ]
+            ],
+            "provenance": {
+              "sourceFile": "Repairs/IMG_0546.JPG",
+              "importedAt": "2026-07-21T17:59:40.970Z",
+              "pipelineVersion": "1.0.0"
+            }
           },
           {
             "uuid": "45fd65e1-e6f9-5695-857d-4ec429e155bc",
@@ -1539,7 +1566,12 @@
                 "format": "webp",
                 "src": "/images/projects/repairs/DRYWALL-1080.webp"
               }
-            ]
+            ],
+            "provenance": {
+              "sourceFile": "Repairs/DRYWALL.png",
+              "importedAt": "2026-07-21T17:59:41.985Z",
+              "pipelineVersion": "1.0.0"
+            }
           },
           {
             "uuid": "6a9c0039-7f3a-5934-9038-ba29caa76aa8",
@@ -1595,7 +1627,12 @@
                 "format": "webp",
                 "src": "/images/projects/repairs/FLOOR-1080.webp"
               }
-            ]
+            ],
+            "provenance": {
+              "sourceFile": "Repairs/FLOOR.png",
+              "importedAt": "2026-07-21T17:59:42.704Z",
+              "pipelineVersion": "1.0.0"
+            }
           },
           {
             "uuid": "e2bf39d2-5d26-578b-aba2-1cb3e1dd1b89",
@@ -1651,63 +1688,12 @@
                 "format": "webp",
                 "src": "/images/projects/repairs/GUTTERCLEANING-1080.webp"
               }
-            ]
-          },
-          {
-            "uuid": "4478b403-34f2-58d6-986b-470b968ee497",
-            "contentHash": "5358901c87cd8fc7a4f665825b65e576d51b671ec8d1c71ca256ed6d90218657",
-            "id": "repairs/trimrepair",
-            "title": "Repairs — Willamette Valley",
-            "project": "repairs",
-            "category": "Repairs",
-            "county": "",
-            "featured": false,
-            "before": false,
-            "after": false,
-            "hero": false,
-            "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
-            "width": 1280,
-            "height": 1280,
-            "focal": {
-              "x": 0.5,
-              "y": 0.5
-            },
-            "original": "TRIMREPAIR.png",
-            "src": "/images/projects/repairs/TRIMREPAIR-480.webp",
-            "thumbnail": "/images/projects/repairs/TRIMREPAIR-thumb.webp",
-            "blurDataURL": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAADQAQCdASoQABAAA4BaJQBOgB02QinKAAD83VJNiygV8eykqEdIE1qSHSVNFOs102FdDTFTOrYHFJSqkCg2QozDXmBPH4uPVI6P8qxeEaN70X4HLFn2XzVvuL2KAA==",
-            "variants": [
-              {
-                "width": 480,
-                "format": "avif",
-                "src": "/images/projects/repairs/TRIMREPAIR-480.avif"
-              },
-              {
-                "width": 480,
-                "format": "webp",
-                "src": "/images/projects/repairs/TRIMREPAIR-480.webp"
-              },
-              {
-                "width": 768,
-                "format": "avif",
-                "src": "/images/projects/repairs/TRIMREPAIR-768.avif"
-              },
-              {
-                "width": 768,
-                "format": "webp",
-                "src": "/images/projects/repairs/TRIMREPAIR-768.webp"
-              },
-              {
-                "width": 1080,
-                "format": "avif",
-                "src": "/images/projects/repairs/TRIMREPAIR-1080.avif"
-              },
-              {
-                "width": 1080,
-                "format": "webp",
-                "src": "/images/projects/repairs/TRIMREPAIR-1080.webp"
-              }
-            ]
+            ],
+            "provenance": {
+              "sourceFile": "Repairs/GUTTERCLEANING.jpg",
+              "importedAt": "2026-07-21T17:59:43.438Z",
+              "pipelineVersion": "1.0.0"
+            }
           }
         ]
       },
@@ -1777,7 +1763,12 @@
           "format": "webp",
           "src": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Bathroom Remodeling/BATHROOM_WALL.png",
+        "importedAt": "2026-07-21T17:59:34.937Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "e4e92056-b4e1-504d-a0f1-7fabd34e1edd",
@@ -1833,7 +1824,12 @@
           "format": "webp",
           "src": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Built-Ins/FINISHEDCARPENTRY0.png",
+        "importedAt": "2026-07-21T17:59:35.560Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "4b20bdb7-e4ec-5233-8516-2e01fbd96698",
@@ -1846,8 +1842,8 @@
       "featured": false,
       "before": false,
       "after": false,
-      "hero": false,
-      "alt": "Custom Carpentry — Willamette Valley — detail photo by Happy Place Carpentry",
+      "hero": true,
+      "alt": "Custom Carpentry — Willamette Valley — hero photo by Happy Place Carpentry",
       "width": 1280,
       "height": 1078,
       "focal": {
@@ -1889,7 +1885,12 @@
           "format": "webp",
           "src": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Built-Ins/FINISHEDCARPENTRY.png",
+        "importedAt": "2026-07-21T17:59:36.365Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "da6d1b95-4d7d-5bcf-a991-de1286be232d",
@@ -1945,7 +1946,12 @@
           "format": "webp",
           "src": "/images/projects/fences/FENCE BUILD-1080.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Fences/FENCE BUILD.jpg",
+        "importedAt": "2026-07-21T17:59:37.702Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "a898cc66-01fc-50d5-952e-73a5080c0eb1",
@@ -2001,7 +2007,12 @@
           "format": "webp",
           "src": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Fences/FENCEREBUILDMATCHINGSTAIN.png",
+        "importedAt": "2026-07-21T17:59:38.505Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "d372a0c3-cd76-5808-b16b-98b83c142743",
@@ -2037,7 +2048,12 @@
           "format": "webp",
           "src": "/images/projects/outdoor-living/IMG_0535-480.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Outdoor Living/IMG_0535.JPG",
+        "importedAt": "2026-07-21T17:59:38.738Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "e0894b9f-fc10-5754-b30d-c009872dc85f",
@@ -2073,7 +2089,12 @@
           "format": "webp",
           "src": "/images/projects/outdoor-living/IMG_0555-480.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Outdoor Living/IMG_0555.JPG",
+        "importedAt": "2026-07-21T17:59:38.957Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "270d8215-1465-5dc5-81da-b4b0e4d78961",
@@ -2109,7 +2130,12 @@
           "format": "webp",
           "src": "/images/projects/outdoor-living/IMG_0559-480.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Outdoor Living/IMG_0559.JPG",
+        "importedAt": "2026-07-21T17:59:39.158Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "bb47212a-253b-5941-a941-0c5d98511337",
@@ -2145,7 +2171,12 @@
           "format": "webp",
           "src": "/images/projects/outdoor-living/IMG_0737-480.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Outdoor Living/IMG_0737.JPG",
+        "importedAt": "2026-07-21T17:59:39.382Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "88bed58f-11f7-5624-96d2-4ccf0d09ee19",
@@ -2181,7 +2212,12 @@
           "format": "webp",
           "src": "/images/projects/outdoor-living/IMG_0805-480.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Outdoor Living/IMG_0805.JPG",
+        "importedAt": "2026-07-21T17:59:39.593Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "c78d13c8-3be2-5909-86ff-fa290e25a7aa",
@@ -2217,7 +2253,12 @@
           "format": "webp",
           "src": "/images/projects/outdoor-living/IMG_0841-480.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Outdoor Living/IMG_0841.JPG",
+        "importedAt": "2026-07-21T17:59:39.787Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "a7b5d396-6cc5-5b3f-b038-b827e3bc9c4f",
@@ -2273,7 +2314,12 @@
           "format": "webp",
           "src": "/images/projects/repairs/FLOOR0-1080.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Repairs/FLOOR0.jpg",
+        "importedAt": "2026-07-21T17:59:40.607Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "fd200c13-e16d-5934-b7d2-d428b8a58b43",
@@ -2309,7 +2355,12 @@
           "format": "webp",
           "src": "/images/projects/repairs/IMG_0544-480.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Repairs/IMG_0544.JPG",
+        "importedAt": "2026-07-21T17:59:40.740Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "2dd3a4ff-bafb-5461-b66b-edcf0b1d1148",
@@ -2345,7 +2396,12 @@
           "format": "webp",
           "src": "/images/projects/repairs/IMG_0546-480.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Repairs/IMG_0546.JPG",
+        "importedAt": "2026-07-21T17:59:40.970Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "45fd65e1-e6f9-5695-857d-4ec429e155bc",
@@ -2401,7 +2457,12 @@
           "format": "webp",
           "src": "/images/projects/repairs/DRYWALL-1080.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Repairs/DRYWALL.png",
+        "importedAt": "2026-07-21T17:59:41.985Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "6a9c0039-7f3a-5934-9038-ba29caa76aa8",
@@ -2457,7 +2518,12 @@
           "format": "webp",
           "src": "/images/projects/repairs/FLOOR-1080.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Repairs/FLOOR.png",
+        "importedAt": "2026-07-21T17:59:42.704Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "e2bf39d2-5d26-578b-aba2-1cb3e1dd1b89",
@@ -2513,7 +2579,12 @@
           "format": "webp",
           "src": "/images/projects/repairs/GUTTERCLEANING-1080.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Repairs/GUTTERCLEANING.jpg",
+        "importedAt": "2026-07-21T17:59:43.438Z",
+        "pipelineVersion": "1.0.0"
+      }
     },
     {
       "uuid": "4478b403-34f2-58d6-986b-470b968ee497",
@@ -2526,8 +2597,8 @@
       "featured": false,
       "before": false,
       "after": false,
-      "hero": false,
-      "alt": "Repairs — Willamette Valley — detail photo by Happy Place Carpentry",
+      "hero": true,
+      "alt": "Repairs — Willamette Valley — hero photo by Happy Place Carpentry",
       "width": 1280,
       "height": 1280,
       "focal": {
@@ -2569,7 +2640,12 @@
           "format": "webp",
           "src": "/images/projects/repairs/TRIMREPAIR-1080.webp"
         }
-      ]
+      ],
+      "provenance": {
+        "sourceFile": "Repairs/TRIMREPAIR.png",
+        "importedAt": "2026-07-21T17:59:44.539Z",
+        "pipelineVersion": "1.0.0"
+      }
     }
   ]
 }
