@@ -30,7 +30,7 @@ export interface ServiceSeed {
   strategy?: EstimationStrategy;
 }
 
-const SEEDS: Record<ServiceSlug, ServiceSeed> = {
+export const SEEDS: Record<ServiceSlug, ServiceSeed> = {
   fences: { 
     label: "cedar privacy fence", 
     range: [6200, 14500], 
@@ -118,72 +118,6 @@ export interface PlanningResult {
   missingInputs?: string[];
 }
 
-export function preliminaryRange(services: string[]): PlanningResult | null {
-  const keys = services.filter((s): s is ServiceSlug => s in SEEDS);
-  if (!keys.length) return null;
-  let low = 0;
-  let high = 0;
-  const labels: string[] = [];
-  const breakdown: PlanningResult["breakdown"] = [];
-  
-  for (const k of keys) {
-    const [l, h] = SEEDS[k].range;
-    low += l;
-    high += h;
-    labels.push(SEEDS[k].label);
-    
-    // Build breakdown for each service (flat strategy for now)
-    breakdown.push({
-      service: k,
-      label: SEEDS[k].label,
-      low: l,
-      high: h,
-      strategy: SEEDS[k].strategy ?? "flat",
-    });
-  }
-  
-  // bias the high end upward so the formal quote reads as a pleasant surprise
-  high = Math.round((high * HIGH_BIAS) / 100) * 100;
-  low = Math.round(low / 100) * 100;
-  
-  // Compute confidence based on strategies used
-  const confidence = computeConfidence(breakdown);
-  
-  return {
-    labels,
-    low,
-    high,
-    note:
-      "This is not an official quote. It is a conservative planning estimate based on similar Oregon projects, current material pricing, travel, permitting, and typical labor. Taylor will prepare your official estimate after reviewing your specific property.",
-    breakdown,
-    confidence,
-    assumptions: ["Based on typical project ranges for selected services"],
-    missingInputs: [],
-  };
-}
-
-/**
- * Compute confidence based on strategies used in the breakdown.
- * - "low": if any per-unit strategy is missing a measurement
- * - "medium": if any flat strategy is used
- * - "high": if every service resolved via scope or real measurement
- */
-function computeConfidence(breakdown: PlanningResult["breakdown"]): "low" | "medium" | "high" {
-  if (!breakdown || breakdown.length === 0) return "medium";
-  
-  const strategiesUsed = breakdown.map(b => b.strategy);
-  const anyFlat = strategiesUsed.includes("flat");
-  const anyPerUnit = strategiesUsed.includes("per-unit");
-  
-  // If per-unit is used but no measurement is provided, confidence is low
-  const anyMissingMeasurement = breakdown.some(
-    b => b.strategy === "per-unit" && !b.measurementUsed
-  );
-  
-  if (anyMissingMeasurement) return "low";
-  if (anyFlat) return "medium";
-  return "high"; // every contributing service resolved via scope or real measurement
-}
 
 export function formatRange(n: number): string {
   return "$" + n.toLocaleString("en-US");

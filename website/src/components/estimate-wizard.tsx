@@ -11,7 +11,7 @@ import { estimateService } from "@/services/estimate";
 import { analytics } from "@/services/analytics";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { preliminaryRange, formatRange } from "@/lib/planning-range";
+import { estimateFromRequest, formatRange } from "@/lib/estimate-engine";
 
 type PhotoMeta = { name: string; size: number };
 
@@ -91,7 +91,7 @@ export function EstimateWizard() {
   }
 
   if (submitted) {
-    const plan = preliminaryRange(selected);
+    const plan = estimateFromRequest(buildRequest());
     return (
       <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-sm">
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent">
@@ -111,6 +111,44 @@ export function EstimateWizard() {
               {formatRange(plan.low)} &ndash; {formatRange(plan.high)}
             </p>
             <p className="mt-3 text-sm leading-relaxed text-text-subtle">{plan.note}</p>
+            {plan.confidence && (
+              <div className="mt-4 flex items-center gap-2">
+                <span className="text-sm font-semibold text-text">Confidence:</span>
+                <span className={`text-sm font-medium ${
+                  plan.confidence === "high" ? "text-green-600" :
+                  plan.confidence === "medium" ? "text-yellow-600" :
+                  "text-red-600"
+                }`}>
+                  {plan.confidence.charAt(0).toUpperCase() + plan.confidence.slice(1)}
+                </span>
+              </div>
+            )}
+            {plan.assumptions && plan.assumptions.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm font-semibold text-text">Assumptions:</p>
+                <ul className="mt-2 space-y-1 text-sm text-text-muted">
+                  {plan.assumptions.map((a, i) => (
+                    <li key={i} className="flex items-start gap-2">
+                      <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-accent" />
+                      {a}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {plan.breakdown && plan.breakdown.length > 0 && (
+              <div className="mt-4">
+                <p className="text-sm font-semibold text-text">Breakdown by service:</p>
+                <ul className="mt-2 space-y-2 text-sm text-text-muted">
+                  {plan.breakdown.map((b, i) => (
+                    <li key={i} className="flex justify-between gap-4 border-b border-border/50 pb-2 last:border-0">
+                      <span>{b.label}</span>
+                      <span className="font-medium">{formatRange(b.low)} – {formatRange(b.high)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
           </div>
         ) : null}
         <p className="mt-6 text-text-muted">
