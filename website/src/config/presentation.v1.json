@@ -38,6 +38,7 @@
     "kitchen-remodel": "Kitchen Remodeling",
     "bath-remodel": "Bathroom Remodeling",
     "built-ins": "Custom Carpentry",
+    "outdoor-living": "Outdoor Living",
     "repairs": "Repairs"
   },
   "fallback": {

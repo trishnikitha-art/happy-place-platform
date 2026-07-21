@@ -178,25 +178,21 @@ export function ownerPortrait(): MediaImage {
   return FALLBACK.owner;
 }
 
-// Maps service slugs → pipeline category so real photos attach to the right card.
-// Sourced from presentation.v1.json.
-const SERVICE_CATEGORY: Record<string, string> = (presentation as any).serviceCategory;
-
 export function hasRealPhotos(): boolean {
   return G.images.some((i) => i.src);
 }
 
+// Maps service slugs → pipeline category (from presentation.v1.json).
+const SERVICE_CATEGORY: Record<string, string> = (presentation as any).serviceCategory;
+
 // Real pipeline images as GalleryItem[] (for the lightbox / full gallery grid).
-const CATEGORY_SERVICE: Record<string, string> = {
-  Decks: "decks",
-  Fencing: "fences",
-  Pergolas: "pergolas",
-  "Kitchen Remodeling": "kitchen-remodel",
-  "Bathroom Remodeling": "bath-remodel",
-  "Custom Carpentry": "built-ins",
-  Repairs: "repairs",
-  "Outdoor Living": "outdoor-living",
-};
+// Derived from SERVICE_CATEGORY — these are inverses.
+function invertMap(m: Record<string, string>): Record<string, string> {
+  const r: Record<string, string> = {};
+  for (const k of Object.keys(m)) r[m[k]] = k;
+  return r;
+}
+const CATEGORY_SERVICE = invertMap(SERVICE_CATEGORY);
 export function realGalleryItems() {
   return G.images
     .filter((i) => i.src && !i.before)
