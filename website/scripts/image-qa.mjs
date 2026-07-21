@@ -1,4 +1,4 @@
-// Image QA release gate (Standing Directive #7).
+// Image QA release gate (Standing Directive #7 + Phase 6 constitutional validation).
 // Run before every deploy: `npm run qa:images`.
 // Deterministic checks — no AI, no network. Exits non-zero on any failure so the
 // CI/deploy can treat image quality as a release gate.
@@ -15,6 +15,19 @@ try {
   const g = JSON.parse(readFileSync(join(root, "src", "config", "gallery.json"), "utf8"));
   G_IMAGES = g.images ?? [];
   hasReal = G_IMAGES.some((i) => i.src);
+} catch {}
+
+// manifest.v1.json (machine-generated identity — uuid, contentHash)
+let MANIFEST_ASSETS = [];
+try {
+  const m = JSON.parse(readFileSync(join(root, "src", "config", "manifest.v1.json"), "utf8"));
+  MANIFEST_ASSETS = m.assets ?? [];
+} catch {}
+
+// presentation.v1.json (human-curated decisions)
+let PRESENTATION = null;
+try {
+  PRESENTATION = JSON.parse(readFileSync(join(root, "src", "config", "presentation.v1.json"), "utf8"));
 } catch {}
 
 let failures = 0;
@@ -72,7 +85,49 @@ if (hasReal) {
 }
 if (blurOk) ok(hasReal ? "all real photos carry blur placeholders" : "blur placeholders present for rasters (or none yet)");
 
-// 4) Manifest present + valid shape (if real photos ingested)
+// Phase 6 — Constitutional validation
+// 4a) uuid content-hash integrity chain: every gallery image with uuid+contentHash
+//     must match the manifest.v1.json asset with the same uuid.
+if (G_IMAGES.length && MANIFEST_ASSETS.length) {
+  let uuidOk = 0; let uuidFail = 0;
+  for (const gi of G_IMAGES) {
+    if (!gi.uuid || !gi.contentHash) { uuidFail++; continue; }
+    const ma = MANIFEST_ASSETS.find((a) => a.uuid === gi.uuid);
+    if (!ma) { fail(`gallery image ${gi.id} has uuid ${gi.uuid} but manifest has no matching asset`); uuidFail++; continue; }
+    if (ma.contentHash !== gi.contentHash) { fail(`gallery image ${gi.id} content hash mismatch: gallery=${gi.contentHash} manifest=${ma.contentHash}`); uuidFail++; continue; }
+    uuidOk++;
+  }
+  if (uuidFail === 0) ok(`uuid/content-hash integrity verified for all ${uuidOk} gallery images`);
+  else ok(`${uuidOk}/${G_IMAGES.length} gallery images passed uuid/content-hash check`);
+}
+
+// 4b) presentation.v1.json every referenced photo id resolves in gallery.json
+if (PRESENTATION) {
+  const galleryIds = new Set(G_IMAGES.map((i) => i.id));
+  let presOk = 0; let presFail = 0;
+  for (const role of (PRESENTATION.photoRoles || [])) {
+    if (!galleryIds.has(role.id)) { fail(`presentation photoRoles references "${role.id}" but not in gallery.json`); presFail++; }
+    else presOk++;
+  }
+  for (const id of (PRESENTATION.homepageCuration || [])) {
+    if (!galleryIds.has(id)) { fail(`presentation homepageCuration references "${id}" but not in gallery.json`); presFail++; }
+  }
+  if (PRESENTATION.featuredTransformationId && !galleryIds.has(PRESENTATION.featuredTransformationId)) {
+    fail(`presentation featuredTransformationId "${PRESENTATION.featuredTransformationId}" not in gallery.json`);
+    presFail++;
+  }
+  if (presFail === 0) ok(`presentation.v1.json all ${presOk} photoRoles + homepageCuration + featuredTransformationId resolve in gallery.json`);
+}
+
+// 4c) verify gallery.json and manifest.v1.json both exist when there are real photos
+if (hasReal) {
+  if (!G_IMAGES.every((i) => i.uuid)) fail("gallery.json images missing uuid (run npm run images to regenerate)");
+  if (!G_IMAGES.every((i) => i.contentHash)) fail("gallery.json images missing contentHash (run npm run images to regenerate)");
+}
+if (hasReal && !MANIFEST_ASSETS.length) fail("manifest.v1.json missing or empty despite real photos");
+else if (hasReal) ok("manifest.v1.json present with assets");
+
+// 5) photo-intake/manifest.json shape validation (if present)
 const manifestPath = join(root, "photo-intake", "manifest.json");
 if (existsSync(manifestPath)) {
   try {
@@ -98,11 +153,11 @@ if (existsSync(manifestPath)) {
   ok("manifest.json not yet present (placeholder mode) — skipping manifest checks");
 }
 
-// 5) SVG placeholders must not be used as if final (warn, don't fail in V1)
+// 6) SVG placeholders must not be used as if final (warn, don't fail in V1)
 const svgCount = publicImages.filter((f) => /\.svg$/i.test(f)).length;
 if (svgCount > 0) console.log(`  ⚠ ${svgCount} SVG placeholder(s) still in use — replace with real photography before launch`);
 
-// 6) Release gate (Directive 031): once gallery.json has real photos, customer
+// 7) Release gate (Directive 031): once gallery.json has real photos, customer
 //    pages must not hardcode /images/*.svg. Scan component/src for raw svg srcs.
 if (hasReal) {
   const appDir = join(root, "src", "app");
