@@ -16,8 +16,8 @@
  * image is orphaned: every photo carries at least one role. When new photos
  * arrive, you edit presentation.v1.json; components don't change.
  *
- * Until a truly premium WIDE exterior exists, HeroBackground is intentionally
- * vacant — the hero is an abstract, confident composition (no stretched photo).
+ * HeroBackground is the primary full-width hero photograph (curated in
+ * presentation.v1.json). Falls back to the abstract gradient if no photo is set.
  */
 import gallery from "@/config/gallery.json";
 import presentation from "@/config/presentation.v1.json";
@@ -140,6 +140,11 @@ export function featuredTransformation(): MediaImage | null {
   return byId((presentation as any).featuredTransformationId);
 }
 
+/** Primary full-width hero background photograph. Sourced from presentation.v1.json. */
+export function heroBackground(): MediaImage | null {
+  return photoFor("HeroBackground");
+}
+
 /** Curated homepage set (magazine cover). Repairs excluded here — trust-builders,
  *  surfaced lower / in the archive, not as aspiration. */
 export function homepageSelection(): MediaImage[] {
@@ -233,7 +238,11 @@ export function media(key: string): MediaImage {
     if (hit) return hit;
   }
   if (key === "owner" || key === "about") return FALLBACK.owner;
-  if (key === "hero") return FALLBACK.owner; // hero is abstract; no bg photo
+  if (key === "hero") {
+    const hero = heroBackground();
+    if (hero) return hero;
+    return FALLBACK.owner;
+  }
   const rec = BY_ID.get(key);
   if (rec && rec.src) return toMedia(rec);
   return FALLBACK.owner;

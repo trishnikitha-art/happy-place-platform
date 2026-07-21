@@ -462,6 +462,187 @@
       ]
     },
     {
+      "slug": "featured",
+      "uuid": "20751b66-3c32-5d14-acc0-05e3ff7dc70d",
+      "title": "Uncategorized — Willamette Valley",
+      "category": "Uncategorized",
+      "county": "",
+      "images": {
+        "hero": {
+          "uuid": "4f72899b-e80b-577a-8596-002524664b96",
+          "contentHash": "da8f1c334df6ac766bce3ff280546e18cd795a3d05270256d6cd7ec4952b44ba",
+          "id": "featured/featured",
+          "title": "Uncategorized — Willamette Valley",
+          "project": "featured",
+          "category": "Uncategorized",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 480,
+          "height": 640,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "featured.jpeg",
+          "src": "/images/projects/featured/featured-480.webp",
+          "thumbnail": "/images/projects/featured/featured-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRoAAAABXRUJQVlA4IHQAAADwAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOmUABlRqCsHYjTCTwAAP3qDFRd+jOgktWpxyyBehMmJb04Tq6Kd5Rejxr3VASrSXUnt8JnrHLmZvI+wa2E1694dlaxwQ0xexS/CN/5fkI6Tl3+rcACDHZ4AA==",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/featured/featured-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/featured/featured-480.webp"
+            }
+          ],
+          "provenance": {
+            "sourceFile": "featured/featured.jpeg",
+            "importedAt": "2026-07-21T18:13:49.094Z",
+            "pipelineVersion": "1.0.0"
+          }
+        },
+        "cover": {
+          "uuid": "4f72899b-e80b-577a-8596-002524664b96",
+          "contentHash": "da8f1c334df6ac766bce3ff280546e18cd795a3d05270256d6cd7ec4952b44ba",
+          "id": "featured/featured",
+          "title": "Uncategorized — Willamette Valley",
+          "project": "featured",
+          "category": "Uncategorized",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 480,
+          "height": 640,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "featured.jpeg",
+          "src": "/images/projects/featured/featured-480.webp",
+          "thumbnail": "/images/projects/featured/featured-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRoAAAABXRUJQVlA4IHQAAADwAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOmUABlRqCsHYjTCTwAAP3qDFRd+jOgktWpxyyBehMmJb04Tq6Kd5Rejxr3VASrSXUnt8JnrHLmZvI+wa2E1694dlaxwQ0xexS/CN/5fkI6Tl3+rcACDHZ4AA==",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/featured/featured-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/featured/featured-480.webp"
+            }
+          ],
+          "provenance": {
+            "sourceFile": "featured/featured.jpeg",
+            "importedAt": "2026-07-21T18:13:49.094Z",
+            "pipelineVersion": "1.0.0"
+          }
+        },
+        "thumbnail": {
+          "uuid": "4f72899b-e80b-577a-8596-002524664b96",
+          "contentHash": "da8f1c334df6ac766bce3ff280546e18cd795a3d05270256d6cd7ec4952b44ba",
+          "id": "featured/featured",
+          "title": "Uncategorized — Willamette Valley",
+          "project": "featured",
+          "category": "Uncategorized",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 480,
+          "height": 640,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "featured.jpeg",
+          "src": "/images/projects/featured/featured-480.webp",
+          "thumbnail": "/images/projects/featured/featured-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRoAAAABXRUJQVlA4IHQAAADwAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOmUABlRqCsHYjTCTwAAP3qDFRd+jOgktWpxyyBehMmJb04Tq6Kd5Rejxr3VASrSXUnt8JnrHLmZvI+wa2E1694dlaxwQ0xexS/CN/5fkI6Tl3+rcACDHZ4AA==",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/featured/featured-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/featured/featured-480.webp"
+            }
+          ],
+          "provenance": {
+            "sourceFile": "featured/featured.jpeg",
+            "importedAt": "2026-07-21T18:13:49.094Z",
+            "pipelineVersion": "1.0.0"
+          }
+        },
+        "homeowner": null,
+        "before": [],
+        "after": [],
+        "details": [
+          {
+            "uuid": "4f72899b-e80b-577a-8596-002524664b96",
+            "contentHash": "da8f1c334df6ac766bce3ff280546e18cd795a3d05270256d6cd7ec4952b44ba",
+            "id": "featured/featured",
+            "title": "Uncategorized — Willamette Valley",
+            "project": "featured",
+            "category": "Uncategorized",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 480,
+            "height": 640,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "featured.jpeg",
+            "src": "/images/projects/featured/featured-480.webp",
+            "thumbnail": "/images/projects/featured/featured-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRoAAAABXRUJQVlA4IHQAAADwAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOmUABlRqCsHYjTCTwAAP3qDFRd+jOgktWpxyyBehMmJb04Tq6Kd5Rejxr3VASrSXUnt8JnrHLmZvI+wa2E1694dlaxwQ0xexS/CN/5fkI6Tl3+rcACDHZ4AA==",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/featured/featured-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/featured/featured-480.webp"
+              }
+            ],
+            "provenance": {
+              "sourceFile": "featured/featured.jpeg",
+              "importedAt": "2026-07-21T18:13:49.094Z",
+              "pipelineVersion": "1.0.0"
+            }
+          }
+        ]
+      },
+      "galleryOrder": [
+        "featured/featured"
+      ]
+    },
+    {
       "slug": "fences",
       "uuid": "c6357e4e-a137-53ff-8a39-4181ef1ef084",
       "title": "Fencing — Willamette Valley",
@@ -782,6 +963,187 @@
       "galleryOrder": [
         "fences/fence-build",
         "fences/fencerebuildmatchingstain"
+      ]
+    },
+    {
+      "slug": "hero",
+      "uuid": "a912493c-2719-59ee-8dc7-b6af27075e01",
+      "title": "Uncategorized — Willamette Valley",
+      "category": "Uncategorized",
+      "county": "",
+      "images": {
+        "hero": {
+          "uuid": "25fcd207-9538-5729-8d6c-ef872ab7c8d9",
+          "contentHash": "a3ae720426c9909b3d4386c52ce1404262f1fad96d90d2d5fe9ac0ea35fe4f0c",
+          "id": "hero/hero",
+          "title": "Uncategorized — Willamette Valley",
+          "project": "hero",
+          "category": "Uncategorized",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 480,
+          "height": 640,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "hero.jpeg",
+          "src": "/images/projects/hero/hero-480.webp",
+          "thumbnail": "/images/projects/hero/hero-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4IIIAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOgA+VXnTbj1MQFnLAA+WhfmUTE2dEek6pWqRBEPxAQtN08aXYwgw+d8FQUTt03bNC3RJvSvYdR05Uv5dGIybnyBefdH7Kj7U0t6llzUrkditGfycu+8ukQFpdgELp6XGSO4X6fXTAA",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/hero/hero-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/hero/hero-480.webp"
+            }
+          ],
+          "provenance": {
+            "sourceFile": "hero/hero.jpeg",
+            "importedAt": "2026-07-21T18:13:49.295Z",
+            "pipelineVersion": "1.0.0"
+          }
+        },
+        "cover": {
+          "uuid": "25fcd207-9538-5729-8d6c-ef872ab7c8d9",
+          "contentHash": "a3ae720426c9909b3d4386c52ce1404262f1fad96d90d2d5fe9ac0ea35fe4f0c",
+          "id": "hero/hero",
+          "title": "Uncategorized — Willamette Valley",
+          "project": "hero",
+          "category": "Uncategorized",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 480,
+          "height": 640,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "hero.jpeg",
+          "src": "/images/projects/hero/hero-480.webp",
+          "thumbnail": "/images/projects/hero/hero-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4IIIAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOgA+VXnTbj1MQFnLAA+WhfmUTE2dEek6pWqRBEPxAQtN08aXYwgw+d8FQUTt03bNC3RJvSvYdR05Uv5dGIybnyBefdH7Kj7U0t6llzUrkditGfycu+8ukQFpdgELp6XGSO4X6fXTAA",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/hero/hero-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/hero/hero-480.webp"
+            }
+          ],
+          "provenance": {
+            "sourceFile": "hero/hero.jpeg",
+            "importedAt": "2026-07-21T18:13:49.295Z",
+            "pipelineVersion": "1.0.0"
+          }
+        },
+        "thumbnail": {
+          "uuid": "25fcd207-9538-5729-8d6c-ef872ab7c8d9",
+          "contentHash": "a3ae720426c9909b3d4386c52ce1404262f1fad96d90d2d5fe9ac0ea35fe4f0c",
+          "id": "hero/hero",
+          "title": "Uncategorized — Willamette Valley",
+          "project": "hero",
+          "category": "Uncategorized",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 480,
+          "height": 640,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "hero.jpeg",
+          "src": "/images/projects/hero/hero-480.webp",
+          "thumbnail": "/images/projects/hero/hero-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4IIIAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOgA+VXnTbj1MQFnLAA+WhfmUTE2dEek6pWqRBEPxAQtN08aXYwgw+d8FQUTt03bNC3RJvSvYdR05Uv5dGIybnyBefdH7Kj7U0t6llzUrkditGfycu+8ukQFpdgELp6XGSO4X6fXTAA",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/hero/hero-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/hero/hero-480.webp"
+            }
+          ],
+          "provenance": {
+            "sourceFile": "hero/hero.jpeg",
+            "importedAt": "2026-07-21T18:13:49.295Z",
+            "pipelineVersion": "1.0.0"
+          }
+        },
+        "homeowner": null,
+        "before": [],
+        "after": [],
+        "details": [
+          {
+            "uuid": "25fcd207-9538-5729-8d6c-ef872ab7c8d9",
+            "contentHash": "a3ae720426c9909b3d4386c52ce1404262f1fad96d90d2d5fe9ac0ea35fe4f0c",
+            "id": "hero/hero",
+            "title": "Uncategorized — Willamette Valley",
+            "project": "hero",
+            "category": "Uncategorized",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 480,
+            "height": 640,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "hero.jpeg",
+            "src": "/images/projects/hero/hero-480.webp",
+            "thumbnail": "/images/projects/hero/hero-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4IIIAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOgA+VXnTbj1MQFnLAA+WhfmUTE2dEek6pWqRBEPxAQtN08aXYwgw+d8FQUTt03bNC3RJvSvYdR05Uv5dGIybnyBefdH7Kj7U0t6llzUrkditGfycu+8ukQFpdgELp6XGSO4X6fXTAA",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/hero/hero-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/hero/hero-480.webp"
+              }
+            ],
+            "provenance": {
+              "sourceFile": "hero/hero.jpeg",
+              "importedAt": "2026-07-21T18:13:49.295Z",
+              "pipelineVersion": "1.0.0"
+            }
+          }
+        ]
+      },
+      "galleryOrder": [
+        "hero/hero"
       ]
     },
     {
@@ -1173,6 +1535,187 @@
         "outdoor-living/img-0737",
         "outdoor-living/img-0805",
         "outdoor-living/img-0841"
+      ]
+    },
+    {
+      "slug": "portrait",
+      "uuid": "857051b4-7b4c-5760-acb3-b033f2d8ec34",
+      "title": "Uncategorized — Willamette Valley",
+      "category": "Uncategorized",
+      "county": "",
+      "images": {
+        "hero": {
+          "uuid": "5e0c371b-8582-5fa4-a07e-739568111062",
+          "contentHash": "7635390ddb962cd041829aaadbd3195b41156ce38bfeb466ed53f54c76fd2e62",
+          "id": "portrait/portrait",
+          "title": "Uncategorized — Willamette Valley",
+          "project": "portrait",
+          "category": "Uncategorized",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 640,
+          "height": 427,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "portrait.jpeg",
+          "src": "/images/projects/portrait/portrait-480.webp",
+          "thumbnail": "/images/projects/portrait/portrait-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRlYAAABXRUJQVlA4IEoAAADwAQCdASoQAAsAA4BaJQBdgBn5AQA7c/AA/ubPoquojB/Hu9RI0JYBLyw1Ec4QaRI9FclTKQNmFae7Dg2KNXec6iBSej+dCcYAAA==",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/portrait/portrait-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/portrait/portrait-480.webp"
+            }
+          ],
+          "provenance": {
+            "sourceFile": "portrait/portrait.jpeg",
+            "importedAt": "2026-07-21T18:13:49.401Z",
+            "pipelineVersion": "1.0.0"
+          }
+        },
+        "cover": {
+          "uuid": "5e0c371b-8582-5fa4-a07e-739568111062",
+          "contentHash": "7635390ddb962cd041829aaadbd3195b41156ce38bfeb466ed53f54c76fd2e62",
+          "id": "portrait/portrait",
+          "title": "Uncategorized — Willamette Valley",
+          "project": "portrait",
+          "category": "Uncategorized",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 640,
+          "height": 427,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "portrait.jpeg",
+          "src": "/images/projects/portrait/portrait-480.webp",
+          "thumbnail": "/images/projects/portrait/portrait-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRlYAAABXRUJQVlA4IEoAAADwAQCdASoQAAsAA4BaJQBdgBn5AQA7c/AA/ubPoquojB/Hu9RI0JYBLyw1Ec4QaRI9FclTKQNmFae7Dg2KNXec6iBSej+dCcYAAA==",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/portrait/portrait-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/portrait/portrait-480.webp"
+            }
+          ],
+          "provenance": {
+            "sourceFile": "portrait/portrait.jpeg",
+            "importedAt": "2026-07-21T18:13:49.401Z",
+            "pipelineVersion": "1.0.0"
+          }
+        },
+        "thumbnail": {
+          "uuid": "5e0c371b-8582-5fa4-a07e-739568111062",
+          "contentHash": "7635390ddb962cd041829aaadbd3195b41156ce38bfeb466ed53f54c76fd2e62",
+          "id": "portrait/portrait",
+          "title": "Uncategorized — Willamette Valley",
+          "project": "portrait",
+          "category": "Uncategorized",
+          "county": "",
+          "featured": false,
+          "before": false,
+          "after": false,
+          "hero": false,
+          "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+          "width": 640,
+          "height": 427,
+          "focal": {
+            "x": 0.5,
+            "y": 0.5
+          },
+          "original": "portrait.jpeg",
+          "src": "/images/projects/portrait/portrait-480.webp",
+          "thumbnail": "/images/projects/portrait/portrait-thumb.webp",
+          "blurDataURL": "data:image/webp;base64,UklGRlYAAABXRUJQVlA4IEoAAADwAQCdASoQAAsAA4BaJQBdgBn5AQA7c/AA/ubPoquojB/Hu9RI0JYBLyw1Ec4QaRI9FclTKQNmFae7Dg2KNXec6iBSej+dCcYAAA==",
+          "variants": [
+            {
+              "width": 480,
+              "format": "avif",
+              "src": "/images/projects/portrait/portrait-480.avif"
+            },
+            {
+              "width": 480,
+              "format": "webp",
+              "src": "/images/projects/portrait/portrait-480.webp"
+            }
+          ],
+          "provenance": {
+            "sourceFile": "portrait/portrait.jpeg",
+            "importedAt": "2026-07-21T18:13:49.401Z",
+            "pipelineVersion": "1.0.0"
+          }
+        },
+        "homeowner": null,
+        "before": [],
+        "after": [],
+        "details": [
+          {
+            "uuid": "5e0c371b-8582-5fa4-a07e-739568111062",
+            "contentHash": "7635390ddb962cd041829aaadbd3195b41156ce38bfeb466ed53f54c76fd2e62",
+            "id": "portrait/portrait",
+            "title": "Uncategorized — Willamette Valley",
+            "project": "portrait",
+            "category": "Uncategorized",
+            "county": "",
+            "featured": false,
+            "before": false,
+            "after": false,
+            "hero": false,
+            "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+            "width": 640,
+            "height": 427,
+            "focal": {
+              "x": 0.5,
+              "y": 0.5
+            },
+            "original": "portrait.jpeg",
+            "src": "/images/projects/portrait/portrait-480.webp",
+            "thumbnail": "/images/projects/portrait/portrait-thumb.webp",
+            "blurDataURL": "data:image/webp;base64,UklGRlYAAABXRUJQVlA4IEoAAADwAQCdASoQAAsAA4BaJQBdgBn5AQA7c/AA/ubPoquojB/Hu9RI0JYBLyw1Ec4QaRI9FclTKQNmFae7Dg2KNXec6iBSej+dCcYAAA==",
+            "variants": [
+              {
+                "width": 480,
+                "format": "avif",
+                "src": "/images/projects/portrait/portrait-480.avif"
+              },
+              {
+                "width": 480,
+                "format": "webp",
+                "src": "/images/projects/portrait/portrait-480.webp"
+              }
+            ],
+            "provenance": {
+              "sourceFile": "portrait/portrait.jpeg",
+              "importedAt": "2026-07-21T18:13:49.401Z",
+              "pipelineVersion": "1.0.0"
+            }
+          }
+        ]
+      },
+      "galleryOrder": [
+        "portrait/portrait"
       ]
     },
     {
@@ -1893,6 +2436,47 @@
       }
     },
     {
+      "uuid": "4f72899b-e80b-577a-8596-002524664b96",
+      "contentHash": "da8f1c334df6ac766bce3ff280546e18cd795a3d05270256d6cd7ec4952b44ba",
+      "id": "featured/featured",
+      "title": "Uncategorized — Willamette Valley",
+      "project": "featured",
+      "category": "Uncategorized",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 480,
+      "height": 640,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "featured.jpeg",
+      "src": "/images/projects/featured/featured-480.webp",
+      "thumbnail": "/images/projects/featured/featured-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRoAAAABXRUJQVlA4IHQAAADwAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOmUABlRqCsHYjTCTwAAP3qDFRd+jOgktWpxyyBehMmJb04Tq6Kd5Rejxr3VASrSXUnt8JnrHLmZvI+wa2E1694dlaxwQ0xexS/CN/5fkI6Tl3+rcACDHZ4AA==",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/featured/featured-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/featured/featured-480.webp"
+        }
+      ],
+      "provenance": {
+        "sourceFile": "featured/featured.jpeg",
+        "importedAt": "2026-07-21T18:13:49.094Z",
+        "pipelineVersion": "1.0.0"
+      }
+    },
+    {
       "uuid": "da6d1b95-4d7d-5bcf-a991-de1286be232d",
       "contentHash": "fde707d0e89f57292087636f44c2e8a580add68c1bdf6a3f8573a15bc92623ce",
       "id": "fences/fence-build",
@@ -2011,6 +2595,47 @@
       "provenance": {
         "sourceFile": "Fences/FENCEREBUILDMATCHINGSTAIN.png",
         "importedAt": "2026-07-21T17:59:38.505Z",
+        "pipelineVersion": "1.0.0"
+      }
+    },
+    {
+      "uuid": "25fcd207-9538-5729-8d6c-ef872ab7c8d9",
+      "contentHash": "a3ae720426c9909b3d4386c52ce1404262f1fad96d90d2d5fe9ac0ea35fe4f0c",
+      "id": "hero/hero",
+      "title": "Uncategorized — Willamette Valley",
+      "project": "hero",
+      "category": "Uncategorized",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 480,
+      "height": 640,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "hero.jpeg",
+      "src": "/images/projects/hero/hero-480.webp",
+      "thumbnail": "/images/projects/hero/hero-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4IIIAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOgA+VXnTbj1MQFnLAA+WhfmUTE2dEek6pWqRBEPxAQtN08aXYwgw+d8FQUTt03bNC3RJvSvYdR05Uv5dGIybnyBefdH7Kj7U0t6llzUrkditGfycu+8ukQFpdgELp6XGSO4X6fXTAA",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/hero/hero-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/hero/hero-480.webp"
+        }
+      ],
+      "provenance": {
+        "sourceFile": "hero/hero.jpeg",
+        "importedAt": "2026-07-21T18:13:49.295Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -2257,6 +2882,47 @@
       "provenance": {
         "sourceFile": "Outdoor Living/IMG_0841.JPG",
         "importedAt": "2026-07-21T17:59:39.787Z",
+        "pipelineVersion": "1.0.0"
+      }
+    },
+    {
+      "uuid": "5e0c371b-8582-5fa4-a07e-739568111062",
+      "contentHash": "7635390ddb962cd041829aaadbd3195b41156ce38bfeb466ed53f54c76fd2e62",
+      "id": "portrait/portrait",
+      "title": "Uncategorized — Willamette Valley",
+      "project": "portrait",
+      "category": "Uncategorized",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 640,
+      "height": 427,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "portrait.jpeg",
+      "src": "/images/projects/portrait/portrait-480.webp",
+      "thumbnail": "/images/projects/portrait/portrait-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRlYAAABXRUJQVlA4IEoAAADwAQCdASoQAAsAA4BaJQBdgBn5AQA7c/AA/ubPoquojB/Hu9RI0JYBLyw1Ec4QaRI9FclTKQNmFae7Dg2KNXec6iBSej+dCcYAAA==",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/portrait/portrait-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/portrait/portrait-480.webp"
+        }
+      ],
+      "provenance": {
+        "sourceFile": "portrait/portrait.jpeg",
+        "importedAt": "2026-07-21T18:13:49.401Z",
         "pipelineVersion": "1.0.0"
       }
     },

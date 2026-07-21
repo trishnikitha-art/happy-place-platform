@@ -14,7 +14,7 @@ import { reviews, averageRating } from "@/config/reviews";
 import { company } from "@/config/company";
 import { BeforeAfterCard } from "@/components/before-after-card";
 import { Transformation } from "@/config/transformations";
-import { media, featuredTransformation, homepageSelection, ownerPortrait } from "@/lib/media";
+import { media, featuredTransformation, homepageSelection, ownerPortrait, heroBackground } from "@/lib/media";
 
 export default function HomePage() {
   const topReviews = reviews.slice(0, 3);
@@ -22,15 +22,26 @@ export default function HomePage() {
   const featured = featuredTransformation(); // warm cedar fence — first emotional image
   const outdoor = homepageSelection();       // curated magazine set
   const transformations = Transformation;     // honest before→after composites
+  const heroBg = heroBackground();           // primary full-width hero photograph
 
   return (
     <>
-      {/* HERO — frozen, intentionally restrained (Directive 034). No photo, no
-          owner, no fake luxury. Beautiful type, warm depth, one CTA. */}
+      {/* HERO — full-width photograph with text overlay */}
       <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
-        <div className="absolute inset-0 z-0 bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(217,154,78,0.22),transparent_55%),radial-gradient(90%_90%_at_10%_110%,rgba(22,43,41,0.7),transparent_60%)]" aria-hidden="true" />
-        <div className="absolute inset-0 z-0 bg-gradient-to-b from-deep/30 via-transparent to-deep" aria-hidden="true" />
-        <div className="absolute inset-x-0 top-0 z-0 h-px bg-gradient-to-r from-transparent via-honey/25 to-transparent" aria-hidden="true" />
+        {heroBg && (
+          <Image
+            src={heroBg.src}
+            alt={heroBg.alt}
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+            style={{ filter: "brightness(0.45)" }}
+          />
+        )}
+        <div className="absolute inset-0 z-[1] bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(217,154,78,0.22),transparent_55%),radial-gradient(90%_90%_at_10%_110%,rgba(22,43,41,0.7),transparent_60%)]" aria-hidden="true" />
+        <div className="absolute inset-0 z-[1] bg-gradient-to-b from-deep/30 via-transparent to-deep" aria-hidden="true" />
+        <div className="absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-honey/25 to-transparent" aria-hidden="true" />
 
         <div className="hero-craft" aria-hidden="true" />
         <div className="hero-square" aria-hidden="true" />

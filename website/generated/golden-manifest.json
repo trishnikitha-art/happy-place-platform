@@ -1,17 +1,20 @@
 {
-  "galleryHash": "6ba9194a95cfdecd9b26302e4817ebc2968c907f18e1328157b6838cf1e94a59",
+  "galleryHash": "7e2659006a517e5b5e0e72f423285086050bd16391805d204c2ee5609ce409cc",
   "imageHashes": {
     "bathroom-remodeling/bathroom-wall": "25af78d5ec38d8751021906d534d1fc09f22263c3ca382c2a2ddcef0e033a2a4",
     "built-ins/finishedcarpentry0": "369838478f9e53921d29868b67493df3a2b29556b17332db28d1e898d442484c",
     "built-ins/finishedcarpentry": "290c286d6f28b26d087f0aae7ebb99fcb1927a53526a637ce638a20729387672",
+    "featured/featured": "b80f586dbaa049d8900595cda5e7b2ffb07ce2f73d92d4c4db7eb5d858376ca2",
     "fences/fence-build": "486268f614974521ff80ae06a1358c45b801c1e5b64853e03abbaaf23126db59",
     "fences/fencerebuildmatchingstain": "441d28ca7a80bfc4f3e85a9b146b9d81a8e37d88bddb112850d091d9a4e57d28",
+    "hero/hero": "a6d46b0115772e90a125828f753a2035ab0aa81eeae40e36edfffb86b873f594",
     "outdoor-living/img-0535": "0d412c4c9b40d5416cde4681b7f9df706c0354b1518609527ee0c31ac07a4aa7",
     "outdoor-living/img-0555": "872f28df8a83b72d320eff700d6bea1a553156df6ffe37aa48c8c0b443ff20ca",
     "outdoor-living/img-0559": "9d867371a9fb84f90e64c1f61991a0469107a9c3f69669d1ddce092fc0d541c9",
     "outdoor-living/img-0737": "e9de72e40f6d1ad5620387198e0d36eeb6931145410bea75eab34107ce7da9ca",
     "outdoor-living/img-0805": "a7ffdcffaae5a6f858aa7b331e4cdd6b926c4733d833984ebacac5552c83a4a8",
     "outdoor-living/img-0841": "c89b1a8bf9a10aac0227032c8d5419f3357b57fbc052ee22606642bf1f5cc0cc",
+    "portrait/portrait": "eecbf99794e531e35a4f17a1c331d3e583124abbd0d3ae213d1d1588dd6df4fb",
     "repairs/floor0": "3a62204002864e0c1fed05d4cd7ce69f820ad776e05a8ecd06088a1a7898ff20",
     "repairs/img-0544": "d65fdffc28f842195cd5a7fb192ba316480343e3f598d6e9027f9cbe339779dc",
     "repairs/img-0546": "8f5183d8389469e044f3775236ca903b01f154333151707ece6aca1ff29bd781",
@@ -20,6 +23,6 @@
     "repairs/guttercleaning": "8ce28eb63e0c06a2d1a01391c0e4b2c59a668811c5223c9ca3155a48a4704ee7",
     "repairs/trimrepair": "3f521a07ff7be69e7fa31d6e2d6240932a932d0f74e7d5b3a38c92861b7ab4f7"
   },
-  "imageCount": 18,
-  "projectCount": 5
+  "imageCount": 21,
+  "projectCount": 8
 }

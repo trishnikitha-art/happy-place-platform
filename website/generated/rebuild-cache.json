@@ -1712,5 +1712,224 @@
       "blurDataURL": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAADQAQCdASoQABAAA4BaJQBOgB02QinKAAD83VJNiygV8eykqEdIE1qSHSVNFOs102FdDTFTOrYHFJSqkCg2QozDXmBPH4uPVI6P8qxeEaN70X4HLFn2XzVvuL2KAA==",
       "createdAt": "2026-07-21T17:59:44.539Z"
     }
+  },
+  "featured/featured:da8f1c334df6ac766bce3ff280546e18cd795a3d05270256d6cd7ec4952b44ba": {
+    "contentHash": "da8f1c334df6ac766bce3ff280546e18cd795a3d05270256d6cd7ec4952b44ba",
+    "rec": {
+      "uuid": "4f72899b-e80b-577a-8596-002524664b96",
+      "contentHash": "da8f1c334df6ac766bce3ff280546e18cd795a3d05270256d6cd7ec4952b44ba",
+      "id": "featured/featured",
+      "title": "Uncategorized — Willamette Valley",
+      "project": "featured",
+      "category": "Uncategorized",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 480,
+      "height": 640,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "featured.jpeg",
+      "src": "/images/projects/featured/featured-480.webp",
+      "thumbnail": "/images/projects/featured/featured-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRoAAAABXRUJQVlA4IHQAAADwAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOmUABlRqCsHYjTCTwAAP3qDFRd+jOgktWpxyyBehMmJb04Tq6Kd5Rejxr3VASrSXUnt8JnrHLmZvI+wa2E1694dlaxwQ0xexS/CN/5fkI6Tl3+rcACDHZ4AA==",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/featured/featured-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/featured/featured-480.webp"
+        }
+      ],
+      "provenance": {
+        "sourceFile": "featured/featured.jpeg",
+        "importedAt": "2026-07-21T18:13:49.094Z",
+        "pipelineVersion": "1.0.0"
+      }
+    },
+    "manifestAsset": {
+      "uuid": "4f72899b-e80b-577a-8596-002524664b96",
+      "contentHash": "da8f1c334df6ac766bce3ff280546e18cd795a3d05270256d6cd7ec4952b44ba",
+      "id": "featured/featured",
+      "project": "featured",
+      "category": "Uncategorized",
+      "county": "",
+      "originalFilename": "featured.jpeg",
+      "sourcePath": "featured/featured.jpeg",
+      "width": 480,
+      "height": 640,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/featured/featured-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/featured/featured-480.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/featured/featured-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRoAAAABXRUJQVlA4IHQAAADwAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOmUABlRqCsHYjTCTwAAP3qDFRd+jOgktWpxyyBehMmJb04Tq6Kd5Rejxr3VASrSXUnt8JnrHLmZvI+wa2E1694dlaxwQ0xexS/CN/5fkI6Tl3+rcACDHZ4AA==",
+      "createdAt": "2026-07-21T18:13:49.095Z"
+    }
+  },
+  "hero/hero:a3ae720426c9909b3d4386c52ce1404262f1fad96d90d2d5fe9ac0ea35fe4f0c": {
+    "contentHash": "a3ae720426c9909b3d4386c52ce1404262f1fad96d90d2d5fe9ac0ea35fe4f0c",
+    "rec": {
+      "uuid": "25fcd207-9538-5729-8d6c-ef872ab7c8d9",
+      "contentHash": "a3ae720426c9909b3d4386c52ce1404262f1fad96d90d2d5fe9ac0ea35fe4f0c",
+      "id": "hero/hero",
+      "title": "Uncategorized — Willamette Valley",
+      "project": "hero",
+      "category": "Uncategorized",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 480,
+      "height": 640,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "hero.jpeg",
+      "src": "/images/projects/hero/hero-480.webp",
+      "thumbnail": "/images/projects/hero/hero-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4IIIAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOgA+VXnTbj1MQFnLAA+WhfmUTE2dEek6pWqRBEPxAQtN08aXYwgw+d8FQUTt03bNC3RJvSvYdR05Uv5dGIybnyBefdH7Kj7U0t6llzUrkditGfycu+8ukQFpdgELp6XGSO4X6fXTAA",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/hero/hero-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/hero/hero-480.webp"
+        }
+      ],
+      "provenance": {
+        "sourceFile": "hero/hero.jpeg",
+        "importedAt": "2026-07-21T18:13:49.295Z",
+        "pipelineVersion": "1.0.0"
+      }
+    },
+    "manifestAsset": {
+      "uuid": "25fcd207-9538-5729-8d6c-ef872ab7c8d9",
+      "contentHash": "a3ae720426c9909b3d4386c52ce1404262f1fad96d90d2d5fe9ac0ea35fe4f0c",
+      "id": "hero/hero",
+      "project": "hero",
+      "category": "Uncategorized",
+      "county": "",
+      "originalFilename": "hero.jpeg",
+      "sourcePath": "hero/hero.jpeg",
+      "width": 480,
+      "height": 640,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/hero/hero-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/hero/hero-480.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/hero/hero-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4IIIAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOgA+VXnTbj1MQFnLAA+WhfmUTE2dEek6pWqRBEPxAQtN08aXYwgw+d8FQUTt03bNC3RJvSvYdR05Uv5dGIybnyBefdH7Kj7U0t6llzUrkditGfycu+8ukQFpdgELp6XGSO4X6fXTAA",
+      "createdAt": "2026-07-21T18:13:49.295Z"
+    }
+  },
+  "portrait/portrait:7635390ddb962cd041829aaadbd3195b41156ce38bfeb466ed53f54c76fd2e62": {
+    "contentHash": "7635390ddb962cd041829aaadbd3195b41156ce38bfeb466ed53f54c76fd2e62",
+    "rec": {
+      "uuid": "5e0c371b-8582-5fa4-a07e-739568111062",
+      "contentHash": "7635390ddb962cd041829aaadbd3195b41156ce38bfeb466ed53f54c76fd2e62",
+      "id": "portrait/portrait",
+      "title": "Uncategorized — Willamette Valley",
+      "project": "portrait",
+      "category": "Uncategorized",
+      "county": "",
+      "featured": false,
+      "before": false,
+      "after": false,
+      "hero": false,
+      "alt": "Uncategorized — Willamette Valley — detail photo by Happy Place Carpentry",
+      "width": 640,
+      "height": 427,
+      "focal": {
+        "x": 0.5,
+        "y": 0.5
+      },
+      "original": "portrait.jpeg",
+      "src": "/images/projects/portrait/portrait-480.webp",
+      "thumbnail": "/images/projects/portrait/portrait-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRlYAAABXRUJQVlA4IEoAAADwAQCdASoQAAsAA4BaJQBdgBn5AQA7c/AA/ubPoquojB/Hu9RI0JYBLyw1Ec4QaRI9FclTKQNmFae7Dg2KNXec6iBSej+dCcYAAA==",
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "src": "/images/projects/portrait/portrait-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "src": "/images/projects/portrait/portrait-480.webp"
+        }
+      ],
+      "provenance": {
+        "sourceFile": "portrait/portrait.jpeg",
+        "importedAt": "2026-07-21T18:13:49.401Z",
+        "pipelineVersion": "1.0.0"
+      }
+    },
+    "manifestAsset": {
+      "uuid": "5e0c371b-8582-5fa4-a07e-739568111062",
+      "contentHash": "7635390ddb962cd041829aaadbd3195b41156ce38bfeb466ed53f54c76fd2e62",
+      "id": "portrait/portrait",
+      "project": "portrait",
+      "category": "Uncategorized",
+      "county": "",
+      "originalFilename": "portrait.jpeg",
+      "sourcePath": "portrait/portrait.jpeg",
+      "width": 640,
+      "height": 427,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/portrait/portrait-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/portrait/portrait-480.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/portrait/portrait-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRlYAAABXRUJQVlA4IEoAAADwAQCdASoQAAsAA4BaJQBdgBn5AQA7c/AA/ubPoquojB/Hu9RI0JYBLyw1Ec4QaRI9FclTKQNmFae7Dg2KNXec6iBSej+dCcYAAA==",
+      "createdAt": "2026-07-21T18:13:49.401Z"
+    }
   }
 }

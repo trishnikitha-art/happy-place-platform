@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "description": "Machine-generated image manifest. Human curation lives in presentation.v1.json.",
-  "generatedAt": "2026-07-21T18:00:17.045Z",
+  "generatedAt": "2026-07-21T18:13:49.426Z",
   "projects": [
     {
       "slug": "bathroom-remodeling",
@@ -16,15 +16,33 @@
       "county": ""
     },
     {
+      "slug": "featured",
+      "title": "Uncategorized — Willamette Valley",
+      "category": "Uncategorized",
+      "county": ""
+    },
+    {
       "slug": "fences",
       "title": "Fencing — Willamette Valley",
       "category": "Fencing",
       "county": ""
     },
     {
+      "slug": "hero",
+      "title": "Uncategorized — Willamette Valley",
+      "category": "Uncategorized",
+      "county": ""
+    },
+    {
       "slug": "outdoor-living",
       "title": "Outdoor Living — Willamette Valley",
       "category": "Outdoor Living",
+      "county": ""
+    },
+    {
+      "slug": "portrait",
+      "title": "Uncategorized — Willamette Valley",
+      "category": "Uncategorized",
       "county": ""
     },
     {
@@ -183,6 +201,35 @@
       "createdAt": "2026-07-21T17:59:36.365Z"
     },
     {
+      "uuid": "4f72899b-e80b-577a-8596-002524664b96",
+      "contentHash": "da8f1c334df6ac766bce3ff280546e18cd795a3d05270256d6cd7ec4952b44ba",
+      "id": "featured/featured",
+      "project": "featured",
+      "category": "Uncategorized",
+      "county": "",
+      "originalFilename": "featured.jpeg",
+      "sourcePath": "featured/featured.jpeg",
+      "width": 480,
+      "height": 640,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/featured/featured-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/featured/featured-480.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/featured/featured-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRoAAAABXRUJQVlA4IHQAAADwAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOmUABlRqCsHYjTCTwAAP3qDFRd+jOgktWpxyyBehMmJb04Tq6Kd5Rejxr3VASrSXUnt8JnrHLmZvI+wa2E1694dlaxwQ0xexS/CN/5fkI6Tl3+rcACDHZ4AA==",
+      "createdAt": "2026-07-21T18:13:49.095Z"
+    },
+    {
       "uuid": "da6d1b95-4d7d-5bcf-a991-de1286be232d",
       "contentHash": "fde707d0e89f57292087636f44c2e8a580add68c1bdf6a3f8573a15bc92623ce",
       "id": "fences/fence-build",
@@ -279,6 +326,35 @@
       "thumbnailPath": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRmAAAABXRUJQVlA4IFQAAADwAQCdASoQAA0AA4BaJbACdADRDHzQrQAA/qvg89rPqkr4vC+n26YZleQouc7LnPjSe7aiV8Bk46Isw4c1pXFZlR6lSC3kYu74+jPw1olB8dMkQAA=",
       "createdAt": "2026-07-21T17:59:38.505Z"
+    },
+    {
+      "uuid": "25fcd207-9538-5729-8d6c-ef872ab7c8d9",
+      "contentHash": "a3ae720426c9909b3d4386c52ce1404262f1fad96d90d2d5fe9ac0ea35fe4f0c",
+      "id": "hero/hero",
+      "project": "hero",
+      "category": "Uncategorized",
+      "county": "",
+      "originalFilename": "hero.jpeg",
+      "sourcePath": "hero/hero.jpeg",
+      "width": 480,
+      "height": 640,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/hero/hero-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/hero/hero-480.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/hero/hero-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4IIIAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOgA+VXnTbj1MQFnLAA+WhfmUTE2dEek6pWqRBEPxAQtN08aXYwgw+d8FQUTt03bNC3RJvSvYdR05Uv5dGIybnyBefdH7Kj7U0t6llzUrkditGfycu+8ukQFpdgELp6XGSO4X6fXTAA",
+      "createdAt": "2026-07-21T18:13:49.295Z"
     },
     {
       "uuid": "d372a0c3-cd76-5808-b16b-98b83c142743",
@@ -453,6 +529,35 @@
       "thumbnailPath": "/images/projects/outdoor-living/IMG_0841-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRqAAAABXRUJQVlA4IJQAAAAwBACdASoQABUAPu1iqU2ppaOiMAgBMB2JYgCdIKnDFXeldY3oE364NoAA/CxytM9C0L8Te4hvdHlJDY88BKqJYHenGtFvE1yqCWUXGKV3oUjtAzRZEHCbiwZBVsdreElLxkmhJfi7wffRBaeRy7aklWeGB9AR3Z/A3WEFOB3CBJk8NmDCzWgrsM7RLnU5yQHIOFAA",
       "createdAt": "2026-07-21T17:59:39.787Z"
+    },
+    {
+      "uuid": "5e0c371b-8582-5fa4-a07e-739568111062",
+      "contentHash": "7635390ddb962cd041829aaadbd3195b41156ce38bfeb466ed53f54c76fd2e62",
+      "id": "portrait/portrait",
+      "project": "portrait",
+      "category": "Uncategorized",
+      "county": "",
+      "originalFilename": "portrait.jpeg",
+      "sourcePath": "portrait/portrait.jpeg",
+      "width": 640,
+      "height": 427,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/portrait/portrait-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/portrait/portrait-480.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/portrait/portrait-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRlYAAABXRUJQVlA4IEoAAADwAQCdASoQAAsAA4BaJQBdgBn5AQA7c/AA/ubPoquojB/Hu9RI0JYBLyw1Ec4QaRI9FclTKQNmFae7Dg2KNXec6iBSej+dCcYAAA==",
+      "createdAt": "2026-07-21T18:13:49.401Z"
     },
     {
       "uuid": "a7b5d396-6cc5-5b3f-b038-b827e3bc9c4f",
