@@ -12,7 +12,7 @@ import type { ServiceSlug } from "@/config/services";
 
 export type EstimationStrategy = "flat" | "per-unit" | "scope-based" | "composite";
 
-interface ServiceSeed {
+export interface ServiceSeed {
   label: string;
   /** [low, high] planning range in dollars, before the +12% bias */
   range: [number, number];

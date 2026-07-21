@@ -6,6 +6,7 @@
  */
 
 import type { ServiceSlug } from "@/config/services";
+import type { EstimateRequest } from "@/types";
 
 export interface PlanningContext {
   services: ServiceSlug[];
@@ -16,12 +17,6 @@ export interface PlanningContext {
   materials?: Record<ServiceSlug, string>;
   regionalMultiplier?: number;
   historicalAdjustment?: number;
-}
-
-export interface EstimateRequest {
-  services: string[];
-  answers: Record<string, string | boolean | number>;
-  property: { city?: string; county?: string };
 }
 
 export function buildPlanningContext(req: EstimateRequest): PlanningContext {
