@@ -2,10 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProjectSpotlight } from "@/components/project-spotlight";
 import { CTASection } from "@/components/cta-section";
-import { galleryService } from "@/services/gallery";
+import { getProjects, getProject } from "@/config/projects";
 
 export function generateStaticParams() {
-  return galleryService.getProjects().map((p) => ({ slug: p.slug }));
+  return getProjects().map((p) => ({ slug: p.slug }));
 }
 
 export async function generateMetadata({
@@ -14,7 +14,7 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const project = galleryService.getProject(slug);
+  const project = getProject(slug);
   if (!project) return {};
   return {
     title: project.title,
@@ -30,7 +30,7 @@ export async function generateMetadata({
 
 export default async function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const project = galleryService.getProject(slug);
+  const project = getProject(slug);
   if (!project) notFound();
   return (
     <>
