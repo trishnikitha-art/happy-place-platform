@@ -46,9 +46,7 @@ export default function HomePage() {
         <div className="hero-craft" aria-hidden="true" />
         <div className="hero-square" aria-hidden="true" />
         <div className="hero-ticks" aria-hidden="true" />
-        <div className="sky-gradient" aria-hidden="true" />
         <div className="pnw-fog" aria-hidden="true" />
-        <div className="topographic-contour" aria-hidden="true" />
 
         <Container className="relative z-10 flex min-h-[88svh] flex-col justify-center py-28 lg:py-36">
           <div className="max-w-3xl">

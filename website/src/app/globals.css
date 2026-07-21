@@ -137,30 +137,30 @@ body {
    If you notice them immediately, they are too strong.
    ========================================================================== */
 
-/* HERO CRAFTSMANSHIP LAYER
-   Subtle sky gradient overlay (blueprint grid removed) */
+/* HERO ATMOSPHERIC LAYER
+   Combined sky gradient (single atmospheric layer) */
 .hero-craft {
   position: absolute;
   inset: 0;
   z-index: 2;
   pointer-events: none;
 }
-/* Very subtle sky gradient overlay */
+/* Subtle atmospheric gradient */
 .hero-craft::before {
   content: "";
   position: absolute;
   inset: 0;
   background: linear-gradient(
     135deg,
-    rgba(250, 251, 252, 0.15) 0%,
-    rgba(220, 234, 243, 0.1) 50%,
-    rgba(23, 50, 74, 0.05) 100%
+    rgba(250, 251, 252, 0.04) 0%,
+    rgba(220, 234, 243, 0.03) 50%,
+    rgba(23, 50, 74, 0.02) 100%
   );
   mix-blend-mode: overlay;
-  opacity: 0.6;
+  opacity: 0.5;
 }
 
-/* carpenter-square corner + pencil construction ticks (top-right) */
+/* carpenter-square corner - engraved feel */
 .hero-square {
   position: absolute;
   top: 28px;
@@ -168,17 +168,19 @@ body {
   width: 84px;
   height: 84px;
   pointer-events: none;
-  opacity: 0.12;
+  opacity: 0.04;
   z-index: 2;
+  filter: blur(0.5px);
 }
 .hero-square::before,
 .hero-square::after {
   content: "";
   position: absolute;
   background: var(--color-text-on-dark);
+  border-radius: 1px;
 }
-.hero-square::before { top: 0; right: 0; width: 2px; height: 84px; }
-.hero-square::after  { top: 0; right: 0; width: 84px; height: 2px; }
+.hero-square::before { top: 0; right: 0; width: 1px; height: 84px; }
+.hero-square::after  { top: 0; right: 0; width: 84px; height: 1px; }
 
 /* Engraved corner bracket - subtle woodworking joinery detail */
 .engraved-corner {
@@ -221,7 +223,7 @@ body {
   background: var(--color-charcoal);
   opacity: 0.3;
 }
-/* pencil tick marks along the square legs */
+/* pencil tick marks - randomized spacing */
 .hero-ticks {
   position: absolute;
   top: 28px;
@@ -229,10 +231,10 @@ body {
   width: 84px;
   height: 84px;
   pointer-events: none;
-  opacity: 0.1;
+  opacity: 0.03;
   z-index: 2;
   background-image: repeating-linear-gradient(
-    180deg, transparent 0 9px, var(--color-text-on-dark) 9px 10px
+    180deg, transparent 0 7px, var(--color-text-on-dark) 7px 8px, transparent 8px 15px, var(--color-text-on-dark) 15px 16px, transparent 16px 24px
   );
   -webkit-mask-image: linear-gradient(90deg, transparent 78px, black 78px 84px);
   mask-image: linear-gradient(90deg, transparent 78px, black 78px 84px);
@@ -451,56 +453,25 @@ body {
    ENVIRONMENTAL RICHNESS — PNW-inspired backgrounds (2-8% opacity)
    ========================================================================== */
 
-/* Pacific Northwest fog layer */
+/* Pacific Northwest fog layer - atmospheric, masked */
 .pnw-fog {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 2;
-  opacity: 0.15;
+  opacity: 0.05;
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(220, 234, 243, 0.15) 30%,
-    rgba(232, 241, 245, 0.2) 50%,
-    rgba(220, 234, 243, 0.15) 70%,
+    rgba(220, 234, 243, 0.08) 40%,
+    rgba(232, 241, 245, 0.12) 60%,
+    rgba(220, 234, 243, 0.08) 80%,
     transparent 100%
   );
+  mask-image: radial-gradient(ellipse 100% 60% at 50% 100%, black, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse 100% 60% at 50% 100%, black, transparent 70%);
 }
 
-/* Deep blue-gray sky gradient */
-.sky-gradient {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 2;
-  opacity: 0.2;
-  background: linear-gradient(
-    135deg,
-    rgba(23, 50, 74, 0.3) 0%,
-    rgba(36, 55, 70, 0.2) 40%,
-    rgba(48, 66, 78, 0.15) 70%,
-    rgba(220, 234, 243, 0.1) 100%
-  );
-}
 
-/* Topographic contour lines (mountain-inspired) */
-.topographic-contour {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 2;
-  opacity: 0.12;
-  background-image:
-    repeating-linear-gradient(
-      0deg,
-      transparent 0px,
-      transparent 20px,
-      rgba(48, 66, 78, 0.12) 20px,
-      rgba(48, 66, 78, 0.12) 21px,
-      transparent 21px,
-      transparent 40px
-    );
-}
 
 
