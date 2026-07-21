@@ -19,6 +19,7 @@ export const services: Service[] = [
     stat: "150+ built",
     galleryRefs: ["deck-corvallis", "deck-albany", "deck-salem"],
     estimateQuestions: [
+      { id: "deck_scope", label: "Scope of work?", type: "select", options: ["New build", "Repair / board replacement", "Resurface / re-stain only"], required: true, isScopeQuestion: true },
       { id: "deck_size", label: "Rough size of the deck (sq ft)?", type: "number", placeholder: "e.g. 300", required: true },
       { id: "deck_height", label: "Is it ground-level or elevated?", type: "select", options: ["Ground level", "Low (1–3 steps)", "Elevated (2nd story)"], required: true },
       { id: "deck_material", label: "Preferred material?", type: "select", options: ["Not sure", "Pressure-treated", "Cedar", "Composite / Trex"], required: false },
@@ -37,6 +38,7 @@ export const services: Service[] = [
     stat: "Cedar & vinyl",
     galleryRefs: ["fence-philomath", "fence-lebanon"],
     estimateQuestions: [
+      { id: "fence_scope", label: "Scope of work?", type: "select", options: ["New fence", "Repair (1-3 sections)", "Full replacement"], required: true, isScopeQuestion: true },
       { id: "fence_length", label: "Approximate total length (linear ft)?", type: "number", placeholder: "e.g. 120", required: true },
       { id: "fence_height", label: "Desired height?", type: "select", options: ["4 ft", "6 ft", "8 ft", "Other"], required: true },
       { id: "fence_material", label: "Material preference?", type: "select", options: ["Not sure", "Cedar", "Pressure-treated", "Vinyl", "Metal"], required: false },
@@ -72,7 +74,7 @@ export const services: Service[] = [
     stat: "Islands & more",
     galleryRefs: ["kitchen-salem", "kitchen-albany"],
     estimateQuestions: [
-      { id: "kitchen_scope", label: "Scope of work?", type: "select", options: ["Full gut remodel", "Cabinets + counters", "Island only", "Flooring + paint", "Not sure"], required: true },
+      { id: "kitchen_scope", label: "Scope of work?", type: "select", options: ["Full gut remodel", "Cabinets + counters", "Island only", "Flooring + paint", "Not sure"], required: true, isScopeQuestion: true },
       { id: "kitchen_layout", label: "Changing the layout?", type: "boolean", required: false },
       { id: "kitchen_appliances", label: "Appliance changes?", type: "textarea", placeholder: "range, fridge, dishwasher relocation…", required: false },
     ],
@@ -90,7 +92,7 @@ export const services: Service[] = [
     galleryRefs: ["bath-corvallis"],
     estimateQuestions: [
       { id: "bath_count", label: "How many bathrooms?", type: "number", placeholder: "1", required: true },
-      { id: "bath_scope", label: "Scope?", type: "select", options: ["Full remodel", "Shower/tub only", "Vanity + fixtures", "Tile + paint"], required: true },
+      { id: "bath_scope", label: "Scope?", type: "select", options: ["Full remodel", "Shower/tub only", "Vanity + fixtures", "Tile + paint"], required: true, isScopeQuestion: true },
       { id: "bath_fixtures", label: "Fixture notes?", type: "textarea", placeholder: "walk-in shower, double vanity, freestanding tub…", required: false },
     ],
     seo: { title: "Bathroom Remodeling in the Willamette Valley", description: "Bathroom remodels by Happy Place Carpentry.", keywords: ["bathroom remodel", "walk-in shower", "tile bath"] },
@@ -106,6 +108,7 @@ export const services: Service[] = [
     stat: "Fit to your home",
     galleryRefs: ["builtin-corvallis"],
     estimateQuestions: [
+      { id: "builtin_scope", label: "Scope of project?", type: "select", options: ["Single small piece", "Multi-piece project"], required: true, isScopeQuestion: true },
       { id: "builtin_type", label: "What are you envisioning?", type: "textarea", placeholder: "mudroom bench, bookshelf wall, window seat, wainscoting…", required: true },
       { id: "builtin_location", label: "Which room?", type: "text", placeholder: "e.g. living room", required: false },
     ],
@@ -136,3 +139,8 @@ export function getService(slug: string): Service | undefined {
 export function servicesByCategory(categorySlug: string): Service[] {
   return services.filter((s) => s.category === categorySlug);
 }
+
+// Canonical service slug type — derived from the services array.
+// Import this instead of re-declaring service identifier unions.
+export type ServiceSlug = typeof services[number]["slug"];
+

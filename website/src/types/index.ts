@@ -64,6 +64,8 @@ export interface EstimateQuestion {
   required?: boolean;
   placeholder?: string;
   help?: string;
+  /** NEW — marks this question as the scope-determining question for pricing. */
+  isScopeQuestion?: boolean;
 }
 
 export interface Service {
