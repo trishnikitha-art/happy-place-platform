@@ -25,6 +25,7 @@ export function ProjectSpotlight({
   const hero = project.photos[0];
 
   if (variant === "feature") {
+    if (!hero) return null;
     return (
       <Section className="bg-surface-muted">
         <Container className="grid items-center gap-10 lg:grid-cols-2">
@@ -63,6 +64,44 @@ export function ProjectSpotlight({
           </div>
         </Container>
       </Section>
+    );
+  }
+
+  if (!hero) {
+    return (
+      <article>
+        <div className="relative bg-secondary text-secondary-foreground">
+          <Container className="relative py-20">
+            <Badge>{project.county ? `${project.county} county` : "Project"}</Badge>
+            <h1 className="mt-3 max-w-3xl text-4xl font-bold sm:text-5xl">{project.title}</h1>
+            <p className="mt-4 max-w-2xl text-lg text-secondary-foreground/80">{project.summary}</p>
+          </Container>
+        </div>
+        <Section>
+          <Container className="grid gap-10 lg:grid-cols-3">
+            <div className="space-y-8 lg:col-span-2">
+              <StoryBlock icon={<Wrench className="h-5 w-5" />} title="The challenge" body={project.challenge} />
+              <StoryBlock icon={<Lightbulb className="h-5 w-5" />} title="Our solution" body={project.solution} />
+              <StoryBlock icon={<CheckCircle2 className="h-5 w-5" />} title="The outcome" body={project.outcome} />
+            </div>
+            <aside>
+              <div className="rounded-card border border-border bg-surface p-6">
+                <h3 className="flex items-center gap-2 font-bold text-text">
+                  <Package className="h-5 w-5 text-accent" /> Materials
+                </h3>
+                <ul className="mt-3 space-y-2 text-sm text-text-muted">
+                  {project.materials.map((m) => (
+                    <li key={m} className="flex items-start gap-2">
+                      <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
+                      {m}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </aside>
+          </Container>
+        </Section>
+      </article>
     );
   }
 

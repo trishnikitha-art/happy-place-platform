@@ -73,6 +73,7 @@ export default function OurWorkPage() {
           <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
             {projects.map((p, i) => {
               const hero = p.photos[0];
+              if (!hero) return null;
               return (
                 <Reveal key={p.slug} delay={i * 80}>
                   <Link
