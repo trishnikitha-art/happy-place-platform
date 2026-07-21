@@ -461,6 +461,163 @@ body {
 }
 
 /* ============================================================================
+   ENVIRONMENTAL RICHNESS — PNW-inspired backgrounds (2-8% opacity)
+   ========================================================================== */
+
+/* Pacific Northwest fog layer */
+.pnw-fog {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.06;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(220, 234, 243, 0.15) 30%,
+    rgba(232, 241, 245, 0.2) 50%,
+    rgba(220, 234, 243, 0.15) 70%,
+    transparent 100%
+  );
+}
+
+/* Deep blue-gray sky gradient */
+.sky-gradient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.08;
+  background: linear-gradient(
+    135deg,
+    rgba(23, 50, 74, 0.3) 0%,
+    rgba(36, 55, 70, 0.2) 40%,
+    rgba(48, 66, 78, 0.15) 70%,
+    rgba(220, 234, 243, 0.1) 100%
+  );
+}
+
+/* Topographic contour lines (mountain-inspired) */
+.topographic-contour {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 20px,
+      rgba(48, 66, 78, 0.12) 20px,
+      rgba(48, 66, 78, 0.12) 21px,
+      transparent 21px,
+      transparent 40px
+    );
+}
+
+/* Mountain horizon geometry */
+.mountain-horizon {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 120px;
+  pointer-events: none;
+  opacity: 0.04;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(48, 66, 78, 0.15) 60%,
+    rgba(48, 66, 78, 0.25) 100%
+  );
+  clip-path: polygon(
+    0% 100%,
+    0% 80%,
+    15% 65%,
+    25% 75%,
+    40% 55%,
+    55% 70%,
+    70% 45%,
+    85% 60%,
+    100% 50%,
+    100% 100%
+  );
+}
+
+/* River-inspired flowing curves */
+.river-curves {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image:
+    radial-gradient(ellipse at 20% 80%, rgba(48, 66, 78, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 60%, rgba(48, 66, 78, 0.12) 0%, transparent 40%),
+    radial-gradient(ellipse at 80% 40%, rgba(48, 66, 78, 0.1) 0%, transparent 35%);
+}
+
+/* Tree-ring radial patterns */
+.tree-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 400px;
+  height: 400px;
+  pointer-events: none;
+  opacity: 0.03;
+  border-radius: 50%;
+  background: repeating-radial-gradient(
+    circle at center,
+    transparent 0px,
+    transparent 20px,
+    rgba(48, 66, 78, 0.1) 20px,
+    rgba(48, 66, 78, 0.1) 21px,
+    transparent 21px,
+    transparent 40px,
+    rgba(48, 66, 78, 0.08) 40px,
+    rgba(48, 66, 78, 0.08) 41px,
+    transparent 41px,
+    transparent 60px
+  );
+}
+
+/* Cedar silhouette (subtle tree outline) */
+.cedar-silhouette {
+  position: absolute;
+  bottom: 0;
+  right: 10%;
+  width: 80px;
+  height: 120px;
+  pointer-events: none;
+  opacity: 0.03;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(93, 64, 55, 0.2) 100%
+  );
+  clip-path: polygon(
+    50% 0%,
+    35% 20%,
+    45% 25%,
+    30% 40%,
+    40% 45%,
+    25% 60%,
+    35% 65%,
+    20% 80%,
+    30% 85%,
+    15% 100%,
+    85% 100%,
+    70% 85%,
+    80% 80%,
+    65% 65%,
+    75% 60%,
+    60% 45%,
+    70% 40%,
+    55% 25%,
+    65% 20%
+  );
+}
+
+/* ============================================================================
    WOODWORKING CRAFTSMANSHIP LAYERS — subtle handcrafted details (2-8% opacity)
    ========================================================================== */
 
