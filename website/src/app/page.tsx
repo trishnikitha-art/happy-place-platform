@@ -160,7 +160,7 @@ export default function HomePage() {
         <Container className="grid grid-cols-2 gap-x-6 gap-y-8 py-14 text-center sm:grid-cols-4">
           {[
             [company.proof.projectsCompleted, "Projects completed"],
-            [`${company.proof.yearsInBusiness} yrs`, "In business"],
+            [company.proof.yearsInBusiness, "In business"],
             [company.ccbNumber, "Licensed · Insured"],
             ["1–2 days", "Estimate response"],
           ].map(([stat, label]) => (

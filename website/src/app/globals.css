@@ -245,7 +245,7 @@ body {
    bevel + rounded corners. Replaces borderless float on photo frames. */
 .photo-mounted {
   border-radius: var(--radius-card);
-  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  transition: transform 0.3s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.3s cubic-bezier(0.22, 1, 0.36, 1);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.7) inset,             /* subtle inner highlight */
     0 0 0 1px rgba(244, 239, 230, 0.75),                /* 1px warm ivory stroke */
@@ -355,7 +355,7 @@ body {
   box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
   border: 1px solid var(--color-warm-ivory);
   position: relative;
-  transition: box-shadow 0.2s ease-out, border-color 0.2s ease-out;
+  transition: box-shadow 0.3s ease-out, border-color 0.3s ease-out;
 }
 .float-card::before {
   content: "";
@@ -380,7 +380,7 @@ body {
   background: var(--color-honey);
   color: var(--color-honey-foreground);
   box-shadow: var(--shadow-warm);
-  transition: transform 0.25s ease, box-shadow 0.25s ease, background 0.25s ease;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
 }
 .cta-signature:hover {
   transform: translateY(-2px);

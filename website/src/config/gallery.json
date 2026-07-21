@@ -18,8 +18,8 @@
           "featured": false,
           "before": false,
           "after": false,
-          "hero": false,
-          "alt": "Bathroom Remodeling — Willamette Valley — detail photo by Happy Place Carpentry",
+          "hero": true,
+          "alt": "Bathroom Remodeling — Willamette Valley — hero photo by Happy Place Carpentry",
           "width": 1280,
           "height": 960,
           "focal": {
@@ -64,7 +64,7 @@
           ],
           "provenance": {
             "sourceFile": "Bathroom Remodeling/BATHROOM_WALL.png",
-            "importedAt": "2026-07-21T17:59:34.937Z",
+            "importedAt": "2026-07-21T18:37:26.150Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -79,8 +79,8 @@
           "featured": false,
           "before": false,
           "after": false,
-          "hero": false,
-          "alt": "Bathroom Remodeling — Willamette Valley — detail photo by Happy Place Carpentry",
+          "hero": true,
+          "alt": "Bathroom Remodeling — Willamette Valley — hero photo by Happy Place Carpentry",
           "width": 1280,
           "height": 960,
           "focal": {
@@ -125,7 +125,7 @@
           ],
           "provenance": {
             "sourceFile": "Bathroom Remodeling/BATHROOM_WALL.png",
-            "importedAt": "2026-07-21T17:59:34.937Z",
+            "importedAt": "2026-07-21T18:37:26.150Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -140,8 +140,8 @@
           "featured": false,
           "before": false,
           "after": false,
-          "hero": false,
-          "alt": "Bathroom Remodeling — Willamette Valley — detail photo by Happy Place Carpentry",
+          "hero": true,
+          "alt": "Bathroom Remodeling — Willamette Valley — hero photo by Happy Place Carpentry",
           "width": 1280,
           "height": 960,
           "focal": {
@@ -186,7 +186,7 @@
           ],
           "provenance": {
             "sourceFile": "Bathroom Remodeling/BATHROOM_WALL.png",
-            "importedAt": "2026-07-21T17:59:34.937Z",
+            "importedAt": "2026-07-21T18:37:26.150Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -263,7 +263,7 @@
           ],
           "provenance": {
             "sourceFile": "Built-Ins/FINISHEDCARPENTRY.png",
-            "importedAt": "2026-07-21T17:59:36.365Z",
+            "importedAt": "2026-07-21T18:37:27.577Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -324,7 +324,7 @@
           ],
           "provenance": {
             "sourceFile": "Built-Ins/FINISHEDCARPENTRY.png",
-            "importedAt": "2026-07-21T17:59:36.365Z",
+            "importedAt": "2026-07-21T18:37:27.577Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -385,7 +385,7 @@
           ],
           "provenance": {
             "sourceFile": "Built-Ins/FINISHEDCARPENTRY.png",
-            "importedAt": "2026-07-21T17:59:36.365Z",
+            "importedAt": "2026-07-21T18:37:27.577Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -450,7 +450,7 @@
             ],
             "provenance": {
               "sourceFile": "Built-Ins/FINISHEDCARPENTRY0.png",
-              "importedAt": "2026-07-21T17:59:35.560Z",
+              "importedAt": "2026-07-21T18:37:26.789Z",
               "pipelineVersion": "1.0.0"
             }
           }
@@ -505,7 +505,7 @@
           ],
           "provenance": {
             "sourceFile": "featured/featured.jpeg",
-            "importedAt": "2026-07-21T18:13:49.094Z",
+            "importedAt": "2026-07-21T18:37:27.728Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -546,7 +546,7 @@
           ],
           "provenance": {
             "sourceFile": "featured/featured.jpeg",
-            "importedAt": "2026-07-21T18:13:49.094Z",
+            "importedAt": "2026-07-21T18:37:27.728Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -587,7 +587,7 @@
           ],
           "provenance": {
             "sourceFile": "featured/featured.jpeg",
-            "importedAt": "2026-07-21T18:13:49.094Z",
+            "importedAt": "2026-07-21T18:37:27.728Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -632,7 +632,7 @@
             ],
             "provenance": {
               "sourceFile": "featured/featured.jpeg",
-              "importedAt": "2026-07-21T18:13:49.094Z",
+              "importedAt": "2026-07-21T18:37:27.728Z",
               "pipelineVersion": "1.0.0"
             }
           }
@@ -706,7 +706,7 @@
           ],
           "provenance": {
             "sourceFile": "Fences/FENCE BUILD.jpg",
-            "importedAt": "2026-07-21T17:59:37.702Z",
+            "importedAt": "2026-07-21T18:37:29.091Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -767,7 +767,7 @@
           ],
           "provenance": {
             "sourceFile": "Fences/FENCE BUILD.jpg",
-            "importedAt": "2026-07-21T17:59:37.702Z",
+            "importedAt": "2026-07-21T18:37:29.091Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -828,7 +828,7 @@
           ],
           "provenance": {
             "sourceFile": "Fences/FENCE BUILD.jpg",
-            "importedAt": "2026-07-21T17:59:37.702Z",
+            "importedAt": "2026-07-21T18:37:29.091Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -893,7 +893,7 @@
             ],
             "provenance": {
               "sourceFile": "Fences/FENCE BUILD.jpg",
-              "importedAt": "2026-07-21T17:59:37.702Z",
+              "importedAt": "2026-07-21T18:37:29.091Z",
               "pipelineVersion": "1.0.0"
             }
           },
@@ -954,7 +954,7 @@
             ],
             "provenance": {
               "sourceFile": "Fences/FENCEREBUILDMATCHINGSTAIN.png",
-              "importedAt": "2026-07-21T17:59:38.505Z",
+              "importedAt": "2026-07-21T18:37:29.920Z",
               "pipelineVersion": "1.0.0"
             }
           }
@@ -1009,7 +1009,7 @@
           ],
           "provenance": {
             "sourceFile": "hero/hero.jpeg",
-            "importedAt": "2026-07-21T18:13:49.295Z",
+            "importedAt": "2026-07-21T18:37:30.134Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -1050,7 +1050,7 @@
           ],
           "provenance": {
             "sourceFile": "hero/hero.jpeg",
-            "importedAt": "2026-07-21T18:13:49.295Z",
+            "importedAt": "2026-07-21T18:37:30.134Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -1091,7 +1091,7 @@
           ],
           "provenance": {
             "sourceFile": "hero/hero.jpeg",
-            "importedAt": "2026-07-21T18:13:49.295Z",
+            "importedAt": "2026-07-21T18:37:30.134Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -1136,7 +1136,7 @@
             ],
             "provenance": {
               "sourceFile": "hero/hero.jpeg",
-              "importedAt": "2026-07-21T18:13:49.295Z",
+              "importedAt": "2026-07-21T18:37:30.134Z",
               "pipelineVersion": "1.0.0"
             }
           }
@@ -1190,7 +1190,7 @@
           ],
           "provenance": {
             "sourceFile": "Outdoor Living/IMG_0535.JPG",
-            "importedAt": "2026-07-21T17:59:38.738Z",
+            "importedAt": "2026-07-21T18:37:30.373Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -1231,7 +1231,7 @@
           ],
           "provenance": {
             "sourceFile": "Outdoor Living/IMG_0535.JPG",
-            "importedAt": "2026-07-21T17:59:38.738Z",
+            "importedAt": "2026-07-21T18:37:30.373Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -1272,7 +1272,7 @@
           ],
           "provenance": {
             "sourceFile": "Outdoor Living/IMG_0535.JPG",
-            "importedAt": "2026-07-21T17:59:38.738Z",
+            "importedAt": "2026-07-21T18:37:30.373Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -1317,7 +1317,7 @@
             ],
             "provenance": {
               "sourceFile": "Outdoor Living/IMG_0535.JPG",
-              "importedAt": "2026-07-21T17:59:38.738Z",
+              "importedAt": "2026-07-21T18:37:30.373Z",
               "pipelineVersion": "1.0.0"
             }
           },
@@ -1358,7 +1358,7 @@
             ],
             "provenance": {
               "sourceFile": "Outdoor Living/IMG_0555.JPG",
-              "importedAt": "2026-07-21T17:59:38.957Z",
+              "importedAt": "2026-07-21T18:37:30.610Z",
               "pipelineVersion": "1.0.0"
             }
           },
@@ -1399,7 +1399,7 @@
             ],
             "provenance": {
               "sourceFile": "Outdoor Living/IMG_0559.JPG",
-              "importedAt": "2026-07-21T17:59:39.158Z",
+              "importedAt": "2026-07-21T18:37:30.827Z",
               "pipelineVersion": "1.0.0"
             }
           },
@@ -1440,7 +1440,7 @@
             ],
             "provenance": {
               "sourceFile": "Outdoor Living/IMG_0737.JPG",
-              "importedAt": "2026-07-21T17:59:39.382Z",
+              "importedAt": "2026-07-21T18:37:31.056Z",
               "pipelineVersion": "1.0.0"
             }
           },
@@ -1481,7 +1481,7 @@
             ],
             "provenance": {
               "sourceFile": "Outdoor Living/IMG_0805.JPG",
-              "importedAt": "2026-07-21T17:59:39.593Z",
+              "importedAt": "2026-07-21T18:37:31.261Z",
               "pipelineVersion": "1.0.0"
             }
           },
@@ -1522,7 +1522,7 @@
             ],
             "provenance": {
               "sourceFile": "Outdoor Living/IMG_0841.JPG",
-              "importedAt": "2026-07-21T17:59:39.787Z",
+              "importedAt": "2026-07-21T18:37:31.450Z",
               "pipelineVersion": "1.0.0"
             }
           }
@@ -1581,7 +1581,7 @@
           ],
           "provenance": {
             "sourceFile": "portrait/portrait.jpeg",
-            "importedAt": "2026-07-21T18:13:49.401Z",
+            "importedAt": "2026-07-21T18:37:31.532Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -1622,7 +1622,7 @@
           ],
           "provenance": {
             "sourceFile": "portrait/portrait.jpeg",
-            "importedAt": "2026-07-21T18:13:49.401Z",
+            "importedAt": "2026-07-21T18:37:31.532Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -1663,7 +1663,7 @@
           ],
           "provenance": {
             "sourceFile": "portrait/portrait.jpeg",
-            "importedAt": "2026-07-21T18:13:49.401Z",
+            "importedAt": "2026-07-21T18:37:31.532Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -1708,7 +1708,7 @@
             ],
             "provenance": {
               "sourceFile": "portrait/portrait.jpeg",
-              "importedAt": "2026-07-21T18:13:49.401Z",
+              "importedAt": "2026-07-21T18:37:31.532Z",
               "pipelineVersion": "1.0.0"
             }
           }
@@ -1782,7 +1782,7 @@
           ],
           "provenance": {
             "sourceFile": "Repairs/TRIMREPAIR.png",
-            "importedAt": "2026-07-21T17:59:44.539Z",
+            "importedAt": "2026-07-21T18:37:36.812Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -1843,7 +1843,7 @@
           ],
           "provenance": {
             "sourceFile": "Repairs/TRIMREPAIR.png",
-            "importedAt": "2026-07-21T17:59:44.539Z",
+            "importedAt": "2026-07-21T18:37:36.812Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -1904,7 +1904,7 @@
           ],
           "provenance": {
             "sourceFile": "Repairs/TRIMREPAIR.png",
-            "importedAt": "2026-07-21T17:59:44.539Z",
+            "importedAt": "2026-07-21T18:37:36.812Z",
             "pipelineVersion": "1.0.0"
           }
         },
@@ -1969,7 +1969,7 @@
             ],
             "provenance": {
               "sourceFile": "Repairs/FLOOR0.jpg",
-              "importedAt": "2026-07-21T17:59:40.607Z",
+              "importedAt": "2026-07-21T18:37:32.358Z",
               "pipelineVersion": "1.0.0"
             }
           },
@@ -2010,7 +2010,7 @@
             ],
             "provenance": {
               "sourceFile": "Repairs/IMG_0544.JPG",
-              "importedAt": "2026-07-21T17:59:40.740Z",
+              "importedAt": "2026-07-21T18:37:32.494Z",
               "pipelineVersion": "1.0.0"
             }
           },
@@ -2051,7 +2051,7 @@
             ],
             "provenance": {
               "sourceFile": "Repairs/IMG_0546.JPG",
-              "importedAt": "2026-07-21T17:59:40.970Z",
+              "importedAt": "2026-07-21T18:37:32.713Z",
               "pipelineVersion": "1.0.0"
             }
           },
@@ -2112,7 +2112,7 @@
             ],
             "provenance": {
               "sourceFile": "Repairs/DRYWALL.png",
-              "importedAt": "2026-07-21T17:59:41.985Z",
+              "importedAt": "2026-07-21T18:37:33.745Z",
               "pipelineVersion": "1.0.0"
             }
           },
@@ -2173,7 +2173,7 @@
             ],
             "provenance": {
               "sourceFile": "Repairs/FLOOR.png",
-              "importedAt": "2026-07-21T17:59:42.704Z",
+              "importedAt": "2026-07-21T18:37:34.519Z",
               "pipelineVersion": "1.0.0"
             }
           },
@@ -2234,7 +2234,7 @@
             ],
             "provenance": {
               "sourceFile": "Repairs/GUTTERCLEANING.jpg",
-              "importedAt": "2026-07-21T17:59:43.438Z",
+              "importedAt": "2026-07-21T18:37:35.384Z",
               "pipelineVersion": "1.0.0"
             }
           }
@@ -2263,8 +2263,8 @@
       "featured": false,
       "before": false,
       "after": false,
-      "hero": false,
-      "alt": "Bathroom Remodeling — Willamette Valley — detail photo by Happy Place Carpentry",
+      "hero": true,
+      "alt": "Bathroom Remodeling — Willamette Valley — hero photo by Happy Place Carpentry",
       "width": 1280,
       "height": 960,
       "focal": {
@@ -2309,7 +2309,7 @@
       ],
       "provenance": {
         "sourceFile": "Bathroom Remodeling/BATHROOM_WALL.png",
-        "importedAt": "2026-07-21T17:59:34.937Z",
+        "importedAt": "2026-07-21T18:37:26.150Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -2370,7 +2370,7 @@
       ],
       "provenance": {
         "sourceFile": "Built-Ins/FINISHEDCARPENTRY0.png",
-        "importedAt": "2026-07-21T17:59:35.560Z",
+        "importedAt": "2026-07-21T18:37:26.789Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -2431,7 +2431,7 @@
       ],
       "provenance": {
         "sourceFile": "Built-Ins/FINISHEDCARPENTRY.png",
-        "importedAt": "2026-07-21T17:59:36.365Z",
+        "importedAt": "2026-07-21T18:37:27.577Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -2472,7 +2472,7 @@
       ],
       "provenance": {
         "sourceFile": "featured/featured.jpeg",
-        "importedAt": "2026-07-21T18:13:49.094Z",
+        "importedAt": "2026-07-21T18:37:27.728Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -2533,7 +2533,7 @@
       ],
       "provenance": {
         "sourceFile": "Fences/FENCE BUILD.jpg",
-        "importedAt": "2026-07-21T17:59:37.702Z",
+        "importedAt": "2026-07-21T18:37:29.091Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -2594,7 +2594,7 @@
       ],
       "provenance": {
         "sourceFile": "Fences/FENCEREBUILDMATCHINGSTAIN.png",
-        "importedAt": "2026-07-21T17:59:38.505Z",
+        "importedAt": "2026-07-21T18:37:29.920Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -2635,7 +2635,7 @@
       ],
       "provenance": {
         "sourceFile": "hero/hero.jpeg",
-        "importedAt": "2026-07-21T18:13:49.295Z",
+        "importedAt": "2026-07-21T18:37:30.134Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -2676,7 +2676,7 @@
       ],
       "provenance": {
         "sourceFile": "Outdoor Living/IMG_0535.JPG",
-        "importedAt": "2026-07-21T17:59:38.738Z",
+        "importedAt": "2026-07-21T18:37:30.373Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -2717,7 +2717,7 @@
       ],
       "provenance": {
         "sourceFile": "Outdoor Living/IMG_0555.JPG",
-        "importedAt": "2026-07-21T17:59:38.957Z",
+        "importedAt": "2026-07-21T18:37:30.610Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -2758,7 +2758,7 @@
       ],
       "provenance": {
         "sourceFile": "Outdoor Living/IMG_0559.JPG",
-        "importedAt": "2026-07-21T17:59:39.158Z",
+        "importedAt": "2026-07-21T18:37:30.827Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -2799,7 +2799,7 @@
       ],
       "provenance": {
         "sourceFile": "Outdoor Living/IMG_0737.JPG",
-        "importedAt": "2026-07-21T17:59:39.382Z",
+        "importedAt": "2026-07-21T18:37:31.056Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -2840,7 +2840,7 @@
       ],
       "provenance": {
         "sourceFile": "Outdoor Living/IMG_0805.JPG",
-        "importedAt": "2026-07-21T17:59:39.593Z",
+        "importedAt": "2026-07-21T18:37:31.261Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -2881,7 +2881,7 @@
       ],
       "provenance": {
         "sourceFile": "Outdoor Living/IMG_0841.JPG",
-        "importedAt": "2026-07-21T17:59:39.787Z",
+        "importedAt": "2026-07-21T18:37:31.450Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -2922,7 +2922,7 @@
       ],
       "provenance": {
         "sourceFile": "portrait/portrait.jpeg",
-        "importedAt": "2026-07-21T18:13:49.401Z",
+        "importedAt": "2026-07-21T18:37:31.532Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -2983,7 +2983,7 @@
       ],
       "provenance": {
         "sourceFile": "Repairs/FLOOR0.jpg",
-        "importedAt": "2026-07-21T17:59:40.607Z",
+        "importedAt": "2026-07-21T18:37:32.358Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -3024,7 +3024,7 @@
       ],
       "provenance": {
         "sourceFile": "Repairs/IMG_0544.JPG",
-        "importedAt": "2026-07-21T17:59:40.740Z",
+        "importedAt": "2026-07-21T18:37:32.494Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -3065,7 +3065,7 @@
       ],
       "provenance": {
         "sourceFile": "Repairs/IMG_0546.JPG",
-        "importedAt": "2026-07-21T17:59:40.970Z",
+        "importedAt": "2026-07-21T18:37:32.713Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -3126,7 +3126,7 @@
       ],
       "provenance": {
         "sourceFile": "Repairs/DRYWALL.png",
-        "importedAt": "2026-07-21T17:59:41.985Z",
+        "importedAt": "2026-07-21T18:37:33.745Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -3187,7 +3187,7 @@
       ],
       "provenance": {
         "sourceFile": "Repairs/FLOOR.png",
-        "importedAt": "2026-07-21T17:59:42.704Z",
+        "importedAt": "2026-07-21T18:37:34.519Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -3248,7 +3248,7 @@
       ],
       "provenance": {
         "sourceFile": "Repairs/GUTTERCLEANING.jpg",
-        "importedAt": "2026-07-21T17:59:43.438Z",
+        "importedAt": "2026-07-21T18:37:35.384Z",
         "pipelineVersion": "1.0.0"
       }
     },
@@ -3309,7 +3309,7 @@
       ],
       "provenance": {
         "sourceFile": "Repairs/TRIMREPAIR.png",
-        "importedAt": "2026-07-21T17:59:44.539Z",
+        "importedAt": "2026-07-21T18:37:36.812Z",
         "pipelineVersion": "1.0.0"
       }
     }

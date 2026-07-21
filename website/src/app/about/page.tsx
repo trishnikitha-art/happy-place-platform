@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { CTASection } from "@/components/cta-section";
-import { Badge } from "@/components/ui/card";
 import { company } from "@/config/company";
 import { counties } from "@/config/counties";
 import { ownerPortrait } from "@/lib/media";
@@ -14,8 +13,6 @@ export const metadata: Metadata = {
 };
 
 export default function AboutPage() {
-  const [taylor, lanie] = company.owners;
-
   return (
     <>
       {/* HERO */}
@@ -43,27 +40,6 @@ export default function AboutPage() {
           </div>
         </Container>
       </section>
-
-      {/* THE FAMILY — why we exist, not job titles */}
-      <Section>
-        <Container className="grid gap-8 md:grid-cols-2">
-          {[taylor, lanie].map((o) => (
-            <div key={o.name} className="rounded-card border border-border bg-surface p-8 shadow-sm">
-              <p className="font-signature text-3xl text-honey">{o.name} L.</p>
-              <h2 className="mt-1 font-display text-2xl font-bold text-text">{o.title}</h2>
-              <p className="mt-4 text-text-muted">{o.focus}</p>
-            </div>
-          ))}
-        </Container>
-        <Container className="mt-8">
-          <div className="flex flex-wrap gap-2">
-            <Badge> Licensed &amp; Insured</Badge>
-            <Badge> {company.ccbNumber}</Badge>
-            <Badge> {company.proof.yearsInBusiness} years in business</Badge>
-            <Badge> {company.proof.projectsCompleted} projects</Badge>
-          </div>
-        </Container>
-      </Section>
 
       {/* SERVICE AREA */}
       <Section className="bg-cream">

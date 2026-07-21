@@ -4,6 +4,7 @@
 // CI/deploy can treat image quality as a release gate.
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, resolve, relative } from "node:path";
+import { runValidators } from "./image-qa/validators.mjs";
 
 const root = resolve(process.cwd());
 const publicDir = join(root, "public");
@@ -85,9 +86,31 @@ if (hasReal) {
 }
 if (blurOk) ok(hasReal ? "all real photos carry blur placeholders" : "blur placeholders present for rasters (or none yet)");
 
-// Phase 6 — Constitutional validation
-// 4a) uuid content-hash integrity chain: every gallery image with uuid+contentHash
-//     must match the manifest.v1.json asset with the same uuid.
+// Phase 6 — Constitutional validation using validator objects
+// Build validation context
+const validationContext = {
+  presentation: PRESENTATION,
+  manifestAssets: MANIFEST_ASSETS,
+  galleryImages: G_IMAGES,
+};
+
+// Run all constitutional validators
+const violations = await runValidators(validationContext);
+
+// Report violations
+for (const v of violations) {
+  const prefix = v.severity === "error" ? "✗" : "⚠";
+  const imageRef = v.image ? ` [${v.image}]` : "";
+  console.log(`  ${prefix} [${v.authority}] ${v.rule}${imageRef}: ${v.message}`);
+  if (v.fix) console.log(`     Fix: ${v.fix}`);
+  failures++;
+}
+
+if (violations.filter(v => v.severity === "error").length === 0) {
+  ok(`constitutional validation passed (${violations.length} checks)`);
+}
+
+// Legacy checks: uuid/content-hash integrity (keep for now)
 if (G_IMAGES.length && MANIFEST_ASSETS.length) {
   let uuidOk = 0; let uuidFail = 0;
   for (const gi of G_IMAGES) {
@@ -101,7 +124,7 @@ if (G_IMAGES.length && MANIFEST_ASSETS.length) {
   else ok(`${uuidOk}/${G_IMAGES.length} gallery images passed uuid/content-hash check`);
 }
 
-// 4b) presentation.v1.json every referenced photo id resolves in gallery.json
+// Legacy checks: presentation references resolve in gallery (keep for now)
 if (PRESENTATION) {
   const galleryIds = new Set(G_IMAGES.map((i) => i.id));
   let presOk = 0; let presFail = 0;

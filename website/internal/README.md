@@ -7,7 +7,6 @@ interfaces, and matures independently.
 
 ## Modules
 ```
-auth/oauth.ts            Google OAuth scopes + env-only config (configure now, wire later)
 sheets/schema.ts         Typed schema for the 10 operational Sheets (provenance on every row)
 reviews/reviewAuthority.ts   ReviewAuthority — single source of truth, no duplicated review text
 estimate/learning.ts     Estimate learning loop — collects actuals → competitive insights
@@ -44,7 +43,7 @@ Historical Estimates · Completed Projects · Confidence Models.
 The engine can explain *why* it arrived at a planning range while showing the
 customer only a simple estimate.
 
-## Auth to configure before launch (P4)
-Google OAuth (Sheets, Gmail, Drive-readonly, Business Profile). Credentials are
-env-only. Even if half is used on day one, correct credentials early prevent
-painful later migrations.
+## Auth
+OAuth lives in `src/lib/google.ts` (ACTIVE). The internal/ auth stub was deleted —
+it was superseded by the active implementation. When Google features beyond Gmail
+Send are activated, scopes are added to `src/lib/google.ts` at that time.

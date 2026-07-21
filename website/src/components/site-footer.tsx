@@ -18,7 +18,7 @@ export function SiteFooter() {
           <p className="mt-3 text-sm text-text-on-dark/70">{company.description}</p>
           <p className="mt-3 text-sm font-semibold text-honey">{company.ccbNumber}</p>
           <p className="mt-1 text-xs text-text-on-dark/60">
-            {company.proof.insured ? "Licensed · Insured" : "Licensed"} · {company.proof.yearsInBusiness} yrs · {company.proof.projectsCompleted} projects
+            {company.proof.insured ? "Licensed · Insured" : "Licensed"} · {company.proof.yearsInBusiness} · {company.proof.projectsCompleted} projects
           </p>
         </div>
 

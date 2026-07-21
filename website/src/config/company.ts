@@ -38,9 +38,9 @@ export const company: Company = {
     },
   ],
   proof: {
-    projectsCompleted: "150+",
+    projectsCompleted: "50+",
     estimateResponse: "Most estimates scheduled within 1–2 business days",
-    yearsInBusiness: "12",
+    yearsInBusiness: "Est. 2024",
     insured: true,
     bonded: true,
     serviceCounties: ["Benton", "Linn", "Marion", "Polk"],

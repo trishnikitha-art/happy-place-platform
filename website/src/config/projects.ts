@@ -4,6 +4,9 @@ import type { Project } from "@/types";
  * Project Spotlights — completed-project stories (Challenge/Solution/Materials/
  * Outcome/Photos). These build trust better than an image grid. Reusable across
  * any service business; content lives here, not in components.
+ *
+ * Photos are now sourced from media.ts galleryAll() - no hardcoded paths.
+ * The photos array is empty here; real project photos come from the pipeline.
  */
 export const projects: Project[] = [
   {
@@ -19,11 +22,7 @@ export const projects: Project[] = [
     materials: ["Western red cedar decking", "Hidden fasteners", "Galvanized structural hardware", "Cedar bench framing", "Penetrating UV-stable sealer"],
     outcome:
       "The family gained roughly 40% more usable space and a low-maintenance surface built for the climate. It passed inspection on the first visit and has become the center of their summer gatherings.",
-    photos: [
-      { src: "/images/gallery/deck-corvallis.svg", alt: "Finished two-tier cedar entertainer deck with built-in bench seating in Corvallis", width: 1200, height: 800, caption: "Two-tier cedar deck with built-in seating" },
-      { src: "/images/gallery/deck-albany.svg", alt: "Detail of hidden-fastener cedar decking and bench", width: 1200, height: 800, caption: "Hidden-fastener decking keeps the surface clean and splinter-free" },
-      { src: "/images/gallery/deck-salem.svg", alt: "Wide gentle steps opening the deck to the backyard", width: 1200, height: 800, caption: "Wide steps replaced the old trip hazard" },
-    ],
+    photos: [],
     featured: true,
     completedAt: "2026-05-20",
   },
@@ -40,10 +39,7 @@ export const projects: Project[] = [
     materials: ["Shaker cabinetry", "Quartz countertops", "Soft-close hardware", "Under-cabinet LED lighting", "Custom island trim"],
     outcome:
       "The kitchen reads twice as large, seats four at the island, and gained significant prep and storage space — delivered on schedule with the plumbing untouched.",
-    photos: [
-      { src: "/images/gallery/kitchen-salem.svg", alt: "Bright white farmhouse kitchen remodel with island in Salem", width: 1200, height: 800, caption: "Open farmhouse layout with a new island" },
-      { src: "/images/gallery/kitchen-albany.svg", alt: "New island with seating and quartz counter", width: 1200, height: 800, caption: "Island seating for four" },
-    ],
+    photos: [],
     featured: false,
     completedAt: "2026-03-15",
   },

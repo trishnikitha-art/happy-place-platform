@@ -5,8 +5,7 @@ import type { Service } from "@/types";
  * render dynamically (no hardcoded conditionals). Photos upload is a global
  * step in the wizard; per-service questions focus on WHAT work + WHERE.
  *
- * Image paths under /images/... are placeholders today; drop real client-owned
- * photos in public/images and update `src` here. The file is the only change.
+ * Service photos are now sourced from media.ts via servicePhoto() - no hardcoded paths.
  */
 export const services: Service[] = [
   {
@@ -18,7 +17,6 @@ export const services: Service[] = [
       "From ground-level patios to multi-tier entertainer decks, we design and build outdoor spaces meant for daily use — pressure-treated, cedar, or composite, built to code and detailed to last.",
     icon: "Layers",
     stat: "150+ built",
-    heroImage: "/images/services/decks.svg",
     galleryRefs: ["deck-corvallis", "deck-albany", "deck-salem"],
     estimateQuestions: [
       { id: "deck_size", label: "Rough size of the deck (sq ft)?", type: "number", placeholder: "e.g. 300", required: true },
@@ -37,7 +35,6 @@ export const services: Service[] = [
       "Cedar, vinyl, or metal fencing and gates set straight and plumb, detailed to sit naturally with the home. We handle permits and respect property lines.",
     icon: "Fence",
     stat: "Cedar & vinyl",
-    heroImage: "/images/services/fences.svg",
     galleryRefs: ["fence-philomath", "fence-lebanon"],
     estimateQuestions: [
       { id: "fence_length", label: "Approximate total length (linear ft)?", type: "number", placeholder: "e.g. 120", required: true },
@@ -56,7 +53,6 @@ export const services: Service[] = [
       "Pergolas, arbors, and covered structures built to complement the home and create comfortable outdoor rooms you will actually use.",
     icon: "Tent",
     stat: "Custom shade",
-    heroImage: "/images/services/pergolas.svg",
     galleryRefs: ["pergola-corvallis"],
     estimateQuestions: [
       { id: "pergola_size", label: "Rough footprint (ft x ft)?", type: "text", placeholder: "e.g. 12x14", required: true },
@@ -74,7 +70,6 @@ export const services: Service[] = [
       "Cabinetry, islands, flooring, and layout changes — full or partial remodels handled with clear communication and a clean job site.",
     icon: "Refrigerator",
     stat: "Islands & more",
-    heroImage: "/images/services/kitchen.svg",
     galleryRefs: ["kitchen-salem", "kitchen-albany"],
     estimateQuestions: [
       { id: "kitchen_scope", label: "Scope of work?", type: "select", options: ["Full gut remodel", "Cabinets + counters", "Island only", "Flooring + paint", "Not sure"], required: true },
@@ -92,7 +87,6 @@ export const services: Service[] = [
       "Showers, vanities, tile, and full bath remodels with proper waterproofing and ventilation — done carefully and verified.",
     icon: "Bath",
     stat: "Waterproofed",
-    heroImage: "/images/services/bath.svg",
     galleryRefs: ["bath-corvallis"],
     estimateQuestions: [
       { id: "bath_count", label: "How many bathrooms?", type: "number", placeholder: "1", required: true },
@@ -110,7 +104,6 @@ export const services: Service[] = [
       "Built-in shelving, mudroom benches, wainscoting, and trim work crafted to your space, your style, and the details that make it feel finished.",
     icon: "BookOpen",
     stat: "Fit to your home",
-    heroImage: "/images/services/builtins.svg",
     galleryRefs: ["builtin-corvallis"],
     estimateQuestions: [
       { id: "builtin_type", label: "What are you envisioning?", type: "textarea", placeholder: "mudroom bench, bookshelf wall, window seat, wainscoting…", required: true },
@@ -127,7 +120,6 @@ export const services: Service[] = [
       "Dry rot repair, trim, doors, and general carpentry — straightforward advice and reliable work, with no upsell.",
     icon: "Wrench",
     stat: "Honest advice",
-    heroImage: "/images/services/repairs.svg",
     galleryRefs: [],
     estimateQuestions: [
       { id: "repair_what", label: "What needs fixing?", type: "textarea", placeholder: "describe the issue…", required: true },

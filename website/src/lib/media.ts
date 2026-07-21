@@ -21,6 +21,7 @@
  */
 import gallery from "@/config/gallery.json";
 import presentation from "@/config/presentation.v1.json";
+import { buildPresentationAuthority } from "./presentation-authority";
 
 export interface MediaImage {
   src: string;
@@ -59,6 +60,10 @@ export type Role =
   | "FenceCover"
   | "BathroomCover"
   | "KitchenCover"
+  | "DeckCover"
+  | "PergolaCover"
+  | "BuiltInsCover"
+  | "OutdoorLivingCover"
   | "GalleryHighlight"
   | "GallerySupporting"
   | "HomepageFeature"
@@ -76,16 +81,11 @@ interface PhotoMeta {
   quality: { hero: boolean; gallery: boolean; service: boolean };
 }
 
-/**
- * PHOTO ROLES — sourced from presentation.v1.json (Directive 033).
- * Human curation lives in the JSON file; this module reads it at import time.
- * Edit presentation.v1.json to re-route the whole site.
- */
-const PHOTO_ROLES: PhotoMeta[] = (presentation as any).photoRoles;
-
 const G = gallery as unknown as { projects: any[]; images: GalleryRecord[] };
 const BY_ID = new Map(G.images.map((i) => [i.id, i]));
-const ROLE_BY_ID = new Map(PHOTO_ROLES.map((m) => [m.id, m]));
+
+// Build presentation authority once (constitutional index)
+const PresentationAuthority = buildPresentationAuthority(presentation as any);
 
 function toMedia(r: GalleryRecord): MediaImage {
   return {
@@ -100,7 +100,8 @@ function toMedia(r: GalleryRecord): MediaImage {
 
 /** Best photo for a role (highest priority with a real src). Null if none. */
 export function photoFor(role: Role): MediaImage | null {
-  const hits = PHOTO_ROLES.filter((m) => m.roles.includes(role) && m.quality.gallery)
+  const photoRoles = PresentationAuthority.getPhotoRoles();
+  const hits = photoRoles.filter((m) => m.roles.includes(role) && m.quality.gallery)
     .sort((a, b) => b.priority - a.priority)
     .map((m) => BY_ID.get(m.id))
     .filter((r): r is GalleryRecord => !!r && !!r.src);
@@ -108,23 +109,13 @@ export function photoFor(role: Role): MediaImage | null {
 }
 
 /**
- * Photo for a service card by slug. Prefers that service's own category; if a
- * service has no native photo yet (e.g. decks/pergolas/kitchen), it returns null
- * to show a tasteful placeholder state. No proxy images — honest placeholder
- * until real photography arrives.
+ * Photo for a service card by slug. Uses serviceCover mapping from presentation.v1.json
+ * to get the specific cover role for each service. Returns null if no photo assigned.
  */
 export function servicePhoto(slug: string): MediaImage | null {
-  const cat = SERVICE_CATEGORY[slug];
-  if (!cat) return null;
-  const hits = PHOTO_ROLES.filter(
-    (m) => m.category === cat && m.quality.service,
-  )
-    .sort((a, b) => b.priority - a.priority)
-    .map((m) => BY_ID.get(m.id))
-    .filter((r): r is GalleryRecord => !!r && !!r.src);
-  if (hits.length) return toMedia(hits[0]);
-  // Return null for services without real photos — component shows placeholder
-  return null;
+  const coverRole = PresentationAuthority.getServiceCover(slug);
+  if (!coverRole) return null;
+  return photoFor(coverRole);
 }
 
 /**
@@ -133,11 +124,10 @@ export function servicePhoto(slug: string): MediaImage | null {
  * exhaustive product. Two different goals, two different selectors.
  * Sourced from presentation.v1.json.
  */
-const HOMEPAGE_CURATION: string[] = (presentation as any).homepageCuration;
 
 /** The single most important image after the hero. Sourced from presentation.v1.json. */
 export function featuredTransformation(): MediaImage | null {
-  return byId((presentation as any).featuredTransformationId);
+  return byId(PresentationAuthority.getFeaturedTransformationId());
 }
 
 /** Primary full-width hero background photograph. Sourced from presentation.v1.json. */
@@ -148,7 +138,8 @@ export function heroBackground(): MediaImage | null {
 /** Curated homepage set (magazine cover). Repairs excluded here — trust-builders,
  *  surfaced lower / in the archive, not as aspiration. */
 export function homepageSelection(): MediaImage[] {
-  return HOMEPAGE_CURATION.map(byId).filter((m) => !!m) as MediaImage[];
+  const homepageCuration = PresentationAuthority.getHomepageCuration();
+  return homepageCuration.map(byId).filter((m) => !!m) as MediaImage[];
 }
 
 function byId(id: string): MediaImage | null {
@@ -159,8 +150,9 @@ function byId(id: string): MediaImage | null {
 /** Gallery selection — the FULL museum. Every cataloged photo, grouped by project,
  *  ordered by priority. Nothing is orphaned; nothing is hidden. */
 export function galleryAll(): { project: string; category: string; images: MediaImage[] }[] {
+  const photoRoles = PresentationAuthority.getPhotoRoles();
   const byProject = new Map<string, GalleryRecord[]>();
-  for (const m of PHOTO_ROLES) {
+  for (const m of photoRoles) {
     const r = BY_ID.get(m.id);
     if (!r || !r.src) continue;
     if (!byProject.has(r.project)) byProject.set(r.project, []);
@@ -171,7 +163,7 @@ export function galleryAll(): { project: string; category: string; images: Media
       project,
       category: recs[0]?.category ?? "",
       images: recs
-        .map((r) => ({ r, m: ROLE_BY_ID.get(r.id)! }))
+        .map((r) => ({ r, m: PresentationAuthority.getRole(r.id)! }))
         .sort((a, b) => b.m.priority - a.m.priority)
         .map((x) => toMedia(x.r)),
     }))
@@ -180,51 +172,51 @@ export function galleryAll(): { project: string; category: string; images: Media
 
 /** Reserved single Taylor & Lanie portrait (homepage owner section + About only). */
 export function ownerPortrait(): MediaImage {
-  return FALLBACK.owner;
+  return PresentationAuthority.getFallback("owner");
 }
 
 export function hasRealPhotos(): boolean {
   return G.images.some((i) => i.src);
 }
 
-// Maps service slugs → pipeline category (from presentation.v1.json).
-const SERVICE_CATEGORY: Record<string, string> = (presentation as any).serviceCategory;
-
 // Real pipeline images as GalleryItem[] (for the lightbox / full gallery grid).
-// Derived from SERVICE_CATEGORY — these are inverses.
-function invertMap(m: Record<string, string>): Record<string, string> {
-  const r: Record<string, string> = {};
-  for (const k of Object.keys(m)) r[m[k]] = k;
-  return r;
-}
-const CATEGORY_SERVICE = invertMap(SERVICE_CATEGORY);
+// Derived from serviceCategory mapping in presentation.v1.json.
 export function realGalleryItems() {
+  const photoRoles = PresentationAuthority.getPhotoRoles();
+  const roleById = new Map(photoRoles.map((m) => [m.id, m]));
+  
   return G.images
-    .filter((i) => i.src && !i.before)
-    .map((i) => ({
-      id: i.id,
-      project: i.project,
-      service: CATEGORY_SERVICE[i.category] ?? "decks",
-      src: i.src as string,
-      alt: i.alt,
-      featured: Boolean(i.hero),
-      beforeAfter: null,
-      county: i.county,
-      tags: [i.category.toLowerCase()],
-      width: i.width,
-      height: i.height,
-      category: i.category,
-      orientation: (i.width >= i.height ? "landscape" : "portrait") as "landscape" | "portrait" | "square",
-      blurDataURL: i.blurDataURL,
-    }));
+    .filter((i) => i.src)
+    .map((i) => {
+      const meta = roleById.get(i.id);
+      // Check if any role indicates this is a "before" photo (excluded from gallery)
+      const isBefore = meta?.roles?.some((r: string) => r.toLowerCase().includes("before")) ?? false;
+      // Check if any role indicates this is a featured/hero photo
+      const isFeatured = meta?.roles?.some((r: string) => 
+        r.toLowerCase().includes("hero") || 
+        r.toLowerCase().includes("featured") ||
+        r === "ProjectCover"
+      ) ?? false;
+      
+      return {
+        id: i.id,
+        project: i.project,
+        service: PresentationAuthority.getServiceByCategory(i.category),
+        src: i.src as string,
+        alt: i.alt,
+        featured: isFeatured,
+        beforeAfter: null,
+        county: i.county,
+        tags: [i.category.toLowerCase()],
+        width: i.width,
+        height: i.height,
+        category: i.category,
+        orientation: (i.width >= i.height ? "landscape" : "portrait") as "landscape" | "portrait" | "square",
+        blurDataURL: i.blurDataURL,
+      };
+    })
+    .filter((i) => !i.beforeAfter);
 }
-
-// Committed reserved placeholders (only the owner portrait is intentionally
-// reserved until a real Taylor & Lanie portrait is shot).
-// Sourced from presentation.v1.json.
-const FALLBACK: Record<string, MediaImage> = {
-  owner: (presentation as any).fallback.owner,
-};
 
 /**
  * Backward-compatible intent resolver. New code should use photoFor /
@@ -237,15 +229,15 @@ export function media(key: string): MediaImage {
     const hit = servicePhoto(slug);
     if (hit) return hit;
   }
-  if (key === "owner" || key === "about") return FALLBACK.owner;
+  if (key === "owner" || key === "about") return PresentationAuthority.getFallback("owner");
   if (key === "hero") {
     const hero = heroBackground();
     if (hero) return hero;
-    return FALLBACK.owner;
+    return PresentationAuthority.getFallback("owner");
   }
   const rec = BY_ID.get(key);
   if (rec && rec.src) return toMedia(rec);
-  return FALLBACK.owner;
+  return PresentationAuthority.getFallback("owner");
 }
 
 export const galleryData = G;

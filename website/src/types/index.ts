@@ -73,7 +73,7 @@ export interface Service {
   summary: string;
   description: string;
   icon: string; // lucide icon name
-  heroImage: string; // image asset path or id
+  heroImage?: string; // image asset path or id (optional - sourced from media.ts)
   galleryRefs: string[]; // GalleryItem.id[]
   /** Micro-proof line shown on the card (e.g. "150+ completed"). Optional. */
   stat?: string;

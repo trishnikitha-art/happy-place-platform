@@ -27,7 +27,8 @@ import { FilesystemImageSource } from "./image-source/filesystem-image-source.mj
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
-const INTAKE = path.join(ROOT, "photo-intake");
+const PHOTO_SOURCE_ROOT = process.env.PHOTO_SOURCE_ROOT || path.join(ROOT, "photo-intake");
+const INTAKE = PHOTO_SOURCE_ROOT;
 const ARCHIVE = path.join(INTAKE, "_archive");
 const OUT = path.join(ROOT, "public", "images", "projects");
 const GALLERY = path.join(ROOT, "src", "config", "gallery.json");
@@ -48,6 +49,51 @@ const KNOWN = [
 async function loadSharp() {
   try { return (await import("sharp")).default; }
   catch { console.error("\n✗ sharp missing. Run: npm i -D sharp\n"); process.exit(1); }
+}
+
+/**
+ * Generate UUIDv5 from content hash for stable identity.
+ * UUIDv5 is deterministic, collision-resistant, and standard-compliant.
+ * Uses SHA-1 hashing of namespace + contentHash.
+ * @param {string} contentHash - SHA-256 hash of image content
+ * @returns {string} UUIDv5 string
+ */
+function generateStableId(contentHash) {
+  // UUIDv5 namespace for image stable IDs (random but constant)
+  const namespace = "6ba7b810-9dad-11d1-80b4-00c04fd430c8"; // DNS namespace
+  const namespaceBytes = parseUuid(namespace);
+  const nameBytes = Buffer.from(contentHash, "hex");
+  
+  // SHA-1 hash of namespace + name
+  const hash = crypto.createHash("sha1");
+  hash.update(Buffer.concat([namespaceBytes, nameBytes]));
+  const hashBytes = hash.digest();
+  
+  // Convert to UUIDv5 format
+  hashBytes[6] = (hashBytes[6] & 0x0f) | 0x50; // version 5
+  hashBytes[8] = (hashBytes[8] & 0x3f) | 0x80; // variant RFC 4122
+  
+  return formatUuid(hashBytes);
+}
+
+function parseUuid(uuid) {
+  const bytes = Buffer.alloc(16);
+  const hex = uuid.replace(/-/g, "");
+  for (let i = 0; i < 16; i++) {
+    bytes[i] = parseInt(hex.substr(i * 2, 2), 16);
+  }
+  return bytes;
+}
+
+function formatUuid(bytes) {
+  const hex = bytes.toString("hex");
+  return [
+    hex.substr(0, 8),
+    hex.substr(8, 4),
+    hex.substr(12, 4),
+    hex.substr(16, 4),
+    hex.substr(20, 12),
+  ].join("-");
 }
 
 const slugify = (s) => s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
@@ -350,6 +396,7 @@ async function main() {
 
       const contentHash = crypto.createHash("sha256").update(buffer).digest("hex");
       const uuid = deterministicUUID(slug, origName);
+      const stableId = generateStableId(contentHash);
       
       // Incremental rebuild: skip if contentHash unchanged
       const cacheKey = `${id}:${contentHash}`;
@@ -401,9 +448,9 @@ async function main() {
       stats.galleryGenerated++;
 
       const rec = {
-        uuid, contentHash,
+        uuid, contentHash, stableId,
         id, title, project: slug, category, county: location,
-        featured: false, before: role === "before", after: role === "after", hero: role === "hero",
+        // Identity only - presentation semantics moved to presentation.json
         alt: `${title} — ${role} photo by Happy Place Carpentry`,
         width: w, height: h, focal: { x: 0.5, y: 0.5 },
         original: origName, src, thumbnail: `/images/projects/${slug}/${thumbName}`, blurDataURL, variants,
@@ -418,7 +465,7 @@ async function main() {
       galleryOrder.push(id);
       
       const manifestAsset = {
-        uuid, contentHash,
+        uuid, contentHash, stableId,
         id, project: slug, category, county: location,
         originalFilename: origName,
         sourcePath: `${folder}/${origName}`,
@@ -432,7 +479,7 @@ async function main() {
       manifestAssets.push(manifestAsset);
       
       // Update cache
-      cache[cacheKey] = { contentHash, rec, manifestAsset };
+      cache[cacheKey] = { contentHash, stableId, rec, manifestAsset };
       
       if (role === "hero") img.hero = rec;
       else if (role === "cover") img.cover = rec;

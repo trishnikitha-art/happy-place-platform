@@ -69,7 +69,7 @@ export function SiteHeader() {
 
         <button
           type="button"
-          className="rounded-md p-2 text-text-muted transition-colors hover:bg-surface-muted md:hidden"
+          className="flex h-11 w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-muted md:hidden"
           aria-expanded={open}
           aria-controls="mobile-menu"
           aria-label={open ? "Close menu" : "Open menu"}
