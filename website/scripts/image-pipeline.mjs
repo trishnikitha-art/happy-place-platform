@@ -111,6 +111,38 @@ function orderKey(filename) {
   return m ? parseInt(m[1], 10) : 999;
 }
 
+// ── DAG stage: discover projects from source ────────────────────────────────
+async function stageDiscover(source) {
+  const projectList = await source.listProjects();
+  if (!projectList.length) {
+    console.log(`\nNo project folders in ${path.relative(ROOT, INTAKE)}/.`);
+    console.log("Expected:  photo-intake/<Category> - <Location>/  (e.g. 'Deck - Corvallis/')");
+    console.log("Drop photos and re-run `npm run images`.\n");
+    await fs.mkdir(path.dirname(GALLERY), { recursive: true });
+    await fs.writeFile(GALLERY, JSON.stringify({ projects: [], images: [] }, null, 2));
+    return null;
+  }
+  return projectList;
+}
+
+// ── DAG stage: emit outputs ─────────────────────────────────────────────────
+async function stageEmit(projects, images, manifestAssets) {
+  await fs.mkdir(path.dirname(GALLERY), { recursive: true });
+  await fs.writeFile(GALLERY, JSON.stringify({ projects, images }, null, 2));
+  console.log(`\nWrote ${path.relative(ROOT, GALLERY)} — ${projects.length} projects, ${images.length} images.`);
+  console.log("UI renders from this file. No component references raw image paths.");
+
+  await fs.mkdir(path.dirname(MANIFEST), { recursive: true });
+  await fs.writeFile(MANIFEST, JSON.stringify({
+    schemaVersion: "1.0.0",
+    description: "Machine-generated image manifest. Human curation lives in presentation.v1.json.",
+    generatedAt: new Date().toISOString(),
+    projects: projects.map((p) => ({ slug: p.slug, title: p.title, category: p.category, county: p.county })),
+    assets: manifestAssets,
+  }, null, 2));
+  console.log(`Wrote ${path.relative(ROOT, MANIFEST)} — ${manifestAssets.length} assets with SHA-256 content hashes.`);
+}
+
 async function main() {
   const sharp = await loadSharp();
   const projects = [];
@@ -119,17 +151,12 @@ async function main() {
 
   // ImageSource: the only coupling point to storage
   const source = new FilesystemImageSource(INTAKE);
-  const projectList = await source.listProjects();
 
-  if (!projectList.length) {
-    console.log(`\nNo project folders in ${path.relative(ROOT, INTAKE)}/.`);
-    console.log("Expected:  photo-intake/<Category> - <Location>/  (e.g. 'Deck - Corvallis/')");
-    console.log("Drop photos and re-run `npm run images`.\n");
-    await fs.mkdir(path.dirname(GALLERY), { recursive: true });
-    await fs.writeFile(GALLERY, JSON.stringify({ projects: [], images: [] }, null, 2));
-    return;
-  }
+  // ── DAG: Discovery ──────────────────────────────────────────────────────────
+  const projectList = await stageDiscover(source);
+  if (!projectList) return;
 
+  // ── DAG: Classification + Transformation + Manifest (per project) ───────────
   for (const project of projectList) {
     const folder = project.name;
     const { category, location, slug } = parseFolder(folder);
@@ -211,20 +238,8 @@ async function main() {
     console.log(`→ project: ${title}  (${images.length} images so far)`);
   }
 
-  await fs.mkdir(path.dirname(GALLERY), { recursive: true });
-  await fs.writeFile(GALLERY, JSON.stringify({ projects, images }, null, 2));
-  console.log(`\nWrote ${path.relative(ROOT, GALLERY)} — ${projects.length} projects, ${images.length} images.`);
-  console.log("UI renders from this file. No component references raw image paths.");
-
-  await fs.mkdir(path.dirname(MANIFEST), { recursive: true });
-  await fs.writeFile(MANIFEST, JSON.stringify({
-    schemaVersion: "1.0.0",
-    description: "Machine-generated image manifest. Human curation lives in presentation.v1.json.",
-    generatedAt: new Date().toISOString(),
-    projects: projects.map((p) => ({ slug: p.slug, title: p.title, category: p.category, county: p.county })),
-    assets: manifestAssets,
-  }, null, 2));
-  console.log(`Wrote ${path.relative(ROOT, MANIFEST)} — ${manifestAssets.length} assets with SHA-256 content hashes.`);
+  // ── DAG: Emit ───────────────────────────────────────────────────────────────
+  await stageEmit(projects, images, manifestAssets);
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
