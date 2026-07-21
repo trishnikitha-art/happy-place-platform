@@ -7,15 +7,20 @@
  * authority": every page asks the photo system for the best image by role,
  * never by filename, so routing logic lives in exactly one place.
  *
- * The 18 real owner photos are cataloged in PHOTO_ROLES below — each with
+ * Human curation decisions (roles, priorities, homepage picks, featured image)
+ * live in `presentation.v1.json`. Machine-generated image records live in
+ * `gallery.json`. This file merges them at runtime.
+ *
+ * The 18 real owner photos are cataloged in presentation.v1.json — each with
  * roles, a priority (0-100), and quality gates (hero/gallery/service). No
  * image is orphaned: every photo carries at least one role. When new photos
- * arrive, you add one entry here; components don't change.
+ * arrive, you edit presentation.v1.json; components don't change.
  *
  * Until a truly premium WIDE exterior exists, HeroBackground is intentionally
  * vacant — the hero is an abstract, confident composition (no stretched photo).
  */
 import gallery from "@/config/gallery.json";
+import presentation from "@/config/presentation.v1.json";
 
 export interface MediaImage {
   src: string;
@@ -72,30 +77,11 @@ interface PhotoMeta {
 }
 
 /**
- * PHOTO ROLES — the catalog (Directive 033).
- * Every one of the 18 real photos has a home. No orphans.
- * Edit priority/roles here to re-route the whole site.
+ * PHOTO ROLES — sourced from presentation.v1.json (Directive 033).
+ * Human curation lives in the JSON file; this module reads it at import time.
+ * Edit presentation.v1.json to re-route the whole site.
  */
-const PHOTO_ROLES: PhotoMeta[] = [
-  { id: "bathroom-remodeling/bathroom-wall", category: "Bathroom Remodeling", roles: ["FeaturedTransformation", "BathroomCover", "HomepageFeature", "GalleryHighlight"], priority: 95, quality: { hero: false, gallery: true, service: true } },
-  { id: "fences/fence-build", category: "Fencing", roles: ["FenceCover", "ServicesFeature", "HomepageFeature", "GalleryHighlight"], priority: 90, quality: { hero: false, gallery: true, service: true } },
-  { id: "fences/fencerebuildmatchingstain", category: "Bathroom Remodeling", roles: ["GalleryHighlight", "HomepageFeature"], priority: 88, quality: { hero: false, gallery: true, service: true } },
-  { id: "built-ins/finishedcarpentry", category: "Custom Carpentry", roles: ["GalleryHighlight", "ServicesFeature", "KitchenCover"], priority: 80, quality: { hero: false, gallery: true, service: true } },
-  { id: "repairs/trimrepair", category: "Repairs", roles: ["GalleryHighlight", "ServicesFeature", "FenceCover"], priority: 80, quality: { hero: false, gallery: true, service: true } },
-  { id: "outdoor-living/img-0737", category: "Outdoor Living", roles: ["GalleryHighlight", "HomepageFeature"], priority: 62, quality: { hero: false, gallery: true, service: false } },
-  { id: "outdoor-living/img-0841", category: "Outdoor Living", roles: ["GalleryHighlight", "ProjectCover"], priority: 58, quality: { hero: false, gallery: true, service: false } },
-  { id: "outdoor-living/img-0559", category: "Outdoor Living", roles: ["GalleryHighlight", "HomepageFeature", "ServicesFeature"], priority: 60, quality: { hero: false, gallery: true, service: false } },
-  { id: "outdoor-living/img-0535", category: "Outdoor Living", roles: ["GallerySupporting", "HomepageFeature"], priority: 55, quality: { hero: false, gallery: true, service: false } },
-  { id: "outdoor-living/img-0555", category: "Outdoor Living", roles: ["GallerySupporting", "ProjectCover"], priority: 50, quality: { hero: false, gallery: true, service: false } },
-  { id: "outdoor-living/img-0805", category: "Outdoor Living", roles: ["GallerySupporting", "ProjectCover"], priority: 50, quality: { hero: false, gallery: true, service: false } },
-  { id: "repairs/floor0", category: "Repairs", roles: ["GallerySupporting", "ServicesFeature"], priority: 65, quality: { hero: false, gallery: true, service: true } },
-  { id: "repairs/floor", category: "Repairs", roles: ["GallerySupporting", "ServicesFeature"], priority: 60, quality: { hero: false, gallery: true, service: true } },
-  { id: "repairs/guttercleaning", category: "Repairs", roles: ["GallerySupporting", "ServicesFeature"], priority: 60, quality: { hero: false, gallery: true, service: true } },
-  { id: "repairs/drywall", category: "Repairs", roles: ["GallerySupporting", "ServicesFeature"], priority: 55, quality: { hero: false, gallery: true, service: true } },
-  { id: "repairs/img-0544", category: "Repairs", roles: ["GallerySupporting"], priority: 40, quality: { hero: false, gallery: true, service: false } },
-  { id: "repairs/img-0546", category: "Repairs", roles: ["GallerySupporting"], priority: 38, quality: { hero: false, gallery: true, service: false } },
-  { id: "built-ins/finishedcarpentry0", category: "Custom Carpentry", roles: ["GallerySupporting", "ServicesFeature"], priority: 70, quality: { hero: false, gallery: true, service: true } },
-];
+const PHOTO_ROLES: PhotoMeta[] = (presentation as any).photoRoles;
 
 const G = gallery as { projects: any[]; images: GalleryRecord[] };
 const BY_ID = new Map(G.images.map((i) => [i.id, i]));
@@ -145,19 +131,13 @@ export function servicePhoto(slug: string): MediaImage | null {
  * HOMEPAGE = hand-curated, emotional (Directive 034). The creative director picks
  * — 6 max, story-led, distinct. The archive (galleryAll) is the automatic,
  * exhaustive product. Two different goals, two different selectors.
+ * Sourced from presentation.v1.json.
  */
-const HOMEPAGE_CURATION: string[] = [
-  "fences/fence-build",                  // opening emotional image: warm cedar
-  "outdoor-living/img-0737",            // outdoor living = emotional glue
-  "bathroom-remodeling/bathroom-wall",  // bathroom transformation (grouped, not scattered)
-  "outdoor-living/img-0841",            // project cover (garage sequence)
-  "built-ins/finishedcarpentry",        // craftsmanship detail
-  "fences/fencerebuildmatchingstain",   // repurposed for bathroom gallery
-];
+const HOMEPAGE_CURATION: string[] = (presentation as any).homepageCuration;
 
-/** The single most important image after the hero: warm + aspirational cedar fence. */
+/** The single most important image after the hero. Sourced from presentation.v1.json. */
 export function featuredTransformation(): MediaImage | null {
-  return byId("fences/fence-build");
+  return byId((presentation as any).featuredTransformationId);
 }
 
 /** Curated homepage set (magazine cover). Repairs excluded here — trust-builders,
@@ -199,15 +179,8 @@ export function ownerPortrait(): MediaImage {
 }
 
 // Maps service slugs → pipeline category so real photos attach to the right card.
-const SERVICE_CATEGORY: Record<string, string> = {
-  decks: "Decks",
-  fences: "Fencing",
-  pergolas: "Pergolas",
-  "kitchen-remodel": "Kitchen Remodeling",
-  "bath-remodel": "Bathroom Remodeling",
-  "built-ins": "Custom Carpentry",
-  repairs: "Repairs",
-};
+// Sourced from presentation.v1.json.
+const SERVICE_CATEGORY: Record<string, string> = (presentation as any).serviceCategory;
 
 export function hasRealPhotos(): boolean {
   return G.images.some((i) => i.src);
@@ -247,8 +220,9 @@ export function realGalleryItems() {
 
 // Committed reserved placeholders (only the owner portrait is intentionally
 // reserved until a real Taylor & Lanie portrait is shot).
+// Sourced from presentation.v1.json.
 const FALLBACK: Record<string, MediaImage> = {
-  owner: { src: "/images/about.svg", alt: "Taylor & Lanie of Happy Place Carpentry", width: 1200, height: 900 },
+  owner: (presentation as any).fallback.owner,
 };
 
 /**
