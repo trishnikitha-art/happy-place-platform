@@ -11,19 +11,31 @@ import { media } from "@/lib/media";
  */
 export function ServiceCard({ service }: { service: Service }) {
   const img = media(`service:${service.slug}`);
+  const hasPhoto = img && img.src && !img.src.includes('.svg');
   return (
     <Card className="group flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-float">
       <div className="relative aspect-[4/3] overflow-hidden bg-[#E4DFD4] photo-mounted">
-        <Image
-          src={img.src}
-          alt={img.alt}
-          fill
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-        />
+        {hasPhoto ? (
+          <Image
+            src={img.src}
+            alt={img.alt}
+            fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+          />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center text-text-subtle/40">
+            <Icon name={service.icon} className="h-16 w-16" />
+          </div>
+        )}
         <span className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-xl bg-deep/80 text-honey">
           <Icon name={service.icon} className="h-5 w-5" />
         </span>
+        {!hasPhoto && (
+          <div className="absolute bottom-3 right-3 rounded-md bg-deep/80 px-3 py-1.5 text-xs font-medium text-text-on-dark">
+            Photography coming soon
+          </div>
+        )}
       </div>
       <div className="flex flex-1 flex-col p-5">
         <h3 className="font-display text-xl font-bold text-text">{service.title}</h3>

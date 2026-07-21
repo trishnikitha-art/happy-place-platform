@@ -39,7 +39,7 @@ export default function HomePage() {
         <Container className="relative z-10 flex min-h-[88svh] flex-col justify-center py-28 lg:py-36">
           <div className="max-w-3xl">
             <p className="font-signature text-2xl text-honey/90">Happy Place Carpentry</p>
-            <h1 className="mt-4 font-display text-6xl font-bold leading-[1.02] tracking-tight text-text-on-dark sm:text-7xl lg:text-8xl">
+            <h1 className="mt-4 font-display text-6xl font-bold leading-[1.02] tracking-tight tracking-display text-text-on-dark sm:text-7xl lg:text-8xl">
               The projects you walk past every day should be the ones you&rsquo;re most proud to come home to.
             </h1>
             <p className="measure mt-6 max-w-xl text-lg leading-relaxed text-text-on-dark/80">

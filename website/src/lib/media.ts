@@ -79,7 +79,7 @@ interface PhotoMeta {
 const PHOTO_ROLES: PhotoMeta[] = [
   { id: "bathroom-remodeling/bathroom-wall", category: "Bathroom Remodeling", roles: ["FeaturedTransformation", "BathroomCover", "HomepageFeature", "GalleryHighlight"], priority: 95, quality: { hero: false, gallery: true, service: true } },
   { id: "fences/fence-build", category: "Fencing", roles: ["FenceCover", "ServicesFeature", "HomepageFeature", "GalleryHighlight"], priority: 90, quality: { hero: false, gallery: true, service: true } },
-  { id: "fences/fencerebuildmatchingstain", category: "Fencing", roles: ["FeaturedTransformation", "FenceCover", "GalleryHighlight"], priority: 85, quality: { hero: false, gallery: true, service: true } },
+  { id: "fences/fencerebuildmatchingstain", category: "Bathroom Remodeling", roles: ["GalleryHighlight", "HomepageFeature"], priority: 88, quality: { hero: false, gallery: true, service: true } },
   { id: "built-ins/finishedcarpentry", category: "Custom Carpentry", roles: ["GalleryHighlight", "ServicesFeature", "KitchenCover"], priority: 80, quality: { hero: false, gallery: true, service: true } },
   { id: "repairs/trimrepair", category: "Repairs", roles: ["GalleryHighlight", "ServicesFeature", "FenceCover"], priority: 80, quality: { hero: false, gallery: true, service: true } },
   { id: "outdoor-living/img-0737", category: "Outdoor Living", roles: ["GalleryHighlight", "HomepageFeature"], priority: 62, quality: { hero: false, gallery: true, service: false } },
@@ -123,30 +123,22 @@ export function photoFor(role: Role): MediaImage | null {
 
 /**
  * Photo for a service card by slug. Prefers that service's own category; if a
- * service has no native photo yet (e.g. decks/pergolas/kitchen), it uses an honest
- * proxy from a related category so the card is never blank. Last resort: a
- * homepage highlight. Nothing maps to the reserved owner placeholder.
+ * service has no native photo yet (e.g. decks/pergolas/kitchen), it returns null
+ * to show a tasteful placeholder state. No proxy images — honest placeholder
+ * until real photography arrives.
  */
-const SERVICE_PROXY: Record<string, string> = {
-  decks: "Outdoor Living",        // no deck photo yet — real exterior stands in
-  pergolas: "Outdoor Living",     // no pergola photo yet — real exterior stands in
-  "kitchen-remodel": "Custom Carpentry", // no kitchen photo yet — real vanity/cabinetry stands in
-};
 export function servicePhoto(slug: string): MediaImage | null {
   const cat = SERVICE_CATEGORY[slug];
   if (!cat) return null;
-  const score = (m: PhotoMeta) =>
-    (m.category === cat ? 100 : 0) + (SERVICE_PROXY[slug] === m.category ? 60 : 0) + m.priority;
   const hits = PHOTO_ROLES.filter(
-    (m) => (m.category === cat && m.quality.service) || SERVICE_PROXY[slug] === m.category,
+    (m) => m.category === cat && m.quality.service,
   )
-    .sort((a, b) => score(b) - score(a))
+    .sort((a, b) => b.priority - a.priority)
     .map((m) => BY_ID.get(m.id))
     .filter((r): r is GalleryRecord => !!r && !!r.src);
   if (hits.length) return toMedia(hits[0]);
-  // never blank: borrow the strongest homepage highlight
-  const hl = homepageSelection();
-  return hl.length ? hl[0] : null;
+  // Return null for services without real photos — component shows placeholder
+  return null;
 }
 
 /**
@@ -158,9 +150,9 @@ const HOMEPAGE_CURATION: string[] = [
   "fences/fence-build",                  // opening emotional image: warm cedar
   "outdoor-living/img-0737",            // outdoor living = emotional glue
   "bathroom-remodeling/bathroom-wall",  // bathroom transformation (grouped, not scattered)
-  "fences/fencerebuildmatchingstain",   // fence staining transformation
   "outdoor-living/img-0841",            // project cover (garage sequence)
   "built-ins/finishedcarpentry",        // craftsmanship detail
+  "fences/fencerebuildmatchingstain",   // repurposed for bathroom gallery
 ];
 
 /** The single most important image after the hero: warm + aspirational cedar fence. */
