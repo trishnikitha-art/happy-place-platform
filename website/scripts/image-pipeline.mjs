@@ -38,6 +38,7 @@ const GOLDEN = path.join(ROOT, "generated", "golden-manifest.json");
 const PIPELINE_MANIFEST = path.join(ROOT, "generated", "gallery.manifest.json");
 const CACHE = path.join(ROOT, "generated", "rebuild-cache.json");
 
+const PIPELINE_VERSION = "1.0.0";
 const WIDTHS = [480, 768, 1080, 1600, 2000];
 
 const KNOWN = [
@@ -258,7 +259,7 @@ async function generatePipelineManifest(projects, images, stats) {
   let presentationHash = null;
   
   try {
-    presentationHash = await hashFile(MANIFEST);
+    presentationHash = await hashFile(PRESENTATION);
   } catch {
     // Presentation may not exist yet
   }
@@ -266,7 +267,7 @@ async function generatePipelineManifest(projects, images, stats) {
   const gitCommit = await getGitCommit();
   
   return {
-    pipelineVersion: "1.0.0",
+    pipelineVersion: PIPELINE_VERSION,
     generatedAt: new Date().toISOString(),
     imageCount: images.length,
     projectCount: projects.length,
@@ -281,7 +282,7 @@ async function generatePipelineManifest(projects, images, stats) {
 async function getGitCommit() {
   try {
     const { execSync } = await import("child_process");
-    return execSync("git rev-parse HEAD", { encoding: "utf-8" }).trim();
+    return execSync("git rev-parse HEAD", { encoding: "utf-8", cwd: ROOT }).trim();
   } catch {
     return "unknown";
   }
@@ -458,7 +459,7 @@ async function main() {
         provenance: {
           sourceFile: `${folder}/${origName}`,
           importedAt: new Date().toISOString(),
-          pipelineVersion: "1.0.0",
+          pipelineVersion: PIPELINE_VERSION,
         },
       };
       images.push(rec);

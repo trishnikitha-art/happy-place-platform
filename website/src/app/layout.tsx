@@ -56,11 +56,6 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     },
     areaServed: company.serviceArea,
     priceRange: "$$",
-    aggregateRating: {
-      "@type": "AggregateRating",
-      ratingValue: "5.0",
-      reviewCount: "40",
-    },
   };
 
   return (

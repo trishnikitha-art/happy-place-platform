@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { CTASection } from "@/components/cta-section";
+import { faqItems } from "@/config/faq";
 
 export const metadata: Metadata = {
   title: "FAQ",
@@ -9,27 +10,19 @@ export const metadata: Metadata = {
 };
 
 export default function FaqPage() {
-  const items = [
-    { q: "Are you licensed and insured?", a: "Yes — Oregon CCB# 254240 and fully insured." },
-    { q: "What areas do you serve?", a: "Benton, Linn, Marion, and Polk Counties." },
-    { q: "How do estimates work?", a: "Use the free estimate wizard; we follow up to schedule a walk-through and give a written estimate." },
-    { q: "Do you handle permits?", a: "Yes, for decks, fences, and structural work." },
-    { q: "What materials do you use?", a: "Cedar, pressure-treated, composite, wood/vinyl/metal fencing, and standard cabinetry." },
-    { q: "Do you warranty your work?", a: "Yes — workmanship warranty plus manufacturer material warranties." },
-  ];
   return (
     <>
       <Section>
         <Container>
           <SectionHeading eyebrow="FAQ" title="Questions, answered" />
           <div className="mt-8 divide-y divide-border border-y border-border">
-            {items.map((it) => (
-              <details key={it.q} className="group py-5">
+            {faqItems.map((it) => (
+              <details key={it.id} className="group py-5">
                 <summary className="flex cursor-pointer list-none items-center justify-between font-semibold text-text">
-                  {it.q}
+                  {it.question}
                   <span className="text-accent transition-transform group-open:rotate-45">+</span>
                 </summary>
-                <p className="mt-3 text-text-muted">{it.a}</p>
+                <p className="mt-3 text-text-muted">{it.answer}</p>
               </details>
             ))}
           </div>

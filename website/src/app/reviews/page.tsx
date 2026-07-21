@@ -29,7 +29,7 @@ export default function ReviewsPage() {
               <StarRating rating={5} /> {averageRating()} / 5 average
             </span>
             <span className="text-text-muted">{company.ccbNumber} · Licensed &amp; Insured</span>
-            <span className="text-text-muted">12 years serving Benton, Linn, Marion &amp; Polk</span>
+            <span className="text-text-muted">Serving Benton, Linn, Marion &amp; Polk since 2024</span>
           </div>
 
           <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">

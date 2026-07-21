@@ -24,7 +24,7 @@ This version has breaking changes — APIs, conventions, and file structures may
    photos + Playfair headings + Playball signature + honey CTA.
 
 # Brand (Happy Place Carpentry)
-- Owners: Taylor (craftsmanship/build) + Lanie (communication/estimates). Contact: taylor@happyplacecarpentry.com.
+- Owners: Taylor Happy (craftsmanship/build) + Lanie Happy (communication/estimates). Contact: taylor@happyplacecarpentry.com.
 - Palette tokens in `globals.css @theme`: primary=evergreen #1F3F3C, honey #d99a4e, accent=taupe #B0A092, background=linen #EDEAE0, cream #E9DBC9, surface #EDEDED, deep #162b29.
 - Logo: simple tape-measure mark (`/brand/logo-*.svg`), recreated faithfully — original is login-walled.
 - Secrets never in repo; Google OAuth client-only (no refresh token) → Drive not readable without owner consent.
@@ -56,3 +56,51 @@ This version has breaking changes — APIs, conventions, and file structures may
 ## Standing rule — Photography has authority over copy (Directive 033)
 
 If a strong photo communicates what a paragraph says, shorten or remove the paragraph. Never keep explanatory text that exists only because photography was previously missing. Every commit from here should make the site feel more premium in under five seconds — larger photography, stronger hierarchy, better contrast, improved section rhythm, quieter copy — not more engineering. Owner portrait appears exactly once (homepage owner section + About, same source). Hero never uses the owner photo; hero = best transformation, else best exterior, else fence, else bathroom.
+
+---
+
+# Repository State (Session 17 — Archaeology Complete)
+
+## Git Status
+- **Branch:** `main` — synced with `origin/main` at `87db0ac`
+- **Remote:** `trishnikitha-art/happy-place-platform.git`
+- **Unstaged:** 3 files (planning-context.ts, planning-range.ts, planning-strategies/index.ts)
+- **Last build:** `.next/` built 7/21 12:16 PM (BUILD_ID: `XSZn-0lUq66iaHAX2g9DY`), gitignored
+
+## Build Flow
+```
+photo-intake/ → npm run images → public/images/ + gallery.json + generated/
+                                        ↓
+                                  npm run build → .next/ (gitignored)
+```
+
+## Generated Authorities (audited — 3 fixed, 1 clean, 3 kept)
+| Authority | Status | Notes |
+|-----------|--------|-------|
+| `pipelineVersion` | **Fixed** | Was hardcoded "1.0.0" in 2 places → extracted to `PIPELINE_VERSION` constant |
+| `pipelineCommit` | **Fixed** | Was always "unknown" → added `cwd: ROOT` to `execSync` |
+| `presentationHash` | **Fixed** | Was hashing `manifest.v1.json` → now hashes `presentation.v1.json` |
+| `generatedAt` | Clean | Non-deterministic timestamp, serves audit trail |
+| `galleryHash` | Clean | SHA-256 of `gallery.json`, detects config changes |
+| `rebuild-cache.json` | Clean | Incremental build optimization (not an authority) |
+| `golden-manifest.json` | Clean | Regression test baseline (21 image hashes) |
+
+## Known Issues (not blocking)
+| Issue | Severity | Status |
+|-------|----------|--------|
+| `layout.tsx` JSON-LD has hardcoded `aggregateRating` with `reviewCount: "40"` | Medium | Not fixed |
+| Stale deployment showing "Taylor Happy L." — fix exists at `1495308` but not deployed | High (deployment) | Requires Vercel redeploy |
+| 3 unstaged files not committed | Low | Pending review |
+
+## Investigation: "Taylor Happy L."
+- Commit `676ccd4` had hardcoded `{taylor.name} L.` in footer — names were "Taylor" and "Lanie" → showed "Taylor L."
+- Commit `1495308` fixed: names → "Taylor Happy" / "Lanie Happy", "L." removed
+- Current source: `"Taylor Happy"` and `"Lanie Happy"` — no "L." anywhere
+- If someone sees "Taylor Happy L." today → **deployed site is running stale code** from before `1495308`
+
+## Google Workspace (Directives 038/040/041)
+- **Activation path:** 4 env vars + 1 feature flag flip → ~20 min to working Gmail estimates
+- **Required vars:** `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REDIRECT_URI`, `GOOGLE_REFRESH_TOKEN`
+- **Status:** Zero credentials on this machine. No `.env.local`. Unknown Vercel env var state.
+- **Capability:** Only Gmail Send is ready-to-activate (zero new code needed). Other capabilities need additional code.
+- **Report:** `DIRECTIVE_038_GOOGLE_WORKSPACE_AUDIT.md`, `DIRECTIVE_041_OPERATIONAL_RECOVERY_AUDIT.md`
