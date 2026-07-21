@@ -461,115 +461,193 @@ body {
 }
 
 /* ============================================================================
-   CRAFTSMANSHIP OVERLAY — reusable blueprint layer (1-3% opacity)
+   WOODWORKING CRAFTSMANSHIP LAYERS — subtle handcrafted details (2-8% opacity)
    ========================================================================== */
 
-.craft-blueprint {
+.woodwork-craft {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
 }
 
-/* Faint architectural grid */
-.craft-blueprint::before {
+/* Dovetail joint pattern in corners */
+.dovetail-corner {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 64px;
+  height: 64px;
+  pointer-events: none;
+  opacity: 0.06;
+}
+.dovetail-corner::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+  background: 
+    linear-gradient(135deg, transparent 30%, rgba(48, 66, 78, 0.4) 30%, rgba(48, 66, 78, 0.4) 35%, transparent 35%),
+    linear-gradient(135deg, transparent 50%, rgba(48, 66, 78, 0.4) 50%, rgba(48, 66, 78, 0.4) 55%, transparent 55%),
+    linear-gradient(135deg, transparent 70%, rgba(48, 66, 78, 0.4) 70%, rgba(48, 66, 78, 0.4) 75%, transparent 75%);
+}
+
+/* Mortise-and-tenon silhouette */
+.mortise-tenon {
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  width: 48px;
+  height: 48px;
+  pointer-events: none;
+  opacity: 0.05;
+}
+.mortise-tenon::before {
   content: "";
   position: absolute;
   inset: 0;
-  background-image:
-    linear-gradient(rgba(48, 66, 78, 0.02) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(48, 66, 78, 0.02) 1px, transparent 1px);
-  background-size: 40px 40px;
-  opacity: 1;
+  border: 1px solid rgba(48, 66, 78, 0.3);
+  border-radius: 2px;
 }
-
-/* Dimension arrows (subtle) */
-.craft-blueprint::after {
+.mortise-tenon::after {
   content: "";
   position: absolute;
-  inset: 0;
-  opacity: 0.03;
-  background-image:
-    linear-gradient(90deg, transparent 49.5%, rgba(48, 66, 78, 0.3) 49.5%, rgba(48, 66, 78, 0.3) 50.5%, transparent 50.5%),
-    linear-gradient(transparent 49.5%, rgba(48, 66, 78, 0.3) 49.5%, rgba(48, 66, 78, 0.3) 50.5%, transparent 50.5%);
-  background-size: 80px 80px;
-  background-position: center;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 20px;
+  height: 20px;
+  border: 1px solid rgba(48, 66, 78, 0.3);
 }
 
-/* Measurement ticks (tape measure style) */
-.measurement-ticks {
+/* Compass arc (traditional carpentry layout) */
+.compass-arc {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 200px;
+  pointer-events: none;
+  opacity: 0.04;
+  border-radius: 50%;
+  border: 1px solid rgba(48, 66, 78, 0.2);
+}
+.compass-arc::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  border: 1px solid rgba(48, 66, 78, 0.15);
+}
+
+/* Pencil snap line (fading into background) */
+.snap-line {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  background: linear-gradient(
+    135deg,
+    transparent 0%,
+    rgba(48, 66, 78, 0.3) 45%,
+    rgba(48, 66, 78, 0.3) 55%,
+    transparent 100%
+  );
+  height: 1px;
+  width: 60%;
+  top: 30%;
+  left: 20%;
+}
+
+/* Wood grain contour lines (topographic-inspired) */
+.wood-grain-contour {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  background-image:
+    repeating-linear-gradient(
+      0deg,
+      transparent 0px,
+      transparent 8px,
+      rgba(48, 66, 78, 0.15) 8px,
+      rgba(48, 66, 78, 0.15) 9px,
+      transparent 9px,
+      transparent 16px
+    );
+}
+
+/* Router template curve */
+.router-curve {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.05;
+  border-radius: var(--radius-card);
+  box-shadow: inset 0 0 0 1px rgba(48, 66, 78, 0.2);
+}
+
+/* Framing layout marks (16 OC - Easter egg) */
+.framing-marks {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  height: 8px;
+  height: 12px;
+  pointer-events: none;
+  opacity: 0.05;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0 15px,
+    rgba(48, 66, 78, 0.3) 15px 16px,
+    transparent 16px 31px
+  );
+}
+
+/* Saw kerf line pattern */
+.saw-kerf {
+  position: absolute;
+  inset: 0;
   pointer-events: none;
   opacity: 0.04;
   background-image: repeating-linear-gradient(
     90deg,
-    transparent 0 8px,
-    var(--color-charcoal) 8px 9px,
-    transparent 9px 16px
+    transparent 0px,
+    transparent 3px,
+    rgba(48, 66, 78, 0.2) 3px,
+    rgba(48, 66, 78, 0.2) 4px,
+    transparent 4px,
+    transparent 7px
   );
 }
 
-/* Carpenter square corner */
-.carpenter-corner {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 48px;
-  height: 48px;
-  pointer-events: none;
-  opacity: 0.06;
-}
-.carpenter-corner::before,
-.carpenter-corner::after {
-  content: "";
-  position: absolute;
-  background: var(--color-charcoal);
-}
-.carpenter-corner::before { top: 0; right: 0; width: 1px; height: 48px; }
-.carpenter-corner::after  { top: 0; right: 0; width: 48px; height: 1px; }
-
-/* Joinery outline (mortise-and-tenon hint) */
-.joinery-outline {
+/* Japanese joinery line drawing hint */
+.joinery-lines {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.03;
-  border: 1px solid var(--color-charcoal);
-  border-radius: var(--radius-card);
-}
-
-/* Pencil layout marks (random +, ×, ○) */
-.pencil-marks {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.02;
+  opacity: 0.05;
   background-image:
-    radial-gradient(circle at 10% 20%, var(--color-charcoal) 1px, transparent 1px),
-    radial-gradient(circle at 85% 75%, var(--color-charcoal) 1px, transparent 1px),
-    radial-gradient(circle at 45% 90%, var(--color-charcoal) 1px, transparent 1px);
-  background-size: 100% 100%;
+    linear-gradient(45deg, transparent 49.5%, rgba(48, 66, 78, 0.2) 49.5%, rgba(48, 66, 78, 0.2) 50.5%, transparent 50.5%),
+    linear-gradient(-45deg, transparent 49.5%, rgba(48, 66, 78, 0.2) 49.5%, rgba(48, 66, 78, 0.2) 50.5%, transparent 50.5%);
+  background-size: 60px 60px;
 }
 
-/* Router bit path (rounded corner line art) */
-.router-path {
+/* Cabinet face-frame proportions (subtle grid) */
+.face-frame {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  opacity: 0.02;
-  border-radius: var(--radius-card);
-  box-shadow: inset 0 0 0 1px var(--color-charcoal);
-}
-
-/* Soft paper texture (very subtle) */
-.paper-texture {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  opacity: 0.015;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%' height='100%' filter='url(%23noise)'/%3E%3C/svg%3E");
+  opacity: 0.04;
+  background-image:
+    linear-gradient(rgba(48, 66, 78, 0.1) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(48, 66, 78, 0.1) 1px, transparent 1px);
+  background-size: 24px 24px;
 }
