@@ -171,7 +171,10 @@ async function main() {
       const blurDataURL = `data:image/webp;base64,${blurBuf.toString("base64")}`;
       const src = variants.find((v) => v.format === "webp")?.src ?? null;
 
+      const contentHash = crypto.createHash("sha256").update(buffer).digest("hex");
+      const uuid = deterministicUUID(slug, origName);
       const rec = {
+        uuid, contentHash,
         id, title, project: slug, category, county: location,
         featured: false, before: role === "before", after: role === "after", hero: role === "hero",
         alt: `${title} — ${role} photo by Happy Place Carpentry`,
@@ -180,9 +183,6 @@ async function main() {
       };
       images.push(rec);
       galleryOrder.push(id);
-
-      const contentHash = crypto.createHash("sha256").update(buffer).digest("hex");
-      const uuid = deterministicUUID(slug, origName);
       manifestAssets.push({
         uuid, contentHash,
         id, project: slug, category, county: location,

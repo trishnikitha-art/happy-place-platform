@@ -1,0 +1,761 @@
+{
+  "schemaVersion": "1.0.0",
+  "description": "Machine-generated image manifest. Human curation lives in presentation.v1.json.",
+  "generatedAt": "2026-07-21T16:38:53.765Z",
+  "projects": [
+    {
+      "slug": "bathroom-remodeling",
+      "title": "Bathroom Remodeling — Willamette Valley",
+      "category": "Bathroom Remodeling",
+      "county": ""
+    },
+    {
+      "slug": "built-ins",
+      "title": "Custom Carpentry — Willamette Valley",
+      "category": "Custom Carpentry",
+      "county": ""
+    },
+    {
+      "slug": "fences",
+      "title": "Fencing — Willamette Valley",
+      "category": "Fencing",
+      "county": ""
+    },
+    {
+      "slug": "outdoor-living",
+      "title": "Outdoor Living — Willamette Valley",
+      "category": "Outdoor Living",
+      "county": ""
+    },
+    {
+      "slug": "repairs",
+      "title": "Repairs — Willamette Valley",
+      "category": "Repairs",
+      "county": ""
+    }
+  ],
+  "assets": [
+    {
+      "uuid": "37f28a01-0ea9-52a5-9842-a47e43f8398b",
+      "contentHash": "7804099b3a90f250341a8011ceaace8cfb56a02c30442c1239cebf1132c553ff",
+      "id": "bathroom-remodeling/bathroom-wall",
+      "project": "bathroom-remodeling",
+      "category": "Bathroom Remodeling",
+      "county": "",
+      "originalFilename": "BATHROOM_WALL.png",
+      "sourcePath": "Bathroom Remodeling/BATHROOM_WALL.png",
+      "width": 1280,
+      "height": 960,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/bathroom-remodeling/BATHROOM_WALL-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "path": "/images/projects/bathroom-remodeling/BATHROOM_WALL-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "path": "/images/projects/bathroom-remodeling/BATHROOM_WALL-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "path": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "path": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/bathroom-remodeling/BATHROOM_WALL-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRm4AAABXRUJQVlA4IGIAAADQAQCdASoQAAwAA4BaJQBOgBJxSzk/gAD+yckh4ywjjEJoM/ASRnw2QHgyTZGsxvBn4XfAPpDCsCUS89Way39Or+3iH3+f/R6WnIixH1evUO5+2lNIInR2i1gpQrGBVgAAAA==",
+      "createdAt": "2026-07-21T16:38:44.400Z"
+    },
+    {
+      "uuid": "e4e92056-b4e1-504d-a0f1-7fabd34e1edd",
+      "contentHash": "c16f37d656c830146ee3f2b54ed0b62c5d821952c06b7e85cb9c465672cd093e",
+      "id": "built-ins/finishedcarpentry0",
+      "project": "built-ins",
+      "category": "Custom Carpentry",
+      "county": "",
+      "originalFilename": "FINISHEDCARPENTRY0.png",
+      "sourcePath": "Built-Ins/FINISHEDCARPENTRY0.png",
+      "width": 1280,
+      "height": 823,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/built-ins/FINISHEDCARPENTRY0-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "path": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "path": "/images/projects/built-ins/FINISHEDCARPENTRY0-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "path": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "path": "/images/projects/built-ins/FINISHEDCARPENTRY0-1080.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/built-ins/FINISHEDCARPENTRY0-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRnQAAABXRUJQVlA4IGgAAADwAQCdASoQAAoAA4BaJZACdAD6jdHeQRAA/vSpCEugaI8wOYbuc/5PuEd2QYI789GCzauL/0+ilGEak8SqbF03WgssA7SOpTUV2Rankn89qX0zY5zNEYsqrXC8rSPgG4xdPSpFwAAAAA==",
+      "createdAt": "2026-07-21T16:38:45.042Z"
+    },
+    {
+      "uuid": "4b20bdb7-e4ec-5233-8516-2e01fbd96698",
+      "contentHash": "89a9f5d4bb013fa3978d767755fbfe05b11c3c0330ca6cf7ac02fb0d011be90e",
+      "id": "built-ins/finishedcarpentry",
+      "project": "built-ins",
+      "category": "Custom Carpentry",
+      "county": "",
+      "originalFilename": "FINISHEDCARPENTRY.png",
+      "sourcePath": "Built-Ins/FINISHEDCARPENTRY.png",
+      "width": 1280,
+      "height": 1078,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/built-ins/FINISHEDCARPENTRY-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/built-ins/FINISHEDCARPENTRY-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "path": "/images/projects/built-ins/FINISHEDCARPENTRY-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "path": "/images/projects/built-ins/FINISHEDCARPENTRY-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "path": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "path": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/built-ins/FINISHEDCARPENTRY-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRmoAAABXRUJQVlA4IF4AAABQAgCdASoQAA0AA4BaJQBOgMXI1Ocz5EZAWsAA/ueveCb/Y5aVz6uBnYN9sEn+0SXQqYovTuO3LF/2sp2ug/y7LFG9tRcO8Vcm1PtKB1ud7c6+Djr34925ZSzcAAAA",
+      "createdAt": "2026-07-21T16:38:45.827Z"
+    },
+    {
+      "uuid": "da6d1b95-4d7d-5bcf-a991-de1286be232d",
+      "contentHash": "fde707d0e89f57292087636f44c2e8a580add68c1bdf6a3f8573a15bc92623ce",
+      "id": "fences/fence-build",
+      "project": "fences",
+      "category": "Fencing",
+      "county": "",
+      "originalFilename": "FENCE BUILD.jpg",
+      "sourcePath": "Fences/FENCE BUILD.jpg",
+      "width": 1280,
+      "height": 1436,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/fences/FENCE BUILD-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/fences/FENCE BUILD-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "path": "/images/projects/fences/FENCE BUILD-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "path": "/images/projects/fences/FENCE BUILD-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "path": "/images/projects/fences/FENCE BUILD-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "path": "/images/projects/fences/FENCE BUILD-1080.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/fences/FENCE BUILD-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRnoAAABXRUJQVlA4IG4AAADwAwCdASoQABIAPu1iqU2ppaOiMAgBMB2JZACw7Btl7rbeX6rshvrAAP203cJZfx4HNJGQjqkIJ/1IqEhLDaptb+KTyO47hPELci+y56J6LicuYtVCuJkBvLc1vjmZ5nhVwkwwD2sKsPlM0wAAAA==",
+      "createdAt": "2026-07-21T16:38:47.112Z"
+    },
+    {
+      "uuid": "a898cc66-01fc-50d5-952e-73a5080c0eb1",
+      "contentHash": "e4dae37bb90595bbe466680b3295956f8a58a4589c5ce26c60ad7d4088e9535b",
+      "id": "fences/fencerebuildmatchingstain",
+      "project": "fences",
+      "category": "Fencing",
+      "county": "",
+      "originalFilename": "FENCEREBUILDMATCHINGSTAIN.png",
+      "sourcePath": "Fences/FENCEREBUILDMATCHINGSTAIN.png",
+      "width": 1280,
+      "height": 1008,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "path": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "path": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "path": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "path": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRmAAAABXRUJQVlA4IFQAAADwAQCdASoQAA0AA4BaJbACdADRDHzQrQAA/qvg89rPqkr4vC+n26YZleQouc7LnPjSe7aiV8Bk46Isw4c1pXFZlR6lSC3kYu74+jPw1olB8dMkQAA=",
+      "createdAt": "2026-07-21T16:38:47.905Z"
+    },
+    {
+      "uuid": "d372a0c3-cd76-5808-b16b-98b83c142743",
+      "contentHash": "e7efc8426e3179321a44b00dfe6574f85282dc842a12580db3a14f858be4b603",
+      "id": "outdoor-living/img-0535",
+      "project": "outdoor-living",
+      "category": "Outdoor Living",
+      "county": "",
+      "originalFilename": "IMG_0535.JPG",
+      "sourcePath": "Outdoor Living/IMG_0535.JPG",
+      "width": 480,
+      "height": 640,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/outdoor-living/IMG_0535-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/outdoor-living/IMG_0535-480.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/outdoor-living/IMG_0535-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRrIAAABXRUJQVlA4IKYAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JZgC7AYyUzSAo8CN+0kAA/uzX/NRtBA4fYxe1MYzZg9Yyg39mWRxyMuSXMbw2Ez/udSJkkKwmu1FWWaj3Yz9VTXfi7Bnb5RJN96gWJnhl4Y9u9NPtY9NlMAxXVvKGeXORmTR19rTl09cH1RRxff+/4fvon77FhBwL7sPXfWfLLcWwfin3CC+XXZ7eIQAA",
+      "createdAt": "2026-07-21T16:38:48.124Z"
+    },
+    {
+      "uuid": "e0894b9f-fc10-5754-b30d-c009872dc85f",
+      "contentHash": "8f2f0e426ce211320113a86cd1a5212eb89849a6bee1f7a3a42ae5e41a4eb7ce",
+      "id": "outdoor-living/img-0555",
+      "project": "outdoor-living",
+      "category": "Outdoor Living",
+      "county": "",
+      "originalFilename": "IMG_0555.JPG",
+      "sourcePath": "Outdoor Living/IMG_0555.JPG",
+      "width": 480,
+      "height": 640,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/outdoor-living/IMG_0555-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/outdoor-living/IMG_0555-480.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/outdoor-living/IMG_0555-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRpgAAABXRUJQVlA4IIwAAAAQBACdASoQABUAPu1iqU2ppaOiMAgBMB2JagCdACBQwFrkGXfKp6lpIAD9OkFVd8c0YfHYntYMjW2O0g95IKv+tGUSIURcmOUwB+rpdqDU6jnh5V6AkcTra3WVpy4A/iHXffrmMC+L2Pb/lLCy5H3QpxzLrQfs99yITXhmPg92uPtEh3/6tJaH+xIAAA==",
+      "createdAt": "2026-07-21T16:38:48.336Z"
+    },
+    {
+      "uuid": "270d8215-1465-5dc5-81da-b4b0e4d78961",
+      "contentHash": "6c2a415932678b714b80b0a4466223d1d597c3e48f0a6b722122b992075f7a23",
+      "id": "outdoor-living/img-0559",
+      "project": "outdoor-living",
+      "category": "Outdoor Living",
+      "county": "",
+      "originalFilename": "IMG_0559.JPG",
+      "sourcePath": "Outdoor Living/IMG_0559.JPG",
+      "width": 640,
+      "height": 480,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/outdoor-living/IMG_0559-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/outdoor-living/IMG_0559-480.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/outdoor-living/IMG_0559-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAADwAQCdASoQAAwAA4BaJZACdAC9tYJ18jAA/sJ2J2+uBbAmhAZEbw8bk0QAAataPEwENnjJ9s687n7rdvJY8KGHzUrCEYEgNvYjQa+xQKJu86G+wD/KdxdipSAAAA==",
+      "createdAt": "2026-07-21T16:38:48.531Z"
+    },
+    {
+      "uuid": "bb47212a-253b-5941-a941-0c5d98511337",
+      "contentHash": "c62df683fd9daa0c18594f3c57ceb2559d752bca53a6a4c22ec59b2e7abf9c2c",
+      "id": "outdoor-living/img-0737",
+      "project": "outdoor-living",
+      "category": "Outdoor Living",
+      "county": "",
+      "originalFilename": "IMG_0737.JPG",
+      "sourcePath": "Outdoor Living/IMG_0737.JPG",
+      "width": 480,
+      "height": 640,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/outdoor-living/IMG_0737-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/outdoor-living/IMG_0737-480.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/outdoor-living/IMG_0737-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRo4AAABXRUJQVlA4IIIAAAAwBACdASoQABUAPu1iqU2ppaOiMAgBMB2JZgCdACLG+RiryILpPo6sBAAA/nH3AbWRdxi+dGpTQJ7YzdppbuAjTEBcS4SwtEyCV49IqMnpCS9hEi7NYqRDm/0u48ZCfI7tuhBpSqzNx7gaxDxW2WpZVx+BsUzwXMYj+6XukRCLBpwA",
+      "createdAt": "2026-07-21T16:38:48.729Z"
+    },
+    {
+      "uuid": "88bed58f-11f7-5624-96d2-4ccf0d09ee19",
+      "contentHash": "a17a674de6612619d7eb7d313b8a86142283b129d15c40705b62d28e352590af",
+      "id": "outdoor-living/img-0805",
+      "project": "outdoor-living",
+      "category": "Outdoor Living",
+      "county": "",
+      "originalFilename": "IMG_0805.JPG",
+      "sourcePath": "Outdoor Living/IMG_0805.JPG",
+      "width": 480,
+      "height": 640,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/outdoor-living/IMG_0805-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/outdoor-living/IMG_0805-480.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/outdoor-living/IMG_0805-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRqQAAABXRUJQVlA4IJgAAABQBACdASoQABUAPu1iqU2ppaOiMAgBMB2JZAC2yYxY7WRUdFNTActeprwAAP5J8Zkn/YlF/BxEWm9Te2dpWfI1GDpOIxbMg97/Xf+nlFfKvXBQ/1fKw0CKdVmJlDkeo27LyMC1BFfrwYsY0avToVBEP+/VV2EJNWUFkgeIOe6EpHPZp2xgbv+CmIU9/J/4gvMrPoxj2augAA==",
+      "createdAt": "2026-07-21T16:38:48.928Z"
+    },
+    {
+      "uuid": "c78d13c8-3be2-5909-86ff-fa290e25a7aa",
+      "contentHash": "c7c1100a642163f8b062065f57ae3064360e48daca37c64e889a6cd9ef31df2e",
+      "id": "outdoor-living/img-0841",
+      "project": "outdoor-living",
+      "category": "Outdoor Living",
+      "county": "",
+      "originalFilename": "IMG_0841.JPG",
+      "sourcePath": "Outdoor Living/IMG_0841.JPG",
+      "width": 480,
+      "height": 640,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/outdoor-living/IMG_0841-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/outdoor-living/IMG_0841-480.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/outdoor-living/IMG_0841-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRqAAAABXRUJQVlA4IJQAAAAwBACdASoQABUAPu1iqU2ppaOiMAgBMB2JYgCdIKnDFXeldY3oE364NoAA/CxytM9C0L8Te4hvdHlJDY88BKqJYHenGtFvE1yqCWUXGKV3oUjtAzRZEHCbiwZBVsdreElLxkmhJfi7wffRBaeRy7aklWeGB9AR3Z/A3WEFOB3CBJk8NmDCzWgrsM7RLnU5yQHIOFAA",
+      "createdAt": "2026-07-21T16:38:49.105Z"
+    },
+    {
+      "uuid": "a7b5d396-6cc5-5b3f-b038-b827e3bc9c4f",
+      "contentHash": "eb41507f5cea45025ef68427cd9416c932ffc12033ad9bc1201f8504fbbbee6e",
+      "id": "repairs/floor0",
+      "project": "repairs",
+      "category": "Repairs",
+      "county": "",
+      "originalFilename": "FLOOR0.jpg",
+      "sourcePath": "Repairs/FLOOR0.jpg",
+      "width": 1280,
+      "height": 1017,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/repairs/FLOOR0-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/repairs/FLOOR0-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "path": "/images/projects/repairs/FLOOR0-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "path": "/images/projects/repairs/FLOOR0-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "path": "/images/projects/repairs/FLOOR0-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "path": "/images/projects/repairs/FLOOR0-1080.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/repairs/FLOOR0-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRlQAAABXRUJQVlA4IEgAAACwAQCdASoQAA0AA4BaJYwAAaXQw9PwAP36Sm3DEtQbDkMvPkaMAEwcxyZHyWH+BeC/TJb0Ozzhf7Ml5Q5lvO5RynLHuJgeAAA=",
+      "createdAt": "2026-07-21T16:38:49.907Z"
+    },
+    {
+      "uuid": "fd200c13-e16d-5934-b7d2-d428b8a58b43",
+      "contentHash": "f53271aa8933700c7674341be3f0b96565414e643791b26a2442614a1c2d2258",
+      "id": "repairs/img-0544",
+      "project": "repairs",
+      "category": "Repairs",
+      "county": "",
+      "originalFilename": "IMG_0544.JPG",
+      "sourcePath": "Repairs/IMG_0544.JPG",
+      "width": 480,
+      "height": 640,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/repairs/IMG_0544-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/repairs/IMG_0544-480.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/repairs/IMG_0544-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRoYAAABXRUJQVlA4IHoAAAAwBACdASoQABUAPu1iqU2ppaQiMAgBMB2JZgCdMoRwABcEcLbRv2HolYAA/rnytW/cenOGcQHi6cYSz72pshOT8x0knb3JXswlVaNd6Wg8HeKTllkdKAa/SXaVwY1oc2k2zURgOIHCCqh0GVgz3u3Ew49rWj9yygAAAA==",
+      "createdAt": "2026-07-21T16:38:50.034Z"
+    },
+    {
+      "uuid": "2dd3a4ff-bafb-5461-b66b-edcf0b1d1148",
+      "contentHash": "77275bcd9413b06ca281165a0226e19cadaa6b8483de1b6aa6957ebe5e3e7dc0",
+      "id": "repairs/img-0546",
+      "project": "repairs",
+      "category": "Repairs",
+      "county": "",
+      "originalFilename": "IMG_0546.JPG",
+      "sourcePath": "Repairs/IMG_0546.JPG",
+      "width": 480,
+      "height": 640,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/repairs/IMG_0546-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/repairs/IMG_0546-480.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/repairs/IMG_0546-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRooAAABXRUJQVlA4IH4AAAAwBACdASoQABUAPu1iqU2ppaOiMAgBMB2JbACdMoAC2YqzydVHDEyH5AAA/pjvNB6DOTuP5V7jvuZM0NcvMlU4YdOz/krhjJyWuY662JtQKtigpnBfGjuygOllmzoB21yflCirHhIjlRHoJhO57/wonXT6ywBMem7CaMEAAAA=",
+      "createdAt": "2026-07-21T16:38:50.249Z"
+    },
+    {
+      "uuid": "45fd65e1-e6f9-5695-857d-4ec429e155bc",
+      "contentHash": "bb60c0ff212d897f3ab4b5101d664a2613a98d70f1c96c18facf2dc0ad0a642c",
+      "id": "repairs/drywall",
+      "project": "repairs",
+      "category": "Repairs",
+      "county": "",
+      "originalFilename": "DRYWALL.png",
+      "sourcePath": "Repairs/DRYWALL.png",
+      "width": 1280,
+      "height": 1600,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/repairs/DRYWALL-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/repairs/DRYWALL-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "path": "/images/projects/repairs/DRYWALL-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "path": "/images/projects/repairs/DRYWALL-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "path": "/images/projects/repairs/DRYWALL-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "path": "/images/projects/repairs/DRYWALL-1080.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/repairs/DRYWALL-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRnwAAABXRUJQVlA4IHAAAACQAwCdASoQABQAPu1iqU2ppaOiMAgBMB2JZwDCgBAR6pTlTkRAAN3u8Q4IPleDsaTZ7AoxY+7Ba6Q7QlVVqp3pFIhFZ6OTz92anLm4nP+6cvAEtcjXttZX6iAc/7xIx9vWfCDqhUbhVOCUmUuR2AAA",
+      "createdAt": "2026-07-21T16:38:51.240Z"
+    },
+    {
+      "uuid": "6a9c0039-7f3a-5934-9038-ba29caa76aa8",
+      "contentHash": "263a496c4392923e59d82737ea296a7c548a1dc8571a322013c52b99001ad118",
+      "id": "repairs/floor",
+      "project": "repairs",
+      "category": "Repairs",
+      "county": "",
+      "originalFilename": "FLOOR.png",
+      "sourcePath": "Repairs/FLOOR.png",
+      "width": 1280,
+      "height": 823,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/repairs/FLOOR-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/repairs/FLOOR-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "path": "/images/projects/repairs/FLOOR-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "path": "/images/projects/repairs/FLOOR-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "path": "/images/projects/repairs/FLOOR-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "path": "/images/projects/repairs/FLOOR-1080.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/repairs/FLOOR-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRmAAAABXRUJQVlA4IFQAAAAwAgCdASoQAAoAA4BaJagCdAD7FuSds6ycAAD+wgbazRgn17MNNFfIG15koHLDfi1Wpi46FjdjG5SiL2k4K2Lp+EJuLDKCcw7Jyy5veU0wxWMgAAA=",
+      "createdAt": "2026-07-21T16:38:51.962Z"
+    },
+    {
+      "uuid": "e2bf39d2-5d26-578b-aba2-1cb3e1dd1b89",
+      "contentHash": "39782328becb886acb5fcca700a27a746a19f299f0354cac7939aa08c5d663c0",
+      "id": "repairs/guttercleaning",
+      "project": "repairs",
+      "category": "Repairs",
+      "county": "",
+      "originalFilename": "GUTTERCLEANING.jpg",
+      "sourcePath": "Repairs/GUTTERCLEANING.jpg",
+      "width": 1280,
+      "height": 1352,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/repairs/GUTTERCLEANING-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/repairs/GUTTERCLEANING-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "path": "/images/projects/repairs/GUTTERCLEANING-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "path": "/images/projects/repairs/GUTTERCLEANING-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "path": "/images/projects/repairs/GUTTERCLEANING-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "path": "/images/projects/repairs/GUTTERCLEANING-1080.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/repairs/GUTTERCLEANING-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRnoAAABXRUJQVlA4IG4AAACwAwCdASoQABEAPu1iqU2ppaOiMAgBMB2JQBYdgyN1iNE5FhlLAAD9qKf2urLmgLfrkIwATI7alexyLkmHaZlTReDWCqRUTFumlTXWlQ90e1+SJm94xqyiC8clO1yomNWysaPk2UKIIX6keAAAAA==",
+      "createdAt": "2026-07-21T16:38:52.697Z"
+    },
+    {
+      "uuid": "4478b403-34f2-58d6-986b-470b968ee497",
+      "contentHash": "5358901c87cd8fc7a4f665825b65e576d51b671ec8d1c71ca256ed6d90218657",
+      "id": "repairs/trimrepair",
+      "project": "repairs",
+      "category": "Repairs",
+      "county": "",
+      "originalFilename": "TRIMREPAIR.png",
+      "sourcePath": "Repairs/TRIMREPAIR.png",
+      "width": 1280,
+      "height": 1280,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/repairs/TRIMREPAIR-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/repairs/TRIMREPAIR-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "path": "/images/projects/repairs/TRIMREPAIR-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "path": "/images/projects/repairs/TRIMREPAIR-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "path": "/images/projects/repairs/TRIMREPAIR-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "path": "/images/projects/repairs/TRIMREPAIR-1080.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/repairs/TRIMREPAIR-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAADQAQCdASoQABAAA4BaJQBOgB02QinKAAD83VJNiygV8eykqEdIE1qSHSVNFOs102FdDTFTOrYHFJSqkCg2QozDXmBPH4uPVI6P8qxeEaN70X4HLFn2XzVvuL2KAA==",
+      "createdAt": "2026-07-21T16:38:53.763Z"
+    }
+  ]
+}

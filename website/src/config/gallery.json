@@ -7,6 +7,8 @@
       "county": "",
       "images": {
         "hero": {
+          "uuid": "37f28a01-0ea9-52a5-9842-a47e43f8398b",
+          "contentHash": "7804099b3a90f250341a8011ceaace8cfb56a02c30442c1239cebf1132c553ff",
           "id": "bathroom-remodeling/bathroom-wall",
           "title": "Bathroom Remodeling — Willamette Valley",
           "project": "bathroom-remodeling",
@@ -61,6 +63,8 @@
           ]
         },
         "cover": {
+          "uuid": "37f28a01-0ea9-52a5-9842-a47e43f8398b",
+          "contentHash": "7804099b3a90f250341a8011ceaace8cfb56a02c30442c1239cebf1132c553ff",
           "id": "bathroom-remodeling/bathroom-wall",
           "title": "Bathroom Remodeling — Willamette Valley",
           "project": "bathroom-remodeling",
@@ -115,6 +119,8 @@
           ]
         },
         "thumbnail": {
+          "uuid": "37f28a01-0ea9-52a5-9842-a47e43f8398b",
+          "contentHash": "7804099b3a90f250341a8011ceaace8cfb56a02c30442c1239cebf1132c553ff",
           "id": "bathroom-remodeling/bathroom-wall",
           "title": "Bathroom Remodeling — Willamette Valley",
           "project": "bathroom-remodeling",
@@ -173,6 +179,8 @@
         "after": [],
         "details": [
           {
+            "uuid": "37f28a01-0ea9-52a5-9842-a47e43f8398b",
+            "contentHash": "7804099b3a90f250341a8011ceaace8cfb56a02c30442c1239cebf1132c553ff",
             "id": "bathroom-remodeling/bathroom-wall",
             "title": "Bathroom Remodeling — Willamette Valley",
             "project": "bathroom-remodeling",
@@ -239,6 +247,8 @@
       "county": "",
       "images": {
         "hero": {
+          "uuid": "e4e92056-b4e1-504d-a0f1-7fabd34e1edd",
+          "contentHash": "c16f37d656c830146ee3f2b54ed0b62c5d821952c06b7e85cb9c465672cd093e",
           "id": "built-ins/finishedcarpentry0",
           "title": "Custom Carpentry — Willamette Valley",
           "project": "built-ins",
@@ -293,6 +303,8 @@
           ]
         },
         "cover": {
+          "uuid": "e4e92056-b4e1-504d-a0f1-7fabd34e1edd",
+          "contentHash": "c16f37d656c830146ee3f2b54ed0b62c5d821952c06b7e85cb9c465672cd093e",
           "id": "built-ins/finishedcarpentry0",
           "title": "Custom Carpentry — Willamette Valley",
           "project": "built-ins",
@@ -347,6 +359,8 @@
           ]
         },
         "thumbnail": {
+          "uuid": "e4e92056-b4e1-504d-a0f1-7fabd34e1edd",
+          "contentHash": "c16f37d656c830146ee3f2b54ed0b62c5d821952c06b7e85cb9c465672cd093e",
           "id": "built-ins/finishedcarpentry0",
           "title": "Custom Carpentry — Willamette Valley",
           "project": "built-ins",
@@ -405,6 +419,8 @@
         "after": [],
         "details": [
           {
+            "uuid": "e4e92056-b4e1-504d-a0f1-7fabd34e1edd",
+            "contentHash": "c16f37d656c830146ee3f2b54ed0b62c5d821952c06b7e85cb9c465672cd093e",
             "id": "built-ins/finishedcarpentry0",
             "title": "Custom Carpentry — Willamette Valley",
             "project": "built-ins",
@@ -459,6 +475,8 @@
             ]
           },
           {
+            "uuid": "4b20bdb7-e4ec-5233-8516-2e01fbd96698",
+            "contentHash": "89a9f5d4bb013fa3978d767755fbfe05b11c3c0330ca6cf7ac02fb0d011be90e",
             "id": "built-ins/finishedcarpentry",
             "title": "Custom Carpentry — Willamette Valley",
             "project": "built-ins",
@@ -526,6 +544,8 @@
       "county": "",
       "images": {
         "hero": {
+          "uuid": "da6d1b95-4d7d-5bcf-a991-de1286be232d",
+          "contentHash": "fde707d0e89f57292087636f44c2e8a580add68c1bdf6a3f8573a15bc92623ce",
           "id": "fences/fence-build",
           "title": "Fencing — Willamette Valley",
           "project": "fences",
@@ -580,6 +600,8 @@
           ]
         },
         "cover": {
+          "uuid": "da6d1b95-4d7d-5bcf-a991-de1286be232d",
+          "contentHash": "fde707d0e89f57292087636f44c2e8a580add68c1bdf6a3f8573a15bc92623ce",
           "id": "fences/fence-build",
           "title": "Fencing — Willamette Valley",
           "project": "fences",
@@ -634,6 +656,8 @@
           ]
         },
         "thumbnail": {
+          "uuid": "da6d1b95-4d7d-5bcf-a991-de1286be232d",
+          "contentHash": "fde707d0e89f57292087636f44c2e8a580add68c1bdf6a3f8573a15bc92623ce",
           "id": "fences/fence-build",
           "title": "Fencing — Willamette Valley",
           "project": "fences",
@@ -692,6 +716,8 @@
         "after": [],
         "details": [
           {
+            "uuid": "da6d1b95-4d7d-5bcf-a991-de1286be232d",
+            "contentHash": "fde707d0e89f57292087636f44c2e8a580add68c1bdf6a3f8573a15bc92623ce",
             "id": "fences/fence-build",
             "title": "Fencing — Willamette Valley",
             "project": "fences",
@@ -746,6 +772,8 @@
             ]
           },
           {
+            "uuid": "a898cc66-01fc-50d5-952e-73a5080c0eb1",
+            "contentHash": "e4dae37bb90595bbe466680b3295956f8a58a4589c5ce26c60ad7d4088e9535b",
             "id": "fences/fencerebuildmatchingstain",
             "title": "Fencing — Willamette Valley",
             "project": "fences",
@@ -813,6 +841,8 @@
       "county": "",
       "images": {
         "hero": {
+          "uuid": "d372a0c3-cd76-5808-b16b-98b83c142743",
+          "contentHash": "e7efc8426e3179321a44b00dfe6574f85282dc842a12580db3a14f858be4b603",
           "id": "outdoor-living/img-0535",
           "title": "Outdoor Living — Willamette Valley",
           "project": "outdoor-living",
@@ -847,6 +877,8 @@
           ]
         },
         "cover": {
+          "uuid": "d372a0c3-cd76-5808-b16b-98b83c142743",
+          "contentHash": "e7efc8426e3179321a44b00dfe6574f85282dc842a12580db3a14f858be4b603",
           "id": "outdoor-living/img-0535",
           "title": "Outdoor Living — Willamette Valley",
           "project": "outdoor-living",
@@ -881,6 +913,8 @@
           ]
         },
         "thumbnail": {
+          "uuid": "d372a0c3-cd76-5808-b16b-98b83c142743",
+          "contentHash": "e7efc8426e3179321a44b00dfe6574f85282dc842a12580db3a14f858be4b603",
           "id": "outdoor-living/img-0535",
           "title": "Outdoor Living — Willamette Valley",
           "project": "outdoor-living",
@@ -919,6 +953,8 @@
         "after": [],
         "details": [
           {
+            "uuid": "d372a0c3-cd76-5808-b16b-98b83c142743",
+            "contentHash": "e7efc8426e3179321a44b00dfe6574f85282dc842a12580db3a14f858be4b603",
             "id": "outdoor-living/img-0535",
             "title": "Outdoor Living — Willamette Valley",
             "project": "outdoor-living",
@@ -953,6 +989,8 @@
             ]
           },
           {
+            "uuid": "e0894b9f-fc10-5754-b30d-c009872dc85f",
+            "contentHash": "8f2f0e426ce211320113a86cd1a5212eb89849a6bee1f7a3a42ae5e41a4eb7ce",
             "id": "outdoor-living/img-0555",
             "title": "Outdoor Living — Willamette Valley",
             "project": "outdoor-living",
@@ -987,6 +1025,8 @@
             ]
           },
           {
+            "uuid": "270d8215-1465-5dc5-81da-b4b0e4d78961",
+            "contentHash": "6c2a415932678b714b80b0a4466223d1d597c3e48f0a6b722122b992075f7a23",
             "id": "outdoor-living/img-0559",
             "title": "Outdoor Living — Willamette Valley",
             "project": "outdoor-living",
@@ -1021,6 +1061,8 @@
             ]
           },
           {
+            "uuid": "bb47212a-253b-5941-a941-0c5d98511337",
+            "contentHash": "c62df683fd9daa0c18594f3c57ceb2559d752bca53a6a4c22ec59b2e7abf9c2c",
             "id": "outdoor-living/img-0737",
             "title": "Outdoor Living — Willamette Valley",
             "project": "outdoor-living",
@@ -1055,6 +1097,8 @@
             ]
           },
           {
+            "uuid": "88bed58f-11f7-5624-96d2-4ccf0d09ee19",
+            "contentHash": "a17a674de6612619d7eb7d313b8a86142283b129d15c40705b62d28e352590af",
             "id": "outdoor-living/img-0805",
             "title": "Outdoor Living — Willamette Valley",
             "project": "outdoor-living",
@@ -1089,6 +1133,8 @@
             ]
           },
           {
+            "uuid": "c78d13c8-3be2-5909-86ff-fa290e25a7aa",
+            "contentHash": "c7c1100a642163f8b062065f57ae3064360e48daca37c64e889a6cd9ef31df2e",
             "id": "outdoor-living/img-0841",
             "title": "Outdoor Living — Willamette Valley",
             "project": "outdoor-living",
@@ -1140,6 +1186,8 @@
       "county": "",
       "images": {
         "hero": {
+          "uuid": "a7b5d396-6cc5-5b3f-b038-b827e3bc9c4f",
+          "contentHash": "eb41507f5cea45025ef68427cd9416c932ffc12033ad9bc1201f8504fbbbee6e",
           "id": "repairs/floor0",
           "title": "Repairs — Willamette Valley",
           "project": "repairs",
@@ -1194,6 +1242,8 @@
           ]
         },
         "cover": {
+          "uuid": "a7b5d396-6cc5-5b3f-b038-b827e3bc9c4f",
+          "contentHash": "eb41507f5cea45025ef68427cd9416c932ffc12033ad9bc1201f8504fbbbee6e",
           "id": "repairs/floor0",
           "title": "Repairs — Willamette Valley",
           "project": "repairs",
@@ -1248,6 +1298,8 @@
           ]
         },
         "thumbnail": {
+          "uuid": "a7b5d396-6cc5-5b3f-b038-b827e3bc9c4f",
+          "contentHash": "eb41507f5cea45025ef68427cd9416c932ffc12033ad9bc1201f8504fbbbee6e",
           "id": "repairs/floor0",
           "title": "Repairs — Willamette Valley",
           "project": "repairs",
@@ -1306,6 +1358,8 @@
         "after": [],
         "details": [
           {
+            "uuid": "a7b5d396-6cc5-5b3f-b038-b827e3bc9c4f",
+            "contentHash": "eb41507f5cea45025ef68427cd9416c932ffc12033ad9bc1201f8504fbbbee6e",
             "id": "repairs/floor0",
             "title": "Repairs — Willamette Valley",
             "project": "repairs",
@@ -1360,6 +1414,8 @@
             ]
           },
           {
+            "uuid": "fd200c13-e16d-5934-b7d2-d428b8a58b43",
+            "contentHash": "f53271aa8933700c7674341be3f0b96565414e643791b26a2442614a1c2d2258",
             "id": "repairs/img-0544",
             "title": "Repairs — Willamette Valley",
             "project": "repairs",
@@ -1394,6 +1450,8 @@
             ]
           },
           {
+            "uuid": "2dd3a4ff-bafb-5461-b66b-edcf0b1d1148",
+            "contentHash": "77275bcd9413b06ca281165a0226e19cadaa6b8483de1b6aa6957ebe5e3e7dc0",
             "id": "repairs/img-0546",
             "title": "Repairs — Willamette Valley",
             "project": "repairs",
@@ -1428,6 +1486,8 @@
             ]
           },
           {
+            "uuid": "45fd65e1-e6f9-5695-857d-4ec429e155bc",
+            "contentHash": "bb60c0ff212d897f3ab4b5101d664a2613a98d70f1c96c18facf2dc0ad0a642c",
             "id": "repairs/drywall",
             "title": "Repairs — Willamette Valley",
             "project": "repairs",
@@ -1482,6 +1542,8 @@
             ]
           },
           {
+            "uuid": "6a9c0039-7f3a-5934-9038-ba29caa76aa8",
+            "contentHash": "263a496c4392923e59d82737ea296a7c548a1dc8571a322013c52b99001ad118",
             "id": "repairs/floor",
             "title": "Repairs — Willamette Valley",
             "project": "repairs",
@@ -1536,6 +1598,8 @@
             ]
           },
           {
+            "uuid": "e2bf39d2-5d26-578b-aba2-1cb3e1dd1b89",
+            "contentHash": "39782328becb886acb5fcca700a27a746a19f299f0354cac7939aa08c5d663c0",
             "id": "repairs/guttercleaning",
             "title": "Repairs — Willamette Valley",
             "project": "repairs",
@@ -1590,6 +1654,8 @@
             ]
           },
           {
+            "uuid": "4478b403-34f2-58d6-986b-470b968ee497",
+            "contentHash": "5358901c87cd8fc7a4f665825b65e576d51b671ec8d1c71ca256ed6d90218657",
             "id": "repairs/trimrepair",
             "title": "Repairs — Willamette Valley",
             "project": "repairs",
@@ -1658,6 +1724,8 @@
   ],
   "images": [
     {
+      "uuid": "37f28a01-0ea9-52a5-9842-a47e43f8398b",
+      "contentHash": "7804099b3a90f250341a8011ceaace8cfb56a02c30442c1239cebf1132c553ff",
       "id": "bathroom-remodeling/bathroom-wall",
       "title": "Bathroom Remodeling — Willamette Valley",
       "project": "bathroom-remodeling",
@@ -1712,6 +1780,8 @@
       ]
     },
     {
+      "uuid": "e4e92056-b4e1-504d-a0f1-7fabd34e1edd",
+      "contentHash": "c16f37d656c830146ee3f2b54ed0b62c5d821952c06b7e85cb9c465672cd093e",
       "id": "built-ins/finishedcarpentry0",
       "title": "Custom Carpentry — Willamette Valley",
       "project": "built-ins",
@@ -1766,6 +1836,8 @@
       ]
     },
     {
+      "uuid": "4b20bdb7-e4ec-5233-8516-2e01fbd96698",
+      "contentHash": "89a9f5d4bb013fa3978d767755fbfe05b11c3c0330ca6cf7ac02fb0d011be90e",
       "id": "built-ins/finishedcarpentry",
       "title": "Custom Carpentry — Willamette Valley",
       "project": "built-ins",
@@ -1820,6 +1892,8 @@
       ]
     },
     {
+      "uuid": "da6d1b95-4d7d-5bcf-a991-de1286be232d",
+      "contentHash": "fde707d0e89f57292087636f44c2e8a580add68c1bdf6a3f8573a15bc92623ce",
       "id": "fences/fence-build",
       "title": "Fencing — Willamette Valley",
       "project": "fences",
@@ -1874,6 +1948,8 @@
       ]
     },
     {
+      "uuid": "a898cc66-01fc-50d5-952e-73a5080c0eb1",
+      "contentHash": "e4dae37bb90595bbe466680b3295956f8a58a4589c5ce26c60ad7d4088e9535b",
       "id": "fences/fencerebuildmatchingstain",
       "title": "Fencing — Willamette Valley",
       "project": "fences",
@@ -1928,6 +2004,8 @@
       ]
     },
     {
+      "uuid": "d372a0c3-cd76-5808-b16b-98b83c142743",
+      "contentHash": "e7efc8426e3179321a44b00dfe6574f85282dc842a12580db3a14f858be4b603",
       "id": "outdoor-living/img-0535",
       "title": "Outdoor Living — Willamette Valley",
       "project": "outdoor-living",
@@ -1962,6 +2040,8 @@
       ]
     },
     {
+      "uuid": "e0894b9f-fc10-5754-b30d-c009872dc85f",
+      "contentHash": "8f2f0e426ce211320113a86cd1a5212eb89849a6bee1f7a3a42ae5e41a4eb7ce",
       "id": "outdoor-living/img-0555",
       "title": "Outdoor Living — Willamette Valley",
       "project": "outdoor-living",
@@ -1996,6 +2076,8 @@
       ]
     },
     {
+      "uuid": "270d8215-1465-5dc5-81da-b4b0e4d78961",
+      "contentHash": "6c2a415932678b714b80b0a4466223d1d597c3e48f0a6b722122b992075f7a23",
       "id": "outdoor-living/img-0559",
       "title": "Outdoor Living — Willamette Valley",
       "project": "outdoor-living",
@@ -2030,6 +2112,8 @@
       ]
     },
     {
+      "uuid": "bb47212a-253b-5941-a941-0c5d98511337",
+      "contentHash": "c62df683fd9daa0c18594f3c57ceb2559d752bca53a6a4c22ec59b2e7abf9c2c",
       "id": "outdoor-living/img-0737",
       "title": "Outdoor Living — Willamette Valley",
       "project": "outdoor-living",
@@ -2064,6 +2148,8 @@
       ]
     },
     {
+      "uuid": "88bed58f-11f7-5624-96d2-4ccf0d09ee19",
+      "contentHash": "a17a674de6612619d7eb7d313b8a86142283b129d15c40705b62d28e352590af",
       "id": "outdoor-living/img-0805",
       "title": "Outdoor Living — Willamette Valley",
       "project": "outdoor-living",
@@ -2098,6 +2184,8 @@
       ]
     },
     {
+      "uuid": "c78d13c8-3be2-5909-86ff-fa290e25a7aa",
+      "contentHash": "c7c1100a642163f8b062065f57ae3064360e48daca37c64e889a6cd9ef31df2e",
       "id": "outdoor-living/img-0841",
       "title": "Outdoor Living — Willamette Valley",
       "project": "outdoor-living",
@@ -2132,6 +2220,8 @@
       ]
     },
     {
+      "uuid": "a7b5d396-6cc5-5b3f-b038-b827e3bc9c4f",
+      "contentHash": "eb41507f5cea45025ef68427cd9416c932ffc12033ad9bc1201f8504fbbbee6e",
       "id": "repairs/floor0",
       "title": "Repairs — Willamette Valley",
       "project": "repairs",
@@ -2186,6 +2276,8 @@
       ]
     },
     {
+      "uuid": "fd200c13-e16d-5934-b7d2-d428b8a58b43",
+      "contentHash": "f53271aa8933700c7674341be3f0b96565414e643791b26a2442614a1c2d2258",
       "id": "repairs/img-0544",
       "title": "Repairs — Willamette Valley",
       "project": "repairs",
@@ -2220,6 +2312,8 @@
       ]
     },
     {
+      "uuid": "2dd3a4ff-bafb-5461-b66b-edcf0b1d1148",
+      "contentHash": "77275bcd9413b06ca281165a0226e19cadaa6b8483de1b6aa6957ebe5e3e7dc0",
       "id": "repairs/img-0546",
       "title": "Repairs — Willamette Valley",
       "project": "repairs",
@@ -2254,6 +2348,8 @@
       ]
     },
     {
+      "uuid": "45fd65e1-e6f9-5695-857d-4ec429e155bc",
+      "contentHash": "bb60c0ff212d897f3ab4b5101d664a2613a98d70f1c96c18facf2dc0ad0a642c",
       "id": "repairs/drywall",
       "title": "Repairs — Willamette Valley",
       "project": "repairs",
@@ -2308,6 +2404,8 @@
       ]
     },
     {
+      "uuid": "6a9c0039-7f3a-5934-9038-ba29caa76aa8",
+      "contentHash": "263a496c4392923e59d82737ea296a7c548a1dc8571a322013c52b99001ad118",
       "id": "repairs/floor",
       "title": "Repairs — Willamette Valley",
       "project": "repairs",
@@ -2362,6 +2460,8 @@
       ]
     },
     {
+      "uuid": "e2bf39d2-5d26-578b-aba2-1cb3e1dd1b89",
+      "contentHash": "39782328becb886acb5fcca700a27a746a19f299f0354cac7939aa08c5d663c0",
       "id": "repairs/guttercleaning",
       "title": "Repairs — Willamette Valley",
       "project": "repairs",
@@ -2416,6 +2516,8 @@
       ]
     },
     {
+      "uuid": "4478b403-34f2-58d6-986b-470b968ee497",
+      "contentHash": "5358901c87cd8fc7a4f665825b65e576d51b671ec8d1c71ca256ed6d90218657",
       "id": "repairs/trimrepair",
       "title": "Repairs — Willamette Valley",
       "project": "repairs",

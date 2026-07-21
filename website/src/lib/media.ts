@@ -83,7 +83,7 @@ interface PhotoMeta {
  */
 const PHOTO_ROLES: PhotoMeta[] = (presentation as any).photoRoles;
 
-const G = gallery as { projects: any[]; images: GalleryRecord[] };
+const G = gallery as unknown as { projects: any[]; images: GalleryRecord[] };
 const BY_ID = new Map(G.images.map((i) => [i.id, i]));
 const ROLE_BY_ID = new Map(PHOTO_ROLES.map((m) => [m.id, m]));
 
