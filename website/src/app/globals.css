@@ -49,6 +49,13 @@
   --color-warning: #d99a4e;
   --color-error: #b4543a;
 
+  /* Richer cedar tones (subtle accents only, never dominant) */
+  --color-walnut: #5D4037;          /* deep walnut for dividers */
+  --color-burnt-cedar: #8D6E63;     /* burnt cedar for borders */
+  --color-aged-bronze: #A1887F;     /* aged bronze for accents */
+  --color-charcoal: #37474F;        /* charcoal for subtle text */
+  --color-warm-ivory: #FFF8E1;      /* warm ivory for highlights */
+
   /* Typography — Playfair Display (display) + Georgia (body) + Playball (signature) */
   --font-display: "Playfair Display", Georgia, "Times New Roman", serif;
   --font-sans: Georgia, "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
@@ -100,10 +107,10 @@ body {
 .cedar-grain {
   background-image: repeating-linear-gradient(
     90deg,
-    #7c5a3a 0px,
-    #9c7a52 3px,
-    #8a6743 6px,
-    #7c5a3a 9px
+    #5D4037 0px,
+    #8D6E63 3px,
+    #A1887F 6px,
+    #5D4037 9px
   );
   background-size: 18px 100%;
   opacity: 0.5;
@@ -145,10 +152,10 @@ body {
   inset: 0;
   background-image: repeating-linear-gradient(
     91deg,
-    rgba(217, 154, 78, 0.08) 0px,
-    rgba(217, 154, 78, 0.03) 2px,
-    rgba(124, 90, 58, 0.08) 5px,
-    rgba(217, 154, 78, 0.03) 8px
+    rgba(141, 110, 99, 0.08) 0px,
+    rgba(141, 110, 99, 0.03) 2px,
+    rgba(93, 64, 55, 0.08) 5px,
+    rgba(141, 110, 99, 0.03) 8px
   );
   background-size: 14px 100%;
   mix-blend-mode: screen;
@@ -174,6 +181,48 @@ body {
 }
 .hero-square::before { top: 0; right: 0; width: 2px; height: 84px; }
 .hero-square::after  { top: 0; right: 0; width: 84px; height: 2px; }
+
+/* Engraved corner bracket - subtle woodworking joinery detail */
+.engraved-corner {
+  position: relative;
+}
+.engraved-corner::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 12px;
+  height: 12px;
+  border-top: 1px solid var(--color-walnut);
+  border-left: 1px solid var(--color-walnut);
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+/* Blueprint measurement marks - tiny dimensional indicators */
+.blueprint-marks {
+  position: relative;
+}
+.blueprint-marks::before {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 8px;
+  height: 1px;
+  background: var(--color-charcoal);
+  opacity: 0.3;
+}
+.blueprint-marks::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 1px;
+  height: 8px;
+  background: var(--color-charcoal);
+  opacity: 0.3;
+}
 /* pencil tick marks along the square legs */
 .hero-ticks {
   position: absolute;
@@ -304,11 +353,25 @@ body {
   background: var(--color-surface);
   border-radius: var(--radius-card);
   box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-  border: 1px solid var(--color-border-soft);
+  border: 1px solid var(--color-warm-ivory);
+  position: relative;
   transition: box-shadow 0.2s ease-out, border-color 0.2s ease-out;
 }
+.float-card::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-card);
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255,255,255,0.4) 0%, transparent 50%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
 .float-card:hover {
-  box-shadow: 0 4px 6px rgba(0,0,0,0.15);
+  box-shadow: 0 4px 6px rgba(0,0,0,0.15), 0 0 0 1px rgba(255,248,225,0.3);
   border-color: rgba(176, 160, 146, 0.25);
 }
 
