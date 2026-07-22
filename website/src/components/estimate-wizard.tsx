@@ -14,7 +14,7 @@ import { cn } from "@/lib/utils";
 
 type PhotoMeta = { name: string; size: number };
 
-const STEPS = ["Service", "What are you trying to accomplish?", "Photos", "Project Details", "Property", "Contact", "Thank You"] as const;
+const STEPS = ["Service", "Tell us about your project", "Photos", "Project Details", "Property", "Contact", "Thank You"] as const;
 const MAX_SERVICES = 3;
 const PROJECT_TYPES = ["Build something new", "Restore / Repair existing", "Paint / Stain / Refinish existing", "I'm not sure yet"] as const;
 
@@ -22,8 +22,12 @@ export function EstimateWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const prefillService = searchParams.get("service") ?? "";
+  const stepParam = searchParams.get("step");
 
-  const [step, setStep] = React.useState(0);
+  const [step, setStep] = React.useState(() => {
+    const initialStep = stepParam ? STEPS.indexOf(stepParam as any) : 0;
+    return initialStep >= 0 ? initialStep : 0;
+  });
   const [selected, setSelected] = React.useState<string[]>(
     prefillService && services.some((s) => s.slug === prefillService) ? [prefillService] : [],
   );
@@ -36,6 +40,14 @@ export function EstimateWizard() {
   const [submitted, setSubmitted] = React.useState(false);
   const tracked = React.useRef<Set<string>>(new Set());
 
+  // Sync step with URL
+  React.useEffect(() => {
+    const currentStep = STEPS[step];
+    const url = new URL(window.location.href);
+    url.searchParams.set("step", currentStep);
+    router.replace(url.toString(), { scroll: false });
+  }, [step, router]);
+
   // Service questions are driven by the primary (first) selected service.
   const primarySlug = selected[0];
   const service: Service | undefined = services.find((s) => s.slug === primarySlug);
@@ -46,7 +58,7 @@ export function EstimateWizard() {
 
   const canNext = React.useMemo(() => {
     if (STEPS[step] === "Service") return selected.length > 0 || otherNeed.trim().length > 0;
-    if (STEPS[step] === "What are you trying to accomplish?") return projectType.trim().length > 0;
+    if (STEPS[step] === "Tell us about your project") return projectType.trim().length > 0;
     if (STEPS[step] === "Contact")
       return customer.name.trim() && customer.email.trim() && customer.phone.trim();
     if (STEPS[step] === "Property") return property.city.trim() && property.county;
@@ -167,13 +179,24 @@ export function EstimateWizard() {
           </div>
         )}
 
-        {/* STEP 2: What are you trying to accomplish? */}
-        {STEPS[step] === "What are you trying to accomplish?" && (
+        {/* STEP 2: Tell us about your project */}
+        {STEPS[step] === "Tell us about your project" && (
           <div>
-            <h2 className="text-xl font-bold text-text">What are you trying to accomplish?</h2>
-            <p className="mt-1 text-sm text-text-muted">
-              This helps us ask the right questions for your project.
-            </p>
+            <h2 className="text-xl font-bold text-text">Tell us about your project</h2>
+            {service && (
+              <p className="mt-1 text-sm text-text-muted">
+                {service.slug === "painting"
+                  ? "Surface preparation, existing coatings, and accessibility all affect planning. We'll gather a few details to make the site visit more productive."
+                  : service.slug === "decks" || service.slug === "pergolas"
+                  ? "Great. We'll ask a few questions about your outdoor structure so Taylor can understand the scope before visiting your property."
+                  : "Great. We'll ask a few questions about your project so Taylor can understand the scope before visiting your property."}
+              </p>
+            )}
+            {!service && (
+              <p className="mt-1 text-sm text-text-muted">
+                This helps us ask the right questions for your project.
+              </p>
+            )}
             <div className="mt-4 space-y-3">
               {PROJECT_TYPES.map((type) => (
                 <button

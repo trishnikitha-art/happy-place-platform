@@ -12,7 +12,7 @@ export const services: Service[] = [
     slug: "decks",
     title: "Decks & Patios",
     category: "outdoor-living",
-    summary: "New decks, rebuilds, repairs, staining, and outdoor spaces built to last.",
+    summary: "New decks, rebuilds, repairs, and refinishing for outdoor spaces you'll use every day.",
     description:
       "From ground-level patios to multi-tier entertainer decks, we design and build outdoor spaces meant for daily use — pressure-treated, cedar, or composite, built to code and detailed to last. We also repair, refinish, and stain existing decks.",
     icon: "Layers",
@@ -31,7 +31,7 @@ export const services: Service[] = [
     slug: "pergolas",
     title: "Pergolas & Outdoor Structures",
     category: "outdoor-living",
-    summary: "New pergolas, repairs, refinishing, and outdoor structures designed for Oregon living.",
+    summary: "Pergolas and covered structures that create comfortable outdoor spaces in every season.",
     description:
       "Pergolas, arbors, and covered structures built to complement the home and create comfortable outdoor rooms you will actually use. We also repair and refinish existing structures.",
     icon: "Tent",
@@ -48,7 +48,7 @@ export const services: Service[] = [
     slug: "fences",
     title: "Fences & Gates",
     category: "fencing",
-    summary: "New fences, repairs, staining, and gates that belong with your home.",
+    summary: "Privacy fences, decorative fencing, repairs, staining, and gates built to last.",
     description:
       "Cedar, vinyl, or metal fencing and gates set straight and plumb, detailed to sit naturally with the home. We handle permits and respect property lines. We also repair, stain, and refinish existing fences.",
     icon: "Fence",
@@ -67,7 +67,7 @@ export const services: Service[] = [
     slug: "kitchen-remodel",
     title: "Kitchen Remodeling",
     category: "remodeling",
-    summary: "A kitchen planned around how you actually cook, gather, and move.",
+    summary: "Kitchen updates ranging from cabinet installation to full remodels.",
     description:
       "Cabinetry, islands, flooring, and layout changes — full or partial remodels handled with clear communication and a clean job site.",
     icon: "Refrigerator",
@@ -84,7 +84,7 @@ export const services: Service[] = [
     slug: "bath-remodel",
     title: "Bathroom Remodeling",
     category: "remodeling",
-    summary: "Calm, dry, and detailed the way a bathroom should be.",
+    summary: "Bathrooms rebuilt with careful waterproofing, quality finishes, and long-term durability.",
     description:
       "Showers, vanities, tile, and full bath remodels with proper waterproofing and ventilation — done carefully and verified.",
     icon: "Bath",
@@ -101,7 +101,7 @@ export const services: Service[] = [
     slug: "built-ins",
     title: "Cabinetry, Built-Ins & Trim",
     category: "finish-carpentry",
-    summary: "Custom storage, finish carpentry, cabinet installation, refacing, and refinishing.",
+    summary: "Custom cabinetry, built-ins, trim, refacing, installation, and finish carpentry.",
     description:
       "Built-in shelving, mudroom benches, wainscoting, and trim work crafted to your space, your style, and the details that make it feel finished. We also install, reface, and refinish cabinets.",
     icon: "BookOpen",
@@ -118,7 +118,7 @@ export const services: Service[] = [
     slug: "repairs",
     title: "Restoration & Repairs",
     category: "restoration-repair",
-    summary: "Dry rot, water damage, drywall, trim, and structural repairs that restore your home.",
+    summary: "Dry rot, water damage, structural repairs, drywall, trim, and restoration work done right.",
     description:
       "Dry rot repair, trim restoration, door repair, water damage repair, drywall repair, and structural carpentry — straightforward advice and reliable work focused on restoration rather than quick fixes.",
     icon: "Wrench",
@@ -134,7 +134,7 @@ export const services: Service[] = [
     slug: "painting",
     title: "Painting & Surface Restoration",
     category: "painting",
-    summary: "Expert preparation and quality finishes that protect and beautify your home.",
+    summary: "Interior and exterior painting, staining, and meticulous surface preparation for finishes that last.",
     description:
       "Interior and exterior painting, deck staining, fence staining, cabinet painting, and surface restoration — proper prep, quality materials, and clean application that lasts.",
     icon: "Paintbrush",
