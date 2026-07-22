@@ -39,6 +39,7 @@ export function EstimateWizard() {
   const [customer, setCustomer] = React.useState({ name: "", email: "", phone: "" });
   const [submitted, setSubmitted] = React.useState(false);
   const tracked = React.useRef<Set<string>>(new Set());
+  const wizardRef = React.useRef<HTMLDivElement>(null);
 
   // Sync step with URL
   React.useEffect(() => {
@@ -47,6 +48,14 @@ export function EstimateWizard() {
     url.searchParams.set("step", currentStep);
     router.replace(url.toString(), { scroll: false });
   }, [step, router]);
+
+  // Scroll wizard into view on step change
+  React.useEffect(() => {
+    wizardRef.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [step]);
 
   // Service questions are driven by the primary (first) selected service.
   const primarySlug = selected[0];
@@ -105,7 +114,7 @@ export function EstimateWizard() {
   }
 
   return (
-    <div>
+    <div ref={wizardRef} style={{ scrollMarginTop: "90px" }}>
       {/* Stepper */}
       <ol className="mb-8 flex flex-wrap gap-2" aria-label="Progress">
         {STEPS.map((s, i) => (
