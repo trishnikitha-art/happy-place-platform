@@ -14,9 +14,12 @@ import { cn } from "@/lib/utils";
 
 type PhotoMeta = { name: string; size: number };
 
-const STEPS = ["Service", "Tell us about your project", "Photos", "Project Details", "Property", "Contact", "Thank You"] as const;
+const ALL_STEPS = ["Service", "Tell us about your project", "Photos", "Project Details", "Property", "Contact", "Thank You"] as const;
 const MAX_SERVICES = 3;
 const PROJECT_TYPES = ["Build something new", "Restore / Repair existing", "Paint / Stain / Refinish existing", "I'm not sure yet"] as const;
+
+// Services that skip the intent step (intent is already clear from the service)
+const SKIP_INTENT_SERVICES = ["painting", "repairs"] as const;
 
 export function EstimateWizard() {
   const router = useRouter();
@@ -25,7 +28,7 @@ export function EstimateWizard() {
   const stepParam = searchParams.get("step");
 
   const [step, setStep] = React.useState(() => {
-    const initialStep = stepParam ? STEPS.indexOf(stepParam as any) : 0;
+    const initialStep = stepParam ? ALL_STEPS.indexOf(stepParam as any) : 0;
     return initialStep >= 0 ? initialStep : 0;
   });
   const [selected, setSelected] = React.useState<string[]>(
@@ -61,6 +64,32 @@ export function EstimateWizard() {
   const primarySlug = selected[0];
   const service: Service | undefined = services.find((s) => s.slug === primarySlug);
   const questions = service?.estimateQuestions ?? [];
+
+  // Dynamic steps: skip intent step for services where intent is already clear
+  const STEPS = React.useMemo(() => {
+    if (primarySlug && SKIP_INTENT_SERVICES.includes(primarySlug as any)) {
+      return ALL_STEPS.filter((s) => s !== "Tell us about your project");
+    }
+    return ALL_STEPS;
+  }, [primarySlug]);
+
+  // Adjust step when STEPS array changes (e.g., when skipping intent step)
+  React.useEffect(() => {
+    if (step >= STEPS.length) {
+      setStep(STEPS.length - 1);
+    }
+  }, [STEPS, step]);
+
+  // Auto-set projectType for services that skip the intent step
+  React.useEffect(() => {
+    if (primarySlug && SKIP_INTENT_SERVICES.includes(primarySlug as any)) {
+      if (primarySlug === "painting") {
+        setProjectType("Paint / Stain / Refinish existing");
+      } else if (primarySlug === "repairs") {
+        setProjectType("Restore / Repair existing");
+      }
+    }
+  }, [primarySlug]);
 
   const setAnswer = (id: string, val: string | boolean | number) =>
     setAnswers((prev) => ({ ...prev, [id]: val }));
@@ -143,6 +172,7 @@ export function EstimateWizard() {
               {services.map((s) => {
                 const active = selected.includes(s.slug);
                 const atCap = selected.length >= MAX_SERVICES && !active;
+                const isTopService = s.slug === "painting" || s.slug === "repairs";
                 return (
                   <button
                     key={s.slug}
@@ -151,12 +181,13 @@ export function EstimateWizard() {
                     disabled={atCap}
                     onClick={() => toggleService(s.slug)}
                     className={cn(
-                      "rounded-xl border p-4 text-left transition-colors",
+                      "relative rounded-xl border p-4 text-left transition-all",
                       active
-                        ? "border-primary bg-primary/10"
+                        ? "border-primary bg-primary/10 shadow-sm"
                         : atCap
-                          ? "cursor-not-allowed border-border opacity-40"
-                          : "border-border hover:border-primary/60",
+                        ? "border-border bg-surface-muted opacity-50 cursor-not-allowed"
+                        : "border-border bg-surface hover:border-primary/60",
+                      isTopService && !active && "border-primary/30 bg-surface"
                     )}
                   >
                     <span className="flex items-center justify-between">

@@ -12,7 +12,7 @@ export const services: Service[] = [
     slug: "painting",
     title: "Painting & Surface Restoration",
     category: "painting",
-    summary: "Interior and exterior painting, staining, and meticulous surface preparation for finishes that last.",
+    summary: "Paint, stain, and refinish surfaces that have weathered over time.",
     description:
       "Interior and exterior painting, deck staining, fence staining, cabinet painting, and surface restoration — proper prep, quality materials, and clean application that lasts.",
     icon: "Paintbrush",
@@ -32,7 +32,7 @@ export const services: Service[] = [
     slug: "repairs",
     title: "Restoration & Repairs",
     category: "restoration-repair",
-    summary: "Dry rot, water damage, structural repairs, drywall, trim, and restoration work done right.",
+    summary: "Repair dry rot, water damage, drywall, trim, and structural problems before they get worse.",
     description:
       "Dry rot repair, trim restoration, door repair, water damage repair, drywall repair, and structural carpentry — straightforward advice and reliable work focused on restoration rather than quick fixes.",
     icon: "Wrench",
@@ -48,7 +48,7 @@ export const services: Service[] = [
     slug: "built-ins",
     title: "Cabinetry, Built-Ins & Trim",
     category: "finish-carpentry",
-    summary: "Custom cabinetry, built-ins, trim, refacing, installation, and finish carpentry.",
+    summary: "Add custom storage, shelving, and trim work that fits your home perfectly.",
     description:
       "Built-in shelving, mudroom benches, wainscoting, and trim work crafted to your space, your style, and the details that make it feel finished. We also install, reface, and refinish cabinets.",
     icon: "BookOpen",
@@ -65,7 +65,7 @@ export const services: Service[] = [
     slug: "bath-remodel",
     title: "Bathroom Remodeling",
     category: "remodeling",
-    summary: "Bathrooms rebuilt with careful waterproofing, quality finishes, and long-term durability.",
+    summary: "Rebuild your bathroom with proper waterproofing and finishes that last.",
     description:
       "Showers, vanities, tile, and full bath remodels with proper waterproofing and ventilation — done carefully and verified.",
     icon: "Bath",
@@ -82,7 +82,7 @@ export const services: Service[] = [
     slug: "kitchen-remodel",
     title: "Kitchen Remodeling",
     category: "remodeling",
-    summary: "Kitchen updates ranging from cabinet installation to full remodels.",
+    summary: "Update your kitchen with new cabinets, counters, or a full remodel.",
     description:
       "Cabinetry, islands, flooring, and layout changes — full or partial remodels handled with clear communication and a clean job site.",
     icon: "Refrigerator",
@@ -99,7 +99,7 @@ export const services: Service[] = [
     slug: "fences",
     title: "Fences & Gates",
     category: "fencing",
-    summary: "Privacy fences, decorative fencing, repairs, staining, and gates built to last.",
+    summary: "Add privacy, security, and curb appeal with a new fence or gate.",
     description:
       "Cedar, vinyl, or metal fencing and gates set straight and plumb, detailed to sit naturally with the home. We handle permits and respect property lines. We also repair, stain, and refinish existing fences.",
     icon: "Fence",
@@ -118,7 +118,7 @@ export const services: Service[] = [
     slug: "decks",
     title: "Decks & Patios",
     category: "outdoor-living",
-    summary: "New decks, rebuilds, repairs, and refinishing for outdoor spaces you'll use every day.",
+    summary: "Build or restore an outdoor deck for entertaining and relaxation.",
     description:
       "From ground-level patios to multi-tier entertainer decks, we design and build outdoor spaces meant for daily use — pressure-treated, cedar, or composite, built to code and detailed to last. We also repair, refinish, and stain existing decks.",
     icon: "Layers",
@@ -137,7 +137,7 @@ export const services: Service[] = [
     slug: "pergolas",
     title: "Pergolas & Outdoor Structures",
     category: "outdoor-living",
-    summary: "Pergolas and covered structures that create comfortable outdoor spaces in every season.",
+    summary: "Add shade and comfort to your yard with a pergola or covered structure.",
     description:
       "Pergolas, arbors, and covered structures built to complement the home and create comfortable outdoor rooms you will actually use. We also repair and refinish existing structures.",
     icon: "Tent",
