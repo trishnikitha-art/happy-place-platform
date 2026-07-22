@@ -47,6 +47,14 @@ export function getProjectById(id: string): Project | null {
 }
 
 /**
+ * Get project by slug (for dynamic routing)
+ */
+export function getProjectBySlug(slug: string): Project | null {
+  const projects = getAllProjects();
+  return projects.find(project => (project.seo?.slug || project.id) === slug) || null;
+}
+
+/**
  * Get projects by service
  */
 export function getProjectsByService(service: ProjectService): Project[] {

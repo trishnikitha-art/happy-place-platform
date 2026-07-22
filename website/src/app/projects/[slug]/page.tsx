@@ -3,11 +3,12 @@ import { notFound } from "next/navigation";
 import { ProjectSpotlight } from "@/components/project-spotlight";
 import { CTASection } from "@/components/cta-section";
 import { ProjectPhotos } from "@/components/project-photos";
-import { getProjects, getProject } from "@/config/projects";
+import { getAllProjects, getProjectById, getProjectBySlug } from "@/lib/projects";
 import { Container, Section, SectionHeading } from "@/components/section";
 
 export function generateStaticParams() {
-  return getProjects().map((p) => ({ slug: p.slug }));
+  const projects = getAllProjects();
+  return projects.map((p) => ({ slug: p.seo?.slug || p.id }));
 }
 
 export async function generateMetadata({
@@ -16,27 +17,27 @@ export async function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   const { slug } = await params;
-  const project = getProject(slug);
+  const project = getProjectBySlug(slug);
   if (!project) return {};
   return {
     title: project.title,
-    description: project.summary,
-    alternates: { canonical: `/projects/${project.slug}` },
+    description: project.story?.outcome || project.title,
+    alternates: { canonical: `/projects/${project.seo?.slug || project.id}` },
     openGraph: {
       title: project.title,
-      description: project.summary,
-      images: project.photos[0] ? [{ url: project.photos[0].src }] : [],
+      description: project.story?.outcome || project.title,
+      images: project.media?.hero ? [{ url: project.media.hero }] : [],
     },
   };
 }
 
 export default async function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const project = getProject(slug);
+  const project = getProjectBySlug(slug);
   if (!project) notFound();
   
-  // Use slug as projectId (old project structure compatibility)
-  const projectId = project.slug;
+  // Use id as projectId for ProjectPhotos component
+  const projectId = project.id;
   
   return (
     <>

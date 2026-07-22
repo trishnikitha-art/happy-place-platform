@@ -4,8 +4,7 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Upload, Send } from "lucide-react";
 import type { EstimateRequest, Service, EstimateQuestion } from "@/types";
-import { services } from "@/config/services";
-import { counties } from "@/config/counties";
+import { getAllServices, getAllCities } from "@/lib/registries";
 import { company } from "@/config/company";
 import { estimateService } from "@/services/estimate";
 import { analytics } from "@/services/analytics";
@@ -35,6 +34,25 @@ export function EstimateWizard() {
   const searchParams = useSearchParams();
   const prefillService = searchParams.get("service") ?? "";
   const stepParam = searchParams.get("step");
+
+  // Load services and cities from adapters
+  const services = getAllServices();
+  const cities = getAllCities();
+  // Derive counties from cities (group by county)
+  const counties = React.useMemo(() => {
+    const countyMap = new Map<string, Set<string>>();
+    cities.forEach(city => {
+      if (!countyMap.has(city.county)) {
+        countyMap.set(city.county, new Set());
+      }
+      countyMap.get(city.county)!.add(city.name);
+    });
+    return Array.from(countyMap.entries()).map(([name, cities]) => ({
+      slug: name.toLowerCase().replace(/\s+/g, '-'),
+      name,
+      cities: Array.from(cities)
+    }));
+  }, [cities]);
 
   // Check for existing draft immediately during initialization
   // This ensures state is initialized with draft data if available
@@ -139,7 +157,7 @@ export function EstimateWizard() {
 
   // Service questions are driven by the primary (first) selected service.
   const primarySlug = selected[0];
-  const service: Service | undefined = services.find((s) => s.slug === primarySlug);
+  const service = services.find((s) => s.slug === primarySlug);
   const questions = service?.estimateQuestions ?? [];
 
   // Dynamic steps: skip intent step for services where intent is already clear
@@ -314,10 +332,10 @@ export function EstimateWizard() {
                     )}
                   >
                     <span className="flex items-center justify-between">
-                      <span className="font-semibold text-text">{s.title}</span>
+                      <span className="font-semibold text-text">{s.name}</span>
                       {active && <Check className="h-4 w-4 text-primary" />}
                     </span>
-                    <span className="block text-sm text-text-subtle">{s.summary}</span>
+                    <span className="block text-sm text-text-subtle">{s.description}</span>
                   </button>
                 );
               })}

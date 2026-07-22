@@ -11,6 +11,17 @@ export interface Service {
   featured: boolean;
   homepageEligible: boolean;
   order: number;
+  estimateQuestions?: EstimateQuestion[];
+}
+
+export interface EstimateQuestion {
+  id: string;
+  label: string;
+  type: "text" | "textarea" | "select" | "number" | "boolean";
+  options?: string[];
+  required?: boolean;
+  placeholder?: string;
+  help?: string;
 }
 
 export interface ServicesRegistry {
