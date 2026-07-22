@@ -19,19 +19,15 @@
 import type { Media, MediaManifest } from "@/types/media";
 import { getProjectsByServiceSlug } from "@/lib/projects";
 import type { Project } from "@/types/projects";
+import { loadAuthority, clearAuthorityCache, findById, sortByOrder } from "./authority-loader";
 
-let mediaCache: MediaManifest | null = null;
-
+// Load media manifest using shared AuthorityLoader
 export function loadMediaManifest(): MediaManifest {
-  if (mediaCache) return mediaCache;
-  try {
-    const data = require("@/config/media.v1.json");
-    mediaCache = data as MediaManifest;
-    return mediaCache;
-  } catch (error) {
-    console.error("Failed to load media manifest:", error);
-    return { version: "1.0.0", generatedAt: new Date().toISOString(), media: [] };
-  }
+  return loadAuthority<MediaManifest>({
+    path: "@/config/media.v1.json",
+    fallback: { version: "1.0.0", generatedAt: new Date().toISOString(), media: [] },
+    name: "Media"
+  });
 }
 
 /**
@@ -46,14 +42,14 @@ export function getMediaManifest(): MediaManifest {
  */
 export function getMediaById(id: string): Media | null {
   const manifest = loadMediaManifest();
-  return manifest.media.find((m: Media) => m.id === id) || null;
+  return findById(manifest.media, id);
 }
 
 /**
  * Clear media cache (useful for testing or hot reload)
  */
 export function clearMediaCache(): void {
-  mediaCache = null;
+  clearAuthorityCache("@/config/media.v1.json");
 }
 
 /**
@@ -70,9 +66,8 @@ export function clearMediaCache(): void {
  */
 export function getProjectMedia(projectId: string) {
   const manifest = loadMediaManifest();
-  return manifest.media
-    .filter((m: Media) => m.projectId === projectId)
-    .sort((a: Media, b: Media) => (a.order ?? 999) - (b.order ?? 999));
+  const projectMedia = manifest.media.filter((m: Media) => m.projectId === projectId);
+  return sortByOrder(projectMedia);
 }
 
 /**

@@ -7,6 +7,7 @@
 
 import brand from "@/config/brand.v1.json";
 import type { BrandManifest, BrandHero, BrandOwnerPortrait } from "@/types/brand";
+import { clearAuthorityCache } from "./authority-loader";
 
 let brandCache: BrandManifest | null = null;
 
@@ -71,4 +72,6 @@ export function getMarketingAssets() {
  */
 export function clearBrandCache(): void {
   brandCache = null;
+  // Note: brand.ts uses static import, so we only clear the local cache
+  // The module itself remains loaded by Next.js
 }

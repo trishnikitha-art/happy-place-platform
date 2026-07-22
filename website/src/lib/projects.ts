@@ -8,26 +8,19 @@
  */
 
 import { Project, ProjectsManifest, ProjectService, ProjectStatus } from "@/types/projects";
+import { loadAuthority, clearAuthorityCache, queryProjects, findById, findBySlug, filterFeatured, filterHomepageEligible, filterHeroEligible } from "./authority-loader";
 
-// Load the canonical projects manifest
-let projectsCache: ProjectsManifest | null = null;
-
+// Load the canonical projects manifest using shared AuthorityLoader
 export function loadProjectsManifest(): ProjectsManifest {
-  if (projectsCache) return projectsCache;
-  
-  try {
-    // Dynamic import to avoid build issues with JSON
-    const projectsData = require("@/config/projects.v1.json");
-    projectsCache = projectsData as ProjectsManifest;
-    return projectsCache;
-  } catch (error) {
-    console.error("Failed to load projects manifest:", error);
-    return {
+  return loadAuthority<ProjectsManifest>({
+    path: "@/config/projects.v1.json",
+    fallback: {
       version: "1.0.0",
       generatedAt: new Date().toISOString(),
       projects: []
-    };
-  }
+    },
+    name: "Projects"
+  });
 }
 
 /**
@@ -43,7 +36,7 @@ export function getAllProjects(): Project[] {
  */
 export function getProjectById(id: string): Project | null {
   const projects = getAllProjects();
-  return projects.find(project => project.id === id) || null;
+  return findById(projects, id);
 }
 
 /**
@@ -51,53 +44,42 @@ export function getProjectById(id: string): Project | null {
  */
 export function getProjectBySlug(slug: string): Project | null {
   const projects = getAllProjects();
-  return projects.find(project => (project.seo?.slug || project.id) === slug) || null;
+  return findBySlug(projects, slug);
 }
 
 /**
  * Get projects by service
  */
 export function getProjectsByService(service: ProjectService): Project[] {
-  const projects = getAllProjects();
-  return projects.filter(project => project.service === service);
+  return queryProjects(getAllProjects(), { service });
 }
 
 /**
  * Get projects by service slug (string version for dynamic lookups)
  */
 export function getProjectsByServiceSlug(serviceSlug: string): Project[] {
-  const projects = getAllProjects();
-  return projects.filter(project => project.service === serviceSlug);
+  return queryProjects(getAllProjects(), { service: serviceSlug });
 }
 
 /**
  * Get projects by location
  */
 export function getProjectsByCity(city: string): Project[] {
-  const projects = getAllProjects();
-  return projects.filter(project => 
-    project.location.city.toLowerCase() === city.toLowerCase()
-  );
+  return queryProjects(getAllProjects(), { city });
 }
 
 /**
  * Get projects by county
  */
 export function getProjectsByCounty(county: string): Project[] {
-  const projects = getAllProjects();
-  return projects.filter(project => 
-    project.location.county.toLowerCase() === county.toLowerCase()
-  );
+  return queryProjects(getAllProjects(), { county });
 }
 
 /**
  * Get projects by tag
  */
 export function getProjectsByTag(tag: string): Project[] {
-  const projects = getAllProjects();
-  return projects.filter(project => 
-    project.tags.some(t => t.toLowerCase() === tag.toLowerCase())
-  );
+  return queryProjects(getAllProjects(), { tag });
 }
 
 /**
@@ -105,7 +87,7 @@ export function getProjectsByTag(tag: string): Project[] {
  */
 export function getFeaturedProjects(): Project[] {
   const projects = getAllProjects();
-  return projects.filter(project => project.featured);
+  return filterFeatured(projects);
 }
 
 /**
@@ -113,7 +95,7 @@ export function getFeaturedProjects(): Project[] {
  */
 export function getHeroEligibleProjects(): Project[] {
   const projects = getAllProjects();
-  return projects.filter(project => project.heroEligible);
+  return filterHeroEligible(projects);
 }
 
 /**
@@ -121,29 +103,21 @@ export function getHeroEligibleProjects(): Project[] {
  */
 export function getHomepageEligibleProjects(): Project[] {
   const projects = getAllProjects();
-  return projects.filter(project => project.homepageEligible);
+  return filterHomepageEligible(projects);
 }
 
 /**
  * Get latest projects (sorted by completion date, most recent first)
  */
 export function getLatestProjects(limit?: number): Project[] {
-  const projects = getAllProjects();
-  const completed = projects.filter(p => p.status === "completed" && p.completionDate);
-  const sorted = [...completed].sort((a, b) => 
-    new Date(b.completionDate!).getTime() - new Date(a.completionDate!).getTime()
-  );
-  return limit ? sorted.slice(0, limit) : sorted;
+  return queryProjects(getAllProjects(), { status: 'completed', limit });
 }
 
 /**
  * Get projects by review ID
  */
 export function getProjectsByReview(reviewId: string): Project[] {
-  const projects = getAllProjects();
-  return projects.filter(project => 
-    project.reviews.includes(reviewId)
-  );
+  return queryProjects(getAllProjects(), { reviewId });
 }
 
 /**
@@ -247,5 +221,5 @@ export function validateProject(project: unknown): project is Project {
  * Clear cache (useful for testing or hot reload)
  */
 export function clearProjectsCache(): void {
-  projectsCache = null;
+  clearAuthorityCache("@/config/projects.v1.json");
 }

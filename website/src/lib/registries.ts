@@ -6,71 +6,47 @@
  */
 
 import type { Service, ServicesRegistry, City, CitiesRegistry, Material, MaterialsRegistry, GalleryPreset, GalleryPresetsRegistry } from "@/types/registries";
+import { loadAuthority, clearAuthorityCache, sortByOrder, findById, findBySlug, filterFeatured, filterHomepageEligible } from "./authority-loader";
 
-// Load registries
-let servicesCache: ServicesRegistry | null = null;
-let citiesCache: CitiesRegistry | null = null;
-let materialsCache: MaterialsRegistry | null = null;
-let galleryPresetsCache: GalleryPresetsRegistry | null = null;
-
-function loadServices(): ServicesRegistry {
-  if (servicesCache) return servicesCache;
-  try {
-    const data = require("@/config/services.v1.json");
-    servicesCache = data as ServicesRegistry;
-    return servicesCache;
-  } catch (error) {
-    console.error("Failed to load services registry:", error);
-    return { version: "1.0.0", generatedAt: new Date().toISOString(), services: [] };
-  }
-}
-
+// Load registries using shared AuthorityLoader
 export function loadServicesRegistry(): ServicesRegistry {
-  return loadServices();
+  return loadAuthority<ServicesRegistry>({
+    path: "@/config/services.v1.json",
+    fallback: { version: "1.0.0", generatedAt: new Date().toISOString(), services: [] },
+    name: "Services"
+  });
 }
 
-function loadCities(): CitiesRegistry {
-  if (citiesCache) return citiesCache;
-  try {
-    const data = require("@/config/cities.v1.json");
-    citiesCache = data as CitiesRegistry;
-    return citiesCache;
-  } catch (error) {
-    console.error("Failed to load cities registry:", error);
-    return { version: "1.0.0", generatedAt: new Date().toISOString(), cities: [] };
-  }
+export function loadCitiesRegistry(): CitiesRegistry {
+  return loadAuthority<CitiesRegistry>({
+    path: "@/config/cities.v1.json",
+    fallback: { version: "1.0.0", generatedAt: new Date().toISOString(), cities: [] },
+    name: "Cities"
+  });
 }
 
-function loadMaterials(): MaterialsRegistry {
-  if (materialsCache) return materialsCache;
-  try {
-    const data = require("@/config/materials.v1.json");
-    materialsCache = data as MaterialsRegistry;
-    return materialsCache;
-  } catch (error) {
-    console.error("Failed to load materials registry:", error);
-    return { version: "1.0.0", generatedAt: new Date().toISOString(), materials: [] };
-  }
+export function loadMaterialsRegistry(): MaterialsRegistry {
+  return loadAuthority<MaterialsRegistry>({
+    path: "@/config/materials.v1.json",
+    fallback: { version: "1.0.0", generatedAt: new Date().toISOString(), materials: [] },
+    name: "Materials"
+  });
 }
 
-function loadGalleryPresets(): GalleryPresetsRegistry {
-  if (galleryPresetsCache) return galleryPresetsCache;
-  try {
-    const data = require("@/config/gallery-presets.v1.json");
-    galleryPresetsCache = data as GalleryPresetsRegistry;
-    return galleryPresetsCache;
-  } catch (error) {
-    console.error("Failed to load gallery presets registry:", error);
-    return { version: "1.0.0", generatedAt: new Date().toISOString(), presets: [] };
-  }
+export function loadGalleryPresetsRegistry(): GalleryPresetsRegistry {
+  return loadAuthority<GalleryPresetsRegistry>({
+    path: "@/config/gallery-presets.v1.json",
+    fallback: { version: "1.0.0", generatedAt: new Date().toISOString(), presets: [] },
+    name: "Gallery Presets"
+  });
 }
 
 /**
  * Get all services
  */
 export function getAllServices(): Service[] {
-  const registry = loadServices();
-  return registry.services.sort((a: Service, b: Service) => a.order - b.order);
+  const registry = loadServicesRegistry();
+  return sortByOrder(registry.services);
 }
 
 /**
@@ -78,7 +54,7 @@ export function getAllServices(): Service[] {
  */
 export function getServiceById(id: string): Service | null {
   const services = getAllServices();
-  return services.find((service: Service) => service.id === id) || null;
+  return findById(services, id);
 }
 
 /**
@@ -86,7 +62,7 @@ export function getServiceById(id: string): Service | null {
  */
 export function getServiceBySlug(slug: string): Service | null {
   const services = getAllServices();
-  return services.find((service: Service) => service.slug === slug) || null;
+  return findBySlug(services, slug);
 }
 
 /**
@@ -94,7 +70,7 @@ export function getServiceBySlug(slug: string): Service | null {
  */
 export function getFeaturedServices(): Service[] {
   const services = getAllServices();
-  return services.filter((service: Service) => service.featured);
+  return filterFeatured(services);
 }
 
 /**
@@ -102,15 +78,15 @@ export function getFeaturedServices(): Service[] {
  */
 export function getHomepageEligibleServices(): Service[] {
   const services = getAllServices();
-  return services.filter((service: Service) => service.homepageEligible);
+  return filterHomepageEligible(services);
 }
 
 /**
  * Get all cities
  */
 export function getAllCities(): City[] {
-  const registry = loadCities();
-  return registry.cities.sort((a: City, b: City) => a.order - b.order);
+  const registry = loadCitiesRegistry();
+  return sortByOrder(registry.cities);
 }
 
 /**
@@ -118,7 +94,7 @@ export function getAllCities(): City[] {
  */
 export function getCityById(id: string): City | null {
   const cities = getAllCities();
-  return cities.find((city: City) => city.id === id) || null;
+  return findById(cities, id);
 }
 
 /**
@@ -134,7 +110,7 @@ export function getCitiesByCounty(county: string): City[] {
  */
 export function getFeaturedCities(): City[] {
   const cities = getAllCities();
-  return cities.filter((city: City) => city.featured);
+  return filterFeatured(cities);
 }
 
 /**
@@ -142,15 +118,15 @@ export function getFeaturedCities(): City[] {
  */
 export function getHomepageEligibleCities(): City[] {
   const cities = getAllCities();
-  return cities.filter((city: City) => city.homepageEligible);
+  return filterHomepageEligible(cities);
 }
 
 /**
  * Get all materials
  */
 export function getAllMaterials(): Material[] {
-  const registry = loadMaterials();
-  return registry.materials.sort((a: Material, b: Material) => a.order - b.order);
+  const registry = loadMaterialsRegistry();
+  return sortByOrder(registry.materials);
 }
 
 /**
@@ -158,7 +134,7 @@ export function getAllMaterials(): Material[] {
  */
 export function getMaterialById(id: string): Material | null {
   const materials = getAllMaterials();
-  return materials.find((material: Material) => material.id === id) || null;
+  return findById(materials, id);
 }
 
 /**
@@ -166,15 +142,15 @@ export function getMaterialById(id: string): Material | null {
  */
 export function getFeaturedMaterials(): Material[] {
   const materials = getAllMaterials();
-  return materials.filter((material: Material) => material.featured);
+  return filterFeatured(materials);
 }
 
 /**
  * Get all gallery presets
  */
 export function getAllGalleryPresets(): GalleryPreset[] {
-  const registry = loadGalleryPresets();
-  return registry.presets.sort((a: GalleryPreset, b: GalleryPreset) => a.order - b.order);
+  const registry = loadGalleryPresetsRegistry();
+  return sortByOrder(registry.presets);
 }
 
 /**
@@ -182,7 +158,7 @@ export function getAllGalleryPresets(): GalleryPreset[] {
  */
 export function getGalleryPresetById(id: string): GalleryPreset | null {
   const presets = getAllGalleryPresets();
-  return presets.find((preset: GalleryPreset) => preset.id === id) || null;
+  return findById(presets, id);
 }
 
 /**
@@ -190,15 +166,15 @@ export function getGalleryPresetById(id: string): GalleryPreset | null {
  */
 export function getFeaturedGalleryPresets(): GalleryPreset[] {
   const presets = getAllGalleryPresets();
-  return presets.filter((preset: GalleryPreset) => preset.featured);
+  return filterFeatured(presets);
 }
 
 /**
  * Clear cache (useful for testing or hot reload)
  */
 export function clearRegistriesCache(): void {
-  servicesCache = null;
-  citiesCache = null;
-  materialsCache = null;
-  galleryPresetsCache = null;
+  clearAuthorityCache("@/config/services.v1.json");
+  clearAuthorityCache("@/config/cities.v1.json");
+  clearAuthorityCache("@/config/materials.v1.json");
+  clearAuthorityCache("@/config/gallery-presets.v1.json");
 }

@@ -10,28 +10,21 @@
  */
 
 import { Review, ReviewsManifest, ReviewService } from "@/types/reviews";
+import { loadAuthority, clearAuthorityCache, findById, filterFeatured, filterByField } from "./authority-loader";
 
 export type { ReviewService };
 
-// Load the canonical reviews manifest
-let reviewsCache: ReviewsManifest | null = null;
-
+// Load the canonical reviews manifest using shared AuthorityLoader
 export function loadReviewsManifest(): ReviewsManifest {
-  if (reviewsCache) return reviewsCache;
-  
-  try {
-    // Dynamic import to avoid build issues with JSON
-    const reviewsData = require("@/config/reviews.v1.json");
-    reviewsCache = reviewsData as ReviewsManifest;
-    return reviewsCache;
-  } catch (error) {
-    console.error("Failed to load reviews manifest:", error);
-    return {
+  return loadAuthority<ReviewsManifest>({
+    path: "@/config/reviews.v1.json",
+    fallback: {
       version: "1.0.0",
       generatedAt: new Date().toISOString(),
       reviews: []
-    };
-  }
+    },
+    name: "Reviews"
+  });
 }
 
 /**
@@ -47,7 +40,7 @@ export function getAllReviews(): Review[] {
  */
 export function getFeaturedReviews(): Review[] {
   const reviews = getAllReviews();
-  return reviews.filter(review => review.featured);
+  return filterFeatured(reviews);
 }
 
 /**
@@ -55,7 +48,7 @@ export function getFeaturedReviews(): Review[] {
  */
 export function getReviewsByService(service: ReviewService): Review[] {
   const reviews = getAllReviews();
-  return reviews.filter(review => review.service === service);
+  return filterByField(reviews, 'service' as any, service);
 }
 
 /**
@@ -63,7 +56,7 @@ export function getReviewsByService(service: ReviewService): Review[] {
  */
 export function getReviewsByProject(projectId: string): Review[] {
   const reviews = getAllReviews();
-  return reviews.filter(review => review.projectId === projectId);
+  return filterByField(reviews, 'projectId' as any, projectId);
 }
 
 /**
@@ -71,7 +64,7 @@ export function getReviewsByProject(projectId: string): Review[] {
  */
 export function getVerifiedReviews(): Review[] {
   const reviews = getAllReviews();
-  return reviews.filter(review => review.verified);
+  return filterByField(reviews, 'verified' as any, true);
 }
 
 /**
@@ -79,7 +72,7 @@ export function getVerifiedReviews(): Review[] {
  */
 export function getReviewsBySource(source: string): Review[] {
   const reviews = getAllReviews();
-  return reviews.filter(review => review.source === source);
+  return filterByField(reviews, 'source' as any, source);
 }
 
 /**
@@ -98,7 +91,7 @@ export function getLatestReviews(limit?: number): Review[] {
  */
 export function getReviewById(id: string): Review | null {
   const reviews = getAllReviews();
-  return reviews.find(review => review.id === id) || null;
+  return findById(reviews, id);
 }
 
 /**
@@ -158,5 +151,5 @@ export function validateReview(review: unknown): review is Review {
  * Clear cache (useful for testing or hot reload)
  */
 export function clearReviewsCache(): void {
-  reviewsCache = null;
+  clearAuthorityCache("@/config/reviews.v1.json");
 }
