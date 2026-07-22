@@ -18,6 +18,7 @@ import { media, featuredTransformation, homepageSelection, ownerPortrait, heroBa
 
 export default function HomePage() {
   const topReviews = reviews.slice(0, 3);
+  const hasReviews = reviews.length > 0;
   const [taylor, lanie] = company.owners;
   const featured = featuredTransformation(); // warm cedar fence — first emotional image
   const outdoor = homepageSelection();       // curated magazine set
@@ -69,10 +70,17 @@ export default function HomePage() {
               </Link>
             </div>
             <div className="mt-9 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-text-on-dark/65">
-              <span className="inline-flex items-center gap-2">
-                <StarRating rating={5} />
-                {averageRating()} / 5 · {company.proof.projectsCompleted} projects
-              </span>
+              {hasReviews && (
+                <span className="inline-flex items-center gap-2">
+                  <StarRating rating={5} />
+                  {averageRating()} / 5 · {company.proof.projectsCompleted} projects
+                </span>
+              )}
+              {!hasReviews && (
+                <span className="inline-flex items-center gap-2">
+                  {company.proof.projectsCompleted} projects completed
+                </span>
+              )}
               <span className="text-text-on-dark/35">·</span>
               <span>{company.ccbNumber} · Licensed · Insured</span>
               <span className="text-text-on-dark/35">·</span>
@@ -253,20 +261,30 @@ export default function HomePage() {
       {/* REVIEWS */}
       <Section>
         <Container>
-          <SectionHeading eyebrow="Reviews" title="What neighbors say" align="center" description="Real feedback from homeowners across the Willamette Valley." />
-          <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
-            {topReviews.map((r) => (
-              <figure key={r.id} className="float-card bg-surface p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-float">
-                <StarRating rating={r.rating} />
-                <h3 className="mt-3 font-bold text-text">{r.title}</h3>
-                <blockquote className="mt-2 text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>
-                <figcaption className="mt-4 text-sm text-text-subtle">{r.author} · {r.location}</figcaption>
-              </figure>
-            ))}
-          </div>
-          <div className="mt-8 text-center">
-            <Link href="/reviews" className="inline-flex items-center gap-1 font-semibold text-accent hover:underline">Read all reviews →</Link>
-          </div>
+          <SectionHeading eyebrow="Reviews" title="What neighbors say" align="center" description={hasReviews ? "Real feedback from homeowners across the Willamette Valley." : "Google reviews coming soon. Ask us for references in your neighborhood."} />
+          {hasReviews ? (
+            <>
+              <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
+                {topReviews.map((r) => (
+                  <figure key={r.id} className="float-card bg-surface p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-float">
+                    <StarRating rating={r.rating} />
+                    <h3 className="mt-3 font-bold text-text">{r.title}</h3>
+                    <blockquote className="mt-2 text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>
+                    <figcaption className="mt-4 text-sm text-text-subtle">{r.author} · {r.location}</figcaption>
+                  </figure>
+                ))}
+              </div>
+              <div className="mt-8 text-center">
+                <Link href="/reviews" className="inline-flex items-center gap-1 font-semibold text-accent hover:underline">Read all reviews →</Link>
+              </div>
+            </>
+          ) : (
+            <div className="mt-10 rounded-lg bg-surface-muted p-8 text-center">
+              <p className="text-text-muted">
+                We are building our review portfolio. In the meantime, ask us for references in your neighborhood.
+              </p>
+            </div>
+          )}
         </Container>
       </Section>
 

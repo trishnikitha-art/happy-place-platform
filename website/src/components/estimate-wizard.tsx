@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Upload, Send } from "lucide-react";
-import type { EstimateRequest, Service } from "@/types";
+import type { EstimateRequest, Service, EstimateQuestion } from "@/types";
 import { services } from "@/config/services";
 import { counties } from "@/config/counties";
 import { company } from "@/config/company";
@@ -11,11 +11,10 @@ import { estimateService } from "@/services/estimate";
 import { analytics } from "@/services/analytics";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { estimateFromRequest, formatRange } from "@/lib/estimate-engine";
 
 type PhotoMeta = { name: string; size: number };
 
-const STEPS = ["Service", "Photos", "Questions", "Property", "Contact", "Confirm"] as const;
+const STEPS = ["Service", "Photos", "Project Details", "Property", "Contact", "Thank You"] as const;
 const MAX_SERVICES = 3;
 
 export function EstimateWizard() {
@@ -87,83 +86,7 @@ export function EstimateWizard() {
     const req = buildRequest();
     const result = await estimateService.submit(req);
     analytics.trackEstimateSubmitted(req.services.join(",") || "other", result.transport);
-    setSubmitted(true);
-  }
-
-  if (submitted) {
-    const plan = estimateFromRequest(buildRequest());
-    return (
-      <div className="rounded-2xl border border-border bg-surface p-10 text-center shadow-sm">
-        <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent">
-          <Check className="h-8 w-8" />
-        </div>
-                <h2 className="mt-4 text-2xl font-bold text-text">Here&rsquo;s our understanding of your project</h2>
-        <p className="mt-2 text-text-muted">
-          Thanks for the details{property.city ? `, ${property.city}` : ""}. We&rsquo;ve summarized what you told us below.
-        </p>
-        {plan ? (
-          <div className="mt-6 rounded-card border border-border bg-background/60 p-6 text-left">
-            <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">Preliminary Planning Range</p>
-            <p className="mt-3 text-text-muted">
-              Based on similar Oregon projects, most projects like this typically fall somewhere between
-            </p>
-            <p className="mt-2 font-display text-3xl font-bold text-text">
-              {formatRange(plan.low)} &ndash; {formatRange(plan.high)}
-            </p>
-            <p className="mt-3 text-sm leading-relaxed text-text-subtle">{plan.note}</p>
-            {plan.confidence && (
-              <div className="mt-4 flex items-center gap-2">
-                <span className="text-sm font-semibold text-text">Confidence:</span>
-                <span className={`text-sm font-medium ${
-                  plan.confidence === "high" ? "text-green-600" :
-                  plan.confidence === "medium" ? "text-yellow-600" :
-                  "text-red-600"
-                }`}>
-                  {plan.confidence.charAt(0).toUpperCase() + plan.confidence.slice(1)}
-                </span>
-              </div>
-            )}
-            {plan.assumptions && plan.assumptions.length > 0 && (
-              <div className="mt-4">
-                <p className="text-sm font-semibold text-text">Assumptions:</p>
-                <ul className="mt-2 space-y-1 text-sm text-text-muted">
-                  {plan.assumptions.map((a, i) => (
-                    <li key={i} className="flex items-start gap-2">
-                      <span className="mt-1 h-1 w-1 shrink-0 rounded-full bg-accent" />
-                      {a}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-            {plan.breakdown && plan.breakdown.length > 0 && (
-              <div className="mt-4">
-                <p className="text-sm font-semibold text-text">Breakdown by service:</p>
-                <ul className="mt-2 space-y-2 text-sm text-text-muted">
-                  {plan.breakdown.map((b, i) => (
-                    <li key={i} className="flex justify-between gap-4 border-b border-border/50 pb-2 last:border-0">
-                      <span>{b.label}</span>
-                      <span className="font-medium">{formatRange(b.low)} – {formatRange(b.high)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-        ) : null}
-        <p className="mt-6 text-text-muted">
-          Your email app should have opened with the full summary. Just hit send and Taylor will be in
-          touch within one business day. If it didn&rsquo;t open, email us at{" "}
-          <a href={`mailto:${company.email}`} className="font-semibold text-accent">{company.email}</a>.
-        </p>
-        <button
-          onClick={() => router.push("/")}
-          className={cn(buttonVariants({ variant: "outline" }), "mt-6")}
-        >
-          Back to home
-        </button>
-      </div>
-    );
+    setStep(STEPS.length - 1); // Advance to Thank You step
   }
 
   return (
@@ -175,7 +98,7 @@ export function EstimateWizard() {
             key={s}
             className={cn(
               "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold",
-              i === step ? "bg-primary text-text" : i < step ? "bg-accent/10 text-accent" : "bg-surface-muted text-text-subtle"
+              i === step ? "bg-primary text-white" : i < step ? "bg-accent/10 text-accent" : "bg-surface-muted text-text-subtle"
             )}
           >
             {i < step && <Check className="h-3 w-3" />}
@@ -285,8 +208,8 @@ export function EstimateWizard() {
           </div>
         )}
 
-        {/* STEP 3: Questions (primary-service-driven) */}
-        {STEPS[step] === "Questions" && (
+        {/* STEP 3: Project Details */}
+        {STEPS[step] === "Project Details" && (
           <div>
             <h2 className="text-xl font-bold text-text">A couple quick questions</h2>
             {questions.length === 0 && (
@@ -299,6 +222,7 @@ export function EstimateWizard() {
                     {q.label}
                     {q.required && <span className="text-red-500"> *</span>}
                   </label>
+                  {q.help && <p className="mt-1 text-xs text-text-muted">{q.help}</p>}
                   {q.type === "textarea" && (
                     <textarea
                       className="mt-1 w-full rounded-lg border border-border p-3"
@@ -332,7 +256,7 @@ export function EstimateWizard() {
                       onChange={(e) => setAnswer(q.id, e.target.value)}
                     >
                       <option value="">Select…</option>
-                      {q.options?.map((o) => (
+                      {q.options?.map((o: string) => (
                         <option key={o} value={o}>{o}</option>
                       ))}
                     </select>
@@ -448,63 +372,83 @@ export function EstimateWizard() {
           </div>
         )}
 
-        {/* STEP 6: Confirm */}
-        {STEPS[step] === "Confirm" && (
-          <div>
-            <h2 className="text-xl font-bold text-text">Review &amp; send</h2>
-            <dl className="mt-4 space-y-2 rounded-lg bg-surface-muted p-4 text-sm">
-              <div className="flex justify-between gap-4">
-                <dt className="text-text-subtle">Services</dt>
-                <dd className="text-right font-semibold">
-                  {selected.length ? selected.map((sl) => services.find((s) => s.slug === sl)?.title).join(", ") : "—"}
-                </dd>
-              </div>
-              {otherNeed.trim() && (
-                <div className="flex justify-between gap-4">
-                  <dt className="text-text-subtle">Other need</dt>
-                  <dd className="text-right font-semibold">{otherNeed.trim()}</dd>
-                </div>
-              )}
-              <div className="flex justify-between"><dt className="text-text-subtle">Photos</dt><dd>{photos.length} attached in email</dd></div>
-              <div className="flex justify-between"><dt className="text-text-subtle">Location</dt><dd>{property.city} ({property.county})</dd></div>
-              <div className="flex justify-between"><dt className="text-text-subtle">Contact</dt><dd>{customer.name} · {customer.email}</dd></div>
-            </dl>
-            <p className="mt-3 text-sm text-text-subtle">
-              We&apos;ll open your email app with everything filled in. Just press send.
+        {/* STEP 6: Thank You */}
+        {STEPS[step] === "Thank You" && (
+          <div className="text-center">
+            <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+              <Check className="h-8 w-8 text-primary" />
+            </div>
+            <h2 className="text-2xl font-bold text-text">Thank You</h2>
+            <p className="mt-3 text-text-muted">
+              We have received your project information.
+            </p>
+            <p className="mt-2 text-text-muted">
+              Taylor will personally review your request, photos, and project details before reaching out.
+            </p>
+            <p className="mt-4 text-sm text-text-subtle">
+              Every home is different. An on site visit allows us to understand your goals, answer questions, and prepare an accurate proposal.
+            </p>
+
+            <div className="mt-8 rounded-lg bg-surface-muted p-6 text-left">
+              <h3 className="font-semibold text-text">What happens next</h3>
+              <ul className="mt-4 space-y-3 text-sm text-text-muted">
+                <li className="flex items-start gap-3">
+                  <Check className="h-5 w-5 text-primary flex-shrink-0" />
+                  <span>We review your request</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="h-5 w-5 text-primary flex-shrink-0" />
+                  <span>We will reach out within one business day</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="h-5 w-5 text-primary flex-shrink-0" />
+                  <span>We will schedule an on site visit</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <Check className="h-5 w-5 text-primary flex-shrink-0" />
+                  <span>You will receive a detailed written proposal after the walkthrough</span>
+                </li>
+              </ul>
+            </div>
+
+            <p className="mt-8 text-sm font-medium text-text">
+              We are excited to help bring your project to life.
             </p>
           </div>
         )}
 
         {/* Nav */}
-        <div className="mt-8 flex items-center justify-between">
-          <button
-            type="button"
-            onClick={() => setStep((s) => Math.max(0, s - 1))}
-            disabled={step === 0}
-            className={cn(buttonVariants({ variant: "ghost" }), "disabled:opacity-0")}
-          >
-            <ChevronLeft className="h-4 w-4" /> Back
-          </button>
+        {STEPS[step] !== "Thank You" && (
+          <div className="mt-8 flex items-center justify-between">
+            <button
+              type="button"
+              onClick={() => setStep((s) => Math.max(0, s - 1))}
+              disabled={step === 0}
+              className={cn(buttonVariants({ variant: "ghost" }), "disabled:opacity-0")}
+            >
+              <ChevronLeft className="h-4 w-4" /> Back
+            </button>
 
-          {step < STEPS.length - 1 ? (
-            <button
-              type="button"
-              onClick={() => setStep((s) => s + 1)}
-              disabled={!canNext}
-              className={cn(buttonVariants({ variant: "primary" }), "!disabled:opacity-40")}
-            >
-              Next <ChevronRight className="h-4 w-4" />
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleSubmit}
-              className={cn(buttonVariants({ variant: "primary" }))}
-            >
-              <Send className="h-4 w-4" /> Send estimate request
-            </button>
-          )}
-        </div>
+            {step < STEPS.length - 1 ? (
+              <button
+                type="button"
+                onClick={() => setStep((s) => s + 1)}
+                disabled={!canNext}
+                className={cn(buttonVariants({ variant: "primary" }), "!disabled:opacity-40")}
+              >
+                Next <ChevronRight className="h-4 w-4" />
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleSubmit}
+                className={cn(buttonVariants({ variant: "primary" }))}
+              >
+                <Send className="h-4 w-4" /> Submit request
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

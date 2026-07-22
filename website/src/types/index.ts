@@ -151,6 +151,7 @@ export interface EstimateRequest {
   property: Property;
   services: string[]; // Service.slug[] — up to 3 (or 0 if otherNeed given)
   otherNeed?: string; // "Don't see what you need?" free text
+  projectType?: "painting" | "building"; // Determines estimation authority
   answers: Record<string, string | boolean | number>;
   photos: { name: string; size: number }[]; // metadata only; bytes never leave the browser in MVP
   notes?: string;

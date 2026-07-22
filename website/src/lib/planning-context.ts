@@ -12,6 +12,7 @@ export interface PlanningContext {
   services: ServiceSlug[];
   answers: Record<string, string | boolean | number>;
   property?: { city?: string; county?: string };
+  projectType?: "painting" | "building"; // Determines estimation authority
   // Reserved for future enrichment — present in the type now so later phases
   // are additive, not breaking:
   materials?: Record<ServiceSlug, string>;
@@ -27,5 +28,6 @@ export function buildPlanningContext(req: EstimateRequest): PlanningContext {
     }),
     answers: req.answers,
     property: { city: req.property.city, county: req.property.county },
+    projectType: req.projectType,
   };
 }

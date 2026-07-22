@@ -19,32 +19,13 @@ export const services: Service[] = [
     stat: "150+ built",
     galleryRefs: ["deck-corvallis", "deck-albany", "deck-salem"],
     estimateQuestions: [
-      { id: "deck_scope", label: "Scope of work?", type: "select", options: ["New build", "Repair / board replacement", "Resurface / re-stain only"], required: true, isScopeQuestion: true },
+      { id: "deck_scope", label: "Scope of work?", type: "select", options: ["New build", "Repair / board replacement", "Resurface / re-stain only", "Painting / staining only"], required: true, isScopeQuestion: true },
       { id: "deck_size", label: "Rough size of the deck (sq ft)?", type: "number", placeholder: "e.g. 300", required: true },
-      { id: "deck_height", label: "Is it ground-level or elevated?", type: "select", options: ["Ground level", "Low (1–3 steps)", "Elevated (2nd story)"], required: true },
+      { id: "deck_height", label: "Is it ground-level or elevated?", type: "select", options: ["Ground level", "Low (1-3 steps)", "Elevated (2nd story)"], required: true },
       { id: "deck_material", label: "Preferred material?", type: "select", options: ["Not sure", "Pressure-treated", "Cedar", "Composite / Trex"], required: false },
       { id: "deck_features", label: "Any features?", type: "textarea", placeholder: "railings, stairs, pergola, built-in seating, lighting…", required: false },
     ],
     seo: { title: "Custom Deck Builders in the Mid-Willamette Valley", description: "Decks and patios built for Oregon weather by Happy Place Carpentry.", keywords: ["deck builder", "composite deck", "cedar deck", "Oregon deck"] },
-  },
-  {
-    slug: "fences",
-    title: "Fences & Gates",
-    category: "outdoor-living",
-    summary: "A fence should feel like it belongs with the house — not simply surround it.",
-    description:
-      "Cedar, vinyl, or metal fencing and gates set straight and plumb, detailed to sit naturally with the home. We handle permits and respect property lines.",
-    icon: "Fence",
-    stat: "Cedar & vinyl",
-    galleryRefs: ["fence-philomath", "fence-lebanon"],
-    estimateQuestions: [
-      { id: "fence_scope", label: "Scope of work?", type: "select", options: ["New fence", "Repair (1-3 sections)", "Full replacement"], required: true, isScopeQuestion: true },
-      { id: "fence_length", label: "Approximate total length (linear ft)?", type: "number", placeholder: "e.g. 120", required: true },
-      { id: "fence_height", label: "Desired height?", type: "select", options: ["4 ft", "6 ft", "8 ft", "Other"], required: true },
-      { id: "fence_material", label: "Material preference?", type: "select", options: ["Not sure", "Cedar", "Pressure-treated", "Vinyl", "Metal"], required: false },
-      { id: "fence_style", label: "Style notes?", type: "textarea", placeholder: "privacy, shadowbox, picket, horizontal slat…", required: false },
-    ],
-    seo: { title: "Fence Installation in Benton, Linn, Marion & Polk Counties", description: "Cedar, vinyl, and wood fence installation by Happy Place Carpentry.", keywords: ["fence installer", "cedar fence", "privacy fence", "Oregon fencing"] },
   },
   {
     slug: "pergolas",
@@ -64,6 +45,25 @@ export const services: Service[] = [
     seo: { title: "Pergola Builders in the Willamette Valley", description: "Custom pergolas and outdoor structures by Happy Place Carpentry.", keywords: ["pergola", "outdoor structure", "shade structure"] },
   },
   {
+    slug: "fences",
+    title: "Fences & Gates",
+    category: "fencing",
+    summary: "A fence should feel like it belongs with the house — not simply surround it.",
+    description:
+      "Cedar, vinyl, or metal fencing and gates set straight and plumb, detailed to sit naturally with the home. We handle permits and respect property lines.",
+    icon: "Fence",
+    stat: "Cedar & vinyl",
+    galleryRefs: ["fence-philomath", "fence-lebanon"],
+    estimateQuestions: [
+      { id: "fence_scope", label: "Scope of work?", type: "select", options: ["New fence", "Repair (1-3 sections)", "Full replacement", "Painting / staining only"], required: true, isScopeQuestion: true },
+      { id: "fence_length", label: "Approximate total length (linear ft)?", type: "number", placeholder: "e.g. 120", required: true },
+      { id: "fence_height", label: "Desired height?", type: "select", options: ["4 ft", "6 ft", "8 ft", "Other"], required: true },
+      { id: "fence_material", label: "Material preference?", type: "select", options: ["Not sure", "Cedar", "Pressure-treated", "Vinyl", "Metal"], required: false },
+      { id: "fence_style", label: "Style notes?", type: "textarea", placeholder: "privacy, shadowbox, picket, horizontal slat…", required: false },
+    ],
+    seo: { title: "Fence Installation in Benton, Linn, Marion & Polk Counties", description: "Cedar, vinyl, and wood fence installation by Happy Place Carpentry.", keywords: ["fence installer", "cedar fence", "privacy fence", "Oregon fencing"] },
+  },
+  {
     slug: "kitchen-remodel",
     title: "Kitchen Remodeling",
     category: "remodeling",
@@ -74,7 +74,7 @@ export const services: Service[] = [
     stat: "Islands & more",
     galleryRefs: ["kitchen-salem", "kitchen-albany"],
     estimateQuestions: [
-      { id: "kitchen_scope", label: "Scope of work?", type: "select", options: ["Full gut remodel", "Cabinets + counters", "Island only", "Flooring + paint", "Not sure"], required: true, isScopeQuestion: true },
+      { id: "kitchen_scope", label: "Scope of work?", type: "select", options: ["Full gut remodel", "Cabinets + counters", "Island only", "Flooring + paint", "Cabinet painting only", "Not sure"], required: true, isScopeQuestion: true },
       { id: "kitchen_layout", label: "Changing the layout?", type: "boolean", required: false },
       { id: "kitchen_appliances", label: "Appliance changes?", type: "textarea", placeholder: "range, fridge, dishwasher relocation…", required: false },
     ],
@@ -92,7 +92,7 @@ export const services: Service[] = [
     galleryRefs: ["bath-corvallis"],
     estimateQuestions: [
       { id: "bath_count", label: "How many bathrooms?", type: "number", placeholder: "1", required: true },
-      { id: "bath_scope", label: "Scope?", type: "select", options: ["Full remodel", "Shower/tub only", "Vanity + fixtures", "Tile + paint"], required: true, isScopeQuestion: true },
+      { id: "bath_scope", label: "Scope?", type: "select", options: ["Full remodel", "Shower/tub only", "Vanity + fixtures", "Tile + paint", "Painting only"], required: true, isScopeQuestion: true },
       { id: "bath_fixtures", label: "Fixture notes?", type: "textarea", placeholder: "walk-in shower, double vanity, freestanding tub…", required: false },
     ],
     seo: { title: "Bathroom Remodeling in the Willamette Valley", description: "Bathroom remodels by Happy Place Carpentry.", keywords: ["bathroom remodel", "walk-in shower", "tile bath"] },
@@ -100,7 +100,7 @@ export const services: Service[] = [
   {
     slug: "built-ins",
     title: "Built-Ins & Trim",
-    category: "custom-carpentry",
+    category: "finish-carpentry",
     summary: "Storage and detail shaped to fit your home and the way you live.",
     description:
       "Built-in shelving, mudroom benches, wainscoting, and trim work crafted to your space, your style, and the details that make it feel finished.",
@@ -116,19 +116,39 @@ export const services: Service[] = [
   },
   {
     slug: "repairs",
-    title: "Repairs & Handyman",
-    category: "repairs",
-    summary: "The work that keeps a home sound — handled honestly.",
+    title: "Restoration & Repair",
+    category: "restoration-repair",
+    summary: "Restoring your home to sound condition with honest craftsmanship.",
     description:
-      "Dry rot repair, trim, doors, and general carpentry — straightforward advice and reliable work, with no upsell.",
+      "Dry rot repair, trim restoration, door repair, and structural carpentry — straightforward advice and reliable work focused on restoration rather than quick fixes.",
     icon: "Wrench",
     stat: "Honest advice",
     galleryRefs: [],
     estimateQuestions: [
-      { id: "repair_what", label: "What needs fixing?", type: "textarea", placeholder: "describe the issue…", required: true },
+      { id: "repair_what", label: "What needs restoration or repair?", type: "textarea", placeholder: "describe the issue…", required: true },
       { id: "repair_urgent", label: "Is it urgent / safety-related?", type: "boolean", required: false },
     ],
-    seo: { title: "Carpentry Repairs & Handyman Services", description: "Reliable carpentry repairs by Happy Place Carpentry.", keywords: ["carpentry repair", "handyman", "dry rot repair"] },
+    seo: { title: "Carpentry Restoration & Repair Services", description: "Reliable carpentry restoration and repairs by Happy Place Carpentry.", keywords: ["carpentry repair", "dry rot repair", "trim restoration", "structural repair"] },
+  },
+  {
+    slug: "painting",
+    title: "Painting & Surface Restoration",
+    category: "painting",
+    summary: "Expert preparation and quality finishes that protect and beautify your home.",
+    description:
+      "Interior and exterior painting, deck staining, fence staining, cabinet painting, and surface restoration — proper prep, quality materials, and clean application that lasts.",
+    icon: "Paintbrush",
+    stat: "Interior & exterior",
+    galleryRefs: [],
+    estimateQuestions: [
+      { id: "painting_location", label: "Interior or exterior?", type: "select", options: ["Interior", "Exterior", "Both"], required: true, isScopeQuestion: true },
+      { id: "painting_surface", label: "What needs painting?", type: "select", options: ["Walls / ceilings", "Trim / baseboards", "Cabinets", "Deck", "Fence", "Multiple surfaces", "Not sure"], required: true },
+      { id: "painting_sqft", label: "Approximate square footage?", type: "number", placeholder: "e.g. 1500", required: false, help: "Total surface area to be painted. Leave blank if unsure." },
+      { id: "painting_prep", label: "Prep complexity?", type: "select", options: ["Minimal - good condition", "Standard - typical wear", "Extensive - scraping/repair needed"], required: true },
+      { id: "painting_coats", label: "Number of coats?", type: "select", options: ["1 coat", "2 coats", "3 coats"], required: true },
+      { id: "painting_details", label: "Additional details?", type: "textarea", placeholder: "color changes, specific areas, access issues…", required: false },
+    ],
+    seo: { title: "Painting & Surface Restoration in the Willamette Valley", description: "Interior and exterior painting, staining, and surface restoration by Happy Place Carpentry.", keywords: ["house painting", "deck staining", "fence staining", "cabinet painting", "surface restoration"] },
   },
 ];
 

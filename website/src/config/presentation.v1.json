@@ -3,9 +3,9 @@
   "schemaVersion": "1.0.0",
   "description": "Human-curated presentation decisions. Machine-generated data lives in manifest.v1.json. This file persists across pipeline regenerations.",
   "photoRoles": [
-    { "id": "hero/hero", "category": "Site", "roles": ["HeroBackground"], "priority": 100, "quality": { "hero": true, "gallery": true, "service": false } },
-    { "id": "featured/featured", "category": "Site", "roles": ["FeaturedTransformation", "HomepageFeature"], "priority": 99, "quality": { "hero": false, "gallery": true, "service": false } },
-    { "id": "portrait/portrait", "category": "Site", "roles": ["OwnerPortrait", "AboutPortrait"], "priority": 99, "quality": { "hero": false, "gallery": true, "service": false } },
+    { "id": "hero/hero", "category": "Site", "roles": ["HeroBackground"], "priority": 100, "quality": { "hero": true, "gallery": false, "service": false } },
+    { "id": "featured/featured", "category": "Site", "roles": ["FeaturedTransformation", "HomepageFeature"], "priority": 99, "quality": { "hero": false, "gallery": false, "service": false } },
+    { "id": "portrait/portrait", "category": "Site", "roles": ["OwnerPortrait", "AboutPortrait"], "priority": 99, "quality": { "hero": false, "gallery": false, "service": false } },
     { "id": "bathroom-remodeling/bathroom-wall", "category": "Bathroom Remodeling", "roles": ["FeaturedTransformation", "BathroomCover", "HomepageFeature", "GalleryHighlight"], "priority": 95, "quality": { "hero": false, "gallery": true, "service": true } },
     { "id": "fences/fence-build", "category": "Fencing", "roles": ["FenceCover", "ServicesFeature", "HomepageFeature", "GalleryHighlight"], "priority": 90, "quality": { "hero": false, "gallery": true, "service": true } },
     { "id": "fences/fencerebuildmatchingstain", "category": "Bathroom Remodeling", "roles": ["GalleryHighlight", "HomepageFeature"], "priority": 88, "quality": { "hero": false, "gallery": true, "service": true } },
