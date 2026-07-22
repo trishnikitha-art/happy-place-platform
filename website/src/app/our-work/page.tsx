@@ -120,7 +120,7 @@ export default function OurWorkPage() {
             description="Every project, every detail. Future projects simply append here."
           />
           <div className="mt-10 space-y-12">
-            {museum.map((group) => (
+            {museum.filter((group) => group.category !== "Uncategorized").map((group) => (
               <div key={group.project}>
                 <h3 className="mb-4 font-display text-xl font-bold text-text">{group.category}</h3>
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
