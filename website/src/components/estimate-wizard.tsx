@@ -11,8 +11,17 @@ import { estimateService } from "@/services/estimate";
 import { analytics } from "@/services/analytics";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { 
+  saveWizardState, 
+  loadWizardState, 
+  clearWizardState, 
+  hasDraft, 
+  createAutosave,
+  validateSubmissionIntegrity,
+  type WizardState 
+} from "@/lib/wizard-persistence";
 
-type PhotoMeta = { name: string; size: number };
+type PhotoMeta = { name: string; size: number; uploadedAt?: number };
 
 const ALL_STEPS = ["Service", "Tell us about your project", "Photos", "Project Details", "Property", "Contact", "Thank You"] as const;
 const MAX_SERVICES = 3;
@@ -26,6 +35,10 @@ export function EstimateWizard() {
   const searchParams = useSearchParams();
   const prefillService = searchParams.get("service") ?? "";
   const stepParam = searchParams.get("step");
+
+  // Check for existing draft
+  const [showDraftRecovery, setShowDraftRecovery] = React.useState(false);
+  const [draftState, setDraftState] = React.useState<WizardState | null>(null);
 
   const [step, setStep] = React.useState(() => {
     const initialStep = stepParam ? ALL_STEPS.indexOf(stepParam as any) : 0;
@@ -43,6 +56,68 @@ export function EstimateWizard() {
   const [submitted, setSubmitted] = React.useState(false);
   const tracked = React.useRef<Set<string>>(new Set());
   const wizardRef = React.useRef<HTMLDivElement>(null);
+
+  // Get current wizard state for persistence
+  const getCurrentState = (): WizardState => ({
+    step,
+    selected,
+    projectType,
+    otherNeed,
+    answers,
+    photos,
+    property,
+    customer,
+    submitted,
+    updatedAt: Date.now(),
+  });
+
+  // Create autosave function
+  const autosave = React.useMemo(() => createAutosave(getCurrentState), []);
+
+  // Load draft on mount
+  React.useEffect(() => {
+    if (hasDraft()) {
+      const draft = loadWizardState();
+      if (draft) {
+        setDraftState(draft);
+        setShowDraftRecovery(true);
+      }
+    }
+  }, []);
+
+  // Restore draft if user chooses to continue
+  const restoreDraft = () => {
+    if (draftState) {
+      setStep(draftState.step);
+      setSelected(draftState.selected);
+      setProjectType(draftState.projectType);
+      setOtherNeed(draftState.otherNeed);
+      setAnswers(draftState.answers);
+      setPhotos(draftState.photos);
+      setProperty(draftState.property);
+      setCustomer(draftState.customer);
+      setSubmitted(draftState.submitted);
+      setShowDraftRecovery(false);
+      setDraftState(null);
+    }
+  };
+
+  // Start fresh if user chooses to start over
+  const startFresh = () => {
+    clearWizardState();
+    setShowDraftRecovery(false);
+    setDraftState(null);
+    // Reset all state to initial values
+    setStep(0);
+    setSelected(prefillService && services.some((s) => s.slug === prefillService) ? [prefillService] : []);
+    setProjectType("");
+    setOtherNeed("");
+    setAnswers({});
+    setPhotos([]);
+    setProperty({ address: "", city: "", county: "", details: "" });
+    setCustomer({ name: "", email: "", phone: "" });
+    setSubmitted(false);
+  };
 
   // Sync step with URL
   React.useEffect(() => {
@@ -91,6 +166,11 @@ export function EstimateWizard() {
     }
   }, [primarySlug]);
 
+  // Autosave on any state change
+  React.useEffect(() => {
+    autosave();
+  }, [step, selected, projectType, otherNeed, answers, photos, property, customer, submitted]);
+
   const setAnswer = (id: string, val: string | boolean | number) =>
     setAnswers((prev) => ({ ...prev, [id]: val }));
 
@@ -136,14 +216,55 @@ export function EstimateWizard() {
   }
 
   async function handleSubmit() {
+    const currentState = getCurrentState();
+    const persistedState = loadWizardState();
+    
+    // Validate submission integrity
+    const validation = validateSubmissionIntegrity(currentState, persistedState);
+    if (!validation.valid) {
+      console.error("Submission integrity validation failed:", validation.issues);
+      alert("There was a problem with your submission. Please try refreshing the page and completing the wizard again.");
+      return;
+    }
+
     const req = buildRequest();
     const result = await estimateService.submit(req);
     analytics.trackEstimateSubmitted(req.services.join(",") || "other", result.transport);
+    
+    // Clear draft after successful submission
+    clearWizardState();
+    
     setStep(STEPS.length - 1); // Advance to Thank You step
   }
 
   return (
     <div ref={wizardRef} style={{ scrollMarginTop: "90px" }}>
+      {/* Draft Recovery Modal */}
+      {showDraftRecovery && (
+        <div className="mb-6 rounded-xl border border-primary/50 bg-primary/5 p-6">
+          <h3 className="text-lg font-semibold text-text">We found an unfinished project</h3>
+          <p className="mt-2 text-sm text-text-muted">
+            Would you like to continue where you left off, or start fresh?
+          </p>
+          <div className="mt-4 flex gap-3">
+            <button
+              type="button"
+              onClick={restoreDraft}
+              className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
+            >
+              Continue
+            </button>
+            <button
+              type="button"
+              onClick={startFresh}
+              className="rounded-lg border border-border bg-surface px-4 py-2 text-sm font-semibold text-text hover:bg-surface-muted"
+            >
+              Start Over
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Stepper */}
       <ol className="mb-8 flex flex-wrap gap-2" aria-label="Progress">
         {STEPS.map((s, i) => (
@@ -210,7 +331,7 @@ export function EstimateWizard() {
               <textarea
                 id="otherNeed"
                 rows={3}
-                className="mt-2 w-full rounded-lg border border-border bg-surface p-3 text-sm"
+                className="mt-2 w-full rounded-lg border border-border bg-white p-3 text-sm text-black"
                 placeholder="e.g. a custom mudroom bench, a sliding barn door, a sunroom…"
                 value={otherNeed}
                 onChange={(e) => setOtherNeed(e.target.value)}
@@ -280,7 +401,7 @@ export function EstimateWizard() {
                   const files = Array.from(e.target.files ?? []);
                   setPhotos((prev) => [
                     ...prev,
-                    ...files.map((f) => ({ name: f.name, size: f.size })),
+                    ...files.map((f) => ({ name: f.name, size: f.size, uploadedAt: Date.now() })),
                   ]);
                 }}
               />
@@ -321,7 +442,7 @@ export function EstimateWizard() {
                   {q.help && <p className="mt-1 text-xs text-text-muted">{q.help}</p>}
                   {q.type === "textarea" && (
                     <textarea
-                      className="mt-1 w-full rounded-lg border border-border p-3"
+                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
                       rows={3}
                       placeholder={q.placeholder}
                       value={(answers[q.id] as string) ?? ""}
@@ -330,7 +451,7 @@ export function EstimateWizard() {
                   )}
                   {q.type === "text" && (
                     <input
-                      className="mt-1 w-full rounded-lg border border-border p-3"
+                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
                       placeholder={q.placeholder}
                       value={(answers[q.id] as string) ?? ""}
                       onChange={(e) => setAnswer(q.id, e.target.value)}
@@ -339,7 +460,7 @@ export function EstimateWizard() {
                   {q.type === "number" && (
                     <input
                       type="number"
-                      className="mt-1 w-full rounded-lg border border-border p-3"
+                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
                       placeholder={q.placeholder}
                       value={(answers[q.id] as number) ?? ""}
                       onChange={(e) => setAnswer(q.id, Number(e.target.value))}
@@ -347,7 +468,7 @@ export function EstimateWizard() {
                   )}
                   {q.type === "select" && (
                     <select
-                      className="mt-1 w-full rounded-lg border border-border p-3"
+                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
                       value={(answers[q.id] as string) ?? ""}
                       onChange={(e) => setAnswer(q.id, e.target.value)}
                     >
@@ -388,7 +509,7 @@ export function EstimateWizard() {
               <div>
                 <label className="block text-sm font-semibold text-text">Street address</label>
                 <input
-                  className="mt-1 w-full rounded-lg border border-border p-3"
+                  className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
                   placeholder="123 Main St (optional)"
                   value={property.address}
                   onChange={(e) => setProperty((p) => ({ ...p, address: e.target.value }))}
@@ -398,7 +519,7 @@ export function EstimateWizard() {
                 <div>
                   <label className="block text-sm font-semibold text-text">City *</label>
                   <input
-                    className="mt-1 w-full rounded-lg border border-border p-3"
+                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
                     value={property.city}
                     onChange={(e) => setProperty((p) => ({ ...p, city: e.target.value }))}
                   />
@@ -406,7 +527,7 @@ export function EstimateWizard() {
                 <div>
                   <label className="block text-sm font-semibold text-text">County *</label>
                   <select
-                    className="mt-1 w-full rounded-lg border border-border p-3"
+                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
                     value={property.county}
                     onChange={(e) => setProperty((p) => ({ ...p, county: e.target.value }))}
                   >
@@ -420,7 +541,7 @@ export function EstimateWizard() {
               <div>
                 <label className="block text-sm font-semibold text-text">Anything else about the property?</label>
                 <textarea
-                  className="mt-1 w-full rounded-lg border border-border p-3"
+                  className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
                   rows={3}
                   placeholder="access, parking, gate code, HOA…"
                   value={property.details}
@@ -439,7 +560,7 @@ export function EstimateWizard() {
               <div>
                 <label className="block text-sm font-semibold text-text">Name *</label>
                 <input
-                  className="mt-1 w-full rounded-lg border border-border p-3"
+                  className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
                   value={customer.name}
                   onChange={(e) => setCustomer((c) => ({ ...c, name: e.target.value }))}
                 />
@@ -449,7 +570,7 @@ export function EstimateWizard() {
                   <label className="block text-sm font-semibold text-text">Email *</label>
                   <input
                     type="email"
-                    className="mt-1 w-full rounded-lg border border-border p-3"
+                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
                     value={customer.email}
                     onChange={(e) => setCustomer((c) => ({ ...c, email: e.target.value }))}
                   />
@@ -458,7 +579,7 @@ export function EstimateWizard() {
                   <label className="block text-sm font-semibold text-text">Phone *</label>
                   <input
                     type="tel"
-                    className="mt-1 w-full rounded-lg border border-border p-3"
+                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
                     value={customer.phone}
                     onChange={(e) => setCustomer((c) => ({ ...c, phone: e.target.value }))}
                   />
