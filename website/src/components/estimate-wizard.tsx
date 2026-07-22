@@ -36,24 +36,47 @@ export function EstimateWizard() {
   const prefillService = searchParams.get("service") ?? "";
   const stepParam = searchParams.get("step");
 
-  // Check for existing draft
-  const [showDraftRecovery, setShowDraftRecovery] = React.useState(false);
-  const [draftState, setDraftState] = React.useState<WizardState | null>(null);
+  // Check for existing draft immediately during initialization
+  // This ensures state is initialized with draft data if available
+  const initialDraft = React.useMemo(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = localStorage.getItem("estimate-wizard-draft");
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      if (parsed.updatedAt > weekAgo && !parsed.submitted) {
+        return parsed as WizardState;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const [showDraftRecovery, setShowDraftRecovery] = React.useState(!!initialDraft);
+  const [draftState, setDraftState] = React.useState<WizardState | null>(initialDraft);
 
   const [step, setStep] = React.useState(() => {
+    // If draft exists, use its step
+    if (initialDraft) return initialDraft.step;
+    // Otherwise use URL param or default
     const initialStep = stepParam ? ALL_STEPS.indexOf(stepParam as any) : 0;
     return initialStep >= 0 ? initialStep : 0;
   });
-  const [selected, setSelected] = React.useState<string[]>(
-    prefillService && services.some((s) => s.slug === prefillService) ? [prefillService] : [],
-  );
-  const [projectType, setProjectType] = React.useState("");
-  const [otherNeed, setOtherNeed] = React.useState("");
-  const [answers, setAnswers] = React.useState<Record<string, string | boolean | number>>({});
-  const [photos, setPhotos] = React.useState<PhotoMeta[]>([]);
-  const [property, setProperty] = React.useState({ address: "", city: "", county: "", details: "" });
-  const [customer, setCustomer] = React.useState({ name: "", email: "", phone: "" });
-  const [submitted, setSubmitted] = React.useState(false);
+  const [selected, setSelected] = React.useState<string[]>(() => {
+    // If draft exists, use its selected services
+    if (initialDraft) return initialDraft.selected;
+    // Otherwise use prefill or empty
+    return prefillService && services.some((s) => s.slug === prefillService) ? [prefillService] : [];
+  });
+  const [projectType, setProjectType] = React.useState(() => initialDraft?.projectType ?? "");
+  const [otherNeed, setOtherNeed] = React.useState(() => initialDraft?.otherNeed ?? "");
+  const [answers, setAnswers] = React.useState<Record<string, string | boolean | number>>(() => initialDraft?.answers ?? {});
+  const [photos, setPhotos] = React.useState<PhotoMeta[]>(() => initialDraft?.photos ?? []);
+  const [property, setProperty] = React.useState(() => initialDraft?.property ?? { address: "", city: "", county: "", details: "" });
+  const [customer, setCustomer] = React.useState(() => initialDraft?.customer ?? { name: "", email: "", phone: "" });
+  const [submitted, setSubmitted] = React.useState(() => initialDraft?.submitted ?? false);
   const tracked = React.useRef<Set<string>>(new Set());
   const wizardRef = React.useRef<HTMLDivElement>(null);
 
@@ -74,32 +97,11 @@ export function EstimateWizard() {
   // Create autosave function
   const autosave = React.useMemo(() => createAutosave(getCurrentState), []);
 
-  // Load draft on mount
-  React.useEffect(() => {
-    if (hasDraft()) {
-      const draft = loadWizardState();
-      if (draft) {
-        setDraftState(draft);
-        setShowDraftRecovery(true);
-      }
-    }
-  }, []);
-
   // Restore draft if user chooses to continue
+  // State is already initialized with draft data, just hide the modal
   const restoreDraft = () => {
-    if (draftState) {
-      setStep(draftState.step);
-      setSelected(draftState.selected);
-      setProjectType(draftState.projectType);
-      setOtherNeed(draftState.otherNeed);
-      setAnswers(draftState.answers);
-      setPhotos(draftState.photos);
-      setProperty(draftState.property);
-      setCustomer(draftState.customer);
-      setSubmitted(draftState.submitted);
-      setShowDraftRecovery(false);
-      setDraftState(null);
-    }
+    setShowDraftRecovery(false);
+    setDraftState(null);
   };
 
   // Start fresh if user chooses to start over
@@ -108,7 +110,7 @@ export function EstimateWizard() {
     setShowDraftRecovery(false);
     setDraftState(null);
     // Reset all state to initial values
-    setStep(0);
+    setStep(stepParam ? ALL_STEPS.indexOf(stepParam as any) : 0);
     setSelected(prefillService && services.some((s) => s.slug === prefillService) ? [prefillService] : []);
     setProjectType("");
     setOtherNeed("");

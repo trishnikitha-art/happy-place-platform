@@ -108,6 +108,16 @@ export function photoFor(role: Role): MediaImage | null {
   return hits.length ? toMedia(hits[0]) : null;
 }
 
+/** Best photo for a role regardless of gallery quality (for brand assets like hero). */
+export function photoForAny(role: Role): MediaImage | null {
+  const photoRoles = PresentationAuthority.getPhotoRoles();
+  const hits = photoRoles.filter((m) => m.roles.includes(role))
+    .sort((a, b) => b.priority - a.priority)
+    .map((m) => BY_ID.get(m.id))
+    .filter((r): r is GalleryRecord => !!r && !!r.src);
+  return hits.length ? toMedia(hits[0]) : null;
+}
+
 /**
  * Photo for a service card by slug. Uses serviceCover mapping from presentation.v1.json
  * to get the specific cover role for each service. Returns null if no photo assigned.
@@ -132,7 +142,7 @@ export function featuredTransformation(): MediaImage | null {
 
 /** Primary full-width hero background photograph. Sourced from presentation.v1.json. */
 export function heroBackground(): MediaImage | null {
-  return photoFor("HeroBackground");
+  return photoForAny("HeroBackground");
 }
 
 /** Curated homepage set (magazine cover). Repairs excluded here — trust-builders,
@@ -148,11 +158,13 @@ function byId(id: string): MediaImage | null {
 }
 
 /** Gallery selection — the FULL museum. Every cataloged photo, grouped by project,
- *  ordered by priority. Nothing is orphaned; nothing is hidden. */
+ *  ordered by priority. Nothing is orphaned; nothing is hidden. Excludes brand assets. */
 export function galleryAll(): { project: string; category: string; images: MediaImage[] }[] {
   const photoRoles = PresentationAuthority.getPhotoRoles();
   const byProject = new Map<string, GalleryRecord[]>();
   for (const m of photoRoles) {
+    // Exclude brand assets (photos with gallery: false)
+    if (!m.quality.gallery) continue;
     const r = BY_ID.get(m.id);
     if (!r || !r.src) continue;
     if (!byProject.has(r.project)) byProject.set(r.project, []);
