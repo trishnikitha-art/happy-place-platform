@@ -3,7 +3,6 @@ import Image from "next/image";
 import type { Service } from "@/types/registries";
 import { Icon } from "@/components/icon";
 import { Card } from "@/components/ui/card";
-import { PhotoPlaceholder } from "@/components/photo-placeholder";
 import { getFeaturedServiceMedia } from "@/lib/media";
 
 /**
@@ -14,7 +13,7 @@ import { getFeaturedServiceMedia } from "@/lib/media";
  * 
  * Service cards use intent-based media lookups from Media Authority.
  * Displays the hero image of the highest-ranked project for that service.
- * Falls back to placeholder only when no images exist for that service.
+ * Falls back to intentional empty state when no images exist for that service.
  */
 export function ServiceCard({ service }: { service: Service }) {
   const featuredMedia = getFeaturedServiceMedia(service.slug);
@@ -33,11 +32,17 @@ export function ServiceCard({ service }: { service: Service }) {
             className="object-cover transition-transform duration-500 group-hover:scale-[1.05]"
           />
         ) : (
-          <PhotoPlaceholder />
+          <div className="flex h-full w-full items-center justify-center">
+            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-deep/80 text-honey">
+              <Icon name={service.icon} className="h-5 w-5" />
+            </span>
+          </div>
         )}
-        <span className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-xl bg-deep/80 text-honey">
-          <Icon name={service.icon} className="h-5 w-5" />
-        </span>
+        {hasImage && (
+          <span className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-xl bg-deep/80 text-honey">
+            <Icon name={service.icon} className="h-5 w-5" />
+          </span>
+        )}
         {!hasImage && (
           <div className="absolute bottom-3 right-3 rounded-md bg-deep/80 px-3 py-1.5 text-xs font-medium text-text-on-dark">
             Project photos coming soon

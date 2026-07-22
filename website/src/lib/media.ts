@@ -113,6 +113,11 @@ export function getProjectMediaByRole(projectId: string, role: string): Media | 
 /**
  * Get featured media for a service
  * Returns the hero image of the highest-ranked project for that service
+ * 
+ * Priority:
+ * 1. Featured completed project (most recent)
+ * 2. Newest completed project
+ * 3. Null (intentional empty state)
  */
 export function getFeaturedServiceMedia(serviceSlug: string): Media | null {
   const manifest = loadMediaManifest();
@@ -120,18 +125,26 @@ export function getFeaturedServiceMedia(serviceSlug: string): Media | null {
   // Get projects for this service from Projects Authority
   const projects = getProjectsByServiceSlug(serviceSlug);
   
-  // Filter for published and featured projects
-  const featuredProjects = projects.filter((p: Project) => p.status === 'completed' && p.featured);
+  // Filter for completed projects
+  const completedProjects = projects.filter((p: Project) => p.status === 'completed');
   
-  // Sort by featured status and completion date (most recent first)
-  featuredProjects.sort((a: Project, b: Project) => {
+  if (completedProjects.length === 0) return null;
+  
+  // First try: featured projects
+  const featuredProjects = completedProjects.filter((p: Project) => p.featured);
+  
+  // Sort by completion date (most recent first)
+  const sortProjects = (a: Project, b: Project) => {
     const dateA = new Date(a.completionDate || 0).getTime();
     const dateB = new Date(b.completionDate || 0).getTime();
     return dateB - dateA;
-  });
+  };
   
-  // Get the top project
-  const topProject = featuredProjects[0];
+  featuredProjects.sort(sortProjects);
+  completedProjects.sort(sortProjects);
+  
+  // Get the top project (featured first, otherwise newest)
+  const topProject = featuredProjects[0] || completedProjects[0];
   if (!topProject) return null;
   
   // Get hero media for the top project

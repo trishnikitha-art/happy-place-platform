@@ -8,23 +8,11 @@
  * 
  * Every project should already support future expansion.
  * Even if fields are empty, they should exist to avoid schema updates later.
+ * 
+ * Industry-Agnostic: Service types come from Services Registry, not hardcoded here.
  */
 
-export type ProjectService = 
-  | "decks"
-  | "fences"
-  | "kitchens"
-  | "bathrooms"
-  | "painting"
-  | "finish-carpentry"
-  | "restoration"
-  | "outdoor-living"
-  | "repairs"
-  | "built-ins"
-  | "pergolas"
-  | "adus"
-  | "pole-barns"
-  | "other";
+export type ProjectService = string; // Service slug from Services Registry (industry-agnostic)
 
 export type ProjectStatus = "completed" | "in-progress" | "planned" | "on-hold" | "archived";
 

@@ -9,23 +9,13 @@
  * The UI always reads from this canonical model.
  * 
  * Reviews reference Projects, not photos. Projects own the media.
+ * 
+ * Industry-Agnostic: Service types come from Services Registry, not hardcoded here.
  */
 
 export type ReviewSource = "manual" | "google" | "crm" | "referral" | "future";
 
-export type ReviewService = 
-  | "decks"
-  | "fences"
-  | "kitchens"
-  | "bathrooms"
-  | "painting"
-  | "finish-carpentry"
-  | "restoration"
-  | "outdoor-living"
-  | "repairs"
-  | "built-ins"
-  | "pergolas"
-  | "other";
+export type ReviewService = string; // Service slug from Services Registry (industry-agnostic)
 
 export type SyncStatus = "synced" | "pending" | "failed" | "manual";
 

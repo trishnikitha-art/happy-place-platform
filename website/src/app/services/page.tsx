@@ -5,8 +5,6 @@ import { ServiceCard } from "@/components/service-card";
 import { CTASection } from "@/components/cta-section";
 import { Icon } from "@/components/icon";
 import { getAllServices } from "@/lib/registries";
-import { getServiceGallery } from "@/lib/galleries";
-import { PlaceholderSection } from "@/components/placeholder-section";
 
 export const metadata: Metadata = {
   title: "Services",
