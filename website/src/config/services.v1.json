@@ -10,7 +10,13 @@
       "icon": "deck",
       "featured": true,
       "homepageEligible": true,
-      "order": 1
+      "order": 1,
+      "capabilities": {
+        "paintableSurface": true,
+        "surfaceType": "wood",
+        "paintingType": "deck_stain",
+        "estimationAuthority": "building"
+      }
     },
     {
       "id": "fences",
@@ -20,27 +26,29 @@
       "icon": "fence",
       "featured": true,
       "homepageEligible": true,
-      "order": 2
-    },
-    {
-      "id": "kitchens",
-      "name": "Kitchens",
-      "slug": "kitchens",
-      "description": "Complete kitchen remodeling and renovation",
-      "icon": "kitchen",
-      "featured": true,
-      "homepageEligible": true,
-      "order": 3
+      "order": 2,
+      "capabilities": {
+        "paintableSurface": true,
+        "surfaceType": "wood",
+        "paintingType": "fence_stain",
+        "estimationAuthority": "building"
+      }
     },
     {
       "id": "bathrooms",
       "name": "Bathrooms",
       "slug": "bathrooms",
-      "description": "Bathroom remodeling and renovation",
+      "description": "Rebuild your bathroom with proper waterproofing and finishes that last",
       "icon": "bathroom",
       "featured": true,
       "homepageEligible": true,
-      "order": 4
+      "order": 3,
+      "capabilities": {
+        "paintableSurface": true,
+        "surfaceType": "interior",
+        "paintingType": "interior",
+        "estimationAuthority": "building"
+      }
     },
     {
       "id": "painting",
@@ -50,7 +58,15 @@
       "icon": "paint",
       "featured": true,
       "homepageEligible": true,
-      "order": 5
+      "order": 5,
+      "capabilities": {
+        "paintableSurface": true,
+        "surfaceType": "general",
+        "paintingType": "interior",
+        "estimationAuthority": "painting"
+      },
+      "skipsIntentStep": true,
+      "defaultProjectIntent": "Paint / Stain / Refinish existing"
     },
     {
       "id": "finish-carpentry",
@@ -60,7 +76,13 @@
       "icon": "carpentry",
       "featured": true,
       "homepageEligible": false,
-      "order": 6
+      "order": 6,
+      "capabilities": {
+        "paintableSurface": true,
+        "surfaceType": "wood",
+        "paintingType": "interior",
+        "estimationAuthority": "building"
+      }
     },
     {
       "id": "restoration",
@@ -70,7 +92,13 @@
       "icon": "restoration",
       "featured": true,
       "homepageEligible": false,
-      "order": 7
+      "order": 7,
+      "capabilities": {
+        "paintableSurface": true,
+        "surfaceType": "mixed",
+        "paintingType": "interior",
+        "estimationAuthority": "building"
+      }
     },
     {
       "id": "outdoor-living",
@@ -80,7 +108,13 @@
       "icon": "outdoor",
       "featured": true,
       "homepageEligible": true,
-      "order": 8
+      "order": 8,
+      "capabilities": {
+        "paintableSurface": true,
+        "surfaceType": "wood",
+        "paintingType": "exterior",
+        "estimationAuthority": "building"
+      }
     },
     {
       "id": "repairs",
@@ -90,7 +124,13 @@
       "icon": "repair",
       "featured": false,
       "homepageEligible": false,
-      "order": 9
+      "order": 9,
+      "capabilities": {
+        "paintableSurface": false,
+        "estimationAuthority": "building"
+      },
+      "skipsIntentStep": true,
+      "defaultProjectIntent": "Restore / Repair existing"
     },
     {
       "id": "built-ins",
@@ -100,7 +140,13 @@
       "icon": "shelf",
       "featured": false,
       "homepageEligible": false,
-      "order": 10
+      "order": 10,
+      "capabilities": {
+        "paintableSurface": true,
+        "surfaceType": "wood",
+        "paintingType": "interior",
+        "estimationAuthority": "building"
+      }
     },
     {
       "id": "pergolas",
@@ -110,7 +156,13 @@
       "icon": "pergola",
       "featured": false,
       "homepageEligible": false,
-      "order": 11
+      "order": 11,
+      "capabilities": {
+        "paintableSurface": true,
+        "surfaceType": "wood",
+        "paintingType": "exterior",
+        "estimationAuthority": "building"
+      }
     },
     {
       "id": "adus",
@@ -120,7 +172,13 @@
       "icon": "home",
       "featured": false,
       "homepageEligible": false,
-      "order": 12
+      "order": 12,
+      "capabilities": {
+        "paintableSurface": true,
+        "surfaceType": "mixed",
+        "paintingType": "interior",
+        "estimationAuthority": "building"
+      }
     },
     {
       "id": "pole-barns",
@@ -130,7 +188,13 @@
       "icon": "barn",
       "featured": false,
       "homepageEligible": false,
-      "order": 13
+      "order": 13,
+      "capabilities": {
+        "paintableSurface": true,
+        "surfaceType": "wood",
+        "paintingType": "exterior",
+        "estimationAuthority": "building"
+      }
     },
     {
       "id": "other",
@@ -140,7 +204,11 @@
       "icon": "other",
       "featured": false,
       "homepageEligible": false,
-      "order": 99
+      "order": 99,
+      "capabilities": {
+        "paintableSurface": false,
+        "estimationAuthority": "building"
+      }
     }
   ]
 }

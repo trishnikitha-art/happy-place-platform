@@ -2,15 +2,17 @@ import type { Metadata } from "next";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { CTASection } from "@/components/cta-section";
 import { PhoneLink, EmailLink } from "@/components/tracked-contact";
-import { company } from "@/config/company";
+import { getCompany } from "@/lib/company";
 
 export const metadata: Metadata = {
   title: "Contact",
-  description: `Contact ${company.name} for a free estimate. Serving the mid-Willamette Valley, Oregon.`,
+  description: `Contact Happy Place Carpentry for a free estimate. Serving the mid-Willamette Valley, Oregon.`,
   alternates: { canonical: "/contact" },
 };
 
 export default function ContactPage() {
+  const company = getCompany();
+
   return (
     <>
       <Section>

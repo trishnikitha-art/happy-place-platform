@@ -146,9 +146,9 @@
       "updatedAt": "2026-07-15T00:00:00.000Z"
     },
     {
-      "id": "kitchen-remodel-001",
-      "title": "Kitchen Remodel - Salem",
-      "service": "kitchens",
+      "id": "bathroom-remodel-001",
+      "title": "Bathroom Remodel - Salem",
+      "service": "bathrooms",
       "status": "completed",
       "location": {
         "city": "Salem",
@@ -157,23 +157,23 @@
       },
       "completionDate": "2026-07-10",
       "media": {
-        "hero": "kitchen-remodel-001-after",
-        "before": "kitchen-remodel-001-before",
-        "after": "kitchen-remodel-001-after",
+        "hero": "bathroom-remodel-001-after",
+        "before": "bathroom-remodel-001-before",
+        "after": "bathroom-remodel-001-after",
         "gallery": [
-          "kitchen-remodel-001-cabinets",
-          "kitchen-remodel-001-countertop",
-          "kitchen-remodel-001-backsplash"
+          "bathroom-remodel-001-cabinets",
+          "bathroom-remodel-001-countertop",
+          "bathroom-remodel-001-backsplash"
         ]
       },
       "story": {
-        "challenge": "Outdated kitchen with poor layout and worn finishes",
-        "solution": "Complete kitchen remodel with new cabinets, countertops, and backsplash",
-        "outcome": "Modern, functional kitchen perfect for family cooking",
+        "challenge": "Bathroom had generic builder-grade cabinets with wasted space",
+        "solution": "Refaced cabinets and added custom built-in storage solutions",
+        "outcome": "Bathroom feels custom and organized with storage that fits the family's needs",
         "specialFeatures": [
-          "Custom cabinets",
-          "Quartz countertops",
-          "Subway tile backsplash"
+          "Cabinet refacing",
+          "Custom built-ins",
+          "Maximized storage space"
         ]
       },
       "estimate": {
@@ -182,17 +182,15 @@
           "high": 35000
         },
         "services": [
-          "cabinet installation",
-          "countertop installation",
-          "backsplash installation",
+          "cabinet refacing",
+          "built installation",
           "plumbing"
         ],
         "materials": [
           "custom cabinets",
-          "quartz",
-          "subway tile"
+          "built-in shelving"
         ],
-        "timeline": "3 weeks"
+        "timeline": "1 week"
       },
       "warranty": {
         "hasWarranty": true,
@@ -201,10 +199,10 @@
         "warrantyDetails": "2-year workmanship warranty on all installations"
       },
       "tags": [
-        "kitchen",
+        "bathroom",
         "remodel",
         "cabinets",
-        "quartz",
+        "built-ins",
         "salem"
       ],
       "reviews": [
@@ -213,8 +211,8 @@
       "featured": true,
       "heroEligible": false,
       "homepageEligible": true,
-      "slug": "kitchen-remodel-salem",
-      "metaDescription": "Complete kitchen remodel in Salem, Oregon with custom cabinets, quartz countertops, and subway tile backsplash.",
+      "slug": "bathroom-remodel-salem",
+      "metaDescription": "Bathroom remodel in Salem, Oregon with cabinet refacing and custom built-in storage solutions.",
       "createdAt": "2026-06-10T00:00:00.000Z",
       "updatedAt": "2026-07-10T00:00:00.000Z"
     },

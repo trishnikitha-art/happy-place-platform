@@ -1,16 +1,16 @@
-import type { Company } from "@/types";
-import { company } from "@/config/company";
+import type { Company } from "@/types/company";
+import { getCompany } from "@/lib/company";
 
 /**
  * Company data service — INTERFACE.
- * Today reads config; later could read a CMS/API. Components call getCompany().
+ * Today reads authority; later could read a CMS/API. Components call getCompany().
  */
 export interface CompanyService {
   getCompany(): Company;
 }
 
 export const mockCompanyService: CompanyService = {
-  getCompany: () => company,
+  getCompany: () => getCompany(),
 };
 
 export const companyService: CompanyService = mockCompanyService;

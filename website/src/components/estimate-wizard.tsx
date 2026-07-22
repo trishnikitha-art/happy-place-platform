@@ -26,9 +26,6 @@ const ALL_STEPS = ["Service", "Tell us about your project", "Photos", "Project D
 const MAX_SERVICES = 3;
 const PROJECT_TYPES = ["Build something new", "Restore / Repair existing", "Paint / Stain / Refinish existing", "I'm not sure yet"] as const;
 
-// Services that skip the intent step (intent is already clear from the service)
-const SKIP_INTENT_SERVICES = ["painting", "repairs"] as const;
-
 export function EstimateWizard() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -162,11 +159,11 @@ export function EstimateWizard() {
 
   // Dynamic steps: skip intent step for services where intent is already clear
   const STEPS = React.useMemo(() => {
-    if (primarySlug && SKIP_INTENT_SERVICES.includes(primarySlug as any)) {
+    if (service?.skipsIntentStep) {
       return ALL_STEPS.filter((s) => s !== "Tell us about your project");
     }
     return ALL_STEPS;
-  }, [primarySlug]);
+  }, [service]);
 
   // Adjust step when STEPS array changes (e.g., when skipping intent step)
   React.useEffect(() => {
@@ -177,14 +174,10 @@ export function EstimateWizard() {
 
   // Auto-set projectType for services that skip the intent step
   React.useEffect(() => {
-    if (primarySlug && SKIP_INTENT_SERVICES.includes(primarySlug as any)) {
-      if (primarySlug === "painting") {
-        setProjectType("Paint / Stain / Refinish existing");
-      } else if (primarySlug === "repairs") {
-        setProjectType("Restore / Repair existing");
-      }
+    if (service?.skipsIntentStep && service?.defaultProjectIntent) {
+      setProjectType(service.defaultProjectIntent);
     }
-  }, [primarySlug]);
+  }, [service]);
 
   // Autosave on any state change
   React.useEffect(() => {
@@ -214,7 +207,8 @@ export function EstimateWizard() {
         county: property.county,
         details: property.details,
       },
-      answers: { ...answers, projectType },
+      answers,
+      projectIntent: projectType || undefined,
       photos,
       notes: "",
       submittedAt: new Date().toISOString(),

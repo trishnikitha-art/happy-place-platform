@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Suspense } from "react";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { EstimateWizard } from "@/components/estimate-wizard";
-import { company } from "@/config/company";
+import { getCompany } from "@/lib/company";
 
 export const metadata: Metadata = {
   title: "Free Estimate",
@@ -12,6 +12,8 @@ export const metadata: Metadata = {
 };
 
 export default function EstimatePage() {
+  const company = getCompany();
+
   return (
     <Section>
       <Container className="max-w-3xl">

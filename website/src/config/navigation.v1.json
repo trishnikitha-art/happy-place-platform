@@ -1,0 +1,31 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-07-22T00:00:00.000Z",
+  "navigation": [
+    {
+      "label": "Home",
+      "href": "/"
+    },
+    {
+      "label": "Services",
+      "href": "/services"
+    },
+    {
+      "label": "Our Work",
+      "href": "/our-work"
+    },
+    {
+      "label": "About",
+      "href": "/about"
+    },
+    {
+      "label": "Reviews",
+      "href": "/reviews"
+    },
+    {
+      "label": "Estimate",
+      "href": "/estimate",
+      "secondary": true
+    }
+  ]
+}

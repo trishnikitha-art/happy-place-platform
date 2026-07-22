@@ -3,18 +3,46 @@
  * 
  * Provides intent-based access to brand assets.
  * Components never import brand.v1.json directly.
+ * 
+ * All authority loading flows through AuthorityLoader (CEO 051 constitutional requirement).
  */
 
-import brand from "@/config/brand.v1.json";
 import type { BrandManifest, BrandHero, BrandOwnerPortrait } from "@/types/brand";
-import { clearAuthorityCache } from "./authority-loader";
-
-let brandCache: BrandManifest | null = null;
+import { loadAuthority, clearAuthorityCache } from "./authority-loader";
 
 export function loadBrandManifest(): BrandManifest {
-  if (brandCache) return brandCache;
-  brandCache = brand as BrandManifest;
-  return brandCache;
+  return loadAuthority<BrandManifest>({
+    path: "@/config/brand.v1.json",
+    fallback: {
+      version: "1.0.0",
+      generatedAt: new Date().toISOString(),
+      homepageHero: {
+        id: "fallback-hero",
+        mediaId: null,
+        alt: "Fallback hero",
+        fallback: { gradient: true, overlay: true },
+      },
+      ownerPortrait: {
+        id: "fallback-owner",
+        mediaId: null,
+        alt: "Fallback owner portrait",
+        names: [],
+      },
+      logo: {
+        id: "fallback-logo",
+        mediaId: null,
+        alt: "Fallback logo",
+      },
+      team: [],
+      office: {
+        id: "fallback-office",
+        mediaId: null,
+        alt: "Fallback office",
+      },
+      marketingAssets: [],
+    },
+    name: "Brand",
+  });
 }
 
 /**
@@ -71,7 +99,5 @@ export function getMarketingAssets() {
  * Clear brand cache (useful for testing or hot reload)
  */
 export function clearBrandCache(): void {
-  brandCache = null;
-  // Note: brand.ts uses static import, so we only clear the local cache
-  // The module itself remains loaded by Next.js
+  clearAuthorityCache("@/config/brand.v1.json");
 }

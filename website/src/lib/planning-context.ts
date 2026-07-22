@@ -21,6 +21,20 @@ export interface PlanningContext {
 }
 
 export function buildPlanningContext(req: EstimateRequest): PlanningContext {
+  // Map projectIntent to projectType for engine compatibility
+  // The engine expects "painting" | "building", but wizard uses human-readable strings
+  let projectType: "painting" | "building" | undefined = req.projectType;
+  
+  if (!projectType && req.projectIntent) {
+    // Derive projectType from projectIntent if not already set
+    const intentLower = req.projectIntent.toLowerCase();
+    if (intentLower.includes("paint") || intentLower.includes("stain") || intentLower.includes("refinish")) {
+      projectType = "painting";
+    } else {
+      projectType = "building";
+    }
+  }
+  
   return {
     services: req.services.filter((s): s is ServiceSlug => {
       // Filter to valid service slugs — this will be validated by the engine
@@ -28,6 +42,6 @@ export function buildPlanningContext(req: EstimateRequest): PlanningContext {
     }),
     answers: req.answers,
     property: { city: req.property.city, county: req.property.county },
-    projectType: req.projectType,
+    projectType,
   };
 }

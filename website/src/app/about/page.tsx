@@ -2,18 +2,20 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { CTASection } from "@/components/cta-section";
-import { company } from "@/config/company";
-import { counties } from "@/config/counties";
+import { getCompany } from "@/lib/company";
 import { getOwnerPortrait } from "@/lib/brand";
 import { getMediaById } from "@/lib/media";
+import { getAllCities } from "@/lib/registries";
 
 export const metadata: Metadata = {
   title: "About",
-  description: `About ${company.name} — the family behind Happy Place Carpentry, helping homeowners across the mid-Willamette Valley find their happy place.`,
+  description: `About Happy Place Carpentry — the family behind Happy Place Carpentry, helping homeowners across the mid-Willamette Valley find their happy place.`,
   alternates: { canonical: "/about" },
 };
 
 export default function AboutPage() {
+  const company = getCompany();
+  const cities = getAllCities();
   const ownerBrand = getOwnerPortrait();
   const ownerMedia = ownerBrand?.mediaId ? getMediaById(ownerBrand.mediaId) : null;
   const ownerSrc = ownerMedia?.variants?.web || ownerMedia?.variants?.original;
@@ -49,10 +51,10 @@ export default function AboutPage() {
         <Container>
           <SectionHeading eyebrow="Where we work" title="Serving the mid-Willamette Valley" />
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {counties.map((c) => (
-              <div key={c.slug} className="rounded-2xl border border-border bg-surface p-5">
+            {cities.map((c) => (
+              <div key={c.id} className="rounded-2xl border border-border bg-surface p-5">
                 <h3 className="font-bold text-text">{c.name}</h3>
-                <p className="mt-2 text-sm text-text-subtle">{c.cities?.join(", ")}</p>
+                <p className="mt-2 text-sm text-text-subtle">{c.county}, Oregon</p>
               </div>
             ))}
           </div>

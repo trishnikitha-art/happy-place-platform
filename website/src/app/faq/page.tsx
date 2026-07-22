@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { CTASection } from "@/components/cta-section";
-import { faqItems } from "@/config/faq";
+import { getAllFaqs } from "@/lib/faq";
 
 export const metadata: Metadata = {
   title: "FAQ",
@@ -10,6 +10,8 @@ export const metadata: Metadata = {
 };
 
 export default function FaqPage() {
+  const faqItems = getAllFaqs();
+
   return (
     <>
       <Section>

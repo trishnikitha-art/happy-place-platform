@@ -5,8 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Menu, X } from "lucide-react";
-import { navigation } from "@/config/navigation";
-import { company } from "@/config/company";
+import { getNavigation } from "@/lib/navigation";
+import { getCompany } from "@/lib/company";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { CedarCorner } from "@/components/cedar-corner";
@@ -14,6 +14,8 @@ import { CedarCorner } from "@/components/cedar-corner";
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
+  const navigation = getNavigation();
+  const company = getCompany();
 
   React.useEffect(() => {
     setOpen(false);

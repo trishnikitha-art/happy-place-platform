@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Container, Section } from "@/components/section";
-import { company } from "@/config/company";
+import { getCompany } from "@/lib/company";
 
 export const metadata: Metadata = {
   title: "Privacy Policy",
@@ -9,6 +9,8 @@ export const metadata: Metadata = {
 };
 
 export default function PrivacyPage() {
+  const company = getCompany();
+
   return (
     <Section>
       <Container className="max-w-3xl">

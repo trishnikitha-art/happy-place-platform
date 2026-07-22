@@ -158,12 +158,17 @@ export interface Project {
   // Media (references media.v1.json)
   media: ProjectMedia;
   
-  // Story
-  story?: ProjectStory;
+  // Story (transition: embedded → referenced)
+  story?: ProjectStory; // DEPRECATED: Use storyId instead
+  storyId?: string; // Reference to stories.v1.json
   
-  // Business
-  estimate?: ProjectEstimate;
-  warranty?: ProjectWarranty;
+  // Business (transition: embedded → referenced)
+  estimate?: ProjectEstimate; // DEPRECATED: Use estimateProfileId instead
+  estimateProfileId?: string; // Reference to estimate-profiles.v1.json
+  
+  // Warranty (transition: embedded → referenced)
+  warranty?: ProjectWarranty; // DEPRECATED: Use warrantyPolicyId instead
+  warrantyPolicyId?: string; // Reference to warranty-policies.v1.json
   
   // Classification
   tags: string[];

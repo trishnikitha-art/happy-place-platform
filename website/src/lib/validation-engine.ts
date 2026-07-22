@@ -5,6 +5,10 @@
  * Findings are then aggregated by the Metrics Engine.
  * 
  * Architecture: Authorities → Validation Engine → Findings → Analysis Engine → Metrics Engine → Health Score
+ * 
+ * Two validation layers:
+ * 1. Schema Validation: JSON structure, required fields, data types
+ * 2. Constitutional Validation: Business truth, cross-authority consistency, logical rules
  */
 
 import type { MediaManifest } from "@/types/media";
@@ -597,6 +601,7 @@ export function validateAllAuthorities({
 }): Finding[] {
   const findings: Finding[] = [];
 
+  // Schema Validation (existing)
   findings.push(...validateMediaAuthority(media));
   findings.push(...validateProjectsAuthority(projects));
   findings.push(...validateReviewsAuthority(reviews));
@@ -607,6 +612,9 @@ export function validateAllAuthorities({
   if (services) {
     findings.push(...validateServicesAuthority(services, projects, media));
   }
+
+  // Constitutional Validation (business truth rules)
+  findings.push(...validateConstitutionalRules({ media, projects, reviews, brand, services }));
 
   return findings;
 }
@@ -627,4 +635,148 @@ function findDuplicates<T>(arr: T[]): T[] {
   }
   
   return duplicates;
+}
+
+/**
+ * Constitutional Validation - Business Truth Rules
+ * 
+ * Validates cross-authority consistency and logical business rules.
+ * This is separate from schema validation (JSON structure).
+ */
+function validateConstitutionalRules({
+  media,
+  projects,
+  reviews,
+  brand,
+  services,
+}: {
+  media: MediaManifest;
+  projects: ProjectsManifest;
+  reviews: ReviewsManifest;
+  brand: BrandManifest;
+  services?: ServicesRegistry;
+}): Finding[] {
+  const findings: Finding[] = [];
+
+  // Rule: Featured projects must have hero media
+  projects.projects.forEach(project => {
+    if (project.featured && !project.media.hero) {
+      findings.push(createFinding({
+        rule: "featured-project-missing-hero",
+        severity: "critical",
+        authority: "projects",
+        resourceId: project.id,
+        message: `Featured project has no hero media: ${project.title}`,
+        path: `projects.v1.json[${project.id}].media.hero`,
+      }));
+    }
+  });
+
+  // Rule: Completed projects should have after photo
+  projects.projects.forEach(project => {
+    if (project.status === "completed" && !project.media.after) {
+      findings.push(createFinding({
+        rule: "completed-project-missing-after",
+        severity: "medium",
+        authority: "projects",
+        resourceId: project.id,
+        message: `Completed project has no after photo: ${project.title}`,
+        path: `projects.v1.json[${project.id}].media.after`,
+      }));
+    }
+  });
+
+  // Rule: Project service should match story context (if story exists)
+  projects.projects.forEach(project => {
+    if (project.story && services) {
+      const service = services.services.find(s => s.slug === project.service);
+      if (service && project.story.challenge.toLowerCase().includes(service.name.toLowerCase())) {
+        // This is actually correct - story mentions the service
+      } else if (project.story.challenge.toLowerCase().includes("kitchen") && project.service !== "kitchens") {
+        findings.push(createFinding({
+          rule: "story-service-mismatch",
+          severity: "medium",
+          authority: "projects",
+          resourceId: project.id,
+          message: `Story mentions kitchen but project service is ${project.service}: ${project.title}`,
+          path: `projects.v1.json[${project.id}].story.challenge`,
+        }));
+      }
+    }
+  });
+
+  // Rule: Homepage eligible projects should have hero media
+  projects.projects.forEach(project => {
+    if (project.homepageEligible && !project.media.hero) {
+      findings.push(createFinding({
+        rule: "homepage-eligible-missing-hero",
+        severity: "critical",
+        authority: "projects",
+        resourceId: project.id,
+        message: `Homepage eligible project has no hero media: ${project.title}`,
+        path: `projects.v1.json[${project.id}].media.hero`,
+      }));
+    }
+  });
+
+  // Rule: Hero eligible projects should have hero media
+  projects.projects.forEach(project => {
+    if (project.heroEligible && !project.media.hero) {
+      findings.push(createFinding({
+        rule: "hero-eligible-missing-hero",
+        severity: "critical",
+        authority: "projects",
+        resourceId: project.id,
+        message: `Hero eligible project has no hero media: ${project.title}`,
+        path: `projects.v1.json[${project.id}].media.hero`,
+      }));
+    }
+  });
+
+  // Rule: Reviews should reference valid projects
+  reviews.reviews.forEach(review => {
+    if (review.projectId) {
+      const projectExists = projects.projects.some(p => p.id === review.projectId);
+      if (!projectExists) {
+        findings.push(createFinding({
+          rule: "review-invalid-project-reference",
+          severity: "high",
+          authority: "reviews",
+          resourceId: review.id,
+          message: `Review references non-existent project: ${review.projectId}`,
+          path: `reviews.v1.json[${review.id}].projectId`,
+        }));
+      }
+    }
+  });
+
+  // Rule: Brand homepage hero should reference valid media
+  if (brand.homepageHero?.mediaId) {
+    const mediaExists = media.media.some(m => m.id === brand.homepageHero.mediaId);
+    if (!mediaExists) {
+      findings.push(createFinding({
+        rule: "brand-hero-invalid-media-reference",
+        severity: "critical",
+        authority: "brand",
+        message: `Brand homepage hero references non-existent media: ${brand.homepageHero.mediaId}`,
+        path: `brand.v1.json.homepageHero.mediaId`,
+      }));
+    }
+  }
+
+  // Rule: Brand owner portrait should reference valid media
+  if (brand.ownerPortrait?.mediaId) {
+    const mediaExists = media.media.some(m => m.id === brand.ownerPortrait.mediaId);
+    if (!mediaExists) {
+      findings.push(createFinding({
+        rule: "brand-portrait-invalid-media-reference",
+        severity: "critical",
+        authority: "brand",
+        message: `Brand owner portrait references non-existent media: ${brand.ownerPortrait.mediaId}`,
+        path: `brand.v1.json.ownerPortrait.mediaId`,
+      }));
+    }
+  }
+
+  return findings;
 }

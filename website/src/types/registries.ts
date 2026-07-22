@@ -2,6 +2,13 @@
  * Registry Types - Data-Driven Configuration
  */
 
+export interface ServiceCapabilities {
+  paintableSurface?: boolean;
+  surfaceType?: string;
+  paintingType?: string;
+  estimationAuthority: "building" | "painting";
+}
+
 export interface Service {
   id: string;
   name: string;
@@ -11,7 +18,12 @@ export interface Service {
   featured: boolean;
   homepageEligible: boolean;
   order: number;
+  capabilities: ServiceCapabilities;
   estimateQuestions?: EstimateQuestion[];
+  /** If true, skip the wizard's "Tell us about your project" intent step */
+  skipsIntentStep?: boolean;
+  /** Default project intent for services that skip the intent step */
+  defaultProjectIntent?: string;
 }
 
 export interface EstimateQuestion {

@@ -1,6 +1,6 @@
 import type { EstimateRequest } from "@/types";
-import { company } from "@/config/company";
-import { getService } from "@/config/services";
+import { getCompany } from "@/lib/company";
+import { getServiceBySlug } from "@/lib/registries";
 import { features } from "@/config/featureFlags";
 
 /**
@@ -29,10 +29,10 @@ export interface EstimateSubmitResult {
 }
 
 function answersToText(req: EstimateRequest): string {
-  const svc = getService(req.services[0] ?? "");
+  const svc = getServiceBySlug(req.services[0] ?? "");
   const lines: string[] = [];
   for (const [key, val] of Object.entries(req.answers)) {
-    const q = svc?.estimateQuestions.find((q) => q.id === key);
+    const q = svc?.estimateQuestions?.find((q) => q.id === key);
     lines.push(`- ${q?.label ?? key}: ${val}`);
   }
   return lines.join("\n");
@@ -49,7 +49,8 @@ export const mockEstimateService: EstimateService = {
     if (features.estimateApi && !forceMailto) {
       return { kind: "api", body: req };
     }
-    const svcTitles = req.services.map((sl) => getService(sl)?.title ?? sl);
+    const company = getCompany();
+    const svcTitles = req.services.map((sl) => getServiceBySlug(sl)?.name ?? sl);
     const subject = `Estimate request: ${svcTitles.join(", ") || "General inquiry"}`;
     const body = [
       `New estimate request from ${req.customer.name}`,
@@ -66,6 +67,8 @@ export const mockEstimateService: EstimateService = {
       `  Details: ${req.property.details || "-"}`,
       ``,
       `SERVICE: ${svcTitles.join(", ") || "(none selected)"}`,
+      ``,
+      `PROJECT INTENT: ${req.projectIntent || "-"}`,
       ``,
       `ANSWERS`,
       answersToText(req),

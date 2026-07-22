@@ -81,6 +81,10 @@ export interface Service {
   stat?: string;
   estimateQuestions: EstimateQuestion[];
   seo: SeoMeta;
+  /** If true, skip the wizard's "Tell us about your project" intent step */
+  skipsIntentStep?: boolean;
+  /** Default project intent for services that skip the intent step */
+  defaultProjectIntent?: string;
 }
 
 export interface GalleryItem {
@@ -151,7 +155,8 @@ export interface EstimateRequest {
   property: Property;
   services: string[]; // Service.slug[] — up to 3 (or 0 if otherNeed given)
   otherNeed?: string; // "Don't see what you need?" free text
-  projectType?: "painting" | "building"; // Determines estimation authority
+  projectType?: "painting" | "building"; // Determines estimation authority (legacy, for engine compatibility)
+  projectIntent?: string; // Human-readable project intent from wizard (e.g., "Build something new")
   answers: Record<string, string | boolean | number>;
   photos: { name: string; size: number }[]; // metadata only; bytes never leave the browser in MVP
   notes?: string;

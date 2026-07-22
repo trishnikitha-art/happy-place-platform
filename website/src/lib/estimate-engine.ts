@@ -12,6 +12,7 @@ import type { PlanningContext } from "./planning-context";
 import { buildPlanningContext } from "./planning-context";
 import { SEEDS, type PlanningResult, type ServiceSeed, type EstimationStrategy, formatRange as formatRangeOriginal } from "./planning-range";
 import { evaluateStrategy } from "./planning-strategies";
+import { getAllServices } from "./registries";
 
 // Re-export formatRange for convenience
 export { formatRangeOriginal as formatRange };
@@ -118,6 +119,8 @@ function estimateBuildingAuthority(context: PlanningContext): PlanningResult | n
  *
  * This authority does NOT use construction pricing (decks, kitchens, remodels).
  * It estimates based on surface area, prep complexity, and coating systems.
+ *
+ * Reads painting type from Service Authority capabilities, not hard-coded service names.
  */
 function estimatePaintingAuthority(context: PlanningContext): PlanningResult | null {
   const { services, answers } = context;
@@ -155,13 +158,24 @@ function estimatePaintingAuthority(context: PlanningContext): PlanningResult | n
   const prepMult = prepMultipliers[prepComplexity as keyof typeof prepMultipliers] || 1.3;
   const coatsMult = coats / 2; // Normalize to 2 coats baseline
 
-  // Determine painting type from services
+  // Determine painting type from Service Authority capabilities
+  // No hard-coded service checks - reads from authority
+  const allServices = getAllServices();
   let paintingType: "interior" | "exterior" | "deck_stain" | "fence_stain" | "cabinet_paint" = "interior";
 
-  if (services.includes("decks")) paintingType = "deck_stain";
-  else if (services.includes("fences")) paintingType = "fence_stain";
-  else if (services.includes("kitchen-remodel")) paintingType = "cabinet_paint";
-  else if (answers["location"] === "exterior") paintingType = "exterior";
+  // Look up painting type from service capabilities
+  for (const serviceSlug of services) {
+    const service = allServices.find(s => s.slug === serviceSlug);
+    if (service?.capabilities?.paintableSurface && service.capabilities.paintingType) {
+      paintingType = service.capabilities.paintingType as any;
+      break;
+    }
+  }
+
+  // Fallback to location if no painting type found
+  if (paintingType === "interior" && answers["location"] === "exterior") {
+    paintingType = "exterior";
+  }
 
   const rates = baseRates[paintingType];
   const adjustedLow = rates.low * prepMult * coatsMult;
