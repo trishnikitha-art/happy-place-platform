@@ -1,265 +1,142 @@
 /**
- * Single source of truth for all imagery (Directive 031 / 033).
- *
- * COMPONENTS NEVER reference raw image paths or filenames. They ask for an
- * IMAGE ROLE — e.g. photoFor("FeaturedTransformation"), servicePhoto("fences"),
- * galleryAll() — and get a fully-resolved MediaImage. This is "content
- * authority": every page asks the photo system for the best image by role,
- * never by filename, so routing logic lives in exactly one place.
- *
- * Human curation decisions (roles, priorities, homepage picks, featured image)
- * live in `presentation.v1.json`. Machine-generated image records live in
- * `gallery.json`. This file merges them at runtime.
- *
- * The 18 real owner photos are cataloged in presentation.v1.json — each with
- * roles, a priority (0-100), and quality gates (hero/gallery/service). No
- * image is orphaned: every photo carries at least one role. When new photos
- * arrive, you edit presentation.v1.json; components don't change.
- *
- * HeroBackground is the primary full-width hero photograph (curated in
- * presentation.v1.json). Falls back to the abstract gradient if no photo is set.
+ * Media Authority Adapter
+ * 
+ * NEW ARCHITECTURE: Media Authority (media.v1.json)
+ * The new architecture uses media.v1.json as the single media database.
+ * Components use intent-based adapters to access media by intent, not IDs.
+ * 
+ * Legacy functions (heroBackground, ownerPortrait, servicePhoto, photoFor, etc.)
+ * have been removed. Use Brand Authority for homepage hero and owner portraits.
+ * Use Media Authority adapters for project media.
+ * 
+ * Architecture:
+ *   Authority → Adapter → Component
+ * 
+ * Never:
+ *   Component → JSON
+ *   Component → Hardcoded IDs
  */
-import gallery from "@/config/gallery.json";
-import presentation from "@/config/presentation.v1.json";
-import { buildPresentationAuthority } from "./presentation-authority";
+import type { Media, MediaManifest } from "@/types/media";
+import { getProjectsByServiceSlug } from "@/lib/projects";
+import type { Project } from "@/types/projects";
 
-export interface MediaImage {
-  src: string;
-  alt: string;
-  width: number;
-  height: number;
-  blurDataURL?: string;
-  focal?: { x: number; y: number };
+let mediaCache: MediaManifest | null = null;
+
+export function loadMediaManifest(): MediaManifest {
+  if (mediaCache) return mediaCache;
+  try {
+    const data = require("@/config/media.v1.json");
+    mediaCache = data as MediaManifest;
+    return mediaCache;
+  } catch (error) {
+    console.error("Failed to load media manifest:", error);
+    return { version: "1.0.0", generatedAt: new Date().toISOString(), media: [] };
+  }
 }
 
-interface GalleryRecord {
-  id: string;
-  title: string;
-  project: string;
-  category: string;
-  county: string;
-  featured: boolean;
-  before: boolean;
-  after: boolean;
-  hero: boolean;
-  cover: boolean;
-  alt: string;
-  width: number;
-  height: number;
-  focal: { x: number; y: number };
-  original: string;
-  src: string | null;
-  thumbnail?: string;
-  blurDataURL?: string;
-  variants?: { width: number; format: string; src: string }[];
+/**
+ * Get the full media manifest (for Authority Editor)
+ */
+export function getMediaManifest(): MediaManifest {
+  return loadMediaManifest();
 }
 
-export type Role =
-  | "HeroBackground"
-  | "FeaturedTransformation"
-  | "FenceCover"
-  | "BathroomCover"
-  | "KitchenCover"
-  | "DeckCover"
-  | "PergolaCover"
-  | "BuiltInsCover"
-  | "OutdoorLivingCover"
-  | "GalleryHighlight"
-  | "GallerySupporting"
-  | "HomepageFeature"
-  | "ServicesFeature"
-  | "AboutPortrait"
-  | "OwnerPortrait"
-  | "ProjectCover"
-  | "ReviewBackground"
-  | "PaintingCover";
-
-export type MediaType = "brand" | "project" | "transformation" | "portrait" | "service" | "gallery" | "beforeAfter";
-
-interface PhotoMeta {
-  id: string;
-  category: string;
-  roles: Role[];
-  priority: number; // 0-100, higher = more compelling for that role
-  quality: { hero: boolean; gallery: boolean; service: boolean };
-  mediaType?: MediaType;
+/**
+ * Get media by ID from media.v1.json
+ */
+export function getMediaById(id: string): Media | null {
+  const manifest = loadMediaManifest();
+  return manifest.media.find((m: Media) => m.id === id) || null;
 }
 
-const G = gallery as unknown as { projects: any[]; images: GalleryRecord[] };
-const BY_ID = new Map(G.images.map((i) => [i.id, i]));
+/**
+ * Clear media cache (useful for testing or hot reload)
+ */
+export function clearMediaCache(): void {
+  mediaCache = null;
+}
 
-// Build presentation authority once (constitutional index)
-const PresentationAuthority = buildPresentationAuthority(presentation as any);
+/**
+ * INTENT-BASED MEDIA ADAPTER
+ * 
+ * These functions provide intent-based lookups instead of exposing media IDs.
+ * UI components ask for intent (getProjectMedia, getProjectHero) rather than
+ * knowing about media IDs or file paths. This creates a stable API that can
+ * change its implementation without affecting UI components.
+ */
 
-function toMedia(r: GalleryRecord): MediaImage {
+/**
+ * Get all media for a project, sorted by order
+ */
+export function getProjectMedia(projectId: string) {
+  const manifest = loadMediaManifest();
+  return manifest.media
+    .filter((m: Media) => m.projectId === projectId)
+    .sort((a: Media, b: Media) => (a.order ?? 999) - (b.order ?? 999));
+}
+
+/**
+ * Get hero image for a project
+ */
+export function getProjectHero(projectId: string): Media | null {
+  const projectMedia = getProjectMedia(projectId);
+  return projectMedia.find((m: Media) => m.roles.includes('hero')) || null;
+}
+
+/**
+ * Get thumbnail for a project (first gallery image or hero)
+ */
+export function getProjectThumbnail(projectId: string): Media | null {
+  const projectMedia = getProjectMedia(projectId);
+  return projectMedia.find((m: Media) => m.roles.includes('gallery')) || getProjectHero(projectId);
+}
+
+/**
+ * Get before/after pair for a project
+ */
+export function getProjectBeforeAfter(projectId: string): { before: Media | null; after: Media | null } {
+  const projectMedia = getProjectMedia(projectId);
   return {
-    src: r.src ?? (r.variants?.find((v) => v.format === "webp")?.src ?? "/images/hero.svg"),
-    alt: r.alt,
-    width: r.width,
-    height: r.height,
-    blurDataURL: r.blurDataURL,
-    focal: r.focal,
+    before: projectMedia.find((m: Media) => m.roles.includes('before')) || null,
+    after: projectMedia.find((m: Media) => m.roles.includes('after')) || null,
   };
 }
 
-/** Best photo for a role (highest priority with a real src). Null if none. */
-export function photoFor(role: Role): MediaImage | null {
-  const photoRoles = PresentationAuthority.getPhotoRoles();
-  const hits = photoRoles.filter((m) => m.roles.includes(role) && m.quality.gallery)
-    .sort((a, b) => b.priority - a.priority)
-    .map((m) => BY_ID.get(m.id))
-    .filter((r): r is GalleryRecord => !!r && !!r.src);
-  return hits.length ? toMedia(hits[0]) : null;
-}
-
-/** Best photo for a role regardless of gallery quality (for brand assets like hero). */
-export function photoForAny(role: Role): MediaImage | null {
-  const photoRoles = PresentationAuthority.getPhotoRoles();
-  const hits = photoRoles.filter((m) => m.roles.includes(role))
-    .sort((a, b) => b.priority - a.priority)
-    .map((m) => BY_ID.get(m.id))
-    .filter((r): r is GalleryRecord => !!r && !!r.src);
-  return hits.length ? toMedia(hits[0]) : null;
+/**
+ * Get media by role for a project
+ */
+export function getProjectMediaByRole(projectId: string, role: string): Media | null {
+  const projectMedia = getProjectMedia(projectId);
+  return projectMedia.find((m: Media) => m.roles.includes(role as any)) || null;
 }
 
 /**
- * Photo for a service card by slug. Uses serviceCover mapping from presentation.v1.json
- * to get the specific cover role for each service. Returns null if no photo assigned.
- * Filters by mediaType to ensure brand assets never appear in service cards.
+ * Get featured media for a service
+ * Returns the hero image of the highest-ranked project for that service
  */
-export function servicePhoto(slug: string): MediaImage | null {
-  const coverRole = PresentationAuthority.getServiceCover(slug);
-  if (!coverRole) return null;
-  const photoRoles = PresentationAuthority.getPhotoRoles();
-  const hits = photoRoles.filter((m) => m.roles.includes(coverRole) && m.quality.gallery && m.mediaType === "project")
-    .sort((a, b) => b.priority - a.priority)
-    .map((m) => BY_ID.get(m.id))
-    .filter((r): r is GalleryRecord => !!r && !!r.src);
-  return hits.length ? toMedia(hits[0]) : null;
-}
-
-/**
- * HOMEPAGE = hand-curated, emotional (Directive 034). The creative director picks
- * — 6 max, story-led, distinct. The archive (galleryAll) is the automatic,
- * exhaustive product. Two different goals, two different selectors.
- * Sourced from presentation.v1.json.
- */
-
-/** The single most important image after the hero. Sourced from presentation.v1.json. */
-export function featuredTransformation(): MediaImage | null {
-  return byId(PresentationAuthority.getFeaturedTransformationId());
-}
-
-/** Primary full-width hero background photograph. Sourced from presentation.v1.json. */
-export function heroBackground(): MediaImage | null {
-  return photoForAny("HeroBackground");
-}
-
-/** Curated homepage set (magazine cover). Repairs excluded here — trust-builders,
- *  surfaced lower / in the archive, not as aspiration. */
-export function homepageSelection(): MediaImage[] {
-  const homepageCuration = PresentationAuthority.getHomepageCuration();
-  return homepageCuration.map(byId).filter((m) => !!m) as MediaImage[];
-}
-
-function byId(id: string): MediaImage | null {
-  const r = BY_ID.get(id);
-  return r && r.src ? toMedia(r) : null;
-}
-
-/** Gallery selection — the FULL museum. Every cataloged photo, grouped by project,
- *  ordered by priority. Nothing is orphaned; nothing is hidden. Excludes brand assets. */
-export function galleryAll(): { project: string; category: string; images: MediaImage[] }[] {
-  const photoRoles = PresentationAuthority.getPhotoRoles();
-  const byProject = new Map<string, GalleryRecord[]>();
-  for (const m of photoRoles) {
-    // Exclude brand assets (photos with gallery: false)
-    if (!m.quality.gallery) continue;
-    const r = BY_ID.get(m.id);
-    if (!r || !r.src) continue;
-    if (!byProject.has(r.project)) byProject.set(r.project, []);
-    byProject.get(r.project)!.push(r);
-  }
-  return [...byProject.entries()]
-    .map(([project, recs]) => ({
-      project,
-      category: recs[0]?.category ?? "",
-      images: recs
-        .map((r) => ({ r, m: PresentationAuthority.getRole(r.id)! }))
-        .sort((a, b) => b.m.priority - a.m.priority)
-        .map((x) => toMedia(x.r)),
-    }))
-    .filter((g) => g.images.length > 0);
-}
-
-/** Reserved single Taylor & Lanie portrait (homepage owner section + About only). */
-export function ownerPortrait(): MediaImage {
-  return PresentationAuthority.getFallback("owner");
-}
-
-export function hasRealPhotos(): boolean {
-  return G.images.some((i) => i.src);
-}
-
-// Real pipeline images as GalleryItem[] (for the lightbox / full gallery grid).
-// Derived from serviceCategory mapping in presentation.v1.json.
-export function realGalleryItems() {
-  const photoRoles = PresentationAuthority.getPhotoRoles();
-  const roleById = new Map(photoRoles.map((m) => [m.id, m]));
+export function getFeaturedServiceMedia(serviceSlug: string): Media | null {
+  const manifest = loadMediaManifest();
   
-  return G.images
-    .filter((i) => i.src)
-    .map((i) => {
-      const meta = roleById.get(i.id);
-      // Check if any role indicates this is a "before" photo (excluded from gallery)
-      const isBefore = meta?.roles?.some((r: string) => r.toLowerCase().includes("before")) ?? false;
-      // Check if any role indicates this is a featured/hero photo
-      const isFeatured = meta?.roles?.some((r: string) => 
-        r.toLowerCase().includes("hero") || 
-        r.toLowerCase().includes("featured") ||
-        r === "ProjectCover"
-      ) ?? false;
-      
-      return {
-        id: i.id,
-        project: i.project,
-        service: PresentationAuthority.getServiceByCategory(i.category),
-        src: i.src as string,
-        alt: i.alt,
-        featured: isFeatured,
-        beforeAfter: null,
-        county: i.county,
-        tags: [i.category.toLowerCase()],
-        width: i.width,
-        height: i.height,
-        category: i.category,
-        orientation: (i.width >= i.height ? "landscape" : "portrait") as "landscape" | "portrait" | "square",
-        blurDataURL: i.blurDataURL,
-      };
-    })
-    .filter((i) => !i.beforeAfter);
+  // Get projects for this service from Projects Authority
+  const projects = getProjectsByServiceSlug(serviceSlug);
+  
+  // Filter for published and featured projects
+  const featuredProjects = projects.filter((p: Project) => p.status === 'completed' && p.featured);
+  
+  // Sort by featured status and completion date (most recent first)
+  featuredProjects.sort((a: Project, b: Project) => {
+    const dateA = new Date(a.completionDate || 0).getTime();
+    const dateB = new Date(b.completionDate || 0).getTime();
+    return dateB - dateA;
+  });
+  
+  // Get the top project
+  const topProject = featuredProjects[0];
+  if (!topProject) return null;
+  
+  // Get hero media for the top project
+  const heroMediaId = topProject.media.hero;
+  if (!heroMediaId) return null;
+  
+  return getMediaById(heroMediaId);
 }
-
-/**
- * Backward-compatible intent resolver. New code should use photoFor /
- * servicePhoto / homepageHighlights / galleryAll. Kept so existing call sites
- * (hero falls through to abstract; service cards resolve by slug) keep working.
- */
-export function media(key: string): MediaImage {
-  if (key.startsWith("service:")) {
-    const slug = key.slice("service:".length);
-    const hit = servicePhoto(slug);
-    if (hit) return hit;
-  }
-  if (key === "owner" || key === "about") return PresentationAuthority.getFallback("owner");
-  if (key === "hero") {
-    const hero = heroBackground();
-    if (hero) return hero;
-    return PresentationAuthority.getFallback("owner");
-  }
-  const rec = BY_ID.get(key);
-  if (rec && rec.src) return toMedia(rec);
-  return PresentationAuthority.getFallback("owner");
-}
-
-export const galleryData = G;

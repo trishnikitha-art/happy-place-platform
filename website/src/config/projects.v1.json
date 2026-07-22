@@ -1,0 +1,288 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-07-22T00:00:00.000Z",
+  "projects": [
+    {
+      "id": "cedar-fence-001",
+      "title": "Cedar Fence - Corvallis",
+      "service": "fences",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-07-18",
+      "media": {
+        "hero": "cedar-fence-001-after",
+        "before": "cedar-fence-001-before",
+        "after": "cedar-fence-001-after",
+        "gallery": [
+          "cedar-fence-001-gate",
+          "cedar-fence-001-detail",
+          "cedar-fence-001-progress"
+        ]
+      },
+      "story": {
+        "challenge": "Old fence was rotting and needed complete replacement",
+        "solution": "Installed new cedar privacy fence with custom gate",
+        "outcome": "Client now has a beautiful, durable backyard space",
+        "specialFeatures": [
+          "Custom cedar gate",
+          "Privacy design",
+          "Natural finish"
+        ]
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 3500,
+          "high": 4500
+        },
+        "services": [
+          "fence installation",
+          "gate construction",
+          "site preparation"
+        ],
+        "materials": [
+          "cedar",
+          "galvanized hardware"
+        ],
+        "timeline": "3 days"
+      },
+      "warranty": {
+        "hasWarranty": true,
+        "warrantyType": "Workmanship",
+        "warrantyYears": 2,
+        "warrantyDetails": "2-year workmanship warranty on all fence construction"
+      },
+      "tags": [
+        "cedar",
+        "fence",
+        "custom-gate",
+        "corvallis",
+        "privacy"
+      ],
+      "reviews": [
+        "review-001"
+      ],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": true,
+      "slug": "cedar-fence-corvallis",
+      "metaDescription": "Beautiful cedar fence installation in Corvallis, Oregon with custom gate and privacy design.",
+      "createdAt": "2026-07-01T00:00:00.000Z",
+      "updatedAt": "2026-07-18T00:00:00.000Z"
+    },
+    {
+      "id": "deck-remodel-001",
+      "title": "Deck Remodel - Albany",
+      "service": "decks",
+      "status": "completed",
+      "location": {
+        "city": "Albany",
+        "county": "Linn",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-07-15",
+      "media": {
+        "hero": "deck-remodel-001-after",
+        "before": "deck-remodel-001-before",
+        "after": "deck-remodel-001-after",
+        "gallery": [
+          "deck-remodel-001-railing",
+          "deck-remodel-001-stairs",
+          "deck-remodel-001-progress"
+        ]
+      },
+      "story": {
+        "challenge": "Old deck was unsafe and deteriorating",
+        "solution": "Complete deck replacement with composite materials and upgraded railing",
+        "outcome": "Safe, beautiful outdoor living space for family gatherings",
+        "specialFeatures": [
+          "Composite decking",
+          "Upgraded railing system",
+          "LED lighting"
+        ]
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 8000,
+          "high": 12000
+        },
+        "services": [
+          "deck demolition",
+          "deck construction",
+          "railing installation"
+        ],
+        "materials": [
+          "composite decking",
+          "aluminum railing",
+          "LED lighting"
+        ],
+        "timeline": "5 days"
+      },
+      "warranty": {
+        "hasWarranty": true,
+        "warrantyType": "Material + Workmanship",
+        "warrantyYears": 5,
+        "warrantyDetails": "5-year material warranty, 2-year workmanship warranty"
+      },
+      "tags": [
+        "deck",
+        "composite",
+        "outdoor-living",
+        "albany",
+        "led-lighting"
+      ],
+      "reviews": [
+        "review-002"
+      ],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": true,
+      "slug": "deck-remodel-albany",
+      "metaDescription": "Complete deck remodel in Albany, Oregon with composite materials and upgraded railing system.",
+      "createdAt": "2026-06-20T00:00:00.000Z",
+      "updatedAt": "2026-07-15T00:00:00.000Z"
+    },
+    {
+      "id": "kitchen-remodel-001",
+      "title": "Kitchen Remodel - Salem",
+      "service": "kitchens",
+      "status": "completed",
+      "location": {
+        "city": "Salem",
+        "county": "Marion",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-07-10",
+      "media": {
+        "hero": "kitchen-remodel-001-after",
+        "before": "kitchen-remodel-001-before",
+        "after": "kitchen-remodel-001-after",
+        "gallery": [
+          "kitchen-remodel-001-cabinets",
+          "kitchen-remodel-001-countertop",
+          "kitchen-remodel-001-backsplash"
+        ]
+      },
+      "story": {
+        "challenge": "Outdated kitchen with poor layout and worn finishes",
+        "solution": "Complete kitchen remodel with new cabinets, countertops, and backsplash",
+        "outcome": "Modern, functional kitchen perfect for family cooking",
+        "specialFeatures": [
+          "Custom cabinets",
+          "Quartz countertops",
+          "Subway tile backsplash"
+        ]
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 25000,
+          "high": 35000
+        },
+        "services": [
+          "cabinet installation",
+          "countertop installation",
+          "backsplash installation",
+          "plumbing"
+        ],
+        "materials": [
+          "custom cabinets",
+          "quartz",
+          "subway tile"
+        ],
+        "timeline": "3 weeks"
+      },
+      "warranty": {
+        "hasWarranty": true,
+        "warrantyType": "Workmanship",
+        "warrantyYears": 2,
+        "warrantyDetails": "2-year workmanship warranty on all installations"
+      },
+      "tags": [
+        "kitchen",
+        "remodel",
+        "cabinets",
+        "quartz",
+        "salem"
+      ],
+      "reviews": [
+        "review-003"
+      ],
+      "featured": true,
+      "heroEligible": false,
+      "homepageEligible": true,
+      "slug": "kitchen-remodel-salem",
+      "metaDescription": "Complete kitchen remodel in Salem, Oregon with custom cabinets, quartz countertops, and subway tile backsplash.",
+      "createdAt": "2026-06-10T00:00:00.000Z",
+      "updatedAt": "2026-07-10T00:00:00.000Z"
+    },
+    {
+      "id": "pergola-001",
+      "title": "Cedar Pergola - Corvallis",
+      "service": "pergolas",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-07-22",
+      "media": {
+        "hero": "pergola-001-hero",
+        "gallery": [
+          "pergola-001-hero"
+        ]
+      },
+      "story": {
+        "challenge": "Client wanted shade and outdoor living space in backyard",
+        "solution": "Designed and built custom cedar pergola with seating area",
+        "outcome": "Beautiful outdoor space perfect for relaxation and entertaining",
+        "specialFeatures": [
+          "Custom cedar construction",
+          "Shade design",
+          "Outdoor seating integration"
+        ]
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 4000,
+          "high": 6000
+        },
+        "services": [
+          "pergola design",
+          "cedar construction",
+          "site preparation"
+        ],
+        "materials": [
+          "cedar",
+          "galvanized hardware",
+          "concrete footings"
+        ],
+        "timeline": "4 days"
+      },
+      "warranty": {
+        "hasWarranty": true,
+        "warrantyType": "Workmanship",
+        "warrantyYears": 2,
+        "warrantyDetails": "2-year workmanship warranty on all pergola construction"
+      },
+      "tags": [
+        "pergola",
+        "cedar",
+        "outdoor-living",
+        "shade",
+        "corvallis"
+      ],
+      "reviews": [],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": true,
+      "slug": "cedar-pergola-corvallis",
+      "metaDescription": "Custom cedar pergola installation in Corvallis, Oregon providing shade and outdoor living space.",
+      "createdAt": "2026-07-22T00:00:00.000Z",
+      "updatedAt": "2026-07-22T00:00:00.000Z"
+    }
+  ]
+}

@@ -1,0 +1,146 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-07-22T00:00:00.000Z",
+  "services": [
+    {
+      "id": "decks",
+      "name": "Decks",
+      "slug": "decks",
+      "description": "Custom deck design and construction for outdoor living spaces",
+      "icon": "deck",
+      "featured": true,
+      "homepageEligible": true,
+      "order": 1
+    },
+    {
+      "id": "fences",
+      "name": "Fences",
+      "slug": "fences",
+      "description": "Privacy and decorative fencing solutions",
+      "icon": "fence",
+      "featured": true,
+      "homepageEligible": true,
+      "order": 2
+    },
+    {
+      "id": "kitchens",
+      "name": "Kitchens",
+      "slug": "kitchens",
+      "description": "Complete kitchen remodeling and renovation",
+      "icon": "kitchen",
+      "featured": true,
+      "homepageEligible": true,
+      "order": 3
+    },
+    {
+      "id": "bathrooms",
+      "name": "Bathrooms",
+      "slug": "bathrooms",
+      "description": "Bathroom remodeling and renovation",
+      "icon": "bathroom",
+      "featured": true,
+      "homepageEligible": true,
+      "order": 4
+    },
+    {
+      "id": "painting",
+      "name": "Painting",
+      "slug": "painting",
+      "description": "Interior and exterior painting services",
+      "icon": "paint",
+      "featured": true,
+      "homepageEligible": true,
+      "order": 5
+    },
+    {
+      "id": "finish-carpentry",
+      "name": "Finish Carpentry",
+      "slug": "finish-carpentry",
+      "description": "Custom trim, molding, and finish carpentry work",
+      "icon": "carpentry",
+      "featured": true,
+      "homepageEligible": false,
+      "order": 6
+    },
+    {
+      "id": "restoration",
+      "name": "Restoration",
+      "slug": "restoration",
+      "description": "Historic home restoration and renovation",
+      "icon": "restoration",
+      "featured": true,
+      "homepageEligible": false,
+      "order": 7
+    },
+    {
+      "id": "outdoor-living",
+      "name": "Outdoor Living",
+      "slug": "outdoor-living",
+      "description": "Pergolas, patios, and outdoor structures",
+      "icon": "outdoor",
+      "featured": true,
+      "homepageEligible": true,
+      "order": 8
+    },
+    {
+      "id": "repairs",
+      "name": "Repairs",
+      "slug": "repairs",
+      "description": "Home repair and maintenance services",
+      "icon": "repair",
+      "featured": false,
+      "homepageEligible": false,
+      "order": 9
+    },
+    {
+      "id": "built-ins",
+      "name": "Built-ins",
+      "slug": "built-ins",
+      "description": "Custom built-in shelving and storage solutions",
+      "icon": "shelf",
+      "featured": false,
+      "homepageEligible": false,
+      "order": 10
+    },
+    {
+      "id": "pergolas",
+      "name": "Pergolas",
+      "slug": "pergolas",
+      "description": "Custom pergola design and construction",
+      "icon": "pergola",
+      "featured": false,
+      "homepageEligible": false,
+      "order": 11
+    },
+    {
+      "id": "adus",
+      "name": "ADUs",
+      "slug": "adus",
+      "description": "Accessory Dwelling Unit construction",
+      "icon": "home",
+      "featured": false,
+      "homepageEligible": false,
+      "order": 12
+    },
+    {
+      "id": "pole-barns",
+      "name": "Pole Barns",
+      "slug": "pole-barns",
+      "description": "Pole barn and outbuilding construction",
+      "icon": "barn",
+      "featured": false,
+      "homepageEligible": false,
+      "order": 13
+    },
+    {
+      "id": "other",
+      "name": "Other",
+      "slug": "other",
+      "description": "Other custom carpentry projects",
+      "icon": "other",
+      "featured": false,
+      "homepageEligible": false,
+      "order": 99
+    }
+  ]
+}

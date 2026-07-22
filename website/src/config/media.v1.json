@@ -1,0 +1,231 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-07-22T00:00:00.000Z",
+  "media": [
+    {
+      "id": "photo.driveway.before.001",
+      "projectId": "cedar-fence-001",
+      "filename": "driveway-before.jpg",
+      "variants": {
+        "web": "/images/driveway-before.jpg",
+        "thumbnail": "/images/thumbs/driveway-before.jpg"
+      },
+      "roles": ["before"],
+      "alt": "Concrete driveway before resurfacing",
+      "order": 1
+    },
+    {
+      "id": "cedar-fence-001-hero",
+      "driveId": "example-drive-id-001",
+      "filename": "hero.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/cedar-fence-001-hero.jpg",
+        "webp": "/images/cedar-fence-001-hero.webp",
+        "avif": "/images/cedar-fence-001-hero.avif",
+        "thumbnail": "/images/cedar-fence-001-hero-thumb.jpg",
+        "blur": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBD"
+      },
+      "alt": "Completed cedar fence with custom gate in Corvallis backyard",
+      "description": "Beautiful cedar privacy fence with custom gate installation",
+      "service": "fences",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "cedar-fence-001",
+      "tags": ["cedar", "fence", "custom-gate", "privacy", "corvallis"],
+      "roles": ["hero", "after"],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": true,
+      "createdAt": "2026-07-18T00:00:00.000Z",
+      "updatedAt": "2026-07-18T00:00:00.000Z",
+      "uploadedAt": "2026-07-18T00:00:00.000Z",
+      "fileSize": 2457600,
+      "format": "JPEG",
+      "colorSpace": "sRGB"
+    },
+    {
+      "id": "cedar-fence-001-before",
+      "driveId": "example-drive-id-002",
+      "filename": "before.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/cedar-fence-001-before.jpg",
+        "webp": "/images/cedar-fence-001-before.webp",
+        "avif": "/images/cedar-fence-001-before.avif",
+        "thumbnail": "/images/cedar-fence-001-before-thumb.jpg"
+      },
+      "alt": "Old rotting fence before replacement",
+      "description": "Original deteriorating fence needing replacement",
+      "service": "fences",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "cedar-fence-001",
+      "tags": ["before", "old-fence", "corvallis"],
+      "roles": ["before"],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "createdAt": "2026-07-18T00:00:00.000Z",
+      "updatedAt": "2026-07-18T00:00:00.000Z",
+      "uploadedAt": "2026-07-18T00:00:00.000Z",
+      "fileSize": 1894400,
+      "format": "JPEG",
+      "colorSpace": "sRGB"
+    },
+    {
+      "id": "cedar-fence-001-after",
+      "driveId": "example-drive-id-003",
+      "filename": "after.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/cedar-fence-001-after.jpg",
+        "webp": "/images/cedar-fence-001-after.webp",
+        "avif": "/images/cedar-fence-001-after.avif",
+        "thumbnail": "/images/cedar-fence-001-after-thumb.jpg"
+      },
+      "alt": "Completed cedar fence after installation",
+      "description": "New cedar fence with custom gate completed",
+      "service": "fences",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "cedar-fence-001",
+      "tags": ["after", "cedar", "custom-gate", "corvallis"],
+      "roles": ["after", "gallery"],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": true,
+      "createdAt": "2026-07-18T00:00:00.000Z",
+      "updatedAt": "2026-07-18T00:00:00.000Z",
+      "uploadedAt": "2026-07-18T00:00:00.000Z",
+      "fileSize": 2621440,
+      "format": "JPEG",
+      "colorSpace": "sRGB"
+    },
+    {
+      "id": "deck-remodel-001-hero",
+      "driveId": "example-drive-id-004",
+      "filename": "hero.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/deck-remodel-001-hero.jpg",
+        "webp": "/images/deck-remodel-001-hero.webp",
+        "avif": "/images/deck-remodel-001-hero.avif",
+        "thumbnail": "/images/deck-remodel-001-hero-thumb.jpg",
+        "blur": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBD"
+      },
+      "alt": "Completed composite deck with LED lighting in Albany",
+      "description": "Modern composite deck with upgraded railing and LED lighting",
+      "service": "decks",
+      "city": "Albany",
+      "county": "Linn",
+      "state": "Oregon",
+      "projectId": "deck-remodel-001",
+      "tags": ["deck", "composite", "led-lighting", "albany", "outdoor-living"],
+      "roles": ["hero", "after"],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": true,
+      "createdAt": "2026-07-15T00:00:00.000Z",
+      "updatedAt": "2026-07-15T00:00:00.000Z",
+      "uploadedAt": "2026-07-15T00:00:00.000Z",
+      "fileSize": 3145728,
+      "format": "JPEG",
+      "colorSpace": "sRGB"
+    },
+    {
+      "id": "kitchen-remodel-001-hero",
+      "driveId": "example-drive-id-005",
+      "filename": "hero.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/kitchen-remodel-001-hero.jpg",
+        "webp": "/images/kitchen-remodel-001-hero.webp",
+        "avif": "/images/kitchen-remodel-001-hero.avif",
+        "thumbnail": "/images/kitchen-remodel-001-hero-thumb.jpg",
+        "blur": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBD"
+      },
+      "alt": "Completed kitchen remodel with quartz countertops in Salem",
+      "description": "Modern kitchen with custom cabinets, quartz countertops, and subway tile backsplash",
+      "service": "kitchens",
+      "city": "Salem",
+      "county": "Marion",
+      "state": "Oregon",
+      "projectId": "kitchen-remodel-001",
+      "tags": ["kitchen", "quartz", "custom-cabinets", "subway-tile", "salem"],
+      "roles": ["hero", "after"],
+      "featured": true,
+      "heroEligible": false,
+      "homepageEligible": true,
+      "createdAt": "2026-07-10T00:00:00.000Z",
+      "updatedAt": "2026-07-10T00:00:00.000Z",
+      "uploadedAt": "2026-07-10T00:00:00.000Z",
+      "fileSize": 3670016,
+      "format": "JPEG",
+      "colorSpace": "sRGB"
+    },
+    {
+      "id": "pergola-001-hero",
+      "driveId": "PLACEHOLDER_DRIVE_ID",
+      "filename": "HomeServiceProjectPergolas.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/pergola-001-hero.jpg",
+        "webp": "/images/pergola-001-hero.webp",
+        "avif": "/images/pergola-001-hero.avif",
+        "thumbnail": "/images/pergola-001-hero-thumb.jpg"
+      },
+      "alt": "Completed cedar pergola with outdoor seating area",
+      "description": "Custom cedar pergola providing shade and outdoor living space",
+      "service": "pergolas",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "pergola-001",
+      "tags": ["pergola", "cedar", "outdoor-living", "shade", "corvallis"],
+      "roles": ["hero", "after", "service-featured"],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": true,
+      "createdAt": "2026-07-22T00:00:00.000Z",
+      "updatedAt": "2026-07-22T00:00:00.000Z",
+      "uploadedAt": "2026-07-22T00:00:00.000Z",
+      "fileSize": 2457600,
+      "format": "JPEG",
+      "colorSpace": "sRGB"
+    }
+  ]
+}

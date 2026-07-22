@@ -4,7 +4,8 @@ import { Container, Section, SectionHeading } from "@/components/section";
 import { CTASection } from "@/components/cta-section";
 import { company } from "@/config/company";
 import { counties } from "@/config/counties";
-import { ownerPortrait } from "@/lib/media";
+import { getOwnerPortrait } from "@/lib/brand";
+import { getMediaById } from "@/lib/media";
 
 export const metadata: Metadata = {
   title: "About",
@@ -13,6 +14,10 @@ export const metadata: Metadata = {
 };
 
 export default function AboutPage() {
+  const ownerBrand = getOwnerPortrait();
+  const ownerMedia = ownerBrand?.mediaId ? getMediaById(ownerBrand.mediaId) : null;
+  const ownerSrc = ownerMedia?.variants?.web || ownerMedia?.variants?.original;
+  
   return (
     <>
       {/* HERO */}
@@ -25,18 +30,16 @@ export default function AboutPage() {
               Every family deserves a happy place.
             </h1>
             <p className="mt-5 max-w-xl text-lg text-text-on-dark/75">
-              {company.name} isn&rsquo;t built around salespeople, project managers, and
-              handoffs. It&rsquo;s built around one family that believes your home should
-              become your happy place — from your first conversation to the final
-              walkthrough, you&rsquo;ll work with the same people who care about getting
-              every detail right.
+              {company.name} isn't built around sales teams, project managers, or handoffs. It's built around one family that believes your home should become your happy place. From your first conversation to the final walkthrough, you'll work directly with the people doing the work—people who care about every detail as much as you do.
             </p>
             <p className="mt-6 font-display text-xl text-honey/90">
               Built carefully. Communicated clearly. Finished with pride.
             </p>
           </div>
           <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
-            <Image src={ownerPortrait().src} alt="Taylor & Lanie of Happy Place Carpentry" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover" />
+            {ownerSrc && (
+              <Image src={ownerSrc} alt={ownerBrand?.alt || "Taylor & Lanie of Happy Place Carpentry"} fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover" />
+            )}
           </div>
         </Container>
       </section>

@@ -1,0 +1,186 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-07-22T00:00:00.000Z",
+  "reviews": [
+    {
+      "id": "review-001",
+      "source": "manual",
+      "featured": true,
+      "verified": true,
+      "reviewer": {
+        "name": "Sarah M.",
+        "initials": "SM"
+      },
+      "rating": 5,
+      "date": "2026-07-18",
+      "service": "fences",
+      "projectId": "cedar-fence-001",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton"
+      },
+      "title": "Beautiful cedar fence",
+      "body": "Taylor and Lanie built us the most beautiful cedar fence. They were professional, clean, and the quality is outstanding. Our backyard feels complete now.",
+      "ownerResponse": {
+        "author": "Taylor",
+        "body": "Thank you, Sarah! We loved working on your fence project. The cedar really warms up the space, and we're so glad you're happy with how it turned out."
+      },
+      "syncStatus": "manual",
+      "highlight": true,
+      "featuredWeight": 95,
+      "heroEligible": true,
+      "homepageEligible": true,
+      "originalUrl": null
+    },
+    {
+      "id": "review-002",
+      "source": "manual",
+      "featured": true,
+      "verified": true,
+      "reviewer": {
+        "name": "James K.",
+        "initials": "JK"
+      },
+      "rating": 5,
+      "date": "2026-07-15",
+      "service": "decks",
+      "projectId": "deck-remodel-001",
+      "location": {
+        "city": "Albany",
+        "county": "Linn"
+      },
+      "title": "Deck transformation exceeded expectations",
+      "body": "Our old deck was falling apart. Happy Place Carpentry completely transformed it into a beautiful outdoor living space. They finished on time and the craftsmanship is exceptional.",
+      "ownerResponse": {
+        "author": "Lanie",
+        "body": "James, thank you for trusting us with your deck! It was rewarding to see the transformation from start to finish. Enjoy many years of outdoor gatherings!"
+      },
+      "syncStatus": "manual",
+      "highlight": true,
+      "featuredWeight": 90,
+      "heroEligible": true,
+      "homepageEligible": true,
+      "originalUrl": null
+    },
+    {
+      "id": "review-003",
+      "source": "manual",
+      "featured": true,
+      "verified": true,
+      "reviewer": {
+        "name": "Emily R.",
+        "initials": "ER"
+      },
+      "rating": 5,
+      "date": "2026-07-10",
+      "service": "kitchens",
+      "projectId": "kitchen-remodel-001",
+      "location": {
+        "city": "Salem",
+        "county": "Marion"
+      },
+      "title": "Kitchen remodel was stress-free",
+      "body": "We were nervous about a kitchen remodel, but Taylor and Lanie made it completely stress-free. They communicated clearly, stayed on budget, and the result is better than we imagined.",
+      "ownerResponse": {
+        "author": "Taylor",
+        "body": "Emily, we're so glad we could make your kitchen remodel a positive experience! Your new kitchen is beautiful, and we appreciate you letting us be part of your home transformation."
+      },
+      "syncStatus": "manual",
+      "highlight": true,
+      "featuredWeight": 85,
+      "heroEligible": false,
+      "homepageEligible": true,
+      "originalUrl": null
+    },
+    {
+      "id": "review-004",
+      "source": "manual",
+      "featured": false,
+      "verified": true,
+      "reviewer": {
+        "name": "Michael T.",
+        "initials": "MT"
+      },
+      "rating": 5,
+      "date": "2026-07-05",
+      "service": "bathrooms",
+      "projectId": "bathroom-remodel-001",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton"
+      },
+      "title": "Bathroom renovation done right",
+      "body": "Professional work from start to finish. They paid attention to every detail and our bathroom looks brand new. Highly recommend Happy Place Carpentry.",
+      "ownerResponse": {
+        "author": "Lanie",
+        "body": "Thank you, Michael! We take pride in the details, and we're thrilled with how your bathroom turned out. Enjoy your new space!"
+      },
+      "syncStatus": "manual",
+      "highlight": false,
+      "featuredWeight": 70,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "originalUrl": null
+    },
+    {
+      "id": "review-005",
+      "source": "manual",
+      "featured": false,
+      "verified": true,
+      "reviewer": {
+        "name": "Lisa P.",
+        "initials": "LP"
+      },
+      "rating": 5,
+      "date": "2026-06-28",
+      "service": "finish-carpentry",
+      "projectId": "trim-installation-001",
+      "location": {
+        "city": "Philomath",
+        "county": "Benton"
+      },
+      "title": "Expert trim work",
+      "body": "The trim work throughout our home is flawless. Taylor and Lanie have an eye for detail that's hard to find. Our home feels so much more polished.",
+      "ownerResponse": {
+        "author": "Taylor",
+        "body": "Lisa, thank you! Trim work is one of our specialties, and we're glad we could help your home feel more polished. It was a pleasure working with you."
+      },
+      "syncStatus": "manual",
+      "highlight": false,
+      "featuredWeight": 65,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "originalUrl": null
+    },
+    {
+      "id": "review-006",
+      "source": "manual",
+      "featured": false,
+      "verified": true,
+      "reviewer": {
+        "name": "David H.",
+        "initials": "DH"
+      },
+      "rating": 5,
+      "date": "2026-06-20",
+      "service": "outdoor-living",
+      "projectId": "pergola-001",
+      "location": {
+        "city": "Monmouth",
+        "county": "Polk"
+      },
+      "title": "Pergola created perfect outdoor space",
+      "body": "We wanted an outdoor living space and Happy Place Carpentry delivered. The pergola is beautiful and well-built. We spend so much more time outside now.",
+      "ownerResponse": {
+        "author": "Lanie",
+        "body": "David, we're so happy your pergola has created the perfect outdoor space for you! It was a joy to build, and we hope you enjoy it for years to come."
+      },
+      "syncStatus": "manual",
+      "highlight": false,
+      "featuredWeight": 60,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "originalUrl": null
+    }
+  ]
+}

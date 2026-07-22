@@ -4,8 +4,9 @@ import { Container, Section, SectionHeading } from "@/components/section";
 import { ServiceCard } from "@/components/service-card";
 import { CTASection } from "@/components/cta-section";
 import { Icon } from "@/components/icon";
-import { serviceCategories } from "@/config/serviceCategories";
-import { services } from "@/config/services";
+import { getAllServices } from "@/lib/registries";
+import { getServiceGallery } from "@/lib/galleries";
+import { PlaceholderSection } from "@/components/placeholder-section";
 
 export const metadata: Metadata = {
   title: "Services",
@@ -15,6 +16,17 @@ export const metadata: Metadata = {
 };
 
 export default function ServicesPage() {
+  const services = getAllServices();
+  
+  // Group services by category (using description as category grouping for now)
+  // In a full implementation, services.v1.json would have a category field
+  const groupedServices = services.reduce((acc, service) => {
+    const category = service.description.split(' ').slice(0, 2).join(' ') || 'General';
+    if (!acc[category]) acc[category] = [];
+    acc[category].push(service);
+    return acc;
+  }, {} as Record<string, typeof services>);
+
   return (
     <>
       <Section className="bg-surface-muted">
@@ -25,21 +37,23 @@ export default function ServicesPage() {
             description="Every service has its own estimate questions, so your quote is built around exactly what you need."
           />
           <div className="mt-10 space-y-14">
-            {serviceCategories.map((cat) => (
-              <div key={cat.slug} id={cat.slug} className="scroll-mt-20">
+            {Object.entries(groupedServices).map(([category, categoryServices]) => (
+              <div key={category} id={category.toLowerCase().replace(/\s+/g, '-')} className="scroll-mt-20">
                 <div className="flex items-center gap-3">
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-accent">
-                    <Icon name={cat.icon} className="h-5 w-5" />
+                    <Icon name="hammer" className="h-5 w-5" />
                   </span>
-                  <h2 className="text-2xl font-bold text-text">{cat.title}</h2>
+                  <h2 className="text-2xl font-bold text-text">{category}</h2>
                 </div>
-                <p className="mb-6 mt-2 max-w-2xl text-text-muted">{cat.description}</p>
+                <p className="mb-6 mt-2 max-w-2xl text-text-muted">
+                  {categoryServices[0]?.description || 'Professional carpentry services'}
+                </p>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                  {services
-                    .filter((s) => s.category === cat.slug)
-                    .map((s) => (
-                      <ServiceCard key={s.slug} service={s} />
-                    ))}
+                  {categoryServices.map((s) => (
+                    <Link key={s.id} href={`/services/${s.slug}`}>
+                      <ServiceCard service={s} />
+                    </Link>
+                  ))}
                 </div>
               </div>
             ))}

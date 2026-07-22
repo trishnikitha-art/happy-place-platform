@@ -7,20 +7,34 @@ import { StarRating } from "@/components/star-rating";
 import { Reveal } from "@/components/reveal";
 import { CedarCorner } from "@/components/cedar-corner";
 import { ToolMark } from "@/components/tool-mark";
-import { serviceCategories } from "@/config/serviceCategories";
-import { services } from "@/config/services";
-import { reviews, averageRating } from "@/config/reviews";
+import { getAllServices } from "@/lib/registries";
+import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
 import { company } from "@/config/company";
-import { BeforeAfterCard } from "@/components/before-after-card";
-import { Transformation } from "@/config/transformations";
-import { ownerPortrait, heroBackground } from "@/lib/media";
+import { BeforeAfterSlider } from "@/components/before-after-slider";
+import { getOwnerPortrait, getHomepageHero } from "@/lib/brand";
+import { getMediaById, getProjectBeforeAfter } from "@/lib/media";
+import { getFeaturedProjects } from "@/lib/projects";
 
 export default function HomePage() {
-  const topReviews = reviews.slice(0, 3);
-  const hasReviews = reviews.length > 0;
+  const topReviews = getFeaturedReviews().slice(0, 3);
+  const stats = getReviewStats();
+  const hasReviews = stats.total > 0;
   const [taylor, lanie] = company.owners;
-  const transformations = Transformation;     // honest before→after composites
-  const heroBg = heroBackground();           // primary full-width hero photograph
+  const heroBrand = getHomepageHero();       // primary full-width hero photograph from Brand Authority
+  const heroMedia = heroBrand?.mediaId ? getMediaById(heroBrand.mediaId) : null;
+  const heroBg = heroMedia?.variants?.web || heroMedia?.variants?.original;
+  const ownerBrand = getOwnerPortrait();    // owner portrait from Brand Authority
+  const ownerMedia = ownerBrand?.mediaId ? getMediaById(ownerBrand.mediaId) : null;
+  const ownerSrc = ownerMedia?.variants?.web || ownerMedia?.variants?.original;
+  const allServices = getAllServices();      // data-driven services from registry
+  const featuredProjects = getFeaturedProjects(); // featured projects from Projects Authority
+  
+  // Get cedar fence project for before/after transformation
+  const cedarFenceProject = featuredProjects.find(p => p.id === 'cedar-fence-001');
+  
+  // Group services for homepage display (show homepageEligible services first)
+  const homepageServices = allServices.filter(s => s.homepageEligible);
+  const otherServices = allServices.filter(s => !s.homepageEligible);
 
   return (
     <>
@@ -28,8 +42,8 @@ export default function HomePage() {
       <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
         {heroBg && (
           <Image
-            src={heroBg.src}
-            alt={heroBg.alt}
+            src={heroBg}
+            alt={heroBrand?.alt || "Happy Place Carpentry"}
             fill
             priority
             sizes="100vw"
@@ -46,31 +60,30 @@ export default function HomePage() {
         <div className="hero-ticks" aria-hidden="true" />
         <div className="pnw-fog" aria-hidden="true" />
 
-        <Container className="relative z-10 flex min-h-[88svh] flex-col justify-center py-28 lg:py-36">
+        <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-16 sm:py-20 lg:py-28">
           <div className="max-w-3xl">
-            <p className="font-signature text-2xl text-honey/90">Happy Place Carpentry</p>
-            <h1 className="mt-4 font-display text-6xl font-bold leading-[1.02] tracking-tight tracking-display text-text-on-dark sm:text-7xl lg:text-8xl">
-              The projects you walk past every day should be the ones you&rsquo;re most proud to come home to.
+            <p className="font-signature text-xl sm:text-2xl text-honey/90">Happy Place Carpentry</p>
+            <h1 className="mt-3 sm:mt-4 font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.05] sm:leading-[1.02] tracking-tight tracking-display text-text-on-dark">
+              Your favorite part of coming home should be the home itself.
             </h1>
-            <p className="measure mt-6 max-w-xl text-lg leading-relaxed text-text-on-dark/80">
-              Some homes have a space that quietly becomes the favorite.
-              We build the decks, kitchens, baths, and fences worth coming home to.</p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <Link href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-8 py-4 text-base font-semibold">
+            <p className="measure mt-4 sm:mt-6 max-w-xl text-base sm:text-lg leading-relaxed text-text-on-dark/80">
+              We build decks, fences, kitchens, bathrooms, and custom carpentry that families enjoy for years—not just on move-in day.</p>
+            <div className="mt-6 sm:mt-8 flex flex-wrap gap-3">
+              <Link href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold">
                 Get a Free Estimate
               </Link>
               <Link
                 href="/our-work"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-text-on-dark/30 bg-text-on-dark/10 px-8 py-4 text-base font-semibold text-text-on-dark transition-colors hover:bg-text-on-dark/20"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-text-on-dark/30 bg-text-on-dark/10 px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold text-text-on-dark transition-colors hover:bg-text-on-dark/20"
               >
                 See Our Work
               </Link>
             </div>
-            <div className="mt-9 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-text-on-dark/65">
+            <div className="mt-6 sm:mt-9 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-text-on-dark/65">
               {hasReviews && (
                 <span className="inline-flex items-center gap-2">
                   <StarRating rating={5} />
-                  {averageRating()} / 5 · {company.proof.projectsCompleted} projects
+                  {stats.averageRating} / 5 · {company.proof.projectsCompleted} projects
                 </span>
               )}
               {!hasReviews && (
@@ -79,11 +92,13 @@ export default function HomePage() {
                 </span>
               )}
               <span className="text-text-on-dark/35">·</span>
-              <span>{company.ccbNumber} · Licensed · Insured</span>
+              <span className="hidden sm:inline">{company.ccbNumber} · Licensed · Insured</span>
+              <span className="sm:hidden">{company.ccbNumber}</span>
               <span className="text-text-on-dark/35">·</span>
-              <span>{company.proof.serviceCounties.join(" · ")}</span>
+              <span className="hidden sm:inline">{company.proof.serviceCounties.join(" · ")}</span>
+              <span className="sm:hidden">{company.proof.serviceCounties[0]}</span>
             </div>
-            <span className="mt-7 block font-signature text-3xl text-honey">Let&rsquo;s start building your happy place.</span>
+            <span className="mt-5 sm:mt-7 block font-signature text-2xl sm:text-3xl text-honey">Let&rsquo;s start building your happy place.</span>
           </div>
         </Container>
       </section>
@@ -92,52 +107,44 @@ export default function HomePage() {
 
       {/* TRUST STRIP — quiet, confident proof (woven, not a banner) */}
       <section className="border-y border-border-soft bg-background">
-        <Container className="grid grid-cols-2 gap-x-6 gap-y-8 py-14 text-center sm:grid-cols-4">
+        <Container className="grid grid-cols-2 gap-x-4 gap-y-5 py-8 sm:gap-x-6 sm:gap-y-6 sm:py-10 text-center sm:grid-cols-4">
           {[
-            [company.proof.projectsCompleted, "Projects completed"],
-            [company.proof.yearsInBusiness, "In business"],
-            [company.ccbNumber, "Licensed · Insured"],
-            ["1–2 days", "Estimate response"],
+            ["Oregon CCB #254240", "Licensed, Bonded & Insured"],
+            ["Family-Owned", "Local Craftsmanship"],
+            ["Mid-Willamette Valley", "Service Area"],
+            [company.proof.projectsCompleted, "Projects Completed"],
           ].map(([stat, label]) => (
             <div key={label as string} className="relative">
-              <p className="font-display text-4xl font-bold text-primary sm:text-5xl">{stat}</p>
-              <p className="mt-2 text-sm font-medium uppercase tracking-wide text-text-muted">{label}</p>
+              <p className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-primary">{stat}</p>
+              <p className="mt-1 text-xs sm:text-sm font-medium uppercase tracking-wide text-text-muted">{label}</p>
             </div>
           ))}
         </Container>
       </section>
 
-      {/* OUTDOOR INSPIRATION — aspirational, not a project gallery */}
-      <Section className="bg-background">
-        <Container>
-          <SectionHeading
-            eyebrow="Outdoor living"
-            title="Imagine evenings outside again"
-            description="Decks. Pergolas. Fences. Outdoor spaces you'll actually use."
-          />
-        </Container>
-      </Section>
-
       {/* SERVICES — image-dominant cards, less chrome (Directive 034) */}
-      <Section>
+      <Section className="pt-6 sm:pt-8 pb-6 sm:pb-8">
         <Container>
           <SectionHeading
             eyebrow={<span className="eyebrow-mark"><ToolMark /> What we do</span>}
             title="Craftsmanship for every part of your home"
             description="Pick a service to start a free estimate — we'll guide the rest."
           />
-          <div className="mt-12 space-y-14">
-            {serviceCategories.map((cat) => (
-              <div key={cat.slug} id={cat.slug}>
-                <h3 className="font-display text-3xl font-bold text-text">{cat.title}</h3>
-                <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-                  {services.filter((s) => s.category === cat.slug).map((s) => (
-                    <ServiceCard key={s.slug} service={s} />
-                  ))}
-                </div>
-              </div>
+          <div className="mt-6 sm:mt-8 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
+            {homepageServices.map((s) => (
+              <ServiceCard key={s.id} service={s} />
             ))}
           </div>
+          {otherServices.length > 0 && (
+            <div className="mt-6 sm:mt-8">
+              <h3 className="font-display text-xl sm:text-2xl font-bold text-text mb-4 sm:mb-6">More Services</h3>
+              <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
+                {otherServices.map((s) => (
+                  <ServiceCard key={s.id} service={s} />
+                ))}
+              </div>
+            </div>
+          )}
         </Container>
       </Section>
 
@@ -149,13 +156,13 @@ export default function HomePage() {
             title="Start to finish"
             description="A look at the work — every project earns its finish."
           />
-          <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
-            {transformations.slice(0, 4).map((t, i) => (
-              <Reveal key={t.id} delay={i * 60}>
-                <BeforeAfterCard t={t} />
+          {cedarFenceProject && cedarFenceProject.media.before && cedarFenceProject.media.after && (
+            <div className="mt-10">
+              <Reveal>
+                <BeforeAfterSlider project={cedarFenceProject} />
               </Reveal>
-            ))}
-          </div>
+            </div>
+          )}
           <div className="mt-8">
             <Link href="/our-work" className="inline-flex items-center gap-1 font-semibold text-accent hover:underline">
               See the full portfolio →
@@ -176,48 +183,50 @@ export default function HomePage() {
               <p className="text-lg leading-relaxed">
                 Great craftsmanship starts long before the first board is cut.</p>
               <p>
-                <span className="font-semibold text-text">{taylor.name}</span> — Taylor believes good craftsmanship should still look good twenty years from now. Every project is built expecting he&rsquo;ll proudly drive past it for years to come.
+                <span className="font-semibold text-text">{taylor.name}</span> — Taylor believes craftsmanship should still look great twenty years from now. Every project is built with the expectation that he'll proudly drive past it for years to come.
               </p>
               <p>
-                <span className="font-semibold text-text">{lanie.name}</span> — Lanie makes sure every homeowner always knows what&rsquo;s happening next — from the first conversation to the final walkthrough.
+                <span className="font-semibold text-text">{lanie.name}</span> — Lanie keeps every homeowner informed from the first conversation through the final walkthrough, making sure every project feels organized, transparent, and enjoyable.
               </p>
             </div>
           </div>
           <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
-            <Image src={ownerPortrait().src} alt="Taylor & Lanie of Happy Place Carpentry" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover photo-breathe" />
+            {ownerSrc && (
+              <Image src={ownerSrc} alt={ownerBrand?.alt || "Taylor & Lanie of Happy Place Carpentry"} fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover photo-breathe" />
+            )}
             <CedarCorner className="absolute -left-2 -top-2 h-8 w-8 text-honey" />
           </div>
         </Container>
       </Section>
 
       {/* CRAFT RULE separator before reviews */}
-      <div className="py-6">
+      <div className="py-4 sm:py-6">
         <div className="craft-rule"><span /></div>
       </div>
 
       {/* REVIEWS */}
       <Section>
         <Container>
-          <SectionHeading eyebrow="Reviews" title="What neighbors say" align="center" description={hasReviews ? "Real feedback from homeowners across the Willamette Valley." : "Google reviews coming soon. Ask us for references in your neighborhood."} />
+          <SectionHeading eyebrow="Reviews" title="What neighbors say" align="center" description={hasReviews ? "Real feedback from homeowners across the Willamette Valley." : "We're building our public review portfolio. In the meantime, we're happy to provide references from homeowners throughout the Mid-Willamette Valley."} />
           {hasReviews ? (
             <>
-              <div className="mt-10 grid grid-cols-1 gap-5 md:grid-cols-3">
+              <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-3">
                 {topReviews.map((r) => (
-                  <figure key={r.id} className="float-card bg-surface p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-float">
+                  <figure key={r.id} className="float-card bg-surface p-5 sm:p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-float">
                     <StarRating rating={r.rating} />
-                    <h3 className="mt-3 font-bold text-text">{r.title}</h3>
-                    <blockquote className="mt-2 text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>
-                    <figcaption className="mt-4 text-sm text-text-subtle">{r.author} · {r.location}</figcaption>
+                    {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
+                    <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>
+                    <figcaption className="mt-3 sm:mt-4 text-xs sm:text-sm text-text-subtle">{r.reviewer.name} · {r.location ? `${r.location.city}, ${r.location.county}` : 'Willamette Valley'}</figcaption>
                   </figure>
                 ))}
               </div>
-              <div className="mt-8 text-center">
+              <div className="mt-6 sm:mt-8 text-center">
                 <Link href="/reviews" className="inline-flex items-center gap-1 font-semibold text-accent hover:underline">Read all reviews →</Link>
               </div>
             </>
           ) : (
-            <div className="mt-10 rounded-lg bg-surface-muted p-8 text-center">
-              <p className="text-text-muted">
+            <div className="mt-8 sm:mt-10 rounded-lg bg-surface-muted p-6 sm:p-8 text-center">
+              <p className="text-sm sm:text-base text-text-muted">
                 We are building our review portfolio. In the meantime, ask us for references in your neighborhood.
               </p>
             </div>

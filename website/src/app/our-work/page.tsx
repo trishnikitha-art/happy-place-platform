@@ -2,14 +2,13 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
 import { Container, Section, SectionHeading } from "@/components/section";
-import { GalleryLightbox } from "@/components/gallery-lightbox";
 import { CTASection } from "@/components/cta-section";
 import { Reveal } from "@/components/reveal";
-import { BeforeAfterCard } from "@/components/before-after-card";
-import { getProjects } from "@/config/projects";
-import { galleryAll, hasRealPhotos, realGalleryItems } from "@/lib/media";
+import { BeforeAfterSlider } from "@/components/before-after-slider";
+import { getAllProjects, getFeaturedProjects } from "@/lib/projects";
 import { company } from "@/config/company";
-import { Transformation } from "@/config/transformations";
+import { PlaceholderSection } from "@/components/placeholder-section";
+import { getMediaById } from "@/lib/media";
 
 export const metadata: Metadata = {
   title: "Our Work",
@@ -19,10 +18,8 @@ export const metadata: Metadata = {
 };
 
 export default function OurWorkPage() {
-  // Real photos take over the moment they exist; nothing is ever orphaned.
-  const items = hasRealPhotos() ? realGalleryItems() : [];
-  const projects = getProjects();
-  const museum = galleryAll(); // every cataloged photo, grouped by project — the archive
+  const allProjects = getAllProjects();
+  const featuredProjects = getFeaturedProjects();
 
   return (
     <>
@@ -37,9 +34,7 @@ export default function OurWorkPage() {
             Our Work
           </h1>
           <p className="mt-5 max-w-xl text-lg text-text-on-dark/70">
-            Every project is built to last in Oregon&rsquo;s climate — cedar that ages
-            gracefully, trim that fits, details you can feel. This is the complete
-            portfolio: featured transformations first, then the full archive.
+            Every project tells a story. Real homes. Real families. Real craftsmanship built for Oregon's climate. Explore featured transformations first, then browse the complete portfolio.
           </p>
         </Container>
       </section>
@@ -53,9 +48,9 @@ export default function OurWorkPage() {
             description="Real projects, real craftsmanship — the moments that turn a house into a happy place."
           />
           <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
-            {Transformation.slice(0, 4).map((t, i) => (
-              <Reveal key={t.id} delay={i * 60}>
-                <BeforeAfterCard t={t} />
+            {featuredProjects.slice(0, 4).map((project, i) => (
+              <Reveal key={project.id} delay={i * 60}>
+                <BeforeAfterSlider project={project} />
               </Reveal>
             ))}
           </div>
@@ -71,33 +66,34 @@ export default function OurWorkPage() {
             description="Real challenges, real solutions. Tap a project for the full story."
           />
           <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
-            {projects.map((p, i) => {
-              const hero = p.photos[0];
-              if (!hero) return null;
+            {allProjects.map((project, i) => {
+              const heroMediaId = project.media.hero;
+              const heroMedia = heroMediaId ? getMediaById(heroMediaId) : null;
+              const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original;
+              if (!heroSrc) return null;
               return (
-                <Reveal key={p.slug} delay={i * 80}>
+                <Reveal key={project.id} delay={i * 80}>
                   <Link
-                    href={`/projects/${p.slug}`}
+                    href={`/projects/${project.seo?.slug || project.id}`}
                     className="group block overflow-hidden rounded-card border border-border bg-surface shadow-sm transition-shadow hover:shadow-lg"
                   >
-                    <div className="relative">
+                    <div className="relative aspect-[16/9]">
                       <Image
-                        src={hero.src}
-                        alt={hero.alt}
-                        width={hero.width}
-                        height={hero.height}
-                        className="h-64 w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                        src={heroSrc}
+                        alt={heroMedia?.alt || project.title}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
                         sizes="(max-width: 768px) 100vw, 50vw"
                       />
                       <span className="absolute left-4 top-4 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-                        {p.county
-                          ? `${p.county.charAt(0).toUpperCase()}${p.county.slice(1)} County`
+                        {project.location.county
+                          ? `${project.location.county.charAt(0).toUpperCase()}${project.location.county.slice(1)} County`
                           : "Project"}
                       </span>
                     </div>
                     <div className="p-6">
-                      <h2 className="text-xl font-bold text-text">{p.title}</h2>
-                      <p className="mt-2 line-clamp-2 text-text-muted">{p.summary}</p>
+                      <h2 className="text-xl font-bold text-text">{project.title}</h2>
+                      <p className="mt-2 line-clamp-2 text-text-muted">{project.story?.outcome || project.story?.solution}</p>
                       <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent group-hover:underline">
                         Read the story →
                       </span>
@@ -110,8 +106,7 @@ export default function OurWorkPage() {
         </Container>
       </Section>
 
-      {/* BROWSE ALL WORK — the museum / archive: every cataloged photo, grouped by
-          project. Nothing is hidden; every one of the 18 images lives here. */}
+      {/* BROWSE ALL WORK — placeholder until Media Authority is fully populated */}
       <Section className="bg-background">
         <Container>
           <SectionHeading
@@ -119,36 +114,16 @@ export default function OurWorkPage() {
             title="The complete archive"
             description="Every project, every detail. Future projects simply append here."
           />
-          <div className="mt-10 space-y-12">
-            {museum.filter((group) => group.category !== "Uncategorized").map((group) => (
-              <div key={group.project}>
-                <h3 className="mb-4 font-display text-xl font-bold text-text">{group.category}</h3>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                  {group.images.map((img, i) => (
-                    <div key={i} className="relative aspect-[4/3] overflow-hidden rounded-card ring-1 ring-border-soft">
-                      <Image
-                        src={img.src}
-                        alt={img.alt}
-                        fill
-                        sizes="(max-width: 640px) 50vw, 25vw"
-                        className="h-full w-full object-cover transition-transform duration-500 hover:scale-[1.04]"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-          {items.length > 0 && (
-            <div className="mt-10">
-              <GalleryLightbox items={items} />
-            </div>
-          )}
-          <div className="mt-8 text-center">
-            <Link href="/estimate" className="inline-flex items-center gap-1 font-semibold text-accent hover:underline">
-              Start your project →
-            </Link>
-          </div>
+          <PlaceholderSection
+            type="gallery"
+            title="Project Gallery Coming Soon"
+            description="We're building our complete project archive. Check back soon to browse all our work."
+            count={0}
+            action={{
+              label: "Get a Free Estimate",
+              href: "/estimate",
+            }}
+          />
         </Container>
       </Section>
 
