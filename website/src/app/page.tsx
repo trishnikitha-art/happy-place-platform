@@ -5,7 +5,6 @@ import { ServiceCard } from "@/components/service-card";
 import { CTASection } from "@/components/cta-section";
 import { StarRating } from "@/components/star-rating";
 import { Reveal } from "@/components/reveal";
-import { CedarDivider } from "@/components/cedar-divider";
 import { CedarCorner } from "@/components/cedar-corner";
 import { ToolMark } from "@/components/tool-mark";
 import { serviceCategories } from "@/config/serviceCategories";
@@ -14,14 +13,12 @@ import { reviews, averageRating } from "@/config/reviews";
 import { company } from "@/config/company";
 import { BeforeAfterCard } from "@/components/before-after-card";
 import { Transformation } from "@/config/transformations";
-import { media, featuredTransformation, homepageSelection, ownerPortrait, heroBackground } from "@/lib/media";
+import { ownerPortrait, heroBackground } from "@/lib/media";
 
 export default function HomePage() {
   const topReviews = reviews.slice(0, 3);
   const hasReviews = reviews.length > 0;
   const [taylor, lanie] = company.owners;
-  const featured = featuredTransformation(); // warm cedar fence — first emotional image
-  const outdoor = homepageSelection();       // curated magazine set
   const transformations = Transformation;     // honest before→after composites
   const heroBg = heroBackground();           // primary full-width hero photograph
 
@@ -93,77 +90,6 @@ export default function HomePage() {
 
       <div className="h-2 bg-gradient-to-r from-deep via-primary to-deep/60" aria-hidden="true" />
 
-      {/* FEATURED TRANSFORMATION — the first photograph. Warm, aspirational
-          cedar fence. Large editorial image + offset floating quote. */}
-      {featured && (
-        <section className="bg-background">
-          <Container className="py-20 sm:py-28">
-            <p className="text-sm font-semibold uppercase tracking-[0.2em] text-accent">Featured transformation</p>
-            <div className="mt-7 grid grid-cols-1 items-center gap-10 lg:grid-cols-12 lg:gap-0">
-              <div className="relative lg:col-span-8 lg:z-10">
-                <div className="relative aspect-[16/10] overflow-hidden rounded-card photo-mounted">
-                  <Image
-                    src={featured.src}
-                    alt="Cedar fence built by Happy Place Carpentry"
-                    fill
-                    priority
-                    sizes="(max-width: 1024px) 100vw, 66vw"
-                    className="photo-breathe object-cover"
-                  />
-                </div>
-              </div>
-              <div className="relative lg:col-span-5 lg:-ml-16 lg:z-20">
-                <div className="float-card bg-surface p-8 sm:p-10">
-                  <CedarCorner className="absolute -right-2 -top-2 h-8 w-8 text-honey" />
-                  <p className="font-display text-3xl font-bold leading-snug text-text sm:text-4xl">
-                    A fence that frames the whole yard.
-                  </p>
-                  <p className="mt-5 text-text-muted">
-                    Straight lines, matched stain, posts that stay put. Craftsmanship
-                    you feel every time you pull in the driveway.
-                  </p>
-                  <Link
-                    href="/our-work"
-                    className="mt-7 inline-flex items-center gap-1 font-semibold text-accent hover:underline"
-                  >
-                    See the full portfolio →
-                  </Link>
-                </div>
-              </div>
-            </div>
-          </Container>
-        </section>
-      )}
-
-      <CedarDivider />
-
-      {/* OUTDOOR LIVING — the emotional glue. Aspirational life, not a catalog. */}
-      {outdoor[1] && (
-        <section className="bg-background">
-          <Container className="py-16 sm:py-20">
-            <SectionHeading
-              eyebrow="Outdoor living"
-              title="Picture your backyard."
-              description="Decks, fences, and the spaces you actually live in."
-            />
-            <div className="mt-10 grid grid-cols-1 gap-6 lg:grid-cols-12">
-              <div className="relative lg:col-span-7">
-                <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
-                  <Image src={outdoor[1].src} alt={outdoor[1].alt} fill sizes="(max-width: 1024px) 100vw, 58vw" className="object-cover photo-breathe" />
-                </div>
-              </div>
-              <div className="flex flex-col justify-center gap-6 lg:col-span-5">
-                {[outdoor[4], outdoor[5]].filter(Boolean).map((img, i) => (
-                  <div key={i} className="relative aspect-[16/10] overflow-hidden rounded-card photo-mounted">
-                    <Image src={img!.src} alt={img!.alt} fill sizes="(max-width: 768px) 100vw, 40vw" className="object-cover" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </Container>
-        </section>
-      )}
-
       {/* TRUST STRIP — quiet, confident proof (woven, not a banner) */}
       <section className="border-y border-border-soft bg-background">
         <Container className="grid grid-cols-2 gap-x-6 gap-y-8 py-14 text-center sm:grid-cols-4">
@@ -180,6 +106,17 @@ export default function HomePage() {
           ))}
         </Container>
       </section>
+
+      {/* OUTDOOR INSPIRATION — aspirational, not a project gallery */}
+      <Section className="bg-background">
+        <Container>
+          <SectionHeading
+            eyebrow="Outdoor living"
+            title="Imagine evenings outside again"
+            description="Decks. Pergolas. Fences. Outdoor spaces you'll actually use."
+          />
+        </Container>
+      </Section>
 
       {/* SERVICES — image-dominant cards, less chrome (Directive 034) */}
       <Section>

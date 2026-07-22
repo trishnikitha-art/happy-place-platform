@@ -71,7 +71,10 @@ export type Role =
   | "AboutPortrait"
   | "OwnerPortrait"
   | "ProjectCover"
-  | "ReviewBackground";
+  | "ReviewBackground"
+  | "PaintingCover";
+
+export type MediaType = "brand" | "project" | "transformation" | "portrait" | "service" | "gallery" | "beforeAfter";
 
 interface PhotoMeta {
   id: string;
@@ -79,6 +82,7 @@ interface PhotoMeta {
   roles: Role[];
   priority: number; // 0-100, higher = more compelling for that role
   quality: { hero: boolean; gallery: boolean; service: boolean };
+  mediaType?: MediaType;
 }
 
 const G = gallery as unknown as { projects: any[]; images: GalleryRecord[] };
@@ -121,11 +125,17 @@ export function photoForAny(role: Role): MediaImage | null {
 /**
  * Photo for a service card by slug. Uses serviceCover mapping from presentation.v1.json
  * to get the specific cover role for each service. Returns null if no photo assigned.
+ * Filters by mediaType to ensure brand assets never appear in service cards.
  */
 export function servicePhoto(slug: string): MediaImage | null {
   const coverRole = PresentationAuthority.getServiceCover(slug);
   if (!coverRole) return null;
-  return photoFor(coverRole);
+  const photoRoles = PresentationAuthority.getPhotoRoles();
+  const hits = photoRoles.filter((m) => m.roles.includes(coverRole) && m.quality.gallery && m.mediaType === "project")
+    .sort((a, b) => b.priority - a.priority)
+    .map((m) => BY_ID.get(m.id))
+    .filter((r): r is GalleryRecord => !!r && !!r.src);
+  return hits.length ? toMedia(hits[0]) : null;
 }
 
 /**

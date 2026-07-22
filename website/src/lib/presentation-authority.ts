@@ -11,7 +11,7 @@
  *   React → presentation.json → React → presentation.json → presentation.json
  */
 
-import type { Role } from "./media";
+import type { Role, MediaType } from "./media";
 
 interface PhotoMeta {
   id: string;
@@ -19,6 +19,7 @@ interface PhotoMeta {
   roles: Role[];
   priority: number;
   quality: { hero: boolean; gallery: boolean; service: boolean };
+  mediaType?: MediaType;
 }
 
 interface PresentationData {
