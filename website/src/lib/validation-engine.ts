@@ -11,6 +11,7 @@ import type { MediaManifest } from "@/types/media";
 import type { ProjectsManifest } from "@/types/projects";
 import type { ReviewsManifest } from "@/types/reviews";
 import type { BrandManifest } from "@/types/brand";
+import type { ServicesRegistry } from "@/types/registries";
 import type { Finding, Severity, Authority } from "./findings";
 import { createFinding } from "./findings";
 import { loadHealthRules } from "./health-rules";
@@ -519,6 +520,66 @@ export function validateCrossAuthorityReferences(
 }
 
 /**
+ * Validate Services Authority and emit Findings
+ * Checks that each service has at least one completed project with hero media
+ */
+export function validateServicesAuthority(
+  services: ServicesRegistry,
+  projects: ProjectsManifest,
+  media: MediaManifest
+): Finding[] {
+  const findings: Finding[] = [];
+
+  services.services.forEach(service => {
+    // Find completed projects for this service
+    const serviceProjects = projects.projects.filter(
+      p => p.service === service.slug && p.status === 'completed'
+    );
+
+    if (serviceProjects.length === 0) {
+      findings.push(createFinding({
+        rule: "service-has-no-projects",
+        severity: "medium",
+        authority: "services",
+        resourceId: service.slug,
+        message: `Service has no completed projects: ${service.name}`,
+        path: `services.v1.json[${service.slug}]`,
+      }));
+      return;
+    }
+
+    // Check if any project has hero media
+    const projectWithHero = serviceProjects.find(p => p.media.hero);
+    if (!projectWithHero) {
+      findings.push(createFinding({
+        rule: "service-has-no-hero-media",
+        severity: "medium",
+        authority: "services",
+        resourceId: service.slug,
+        message: `Service has projects but no hero media: ${service.name}`,
+        path: `services.v1.json[${service.slug}]`,
+      }));
+      return;
+    }
+
+    // Verify hero media exists in Media Authority
+    const heroMediaExists = media.media.some(m => m.id === projectWithHero.media.hero);
+    if (!heroMediaExists) {
+      findings.push(createFinding({
+        rule: "service-hero-media-missing",
+        severity: "high",
+        authority: "services",
+        resourceId: service.slug,
+        message: `Service project hero media not found in Media Authority: ${service.name}`,
+        path: `projects.v1.json[${projectWithHero.id}].media.hero`,
+      }));
+    }
+  });
+
+  return findings;
+}
+
+/**
  * Run full validation across all authorities and emit Findings
  */
 export function validateAllAuthorities({
@@ -526,11 +587,13 @@ export function validateAllAuthorities({
   projects,
   reviews,
   brand,
+  services,
 }: {
   media: MediaManifest;
   projects: ProjectsManifest;
   reviews: ReviewsManifest;
   brand: BrandManifest;
+  services?: ServicesRegistry;
 }): Finding[] {
   const findings: Finding[] = [];
 
@@ -539,6 +602,11 @@ export function validateAllAuthorities({
   findings.push(...validateReviewsAuthority(reviews));
   findings.push(...validateBrandAuthority(brand));
   findings.push(...validateCrossAuthorityReferences(media, projects, brand));
+
+  // Validate services coverage if services registry is provided
+  if (services) {
+    findings.push(...validateServicesAuthority(services, projects, media));
+  }
 
   return findings;
 }

@@ -25,6 +25,10 @@ function loadServices(): ServicesRegistry {
   }
 }
 
+export function loadServicesRegistry(): ServicesRegistry {
+  return loadServices();
+}
+
 function loadCities(): CitiesRegistry {
   if (citiesCache) return citiesCache;
   try {

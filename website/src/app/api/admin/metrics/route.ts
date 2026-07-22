@@ -19,6 +19,7 @@ import { loadMediaManifest } from "@/lib/media";
 import { loadProjectsManifest } from "@/lib/projects";
 import { loadReviewsManifest } from "@/lib/reviews";
 import { loadBrandManifest } from "@/lib/brand";
+import { loadServicesRegistry } from "@/lib/registries";
 import { validateAllAuthorities } from "@/lib/validation-engine";
 import { analyzeAll } from "@/lib/analysis";
 import { generateMetrics } from "@/lib/metrics";
@@ -30,6 +31,7 @@ export async function GET() {
     const projects = loadProjectsManifest();
     const reviews = loadReviewsManifest();
     const brand = loadBrandManifest();
+    const services = loadServicesRegistry();
 
     // Run validation engine
     const findings = validateAllAuthorities({
@@ -37,6 +39,7 @@ export async function GET() {
       projects,
       reviews,
       brand,
+      services,
     });
 
     // Run analysis engine
