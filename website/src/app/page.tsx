@@ -67,7 +67,7 @@ export default function HomePage() {
               Your favorite part of coming home should be the home itself.
             </h1>
             <p className="measure mt-4 sm:mt-6 max-w-xl text-base sm:text-lg leading-relaxed text-text-on-dark/80">
-              We build decks, fences, kitchens, bathrooms, and custom carpentry that families enjoy for years—not just on move-in day.</p>
+              We build decks, fences, bathrooms, and custom carpentry that families enjoy for years—not just on move-in day.</p>
             <div className="mt-6 sm:mt-8 flex flex-wrap gap-3">
               <Link href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold">
                 Get a Free Estimate

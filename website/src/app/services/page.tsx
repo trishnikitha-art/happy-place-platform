@@ -9,7 +9,7 @@ import { getAllServices } from "@/lib/registries";
 export const metadata: Metadata = {
   title: "Services",
   description:
-    "Decks, fences, pergolas, kitchen and bath remodels, custom built-ins, and repairs by Happy Place Carpentry.",
+    "Decks, fences, pergolas, bathroom remodels, custom built-ins, and repairs by Happy Place Carpentry.",
   alternates: { canonical: "/services" },
 };
 

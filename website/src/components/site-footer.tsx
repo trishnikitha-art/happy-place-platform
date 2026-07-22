@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { MapPin, Phone, Mail, Hammer } from "lucide-react";
-import { company } from "@/config/company";
-import { navigation } from "@/config/navigation";
-import { serviceCategories } from "@/config/serviceCategories";
+import { getCompany } from "@/lib/company";
+import { getNavigation } from "@/lib/navigation";
+import { getAllServices } from "@/lib/registries";
 import { PhoneLink, EmailLink } from "@/components/tracked-contact";
 
 export function SiteFooter() {
+  const company = getCompany();
+  const navigation = getNavigation();
+  const services = getAllServices();
   const [taylor, lanie] = company.owners;
   return (
     <footer className="border-t border-border bg-primary text-text-on-dark">
@@ -36,9 +39,9 @@ export function SiteFooter() {
         <div>
           <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark/60">Services</h3>
           <ul className="mt-3 space-y-2 text-sm">
-            {serviceCategories.map((c) => (
-              <li key={c.slug}>
-                <Link href={`/services#${c.slug}`} className="text-text-on-dark/80 hover:text-honey">{c.title}</Link>
+            {services.slice(0, 6).map((s) => (
+              <li key={s.slug}>
+                <Link href={`/services/${s.slug}`} className="text-text-on-dark/80 hover:text-honey">{s.name}</Link>
               </li>
             ))}
           </ul>
