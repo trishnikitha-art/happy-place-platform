@@ -14,8 +14,9 @@ import { cn } from "@/lib/utils";
 
 type PhotoMeta = { name: string; size: number };
 
-const STEPS = ["Service", "Photos", "Project Details", "Property", "Contact", "Thank You"] as const;
+const STEPS = ["Service", "What are you trying to accomplish?", "Photos", "Project Details", "Property", "Contact", "Thank You"] as const;
 const MAX_SERVICES = 3;
+const PROJECT_TYPES = ["Build something new", "Restore / Repair existing", "Paint / Stain / Refinish existing", "I'm not sure yet"] as const;
 
 export function EstimateWizard() {
   const router = useRouter();
@@ -26,6 +27,7 @@ export function EstimateWizard() {
   const [selected, setSelected] = React.useState<string[]>(
     prefillService && services.some((s) => s.slug === prefillService) ? [prefillService] : [],
   );
+  const [projectType, setProjectType] = React.useState("");
   const [otherNeed, setOtherNeed] = React.useState("");
   const [answers, setAnswers] = React.useState<Record<string, string | boolean | number>>({});
   const [photos, setPhotos] = React.useState<PhotoMeta[]>([]);
@@ -44,11 +46,12 @@ export function EstimateWizard() {
 
   const canNext = React.useMemo(() => {
     if (STEPS[step] === "Service") return selected.length > 0 || otherNeed.trim().length > 0;
+    if (STEPS[step] === "What are you trying to accomplish?") return projectType.trim().length > 0;
     if (STEPS[step] === "Contact")
       return customer.name.trim() && customer.email.trim() && customer.phone.trim();
     if (STEPS[step] === "Property") return property.city.trim() && property.county;
     return true;
-  }, [step, selected, otherNeed, customer, property]);
+  }, [step, selected, otherNeed, projectType, customer, property]);
 
   function buildRequest(): EstimateRequest {
     return {
@@ -61,7 +64,7 @@ export function EstimateWizard() {
         county: property.county,
         details: property.details,
       },
-      answers,
+      answers: { ...answers, projectType },
       photos,
       notes: "",
       submittedAt: new Date().toISOString(),
@@ -164,7 +167,37 @@ export function EstimateWizard() {
           </div>
         )}
 
-        {/* STEP 2: Photos */}
+        {/* STEP 2: What are you trying to accomplish? */}
+        {STEPS[step] === "What are you trying to accomplish?" && (
+          <div>
+            <h2 className="text-xl font-bold text-text">What are you trying to accomplish?</h2>
+            <p className="mt-1 text-sm text-text-muted">
+              This helps us ask the right questions for your project.
+            </p>
+            <div className="mt-4 space-y-3">
+              {PROJECT_TYPES.map((type) => (
+                <button
+                  key={type}
+                  type="button"
+                  onClick={() => setProjectType(type)}
+                  className={cn(
+                    "w-full rounded-xl border p-4 text-left transition-colors",
+                    projectType === type
+                      ? "border-primary bg-primary/10"
+                      : "border-border hover:border-primary/60"
+                  )}
+                >
+                  <span className="flex items-center justify-between">
+                    <span className="font-semibold text-text">{type}</span>
+                    {projectType === type && <Check className="h-4 w-4 text-primary" />}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* STEP 3: Photos */}
         {STEPS[step] === "Photos" && (
           <div>
             <h2 className="text-xl font-bold text-text">Add a few photos (optional)</h2>
@@ -208,7 +241,7 @@ export function EstimateWizard() {
           </div>
         )}
 
-        {/* STEP 3: Project Details */}
+        {/* STEP 4: Project Details */}
         {STEPS[step] === "Project Details" && (
           <div>
             <h2 className="text-xl font-bold text-text">A couple quick questions</h2>
@@ -284,7 +317,7 @@ export function EstimateWizard() {
           </div>
         )}
 
-        {/* STEP 4: Property */}
+        {/* STEP 5: Property */}
         {STEPS[step] === "Property" && (
           <div>
             <h2 className="text-xl font-bold text-text">Where is the work?</h2>
@@ -335,7 +368,7 @@ export function EstimateWizard() {
           </div>
         )}
 
-        {/* STEP 5: Contact */}
+        {/* STEP 6: Contact */}
         {STEPS[step] === "Contact" && (
           <div>
             <h2 className="text-xl font-bold text-text">How do we reach you?</h2>
@@ -372,7 +405,7 @@ export function EstimateWizard() {
           </div>
         )}
 
-        {/* STEP 6: Thank You */}
+        {/* STEP 7: Thank You */}
         {STEPS[step] === "Thank You" && (
           <div className="text-center">
             <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
