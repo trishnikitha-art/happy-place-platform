@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
-import { siteUrl } from "@/config/company";
+
+const siteUrl = "https://happyplacecarpentry.com";
 
 export default function robots(): MetadataRoute.Robots {
   return {

@@ -97,40 +97,48 @@ export function Dashboard() {
       </div>
 
       {/* Repository Overview */}
-      <RepositoryOverview repository={metrics.repository} />
+      {metrics.repository && <RepositoryOverview repository={metrics.repository} />}
 
       {/* Health Card */}
-      <HealthCard health={metrics.health} />
+      {metrics.health && <HealthCard health={metrics.health} />}
 
       {/* Authority Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <AuthorityCard
-          name="Media"
-          data={metrics.media}
-          color="blue"
-        />
-        <AuthorityCard
-          name="Projects"
-          data={metrics.projects}
-          color="green"
-        />
-        <AuthorityCard
-          name="Reviews"
-          data={metrics.reviews}
-          color="purple"
-        />
-        <AuthorityCard
-          name="Brand"
-          data={metrics.brand}
-          color="orange"
-        />
+        {metrics.media && (
+          <AuthorityCard
+            name="Media"
+            data={metrics.media}
+            color="blue"
+          />
+        )}
+        {metrics.projects && (
+          <AuthorityCard
+            name="Projects"
+            data={metrics.projects}
+            color="green"
+          />
+        )}
+        {metrics.reviews && (
+          <AuthorityCard
+            name="Reviews"
+            data={metrics.reviews}
+            color="purple"
+          />
+        )}
+        {metrics.brand && (
+          <AuthorityCard
+            name="Brand"
+            data={metrics.brand}
+            color="orange"
+          />
+        )}
       </div>
 
       {/* System Status Card */}
       <SystemStatusCard systemStatus={systemStatus} />
 
       {/* Findings Table */}
-      <FindingsTable findings={metrics.health.findings} />
+      {metrics.health && <FindingsTable findings={metrics.health.findings} />}
     </div>
   );
 }

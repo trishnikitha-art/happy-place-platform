@@ -5,8 +5,9 @@
  * function to construct PlanningContext from EstimateRequest.
  */
 
-import type { ServiceSlug } from "@/config/services";
 import type { EstimateRequest } from "@/types";
+
+export type ServiceSlug = string;
 
 export interface PlanningContext {
   services: ServiceSlug[];

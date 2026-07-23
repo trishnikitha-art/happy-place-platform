@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
-import { siteUrl } from "@/config/company";
-import { getProjects } from "@/config/projects";
+import { getAllProjects } from "@/lib/projects";
+
+const siteUrl = "https://happyplacecarpentry.com";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
@@ -11,9 +12,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: r === "/estimate" || r === "" ? "weekly" : "monthly",
     priority: r === "" ? 1 : 0.7,
   }));
-  const projectEntries: MetadataRoute.Sitemap = getProjects().map((p) => ({
-    url: `${siteUrl}/projects/${p.slug}`,
-    lastModified: p.completedAt ? new Date(p.completedAt) : now,
+  const projectEntries: MetadataRoute.Sitemap = getAllProjects().map((p) => ({
+    url: `${siteUrl}/projects/${p.seo?.slug || p.id}`,
+    lastModified: p.updatedAt ? new Date(p.updatedAt) : now,
     changeFrequency: "yearly",
     priority: 0.6,
   }));

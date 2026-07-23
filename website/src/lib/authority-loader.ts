@@ -44,8 +44,29 @@ export function loadAuthority<T>({
   }
   
   try {
-    // Dynamic import to avoid build issues with JSON
-    const data = require(path);
+    // Map path aliases to actual file paths for static imports
+    const pathMap: Record<string, any> = {
+      "@/config/company.v1.json": require("../config/company.v1.json"),
+      "@/config/services.v1.json": require("../config/services.v1.json"),
+      "@/config/projects.v1.json": require("../config/projects.v1.json"),
+      "@/config/media.v1.json": require("../config/media.v1.json"),
+      "@/config/reviews.v1.json": require("../config/reviews.v1.json"),
+      "@/config/brand.v1.json": require("../config/brand.v1.json"),
+      "@/config/navigation.v1.json": require("../config/navigation.v1.json"),
+      "@/config/faq.v1.json": require("../config/faq.v1.json"),
+      "@/config/cities.v1.json": require("../config/cities.v1.json"),
+      "@/config/materials.v1.json": require("../config/materials.v1.json"),
+      "@/config/before-after.v1.json": require("../config/before-after.v1.json"),
+      "@/config/gallery-presets.v1.json": require("../config/gallery-presets.v1.json"),
+      "@/config/manifest.v1.json": require("../config/manifest.v1.json"),
+    };
+    
+    const data = pathMap[path];
+    
+    if (!data) {
+      console.error(`Authority path not found in path map: ${path}`);
+      return fallback;
+    }
     
     // Validate if validator provided
     if (validator && !validator(data)) {

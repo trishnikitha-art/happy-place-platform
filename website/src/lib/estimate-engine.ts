@@ -7,12 +7,13 @@
  * No duplicate estimators. No bypassing the strategy system.
  */
 
-import type { ServiceSlug } from "@/config/services";
 import type { PlanningContext } from "./planning-context";
 import { buildPlanningContext } from "./planning-context";
 import { SEEDS, type PlanningResult, type ServiceSeed, type EstimationStrategy, formatRange as formatRangeOriginal } from "./planning-range";
 import { evaluateStrategy } from "./planning-strategies";
 import { getAllServices } from "./registries";
+
+export type ServiceSlug = string;
 
 // Re-export formatRange for convenience
 export { formatRangeOriginal as formatRange };

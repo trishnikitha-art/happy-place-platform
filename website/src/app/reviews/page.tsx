@@ -3,16 +3,17 @@ import { Container, Section, SectionHeading } from "@/components/section";
 import { StarRating } from "@/components/star-rating";
 import { CTASection } from "@/components/cta-section";
 import { getReviewStats, type ReviewService } from "@/lib/reviews";
-import { company } from "@/config/company";
+import { getCompany } from "@/lib/company";
 import { ReviewsFilterClient } from "@/components/reviews-filter-client";
 
 export const metadata: Metadata = {
   title: "Reviews",
-  description: `What homeowners say about ${company.name}.`,
+  description: `What homeowners say about Happy Place Carpentry.`,
   alternates: { canonical: "/reviews" },
 };
 
 export default function ReviewsPage() {
+  const company = getCompany();
   const stats = getReviewStats();
   const hasReviews = stats.total > 0;
 

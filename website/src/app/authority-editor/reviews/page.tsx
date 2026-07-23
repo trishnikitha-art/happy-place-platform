@@ -24,7 +24,7 @@ export default function AuthorityEditorReviewsPage() {
               <tr key={review.id} className="border-b border-border last:border-0">
                 <td className="px-4 py-3">
                   <div className="font-medium text-text">{review.clientName}</div>
-                  <div className="text-xs text-text-muted">{review.location}</div>
+                  <div className="text-xs text-text-muted">{typeof review.location === 'string' ? review.location : `${review.location?.city || ''}, ${review.location?.county || ''}`}</div>
                 </td>
                 <td className="px-4 py-3 text-sm text-text-muted">{review.projectId || '—'}</td>
                 <td className="px-4 py-3 text-sm text-text-muted">{'★'.repeat(review.rating)}</td>

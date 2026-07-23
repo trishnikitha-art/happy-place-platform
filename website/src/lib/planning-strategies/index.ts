@@ -5,8 +5,9 @@
  * The engine orchestrates; strategies do not contain per-service branches.
  */
 
-import type { ServiceSlug } from "@/config/services";
 import type { ServiceSeed, EstimationStrategy } from "../planning-range";
+
+export type ServiceSlug = string;
 
 export interface StrategyResult {
   low: number;

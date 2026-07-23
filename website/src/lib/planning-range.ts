@@ -8,7 +8,7 @@
  * static site and are replaced by the engine once it is wired in.
  */
 
-import type { ServiceSlug } from "@/config/services";
+export type ServiceSlug = string;
 
 export type EstimationStrategy = "flat" | "per-unit" | "scope-based" | "composite";
 

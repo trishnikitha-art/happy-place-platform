@@ -6,7 +6,7 @@ import { CTASection } from "@/components/cta-section";
 import { Reveal } from "@/components/reveal";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { getAllProjects, getFeaturedProjects } from "@/lib/projects";
-import { company } from "@/config/company";
+import { getCompany } from "@/lib/company";
 import { PlaceholderSection } from "@/components/placeholder-section";
 import { getMediaById } from "@/lib/media";
 
@@ -18,6 +18,7 @@ export const metadata: Metadata = {
 };
 
 export default function OurWorkPage() {
+  const company = getCompany();
   const allProjects = getAllProjects();
   const featuredProjects = getFeaturedProjects();
 

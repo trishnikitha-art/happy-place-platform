@@ -2,9 +2,8 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Playfair_Display, Playball } from "next/font/google";
 import "./globals.css";
-import { siteUrl } from "@/config/company";
+import { getCompany } from "@/lib/company";
 import { seo } from "@/config/seo";
-import { company } from "@/config/company";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { ScrollToTop } from "@/components/scroll-to-top";
@@ -13,6 +12,9 @@ const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
 const playfair = Playfair_Display({ variable: "--font-playfair", subsets: ["latin"], weight: ["400", "500", "600", "700", "800", "900"] });
 const playball = Playball({ variable: "--font-playball", subsets: ["latin"], weight: "400" });
+
+const company = getCompany();
+const siteUrl = "https://happyplacecarpentry.com";
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),

@@ -9,13 +9,14 @@ import { CedarCorner } from "@/components/cedar-corner";
 import { ToolMark } from "@/components/tool-mark";
 import { getAllServices } from "@/lib/registries";
 import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
-import { company } from "@/config/company";
+import { getCompany } from "@/lib/company";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { getOwnerPortrait, getHomepageHero } from "@/lib/brand";
 import { getMediaById, getProjectBeforeAfter } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 
 export default function HomePage() {
+  const company = getCompany();
   const topReviews = getFeaturedReviews().slice(0, 3);
   const stats = getReviewStats();
   const hasReviews = stats.total > 0;

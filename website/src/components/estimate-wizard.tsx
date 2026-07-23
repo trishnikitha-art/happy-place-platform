@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Upload, Send } from "lucide-react";
 import type { EstimateRequest, Service, EstimateQuestion } from "@/types";
 import { getAllServices, getAllCities } from "@/lib/registries";
-import { company } from "@/config/company";
+import { getCompany } from "@/lib/company";
 import { estimateService } from "@/services/estimate";
 import { analytics } from "@/services/analytics";
 import { buttonVariants } from "@/components/ui/button";
