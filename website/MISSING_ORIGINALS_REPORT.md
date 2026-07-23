@@ -2,25 +2,25 @@
 
 ## Executive Summary
 
-**21 unique photographic originals exist in this repository. All 21 are recovered and mapped in `media.v1.json`. Zero photographs were lost from git.**
+**22 unique photographic originals exist. All 22 are recovered and mapped in `media.v1.json`.** The 22nd image (`HOMESERVICEPROJECTPERGOLAS.jpg`) was recovered from Google Drive (`H:\My Drive\`) and is now in the canonical media graph.
 
-The target of "34-35 originals" is **not achievable from this repository**. The additional ~13 images were never committed to git — they exist only on the user's local Google Drive (`H:\My Drive\`).
+## Recovery Timeline
+
+1. **Initial repo audit:** 21 originals found in photo-intake/, all mapped in media.v1.json
+2. **Git archaeology:** Proved 21 originals were the only ones ever committed to git. Zero lost.
+3. **Drive archaeology:** Searched `H:\My Drive\`. Found 9 files: 8 byte-for-byte identical to photo-intake originals + 1 NEW file (`HOMESERVICEPROJECTPERGOLAS.jpg`, 2.1MB)
+4. **Recovery:** Copied pergola to `photo-intake/Pergolas/`, ran pipeline (11 optimized variants generated), created media + project records
+5. **Final state:** 22 originals, all in canonical media graph, all authority chains verified end-to-end
 
 ## Git Archaeology Results
 
-### Methodology
-Three parallel forensic agents analyzed:
-1. **Full git history** of every file path containing `image`, `photo`, `jpg`, `jpeg`, `png`, `webp`, `hero`, `portrait`, `featured`
-2. **Complete filesystem scan** of `photo-intake/` and `public/images/` directories
-3. **Historical authority files** (`gallery.json`, `presentation.v1.json`) for originally planned images
-
-### Key Finding: 21 Originals, Zero Loss
+### Key Finding: 21 Originals + 1 Drive Recovery = 22 Total
 
 | Metric | Count |
 |--------|-------|
-| Unique photographs ever committed to git | 21 |
-| Photographs currently on disk | 21 |
-| Photographs mapped in media.v1.json | 21 |
+| Unique photographs in repo before Drive search | 21 |
+| New photographs recovered from Drive | 1 |
+| Total originals after recovery | **22** |
 | Photographs lost from git history | **0** |
 | Unmapped originals on disk | **0** |
 
