@@ -3,8 +3,8 @@
   "generatedAt": "2026-07-22T00:00:00.000Z",
   "projects": [
     {
-      "id": "cedar-fence-001",
-      "title": "Cedar Fence - Corvallis",
+      "id": "fences-001",
+      "title": "Fence Installation - Willamette Valley",
       "service": "fences",
       "status": "completed",
       "location": {
@@ -12,42 +12,40 @@
         "county": "Benton",
         "state": "Oregon"
       },
-      "completionDate": "2026-07-18",
+      "completionDate": "2026-07-20",
       "media": {
-        "hero": "cedar-fence-001-after",
-        "before": "cedar-fence-001-before",
-        "after": "cedar-fence-001-after",
+        "hero": "fences-001-hero",
         "gallery": [
-          "cedar-fence-001-gate",
-          "cedar-fence-001-detail",
-          "cedar-fence-001-progress"
+          "fences-001-hero",
+          "fences-001-matching"
         ]
       },
       "story": {
-        "challenge": "Old fence was rotting and needed complete replacement",
-        "solution": "Installed new cedar privacy fence with custom gate",
-        "outcome": "Client now has a beautiful, durable backyard space",
+        "challenge": "Property needed new fence installation",
+        "solution": "Installed quality fence with matching stain",
+        "outcome": "Durable fence that enhances property value",
         "specialFeatures": [
-          "Custom cedar gate",
-          "Privacy design",
-          "Natural finish"
+          "Quality construction",
+          "Matching stain finish",
+          "Professional installation"
         ]
       },
       "estimate": {
         "estimatedRange": {
-          "low": 3500,
-          "high": 4500
+          "low": 3000,
+          "high": 8000
         },
         "services": [
-          "fence installation",
-          "gate construction",
-          "site preparation"
+          "fence construction",
+          "staining",
+          "installation"
         ],
         "materials": [
           "cedar",
-          "galvanized hardware"
+          "pressure-treated lumber",
+          "stain"
         ],
-        "timeline": "3 days"
+        "timeline": "2-4 days"
       },
       "warranty": {
         "hasWarranty": true,
@@ -56,231 +54,291 @@
         "warrantyDetails": "2-year workmanship warranty on all fence construction"
       },
       "tags": [
-        "cedar",
-        "fence",
-        "custom-gate",
-        "corvallis",
-        "privacy"
-      ],
-      "reviews": [
-        "review-001"
-      ],
-      "featured": true,
-      "heroEligible": true,
-      "homepageEligible": true,
-      "slug": "cedar-fence-corvallis",
-      "metaDescription": "Beautiful cedar fence installation in Corvallis, Oregon with custom gate and privacy design.",
-      "createdAt": "2026-07-01T00:00:00.000Z",
-      "updatedAt": "2026-07-18T00:00:00.000Z"
-    },
-    {
-      "id": "deck-remodel-001",
-      "title": "Deck Remodel - Albany",
-      "service": "decks",
-      "status": "completed",
-      "location": {
-        "city": "Albany",
-        "county": "Linn",
-        "state": "Oregon"
-      },
-      "completionDate": "2026-07-15",
-      "media": {
-        "hero": "deck-remodel-001-after",
-        "before": "deck-remodel-001-before",
-        "after": "deck-remodel-001-after",
-        "gallery": [
-          "deck-remodel-001-railing",
-          "deck-remodel-001-stairs",
-          "deck-remodel-001-progress"
-        ]
-      },
-      "story": {
-        "challenge": "Old deck was unsafe and deteriorating",
-        "solution": "Complete deck replacement with composite materials and upgraded railing",
-        "outcome": "Safe, beautiful outdoor living space for family gatherings",
-        "specialFeatures": [
-          "Composite decking",
-          "Upgraded railing system",
-          "LED lighting"
-        ]
-      },
-      "estimate": {
-        "estimatedRange": {
-          "low": 8000,
-          "high": 12000
-        },
-        "services": [
-          "deck demolition",
-          "deck construction",
-          "railing installation"
-        ],
-        "materials": [
-          "composite decking",
-          "aluminum railing",
-          "LED lighting"
-        ],
-        "timeline": "5 days"
-      },
-      "warranty": {
-        "hasWarranty": true,
-        "warrantyType": "Material + Workmanship",
-        "warrantyYears": 5,
-        "warrantyDetails": "5-year material warranty, 2-year workmanship warranty"
-      },
-      "tags": [
-        "deck",
-        "composite",
-        "outdoor-living",
-        "albany",
-        "led-lighting"
-      ],
-      "reviews": [
-        "review-002"
-      ],
-      "featured": true,
-      "heroEligible": true,
-      "homepageEligible": true,
-      "slug": "deck-remodel-albany",
-      "metaDescription": "Complete deck remodel in Albany, Oregon with composite materials and upgraded railing system.",
-      "createdAt": "2026-06-20T00:00:00.000Z",
-      "updatedAt": "2026-07-15T00:00:00.000Z"
-    },
-    {
-      "id": "bathroom-remodel-001",
-      "title": "Bathroom Remodel - Salem",
-      "service": "bathrooms",
-      "status": "completed",
-      "location": {
-        "city": "Salem",
-        "county": "Marion",
-        "state": "Oregon"
-      },
-      "completionDate": "2026-07-10",
-      "media": {
-        "hero": "bathroom-remodel-001-after",
-        "before": "bathroom-remodel-001-before",
-        "after": "bathroom-remodel-001-after",
-        "gallery": [
-          "bathroom-remodel-001-cabinets",
-          "bathroom-remodel-001-countertop",
-          "bathroom-remodel-001-backsplash"
-        ]
-      },
-      "story": {
-        "challenge": "Bathroom had generic builder-grade cabinets with wasted space",
-        "solution": "Refaced cabinets and added custom built-in storage solutions",
-        "outcome": "Bathroom feels custom and organized with storage that fits the family's needs",
-        "specialFeatures": [
-          "Cabinet refacing",
-          "Custom built-ins",
-          "Maximized storage space"
-        ]
-      },
-      "estimate": {
-        "estimatedRange": {
-          "low": 25000,
-          "high": 35000
-        },
-        "services": [
-          "cabinet refacing",
-          "built installation",
-          "plumbing"
-        ],
-        "materials": [
-          "custom cabinets",
-          "built-in shelving"
-        ],
-        "timeline": "1 week"
-      },
-      "warranty": {
-        "hasWarranty": true,
-        "warrantyType": "Workmanship",
-        "warrantyYears": 2,
-        "warrantyDetails": "2-year workmanship warranty on all installations"
-      },
-      "tags": [
-        "bathroom",
-        "remodel",
-        "cabinets",
-        "built-ins",
-        "salem"
-      ],
-      "reviews": [
-        "review-003"
-      ],
-      "featured": true,
-      "heroEligible": false,
-      "homepageEligible": true,
-      "slug": "bathroom-remodel-salem",
-      "metaDescription": "Bathroom remodel in Salem, Oregon with cabinet refacing and custom built-in storage solutions.",
-      "createdAt": "2026-06-10T00:00:00.000Z",
-      "updatedAt": "2026-07-10T00:00:00.000Z"
-    },
-    {
-      "id": "pergola-001",
-      "title": "Cedar Pergola - Corvallis",
-      "service": "pergolas",
-      "status": "completed",
-      "location": {
-        "city": "Corvallis",
-        "county": "Benton",
-        "state": "Oregon"
-      },
-      "completionDate": "2026-07-22",
-      "media": {
-        "hero": "pergola-001-hero",
-        "gallery": [
-          "pergola-001-hero"
-        ]
-      },
-      "story": {
-        "challenge": "Client wanted shade and outdoor living space in backyard",
-        "solution": "Designed and built custom cedar pergola with seating area",
-        "outcome": "Beautiful outdoor space perfect for relaxation and entertaining",
-        "specialFeatures": [
-          "Custom cedar construction",
-          "Shade design",
-          "Outdoor seating integration"
-        ]
-      },
-      "estimate": {
-        "estimatedRange": {
-          "low": 4000,
-          "high": 6000
-        },
-        "services": [
-          "pergola design",
-          "cedar construction",
-          "site preparation"
-        ],
-        "materials": [
-          "cedar",
-          "galvanized hardware",
-          "concrete footings"
-        ],
-        "timeline": "4 days"
-      },
-      "warranty": {
-        "hasWarranty": true,
-        "warrantyType": "Workmanship",
-        "warrantyYears": 2,
-        "warrantyDetails": "2-year workmanship warranty on all pergola construction"
-      },
-      "tags": [
-        "pergola",
-        "cedar",
-        "outdoor-living",
-        "shade",
+        "fences",
+        "construction",
+        "staining",
         "corvallis"
       ],
       "reviews": [],
       "featured": true,
       "heroEligible": true,
       "homepageEligible": true,
-      "slug": "cedar-pergola-corvallis",
-      "metaDescription": "Custom cedar pergola installation in Corvallis, Oregon providing shade and outdoor living space.",
-      "createdAt": "2026-07-22T00:00:00.000Z",
-      "updatedAt": "2026-07-22T00:00:00.000Z"
+      "slug": "fence-installation-willamette-valley",
+      "metaDescription": "Professional fence installation and staining in Willamette Valley, Oregon.",
+      "createdAt": "2026-07-20T00:00:00.000Z",
+      "updatedAt": "2026-07-20T00:00:00.000Z"
+    },
+    {
+      "id": "builtins-001",
+      "title": "Custom Built-Ins - Corvallis",
+      "service": "built-ins",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-07-19",
+      "media": {
+        "hero": "builtins-001-hero",
+        "gallery": [
+          "builtins-001-hero",
+          "builtins-001-secondary"
+        ]
+      },
+      "story": {
+        "challenge": "Client needed custom storage solutions",
+        "solution": "Designed and built custom built-in shelving",
+        "outcome": "Beautiful, functional storage space",
+        "specialFeatures": [
+          "Custom shelving",
+          "Professional finish",
+          "Quality craftsmanship"
+        ]
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 2000,
+          "high": 5000
+        },
+        "services": [
+          "custom built-ins",
+          "shelving installation",
+          "finish work"
+        ],
+        "materials": [
+          "premium wood",
+          "hardware",
+          "finish materials"
+        ],
+        "timeline": "3-5 days"
+      },
+      "warranty": {
+        "hasWarranty": true,
+        "warrantyType": "Workmanship",
+        "warrantyYears": 2,
+        "warrantyDetails": "2-year workmanship warranty on all built-in construction"
+      },
+      "tags": [
+        "built-ins",
+        "custom-shelving",
+        "storage",
+        "carpentry",
+        "corvallis"
+      ],
+      "reviews": [],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": true,
+      "slug": "custom-builtins-corvallis",
+      "metaDescription": "Custom built-in shelving and storage solutions in Corvallis, Oregon.",
+      "createdAt": "2026-07-19T00:00:00.000Z",
+      "updatedAt": "2026-07-19T00:00:00.000Z"
+    },
+    {
+      "id": "repairs-001",
+      "title": "Home Repairs - Willamette Valley",
+      "service": "repairs",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-07-18",
+      "media": {
+        "hero": "repairs-001-hero",
+        "gallery": [
+          "repairs-001-hero",
+          "repairs-001-drywall",
+          "repairs-001-floor",
+          "repairs-001-trim",
+          "repairs-001-gutter"
+        ]
+      },
+      "story": {
+        "challenge": "Multiple home repair issues needed attention",
+        "solution": "Comprehensive home repair and maintenance services",
+        "outcome": "Home restored to excellent condition",
+        "specialFeatures": [
+          "Professional repairs",
+          "Quality materials",
+          "Attention to detail"
+        ]
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 500,
+          "high": 5000
+        },
+        "services": [
+          "drywall repair",
+          "floor repair",
+          "trim work",
+          "gutter cleaning"
+        ],
+        "materials": [
+          "quality replacement parts",
+          "paint",
+          "hardware"
+        ],
+        "timeline": "1-5 days"
+      },
+      "warranty": {
+        "hasWarranty": true,
+        "warrantyType": "Workmanship",
+        "warrantyYears": 1,
+        "warrantyDetails": "1-year workmanship warranty on all repairs"
+      },
+      "tags": [
+        "repairs",
+        "maintenance",
+        "drywall",
+        "corvallis"
+      ],
+      "reviews": [],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "slug": "home-repairs-willamette-valley",
+      "metaDescription": "Professional home repair and maintenance services in Willamette Valley, Oregon.",
+      "createdAt": "2026-07-18T00:00:00.000Z",
+      "updatedAt": "2026-07-18T00:00:00.000Z"
+    },
+    {
+      "id": "outdoor-living-001",
+      "title": "Outdoor Living - Willamette Valley",
+      "service": "outdoor-living",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-07-17",
+      "media": {
+        "hero": "outdoor-living-001-hero",
+        "gallery": [
+          "outdoor-living-001-hero",
+          "outdoor-living-001-2",
+          "outdoor-living-001-3",
+          "outdoor-living-001-4",
+          "outdoor-living-001-5",
+          "outdoor-living-001-6"
+        ]
+      },
+      "story": {
+        "challenge": "Client wanted to transform backyard into outdoor living space",
+        "solution": "Designed and built custom outdoor structures",
+        "outcome": "Beautiful outdoor space perfect for entertaining",
+        "specialFeatures": [
+          "Custom design",
+          "Quality materials",
+          "Professional craftsmanship"
+        ]
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 5000,
+          "high": 15000
+        },
+        "services": [
+          "outdoor living design",
+          "structure construction",
+          "site preparation"
+        ],
+        "materials": [
+          "cedar",
+          "composite materials",
+          "hardware"
+        ],
+        "timeline": "5-10 days"
+      },
+      "warranty": {
+        "hasWarranty": true,
+        "warrantyType": "Workmanship",
+        "warrantyYears": 2,
+        "warrantyDetails": "2-year workmanship warranty on all outdoor construction"
+      },
+      "tags": [
+        "outdoor-living",
+        "pergola",
+        "deck",
+        "corvallis"
+      ],
+      "reviews": [],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": true,
+      "slug": "outdoor-living-willamette-valley",
+      "metaDescription": "Custom outdoor living spaces and structures in Willamette Valley, Oregon.",
+      "createdAt": "2026-07-17T00:00:00.000Z",
+      "updatedAt": "2026-07-17T00:00:00.000Z"
+    },
+    {
+      "id": "bathroom-remodeling-001",
+      "title": "Bathroom Remodeling - Corvallis",
+      "service": "bathrooms",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-07-16",
+      "media": {
+        "hero": "bathroom-remodeling-001-hero",
+        "gallery": [
+          "bathroom-remodeling-001-hero"
+        ]
+      },
+      "story": {
+        "challenge": "Bathroom needed complete remodel",
+        "solution": "Full bathroom renovation with custom features",
+        "outcome": "Modern, functional bathroom space",
+        "specialFeatures": [
+          "Custom wall finish",
+          "Modern fixtures",
+          "Quality craftsmanship"
+        ]
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 15000,
+          "high": 30000
+        },
+        "services": [
+          "bathroom remodel",
+          "wall finishing",
+          "fixture installation"
+        ],
+        "materials": [
+          "custom materials",
+          "fixtures",
+          "finishes"
+        ],
+        "timeline": "1-2 weeks"
+      },
+      "warranty": {
+        "hasWarranty": true,
+        "warrantyType": "Workmanship",
+        "warrantyYears": 2,
+        "warrantyDetails": "2-year workmanship warranty on all bathroom work"
+      },
+      "tags": [
+        "bathroom",
+        "remodeling",
+        "custom",
+        "corvallis"
+      ],
+      "reviews": [],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": true,
+      "slug": "bathroom-remodeling-corvallis",
+      "metaDescription": "Bathroom remodeling services in Corvallis, Oregon with custom features.",
+      "createdAt": "2026-07-16T00:00:00.000Z",
+      "updatedAt": "2026-07-16T00:00:00.000Z"
     }
   ]
 }

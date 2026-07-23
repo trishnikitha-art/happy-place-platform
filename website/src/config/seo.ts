@@ -16,6 +16,6 @@ export const seo: {
   description:
     "Licensed Oregon carpentry contractor (CCB# 254240) building decks, fences, pergolas, bathrooms, and custom work across Benton, Linn, Marion & Polk Counties.",
   keywords: ["carpenter", "deck builder", "fence installer", "bathroom remodel", "Oregon contractor", "Willamette Valley"],
-  ogImage: "/images/projects/featured/featured-1080.webp",
+  ogImage: "/images/projects/featured/featured-480.webp",
   twitter: "@happyplacecarp",
 };

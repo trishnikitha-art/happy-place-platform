@@ -104,3 +104,48 @@ photo-intake/ → npm run images → public/images/ + gallery.json + generated/
 - **Status:** Zero credentials on this machine. No `.env.local`. Unknown Vercel env var state.
 - **Capability:** Only Gmail Send is ready-to-activate (zero new code needed). Other capabilities need additional code.
 - **Report:** `DIRECTIVE_038_GOOGLE_WORKSPACE_AUDIT.md`, `DIRECTIVE_041_OPERATIONAL_RECOVERY_AUDIT.md`
+
+## Image Authority Reconciliation (Session 18 — Filesystem Audit)
+
+**Root cause confirmed:** Commit `33b82e7` deleted `gallery.json` (21 entries) + `presentation.v1.json`, created `media.v1.json` (16 entries). 6 source images lost authority records. Physical files never deleted.
+
+### Physical Files: ALL PRESENT
+- 21 source originals in `photo-intake/` (active, non-archive)
+- 103 optimized variants in `public/images/projects/`
+- 21 redundant copies in `photo-intake/_archive/`
+
+### Authority Gap: 6 ORPHANED IMAGES
+Source files exist on disk + in `manifest.v1.json` but NOT in `media.v1.json`:
+
+| Source File | On Disk | manifest | media | Status |
+|------------|---------|----------|-------|--------|
+| featured/featured.jpeg | YES (3 variants) | YES | **NO** | ORPHANED |
+| hero/hero.jpeg | YES (3 variants) | YES | **NO** | ORPHANED |
+| portrait/portrait.jpeg | YES (3 variants) | YES | **NO** | ORPHANED |
+| Repairs/FLOOR0.jpg | YES (7 variants) | YES | **NO** | ORPHANED |
+| Repairs/IMG_0544.JPG | YES (3 variants) | YES | **NO** | ORPHANED |
+| Repairs/IMG_0546.JPG | YES (3 variants) | YES | **NO** | ORPHANED |
+
+### brand.v1.json: ALL mediaIds ARE NULL
+- `homepageHero.mediaId: null` → homepage hero renders nothing
+- `ownerPortrait.mediaId: null` → owner portrait renders nothing
+- `logo.mediaId: null` → logo not rendered
+
+### Variant Key Mismatch
+- Components access `variants.web` (`page.tsx:26,29`)
+- media.v1.json uses key `webp`
+- Result: even if mediaIds were set, images wouldn't render
+
+### What Renders Today
+- Hero section: EMPTY (brand mediaId null)
+- Owner portrait: EMPTY (brand mediaId null)
+- Before/after slider: EMPTY (cedar-fence-001 project doesn't exist)
+- Service cards: WORKING (projects.v1.json → media.v1.json → disk)
+- Reviews: "Building our review portfolio" (empty by design)
+
+### Fix Order
+1. Add 6 missing entries to media.v1.json (use exact on-disk paths)
+2. Set brand.v1.json mediaIds to new entries
+3. Fix variant key mismatch (web → webp or vice versa)
+4. Get higher-resolution source photos (hero 480×640, portrait 640×427)
+5. Full report: `FILESYSTEM_AUTHORITY_RECONCILIATION.md`
