@@ -6,6 +6,7 @@ import { ProjectPhotos } from "@/components/project-photos";
 import { getAllProjects, getProjectById, getProjectBySlug } from "@/lib/projects";
 import { getMediaById } from "@/lib/media";
 import { Container, Section, SectionHeading } from "@/components/section";
+import type { Media } from "@/types/media";
 
 export function generateStaticParams() {
   const projects = getAllProjects();
@@ -39,8 +40,11 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
   const project = getProjectBySlug(slug);
   if (!project) notFound();
   
-  // Use id as projectId for ProjectPhotos component
-  const projectId = project.id;
+  // Load gallery photos from media authority
+  const galleryMediaIds = project.media?.gallery || [];
+  const photos = galleryMediaIds
+    .map(id => getMediaById(id))
+    .filter(m => m !== null && (m.variants?.web || m.variants?.original)) as Media[];
   
   return (
     <>
@@ -54,7 +58,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
             description="Photos from this project"
           />
           <div className="mt-8">
-            <ProjectPhotos projectId={projectId} />
+            <ProjectPhotos photos={photos} />
           </div>
         </Container>
       </Section>
