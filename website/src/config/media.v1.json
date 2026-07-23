@@ -39,6 +39,78 @@
       "colorSpace": "sRGB"
     },
     {
+      "id": "fences-001-before",
+      "driveId": "",
+      "filename": "FENCE BEFORE.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "web": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "webp": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "avif": "/images/projects/fences/FENCE BUILD-1080.avif",
+        "thumbnail": "/images/projects/fences/FENCE BUILD-thumb.webp"
+      },
+      "alt": "Before fence installation",
+      "description": "Property before fence construction",
+      "service": "fences",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "fences-001",
+      "tags": ["fences", "before", "corvallis"],
+      "roles": ["before"],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "createdAt": "2026-07-20T00:00:00.000Z",
+      "updatedAt": "2026-07-20T00:00:00.000Z",
+      "uploadedAt": "2026-07-20T00:00:00.000Z",
+      "fileSize": 282546,
+      "format": "WEBP",
+      "colorSpace": "sRGB"
+    },
+    {
+      "id": "fences-001-after",
+      "driveId": "",
+      "filename": "FENCE AFTER.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.webp",
+        "web": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.webp",
+        "webp": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.webp",
+        "avif": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.avif",
+        "thumbnail": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-thumb.webp"
+      },
+      "alt": "After fence installation",
+      "description": "Completed fence with matching stain",
+      "service": "fences",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "fences-001",
+      "tags": ["fences", "after", "corvallis"],
+      "roles": ["after"],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "createdAt": "2026-07-20T00:00:00.000Z",
+      "updatedAt": "2026-07-20T00:00:00.000Z",
+      "uploadedAt": "2026-07-20T00:00:00.000Z",
+      "fileSize": 100492,
+      "format": "WEBP",
+      "colorSpace": "sRGB"
+    },
+    {
       "id": "fences-001-matching",
       "driveId": "",
       "filename": "FENCEREBUILDMATCHINGSTAIN.png",

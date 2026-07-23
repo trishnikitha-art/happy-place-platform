@@ -30,8 +30,8 @@ export default function HomePage() {
   const allServices = getAllServices();      // data-driven services from registry
   const featuredProjects = getFeaturedProjects(); // featured projects from Projects Authority
   
-  // Get pergolas project for featured transformation
-  const pergolasProject = featuredProjects.find(p => p.id === 'pergolas-001');
+  // Get fences project for featured transformation (has before/after media)
+  const fencesProject = featuredProjects.find(p => p.id === 'fences-001');
   
   // Group services for homepage display (show homepageEligible services first)
   const homepageServices = allServices.filter(s => s.homepageEligible);
@@ -157,10 +157,10 @@ export default function HomePage() {
             title="Start to finish"
             description="A look at the work — every project earns its finish."
           />
-          {pergolasProject && pergolasProject.media.before && pergolasProject.media.after && (
+          {fencesProject && fencesProject.media.before && fencesProject.media.after && (
             <div className="mt-10">
               <Reveal>
-                <BeforeAfterSlider project={pergolasProject} />
+                <BeforeAfterSlider project={fencesProject} />
               </Reveal>
             </div>
           )}
