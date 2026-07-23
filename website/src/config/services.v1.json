@@ -195,20 +195,6 @@
         "paintingType": "exterior",
         "estimationAuthority": "building"
       }
-    },
-    {
-      "id": "other",
-      "name": "Other",
-      "slug": "other",
-      "description": "Other custom carpentry projects",
-      "icon": "other",
-      "featured": false,
-      "homepageEligible": false,
-      "order": 99,
-      "capabilities": {
-        "paintableSurface": false,
-        "estimationAuthority": "building"
-      }
     }
   ]
 }
