@@ -16,7 +16,6 @@
       "media": {
         "hero": "fences-001-hero",
         "gallery": [
-          "fences-001-hero",
           "fences-001-matching"
         ]
       },
@@ -82,7 +81,6 @@
       "media": {
         "hero": "builtins-001-hero",
         "gallery": [
-          "builtins-001-hero",
           "builtins-001-secondary"
         ]
       },
@@ -149,7 +147,6 @@
       "media": {
         "hero": "repairs-001-hero",
         "gallery": [
-          "repairs-001-hero",
           "repairs-001-drywall",
           "repairs-001-floor",
           "repairs-001-gutter",
@@ -221,7 +218,6 @@
       "media": {
         "hero": "outdoor-living-001-hero",
         "gallery": [
-          "outdoor-living-001-hero",
           "outdoor-living-001-2",
           "outdoor-living-001-3",
           "outdoor-living-001-4",
@@ -290,9 +286,7 @@
       "completionDate": "2026-07-16",
       "media": {
         "hero": "bathroom-remodeling-001-hero",
-        "gallery": [
-          "bathroom-remodeling-001-hero"
-        ]
+        "gallery": []
       },
       "story": {
         "challenge": "Bathroom needed complete remodel",
@@ -355,9 +349,7 @@
       "completionDate": "2026-07-22",
       "media": {
         "hero": "pergolas-001-hero",
-        "gallery": [
-          "pergolas-001-hero"
-        ]
+        "gallery": []
       },
       "story": {
         "challenge": "Customer wanted a custom outdoor pergola",

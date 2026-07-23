@@ -1,16 +1,16 @@
 import Image from "next/image";
-import { getProjectMedia } from "@/lib/media";
+import { getProjectById } from "@/lib/projects";
+import { getMediaById } from "@/lib/media";
 
 /**
  * ProjectPhotos - Reusable component for displaying project photos
  * 
- * This component demonstrates the intent-based media architecture:
- * - UI asks for intent (projectId) not media IDs
- * - Media adapter handles the lookup
- * - Component is reusable across all pages
+ * This component uses the project's gallery array from projects.v1.json
+ * to ensure hero isolation - only images explicitly listed in the gallery
+ * array are rendered, not all project media.
  * 
  * Vertical slice validation:
- * media.v1.json → getProjectMedia() → ProjectPhotos → Next/Image
+ * projects.v1.json → gallery array → getMediaById() → ProjectPhotos → Next/Image
  */
 
 type ProjectPhotosProps = {
@@ -19,7 +19,15 @@ type ProjectPhotosProps = {
 };
 
 export function ProjectPhotos({ projectId, limit }: ProjectPhotosProps) {
-  const photos = getProjectMedia(projectId);
+  // Get project by ID to access its gallery array
+  const project = getProjectById(projectId);
+  const galleryMediaIds = project?.media?.gallery || [];
+  
+  // Resolve media IDs to media objects
+  const photos = galleryMediaIds
+    .map(id => getMediaById(id))
+    .filter(m => m !== null && (m.variants?.web || m.variants?.original));
+  
   const displayPhotos = limit ? photos.slice(0, limit) : photos;
 
   if (displayPhotos.length === 0) {
@@ -33,14 +41,14 @@ export function ProjectPhotos({ projectId, limit }: ProjectPhotosProps) {
   return (
     <div className="grid grid-cols-2 gap-4">
       {displayPhotos.map((photo) => {
-        const src = photo.variants.web || photo.variants.original || photo.variants.thumbnail;
+        const src = photo!.variants.web || photo!.variants.original || photo!.variants.thumbnail;
         if (!src) return null;
 
         return (
-          <div key={photo.id} className="relative aspect-[4/3] overflow-hidden rounded-lg bg-surface">
+          <div key={photo!.id} className="relative aspect-[4/3] overflow-hidden rounded-lg bg-surface">
             <Image
               src={src}
-              alt={photo.alt}
+              alt={photo!.alt}
               fill
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               className="h-full w-full object-cover"
