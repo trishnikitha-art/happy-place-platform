@@ -254,42 +254,7 @@
       "format": "WEBP",
       "colorSpace": "sRGB"
     },
-    {
-      "id": "repairs-001-trim",
-      "driveId": "",
-      "filename": "TRIMREPAIR.png",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/repairs/TRIMREPAIR-1080.webp",
-        "web": "/images/projects/repairs/TRIMREPAIR-1080.webp",
-        "webp": "/images/projects/repairs/TRIMREPAIR-1080.webp",
-        "avif": "/images/projects/repairs/TRIMREPAIR-1080.avif",
-        "thumbnail": "/images/projects/repairs/TRIMREPAIR-thumb.webp"
-      },
-      "alt": "Trim repair detail",
-      "description": "Detail of trim repair work",
-      "service": "repairs",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "repairs-001",
-      "tags": ["repairs", "trim", "corvallis"],
-      "roles": ["gallery"],
-      "featured": false,
-      "heroEligible": false,
-      "homepageEligible": false,
-      "createdAt": "2026-07-18T00:00:00.000Z",
-      "updatedAt": "2026-07-18T00:00:00.000Z",
-      "uploadedAt": "2026-07-18T00:00:00.000Z",
-      "fileSize": 230130,
-      "format": "WEBP",
-      "colorSpace": "sRGB"
-    },
+
     {
       "id": "repairs-001-gutter",
       "driveId": "",
