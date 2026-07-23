@@ -195,6 +195,20 @@
         "paintingType": "exterior",
         "estimationAuthority": "building"
       }
+    },
+    {
+      "id": "flooring",
+      "name": "Flooring",
+      "slug": "flooring",
+      "description": "Professional flooring installation including hardwood, laminate, and luxury vinyl plank with expert craftsmanship for lasting beauty and durability",
+      "icon": "flooring",
+      "featured": true,
+      "homepageEligible": true,
+      "order": 11,
+      "capabilities": {
+        "paintableSurface": false,
+        "estimationAuthority": "building"
+      }
     }
   ]
 }
