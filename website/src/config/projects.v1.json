@@ -14,13 +14,12 @@
       },
       "completionDate": "2026-07-18",
       "media": {
-        "hero": "cedar-fence-001-after",
+        "hero": "cedar-fence-001-hero",
         "before": "cedar-fence-001-before",
-        "after": "cedar-fence-001-after",
+        "after": "cedar-fence-001-hero",
         "gallery": [
-          "cedar-fence-001-gate",
-          "cedar-fence-001-detail",
-          "cedar-fence-001-progress"
+          "cedar-fence-001-hero",
+          "cedar-fence-001-before"
         ]
       },
       "story": {
@@ -85,13 +84,11 @@
       },
       "completionDate": "2026-07-15",
       "media": {
-        "hero": "deck-remodel-001-after",
-        "before": "deck-remodel-001-before",
-        "after": "deck-remodel-001-after",
+        "hero": "deck-remodel-001-hero",
+        "before": "deck-remodel-001-hero",
+        "after": "deck-remodel-001-hero",
         "gallery": [
-          "deck-remodel-001-railing",
-          "deck-remodel-001-stairs",
-          "deck-remodel-001-progress"
+          "deck-remodel-001-hero"
         ]
       },
       "story": {
@@ -157,13 +154,11 @@
       },
       "completionDate": "2026-07-10",
       "media": {
-        "hero": "bathroom-remodel-001-after",
-        "before": "bathroom-remodel-001-before",
-        "after": "bathroom-remodel-001-after",
+        "hero": "pergola-001-hero",
+        "before": "pergola-001-hero",
+        "after": "pergola-001-hero",
         "gallery": [
-          "bathroom-remodel-001-cabinets",
-          "bathroom-remodel-001-countertop",
-          "bathroom-remodel-001-backsplash"
+          "pergola-001-hero"
         ]
       },
       "story": {

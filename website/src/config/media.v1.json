@@ -3,18 +3,6 @@
   "generatedAt": "2026-07-22T00:00:00.000Z",
   "media": [
     {
-      "id": "photo.driveway.before.001",
-      "projectId": "cedar-fence-001",
-      "filename": "driveway-before.jpg",
-      "variants": {
-        "web": "/images/driveway-before.jpg",
-        "thumbnail": "/images/thumbs/driveway-before.jpg"
-      },
-      "roles": ["before"],
-      "alt": "Concrete driveway before resurfacing",
-      "order": 1
-    },
-    {
       "id": "cedar-fence-001-hero",
       "driveId": "example-drive-id-001",
       "filename": "hero.jpg",
@@ -82,41 +70,6 @@
       "updatedAt": "2026-07-18T00:00:00.000Z",
       "uploadedAt": "2026-07-18T00:00:00.000Z",
       "fileSize": 1894400,
-      "format": "JPEG",
-      "colorSpace": "sRGB"
-    },
-    {
-      "id": "cedar-fence-001-after",
-      "driveId": "example-drive-id-003",
-      "filename": "after.jpg",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/cedar-fence-001-after.jpg",
-        "webp": "/images/cedar-fence-001-after.webp",
-        "avif": "/images/cedar-fence-001-after.avif",
-        "thumbnail": "/images/cedar-fence-001-after-thumb.jpg"
-      },
-      "alt": "Completed cedar fence after installation",
-      "description": "New cedar fence with custom gate completed",
-      "service": "fences",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "cedar-fence-001",
-      "tags": ["after", "cedar", "custom-gate", "corvallis"],
-      "roles": ["after", "gallery"],
-      "featured": true,
-      "heroEligible": true,
-      "homepageEligible": true,
-      "createdAt": "2026-07-18T00:00:00.000Z",
-      "updatedAt": "2026-07-18T00:00:00.000Z",
-      "uploadedAt": "2026-07-18T00:00:00.000Z",
-      "fileSize": 2621440,
       "format": "JPEG",
       "colorSpace": "sRGB"
     },
