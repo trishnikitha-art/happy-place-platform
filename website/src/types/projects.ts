@@ -145,6 +145,7 @@ export interface Project {
   // Core identity
   id: string;
   title: string;
+  slug?: string; // URL slug (top-level in data, used by findBySlug)
   service: ProjectService;
   status: ProjectStatus;
   

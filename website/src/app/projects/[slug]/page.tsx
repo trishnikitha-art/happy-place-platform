@@ -8,7 +8,7 @@ import { Container, Section, SectionHeading } from "@/components/section";
 
 export function generateStaticParams() {
   const projects = getAllProjects();
-  return projects.map((p) => ({ slug: p.seo?.slug || p.id }));
+  return projects.map((p) => ({ slug: p.slug || p.id }));
 }
 
 export async function generateMetadata({
@@ -22,7 +22,7 @@ export async function generateMetadata({
   return {
     title: project.title,
     description: project.story?.outcome || project.title,
-    alternates: { canonical: `/projects/${project.seo?.slug || project.id}` },
+    alternates: { canonical: `/projects/${project.slug || project.id}` },
     openGraph: {
       title: project.title,
       description: project.story?.outcome || project.title,

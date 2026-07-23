@@ -45,3 +45,5 @@ next-env.d.ts
 /scripts/source-images/*
 !/scripts/source-images/README.md
 
+
+.vercel
