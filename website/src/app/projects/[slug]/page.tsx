@@ -4,6 +4,7 @@ import { ProjectSpotlight } from "@/components/project-spotlight";
 import { CTASection } from "@/components/cta-section";
 import { ProjectPhotos } from "@/components/project-photos";
 import { getAllProjects, getProjectById, getProjectBySlug } from "@/lib/projects";
+import { getMediaById } from "@/lib/media";
 import { Container, Section, SectionHeading } from "@/components/section";
 
 export function generateStaticParams() {
@@ -19,6 +20,8 @@ export async function generateMetadata({
   const { slug } = await params;
   const project = getProjectBySlug(slug);
   if (!project) return {};
+  const heroMedia = project.media?.hero ? getMediaById(project.media.hero) : null;
+  const ogImagePath = heroMedia?.variants?.web || heroMedia?.variants?.original;
   return {
     title: project.title,
     description: project.story?.outcome || project.title,
@@ -26,7 +29,7 @@ export async function generateMetadata({
     openGraph: {
       title: project.title,
       description: project.story?.outcome || project.title,
-      images: project.media?.hero ? [{ url: project.media.hero }] : [],
+      images: ogImagePath ? [{ url: ogImagePath }] : [],
     },
   };
 }

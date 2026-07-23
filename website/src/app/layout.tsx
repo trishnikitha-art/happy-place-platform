@@ -7,6 +7,8 @@ import { seo } from "@/config/seo";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { ScrollToTop } from "@/components/scroll-to-top";
+import { getHomepageHero } from "@/lib/brand";
+import { getMediaById } from "@/lib/media";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -43,11 +45,15 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const heroBrand = getHomepageHero();
+  const heroMedia = heroBrand?.mediaId ? getMediaById(heroBrand.mediaId) : null;
+  const ogImageUrl = heroMedia?.variants?.web || `${siteUrl}/images/og-default.svg`;
+
   const orgJsonLd = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     name: company.legalName,
-    image: `${siteUrl}/images/og-default.svg`,
+    image: ogImageUrl.startsWith("http") ? ogImageUrl : `${siteUrl}${ogImageUrl}`,
     url: siteUrl,
     telephone: company.phone,
     email: company.email,
