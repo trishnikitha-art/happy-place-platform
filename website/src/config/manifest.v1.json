@@ -1,7 +1,7 @@
 {
   "schemaVersion": "1.0.0",
   "description": "Machine-generated image manifest. Human curation lives in presentation.v1.json.",
-  "generatedAt": "2026-07-21T18:37:36.817Z",
+  "generatedAt": "2026-07-23T03:17:20.354Z",
   "projects": [
     {
       "slug": "bathroom-remodeling",
@@ -37,6 +37,12 @@
       "slug": "outdoor-living",
       "title": "Outdoor Living — Willamette Valley",
       "category": "Outdoor Living",
+      "county": ""
+    },
+    {
+      "slug": "pergolas",
+      "title": "Pergolas — Willamette Valley",
+      "category": "Pergolas",
       "county": ""
     },
     {
@@ -529,6 +535,76 @@
       "thumbnailPath": "/images/projects/outdoor-living/IMG_0841-thumb.webp",
       "blurDataURL": "data:image/webp;base64,UklGRqAAAABXRUJQVlA4IJQAAAAwBACdASoQABUAPu1iqU2ppaOiMAgBMB2JYgCdIKnDFXeldY3oE364NoAA/CxytM9C0L8Te4hvdHlJDY88BKqJYHenGtFvE1yqCWUXGKV3oUjtAzRZEHCbiwZBVsdreElLxkmhJfi7wffRBaeRy7aklWeGB9AR3Z/A3WEFOB3CBJk8NmDCzWgrsM7RLnU5yQHIOFAA",
       "createdAt": "2026-07-21T18:37:31.450Z"
+    },
+    {
+      "uuid": "ec7a3131-db70-5b87-8e1f-2526abecea5b",
+      "contentHash": "0ab88793f39b024e9657f4b52228b316a64ed58227babd98f05b659272f04b14",
+      "stableId": "fefd445b-c713-59b5-bb78-091cb373ace9",
+      "id": "pergolas/homeserviceprojectpergolas",
+      "project": "pergolas",
+      "category": "Pergolas",
+      "county": "",
+      "originalFilename": "HOMESERVICEPROJECTPERGOLAS.jpg",
+      "sourcePath": "Pergolas/HOMESERVICEPROJECTPERGOLAS.jpg",
+      "width": 4367,
+      "height": 3275,
+      "role": "detail",
+      "priority": null,
+      "variants": [
+        {
+          "width": 480,
+          "format": "avif",
+          "path": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-480.avif"
+        },
+        {
+          "width": 480,
+          "format": "webp",
+          "path": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-480.webp"
+        },
+        {
+          "width": 768,
+          "format": "avif",
+          "path": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-768.avif"
+        },
+        {
+          "width": 768,
+          "format": "webp",
+          "path": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-768.webp"
+        },
+        {
+          "width": 1080,
+          "format": "avif",
+          "path": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1080.avif"
+        },
+        {
+          "width": 1080,
+          "format": "webp",
+          "path": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1080.webp"
+        },
+        {
+          "width": 1600,
+          "format": "avif",
+          "path": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1600.avif"
+        },
+        {
+          "width": 1600,
+          "format": "webp",
+          "path": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1600.webp"
+        },
+        {
+          "width": 2000,
+          "format": "avif",
+          "path": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-2000.avif"
+        },
+        {
+          "width": 2000,
+          "format": "webp",
+          "path": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-2000.webp"
+        }
+      ],
+      "thumbnailPath": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-thumb.webp",
+      "blurDataURL": "data:image/webp;base64,UklGRlwAAABXRUJQVlA4IFAAAACwAQCdASoQAAwAA4BaJbACdACyWOoAAPdQdWxXdZ/oshhmki57AnBbBRKeI0jLegQgCdXOR1uic6XzERlGrvOgSJc307sOzssL4SGPw4wAAA==",
+      "createdAt": "2026-07-23T03:17:20.317Z"
     },
     {
       "uuid": "5e0c371b-8582-5fa4-a07e-739568111062",

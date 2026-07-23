@@ -1,5 +1,5 @@
 {
-  "galleryHash": "07a564b36d2538c4adae6b583c1a4e2981ce0814c9ecc1fbb241246d15f10a6a",
+  "galleryHash": "cb56863cc686e5ab1640f5c20c0d32989ca23994386e405b9c54650b569a7ce5",
   "imageHashes": {
     "bathroom-remodeling/bathroom-wall": "25af78d5ec38d8751021906d534d1fc09f22263c3ca382c2a2ddcef0e033a2a4",
     "built-ins/finishedcarpentry0": "369838478f9e53921d29868b67493df3a2b29556b17332db28d1e898d442484c",
@@ -14,6 +14,7 @@
     "outdoor-living/img-0737": "e9de72e40f6d1ad5620387198e0d36eeb6931145410bea75eab34107ce7da9ca",
     "outdoor-living/img-0805": "a7ffdcffaae5a6f858aa7b331e4cdd6b926c4733d833984ebacac5552c83a4a8",
     "outdoor-living/img-0841": "c89b1a8bf9a10aac0227032c8d5419f3357b57fbc052ee22606642bf1f5cc0cc",
+    "pergolas/homeserviceprojectpergolas": "25b1a16a0fb28ec0cf3bd0629b654557f8f2d0f5345a6e09caa2b2df8274abe0",
     "portrait/portrait": "eecbf99794e531e35a4f17a1c331d3e583124abbd0d3ae213d1d1588dd6df4fb",
     "repairs/floor0": "3a62204002864e0c1fed05d4cd7ce69f820ad776e05a8ecd06088a1a7898ff20",
     "repairs/img-0544": "d65fdffc28f842195cd5a7fb192ba316480343e3f598d6e9027f9cbe339779dc",
@@ -23,6 +24,6 @@
     "repairs/guttercleaning": "8ce28eb63e0c06a2d1a01391c0e4b2c59a668811c5223c9ca3155a48a4704ee7",
     "repairs/trimrepair": "3f521a07ff7be69e7fa31d6e2d6240932a932d0f74e7d5b3a38c92861b7ab4f7"
   },
-  "imageCount": 21,
-  "projectCount": 8
+  "imageCount": 22,
+  "projectCount": 9
 }

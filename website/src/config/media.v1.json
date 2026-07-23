@@ -758,6 +758,42 @@
       "fileSize": 68536,
       "format": "WEBP",
       "colorSpace": "sRGB"
+    },
+    {
+      "id": "pergolas-001-hero",
+      "driveId": "",
+      "filename": "HOMESERVICEPROJECTPERGOLAS.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 4367,
+        "height": 3275
+      },
+      "variants": {
+        "original": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1080.webp",
+        "web": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1080.webp",
+        "webp": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1080.webp",
+        "avif": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1080.avif",
+        "thumbnail": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-thumb.webp"
+      },
+      "alt": "Completed pergola construction project",
+      "description": "Custom pergola design and construction",
+      "service": "pergolas",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "pergolas-001",
+      "tags": ["pergolas", "construction", "corvallis"],
+      "roles": ["hero", "gallery"],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "createdAt": "2026-07-22T00:00:00.000Z",
+      "updatedAt": "2026-07-22T00:00:00.000Z",
+      "uploadedAt": "2026-07-22T00:00:00.000Z",
+      "fileSize": 2081361,
+      "format": "JPG",
+      "colorSpace": "sRGB"
     }
   ]
 }

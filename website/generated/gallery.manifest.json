@@ -1,17 +1,17 @@
 {
   "pipelineVersion": "1.0.0",
-  "generatedAt": "2026-07-21T18:37:36.867Z",
-  "imageCount": 21,
-  "projectCount": 8,
-  "galleryHash": "07a564b36d2538c4adae6b583c1a4e2981ce0814c9ecc1fbb241246d15f10a6a",
-  "presentationHash": "92d66cdfcc3fdc7dda0cb8ff7e380cb5f9e21177ef88b023e2ef373cd4a3a00c",
-  "pipelineCommit": "unknown",
+  "generatedAt": "2026-07-23T03:17:20.407Z",
+  "imageCount": 22,
+  "projectCount": 9,
+  "galleryHash": "cb56863cc686e5ab1640f5c20c0d32989ca23994386e405b9c54650b569a7ce5",
+  "presentationHash": null,
+  "pipelineCommit": "ce4827945ea0fe6fd16469c8f49f54bc5679021e",
   "stats": {
-    "heroGenerated": 3,
-    "thumbnailGenerated": 21,
-    "galleryGenerated": 21,
-    "skipped": 0,
-    "rebuilt": 21,
-    "time": "11.4"
+    "heroGenerated": 0,
+    "thumbnailGenerated": 1,
+    "galleryGenerated": 1,
+    "skipped": 21,
+    "rebuilt": 1,
+    "time": "3.7"
   }
 }
