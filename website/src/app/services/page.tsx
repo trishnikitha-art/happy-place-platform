@@ -16,10 +16,27 @@ export const metadata: Metadata = {
 export default function ServicesPage() {
   const services = getAllServices();
   
-  // Group services by category (using description as category grouping for now)
-  // In a full implementation, services.v1.json would have a category field
+  // Group services by category using a simple categorization
   const groupedServices = services.reduce((acc, service) => {
-    const category = service.description.split(' ').slice(0, 2).join(' ') || 'General';
+    let category = 'Other';
+    
+    // Simple categorization based on service name/description
+    if (service.slug === 'decks' || service.slug === 'fences' || service.slug === 'pergolas' || service.slug === 'outdoor-living') {
+      category = 'Outdoor Structures';
+    } else if (service.slug === 'bathrooms') {
+      category = 'Bathroom Remodeling';
+    } else if (service.slug === 'painting') {
+      category = 'Painting';
+    } else if (service.slug === 'finish-carpentry' || service.slug === 'built-ins') {
+      category = 'Finish Carpentry';
+    } else if (service.slug === 'restoration') {
+      category = 'Restoration';
+    } else if (service.slug === 'repairs') {
+      category = 'Repairs';
+    } else if (service.slug === 'adus' || service.slug === 'pole-barns') {
+      category = 'Structures';
+    }
+    
     if (!acc[category]) acc[category] = [];
     acc[category].push(service);
     return acc;
