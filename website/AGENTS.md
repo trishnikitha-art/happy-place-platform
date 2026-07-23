@@ -143,9 +143,41 @@ Source files exist on disk + in `manifest.v1.json` but NOT in `media.v1.json`:
 - Service cards: WORKING (projects.v1.json → media.v1.json → disk)
 - Reviews: "Building our review portfolio" (empty by design)
 
-### Fix Order
-1. Add 6 missing entries to media.v1.json (use exact on-disk paths)
-2. Set brand.v1.json mediaIds to new entries
-3. Fix variant key mismatch (web → webp or vice versa)
-4. Get higher-resolution source photos (hero 480×640, portrait 640×427)
-5. Full report: `FILESYSTEM_AUTHORITY_RECONCILIATION.md`
+### Fix Order (RESOLVED — see Session 19)
+
+## Session 19 — Git Archaeology + Geographic Simplification
+
+### What was done
+- **Git archaeology (3 parallel agents):** Proved 21 unique photographic originals were EVER committed to this repository. Zero photographs lost from git. The ~13 "missing" originals never existed as files in this repo — they are on Google Drive only.
+- **Pergola image forensics:** `HOMESERVICEPROJECTPERGOLAS.jpg` was referenced in media.v1.json at commit `abf5740` with `driveId: "H:\\My Drive\\..."` but the actual file was never committed. Fabricated variant paths never existed on disk. Record was correctly removed in `6bc8ed9`.
+- **Phase E — Geographic simplification:** Reduced `cities.v1.json` from 10 cities to 4 closest: Philomath, Albany, Monmouth, Independence. Updated `faq.v1.json` service area answer to match. County references in project/media records preserved.
+- **MISSING_ORIGINALS_REPORT.md** written — documents honest 21/21 count with full git archaeology evidence.
+- **PHOTO_RECONSTRUCTION_REPORT.md** updated with pergola finding, geographic phase, and archaeology summary.
+
+### Key files changed
+- `src/config/cities.v1.json`: 10 cities → 4 (Philomath, Albany, Monmouth, Independence)
+- `src/config/faq.v1.json`: service area answer updated
+- `MISSING_ORIGINALS_REPORT.md`: new file
+- `PHOTO_RECONSTRUCTION_REPORT.md`: updated
+
+### Commit
+- `eaacbd2` — pushed to origin/main
+
+### Current State
+- media.v1.json: 21 entries (all verified on disk)
+- brand.v1.json: mediaIds connected (brand-hero, brand-featured, brand-portrait)
+- projects.v1.json: 5 projects with hero + gallery refs, all resolving
+- cities.v1.json: 4 cities (closest to business)
+- About page renders 4-city grid in 4-column layout
+- Build: 53 pages, zero TypeScript errors
+- Deployment: Vercel production at https://website-plum-three-68.vercel.app
+
+### What's NOT in this repo
+- ~13 additional project photos (decks, pergolas, painting, kitchens, ADUs, pole barns, flooring) — these exist only on Google Drive, never committed to git
+- Higher-resolution source photos (hero 480×640, portrait 640×427, featured 480×640) — need manual sourcing
+- The `cities.v1.json` is NOT imported by any component except through `registries.ts` → `getAllCities()` → about page
+
+### Remaining work
+- To add more project photos: copy from Google Drive to `photo-intake/`, run pipeline, create canonical records
+- Phase E geographic simplification is complete — 4 cities on about page
+- All other image authority chains verified end-to-end
