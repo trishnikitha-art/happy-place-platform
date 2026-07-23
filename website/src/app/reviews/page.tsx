@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { StarRating } from "@/components/star-rating";
 import { CTASection } from "@/components/cta-section";
@@ -21,6 +22,11 @@ export default function ReviewsPage() {
     <>
       <Section className="bg-background">
         <Container>
+          <div className="mb-8 flex items-center justify-center gap-3">
+            <span className="relative block h-10 w-auto">
+              <Image src="/brand/logo.png" alt="Happy Place Carpentry logo" width={120} height={40} className="h-full w-auto" />
+            </span>
+          </div>
           <SectionHeading
             eyebrow="Reviews"
             title="Helping neighbors find their happy place"

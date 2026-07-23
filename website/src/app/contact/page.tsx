@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { CTASection } from "@/components/cta-section";
 import { PhoneLink, EmailLink } from "@/components/tracked-contact";
@@ -18,6 +19,11 @@ export default function ContactPage() {
       <Section>
         <Container className="grid gap-10 lg:grid-cols-2">
           <div>
+            <div className="mb-6 flex items-center gap-3">
+              <span className="relative block h-10 w-auto">
+                <Image src="/brand/logo.png" alt="Happy Place Carpentry logo" width={120} height={40} className="h-full w-auto" />
+              </span>
+            </div>
             <SectionHeading
               eyebrow="Contact"
               title="Let's talk about your project"

@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { MapPin, Phone, Mail, Hammer } from "lucide-react";
+import Image from "next/image";
+import { MapPin, Phone, Mail } from "lucide-react";
 import { getCompany } from "@/lib/company";
 import { getNavigation } from "@/lib/navigation";
 import { getAllServices } from "@/lib/registries";
@@ -14,8 +15,10 @@ export function SiteFooter() {
     <footer className="border-t border-border bg-primary text-text-on-dark">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-4 lg:px-8">
         <div>
-          <Link href="/" className="flex items-center gap-2 font-bold text-text-on-dark">
-            <Hammer className="h-6 w-6 text-honey" aria-hidden="true" />
+          <Link href="/" className="flex items-center gap-2.5 font-bold text-text-on-dark">
+            <span className="relative block h-8 w-auto">
+              <Image src="/brand/logo.png" alt="Happy Place Carpentry logo" width={96} height={32} className="h-full w-auto" />
+            </span>
             <span className="text-lg">{company.name}</span>
           </Link>
           <p className="mt-3 text-sm text-text-on-dark/70">{company.description}</p>

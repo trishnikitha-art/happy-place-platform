@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Suspense } from "react";
+import Image from "next/image";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { EstimateWizard } from "@/components/estimate-wizard";
 import { getCompany } from "@/lib/company";
@@ -17,6 +18,11 @@ export default function EstimatePage() {
   return (
     <Section>
       <Container className="max-w-3xl">
+        <div className="mb-8 flex items-center justify-center gap-3">
+          <span className="relative block h-10 w-auto">
+            <Image src="/brand/logo.png" alt="Happy Place Carpentry logo" width={120} height={40} className="h-full w-auto" />
+          </span>
+        </div>
         <SectionHeading
           eyebrow="Free estimate"
           title="Let's scope your project"

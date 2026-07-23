@@ -47,12 +47,14 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const heroBrand = getHomepageHero();
   const heroMedia = heroBrand?.mediaId ? getMediaById(heroBrand.mediaId) : null;
-  const ogImageUrl = heroMedia?.variants?.web || `${siteUrl}/images/og-default.svg`;
+  const ogImageUrl = heroMedia?.variants?.web || `${siteUrl}/brand/logo.png`;
+  const logoUrl = `${siteUrl}/brand/logo.png`;
 
   const orgJsonLd = {
     "@context": "https://schema.org",
     "@type": "LocalBusiness",
     name: company.legalName,
+    logo: logoUrl,
     image: ogImageUrl.startsWith("http") ? ogImageUrl : `${siteUrl}${ogImageUrl}`,
     url: siteUrl,
     telephone: company.phone,

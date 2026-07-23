@@ -27,6 +27,11 @@ export default function AboutPage() {
         <div className="absolute inset-0 bg-gradient-to-br from-deep via-deep to-primary/30" />
         <Container className="relative grid items-center gap-10 py-20 lg:grid-cols-2">
           <div>
+            <div className="mb-6 flex items-center gap-3">
+              <span className="relative block h-12 w-auto">
+                <Image src="/brand/logo.png" alt="Happy Place Carpentry logo" width={144} height={48} className="h-full w-auto" />
+              </span>
+            </div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-honey">Family-owned · {company.ccbNumber}</p>
             <h1 className="mt-3 font-display text-4xl font-bold leading-tight sm:text-5xl">
               Every family deserves a happy place.

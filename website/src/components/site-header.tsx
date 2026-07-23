@@ -31,9 +31,9 @@ export function SiteHeader() {
     <header className="sticky top-0 z-50 border-b border-border-soft bg-background/85 backdrop-blur-md">
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <Link href="/" className="group flex shrink-0 items-center gap-2.5" aria-label={`${company.name} home`}>
-          {/* Simple tape-measure mark (brand signature) */}
-          <span className="relative block h-9 w-14 text-primary transition-transform duration-300 group-hover:-rotate-3">
-            <Image src="/brand/logo-icon.svg" alt="" width={56} height={36} priority className="h-full w-full" />
+          {/* Happy Place Carpentry logo */}
+          <span className="relative block h-10 w-auto transition-transform duration-300 group-hover:-rotate-3">
+            <Image src="/brand/logo.png" alt="Happy Place Carpentry logo" width={120} height={40} priority className="h-full w-auto" />
             <CedarCorner className="absolute -left-1 -top-1 h-3 w-3 text-honey" />
           </span>
           <span className="flex flex-col leading-none">
