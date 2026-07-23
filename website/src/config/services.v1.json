@@ -36,7 +36,7 @@
     },
     {
       "id": "bathrooms",
-      "name": "Bathrooms",
+      "name": "Bathroom Remodeling",
       "slug": "bathrooms",
       "description": "Rebuild your bathroom with proper waterproofing and finishes that last",
       "icon": "bathroom",
@@ -154,9 +154,9 @@
       "slug": "pergolas",
       "description": "Custom pergola design and construction",
       "icon": "pergola",
-      "featured": false,
-      "homepageEligible": false,
-      "order": 11,
+      "featured": true,
+      "homepageEligible": true,
+      "order": 4,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",

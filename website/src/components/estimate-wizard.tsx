@@ -400,8 +400,7 @@ export function EstimateWizard() {
           <div>
             <h2 className="text-xl font-bold text-text">Add a few photos (optional)</h2>
             <p className="mt-1 text-text-muted">
-              Photos help us give a better estimate. In this demo your photos stay on your device —
-              you&apos;ll attach them when your email opens.
+              The more we can see, the better we can help. Snap a few photos of the space so we can understand what you&apos;re working with and give you the best possible estimate. Don&apos;t worry—your photos stay on your device and you&apos;ll attach them yourself when your email opens.
             </p>
             <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-text-subtle hover:border-primary">
               <Upload className="h-8 w-8" />
