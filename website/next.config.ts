@@ -9,7 +9,6 @@ const nextConfig: NextConfig = {
     // Remove this (and swap to real JPG/WebP) when client photos are dropped in.
     dangerouslyAllowSVG: true,
     contentDispositionType: "attachment",
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; img-src 'self' data:;",
   },
 };
 

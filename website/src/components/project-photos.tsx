@@ -1,4 +1,3 @@
-import Image from "next/image";
 import type { Media } from "@/types/media";
 
 /**
@@ -8,7 +7,7 @@ import type { Media } from "@/types/media";
  * The parent component is responsible for loading the data from the authority.
  * 
  * Vertical slice validation:
- * projects.v1.json → gallery array → getMediaById() → ProjectPhotos → Next/Image
+ * projects.v1.json → gallery array → getMediaById() → ProjectPhotos → img
  */
 
 type ProjectPhotosProps = {
@@ -35,13 +34,10 @@ export function ProjectPhotos({ photos, limit }: ProjectPhotosProps) {
 
         return (
           <div key={photo.id} className="relative aspect-[4/3] overflow-hidden rounded-lg bg-surface">
-            <Image
+            <img
               src={src}
               alt={photo.alt}
-              fill
-              sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
               className="h-full w-full object-cover"
-              unoptimized
             />
           </div>
         );
