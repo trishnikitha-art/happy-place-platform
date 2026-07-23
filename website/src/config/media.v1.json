@@ -157,42 +157,6 @@
       "colorSpace": "sRGB"
     },
     {
-      "id": "kitchen-remodel-001-hero",
-      "driveId": "example-drive-id-005",
-      "filename": "hero.jpg",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/kitchen-remodel-001-hero.jpg",
-        "webp": "/images/kitchen-remodel-001-hero.webp",
-        "avif": "/images/kitchen-remodel-001-hero.avif",
-        "thumbnail": "/images/kitchen-remodel-001-hero-thumb.jpg",
-        "blur": "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBD"
-      },
-      "alt": "Completed kitchen remodel with quartz countertops in Salem",
-      "description": "Modern kitchen with custom cabinets, quartz countertops, and subway tile backsplash",
-      "service": "kitchens",
-      "city": "Salem",
-      "county": "Marion",
-      "state": "Oregon",
-      "projectId": "kitchen-remodel-001",
-      "tags": ["kitchen", "quartz", "custom-cabinets", "subway-tile", "salem"],
-      "roles": ["hero", "after"],
-      "featured": true,
-      "heroEligible": false,
-      "homepageEligible": true,
-      "createdAt": "2026-07-10T00:00:00.000Z",
-      "updatedAt": "2026-07-10T00:00:00.000Z",
-      "uploadedAt": "2026-07-10T00:00:00.000Z",
-      "fileSize": 3670016,
-      "format": "JPEG",
-      "colorSpace": "sRGB"
-    },
-    {
       "id": "pergola-001-hero",
       "driveId": "H:\\My Drive\\HOMESERVICEPROJECTPERGOLAS.jpg",
       "filename": "HomeServiceProjectPergolas.jpg",
