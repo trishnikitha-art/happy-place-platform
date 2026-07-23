@@ -38,6 +38,7 @@ export function ProjectPhotos({ photos, limit }: ProjectPhotosProps) {
               src={src}
               alt={photo.alt}
               className="h-full w-full object-cover"
+              loading="lazy"
             />
           </div>
         );
