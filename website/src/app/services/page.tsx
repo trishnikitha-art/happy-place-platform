@@ -21,7 +21,9 @@ export default function ServicesPage() {
     let category = 'Other';
     
     // Simple categorization based on service name/description
-    if (service.slug === 'decks' || service.slug === 'fences' || service.slug === 'pergolas' || service.slug === 'outdoor-living') {
+    if (service.slug === 'pergolas') {
+      category = 'Steel-Framed Covered Privacy Courtyards';
+    } else if (service.slug === 'decks' || service.slug === 'fences' || service.slug === 'outdoor-living') {
       category = 'Outdoor Structures';
     } else if (service.slug === 'bathrooms') {
       category = 'Bathroom Remodeling';

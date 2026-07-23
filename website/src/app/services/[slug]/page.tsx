@@ -58,6 +58,9 @@ export default async function ServicePage({ params }: ServicePageProps) {
   // Get featured project for this service
   const featuredProject = serviceGallery.projects[0] || null;
 
+  // Special messaging for pergolas service
+  const isPergolas = slug === 'pergolas';
+
   return (
     <>
       {/* HERO SECTION */}
@@ -65,7 +68,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
         <Container>
           <SectionHeading
             eyebrow={service.name}
-            title={service.name}
+            title={isPergolas ? "Steel-Framed Covered Privacy Courtyards" : service.name}
             description={service.description}
           />
           <div className="mt-8">
@@ -86,7 +89,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
             <SectionHeading
               eyebrow="Featured Project"
               title={featuredProject.title}
-              description={featuredProject.story?.outcome || "See our latest work in this service area."}
+              description={isPergolas ? "A modern outdoor living space that combines the privacy of custom fencing with the open feel of a steel-framed pergola, creating a durable, comfortable area for relaxing and entertaining." : (featuredProject.story?.outcome || "See our latest work in this service area.")}
             />
             <div className="mt-8">
               {featuredProject.media.before && featuredProject.media.after && (
@@ -108,8 +111,8 @@ export default async function ServicePage({ params }: ServicePageProps) {
         <Container>
           <SectionHeading
             eyebrow="Our Work"
-            title={`${service.name} Projects`}
-            description={`Browse our completed ${service.name.toLowerCase()} projects across the Mid-Willamette Valley.`}
+            title={isPergolas ? "Steel-Framed Covered Privacy Courtyard Projects" : `${service.name} Projects`}
+            description={isPergolas ? "Browse our completed steel-framed covered privacy courtyard projects across the Mid-Willamette Valley." : `Browse our completed ${service.name.toLowerCase()} projects across the Mid-Willamette Valley.`}
           />
           <div className="mt-8">
             {serviceGallery.projects.length > 0 ? (
