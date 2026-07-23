@@ -12,9 +12,9 @@ import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { getProjectById } from "@/lib/projects";
 
 interface ServicePageProps {
-  params: {
+  params: Promise<{
     slug: string;
-  };
+  }>;
 }
 
 export async function generateStaticParams() {
@@ -25,7 +25,8 @@ export async function generateStaticParams() {
 }
 
 export async function generateMetadata({ params }: ServicePageProps): Promise<Metadata> {
-  const service = getServiceBySlug(params.slug);
+  const { slug } = await params;
+  const service = getServiceBySlug(slug);
   
   if (!service) {
     return {
@@ -40,8 +41,9 @@ export async function generateMetadata({ params }: ServicePageProps): Promise<Me
   };
 }
 
-export default function ServicePage({ params }: ServicePageProps) {
-  const service = getServiceBySlug(params.slug);
+export default async function ServicePage({ params }: ServicePageProps) {
+  const { slug } = await params;
+  const service = getServiceBySlug(slug);
   
   if (!service) {
     notFound();
@@ -91,7 +93,7 @@ export default function ServicePage({ params }: ServicePageProps) {
                 <BeforeAfterSlider project={featuredProject} />
               )}
               <Link
-                href={`/projects/${featuredProject.seo?.slug || featuredProject.id}`}
+                href={`/projects/${featuredProject.slug || featuredProject.id}`}
                 className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-amber-600 hover:text-amber-700 transition-colors"
               >
                 View Full Project →
@@ -113,7 +115,7 @@ export default function ServicePage({ params }: ServicePageProps) {
             {serviceGallery.projects.length > 0 ? (
               <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
                 {serviceGallery.projects.slice(0, 6).map((project) => (
-                  <Link key={project.id} href={`/projects/${project.seo?.slug || project.id}`}>
+                  <Link key={project.id} href={`/projects/${project.slug || project.id}`}>
                     <div className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-surface">
                       {project.media.hero && (
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
