@@ -33,11 +33,11 @@ export function ProjectPhotos({ photos, limit }: ProjectPhotosProps) {
         if (!src) return null;
 
         return (
-          <div key={photo.id} className="relative aspect-[4/3] overflow-hidden rounded-lg bg-surface">
+          <div key={photo.id} className="relative w-full" style={{ aspectRatio: '4/3' }}>
             <img
               src={src}
               alt={photo.alt}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover rounded-lg"
               loading="lazy"
             />
           </div>

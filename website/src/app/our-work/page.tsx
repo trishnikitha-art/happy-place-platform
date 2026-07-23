@@ -75,7 +75,7 @@ export default function OurWorkPage() {
               return (
                 <Reveal key={project.id} delay={i * 80}>
                   <Link
-                    href={`/projects/${project.seo?.slug || project.id}`}
+                    href={`/projects/${project.slug || project.id}`}
                     className="group block overflow-hidden rounded-card border border-border bg-surface shadow-sm transition-shadow hover:shadow-lg"
                   >
                     <div className="relative aspect-[16/9]">
