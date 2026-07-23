@@ -10,7 +10,7 @@
       "icon": "deck",
       "featured": true,
       "homepageEligible": true,
-      "order": 1,
+      "order": 6,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
@@ -26,7 +26,7 @@
       "icon": "fence",
       "featured": true,
       "homepageEligible": true,
-      "order": 2,
+      "order": 7,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
@@ -42,7 +42,7 @@
       "icon": "bathroom",
       "featured": true,
       "homepageEligible": true,
-      "order": 3,
+      "order": 8,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "interior",
@@ -58,7 +58,7 @@
       "icon": "paint",
       "featured": true,
       "homepageEligible": true,
-      "order": 5,
+      "order": 1,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "general",
@@ -76,7 +76,7 @@
       "icon": "carpentry",
       "featured": true,
       "homepageEligible": false,
-      "order": 6,
+      "order": 4,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
@@ -92,7 +92,7 @@
       "icon": "restoration",
       "featured": true,
       "homepageEligible": false,
-      "order": 7,
+      "order": 3,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "mixed",
@@ -108,7 +108,7 @@
       "icon": "outdoor",
       "featured": true,
       "homepageEligible": true,
-      "order": 8,
+      "order": 9,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
@@ -124,7 +124,7 @@
       "icon": "repair",
       "featured": false,
       "homepageEligible": false,
-      "order": 9,
+      "order": 2,
       "capabilities": {
         "paintableSurface": false,
         "estimationAuthority": "building"
@@ -140,7 +140,7 @@
       "icon": "shelf",
       "featured": false,
       "homepageEligible": false,
-      "order": 10,
+      "order": 11,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
@@ -150,13 +150,13 @@
     },
     {
       "id": "pergolas",
-      "name": "Pergolas",
+      "name": "Steel-Framed Covered Privacy Courtyards",
       "slug": "pergolas",
-      "description": "Custom pergola design and construction",
+      "description": "Custom steel-framed privacy courtyard design and construction",
       "icon": "pergola",
       "featured": true,
       "homepageEligible": true,
-      "order": 4,
+      "order": 10,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
@@ -172,7 +172,7 @@
       "icon": "home",
       "featured": false,
       "homepageEligible": false,
-      "order": 12,
+      "order": 13,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "mixed",
@@ -188,7 +188,7 @@
       "icon": "barn",
       "featured": false,
       "homepageEligible": false,
-      "order": 13,
+      "order": 14,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
@@ -204,7 +204,7 @@
       "icon": "flooring",
       "featured": true,
       "homepageEligible": true,
-      "order": 11,
+      "order": 5,
       "capabilities": {
         "paintableSurface": false,
         "estimationAuthority": "building"
