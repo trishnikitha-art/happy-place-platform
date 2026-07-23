@@ -67,6 +67,267 @@
       "metaDescription": "Custom cedar pergola installation in Corvallis, Oregon providing shade and outdoor living space.",
       "createdAt": "2026-07-22T00:00:00.000Z",
       "updatedAt": "2026-07-22T00:00:00.000Z"
+    },
+    {
+      "id": "repairs-001",
+      "title": "Home Repairs - Willamette Valley",
+      "service": "repairs",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-07-20",
+      "media": {
+        "hero": "repairs-001-hero",
+        "gallery": [
+          "repairs-001-hero"
+        ]
+      },
+      "story": {
+        "challenge": "Multiple home repair issues needed attention",
+        "solution": "Comprehensive home repair and maintenance services",
+        "outcome": "Home restored to excellent condition with quality workmanship",
+        "specialFeatures": [
+          "Professional repairs",
+          "Quality materials",
+          "Attention to detail"
+        ]
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 500,
+          "high": 2000
+        },
+        "services": [
+          "home repair",
+          "maintenance",
+          "restoration"
+        ],
+        "materials": [
+          "quality replacement parts",
+          "paint",
+          "hardware"
+        ],
+        "timeline": "1-3 days"
+      },
+      "warranty": {
+        "hasWarranty": true,
+        "warrantyType": "Workmanship",
+        "warrantyYears": 1,
+        "warrantyDetails": "1-year workmanship warranty on all repairs"
+      },
+      "tags": [
+        "repairs",
+        "maintenance",
+        "home-repair",
+        "corvallis"
+      ],
+      "reviews": [],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "slug": "home-repairs-willamette-valley",
+      "metaDescription": "Professional home repair and maintenance services in Willamette Valley, Oregon.",
+      "createdAt": "2026-07-20T00:00:00.000Z",
+      "updatedAt": "2026-07-20T00:00:00.000Z"
+    },
+    {
+      "id": "builtins-001",
+      "title": "Custom Built-ins - Corvallis",
+      "service": "built-ins",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-07-19",
+      "media": {
+        "hero": "builtins-001-hero",
+        "gallery": [
+          "builtins-001-hero"
+        ]
+      },
+      "story": {
+        "challenge": "Client needed organized storage solutions for home office",
+        "solution": "Designed and built custom built-in shelving and storage",
+        "outcome": "Beautiful, functional storage space that maximizes utility",
+        "specialFeatures": [
+          "Custom shelving",
+          "Integrated storage",
+          "Professional finish"
+        ]
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 2000,
+          "high": 5000
+        },
+        "services": [
+          "custom built-ins",
+          "shelving installation",
+          "carpentry"
+        ],
+        "materials": [
+          "premium wood",
+          "hardware",
+          "finish materials"
+        ],
+        "timeline": "3-5 days"
+      },
+      "warranty": {
+        "hasWarranty": true,
+        "warrantyType": "Workmanship",
+        "warrantyYears": 2,
+        "warrantyDetails": "2-year workmanship warranty on all built-in construction"
+      },
+      "tags": [
+        "built-ins",
+        "custom-shelving",
+        "storage",
+        "carpentry",
+        "corvallis"
+      ],
+      "reviews": [],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "slug": "custom-builtins-corvallis",
+      "metaDescription": "Custom built-in shelving and storage solutions in Corvallis, Oregon.",
+      "createdAt": "2026-07-19T00:00:00.000Z",
+      "updatedAt": "2026-07-19T00:00:00.000Z"
+    },
+    {
+      "id": "fences-001",
+      "title": "Custom Fencing - Willamette Valley",
+      "service": "fences",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-07-18",
+      "media": {
+        "hero": "fences-001-detail",
+        "gallery": [
+          "fences-001-detail"
+        ]
+      },
+      "story": {
+        "challenge": "Property needed privacy and boundary definition",
+        "solution": "Custom fence construction with quality materials",
+        "outcome": "Beautiful, durable fence that enhances property value",
+        "specialFeatures": [
+          "Custom design",
+          "Quality construction",
+          "Professional installation"
+        ]
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 3000,
+          "high": 8000
+        },
+        "services": [
+          "fence construction",
+          "custom design",
+          "installation"
+        ],
+        "materials": [
+          "cedar",
+          "pressure-treated lumber",
+          "hardware"
+        ],
+        "timeline": "2-4 days"
+      },
+      "warranty": {
+        "hasWarranty": true,
+        "warrantyType": "Workmanship",
+        "warrantyYears": 2,
+        "warrantyDetails": "2-year workmanship warranty on all fence construction"
+      },
+      "tags": [
+        "fences",
+        "detail",
+        "custom",
+        "corvallis"
+      ],
+      "reviews": [],
+      "featured": true,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "slug": "custom-fencing-willamette-valley",
+      "metaDescription": "Custom fence construction and installation in Willamette Valley, Oregon.",
+      "createdAt": "2026-07-18T00:00:00.000Z",
+      "updatedAt": "2026-07-18T00:00:00.000Z"
+    },
+    {
+      "id": "outdoor-living-001",
+      "title": "Outdoor Living Space - Willamette Valley",
+      "service": "outdoor-living",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-07-17",
+      "media": {
+        "hero": "outdoor-living-001-detail",
+        "gallery": [
+          "outdoor-living-001-detail"
+        ]
+      },
+      "story": {
+        "challenge": "Client wanted to transform backyard into outdoor living space",
+        "solution": "Designed and built custom outdoor structures and features",
+        "outcome": "Beautiful outdoor space perfect for entertaining and relaxation",
+        "specialFeatures": [
+          "Custom design",
+          "Quality materials",
+          "Professional craftsmanship"
+        ]
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 5000,
+          "high": 15000
+        },
+        "services": [
+          "outdoor living design",
+          "structure construction",
+          "landscaping integration"
+        ],
+        "materials": [
+          "cedar",
+          "composite materials",
+          "concrete"
+        ],
+        "timeline": "5-10 days"
+      },
+      "warranty": {
+        "hasWarranty": true,
+        "warrantyType": "Workmanship",
+        "warrantyYears": 2,
+        "warrantyDetails": "2-year workmanship warranty on all outdoor construction"
+      },
+      "tags": [
+        "outdoor-living",
+        "detail",
+        "pergola",
+        "corvallis"
+      ],
+      "reviews": [],
+      "featured": true,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "slug": "outdoor-living-willamette-valley",
+      "metaDescription": "Custom outdoor living spaces and structures in Willamette Valley, Oregon.",
+      "createdAt": "2026-07-17T00:00:00.000Z",
+      "updatedAt": "2026-07-17T00:00:00.000Z"
     }
   ]
 }

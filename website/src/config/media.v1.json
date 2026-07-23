@@ -36,6 +36,146 @@
       "fileSize": 2457600,
       "format": "JPEG",
       "colorSpace": "sRGB"
+    },
+    {
+      "id": "repairs-001-hero",
+      "driveId": "repairs-hero-placeholder",
+      "filename": "repairs-hero.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/repairs-001-hero.jpg",
+        "webp": "/images/repairs-001-hero.webp",
+        "avif": "/images/repairs-001-hero.avif",
+        "thumbnail": "/images/repairs-001-hero-thumb.jpg"
+      },
+      "alt": "Home repair project completed in Willamette Valley",
+      "description": "Professional home repair and maintenance work",
+      "service": "repairs",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "repairs-001",
+      "tags": ["repairs", "maintenance", "home-repair", "corvallis"],
+      "roles": ["hero", "after"],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "createdAt": "2026-07-22T00:00:00.000Z",
+      "updatedAt": "2026-07-22T00:00:00.000Z",
+      "uploadedAt": "2026-07-22T00:00:00.000Z",
+      "fileSize": 2457600,
+      "format": "JPEG",
+      "colorSpace": "sRGB"
+    },
+    {
+      "id": "builtins-001-hero",
+      "driveId": "builtins-hero-placeholder",
+      "filename": "builtins-hero.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/builtins-001-hero.jpg",
+        "webp": "/images/builtins-001-hero.webp",
+        "avif": "/images/builtins-001-hero.avif",
+        "thumbnail": "/images/builtins-001-hero-thumb.jpg"
+      },
+      "alt": "Custom built-in shelving and storage solution",
+      "description": "Custom built-in shelving for organized storage",
+      "service": "built-ins",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "builtins-001",
+      "tags": ["built-ins", "custom-shelving", "storage", "carpentry", "corvallis"],
+      "roles": ["hero", "after"],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "createdAt": "2026-07-22T00:00:00.000Z",
+      "updatedAt": "2026-07-22T00:00:00.000Z",
+      "uploadedAt": "2026-07-22T00:00:00.000Z",
+      "fileSize": 2457600,
+      "format": "JPEG",
+      "colorSpace": "sRGB"
+    },
+    {
+      "id": "fences-001-detail",
+      "driveId": "fences-detail-placeholder",
+      "filename": "fences-detail.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/fences-001-detail.jpg",
+        "webp": "/images/fences-001-detail.webp",
+        "avif": "/images/fences-001-detail.avif",
+        "thumbnail": "/images/fences-001-detail-thumb.jpg"
+      },
+      "alt": "Detail shot of custom fence construction",
+      "description": "Quality fence construction detail work",
+      "service": "fences",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "fences-001",
+      "tags": ["fences", "detail", "custom", "corvallis"],
+      "roles": ["gallery"],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "createdAt": "2026-07-22T00:00:00.000Z",
+      "updatedAt": "2026-07-22T00:00:00.000Z",
+      "uploadedAt": "2026-07-22T00:00:00.000Z",
+      "fileSize": 2457600,
+      "format": "JPEG",
+      "colorSpace": "sRGB"
+    },
+    {
+      "id": "outdoor-living-001-detail",
+      "driveId": "outdoor-living-detail-placeholder",
+      "filename": "outdoor-living-detail.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/outdoor-living-001-detail.jpg",
+        "webp": "/images/outdoor-living-001-detail.webp",
+        "avif": "/images/outdoor-living-001-detail.avif",
+        "thumbnail": "/images/outdoor-living-001-detail-thumb.jpg"
+      },
+      "alt": "Outdoor living space detail shot",
+      "description": "Outdoor structure detail and craftsmanship",
+      "service": "outdoor-living",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "outdoor-living-001",
+      "tags": ["outdoor-living", "detail", "pergola", "corvallis"],
+      "roles": ["gallery"],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "createdAt": "2026-07-22T00:00:00.000Z",
+      "updatedAt": "2026-07-22T00:00:00.000Z",
+      "uploadedAt": "2026-07-22T00:00:00.000Z",
+      "fileSize": 2457600,
+      "format": "JPEG",
+      "colorSpace": "sRGB"
     }
   ]
 }
