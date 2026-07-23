@@ -3,11 +3,11 @@
   "generatedAt": "2026-07-22T00:00:00.000Z",
   "cities": [
     {
-      "id": "corvallis",
-      "name": "Corvallis",
+      "id": "philomath",
+      "name": "Philomath",
       "county": "Benton",
       "state": "Oregon",
-      "zipCodes": ["97330", "97331", "97332", "97333"],
+      "zipCodes": ["97370"],
       "featured": true,
       "homepageEligible": true,
       "order": 1
@@ -23,34 +23,14 @@
       "order": 2
     },
     {
-      "id": "salem",
-      "name": "Salem",
-      "county": "Marion",
-      "state": "Oregon",
-      "zipCodes": ["97301", "97302", "97303", "97304", "97305", "97306", "97307", "97308", "97309", "97310", "97311", "97313", "97314", "97315", "97317", "97319"],
-      "featured": true,
-      "homepageEligible": true,
-      "order": 3
-    },
-    {
-      "id": "philomath",
-      "name": "Philomath",
-      "county": "Benton",
-      "state": "Oregon",
-      "zipCodes": ["97370"],
-      "featured": true,
-      "homepageEligible": false,
-      "order": 4
-    },
-    {
       "id": "monmouth",
       "name": "Monmouth",
       "county": "Polk",
       "state": "Oregon",
       "zipCodes": ["97361"],
       "featured": true,
-      "homepageEligible": false,
-      "order": 5
+      "homepageEligible": true,
+      "order": 3
     },
     {
       "id": "independence",
@@ -58,49 +38,9 @@
       "county": "Polk",
       "state": "Oregon",
       "zipCodes": ["97351"],
-      "featured": false,
-      "homepageEligible": false,
-      "order": 6
-    },
-    {
-      "id": "lebanon",
-      "name": "Lebanon",
-      "county": "Linn",
-      "state": "Oregon",
-      "zipCodes": ["97355"],
-      "featured": false,
-      "homepageEligible": false,
-      "order": 7
-    },
-    {
-      "id": "eugene",
-      "name": "Eugene",
-      "county": "Lane",
-      "state": "Oregon",
-      "zipCodes": ["97401", "97402", "97403", "97404", "97405", "97406", "97408", "97440"],
-      "featured": false,
-      "homepageEligible": false,
-      "order": 8
-    },
-    {
-      "id": "springfield",
-      "name": "Springfield",
-      "county": "Lane",
-      "state": "Oregon",
-      "zipCodes": ["97477", "97478"],
-      "featured": false,
-      "homepageEligible": false,
-      "order": 9
-    },
-    {
-      "id": "keizer",
-      "name": "Keizer",
-      "county": "Marion",
-      "state": "Oregon",
-      "zipCodes": ["97307"],
-      "featured": false,
-      "homepageEligible": false,
-      "order": 10
+      "featured": true,
+      "homepageEligible": true,
+      "order": 4
     }
   ]
 }

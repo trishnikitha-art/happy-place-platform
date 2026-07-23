@@ -129,6 +129,18 @@ Historical presentation.v1.json planned a painting photo role. No physical file 
 
 Services with NO project photos: decks, painting, finish-carpentry, restoration, pergolas, adus, pole-barns, flooring. These use SVG placeholders.
 
+## Git Archaeology Finding (Session 17)
+
+**21 unique photographic originals were EVER committed to this repository.** Zero photographs were lost from git. The earlier target of 34-35 originals cannot be achieved from this repository alone.
+
+The `HOMESERVICEPROJECTPERGOLAS.jpg` was referenced in an earlier commit (`abf5740`) with `driveId: "H:\\My Drive\\HOMESERVICEPROJECTPERGOLAS.jpg"` but the actual file was never committed. The fabricated variant paths never existed on disk. This record was correctly removed in commit `6bc8ed9`.
+
+The ~13 additional images that were never committed to git exist only on the user's Google Drive. To add them: copy to `photo-intake/`, run the pipeline, create canonical records.
+
+## Geographic Simplification (Phase E)
+
+Reduced `cities.v1.json` from 10 cities to 4 closest cities: Philomath, Albany, Monmouth, Independence. Updated FAQ answer to match. County references in project/media records preserved as-is (factual location data).
+
 ## Authority Chain Status
 
 ```
