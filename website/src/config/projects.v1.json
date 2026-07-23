@@ -338,7 +338,7 @@
     },
     {
       "id": "pergolas-001",
-      "title": "Custom Pergola - Corvallis",
+      "title": "Steel-Framed Covered Privacy Courtyard – Corvallis",
       "service": "pergolas",
       "status": "completed",
       "location": {
@@ -352,13 +352,14 @@
         "gallery": []
       },
       "story": {
-        "challenge": "Customer wanted a custom outdoor pergola",
-        "solution": "Designed and built a custom pergola structure",
-        "outcome": "Beautiful, functional outdoor living space",
+        "challenge": "Customer wanted a custom outdoor living space with privacy",
+        "solution": "Designed and built a steel-framed covered privacy courtyard structure",
+        "outcome": "A modern outdoor living space that combines the privacy of custom fencing with the open feel of a steel-framed pergola, creating a durable, comfortable area for relaxing and entertaining",
         "specialFeatures": [
-          "Custom design",
+          "Custom steel-framed design",
           "Quality construction",
-          "Weather-resistant materials"
+          "Weather-resistant materials",
+          "Privacy-focused layout"
         ]
       },
       "estimate": {
@@ -367,11 +368,12 @@
           "high": 8000
         },
         "services": [
-          "pergola design",
+          "steel-framed courtyard design",
           "pergola construction",
           "outdoor living"
         ],
         "materials": [
+          "steel framing",
           "lumber",
           "hardware",
           "stain/finish"
@@ -382,20 +384,21 @@
         "hasWarranty": true,
         "warrantyType": "Workmanship",
         "warrantyYears": 2,
-        "warrantyDetails": "2-year workmanship warranty on all pergola construction"
+        "warrantyDetails": "2-year workmanship warranty on all steel-framed courtyard construction"
       },
       "tags": [
         "pergolas",
         "outdoor-living",
         "custom",
-        "corvallis"
+        "corvallis",
+        "steel-framed"
       ],
       "reviews": [],
       "featured": true,
       "heroEligible": true,
       "homepageEligible": false,
       "slug": "custom-pergola-corvallis",
-      "metaDescription": "Custom pergola construction in Corvallis, Oregon.",
+      "metaDescription": "Steel-framed covered privacy courtyard construction in Corvallis, Oregon. Custom outdoor living spaces.",
       "createdAt": "2026-07-22T00:00:00.000Z",
       "updatedAt": "2026-07-22T00:00:00.000Z"
     }
