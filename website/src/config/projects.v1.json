@@ -61,7 +61,7 @@
         "corvallis"
       ],
       "reviews": [],
-      "featured": true,
+      "featured": false,
       "heroEligible": true,
       "homepageEligible": true,
       "slug": "fence-installation-willamette-valley",
@@ -195,7 +195,7 @@
         "corvallis"
       ],
       "reviews": [],
-      "featured": true,
+      "featured": false,
       "heroEligible": true,
       "homepageEligible": true,
       "slug": "custom-builtins-corvallis",
@@ -266,7 +266,7 @@
         "corvallis"
       ],
       "reviews": [],
-      "featured": true,
+      "featured": false,
       "heroEligible": true,
       "homepageEligible": false,
       "slug": "home-repairs-willamette-valley",
@@ -335,7 +335,7 @@
         "corvallis"
       ],
       "reviews": [],
-      "featured": true,
+      "featured": false,
       "heroEligible": true,
       "homepageEligible": true,
       "slug": "outdoor-living-willamette-valley",
@@ -398,7 +398,7 @@
         "corvallis"
       ],
       "reviews": [],
-      "featured": true,
+      "featured": false,
       "heroEligible": true,
       "homepageEligible": true,
       "slug": "bathroom-remodeling-corvallis",
