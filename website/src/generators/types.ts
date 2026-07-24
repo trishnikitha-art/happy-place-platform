@@ -5,7 +5,8 @@
  * No generator reads YAML. Only IR.
  */
 
-import type { IRDocument, CompilerDiagnostic } from "../constitution/ir/types";
+import type { IRDocument } from "../constitution/ir/types";
+import type { CompilerDiagnostic } from "../compiler/diagnostics";
 
 // ---------------------------------------------------------------------------
 // Generated artifact

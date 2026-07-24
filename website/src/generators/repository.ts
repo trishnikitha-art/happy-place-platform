@@ -15,7 +15,7 @@
 import * as crypto from "crypto";
 import type { IRDocument, Node, Authority } from "../constitution/ir/types";
 import type { Generator, GeneratedArtifact } from "./types";
-import type { CompilerDiagnostic } from "../constitution/ir/types";
+import type { CompilerDiagnostic } from "../compiler/diagnostics";
 import { createDiagnostic } from "../compiler/diagnostics";
 
 // ---------------------------------------------------------------------------
@@ -93,7 +93,7 @@ export class RepositoryGenerator implements Generator {
       // Generate repository class
       const repoContent = generateRepositoryClass(name, events, commands, authorityName);
       artifacts.push({
-        path: `repositories/${pascalCase(name)}Repository.ts`,
+        path: `generated/repositories/${pascalCase(name)}Repository.ts`,
         content: repoContent,
         hash: sha256(repoContent),
         generator: this.name,
@@ -103,7 +103,7 @@ export class RepositoryGenerator implements Generator {
       // Generate repository test
       const testContent = generateRepositoryTest(name, events);
       artifacts.push({
-        path: `repositories/__tests__/${pascalCase(name)}Repository.test.ts`,
+        path: `generated/repositories/__tests__/${pascalCase(name)}Repository.test.ts`,
         content: testContent,
         hash: sha256(testContent),
         generator: this.name,
@@ -117,7 +117,12 @@ export class RepositoryGenerator implements Generator {
   validate(artifacts: GeneratedArtifact[]): CompilerDiagnostic[] {
     const diagnostics: CompilerDiagnostic[] = [];
 
-    for (const artifact of artifacts) {
+    // Only validate repository classes, not test files
+    const repoFiles = artifacts.filter(
+      (a) => a.path.startsWith("generated/repositories/") && !a.path.includes("__tests__"),
+    );
+
+    for (const artifact of repoFiles) {
       if (!artifact.content.includes("export class")) {
         diagnostics.push(
           createDiagnostic({
@@ -172,7 +177,7 @@ function generateRepositoryClass(
   const pascal = pascalCase(name);
   const eventUnion = events.length > 0
     ? events.map((e) => pascalCase(e)).join(" | ")
-    : "never";
+    : "{ type: string }";
 
   return `/**
  * ${pascal}Repository — generated from Canonical IR.
@@ -196,8 +201,8 @@ export interface ${pascal}State {
   readonly id: string;
   readonly version: number;
   readonly status: string;
-  readonly authority: typeof ${authorityName} extends { name: infer N } ? N : string;
-  readonly events: readonly ${eventUnion}[];
+  readonly authority: string;
+  readonly events: readonly (${eventUnion})[];
 }
 
 // ---------------------------------------------------------------------------
@@ -333,6 +338,14 @@ ${events.map((e) => `  private apply${pascalCase(e)}(state: ${pascal}State, even
    */
   async afterSave(_state: ${pascal}State, _events: ${pascal}Event[]): Promise<void> {
     // Wire to projections here
+  }
+
+  /**
+   * Register a projection for this aggregate.
+   * Stub: no-op. Wire to projection registry in production.
+   */
+  async registerProjection(_name: string, _handler: unknown): Promise<void> {
+    // Wire to projection registry here
   }
 
   // -------------------------------------------------------------------------
