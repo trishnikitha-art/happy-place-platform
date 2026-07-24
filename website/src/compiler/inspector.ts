@@ -97,8 +97,8 @@ export interface TransformationNode {
 
 export interface TransformationGraph {
   readonly transformations: readonly TransformationNode[];
-  readonly byAuthority: Readonly<string, readonly TransformationNode[]>;
-  readonly byAggregate: Readonly<string, readonly TransformationNode[]>;
+  readonly byAuthority: Map<string, readonly TransformationNode[]>;
+  readonly byAggregate: Map<string, readonly TransformationNode[]>;
 }
 
 export interface ProjectionNode {
