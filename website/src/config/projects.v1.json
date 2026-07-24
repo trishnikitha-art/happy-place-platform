@@ -18,7 +18,10 @@
         "before": "fences-001-before",
         "after": "fences-001-after",
         "gallery": [
-          "fences-001-matching"
+          "fences-001-matching",
+          "fences-001-installation",
+          "fences-001-detail",
+          "fences-001-finished"
         ]
       },
       "story": {
@@ -84,7 +87,11 @@
         "hero": "pergolas-001-hero",
         "before": "pergolas-001-before",
         "after": "pergolas-001-after",
-        "gallery": []
+        "gallery": [
+          "pergolas-001-construction",
+          "pergolas-001-steel-frame",
+          "pergolas-001-finished"
+        ]
       },
       "story": {
         "challenge": "Customer wanted a custom outdoor living space with privacy",
@@ -150,7 +157,9 @@
       "media": {
         "hero": "builtins-001-hero",
         "gallery": [
-          "builtins-001-secondary"
+          "builtins-001-secondary",
+          "builtins-001-detail",
+          "builtins-001-installation"
         ]
       },
       "story": {
@@ -365,7 +374,11 @@
       "completionDate": "2026-07-16",
       "media": {
         "hero": "bathroom-remodeling-001-hero",
-        "gallery": []
+        "gallery": [
+          "bathroom-remodeling-001-before",
+          "bathroom-remodeling-001-during",
+          "bathroom-remodeling-001-after"
+        ]
       },
       "story": {
         "challenge": "Bathroom needed complete remodel",
@@ -430,7 +443,11 @@
         "hero": "pergolas-001-hero",
         "before": "pergolas-001-before",
         "after": "pergolas-001-after",
-        "gallery": []
+        "gallery": [
+          "pergolas-001-construction",
+          "pergolas-001-steel-frame",
+          "pergolas-001-finished"
+        ]
       },
       "story": {
         "challenge": "Customer wanted a custom outdoor living space with privacy",
