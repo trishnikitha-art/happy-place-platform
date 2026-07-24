@@ -19,6 +19,7 @@ import {
   validateSubmissionIntegrity,
   type WizardState 
 } from "@/lib/wizard-persistence";
+import { preliminaryRange, formatRange } from "@/lib/planning-range";
 
 type PhotoMeta = { name: string; size: number; uploadedAt?: number };
 
@@ -618,6 +619,47 @@ export function EstimateWizard() {
             <p className="mt-4 text-sm text-text-subtle">
               Every home is different. An on site visit allows us to understand your goals, answer questions, and prepare an accurate proposal.
             </p>
+
+            {/* Preliminary Planning Range */}
+            {(() => {
+              const result = preliminaryRange(selected, answers);
+              if (result.low > 0 || result.high > 0) {
+                return (
+                  <div className="mt-8 rounded-lg bg-surface-muted p-6 text-left">
+                    <h3 className="font-semibold text-text">Preliminary Planning Range</h3>
+                    <div className="mt-4">
+                      <p className="text-2xl font-bold text-text">
+                        {formatRange(result.low)} – {formatRange(result.high)}
+                      </p>
+                      <p className="mt-2 text-sm text-text-muted">{result.note}</p>
+                    </div>
+                    
+                    {/* Per-service breakdown */}
+                    {result.breakdown && result.breakdown.length > 1 && (
+                      <div className="mt-6 border-t border-border pt-4">
+                        <h4 className="text-sm font-semibold text-text">How this range breaks down</h4>
+                        <div className="mt-3 space-y-2">
+                          {result.breakdown.map((item, idx) => (
+                            <div key={idx} className="flex items-center justify-between text-sm">
+                              <span className="text-text-muted">
+                                {item.label}
+                                {item.scopeUsed && (
+                                  <span className="ml-2 text-xs text-text-subtle">({item.scopeUsed})</span>
+                                )}
+                              </span>
+                              <span className="font-medium text-text">
+                                {formatRange(item.low)} – {formatRange(item.high)}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              }
+              return null;
+            })()}
 
             <div className="mt-8 rounded-lg bg-surface-muted p-6 text-left">
               <h3 className="font-semibold text-text">What happens next</h3>
