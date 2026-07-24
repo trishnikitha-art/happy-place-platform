@@ -1,0 +1,2454 @@
+{
+  "ir_version": "1.0.0",
+  "meta": {
+    "version": "1.0.0",
+    "source_manifest": "GENERATION_MANIFEST.yaml",
+    "compiled_at": "2026-07-24T00:00:00.000Z",
+    "compiler_version": "0.1.0"
+  },
+  "symbols": [
+    {
+      "name": "IdentityAuthority",
+      "kind": "authority",
+      "type": "Authority",
+      "metadata": {
+        "owns": [
+          "Customer",
+          "Crew",
+          "Vendor"
+        ],
+        "emits": [],
+        "computes": [],
+        "policies": []
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 21,
+        "column": 5,
+        "length": 170
+      }
+    },
+    {
+      "name": "MissionAuthority",
+      "kind": "authority",
+      "type": "Authority",
+      "metadata": {
+        "owns": [
+          "Estimate",
+          "Job",
+          "Project"
+        ],
+        "emits": [],
+        "computes": [],
+        "policies": [
+          "MustHaveCustomer",
+          "MustHaveProperty"
+        ]
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 24,
+        "column": 5,
+        "length": 232
+      }
+    },
+    {
+      "name": "EvidenceAuthority",
+      "kind": "authority",
+      "type": "Authority",
+      "metadata": {
+        "owns": [
+          "Photo",
+          "Video",
+          "Voice",
+          "PDF"
+        ],
+        "emits": [],
+        "computes": [],
+        "policies": []
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 29,
+        "column": 5,
+        "length": 171
+      }
+    },
+    {
+      "name": "ObservationAuthority",
+      "kind": "authority",
+      "type": "Authority",
+      "metadata": {
+        "owns": [
+          "RoofDamage",
+          "WaterLeak",
+          "BrokenWindow"
+        ],
+        "emits": [
+          "Claim"
+        ],
+        "computes": [],
+        "policies": []
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 32,
+        "column": 5,
+        "length": 129
+      }
+    },
+    {
+      "name": "FactAuthority",
+      "kind": "authority",
+      "type": "Authority",
+      "metadata": {
+        "owns": [],
+        "emits": [],
+        "computes": [
+          "VerifiedRoofDamage"
+        ],
+        "policies": []
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 35,
+        "column": 5,
+        "length": 130
+      }
+    },
+    {
+      "name": "Estimate",
+      "kind": "aggregate",
+      "type": "Aggregate",
+      "metadata": {
+        "owns": [
+          "Tasks",
+          "Evidence",
+          "Crew"
+        ],
+        "events": [
+          "EstimateCreated",
+          "EstimateAccepted"
+        ],
+        "commands": [
+          "Accept",
+          "AssignCrew",
+          "Complete"
+        ],
+        "policies": [
+          "MustHaveCustomer",
+          "MustHaveProperty"
+        ]
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 46,
+        "column": 5,
+        "length": 193
+      }
+    },
+    {
+      "name": "EstimateCreated",
+      "kind": "event",
+      "type": "Event",
+      "metadata": {
+        "aggregate": "Estimate"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 46,
+        "column": 5,
+        "length": 193
+      }
+    },
+    {
+      "name": "EstimateAccepted",
+      "kind": "event",
+      "type": "Event",
+      "metadata": {
+        "aggregate": "Estimate"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 46,
+        "column": 5,
+        "length": 193
+      }
+    },
+    {
+      "name": "Job",
+      "kind": "aggregate",
+      "type": "Aggregate",
+      "metadata": {
+        "owns": [
+          "Tasks",
+          "Crew",
+          "Evidence"
+        ],
+        "events": [
+          "JobCreated",
+          "CrewAssigned",
+          "JobCompleted"
+        ],
+        "commands": [
+          "AssignCrew",
+          "Complete"
+        ],
+        "policies": []
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 51,
+        "column": 5,
+        "length": 134
+      }
+    },
+    {
+      "name": "JobCreated",
+      "kind": "event",
+      "type": "Event",
+      "metadata": {
+        "aggregate": "Job"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 51,
+        "column": 5,
+        "length": 134
+      }
+    },
+    {
+      "name": "CrewAssigned",
+      "kind": "event",
+      "type": "Event",
+      "metadata": {
+        "aggregate": "Job"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 51,
+        "column": 5,
+        "length": 134
+      }
+    },
+    {
+      "name": "JobCompleted",
+      "kind": "event",
+      "type": "Event",
+      "metadata": {
+        "aggregate": "Job"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 51,
+        "column": 5,
+        "length": 134
+      }
+    },
+    {
+      "name": "Project",
+      "kind": "aggregate",
+      "type": "Aggregate",
+      "metadata": {
+        "owns": [
+          "Missions",
+          "Media",
+          "Story"
+        ],
+        "events": [
+          "ProjectCreated",
+          "ProjectCompleted"
+        ],
+        "commands": [],
+        "policies": []
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 55,
+        "column": 5,
+        "length": 96
+      }
+    },
+    {
+      "name": "ProjectCreated",
+      "kind": "event",
+      "type": "Event",
+      "metadata": {
+        "aggregate": "Project"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 55,
+        "column": 5,
+        "length": 96
+      }
+    },
+    {
+      "name": "ProjectCompleted",
+      "kind": "event",
+      "type": "Event",
+      "metadata": {
+        "aggregate": "Project"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 55,
+        "column": 5,
+        "length": 96
+      }
+    },
+    {
+      "name": "RoofDamage",
+      "kind": "observation",
+      "type": "Observation",
+      "metadata": {},
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 68,
+        "column": 5,
+        "length": 11
+      }
+    },
+    {
+      "name": "WaterLeak",
+      "kind": "observation",
+      "type": "Observation",
+      "metadata": {},
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 69,
+        "column": 5,
+        "length": 10
+      }
+    },
+    {
+      "name": "BrokenWindow",
+      "kind": "observation",
+      "type": "Observation",
+      "metadata": {},
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 70,
+        "column": 5,
+        "length": 13
+      }
+    },
+    {
+      "name": "NeedsReplacement",
+      "kind": "claim",
+      "type": "Claim",
+      "metadata": {},
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 72,
+        "column": 5,
+        "length": 17
+      }
+    },
+    {
+      "name": "NeedsRepair",
+      "kind": "claim",
+      "type": "Claim",
+      "metadata": {},
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 73,
+        "column": 5,
+        "length": 12
+      }
+    },
+    {
+      "name": "VerifiedRoofDamage",
+      "kind": "fact",
+      "type": "Fact",
+      "metadata": {},
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 75,
+        "column": 5,
+        "length": 19
+      }
+    },
+    {
+      "name": "Calendar",
+      "kind": "capability",
+      "type": "Capability",
+      "metadata": {
+        "contract": [
+          "Schedule",
+          "Query",
+          "Update"
+        ],
+        "versioned_name": "calendar.v1"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 79,
+        "column": 5,
+        "length": 55
+      }
+    },
+    {
+      "name": "Payments",
+      "kind": "capability",
+      "type": "Capability",
+      "metadata": {
+        "contract": [
+          "Charge",
+          "Refund",
+          "Query"
+        ],
+        "versioned_name": "payments.v1"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 81,
+        "column": 5,
+        "length": 53
+      }
+    },
+    {
+      "name": "CRM",
+      "kind": "capability",
+      "type": "Capability",
+      "metadata": {
+        "contract": [
+          "UpsertContact",
+          "QueryContact"
+        ],
+        "versioned_name": "crm.v1"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 83,
+        "column": 5,
+        "length": 54
+      }
+    },
+    {
+      "name": "Messaging",
+      "kind": "capability",
+      "type": "Capability",
+      "metadata": {
+        "contract": [
+          "Send",
+          "Receive"
+        ],
+        "versioned_name": "messaging.v1"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 85,
+        "column": 5,
+        "length": 46
+      }
+    },
+    {
+      "name": "Storage",
+      "kind": "capability",
+      "type": "Capability",
+      "metadata": {
+        "contract": [
+          "Acquire",
+          "Mirror",
+          "Canonicalize",
+          "Emit"
+        ],
+        "versioned_name": "storage.v1"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 87,
+        "column": 5,
+        "length": 66
+      }
+    },
+    {
+      "name": "Vision",
+      "kind": "capability",
+      "type": "Capability",
+      "metadata": {
+        "contract": [
+          "Detect",
+          "Classify"
+        ],
+        "versioned_name": "vision.v1"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 89,
+        "column": 5,
+        "length": 46
+      }
+    },
+    {
+      "name": "Scheduling",
+      "kind": "capability",
+      "type": "Capability",
+      "metadata": {
+        "contract": [
+          "Plan",
+          "Assign"
+        ],
+        "versioned_name": "scheduling.v1"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 91,
+        "column": 5,
+        "length": 46
+      }
+    }
+  ],
+  "types": [
+    {
+      "kind": "struct",
+      "name": "Customer",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 40,
+            "column": 5,
+            "length": 9
+          }
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 40,
+            "column": 5,
+            "length": 9
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 40,
+        "column": 5,
+        "length": 9
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "Crew",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 41,
+            "column": 5,
+            "length": 5
+          }
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 41,
+            "column": 5,
+            "length": 5
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 41,
+        "column": 5,
+        "length": 5
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "Vendor",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 42,
+            "column": 5,
+            "length": 7
+          }
+        },
+        {
+          "name": "name",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 42,
+            "column": 5,
+            "length": 7
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 42,
+        "column": 5,
+        "length": 7
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "Estimate",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 46,
+            "column": 5,
+            "length": 193
+          }
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 46,
+            "column": 5,
+            "length": 193
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 46,
+        "column": 5,
+        "length": 193
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "Job",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 51,
+            "column": 5,
+            "length": 134
+          }
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 51,
+            "column": 5,
+            "length": 134
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 51,
+        "column": 5,
+        "length": 134
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "Project",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 55,
+            "column": 5,
+            "length": 96
+          }
+        },
+        {
+          "name": "status",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 55,
+            "column": 5,
+            "length": 96
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 55,
+        "column": 5,
+        "length": 96
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "Photo",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 61,
+            "column": 5,
+            "length": 6
+          }
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 61,
+            "column": 5,
+            "length": 6
+          }
+        },
+        {
+          "name": "mimeType",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 61,
+            "column": 5,
+            "length": 6
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 61,
+        "column": 5,
+        "length": 6
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "Video",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 62,
+            "column": 5,
+            "length": 6
+          }
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 62,
+            "column": 5,
+            "length": 6
+          }
+        },
+        {
+          "name": "mimeType",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 62,
+            "column": 5,
+            "length": 6
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 62,
+        "column": 5,
+        "length": 6
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "Voice",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 63,
+            "column": 5,
+            "length": 6
+          }
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 63,
+            "column": 5,
+            "length": 6
+          }
+        },
+        {
+          "name": "mimeType",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 63,
+            "column": 5,
+            "length": 6
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 63,
+        "column": 5,
+        "length": 6
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "PDF",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 64,
+            "column": 5,
+            "length": 4
+          }
+        },
+        {
+          "name": "url",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 64,
+            "column": 5,
+            "length": 4
+          }
+        },
+        {
+          "name": "mimeType",
+          "type": "string",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 64,
+            "column": 5,
+            "length": 4
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 64,
+        "column": 5,
+        "length": 4
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "CalendarCapability",
+      "fields": [
+        {
+          "name": "schedule",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 79,
+            "column": 5,
+            "length": 55
+          }
+        },
+        {
+          "name": "query",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 79,
+            "column": 5,
+            "length": 55
+          }
+        },
+        {
+          "name": "update",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 79,
+            "column": 5,
+            "length": 55
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 79,
+        "column": 5,
+        "length": 55
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "PaymentsCapability",
+      "fields": [
+        {
+          "name": "charge",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 81,
+            "column": 5,
+            "length": 53
+          }
+        },
+        {
+          "name": "refund",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 81,
+            "column": 5,
+            "length": 53
+          }
+        },
+        {
+          "name": "query",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 81,
+            "column": 5,
+            "length": 53
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 81,
+        "column": 5,
+        "length": 53
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "CRMCapability",
+      "fields": [
+        {
+          "name": "upsertcontact",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 83,
+            "column": 5,
+            "length": 54
+          }
+        },
+        {
+          "name": "querycontact",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 83,
+            "column": 5,
+            "length": 54
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 83,
+        "column": 5,
+        "length": 54
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "MessagingCapability",
+      "fields": [
+        {
+          "name": "send",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 85,
+            "column": 5,
+            "length": 46
+          }
+        },
+        {
+          "name": "receive",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 85,
+            "column": 5,
+            "length": 46
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 85,
+        "column": 5,
+        "length": 46
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "StorageCapability",
+      "fields": [
+        {
+          "name": "acquire",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 87,
+            "column": 5,
+            "length": 66
+          }
+        },
+        {
+          "name": "mirror",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 87,
+            "column": 5,
+            "length": 66
+          }
+        },
+        {
+          "name": "canonicalize",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 87,
+            "column": 5,
+            "length": 66
+          }
+        },
+        {
+          "name": "emit",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 87,
+            "column": 5,
+            "length": 66
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 87,
+        "column": 5,
+        "length": 66
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "VisionCapability",
+      "fields": [
+        {
+          "name": "detect",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 89,
+            "column": 5,
+            "length": 46
+          }
+        },
+        {
+          "name": "classify",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 89,
+            "column": 5,
+            "length": 46
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 89,
+        "column": 5,
+        "length": 46
+      }
+    },
+    {
+      "kind": "struct",
+      "name": "SchedulingCapability",
+      "fields": [
+        {
+          "name": "plan",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 91,
+            "column": 5,
+            "length": 46
+          }
+        },
+        {
+          "name": "assign",
+          "type": "function",
+          "optional": false,
+          "source_location": {
+            "file": "GENERATION_MANIFEST.yaml",
+            "line": 91,
+            "column": 5,
+            "length": 46
+          }
+        }
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 91,
+        "column": 5,
+        "length": 46
+      }
+    }
+  ],
+  "nodes": [
+    {
+      "id": "auth:IdentityAuthority",
+      "kind": "authority",
+      "symbol": "IdentityAuthority",
+      "properties": {
+        "owns": [
+          "Customer",
+          "Crew",
+          "Vendor"
+        ],
+        "emits": [],
+        "computes": []
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 21,
+        "column": 5,
+        "length": 170
+      }
+    },
+    {
+      "id": "auth:MissionAuthority",
+      "kind": "authority",
+      "symbol": "MissionAuthority",
+      "properties": {
+        "owns": [
+          "Estimate",
+          "Job",
+          "Project"
+        ],
+        "emits": [],
+        "computes": []
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 24,
+        "column": 5,
+        "length": 232
+      }
+    },
+    {
+      "id": "auth:EvidenceAuthority",
+      "kind": "authority",
+      "symbol": "EvidenceAuthority",
+      "properties": {
+        "owns": [
+          "Photo",
+          "Video",
+          "Voice",
+          "PDF"
+        ],
+        "emits": [],
+        "computes": []
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 29,
+        "column": 5,
+        "length": 171
+      }
+    },
+    {
+      "id": "auth:ObservationAuthority",
+      "kind": "authority",
+      "symbol": "ObservationAuthority",
+      "properties": {
+        "owns": [
+          "RoofDamage",
+          "WaterLeak",
+          "BrokenWindow"
+        ],
+        "emits": [
+          "Claim"
+        ],
+        "computes": []
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 32,
+        "column": 5,
+        "length": 129
+      }
+    },
+    {
+      "id": "auth:FactAuthority",
+      "kind": "authority",
+      "symbol": "FactAuthority",
+      "properties": {
+        "owns": [],
+        "emits": [],
+        "computes": [
+          "VerifiedRoofDamage"
+        ]
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 35,
+        "column": 5,
+        "length": 130
+      }
+    },
+    {
+      "id": "entity:Customer",
+      "kind": "aggregate",
+      "symbol": "Customer",
+      "properties": {
+        "kind": "identity"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 40,
+        "column": 5,
+        "length": 9
+      }
+    },
+    {
+      "id": "entity:Crew",
+      "kind": "aggregate",
+      "symbol": "Crew",
+      "properties": {
+        "kind": "identity"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 41,
+        "column": 5,
+        "length": 5
+      }
+    },
+    {
+      "id": "entity:Vendor",
+      "kind": "aggregate",
+      "symbol": "Vendor",
+      "properties": {
+        "kind": "identity"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 42,
+        "column": 5,
+        "length": 7
+      }
+    },
+    {
+      "id": "aggregate:Estimate",
+      "kind": "aggregate",
+      "symbol": "Estimate",
+      "properties": {
+        "owns": [
+          "Tasks",
+          "Evidence",
+          "Crew"
+        ],
+        "events": [
+          "EstimateCreated",
+          "EstimateAccepted"
+        ],
+        "commands": [
+          "Accept",
+          "AssignCrew",
+          "Complete"
+        ]
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 46,
+        "column": 5,
+        "length": 193
+      }
+    },
+    {
+      "id": "event:EstimateCreated",
+      "kind": "event",
+      "symbol": "EstimateCreated",
+      "properties": {
+        "aggregate": "Estimate"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 46,
+        "column": 5,
+        "length": 193
+      }
+    },
+    {
+      "id": "event:EstimateAccepted",
+      "kind": "event",
+      "symbol": "EstimateAccepted",
+      "properties": {
+        "aggregate": "Estimate"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 46,
+        "column": 5,
+        "length": 193
+      }
+    },
+    {
+      "id": "aggregate:Job",
+      "kind": "aggregate",
+      "symbol": "Job",
+      "properties": {
+        "owns": [
+          "Tasks",
+          "Crew",
+          "Evidence"
+        ],
+        "events": [
+          "JobCreated",
+          "CrewAssigned",
+          "JobCompleted"
+        ],
+        "commands": [
+          "AssignCrew",
+          "Complete"
+        ]
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 51,
+        "column": 5,
+        "length": 134
+      }
+    },
+    {
+      "id": "event:JobCreated",
+      "kind": "event",
+      "symbol": "JobCreated",
+      "properties": {
+        "aggregate": "Job"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 51,
+        "column": 5,
+        "length": 134
+      }
+    },
+    {
+      "id": "event:CrewAssigned",
+      "kind": "event",
+      "symbol": "CrewAssigned",
+      "properties": {
+        "aggregate": "Job"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 51,
+        "column": 5,
+        "length": 134
+      }
+    },
+    {
+      "id": "event:JobCompleted",
+      "kind": "event",
+      "symbol": "JobCompleted",
+      "properties": {
+        "aggregate": "Job"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 51,
+        "column": 5,
+        "length": 134
+      }
+    },
+    {
+      "id": "aggregate:Project",
+      "kind": "aggregate",
+      "symbol": "Project",
+      "properties": {
+        "owns": [
+          "Missions",
+          "Media",
+          "Story"
+        ],
+        "events": [
+          "ProjectCreated",
+          "ProjectCompleted"
+        ],
+        "commands": []
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 55,
+        "column": 5,
+        "length": 96
+      }
+    },
+    {
+      "id": "event:ProjectCreated",
+      "kind": "event",
+      "symbol": "ProjectCreated",
+      "properties": {
+        "aggregate": "Project"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 55,
+        "column": 5,
+        "length": 96
+      }
+    },
+    {
+      "id": "event:ProjectCompleted",
+      "kind": "event",
+      "symbol": "ProjectCompleted",
+      "properties": {
+        "aggregate": "Project"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 55,
+        "column": 5,
+        "length": 96
+      }
+    },
+    {
+      "id": "entity:Photo",
+      "kind": "aggregate",
+      "symbol": "Photo",
+      "properties": {
+        "kind": "evidence"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 61,
+        "column": 5,
+        "length": 6
+      }
+    },
+    {
+      "id": "entity:Video",
+      "kind": "aggregate",
+      "symbol": "Video",
+      "properties": {
+        "kind": "evidence"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 62,
+        "column": 5,
+        "length": 6
+      }
+    },
+    {
+      "id": "entity:Voice",
+      "kind": "aggregate",
+      "symbol": "Voice",
+      "properties": {
+        "kind": "evidence"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 63,
+        "column": 5,
+        "length": 6
+      }
+    },
+    {
+      "id": "entity:PDF",
+      "kind": "aggregate",
+      "symbol": "PDF",
+      "properties": {
+        "kind": "evidence"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 64,
+        "column": 5,
+        "length": 4
+      }
+    },
+    {
+      "id": "entity:RoofDamage",
+      "kind": "observation",
+      "symbol": "RoofDamage",
+      "properties": {},
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 68,
+        "column": 5,
+        "length": 11
+      }
+    },
+    {
+      "id": "entity:WaterLeak",
+      "kind": "observation",
+      "symbol": "WaterLeak",
+      "properties": {},
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 69,
+        "column": 5,
+        "length": 10
+      }
+    },
+    {
+      "id": "entity:BrokenWindow",
+      "kind": "observation",
+      "symbol": "BrokenWindow",
+      "properties": {},
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 70,
+        "column": 5,
+        "length": 13
+      }
+    },
+    {
+      "id": "entity:NeedsReplacement",
+      "kind": "claim",
+      "symbol": "NeedsReplacement",
+      "properties": {},
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 72,
+        "column": 5,
+        "length": 17
+      }
+    },
+    {
+      "id": "entity:NeedsRepair",
+      "kind": "claim",
+      "symbol": "NeedsRepair",
+      "properties": {},
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 73,
+        "column": 5,
+        "length": 12
+      }
+    },
+    {
+      "id": "entity:VerifiedRoofDamage",
+      "kind": "fact",
+      "symbol": "VerifiedRoofDamage",
+      "properties": {},
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 75,
+        "column": 5,
+        "length": 19
+      }
+    },
+    {
+      "id": "capability:Calendar",
+      "kind": "capability",
+      "symbol": "Calendar",
+      "properties": {
+        "contract": [
+          "Schedule",
+          "Query",
+          "Update"
+        ],
+        "versioned_name": "calendar.v1"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 79,
+        "column": 5,
+        "length": 55
+      }
+    },
+    {
+      "id": "capability:Payments",
+      "kind": "capability",
+      "symbol": "Payments",
+      "properties": {
+        "contract": [
+          "Charge",
+          "Refund",
+          "Query"
+        ],
+        "versioned_name": "payments.v1"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 81,
+        "column": 5,
+        "length": 53
+      }
+    },
+    {
+      "id": "capability:CRM",
+      "kind": "capability",
+      "symbol": "CRM",
+      "properties": {
+        "contract": [
+          "UpsertContact",
+          "QueryContact"
+        ],
+        "versioned_name": "crm.v1"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 83,
+        "column": 5,
+        "length": 54
+      }
+    },
+    {
+      "id": "capability:Messaging",
+      "kind": "capability",
+      "symbol": "Messaging",
+      "properties": {
+        "contract": [
+          "Send",
+          "Receive"
+        ],
+        "versioned_name": "messaging.v1"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 85,
+        "column": 5,
+        "length": 46
+      }
+    },
+    {
+      "id": "capability:Storage",
+      "kind": "capability",
+      "symbol": "Storage",
+      "properties": {
+        "contract": [
+          "Acquire",
+          "Mirror",
+          "Canonicalize",
+          "Emit"
+        ],
+        "versioned_name": "storage.v1"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 87,
+        "column": 5,
+        "length": 66
+      }
+    },
+    {
+      "id": "capability:Vision",
+      "kind": "capability",
+      "symbol": "Vision",
+      "properties": {
+        "contract": [
+          "Detect",
+          "Classify"
+        ],
+        "versioned_name": "vision.v1"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 89,
+        "column": 5,
+        "length": 46
+      }
+    },
+    {
+      "id": "capability:Scheduling",
+      "kind": "capability",
+      "symbol": "Scheduling",
+      "properties": {
+        "contract": [
+          "Plan",
+          "Assign"
+        ],
+        "versioned_name": "scheduling.v1"
+      },
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 91,
+        "column": 5,
+        "length": 46
+      }
+    }
+  ],
+  "edges": [
+    {
+      "from": "auth:IdentityAuthority",
+      "to": "entity:Customer",
+      "kind": "owns",
+      "properties": {}
+    },
+    {
+      "from": "auth:IdentityAuthority",
+      "to": "entity:Crew",
+      "kind": "owns",
+      "properties": {}
+    },
+    {
+      "from": "auth:IdentityAuthority",
+      "to": "entity:Vendor",
+      "kind": "owns",
+      "properties": {}
+    },
+    {
+      "from": "auth:MissionAuthority",
+      "to": "entity:Estimate",
+      "kind": "owns",
+      "properties": {}
+    },
+    {
+      "from": "auth:MissionAuthority",
+      "to": "entity:Job",
+      "kind": "owns",
+      "properties": {}
+    },
+    {
+      "from": "auth:MissionAuthority",
+      "to": "entity:Project",
+      "kind": "owns",
+      "properties": {}
+    },
+    {
+      "from": "auth:EvidenceAuthority",
+      "to": "entity:Photo",
+      "kind": "owns",
+      "properties": {}
+    },
+    {
+      "from": "auth:EvidenceAuthority",
+      "to": "entity:Video",
+      "kind": "owns",
+      "properties": {}
+    },
+    {
+      "from": "auth:EvidenceAuthority",
+      "to": "entity:Voice",
+      "kind": "owns",
+      "properties": {}
+    },
+    {
+      "from": "auth:EvidenceAuthority",
+      "to": "entity:PDF",
+      "kind": "owns",
+      "properties": {}
+    },
+    {
+      "from": "auth:ObservationAuthority",
+      "to": "entity:RoofDamage",
+      "kind": "owns",
+      "properties": {}
+    },
+    {
+      "from": "auth:ObservationAuthority",
+      "to": "entity:WaterLeak",
+      "kind": "owns",
+      "properties": {}
+    },
+    {
+      "from": "auth:ObservationAuthority",
+      "to": "entity:BrokenWindow",
+      "kind": "owns",
+      "properties": {}
+    },
+    {
+      "from": "auth:ObservationAuthority",
+      "to": "event:Claim",
+      "kind": "emits",
+      "properties": {}
+    },
+    {
+      "from": "aggregate:Estimate",
+      "to": "event:EstimateCreated",
+      "kind": "emits",
+      "properties": {}
+    },
+    {
+      "from": "aggregate:Estimate",
+      "to": "event:EstimateAccepted",
+      "kind": "emits",
+      "properties": {}
+    },
+    {
+      "from": "aggregate:Job",
+      "to": "event:JobCreated",
+      "kind": "emits",
+      "properties": {}
+    },
+    {
+      "from": "aggregate:Job",
+      "to": "event:CrewAssigned",
+      "kind": "emits",
+      "properties": {}
+    },
+    {
+      "from": "aggregate:Job",
+      "to": "event:JobCompleted",
+      "kind": "emits",
+      "properties": {}
+    },
+    {
+      "from": "aggregate:Project",
+      "to": "event:ProjectCreated",
+      "kind": "emits",
+      "properties": {}
+    },
+    {
+      "from": "aggregate:Project",
+      "to": "event:ProjectCompleted",
+      "kind": "emits",
+      "properties": {}
+    },
+    {
+      "from": "entity:RoofDamage",
+      "to": "entity:NeedsReplacement",
+      "kind": "claims",
+      "properties": {}
+    },
+    {
+      "from": "entity:RoofDamage",
+      "to": "entity:NeedsRepair",
+      "kind": "claims",
+      "properties": {}
+    },
+    {
+      "from": "entity:WaterLeak",
+      "to": "entity:NeedsReplacement",
+      "kind": "claims",
+      "properties": {}
+    },
+    {
+      "from": "entity:WaterLeak",
+      "to": "entity:NeedsRepair",
+      "kind": "claims",
+      "properties": {}
+    },
+    {
+      "from": "entity:BrokenWindow",
+      "to": "entity:NeedsReplacement",
+      "kind": "claims",
+      "properties": {}
+    },
+    {
+      "from": "entity:BrokenWindow",
+      "to": "entity:NeedsRepair",
+      "kind": "claims",
+      "properties": {}
+    },
+    {
+      "from": "policy:TenantIsolation",
+      "to": "root",
+      "kind": "guards",
+      "properties": {
+        "policy": "TenantIsolation"
+      }
+    },
+    {
+      "from": "policy:Replay",
+      "to": "root",
+      "kind": "guards",
+      "properties": {
+        "policy": "Replay"
+      }
+    },
+    {
+      "from": "policy:Witness",
+      "to": "root",
+      "kind": "guards",
+      "properties": {
+        "policy": "Witness"
+      }
+    },
+    {
+      "from": "policy:Authorities",
+      "to": "root",
+      "kind": "guards",
+      "properties": {
+        "policy": "Authorities"
+      }
+    },
+    {
+      "from": "policy:PIIRetention",
+      "to": "root",
+      "kind": "guards",
+      "properties": {
+        "policy": "PIIRetention"
+      }
+    },
+    {
+      "from": "policy:ReferenceNotCopy",
+      "to": "root",
+      "kind": "guards",
+      "properties": {
+        "policy": "ReferenceNotCopy"
+      }
+    },
+    {
+      "from": "aggregate:NeedAppointment",
+      "to": "event:NeedAppointment",
+      "kind": "emits",
+      "properties": {}
+    },
+    {
+      "from": "aggregate:NeedInvoice",
+      "to": "event:NeedInvoice",
+      "kind": "emits",
+      "properties": {}
+    },
+    {
+      "from": "aggregate:NeedCrew",
+      "to": "event:NeedCrew",
+      "kind": "emits",
+      "properties": {}
+    },
+    {
+      "from": "aggregate:NeedReview",
+      "to": "event:NeedReview",
+      "kind": "emits",
+      "properties": {}
+    }
+  ],
+  "constraints": [
+    {
+      "id": "policy:TenantIsolation",
+      "kind": "policy",
+      "predicate": "policy:TenantIsolation",
+      "parameters": {},
+      "scope": "global",
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 124,
+        "column": 5,
+        "length": 71
+      }
+    },
+    {
+      "id": "policy:Replay",
+      "kind": "policy",
+      "predicate": "policy:Replay",
+      "parameters": {},
+      "scope": "global",
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 125,
+        "column": 5,
+        "length": 43
+      }
+    },
+    {
+      "id": "policy:Witness",
+      "kind": "policy",
+      "predicate": "policy:Witness",
+      "parameters": {},
+      "scope": "global",
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 126,
+        "column": 5,
+        "length": 42
+      }
+    },
+    {
+      "id": "policy:Authorities",
+      "kind": "policy",
+      "predicate": "policy:Authorities",
+      "parameters": {},
+      "scope": "global",
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 127,
+        "column": 5,
+        "length": 67
+      }
+    },
+    {
+      "id": "policy:PIIRetention",
+      "kind": "policy",
+      "predicate": "policy:PIIRetention",
+      "parameters": {},
+      "scope": "global",
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 128,
+        "column": 5,
+        "length": 44
+      }
+    },
+    {
+      "id": "policy:ReferenceNotCopy",
+      "kind": "policy",
+      "predicate": "policy:ReferenceNotCopy",
+      "parameters": {},
+      "scope": "global",
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 129,
+        "column": 5,
+        "length": 40
+      }
+    }
+  ],
+  "authorities": [
+    {
+      "id": "auth:IdentityAuthority",
+      "name": "IdentityAuthority",
+      "owns": [
+        "entity:Customer",
+        "entity:Crew",
+        "entity:Vendor"
+      ],
+      "emits_for": [],
+      "constraints": [],
+      "deterministic": true,
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 21,
+        "column": 5,
+        "length": 170
+      }
+    },
+    {
+      "id": "auth:MissionAuthority",
+      "name": "MissionAuthority",
+      "owns": [
+        "entity:Estimate",
+        "entity:Job",
+        "entity:Project"
+      ],
+      "emits_for": [],
+      "constraints": [
+        "policy:MustHaveCustomer",
+        "policy:MustHaveProperty"
+      ],
+      "deterministic": true,
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 24,
+        "column": 5,
+        "length": 232
+      }
+    },
+    {
+      "id": "auth:EvidenceAuthority",
+      "name": "EvidenceAuthority",
+      "owns": [
+        "entity:Photo",
+        "entity:Video",
+        "entity:Voice",
+        "entity:PDF"
+      ],
+      "emits_for": [],
+      "constraints": [],
+      "deterministic": true,
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 29,
+        "column": 5,
+        "length": 171
+      }
+    },
+    {
+      "id": "auth:ObservationAuthority",
+      "name": "ObservationAuthority",
+      "owns": [
+        "entity:RoofDamage",
+        "entity:WaterLeak",
+        "entity:BrokenWindow"
+      ],
+      "emits_for": [
+        "event:Claim"
+      ],
+      "constraints": [],
+      "deterministic": true,
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 32,
+        "column": 5,
+        "length": 129
+      }
+    },
+    {
+      "id": "auth:FactAuthority",
+      "name": "FactAuthority",
+      "owns": [],
+      "emits_for": [],
+      "constraints": [],
+      "deterministic": true,
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 35,
+        "column": 5,
+        "length": 130
+      }
+    }
+  ],
+  "transformations": [
+    {
+      "id": "transform:Estimate:Accept:EstimateCreated",
+      "kind": "command",
+      "input": "command:Accept",
+      "output": "event:EstimateCreated",
+      "authority": "auth:EstimateAuthority",
+      "guards": [
+        "policy:MustHaveCustomer",
+        "policy:MustHaveProperty"
+      ],
+      "events": [
+        "event:EstimateCreated"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 46,
+        "column": 5,
+        "length": 193
+      }
+    },
+    {
+      "id": "transform:Estimate:Accept:EstimateAccepted",
+      "kind": "command",
+      "input": "command:Accept",
+      "output": "event:EstimateAccepted",
+      "authority": "auth:EstimateAuthority",
+      "guards": [
+        "policy:MustHaveCustomer",
+        "policy:MustHaveProperty"
+      ],
+      "events": [
+        "event:EstimateAccepted"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 46,
+        "column": 5,
+        "length": 193
+      }
+    },
+    {
+      "id": "transform:Estimate:AssignCrew:EstimateCreated",
+      "kind": "command",
+      "input": "command:AssignCrew",
+      "output": "event:EstimateCreated",
+      "authority": "auth:EstimateAuthority",
+      "guards": [
+        "policy:MustHaveCustomer",
+        "policy:MustHaveProperty"
+      ],
+      "events": [
+        "event:EstimateCreated"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 46,
+        "column": 5,
+        "length": 193
+      }
+    },
+    {
+      "id": "transform:Estimate:AssignCrew:EstimateAccepted",
+      "kind": "command",
+      "input": "command:AssignCrew",
+      "output": "event:EstimateAccepted",
+      "authority": "auth:EstimateAuthority",
+      "guards": [
+        "policy:MustHaveCustomer",
+        "policy:MustHaveProperty"
+      ],
+      "events": [
+        "event:EstimateAccepted"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 46,
+        "column": 5,
+        "length": 193
+      }
+    },
+    {
+      "id": "transform:Estimate:Complete:EstimateCreated",
+      "kind": "command",
+      "input": "command:Complete",
+      "output": "event:EstimateCreated",
+      "authority": "auth:EstimateAuthority",
+      "guards": [
+        "policy:MustHaveCustomer",
+        "policy:MustHaveProperty"
+      ],
+      "events": [
+        "event:EstimateCreated"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 46,
+        "column": 5,
+        "length": 193
+      }
+    },
+    {
+      "id": "transform:Estimate:Complete:EstimateAccepted",
+      "kind": "command",
+      "input": "command:Complete",
+      "output": "event:EstimateAccepted",
+      "authority": "auth:EstimateAuthority",
+      "guards": [
+        "policy:MustHaveCustomer",
+        "policy:MustHaveProperty"
+      ],
+      "events": [
+        "event:EstimateAccepted"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 46,
+        "column": 5,
+        "length": 193
+      }
+    },
+    {
+      "id": "transform:Job:AssignCrew:JobCreated",
+      "kind": "command",
+      "input": "command:AssignCrew",
+      "output": "event:JobCreated",
+      "authority": "auth:JobAuthority",
+      "guards": [],
+      "events": [
+        "event:JobCreated"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 51,
+        "column": 5,
+        "length": 134
+      }
+    },
+    {
+      "id": "transform:Job:AssignCrew:CrewAssigned",
+      "kind": "command",
+      "input": "command:AssignCrew",
+      "output": "event:CrewAssigned",
+      "authority": "auth:JobAuthority",
+      "guards": [],
+      "events": [
+        "event:CrewAssigned"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 51,
+        "column": 5,
+        "length": 134
+      }
+    },
+    {
+      "id": "transform:Job:AssignCrew:JobCompleted",
+      "kind": "command",
+      "input": "command:AssignCrew",
+      "output": "event:JobCompleted",
+      "authority": "auth:JobAuthority",
+      "guards": [],
+      "events": [
+        "event:JobCompleted"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 51,
+        "column": 5,
+        "length": 134
+      }
+    },
+    {
+      "id": "transform:Job:Complete:JobCreated",
+      "kind": "command",
+      "input": "command:Complete",
+      "output": "event:JobCreated",
+      "authority": "auth:JobAuthority",
+      "guards": [],
+      "events": [
+        "event:JobCreated"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 51,
+        "column": 5,
+        "length": 134
+      }
+    },
+    {
+      "id": "transform:Job:Complete:CrewAssigned",
+      "kind": "command",
+      "input": "command:Complete",
+      "output": "event:CrewAssigned",
+      "authority": "auth:JobAuthority",
+      "guards": [],
+      "events": [
+        "event:CrewAssigned"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 51,
+        "column": 5,
+        "length": 134
+      }
+    },
+    {
+      "id": "transform:Job:Complete:JobCompleted",
+      "kind": "command",
+      "input": "command:Complete",
+      "output": "event:JobCompleted",
+      "authority": "auth:JobAuthority",
+      "guards": [],
+      "events": [
+        "event:JobCompleted"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 51,
+        "column": 5,
+        "length": 134
+      }
+    },
+    {
+      "id": "transform:planning:NeedAppointment",
+      "kind": "event",
+      "input": "aggregate:NeedAppointment",
+      "output": "event:NeedAppointment",
+      "authority": "auth:MissionAuthority",
+      "guards": [],
+      "events": [
+        "event:NeedAppointment"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 107,
+        "column": 3,
+        "length": 198
+      }
+    },
+    {
+      "id": "transform:planning:NeedInvoice",
+      "kind": "event",
+      "input": "aggregate:NeedInvoice",
+      "output": "event:NeedInvoice",
+      "authority": "auth:MissionAuthority",
+      "guards": [],
+      "events": [
+        "event:NeedInvoice"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 107,
+        "column": 3,
+        "length": 198
+      }
+    },
+    {
+      "id": "transform:planning:NeedCrew",
+      "kind": "event",
+      "input": "aggregate:NeedCrew",
+      "output": "event:NeedCrew",
+      "authority": "auth:MissionAuthority",
+      "guards": [],
+      "events": [
+        "event:NeedCrew"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 107,
+        "column": 3,
+        "length": 198
+      }
+    },
+    {
+      "id": "transform:planning:NeedReview",
+      "kind": "event",
+      "input": "aggregate:NeedReview",
+      "output": "event:NeedReview",
+      "authority": "auth:MissionAuthority",
+      "guards": [],
+      "events": [
+        "event:NeedReview"
+      ],
+      "source_location": {
+        "file": "GENERATION_MANIFEST.yaml",
+        "line": 107,
+        "column": 3,
+        "length": 198
+      }
+    }
+  ],
+  "projections": [],
+  "artifacts": [],
+  "diagnostics": []
+}

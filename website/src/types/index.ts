@@ -158,7 +158,7 @@ export interface EstimateRequest {
   projectType?: "painting" | "building"; // Determines estimation authority (legacy, for engine compatibility)
   projectIntent?: string; // Human-readable project intent from wizard (e.g., "Build something new")
   answers: Record<string, string | boolean | number>;
-  photos: Array<{ name: string; size: number; data?: string; file?: File }>; // includes base64 data for API submission
+  photos: Array<{ name: string; size: number; data?: string; file?: File }>; // includes base64 data for API submission; name is always set when photo is added
   notes?: string;
   submittedAt: string; // ISO
 }

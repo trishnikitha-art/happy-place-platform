@@ -77,6 +77,7 @@ export function normalizeManifest(ast: ManifestNode): NormalizeResult {
 
   // Freeze everything
   const ir: IRDocument = {
+    ir_version: "1.0.0",
     meta,
     symbols: Object.freeze(symbols),
     types: Object.freeze(types),

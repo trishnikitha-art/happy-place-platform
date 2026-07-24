@@ -216,6 +216,8 @@ export interface Artifact {
 // ---------------------------------------------------------------------------
 
 export interface IRDocument {
+  /** Immutable IR version. Must match ir/schema-v1.md. Bump on breaking changes. */
+  readonly ir_version: string;
   readonly meta: IRMeta;
   readonly symbols: readonly Symbol[];
   readonly types: readonly Type[];

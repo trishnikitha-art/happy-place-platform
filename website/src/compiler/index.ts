@@ -12,3 +12,5 @@ export type { ValidationResult } from "./validator";
 export { validateManifest } from "./validator";
 export type { NormalizeResult } from "./normalizer";
 export { normalizeManifest } from "./normalizer";
+export type { InspectorReport, SymbolTable, SymbolTableEntry, AuthorityGraph, AuthorityNode, MissionGraph, MissionNode, CapabilityGraph, CapabilityNode, TransformationGraph, TransformationNode, ProjectionGraph, ProjectionNode } from "./inspector";
+export { inspectIR, formatInspectorReport } from "./inspector";

@@ -415,6 +415,7 @@ export function EstimateWizard() {
                 className="hidden"
                 onChange={async (e) => {
                   const files = Array.from(e.target.files ?? []);
+                  console.log(`[Client] Desktop file upload: ${files.length} files selected`);
                   const newPhotos: PhotoMeta[] = [];
                   
                   for (const file of files) {
@@ -423,6 +424,7 @@ export function EstimateWizard() {
                       reader.onload = () => resolve(reader.result as string);
                       reader.readAsDataURL(file);
                     });
+                    console.log(`[Client] Processed file: ${file.name}, size: ${file.size}, base64 length: ${dataUrl.length}`);
                     newPhotos.push({
                       name: file.name,
                       size: file.size,
@@ -433,6 +435,7 @@ export function EstimateWizard() {
                   }
                   
                   setPhotos((prev) => [...prev, ...newPhotos]);
+                  console.log(`[Client] Total photos after upload: ${newPhotos.length + (photos.length)} files`);
                 }}
               />
             </label>
@@ -448,6 +451,7 @@ export function EstimateWizard() {
                 className="hidden"
                 onChange={async (e) => {
                   const files = Array.from(e.target.files ?? []);
+                  console.log(`[Client] Mobile camera capture: ${files.length} photos taken`);
                   const newPhotos: PhotoMeta[] = [];
                   
                   for (const file of files) {
@@ -456,6 +460,7 @@ export function EstimateWizard() {
                       reader.onload = () => resolve(reader.result as string);
                       reader.readAsDataURL(file);
                     });
+                    console.log(`[Client] Processed photo: ${file.name}, size: ${file.size}, base64 length: ${dataUrl.length}`);
                     newPhotos.push({
                       name: file.name,
                       size: file.size,
@@ -466,6 +471,7 @@ export function EstimateWizard() {
                   }
                   
                   setPhotos((prev) => [...prev, ...newPhotos]);
+                  console.log(`[Client] Total photos after capture: ${newPhotos.length + (photos.length)} files`);
                 }}
               />
             </label>

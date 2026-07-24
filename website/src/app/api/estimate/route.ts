@@ -29,11 +29,7 @@ function buildEmailBody(req: EstimateRequest, companyName: string): string {
   return lines.join("\n");
 }
 
-function isString(value: unknown): value is string {
-  return typeof value === 'string';
-}
-
-async function uploadPhotoToDrive(auth: any, base64Data: string, filename: string | null | undefined) {
+async function uploadPhotoToDrive(auth: any, base64Data: string, filename: string) {
   const drive = google.drive({ version: "v3", auth });
   
   // Convert base64 to buffer
@@ -43,7 +39,7 @@ async function uploadPhotoToDrive(auth: any, base64Data: string, filename: strin
   const buffer = Buffer.from(base64DataClean, 'base64');
   
   const fileMetadata = {
-    name: filename || 'photo.jpg',
+    name: filename,
     parents: [process.env.GOOGLE_DRIVE_FOLDER_ID || 'root'],
   };
   
@@ -115,19 +111,30 @@ export async function POST(request: NextRequest) {
     
     // Upload photos to Drive if present
     const photoIds: string[] = [];
+    console.log(`[API] Processing ${req.photos?.length || 0} photos`);
     if (req.photos && req.photos.length > 0) {
-      for (const photo of req.photos) {
-        if (photo.data && photo.name) {
+      const uploadPromises = req.photos
+        .filter((photo): photo is { name: string; data: string; size: number; file?: File } => 
+          typeof photo.name === 'string' && typeof photo.data === 'string'
+        )
+        .map(async (photo) => {
           try {
-            // @ts-ignore - TypeScript type inference limitation, runtime check ensures string
+            console.log(`[API] Uploading photo: ${photo.name}, size: ${photo.size} bytes`);
             const fileId = await uploadPhotoToDrive(auth, photo.data, photo.name);
-            photoIds.push(fileId);
+            console.log(`[API] Photo uploaded successfully, Drive ID: ${fileId}`);
+            return fileId;
           } catch (error) {
-            console.error('Failed to upload photo to Drive:', error);
+            console.error('[API] Failed to upload photo to Drive:', error);
+            return null;
           }
-        }
-      }
+        });
+      
+      const results = await Promise.all(uploadPromises);
+      results.forEach((id) => {
+        if (id) photoIds.push(id);
+      });
     }
+    console.log(`[API] Total photos uploaded to Drive: ${photoIds.length}`);
     
     // Build email with attachments
     const emailBody = await buildMultipartEmail(req, photoIds);
