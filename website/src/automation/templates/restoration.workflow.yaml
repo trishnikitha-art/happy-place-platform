@@ -1,0 +1,67 @@
+id: restoration-workflow
+name: Surface Restoration Workflow
+description: Standard workflow for surface restoration and refinishing projects
+serviceType: restoration
+steps:
+  - id: assessment
+    name: Surface Assessment
+    capability: create
+    taskTemplate:
+      title: Surface Assessment - {projectTitle}
+      description: Assess surface condition and determine restoration approach
+      status: open
+    dependencies: []
+  
+  - id: cleaning
+    name: Deep Cleaning
+    capability: create
+    taskTemplate:
+      title: Deep Cleaning - {projectTitle}
+      description: Deep clean surfaces to remove dirt, grime, and old finishes
+      status: open
+    dependencies: [assessment]
+  
+  - id: stripping
+    name: Finish Stripping
+    capability: create
+    taskTemplate:
+      title: Finish Stripping - {projectTitle}
+      description: Strip old paint, stain, or finish from surfaces
+      status: open
+    dependencies: [cleaning]
+  
+  - id: sanding
+    name: Sanding
+    capability: create
+    taskTemplate:
+      title: Sanding - {projectTitle}
+      description: Sand surfaces to smooth and prepare for new finish
+      status: open
+    dependencies: [stripping]
+  
+  - id: repair
+    name: Surface Repair
+    capability: create
+    taskTemplate:
+      title: Surface Repair - {projectTitle}
+      description: Repair cracks, holes, and surface damage
+      status: open
+    dependencies: [sanding]
+  
+  - id staining
+    name: Staining or Finishing
+    capability: create
+    taskTemplate:
+      title: Staining or Finishing - {projectTitle}
+      description: Apply new stain, finish, or protective coating
+      status: open
+    dependencies: [repair]
+  
+  - id: final-protection
+    name: Final Protection
+    capability: create
+    taskTemplate:
+      title: Final Protection - {projectTitle}
+      description: Apply final protective topcoat and sealant
+      status: open
+    dependencies: [staining]

@@ -65,7 +65,7 @@ export class VendorRepository {
     };
 
     for (const event of stream.events) {
-      state = this.apply(state, event);
+      state = VendorRepository.apply(state, event);
     }
 
     return state;
@@ -83,8 +83,9 @@ export class VendorRepository {
   /**
    * Apply a single event to the current state.
    * This is the pure function: state + event → new state.
+   * Static — callable without an instance (used by replay dispatch).
    */
-  apply(state: VendorState, event: VendorEvent): VendorState {
+  static apply(state: VendorState, event: VendorEvent): VendorState {
     switch (event.type) {
 
       default:

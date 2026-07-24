@@ -1,0 +1,67 @@
+id: kitchens-workflow
+name: Kitchen Remodeling Workflow
+description: Standard workflow for kitchen remodeling projects
+serviceType: kitchens
+steps:
+  - id: demolition
+    name: Demolition
+    capability: create
+    taskTemplate:
+      title: Demolition - {projectTitle}
+      description: Remove existing cabinets, countertops, and fixtures
+      status: open
+    dependencies: []
+  
+  - id: rough-in
+    name: Rough-In Work
+    capability: create
+    taskTemplate:
+      title: Rough-In Work - {projectTitle}
+      description: Complete electrical, plumbing, and HVAC rough-in
+      status: open
+    dependencies: [demolition]
+  
+  - id: insulation
+    name: Insulation and Drywall
+    capability: create
+    taskTemplate:
+      title: Insulation and Drywall - {projectTitle}
+      description: Install insulation and hang drywall
+      status: open
+    dependencies: [rough-in]
+  
+  - id: cabinet-installation
+    name: Cabinet Installation
+    capability: create
+    taskTemplate:
+      title: Cabinet Installation - {projectTitle}
+      description: Install upper and lower cabinets
+      status: open
+    dependencies: [insulation]
+  
+  - id: countertop-installation
+    name: Countertop Installation
+    capability: create
+    taskTemplate:
+      title: Countertop Installation - {projectTitle}
+      description: Install countertops and backsplash
+      status: open
+    dependencies: [cabinet-installation]
+  
+  - id: appliance-installation
+    name: Appliance Installation
+    capability: create
+    taskTemplate:
+      title: Appliance Installation - {projectTitle}
+      description: Install appliances and connect utilities
+      status: open
+    dependencies: [countertop-installation]
+  
+  - id: final-finishing
+    name: Final Finishing
+    capability: create
+    taskTemplate:
+      title: Final Finishing - {projectTitle}
+      description: Complete trim, painting, and final touches
+      status: open
+    dependencies: [appliance-installation]

@@ -1,0 +1,67 @@
+id: decks-workflow
+name: Deck Construction Workflow
+description: Standard workflow for deck construction and repair projects
+serviceType: decks
+steps:
+  - id: site-prep
+    name: Site Preparation
+    capability: create
+    taskTemplate:
+      title: Site Preparation - {projectTitle}
+      description: Clear site, mark layout, prepare for construction
+      status: open
+    dependencies: []
+  
+  - id: foundation
+    name: Foundation Work
+    capability: create
+    taskTemplate:
+      title: Foundation Work - {projectTitle}
+      description: Install footings, piers, or concrete foundation
+      status: open
+    dependencies: [site-prep]
+  
+  - id: framing
+    name: Deck Framing
+    capability: create
+    taskTemplate:
+      title: Deck Framing - {projectTitle}
+      description: Install ledger board, joists, and structural framing
+      status: open
+    dependencies: [foundation]
+  
+  - id: decking
+    name: Decking Installation
+    capability: create
+    taskTemplate:
+      title: Decking Installation - {projectTitle}
+      description: Install deck boards and fasteners
+      status: open
+    dependencies: [framing]
+  
+  - id: railing
+    name: Railing Installation
+    capability: create
+    taskTemplate:
+      title: Railing Installation - {projectTitle}
+      description: Install railings, balusters, and posts
+      status: open
+    dependencies: [decking]
+  
+  - id: stairs
+    name: Stair Construction
+    capability: create
+    taskTemplate:
+      title: Stair Construction - {projectTitle}
+      description: Build and install stairs with railings
+      status: open
+    dependencies: [decking]
+  
+  - id: finishing
+    name: Finishing
+    capability: create
+    taskTemplate:
+      title: Finishing - {projectTitle}
+      description: Apply stain, sealant, or paint to deck
+      status: open
+    dependencies: [railing, stairs]

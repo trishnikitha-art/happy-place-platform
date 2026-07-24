@@ -105,7 +105,7 @@ export class JobRepository {
     };
 
     for (const event of stream.events) {
-      state = this.apply(state, event);
+      state = JobRepository.apply(state, event);
     }
 
     return state;
@@ -123,15 +123,16 @@ export class JobRepository {
   /**
    * Apply a single event to the current state.
    * This is the pure function: state + event → new state.
+   * Static — callable without an instance (used by replay dispatch).
    */
-  apply(state: JobState, event: JobEvent): JobState {
+  static apply(state: JobState, event: JobEvent): JobState {
     switch (event.type) {
       case "JobCreated":
-        return this.applyJobCreated(state, event);
+        return JobRepository.applyJobCreated(state, event);
       case "CrewAssigned":
-        return this.applyCrewAssigned(state, event);
+        return JobRepository.applyCrewAssigned(state, event);
       case "JobCompleted":
-        return this.applyJobCompleted(state, event);
+        return JobRepository.applyJobCompleted(state, event);
       default:
         return state;
     }
@@ -141,7 +142,7 @@ export class JobRepository {
   // Event applicators (one per event type)
   // -------------------------------------------------------------------------
 
-  private applyJobCreated(state: JobState, event: JobCreated): JobState {
+  private static applyJobCreated(state: JobState, event: JobCreated): JobState {
     return {
       ...state,
       version: state.version + 1,
@@ -150,7 +151,7 @@ export class JobRepository {
     };
   }
 
-  private applyCrewAssigned(state: JobState, event: CrewAssigned): JobState {
+  private static applyCrewAssigned(state: JobState, event: CrewAssigned): JobState {
     return {
       ...state,
       version: state.version + 1,
@@ -159,7 +160,7 @@ export class JobRepository {
     };
   }
 
-  private applyJobCompleted(state: JobState, event: JobCompleted): JobState {
+  private static applyJobCompleted(state: JobState, event: JobCompleted): JobState {
     return {
       ...state,
       version: state.version + 1,

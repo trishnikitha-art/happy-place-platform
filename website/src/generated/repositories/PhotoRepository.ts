@@ -65,7 +65,7 @@ export class PhotoRepository {
     };
 
     for (const event of stream.events) {
-      state = this.apply(state, event);
+      state = PhotoRepository.apply(state, event);
     }
 
     return state;
@@ -83,8 +83,9 @@ export class PhotoRepository {
   /**
    * Apply a single event to the current state.
    * This is the pure function: state + event → new state.
+   * Static — callable without an instance (used by replay dispatch).
    */
-  apply(state: PhotoState, event: PhotoEvent): PhotoState {
+  static apply(state: PhotoState, event: PhotoEvent): PhotoState {
     switch (event.type) {
 
       default:

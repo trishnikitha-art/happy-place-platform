@@ -5,7 +5,7 @@
  * No switch statements in user code. All routing derived from IR.
  */
 
-import { EstimateRepository, JobRepository, ProjectRepository, NeedAppointmentRepository, NeedInvoiceRepository, NeedCrewRepository, NeedReviewRepository } from "../repositories";
+import { EstimateRepository, JobRepository, ProjectRepository } from "../repositories";
 
 /**
  * Dispatch a single event to its aggregate's apply method.
@@ -30,14 +30,6 @@ export function dispatchEvent(
     return JobRepository.apply(state, event);
   case "JobCreated":
     return JobRepository.apply(state, event);
-  case "NeedAppointment":
-    return NeedAppointmentRepository.apply(state, event);
-  case "NeedCrew":
-    return NeedCrewRepository.apply(state, event);
-  case "NeedInvoice":
-    return NeedInvoiceRepository.apply(state, event);
-  case "NeedReview":
-    return NeedReviewRepository.apply(state, event);
   case "ProjectCompleted":
     return ProjectRepository.apply(state, event);
   case "ProjectCreated":

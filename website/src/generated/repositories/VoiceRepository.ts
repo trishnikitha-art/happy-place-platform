@@ -65,7 +65,7 @@ export class VoiceRepository {
     };
 
     for (const event of stream.events) {
-      state = this.apply(state, event);
+      state = VoiceRepository.apply(state, event);
     }
 
     return state;
@@ -83,8 +83,9 @@ export class VoiceRepository {
   /**
    * Apply a single event to the current state.
    * This is the pure function: state + event → new state.
+   * Static — callable without an instance (used by replay dispatch).
    */
-  apply(state: VoiceState, event: VoiceEvent): VoiceState {
+  static apply(state: VoiceState, event: VoiceEvent): VoiceState {
     switch (event.type) {
 
       default:

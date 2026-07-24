@@ -65,7 +65,7 @@ export class CustomerRepository {
     };
 
     for (const event of stream.events) {
-      state = this.apply(state, event);
+      state = CustomerRepository.apply(state, event);
     }
 
     return state;
@@ -83,8 +83,9 @@ export class CustomerRepository {
   /**
    * Apply a single event to the current state.
    * This is the pure function: state + event → new state.
+   * Static — callable without an instance (used by replay dispatch).
    */
-  apply(state: CustomerState, event: CustomerEvent): CustomerState {
+  static apply(state: CustomerState, event: CustomerEvent): CustomerState {
     switch (event.type) {
 
       default:

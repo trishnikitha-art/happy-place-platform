@@ -560,12 +560,10 @@ function buildWorkflowTransformations(
             source_location: toIRLocation(def.source_location),
           });
         }
-        edges.push({
-          from: `aggregate:${eventName}`,
-          to: eventId,
-          kind: "emits",
-          properties: {},
-        });
+        // Planning events do NOT create aggregate→event emits edges.
+        // They only produce transformations (the replay generator needs
+        // a matching aggregate node + repository to dispatch, and planning
+        // events have neither).
       }
     }
   }

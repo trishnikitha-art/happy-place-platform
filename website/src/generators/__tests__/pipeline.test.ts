@@ -34,7 +34,7 @@ describe("Full Pipeline: Manifest → IR → Generated Runtime", () => {
     const result = generateAll(ir);
 
     const repoFiles = result.artifacts.filter(
-      (a) => a.path.startsWith("repositories/") && !a.path.includes("__tests__"),
+      (a) => a.path.startsWith("repositories/") && !a.path.includes("__tests__") && !a.path.endsWith("index.ts"),
     );
     const aggregateCount = ir.nodes.filter((n) => n.kind === "aggregate").length;
     expect(repoFiles.length).toBe(aggregateCount);

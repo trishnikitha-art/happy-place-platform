@@ -1956,30 +1956,6 @@
       "properties": {
         "policy": "ReferenceNotCopy"
       }
-    },
-    {
-      "from": "aggregate:NeedAppointment",
-      "to": "event:NeedAppointment",
-      "kind": "emits",
-      "properties": {}
-    },
-    {
-      "from": "aggregate:NeedInvoice",
-      "to": "event:NeedInvoice",
-      "kind": "emits",
-      "properties": {}
-    },
-    {
-      "from": "aggregate:NeedCrew",
-      "to": "event:NeedCrew",
-      "kind": "emits",
-      "properties": {}
-    },
-    {
-      "from": "aggregate:NeedReview",
-      "to": "event:NeedReview",
-      "kind": "emits",
-      "properties": {}
     }
   ],
   "constraints": [

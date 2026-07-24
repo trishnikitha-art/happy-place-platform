@@ -15,18 +15,6 @@ export const REPLAY_MAP: Record<string, Record<string, string>> = {
     "JobCompleted": "applyJobCompleted",
     "JobCreated": "applyJobCreated",
   },
-  "NeedAppointment": {
-    "NeedAppointment": "applyNeedAppointment",
-  },
-  "NeedCrew": {
-    "NeedCrew": "applyNeedCrew",
-  },
-  "NeedInvoice": {
-    "NeedInvoice": "applyNeedInvoice",
-  },
-  "NeedReview": {
-    "NeedReview": "applyNeedReview",
-  },
   "Project": {
     "ProjectCompleted": "applyProjectCompleted",
     "ProjectCreated": "applyProjectCreated",

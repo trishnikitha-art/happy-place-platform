@@ -57,7 +57,7 @@ _None yet._
 - Symbols: 28
 - Types: 17
 - Nodes: 35
-- Edges: 37
+- Edges: 33
 - Constraints: 6
 - Authorities: 5
 - Transformations: 16

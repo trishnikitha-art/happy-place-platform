@@ -1,0 +1,58 @@
+id: painting-workflow
+name: Painting Workflow
+description: Standard workflow for painting and surface restoration projects
+serviceType: painting
+steps:
+  - id: surface-prep
+    name: Surface Preparation
+    capability: create
+    taskTemplate:
+      title: Surface Preparation - {projectTitle}
+      description: Pressure wash, scrape loose paint, sand rough areas
+      status: open
+    dependencies: []
+  
+  - id: wood-repair
+    name: Wood Repair
+    capability: create
+    taskTemplate:
+      title: Wood Repair - {projectTitle}
+      description: Complete minor wood repairs and epoxy fill
+      status: open
+    dependencies: [surface-prep]
+  
+  - id: caulking
+    name: Caulking
+    capability: create
+    taskTemplate:
+      title: Caulking - {projectTitle}
+      description: Replace failing caulk and seal gaps
+      status: open
+    dependencies: [wood-repair]
+  
+  - id: priming
+    name: Priming
+    capability: create
+    taskTemplate:
+      title: Priming - {projectTitle}
+      description: Spot prime exposed wood and full prime where needed
+      status: open
+    dependencies: [caulking]
+  
+  - id: painting
+    name: Painting
+    capability: create
+    taskTemplate:
+      title: Painting - {projectTitle}
+      description: Apply premium exterior coatings
+      status: open
+    dependencies: [priming]
+  
+  - id: final-inspection
+    name: Final Inspection
+    capability: create
+    taskTemplate:
+      title: Final Inspection - {projectTitle}
+      description: Inspect completed work and ensure quality
+      status: open
+    dependencies: [painting]

@@ -11,10 +11,6 @@ export const EVENT_TO_AGGREGATE: Record<string, string> = {
   "EstimateCreated": "Estimate",
   "JobCompleted": "Job",
   "JobCreated": "Job",
-  "NeedAppointment": "NeedAppointment",
-  "NeedCrew": "NeedCrew",
-  "NeedInvoice": "NeedInvoice",
-  "NeedReview": "NeedReview",
   "ProjectCompleted": "Project",
   "ProjectCreated": "Project"
 };

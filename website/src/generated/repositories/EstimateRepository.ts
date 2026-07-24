@@ -91,7 +91,7 @@ export class EstimateRepository {
     };
 
     for (const event of stream.events) {
-      state = this.apply(state, event);
+      state = EstimateRepository.apply(state, event);
     }
 
     return state;
@@ -109,13 +109,14 @@ export class EstimateRepository {
   /**
    * Apply a single event to the current state.
    * This is the pure function: state + event → new state.
+   * Static — callable without an instance (used by replay dispatch).
    */
-  apply(state: EstimateState, event: EstimateEvent): EstimateState {
+  static apply(state: EstimateState, event: EstimateEvent): EstimateState {
     switch (event.type) {
       case "EstimateCreated":
-        return this.applyEstimateCreated(state, event);
+        return EstimateRepository.applyEstimateCreated(state, event);
       case "EstimateAccepted":
-        return this.applyEstimateAccepted(state, event);
+        return EstimateRepository.applyEstimateAccepted(state, event);
       default:
         return state;
     }
@@ -125,7 +126,7 @@ export class EstimateRepository {
   // Event applicators (one per event type)
   // -------------------------------------------------------------------------
 
-  private applyEstimateCreated(state: EstimateState, event: EstimateCreated): EstimateState {
+  private static applyEstimateCreated(state: EstimateState, event: EstimateCreated): EstimateState {
     return {
       ...state,
       version: state.version + 1,
@@ -134,7 +135,7 @@ export class EstimateRepository {
     };
   }
 
-  private applyEstimateAccepted(state: EstimateState, event: EstimateAccepted): EstimateState {
+  private static applyEstimateAccepted(state: EstimateState, event: EstimateAccepted): EstimateState {
     return {
       ...state,
       version: state.version + 1,

@@ -1,0 +1,58 @@
+id: fencing-workflow
+name: Fencing Workflow
+description: Standard workflow for fence installation and repair projects
+serviceType: fencing
+steps:
+  - id: site-prep
+    name: Site Preparation
+    capability: create
+    taskTemplate:
+      title: Site Preparation - {projectTitle}
+      description: Clear site, mark boundaries, prepare for installation
+      status: open
+    dependencies: []
+  
+  - id: post-installation
+    name: Post Installation
+    capability: create
+    taskTemplate:
+      title: Post Installation - {projectTitle}
+      description: Install fence posts and ensure proper alignment
+      status: open
+    dependencies: [site-prep]
+  
+  - id: panel-installation
+    name: Panel Installation
+    capability: create
+    taskTemplate:
+      title: Panel Installation - {projectTitle}
+      description: Install fence panels and hardware
+      status: open
+    dependencies: [post-installation]
+  
+  - id: gate-installation
+    name: Gate Installation
+    capability: create
+    taskTemplate:
+      title: Gate Installation - {projectTitle}
+      description: Install gates and hardware
+      status: open
+    dependencies: [panel-installation]
+  
+  - id: staining
+    name: Staining and Finishing
+    capability: create
+    taskTemplate:
+      title: Staining and Finishing - {projectTitle}
+      description: Apply stain and finish to fence
+      status: open
+    dependencies: [gate-installation]
+  
+  - id: final-inspection
+    name: Final Inspection
+    capability: create
+    taskTemplate:
+      title: Final Inspection - {projectTitle}
+      description: Inspect completed fence installation
+      status: open
+    dependencies: [staining]

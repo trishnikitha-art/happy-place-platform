@@ -27,7 +27,7 @@ describe("RepositoryGenerator", () => {
   it("each repository has load() and save() methods", () => {
     const artifacts = gen.generate(ir);
     for (const artifact of artifacts) {
-      if (artifact.path.startsWith("repositories/") && !artifact.path.includes("__tests__")) {
+      if (artifact.path.startsWith("repositories/") && !artifact.path.includes("__tests__") && !artifact.path.endsWith("index.ts")) {
         expect(artifact.content).toContain("async load(");
         expect(artifact.content).toContain("async save(");
       }
@@ -37,7 +37,7 @@ describe("RepositoryGenerator", () => {
   it("each repository has apply() method", () => {
     const artifacts = gen.generate(ir);
     for (const artifact of artifacts) {
-      if (artifact.path.startsWith("repositories/") && !artifact.path.includes("__tests__")) {
+      if (artifact.path.startsWith("repositories/") && !artifact.path.includes("__tests__") && !artifact.path.endsWith("index.ts")) {
         expect(artifact.content).toContain("apply(");
       }
     }
@@ -46,7 +46,7 @@ describe("RepositoryGenerator", () => {
   it("each repository has replay integration (apply switch)", () => {
     const artifacts = gen.generate(ir);
     for (const artifact of artifacts) {
-      if (artifact.path.startsWith("repositories/") && !artifact.path.includes("__tests__")) {
+      if (artifact.path.startsWith("repositories/") && !artifact.path.includes("__tests__") && !artifact.path.endsWith("index.ts")) {
         expect(artifact.content).toContain("switch (event.type)");
       }
     }
@@ -55,7 +55,7 @@ describe("RepositoryGenerator", () => {
   it("each repository has snapshot interface", () => {
     const artifacts = gen.generate(ir);
     for (const artifact of artifacts) {
-      if (artifact.path.startsWith("repositories/") && !artifact.path.includes("__tests__")) {
+      if (artifact.path.startsWith("repositories/") && !artifact.path.includes("__tests__") && !artifact.path.endsWith("index.ts")) {
         expect(artifact.content).toContain("snapshot(");
         expect(artifact.content).toContain("loadFromSnapshot(");
       }
@@ -65,7 +65,7 @@ describe("RepositoryGenerator", () => {
   it("each repository has authority hook interface", () => {
     const artifacts = gen.generate(ir);
     for (const artifact of artifacts) {
-      if (artifact.path.startsWith("repositories/") && !artifact.path.includes("__tests__")) {
+      if (artifact.path.startsWith("repositories/") && !artifact.path.includes("__tests__") && !artifact.path.endsWith("index.ts")) {
         expect(artifact.content).toContain("beforeCommand(");
         expect(artifact.content).toContain("afterSave(");
       }
@@ -122,7 +122,7 @@ describe("RepositoryGenerator", () => {
 
   it("minimal IR generates one repository", () => {
     const artifacts = gen.generate(minimalIR);
-    const repoFiles = artifacts.filter((a) => a.path.startsWith("repositories/") && !a.path.includes("__tests__"));
+    const repoFiles = artifacts.filter((a) => a.path.startsWith("repositories/") && !a.path.includes("__tests__") && !a.path.endsWith("index.ts"));
     expect(repoFiles.length).toBe(1);
     expect(repoFiles[0].path).toContain("Widget");
   });

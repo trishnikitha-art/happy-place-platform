@@ -1,0 +1,49 @@
+id: flooring-workflow
+name: Flooring Workflow
+description: Standard workflow for flooring installation and repair projects
+serviceType: flooring
+steps:
+  - id: subfloor-prep
+    name: Subfloor Preparation
+    capability: create
+    taskTemplate:
+      title: Subfloor Preparation - {projectTitle}
+      description: Prepare subfloor, repair as needed, ensure level surface
+      status: open
+    dependencies: []
+  
+  - id: underlayment
+    name: Underlayment Installation
+    capability: create
+    taskTemplate:
+      title: Underlayment Installation - {projectTitle}
+      description: Install underlayment and moisture barrier
+      status: open
+    dependencies: [subfloor-prep]
+  
+  - id: flooring-installation
+    name: Flooring Installation
+    capability: create
+    taskTemplate:
+      title: Flooring Installation - {projectTitle}
+      description: Install flooring material (hardwood, laminate, etc.)
+      status: open
+    dependencies: [underlayment]
+  
+  - id: trim-installation
+    name: Trim and Transition Installation
+    capability: create
+    taskTemplate:
+      title: Trim and Transition Installation - {projectTitle}
+      description: Install baseboards, quarter round, and transitions
+      status: open
+    dependencies: [flooring-installation]
+  
+  - id: finishing
+    name: Finishing
+    capability: create
+    taskTemplate:
+      title: Finishing - {projectTitle}
+      description: Apply finish, stain, or sealant as needed
+      status: open
+    dependencies: [trim-installation]

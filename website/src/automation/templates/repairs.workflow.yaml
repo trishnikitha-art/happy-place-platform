@@ -1,0 +1,58 @@
+id: repairs-workflow
+name: Home Repairs Workflow
+description: Standard workflow for home repair and maintenance projects
+serviceType: repairs
+steps:
+  - id: assessment
+    name: Initial Assessment
+    capability: create
+    taskTemplate:
+      title: Initial Assessment - {projectTitle}
+      description: Assess repair needs and create work plan
+      status: open
+    dependencies: []
+  
+  - id: material-acquisition
+    name: Material Acquisition
+    capability: create
+    taskTemplate:
+      title: Material Acquisition - {projectTitle}
+      description: Acquire materials and replacement parts
+      status: open
+    dependencies: [assessment]
+  
+  - id: drywall-repair
+    name: Drywall Repair
+    capability: create
+    taskTemplate:
+      title: Drywall Repair - {projectTitle}
+      description: Repair and finish drywall as needed
+      status: open
+    dependencies: [material-acquisition]
+  
+  - id: floor-repair
+    name: Floor Repair
+    capability: create
+    taskTemplate:
+      title: Floor Repair - {projectTitle}
+      description: Repair flooring as needed
+      status: open
+    dependencies: [material-acquisition]
+  
+  - id: trim-work
+    name: Trim Work
+    capability: create
+    taskTemplate:
+      title: Trim Work - {projectTitle}
+      description: Repair or replace trim and molding
+      status: open
+    dependencies: [material-acquisition]
+  
+  - id: final-cleanup
+    name: Final Cleanup
+    capability: create
+    taskTemplate:
+      title: Final Cleanup - {projectTitle}
+      description: Clean work area and remove debris
+      status: open
+    dependencies: [drywall-repair, floor-repair, trim-work]

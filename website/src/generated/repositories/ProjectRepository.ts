@@ -91,7 +91,7 @@ export class ProjectRepository {
     };
 
     for (const event of stream.events) {
-      state = this.apply(state, event);
+      state = ProjectRepository.apply(state, event);
     }
 
     return state;
@@ -109,13 +109,14 @@ export class ProjectRepository {
   /**
    * Apply a single event to the current state.
    * This is the pure function: state + event → new state.
+   * Static — callable without an instance (used by replay dispatch).
    */
-  apply(state: ProjectState, event: ProjectEvent): ProjectState {
+  static apply(state: ProjectState, event: ProjectEvent): ProjectState {
     switch (event.type) {
       case "ProjectCreated":
-        return this.applyProjectCreated(state, event);
+        return ProjectRepository.applyProjectCreated(state, event);
       case "ProjectCompleted":
-        return this.applyProjectCompleted(state, event);
+        return ProjectRepository.applyProjectCompleted(state, event);
       default:
         return state;
     }
@@ -125,7 +126,7 @@ export class ProjectRepository {
   // Event applicators (one per event type)
   // -------------------------------------------------------------------------
 
-  private applyProjectCreated(state: ProjectState, event: ProjectCreated): ProjectState {
+  private static applyProjectCreated(state: ProjectState, event: ProjectCreated): ProjectState {
     return {
       ...state,
       version: state.version + 1,
@@ -134,7 +135,7 @@ export class ProjectRepository {
     };
   }
 
-  private applyProjectCompleted(state: ProjectState, event: ProjectCompleted): ProjectState {
+  private static applyProjectCompleted(state: ProjectState, event: ProjectCompleted): ProjectState {
     return {
       ...state,
       version: state.version + 1,

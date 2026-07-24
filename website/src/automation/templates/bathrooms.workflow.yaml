@@ -1,0 +1,58 @@
+id: bathrooms-workflow
+name: Bathroom Remodeling Workflow
+description: Standard workflow for bathroom remodeling projects
+serviceType: bathrooms
+steps:
+  - id: demolition
+    name: Demolition
+    capability: create
+    taskTemplate:
+      title: Demolition - {projectTitle}
+      description: Remove existing fixtures, tile, and materials
+      status: open
+    dependencies: []
+  
+  - id: rough-in
+    name: Rough-In Plumbing
+    capability: create
+    taskTemplate:
+      title: Rough-In Plumbing - {projectTitle}
+      description: Install or update plumbing rough-in
+      status: open
+    dependencies: [demolition]
+  
+  - id: waterproofing
+    name: Waterproofing
+    capability: create
+    taskTemplate:
+      title: Waterproofing - {projectTitle}
+      description: Apply waterproofing membrane
+      status: open
+    dependencies: [rough-in]
+  
+  - id: tile-installation
+    name: Tile Installation
+    capability: create
+    taskTemplate:
+      title: Tile Installation - {projectTitle}
+      description: Install floor and wall tile
+      status: open
+    dependencies: [waterproofing]
+  
+  - id: fixture-installation
+    name: Fixture Installation
+    capability: create
+    taskTemplate:
+      title: Fixture Installation - {projectTitle}
+      description: Install vanity, toilet, and fixtures
+      status: open
+    dependencies: [tile-installation]
+  
+  - id: final-finishing
+    name: Final Finishing
+    capability: create
+    taskTemplate:
+      title: Final Finishing - {projectTitle}
+      description: Complete trim, painting, and final touches
+      status: open
+    dependencies: [fixture-installation]

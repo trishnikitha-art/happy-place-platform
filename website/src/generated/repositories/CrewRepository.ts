@@ -65,7 +65,7 @@ export class CrewRepository {
     };
 
     for (const event of stream.events) {
-      state = this.apply(state, event);
+      state = CrewRepository.apply(state, event);
     }
 
     return state;
@@ -83,8 +83,9 @@ export class CrewRepository {
   /**
    * Apply a single event to the current state.
    * This is the pure function: state + event → new state.
+   * Static — callable without an instance (used by replay dispatch).
    */
-  apply(state: CrewState, event: CrewEvent): CrewState {
+  static apply(state: CrewState, event: CrewEvent): CrewState {
     switch (event.type) {
 
       default:
