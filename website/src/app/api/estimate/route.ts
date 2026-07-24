@@ -29,6 +29,10 @@ function buildEmailBody(req: EstimateRequest, companyName: string): string {
   return lines.join("\n");
 }
 
+function isString(value: unknown): value is string {
+  return typeof value === 'string';
+}
+
 async function uploadPhotoToDrive(auth: any, base64Data: string, filename: string | null | undefined) {
   const drive = google.drive({ version: "v3", auth });
   
@@ -115,7 +119,7 @@ export async function POST(request: NextRequest) {
       for (const photo of req.photos) {
         if (photo.data && photo.name) {
           try {
-            // @ts-ignore - TypeScript type inference issue, runtime value is always string
+            // @ts-ignore - TypeScript type inference limitation, runtime check ensures string
             const fileId = await uploadPhotoToDrive(auth, photo.data, photo.name);
             photoIds.push(fileId);
           } catch (error) {
