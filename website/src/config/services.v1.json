@@ -16,7 +16,30 @@
         "surfaceType": "wood",
         "paintingType": "deck_stain",
         "estimationAuthority": "building"
-      }
+      },
+      "estimateQuestions": [
+        {
+          "id": "deck_scope",
+          "label": "What type of deck work do you need?",
+          "type": "select",
+          "options": ["New build", "Repair / board replacement", "Resurface / re-stain only", "Not sure"],
+          "required": true
+        },
+        {
+          "id": "deck_square_footage",
+          "label": "Approximate deck size (square feet)",
+          "type": "text",
+          "placeholder": "e.g., 300 sq ft",
+          "required": false
+        },
+        {
+          "id": "deck_elevation",
+          "label": "Deck elevation",
+          "type": "select",
+          "options": ["Ground level", "Raised (1-3 ft)", "Elevated (4+ ft)", "Second story"],
+          "required": false
+        }
+      ]
     },
     {
       "id": "fences",
@@ -32,7 +55,30 @@
         "surfaceType": "wood",
         "paintingType": "fence_stain",
         "estimationAuthority": "building"
-      }
+      },
+      "estimateQuestions": [
+        {
+          "id": "fence_scope",
+          "label": "What type of fence work do you need?",
+          "type": "select",
+          "options": ["New fence", "Repair (1-3 sections)", "Full replacement", "Not sure"],
+          "required": true
+        },
+        {
+          "id": "fence_length",
+          "label": "Approximate linear footage",
+          "type": "text",
+          "placeholder": "e.g., 150 linear ft",
+          "required": false
+        },
+        {
+          "id": "fence_height",
+          "label": "Fence height",
+          "type": "select",
+          "options": ["4 ft", "5 ft", "6 ft", "8 ft", "Not sure"],
+          "required": false
+        }
+      ]
     },
     {
       "id": "bathrooms",
@@ -48,7 +94,23 @@
         "surfaceType": "interior",
         "paintingType": "interior",
         "estimationAuthority": "building"
-      }
+      },
+      "estimateQuestions": [
+        {
+          "id": "bathroom_scope",
+          "label": "What type of bathroom work do you need?",
+          "type": "select",
+          "options": ["Full remodel", "Shower/tub only", "Vanity + fixtures", "Tile + paint", "Not sure"],
+          "required": true
+        },
+        {
+          "id": "bathroom_mold_damage",
+          "label": "Is there existing moisture or mold damage?",
+          "type": "select",
+          "options": ["No - good condition", "Minor - surface level", "Yes - significant damage", "Not sure"],
+          "required": false
+        }
+      ]
     },
     {
       "id": "painting",
@@ -66,7 +128,30 @@
         "estimationAuthority": "painting"
       },
       "skipsIntentStep": true,
-      "defaultProjectIntent": "Paint / Stain / Refinish existing"
+      "defaultProjectIntent": "Paint / Stain / Refinish existing",
+      "estimateQuestions": [
+        {
+          "id": "painting_scope",
+          "label": "What type of painting work do you need?",
+          "type": "select",
+          "options": ["Interior painting", "Exterior painting", "Cabinet refinishing", "Not sure"],
+          "required": true
+        },
+        {
+          "id": "painting_square_footage",
+          "label": "Approximate square footage to be painted",
+          "type": "text",
+          "placeholder": "e.g., 1500 sq ft",
+          "required": false
+        },
+        {
+          "id": "painting_condition",
+          "label": "Current condition of surfaces",
+          "type": "select",
+          "options": ["Good condition - just need color change", "Some wear - minor prep needed", "Poor condition - significant prep needed", "Not sure"],
+          "required": true
+        }
+      ]
     },
     {
       "id": "finish-carpentry",
@@ -82,7 +167,23 @@
         "surfaceType": "wood",
         "paintingType": "interior",
         "estimationAuthority": "building"
-      }
+      },
+      "estimateQuestions": [
+        {
+          "id": "finish_carpentry_scope",
+          "label": "What type of finish carpentry do you need?",
+          "type": "select",
+          "options": ["Trim & molding", "Custom millwork", "Crown molding", "Wainscoting", "Not sure"],
+          "required": true
+        },
+        {
+          "id": "finish_carpentry_rooms",
+          "label": "How many rooms need work?",
+          "type": "select",
+          "options": ["1 room", "2-3 rooms", "4+ rooms", "Whole house"],
+          "required": false
+        }
+      ]
     },
     {
       "id": "restoration",
@@ -98,7 +199,23 @@
         "surfaceType": "mixed",
         "paintingType": "interior",
         "estimationAuthority": "building"
-      }
+      },
+      "estimateQuestions": [
+        {
+          "id": "restoration_scope",
+          "label": "What type of restoration work do you need?",
+          "type": "select",
+          "options": ["Full restoration", "Partial restoration", "Structural repair", "Cosmetic restoration", "Not sure"],
+          "required": true
+        },
+        {
+          "id": "restoration_era",
+          "label": "Approximate era of the home",
+          "type": "select",
+          "options": ["Pre-1900", "1900-1940", "1940-1970", "1970-2000", "2000+", "Not sure"],
+          "required": false
+        }
+      ]
     },
     {
       "id": "outdoor-living",
@@ -114,7 +231,23 @@
         "surfaceType": "wood",
         "paintingType": "exterior",
         "estimationAuthority": "building"
-      }
+      },
+      "estimateQuestions": [
+        {
+          "id": "outdoor_living_type",
+          "label": "What type of outdoor structure do you need?",
+          "type": "select",
+          "options": ["Pergola / courtyard", "Patio / hardscape", "Deck", "Screened porch", "Not sure"],
+          "required": true
+        },
+        {
+          "id": "outdoor_living_footprint",
+          "label": "Approximate size (square feet)",
+          "type": "text",
+          "placeholder": "e.g., 200 sq ft",
+          "required": false
+        }
+      ]
     },
     {
       "id": "repairs",
@@ -130,7 +263,23 @@
         "estimationAuthority": "building"
       },
       "skipsIntentStep": true,
-      "defaultProjectIntent": "Restore / Repair existing"
+      "defaultProjectIntent": "Restore / Repair existing",
+      "estimateQuestions": [
+        {
+          "id": "repair_urgency",
+          "label": "How urgent is this repair?",
+          "type": "select",
+          "options": ["Emergency - needs immediate attention", "Within a week", "Within a month", "Flexible timing"],
+          "required": true
+        },
+        {
+          "id": "repair_duration",
+          "label": "Estimated time to complete",
+          "type": "select",
+          "options": ["Quick single task (under 2 hrs)", "Small repair (2-5 hrs)", "Larger repair (1-2 days)", "Multiple days"],
+          "required": true
+        }
+      ]
     },
     {
       "id": "built-ins",
@@ -146,7 +295,23 @@
         "surfaceType": "wood",
         "paintingType": "interior",
         "estimationAuthority": "building"
-      }
+      },
+      "estimateQuestions": [
+        {
+          "id": "builtins_scope",
+          "label": "What type of built-in work do you need?",
+          "type": "select",
+          "options": ["Single small piece (shelf, bench)", "Multi-piece project", "Wall-to-wall shelving", "Custom cabinetry", "Not sure"],
+          "required": true
+        },
+        {
+          "id": "builtins_dimensions",
+          "label": "Rough dimensions or room size",
+          "type": "text",
+          "placeholder": "e.g., 8ft wall, or 12x12 room",
+          "required": false
+        }
+      ]
     },
     {
       "id": "pergolas",
@@ -162,7 +327,23 @@
         "surfaceType": "wood",
         "paintingType": "exterior",
         "estimationAuthority": "building"
-      }
+      },
+      "estimateQuestions": [
+        {
+          "id": "pergola_footprint",
+          "label": "Approximate size (square feet)",
+          "type": "text",
+          "placeholder": "e.g., 200 sq ft",
+          "required": false
+        },
+        {
+          "id": "pergola_replacement",
+          "label": "Is this replacing an existing structure?",
+          "type": "select",
+          "options": ["No - new construction", "Yes - replacing existing structure", "Not sure"],
+          "required": true
+        }
+      ]
     },
     {
       "id": "adus",
@@ -208,7 +389,30 @@
       "capabilities": {
         "paintableSurface": false,
         "estimationAuthority": "building"
-      }
+      },
+      "estimateQuestions": [
+        {
+          "id": "flooring_type",
+          "label": "What type of flooring do you need?",
+          "type": "select",
+          "options": ["Hardwood", "Laminate / LVP", "Tile", "Not sure"],
+          "required": true
+        },
+        {
+          "id": "flooring_square_footage",
+          "label": "Approximate square footage",
+          "type": "text",
+          "placeholder": "e.g., 500 sq ft",
+          "required": false
+        },
+        {
+          "id": "flooring_rooms",
+          "label": "How many rooms?",
+          "type": "select",
+          "options": ["1 room", "2-3 rooms", "4+ rooms", "Whole house"],
+          "required": false
+        }
+      ]
     }
   ]
 }
