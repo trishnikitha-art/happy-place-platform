@@ -866,6 +866,78 @@
       "fileSize": 2081361,
       "format": "JPG",
       "colorSpace": "sRGB"
+    },
+    {
+      "id": "pergolas-001-before",
+      "driveId": "",
+      "filename": "1.png",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 4367,
+        "height": 3275
+      },
+      "variants": {
+        "original": "/images/projects/pergolas/1.png",
+        "web": "/images/projects/pergolas/1.png",
+        "webp": "/images/projects/pergolas/1.png",
+        "avif": "/images/projects/pergolas/1.png",
+        "thumbnail": "/images/projects/pergolas/1.png"
+      },
+      "alt": "Pergola before construction",
+      "description": "Original pergola site before construction",
+      "service": "pergolas",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "pergolas-001",
+      "tags": ["pergolas", "before", "corvallis"],
+      "roles": ["before"],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "createdAt": "2026-07-22T00:00:00.000Z",
+      "updatedAt": "2026-07-22T00:00:00.000Z",
+      "uploadedAt": "2026-07-22T00:00:00.000Z",
+      "fileSize": 2637377,
+      "format": "PNG",
+      "colorSpace": "sRGB"
+    },
+    {
+      "id": "pergolas-001-after",
+      "driveId": "",
+      "filename": "HOMESERVICEPROJECTPERGOLAS.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 4367,
+        "height": 3275
+      },
+      "variants": {
+        "original": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1080.webp",
+        "web": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1080.webp",
+        "webp": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1080.webp",
+        "avif": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1080.avif",
+        "thumbnail": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-thumb.webp"
+      },
+      "alt": "Pergola after construction",
+      "description": "Completed pergola construction",
+      "service": "pergolas",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "pergolas-001",
+      "tags": ["pergolas", "after", "corvallis"],
+      "roles": ["after"],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "createdAt": "2026-07-22T00:00:00.000Z",
+      "updatedAt": "2026-07-22T00:00:00.000Z",
+      "uploadedAt": "2026-07-22T00:00:00.000Z",
+      "fileSize": 2081361,
+      "format": "JPG",
+      "colorSpace": "sRGB"
     }
   ]
 }
