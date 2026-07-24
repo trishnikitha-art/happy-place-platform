@@ -29,5 +29,5 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-  "exclude": ["node_modules", "internal"]
+  "exclude": ["node_modules", "internal", "src/generated"]
 }
