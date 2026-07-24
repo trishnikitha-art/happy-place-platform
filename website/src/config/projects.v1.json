@@ -123,7 +123,6 @@
       },
       "tags": [
         "pergolas",
-        "outdoor-living",
         "custom",
         "corvallis",
         "steel-framed"
@@ -140,7 +139,7 @@
     {
       "id": "builtins-001",
       "title": "Custom Built-Ins - Corvallis",
-      "service": "built-ins",
+      "service": "finish-carpentry",
       "status": "completed",
       "location": {
         "city": "Corvallis",
@@ -470,7 +469,6 @@
       },
       "tags": [
         "pergolas",
-        "outdoor-living",
         "custom",
         "corvallis",
         "steel-framed"

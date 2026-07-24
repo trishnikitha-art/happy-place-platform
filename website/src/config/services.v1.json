@@ -10,7 +10,7 @@
       "icon": "deck",
       "featured": true,
       "homepageEligible": true,
-      "order": 7,
+      "order": 6,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
@@ -35,7 +35,7 @@
       "icon": "fence",
       "featured": true,
       "homepageEligible": true,
-      "order": 9,
+      "order": 8,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
@@ -60,7 +60,7 @@
       "icon": "bathroom",
       "featured": true,
       "homepageEligible": true,
-      "order": 6,
+      "order": 3,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "interior",
@@ -82,7 +82,7 @@
       "name": "Painting & Surface Restoration",
       "slug": "painting",
       "description": "A lasting paint job starts long before the first coat of paint. We properly prepare every surface—cleaning, sanding, repairing, priming, and finishing—to give your home protection that lasts for years.",
-      "icon": "paint",
+      "icon": "paint-brush",
       "featured": true,
       "homepageEligible": true,
       "order": 1,
@@ -96,23 +96,23 @@
       "defaultProjectIntent": "Paint / Stain / Refinish existing",
       "estimateQuestions": [
         {
-          "id": "painting_scope",
-          "label": "What type of painting work do you need?",
+          "id": "painting_goal",
+          "label": "What are you trying to accomplish?",
           "type": "select",
-          "options": ["Interior painting", "Exterior painting", "Cabinet refinishing", "Not sure"],
+          "options": ["Freshen existing paint", "Repair peeling paint", "Complete color change", "Preparing to sell", "Just moved in", "Not sure"],
           "required": true
         }
       ]
     },
     {
       "id": "finish-carpentry",
-      "name": "Finish Carpentry & Built-Ins",
+      "name": "Built-Ins & Finish Carpentry",
       "slug": "finish-carpentry",
-      "description": "Storage, shelving, and trim that looks like it was always part of your home—not something added later.",
-      "icon": "carpentry",
+      "description": "Custom shelving, trim, and built-in storage that looks like it was always part of your home—not something added later.",
+      "icon": "shelf",
       "featured": true,
       "homepageEligible": true,
-      "order": 3,
+      "order": 5,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
@@ -122,22 +122,22 @@
       "estimateQuestions": [
         {
           "id": "finish_carpentry_scope",
-          "label": "What type of finish carpentry do you need?",
+          "label": "What type of built-in or trim work do you need?",
           "type": "select",
-          "options": ["Trim & molding", "Custom millwork", "Crown molding", "Wainscoting", "Not sure"],
+          "options": ["Built-in shelving", "Trim & molding", "Crown molding", "Custom storage", "Not sure"],
           "required": true
         }
       ]
     },
     {
-      "id": "restoration",
-      "name": "Restoration",
-      "slug": "restoration",
+      "id": "historic-restoration",
+      "name": "Historic Restoration",
+      "slug": "historic-restoration",
       "description": "Historic homes deserve care that honors their character while making them work for modern life.",
       "icon": "restoration",
-      "featured": true,
+      "featured": false,
       "homepageEligible": false,
-      "order": 3,
+      "order": 9,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "mixed",
@@ -146,35 +146,10 @@
       },
       "estimateQuestions": [
         {
-          "id": "restoration_scope",
-          "label": "What type of restoration work do you need?",
+          "id": "historic_restoration_scope",
+          "label": "What type of historic restoration work do you need?",
           "type": "select",
           "options": ["Full restoration", "Partial restoration", "Structural repair", "Cosmetic restoration", "Not sure"],
-          "required": true
-        }
-      ]
-    },
-    {
-      "id": "outdoor-living",
-      "name": "Outdoor Living",
-      "slug": "outdoor-living",
-      "description": "Outdoor spaces built for everyday living—not just special occasions.",
-      "icon": "outdoor",
-      "featured": true,
-      "homepageEligible": true,
-      "order": 9,
-      "capabilities": {
-        "paintableSurface": true,
-        "surfaceType": "wood",
-        "paintingType": "exterior",
-        "estimationAuthority": "building"
-      },
-      "estimateQuestions": [
-        {
-          "id": "outdoor_living_type",
-          "label": "What type of outdoor structure do you need?",
-          "type": "select",
-          "options": ["Pergola / courtyard", "Patio / hardscape", "Deck", "Screened porch", "Not sure"],
           "required": true
         }
       ]
@@ -196,35 +171,17 @@
       "defaultProjectIntent": "Restore / Repair existing",
       "estimateQuestions": [
         {
+          "id": "repair_area",
+          "label": "What needs attention?",
+          "type": "select",
+          "options": ["Wall", "Door", "Window", "Rot", "Trim", "Siding", "Drywall", "Floor", "Fence", "Not sure"],
+          "required": true
+        },
+        {
           "id": "repair_urgency",
           "label": "How urgent is this repair?",
           "type": "select",
           "options": ["Emergency - needs immediate attention", "Within a week", "Within a month", "Flexible timing"],
-          "required": true
-        }
-      ]
-    },
-    {
-      "id": "built-ins",
-      "name": "Built-ins",
-      "slug": "built-ins",
-      "description": "Storage that looks like it was always part of your home—not something added later.",
-      "icon": "shelf",
-      "featured": false,
-      "homepageEligible": false,
-      "order": 11,
-      "capabilities": {
-        "paintableSurface": true,
-        "surfaceType": "wood",
-        "paintingType": "interior",
-        "estimationAuthority": "building"
-      },
-      "estimateQuestions": [
-        {
-          "id": "builtins_scope",
-          "label": "What type of built-in work do you need?",
-          "type": "select",
-          "options": ["Single small piece (shelf, bench)", "Multi-piece project", "Wall-to-wall shelving", "Custom cabinetry", "Not sure"],
           "required": true
         }
       ]
@@ -237,7 +194,7 @@
       "icon": "pergola",
       "featured": true,
       "homepageEligible": true,
-      "order": 8,
+      "order": 7,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
@@ -262,7 +219,7 @@
       "icon": "home",
       "featured": false,
       "homepageEligible": false,
-      "order": 13,
+      "order": 10,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "mixed",
@@ -287,7 +244,7 @@
       "icon": "barn",
       "featured": false,
       "homepageEligible": false,
-      "order": 14,
+      "order": 11,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
