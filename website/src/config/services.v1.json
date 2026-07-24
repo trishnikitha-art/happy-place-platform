@@ -359,7 +359,30 @@
         "surfaceType": "mixed",
         "paintingType": "interior",
         "estimationAuthority": "building"
-      }
+      },
+      "estimateQuestions": [
+        {
+          "id": "adu_scope",
+          "label": "What type of ADU work do you need?",
+          "type": "select",
+          "options": ["New construction", "Conversion (garage/basement)", "Addition to existing", "Not sure"],
+          "required": true
+        },
+        {
+          "id": "adu_size",
+          "label": "Approximate size (square feet)",
+          "type": "text",
+          "placeholder": "e.g., 600 sq ft",
+          "required": false
+        },
+        {
+          "id": "adu_bedrooms",
+          "label": "Number of bedrooms",
+          "type": "select",
+          "options": ["Studio", "1 bedroom", "2 bedrooms", "3+ bedrooms"],
+          "required": false
+        }
+      ]
     },
     {
       "id": "pole-barns",
@@ -375,7 +398,30 @@
         "surfaceType": "wood",
         "paintingType": "exterior",
         "estimationAuthority": "building"
-      }
+      },
+      "estimateQuestions": [
+        {
+          "id": "pole_barn_purpose",
+          "label": "What will the pole barn be used for?",
+          "type": "select",
+          "options": ["Storage / equipment", "Livestock", "Workshop", "Vehicle storage", "Not sure"],
+          "required": true
+        },
+        {
+          "id": "pole_barn_size",
+          "label": "Approximate size (square feet)",
+          "type": "text",
+          "placeholder": "e.g., 1200 sq ft",
+          "required": false
+        },
+        {
+          "id": "pole_barn_height",
+          "label": "Ceiling height preference",
+          "type": "select",
+          "options": ["Standard (8-10 ft)", "High clearance (12-14 ft)", "Extra tall (16+ ft)", "Not sure"],
+          "required": false
+        }
+      ]
     },
     {
       "id": "flooring",

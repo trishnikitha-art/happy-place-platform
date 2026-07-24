@@ -1,0 +1,405 @@
+/**
+ * Repository Generator — IR → Event-sourced aggregate repositories.
+ *
+ * Each aggregate root (mission, identity) gets a generated repository with:
+ *   - Aggregate root class with state + version
+ *   - Event stream interface (load/save/apply)
+ *   - Replay integration (applyEvent maps to method)
+ *   - Snapshot interface (stub)
+ *   - Authority hook interface
+ *   - Generated repository tests
+ *
+ * No generator reads YAML. Only IR.
+ */
+
+import * as crypto from "crypto";
+import type { IRDocument, Node, Authority } from "../constitution/ir/types";
+import type { Generator, GeneratedArtifact } from "./types";
+import type { CompilerDiagnostic } from "../constitution/ir/types";
+import { createDiagnostic } from "../compiler/diagnostics";
+
+// ---------------------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------------------
+
+function sha256(content: string): string {
+  return crypto.createHash("sha256").update(content).digest("hex");
+}
+
+function pascalCase(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+function camelCase(s: string): string {
+  return s.charAt(0).toLowerCase() + s.slice(1);
+}
+
+/** Find the authority that owns a given entity node id */
+function findOwner(nodeId: string, authorities: readonly Authority[]): Authority | undefined {
+  return authorities.find((a) => a.owns.includes(nodeId));
+}
+
+/** Get event names for a given aggregate from edges */
+function getEventsForAggregate(aggregateNodeId: string, ir: IRDocument): string[] {
+  return ir.edges
+    .filter((e) => e.from === aggregateNodeId && e.kind === "emits")
+    .map((e) => {
+      const node = ir.nodes.find((n) => n.id === e.to);
+      return node?.symbol ?? e.to.replace("event:", "");
+    });
+}
+
+/** Get commands for a given aggregate from symbol metadata */
+function getCommandsForAggregate(aggregateName: string, ir: IRDocument): string[] {
+  const sym = ir.symbols.find((s) => s.name === aggregateName && s.kind === "aggregate");
+  if (!sym) return [];
+  return (sym.metadata.commands as string[]) ?? [];
+}
+
+/** Get policies/constraints for a given aggregate */
+function getPoliciesForAggregate(aggregateName: string, ir: IRDocument): string[] {
+  const sym = ir.symbols.find((s) => s.name === aggregateName && s.kind === "aggregate");
+  if (!sym) return [];
+  return (sym.metadata.policies as string[]) ?? [];
+}
+
+// ---------------------------------------------------------------------------
+// Repository Generator
+// ---------------------------------------------------------------------------
+
+export class RepositoryGenerator implements Generator {
+  readonly name = "RepositoryGenerator";
+
+  supports(ir: IRDocument): boolean {
+    return ir.nodes.some((n) => n.kind === "aggregate");
+  }
+
+  generate(ir: IRDocument): GeneratedArtifact[] {
+    const artifacts: GeneratedArtifact[] = [];
+
+    // Collect aggregate nodes (mission + identity aggregates)
+    const aggregates = ir.nodes.filter(
+      (n) => n.kind === "aggregate" && (n.symbol || n.id.startsWith("aggregate:")),
+    );
+
+    for (const agg of aggregates) {
+      const name = agg.symbol || agg.id.replace("aggregate:", "").replace("entity:", "");
+      const events = getEventsForAggregate(agg.id, ir);
+      const commands = getCommandsForAggregate(name, ir);
+      const policies = getPoliciesForAggregate(name, ir);
+      const owner = findOwner(agg.id, ir.authorities);
+      const authorityName = owner?.name ?? `${name}Authority`;
+
+      // Generate repository class
+      const repoContent = generateRepositoryClass(name, events, commands, authorityName);
+      artifacts.push({
+        path: `repositories/${pascalCase(name)}Repository.ts`,
+        content: repoContent,
+        hash: sha256(repoContent),
+        generator: this.name,
+        description: `Event-sourced repository for ${name} aggregate`,
+      });
+
+      // Generate repository test
+      const testContent = generateRepositoryTest(name, events);
+      artifacts.push({
+        path: `repositories/__tests__/${pascalCase(name)}Repository.test.ts`,
+        content: testContent,
+        hash: sha256(testContent),
+        generator: this.name,
+        description: `Repository tests for ${name}`,
+      });
+    }
+
+    return artifacts;
+  }
+
+  validate(artifacts: GeneratedArtifact[]): CompilerDiagnostic[] {
+    const diagnostics: CompilerDiagnostic[] = [];
+
+    for (const artifact of artifacts) {
+      if (!artifact.content.includes("export class")) {
+        diagnostics.push(
+          createDiagnostic({
+            code: "G100",
+            source_location: { file: artifact.path, line: 0, column: 0, length: 0 },
+            message: `Generated file ${artifact.path} has no exported class`,
+          }),
+        );
+      }
+      if (!artifact.content.includes("load(")) {
+        diagnostics.push(
+          createDiagnostic({
+            code: "G101",
+            source_location: { file: artifact.path, line: 0, column: 0, length: 0 },
+            message: `Generated file ${artifact.path} is missing load() method`,
+          }),
+        );
+      }
+      if (!artifact.content.includes("save(")) {
+        diagnostics.push(
+          createDiagnostic({
+            code: "G102",
+            source_location: { file: artifact.path, line: 0, column: 0, length: 0 },
+            message: `Generated file ${artifact.path} is missing save() method`,
+          }),
+        );
+      }
+    }
+
+    return diagnostics;
+  }
+
+  snapshot(ir: IRDocument): string {
+    const aggregates = ir.nodes
+      .filter((n) => n.kind === "aggregate")
+      .map((n) => n.symbol)
+      .sort();
+    return sha256(JSON.stringify({ generator: this.name, aggregates }));
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Code generation
+// ---------------------------------------------------------------------------
+
+function generateRepositoryClass(
+  name: string,
+  events: string[],
+  commands: string[],
+  authorityName: string,
+): string {
+  const pascal = pascalCase(name);
+  const eventUnion = events.length > 0
+    ? events.map((e) => pascalCase(e)).join(" | ")
+    : "never";
+
+  return `/**
+ * ${pascal}Repository — generated from Canonical IR.
+ *
+ * DO NOT EDIT. This file was generated by RepositoryGenerator.
+ * Re-generate from GENERATION_MANIFEST.yaml → IR → RepositoryGenerator.
+ *
+ * Aggregate: ${name}
+ * Authority: ${authorityName}
+ * Events: ${events.join(", ") || "none"}
+ * Commands: ${commands.join(", ") || "none"}
+ */
+
+import type { IRDocument } from "../../constitution/ir/types";
+
+// ---------------------------------------------------------------------------
+// Aggregate State
+// ---------------------------------------------------------------------------
+
+export interface ${pascal}State {
+  readonly id: string;
+  readonly version: number;
+  readonly status: string;
+  readonly authority: typeof ${authorityName} extends { name: infer N } ? N : string;
+  readonly events: readonly ${eventUnion}[];
+}
+
+// ---------------------------------------------------------------------------
+// Event Types
+// ---------------------------------------------------------------------------
+
+${events.map((e) => `export interface ${pascalCase(e)} {
+  readonly type: "${pascalCase(e)}";
+  readonly aggregateId: string;
+  readonly authorityId: string;
+  readonly tenantId: string;
+  readonly replaySequence: number;
+  readonly witnessId: string;
+  readonly correlationId: string;
+  readonly causationId: string;
+  readonly schemaVersion: string;
+  readonly timestamp: string;
+  readonly contentHash: string;
+}`).join("\n\n")}
+
+export type ${pascal}Event = ${eventUnion};
+
+// ---------------------------------------------------------------------------
+// Event Stream Interface
+// ---------------------------------------------------------------------------
+
+export interface EventStream {
+  readonly aggregateId: string;
+  readonly events: readonly ${pascal}Event[];
+  readonly version: number;
+}
+
+// ---------------------------------------------------------------------------
+// Repository
+// ---------------------------------------------------------------------------
+
+export class ${pascal}Repository {
+  private readonly authority = "${authorityName}";
+
+  /**
+   * Load an aggregate by replaying its event stream.
+   */
+  async load(aggregateId: string): Promise<${pascal}State | null> {
+    const stream = await this.loadEventStream(aggregateId);
+    if (stream.events.length === 0) return null;
+
+    let state: ${pascal}State = {
+      id: aggregateId,
+      version: 0,
+      status: "initial",
+      authority: this.authority,
+      events: [],
+    };
+
+    for (const event of stream.events) {
+      state = this.apply(state, event);
+    }
+
+    return state;
+  }
+
+  /**
+   * Save new events for an aggregate.
+   * Events are append-only; state is derived at read time.
+   */
+  async save(state: ${pascal}State, events: ${pascal}Event[]): Promise<void> {
+    if (events.length === 0) return;
+    await this.appendToStream(state.id, events, state.version);
+  }
+
+  /**
+   * Apply a single event to the current state.
+   * This is the pure function: state + event → new state.
+   */
+  apply(state: ${pascal}State, event: ${pascal}Event): ${pascal}State {
+    switch (event.type) {
+${events.map((e) => `      case "${pascalCase(e)}":
+        return this.apply${pascalCase(e)}(state, event);`).join("\n")}
+      default:
+        return state;
+    }
+  }
+
+  // -------------------------------------------------------------------------
+  // Event applicators (one per event type)
+  // -------------------------------------------------------------------------
+
+${events.map((e) => `  private apply${pascalCase(e)}(state: ${pascal}State, event: ${pascalCase(e)}): ${pascal}State {
+    return {
+      ...state,
+      version: state.version + 1,
+      events: [...state.events, event],
+      status: "${camelCase(e)}",
+    };
+  }`).join("\n\n")}
+
+  // -------------------------------------------------------------------------
+  // Snapshot interface (stub — Sprint 2 future)
+  // -------------------------------------------------------------------------
+
+  /**
+   * Take a snapshot of the current state.
+   * Stub: returns state as-is. Implement snapshot storage in production.
+   */
+  async snapshot(state: ${pascal}State): Promise<${pascal}State> {
+    return state;
+  }
+
+  /**
+   * Load from snapshot + replay remaining events.
+   * Stub: ignores snapshot, loads from event stream.
+   */
+  async loadFromSnapshot(_snapshotId: string, aggregateId: string): Promise<${pascal}State | null> {
+    return this.load(aggregateId);
+  }
+
+  // -------------------------------------------------------------------------
+  // Authority hook interface
+  // -------------------------------------------------------------------------
+
+  /**
+   * Called before a command is executed.
+   * Return true to allow, false to reject.
+   * Stub: always allows. Wire to authority policies in production.
+   */
+  async beforeCommand(_command: string, _aggregateId: string, _tenantId: string): Promise<boolean> {
+    return true;
+  }
+
+  /**
+   * Called after events are persisted.
+   * Stub: no-op. Wire to projection/notification in production.
+   */
+  async afterSave(_state: ${pascal}State, _events: ${pascal}Event[]): Promise<void> {
+    // Wire to projections here
+  }
+
+  // -------------------------------------------------------------------------
+  // Internal (stub implementations — wire to event store in production)
+  // -------------------------------------------------------------------------
+
+  protected async loadEventStream(aggregateId: string): Promise<EventStream> {
+    // TODO: Wire to event store
+    return { aggregateId, events: [], version: 0 };
+  }
+
+  protected async appendToStream(
+    _aggregateId: string,
+    _events: ${pascal}Event[],
+    _expectedVersion: number,
+  ): Promise<void> {
+    // TODO: Wire to event store
+  }
+}
+`;
+}
+
+function generateRepositoryTest(name: string, events: string[]): string {
+  const pascal = pascalCase(name);
+
+  return `/**
+ * ${pascal}Repository — generated tests.
+ *
+ * DO NOT EDIT. This file was generated by RepositoryGenerator.
+ */
+
+import { ${pascal}Repository } from "../${pascal}Repository";
+
+describe("${pascal}Repository (generated)", () => {
+  let repo: ${pascal}Repository;
+
+  beforeEach(() => {
+    repo = new ${pascal}Repository();
+  });
+
+  it("returns null when no events exist", async () => {
+    const state = await repo.load("nonexistent-id");
+    expect(state).toBeNull();
+  });
+
+  it("apply() is deterministic — same events produce same state", async () => {
+    const state1 = await repo.load("test-1");
+    const state2 = await repo.load("test-1");
+    expect(state1).toEqual(state2);
+  });
+
+  it("beforeCommand returns true (stub)", async () => {
+    const allowed = await repo.beforeCommand("Create", "test-id", "tenant-1");
+    expect(allowed).toBe(true);
+  });
+
+  it("afterSave is a no-op (stub)", async () => {
+    await expect(
+      repo.afterSave({ id: "test", version: 0, status: "initial", authority: "${name}Authority", events: [] }, []),
+    ).resolves.toBeUndefined();
+  });
+
+  it("snapshot returns same state (stub)", async () => {
+    const state = { id: "test", version: 0, status: "initial", authority: "${name}Authority", events: [] as never[] };
+    const snapped = await repo.snapshot(state);
+    expect(snapped).toEqual(state);
+  });
+});
+`;
+}

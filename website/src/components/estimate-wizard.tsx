@@ -499,9 +499,6 @@ export function EstimateWizard() {
         {STEPS[step] === "Project Details" && (
           <div>
             <h2 className="text-xl font-bold text-text">A couple quick questions</h2>
-            {questions.length === 0 && (
-              <p className="mt-2 text-text-muted">No extra questions for this service — just continue.</p>
-            )}
             <div className="mt-4 space-y-4">
               {questions.map((q) => (
                 <div key={q.id}>
