@@ -107,7 +107,7 @@ export default function OurWorkPage() {
         </Container>
       </Section>
 
-      {/* BROWSE ALL WORK — placeholder until Media Authority is fully populated */}
+      {/* BROWSE ALL WORK — project gallery grid */}
       <Section className="bg-background">
         <Container>
           <SectionHeading
@@ -115,16 +115,38 @@ export default function OurWorkPage() {
             title="The complete archive"
             description="Every project, every detail. Future projects simply append here."
           />
-          <PlaceholderSection
-            type="gallery"
-            title="Project Gallery Coming Soon"
-            description="We're building our complete project archive. Check back soon to browse all our work."
-            count={0}
-            action={{
-              label: "Get a Free Estimate",
-              href: "/estimate",
-            }}
-          />
+          <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+            {allProjects.map((project) => {
+              const galleryMediaIds = project.media?.gallery || [];
+              const galleryPhotos = galleryMediaIds
+                .map(id => getMediaById(id))
+                .filter(m => m !== null && (m.variants?.web || m.variants?.original));
+              
+              return galleryPhotos.map((photo, photoIndex) => {
+                const src = photo!.variants.web || photo!.variants.original || photo!.variants.thumbnail;
+                if (!src) return null;
+                
+                return (
+                  <Link
+                    key={`${project.id}-${photoIndex}`}
+                    href={`/projects/${project.slug || project.id}`}
+                    className="group relative block aspect-[4/3] overflow-hidden rounded-lg border border-border bg-surface-muted transition-all hover:shadow-lg"
+                  >
+                    <img
+                      src={src}
+                      alt={photo!.alt || `${project.title} photo ${photoIndex + 1}`}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                      loading="lazy"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                    <span className="absolute bottom-2 left-2 text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+                      {project.title}
+                    </span>
+                  </Link>
+                );
+              });
+            })}
+          </div>
         </Container>
       </Section>
 
