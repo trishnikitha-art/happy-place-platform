@@ -21,7 +21,9 @@
           "fences-001-matching",
           "fences-001-installation",
           "fences-001-detail",
-          "fences-001-finished"
+          "fences-001-finished",
+          "fences-001-progress",
+          "fences-001-gate"
         ]
       },
       "story": {
@@ -90,7 +92,9 @@
         "gallery": [
           "pergolas-001-construction",
           "pergolas-001-steel-frame",
-          "pergolas-001-finished"
+          "pergolas-001-finished",
+          "pergolas-001-detail",
+          "pergolas-001-installation"
         ]
       },
       "story": {
@@ -159,7 +163,9 @@
         "gallery": [
           "builtins-001-secondary",
           "builtins-001-detail",
-          "builtins-001-installation"
+          "builtins-001-installation",
+          "builtins-001-progress",
+          "builtins-001-finished"
         ]
       },
       "story": {
@@ -377,7 +383,10 @@
         "gallery": [
           "bathroom-remodeling-001-before",
           "bathroom-remodeling-001-during",
-          "bathroom-remodeling-001-after"
+          "bathroom-remodeling-001-after",
+          "bathroom-remodeling-001-detail",
+          "bathroom-remodeling-001-fixtures",
+          "bathroom-remodeling-001-tile"
         ]
       },
       "story": {
@@ -446,7 +455,9 @@
         "gallery": [
           "pergolas-001-construction",
           "pergolas-001-steel-frame",
-          "pergolas-001-finished"
+          "pergolas-001-finished",
+          "pergolas-001-detail",
+          "pergolas-001-installation"
         ]
       },
       "story": {
