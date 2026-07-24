@@ -24,7 +24,7 @@
       "story": {
         "challenge": "Property needed new fence installation",
         "solution": "Installed quality fence with matching stain",
-        "outcome": "Durable fence that enhances property value",
+        "outcome": "A durable fence that adds privacy and gives the home a finished look you'll appreciate every time you pull into the driveway.",
         "specialFeatures": [
           "Quality construction",
           "Matching stain finish",
@@ -89,7 +89,7 @@
       "story": {
         "challenge": "Customer wanted a custom outdoor living space with privacy",
         "solution": "Designed and built a steel-framed covered privacy courtyard structure",
-        "outcome": "A modern outdoor living space that combines the privacy of custom fencing with the open feel of a steel-framed pergola, creating a durable, comfortable area for relaxing and entertaining",
+        "outcome": "An outdoor space that's comfortable in the sun, useful in the rain, and built to become part of everyday life.",
         "specialFeatures": [
           "Custom steel-framed design",
           "Quality construction",
@@ -157,7 +157,7 @@
       "story": {
         "challenge": "Client needed custom storage solutions",
         "solution": "Designed and built custom built-in shelving",
-        "outcome": "Beautiful, functional storage space",
+        "outcome": "Storage that looks like it was always part of the home—not something added later.",
         "specialFeatures": [
           "Custom shelving",
           "Professional finish",
@@ -228,7 +228,7 @@
       "story": {
         "challenge": "Multiple home repair issues needed attention",
         "solution": "Comprehensive home repair and maintenance services",
-        "outcome": "Home restored to excellent condition",
+        "outcome": "Small problems repaired correctly before they become bigger, more expensive problems.",
         "specialFeatures": [
           "Professional repairs",
           "Quality materials",
@@ -275,73 +275,83 @@
       "updatedAt": "2026-07-18T00:00:00.000Z"
     },
     {
-      "id": "outdoor-living-001",
-      "title": "Outdoor Living - Willamette Valley",
-      "service": "outdoor-living",
+      "id": "exterior-painting-001",
+      "title": "Exterior Painting & Surface Restoration – Corvallis",
+      "service": "painting",
       "status": "completed",
       "location": {
         "city": "Corvallis",
         "county": "Benton",
         "state": "Oregon"
       },
-      "completionDate": "2026-07-17",
+      "completionDate": "2026-07-22",
       "media": {
-        "hero": "outdoor-living-001-hero",
+        "hero": "painting-001-hero",
+        "before": "painting-001-before",
+        "after": "painting-001-after",
         "gallery": [
-          "outdoor-living-001-2",
-          "outdoor-living-001-3",
-          "outdoor-living-001-4",
-          "outdoor-living-001-5",
-          "outdoor-living-001-6"
+          "painting-001-prep",
+          "painting-001-scraping",
+          "painting-001-sanding",
+          "painting-001-priming",
+          "painting-001-painting",
+          "painting-001-finished"
         ]
       },
       "story": {
-        "challenge": "Client wanted to transform backyard into outdoor living space",
-        "solution": "Designed and built custom outdoor structures",
-        "outcome": "Beautiful outdoor space perfect for entertaining",
+        "challenge": "The home's exterior had years of weather exposure, peeling paint, failing caulk, and worn surfaces that made the entire property look older than it really was.",
+        "solution": "Every durable finish starts with preparation. We pressure washed the exterior, scraped loose paint, sanded rough areas, completed minor repairs, replaced failing caulk, spot-primed exposed wood, and prepared every surface before applying premium exterior coatings.",
+        "outcome": "The home feels refreshed, protected, and ready for many more years of Northwest weather. More importantly, the homeowners can pull into the driveway knowing their home is protected and looks the way they always wanted it to.",
         "specialFeatures": [
-          "Custom design",
-          "Quality materials",
+          "Surface preparation",
+          "Premium exterior coatings",
+          "Weather protection",
           "Professional craftsmanship"
         ]
       },
       "estimate": {
         "estimatedRange": {
-          "low": 5000,
-          "high": 15000
+          "low": 3000,
+          "high": 12000
         },
         "services": [
-          "outdoor living design",
-          "structure construction",
-          "site preparation"
+          "exterior painting",
+          "surface restoration",
+          "pressure washing",
+          "prep work"
         ],
         "materials": [
-          "cedar",
-          "composite materials",
-          "hardware"
+          "Premium exterior acrylic paint",
+          "Exterior bonding primer",
+          "Elastomeric caulk",
+          "Wood filler and epoxy repair",
+          "Sandpaper and surface abrasives",
+          "Masking materials",
+          "High-quality brushes and rollers",
+          "Airless spray equipment"
         ],
-        "timeline": "5-10 days"
+        "timeline": "5-7 days"
       },
       "warranty": {
         "hasWarranty": true,
         "warrantyType": "Workmanship",
         "warrantyYears": 2,
-        "warrantyDetails": "2-year workmanship warranty on all outdoor construction"
+        "warrantyDetails": "2-year workmanship warranty on all exterior painting"
       },
       "tags": [
-        "outdoor-living",
-        "pergola",
-        "deck",
+        "painting",
+        "exterior",
+        "restoration",
         "corvallis"
       ],
       "reviews": [],
-      "featured": false,
+      "featured": true,
       "heroEligible": true,
       "homepageEligible": true,
-      "slug": "outdoor-living-willamette-valley",
-      "metaDescription": "Custom outdoor living spaces and structures in Willamette Valley, Oregon.",
-      "createdAt": "2026-07-17T00:00:00.000Z",
-      "updatedAt": "2026-07-17T00:00:00.000Z"
+      "slug": "exterior-painting-corvallis",
+      "metaDescription": "Professional exterior painting and surface restoration in Corvallis, Oregon.",
+      "createdAt": "2026-07-22T00:00:00.000Z",
+      "updatedAt": "2026-07-22T00:00:00.000Z"
     },
     {
       "id": "bathroom-remodeling-001",
@@ -361,7 +371,7 @@
       "story": {
         "challenge": "Bathroom needed complete remodel",
         "solution": "Full bathroom renovation with custom features",
-        "outcome": "Modern, functional bathroom space",
+        "outcome": "A space that works better, feels brighter, and makes everyday routines a little easier.",
         "specialFeatures": [
           "Custom wall finish",
           "Modern fixtures",
@@ -426,7 +436,7 @@
       "story": {
         "challenge": "Customer wanted a custom outdoor living space with privacy",
         "solution": "Designed and built a steel-framed covered privacy courtyard structure",
-        "outcome": "A modern outdoor living space that combines the privacy of custom fencing with the open feel of a steel-framed pergola, creating a durable, comfortable area for relaxing and entertaining",
+        "outcome": "An outdoor space that's comfortable in the sun, useful in the rain, and built to become part of everyday life.",
         "specialFeatures": [
           "Custom steel-framed design",
           "Quality construction",

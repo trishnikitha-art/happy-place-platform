@@ -5,8 +5,8 @@ import { Container, Section } from "@/components/section";
 
 /** Reusable call-to-action: drives to the estimate wizard. */
 export function CTASection({
-  title = "Ready to love coming home again?",
-  subtitle = "Let's start building your happy place.",
+  title = "Tell us what you're planning.",
+  subtitle = "Whether you're fixing something that's worn out or building something completely new, we'd love to hear about it.",
 }: {
   title?: string;
   subtitle?: string;
@@ -18,7 +18,7 @@ export function CTASection({
         <p className="mt-4 max-w-2xl text-lg text-text-muted">{subtitle}</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link href="/estimate" className={cn(buttonVariants({ variant: "primary", size: "lg" }))}>
-            Get a Free Estimate
+            Start Your Free Estimate
           </Link>
           <Link href="/gallery" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
             See Our Work

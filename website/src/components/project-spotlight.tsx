@@ -144,8 +144,8 @@ export function ProjectSpotlight({
         <Container className="grid gap-10 lg:grid-cols-3">
           <div className="space-y-8 lg:col-span-2">
             {project.story?.challenge && <StoryBlock icon={<Wrench className="h-5 w-5" />} title="The challenge" body={project.story.challenge} />}
-            {project.story?.solution && <StoryBlock icon={<Lightbulb className="h-5 w-5" />} title="Our solution" body={project.story.solution} />}
-            {project.story?.outcome && <StoryBlock icon={<CheckCircle2 className="h-5 w-5" />} title="The outcome" body={project.story.outcome} />}
+            {project.story?.solution && <StoryBlock icon={<Lightbulb className="h-5 w-5" />} title="The plan" body={project.story.solution} />}
+            {project.story?.outcome && <StoryBlock icon={<CheckCircle2 className="h-5 w-5" />} title="The finished result" body={project.story.outcome} />}
           </div>
           <aside>
             <div className="rounded-card border border-border bg-surface p-6">

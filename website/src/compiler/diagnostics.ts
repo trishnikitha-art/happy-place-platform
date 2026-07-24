@@ -71,7 +71,16 @@ export type ErrorCode =
   | "W003" // Incomplete capability contract
   | "W004" // Missing event metadata
   | "I001" // Compiler provenance
-  | "I002" // Diagnostic summary";
+  | "I002" // Diagnostic summary
+  // Generator codes (Gx)
+  | "G100" // Generated file missing exported class
+  | "G101" // Generated file missing load() method
+  | "G102" // Generated file missing save() method
+  | "G200" // Generated file has no exports
+  | "G201" // EventEnvelope missing required field
+  | "G300" // ReplayMap must export const map
+  | "G400" // AuthorityRegistry must have exports
+  | "G500"; // Generated projection missing exported class
 
 export type WarningCode = "W001" | "W002" | "W003" | "W004";
 export type InfoCode = "I001" | "I002";
@@ -104,6 +113,14 @@ const DIAGNOSTIC_REGISTRY: Record<string, { severity: DiagnosticSeverity; descri
   W004: { severity: "warning", description: "Missing event metadata" },
   I001: { severity: "info", description: "Compiler provenance" },
   I002: { severity: "info", description: "Diagnostic summary" },
+  G100: { severity: "error", description: "Generated file missing exported class" },
+  G101: { severity: "error", description: "Generated file missing load() method" },
+  G102: { severity: "error", description: "Generated file missing save() method" },
+  G200: { severity: "error", description: "Generated file has no exports" },
+  G201: { severity: "error", description: "EventEnvelope missing required field" },
+  G300: { severity: "error", description: "ReplayMap must export const map" },
+  G400: { severity: "error", description: "AuthorityRegistry must have exports" },
+  G500: { severity: "error", description: "Generated projection missing exported class" },
 };
 
 // ---------------------------------------------------------------------------

@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { ProjectSpotlight } from "@/components/project-spotlight";
 import { CTASection } from "@/components/cta-section";
 import { ProjectPhotos } from "@/components/project-photos";
-import { getAllProjects, getProjectById, getProjectBySlug } from "@/lib/projects";
+import { BeforeAfterSlider } from "@/components/before-after-slider";
+import { Reveal } from "@/components/reveal";
+import { getAllProjects, getProjectBySlug } from "@/lib/projects";
 import { getMediaById } from "@/lib/media";
 import { Container, Section, SectionHeading } from "@/components/section";
 import type { Media } from "@/types/media";
@@ -49,6 +51,24 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
   return (
     <>
       <ProjectSpotlight project={project} variant="full" />
+      
+      {/* Before/After Slider */}
+      {project.media.before && project.media.after && (
+        <Section className="bg-background">
+          <Container>
+            <SectionHeading
+              eyebrow="Transformation"
+              title="Start to finish"
+              description="Every home has a story. Here's one transformation we're especially proud to have been part of."
+            />
+            <div className="mt-10">
+              <Reveal>
+                <BeforeAfterSlider project={project} />
+              </Reveal>
+            </div>
+          </Container>
+        </Section>
+      )}
       
       <Section className="bg-surface-muted">
         <Container>

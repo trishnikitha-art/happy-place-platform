@@ -30,8 +30,8 @@ export default function HomePage() {
   const allServices = getAllServices();      // data-driven services from registry
   const featuredProjects = getFeaturedProjects(); // featured projects from Projects Authority
   
-  // Get fences project for featured transformation (has before/after media)
-  const fencesProject = featuredProjects.find(p => p.id === 'fences-001');
+  // Get exterior painting project for featured transformation (has before/after media)
+  const paintingProject = featuredProjects.find(p => p.id === 'exterior-painting-001');
   
   // Group services for homepage display (show homepageEligible services first)
   const homepageServices = allServices.filter(s => s.homepageEligible);
@@ -68,7 +68,7 @@ export default function HomePage() {
               Your favorite part of coming home should be the home itself.
             </h1>
             <p className="measure mt-4 sm:mt-6 max-w-xl text-base sm:text-lg leading-relaxed text-text-on-dark/80">
-              We build decks, fences, bathrooms, and custom carpentry that families enjoy for years—not just on move-in day.</p>
+              We restore, repair, and paint homes throughout the Mid-Willamette Valley—protecting your investment and making coming home feel better every day.</p>
             <div className="mt-6 sm:mt-8 flex flex-wrap gap-3">
               <Link href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold">
                 Get a Free Estimate
@@ -99,7 +99,7 @@ export default function HomePage() {
               <span className="hidden sm:inline">{company.proof.serviceCounties.join(" · ")}</span>
               <span className="sm:hidden">{company.proof.serviceCounties[0]}</span>
             </div>
-            <span className="mt-5 sm:mt-7 block font-signature text-2xl sm:text-3xl text-honey">Let&rsquo;s start building your happy place.</span>
+            <span className="mt-5 sm:mt-7 block font-signature text-2xl sm:text-3xl text-honey">Tell us what you're planning.</span>
           </div>
         </Container>
       </section>
@@ -128,8 +128,8 @@ export default function HomePage() {
         <Container>
           <SectionHeading
             eyebrow={<span className="eyebrow-mark"><ToolMark /> What we do</span>}
-            title="Craftsmanship for every part of your home"
-            description="Pick a service to start a free estimate — we'll guide the rest."
+            title="Ways to make coming home better"
+            description="Pick a service to start a free estimate — we'll guide you through the rest."
           />
           <div className="mt-6 sm:mt-8 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
             {homepageServices.map((s) => (
@@ -138,7 +138,7 @@ export default function HomePage() {
           </div>
           {otherServices.length > 0 && (
             <div className="mt-6 sm:mt-8">
-              <h3 className="font-display text-xl sm:text-2xl font-bold text-text mb-4 sm:mb-6">More Services</h3>
+              <h3 className="font-display text-xl sm:text-2xl font-bold text-text mb-4 sm:mb-6">Other ways we can help</h3>
               <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
                 {otherServices.map((s) => (
                   <ServiceCard key={s.id} service={s} />
@@ -154,13 +154,13 @@ export default function HomePage() {
         <Container>
           <SectionHeading
             eyebrow="Real transformations"
-            title="Start to finish"
-            description="A look at the work — every project earns its finish."
+            title="Protected and restored"
+            description="Every home has a story. Here's one exterior restoration we're especially proud to have been part of."
           />
-          {fencesProject && fencesProject.media.before && fencesProject.media.after && (
+          {paintingProject && paintingProject.media.before && paintingProject.media.after && (
             <div className="mt-10">
               <Reveal>
-                <BeforeAfterSlider project={fencesProject} />
+                <BeforeAfterSlider project={paintingProject} />
               </Reveal>
             </div>
           )}
@@ -178,16 +178,16 @@ export default function HomePage() {
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-accent">Built by one family. Trusted by many more.</p>
             <h2 className="mt-3 font-display text-4xl font-bold leading-tight text-text sm:text-5xl">
-              Happy Place isn&rsquo;t a slogan. It&rsquo;s why we exist.
+              A family business built on doing things the right way.
             </h2>
             <div className="measure mt-7 space-y-5 text-text-muted">
               <p className="text-lg leading-relaxed">
-                Great craftsmanship starts long before the first board is cut.</p>
+                Great work starts long before the first board is cut.</p>
               <p>
-                <span className="font-semibold text-text">{taylor.name}</span> — Taylor believes craftsmanship should still look great twenty years from now. Every project is built with the expectation that he'll proudly drive past it for years to come.
+                <span className="font-semibold text-text">{taylor.name}</span> — Taylor approaches every project with one goal: build something he'll still be proud to drive past years from now.
               </p>
               <p>
-                <span className="font-semibold text-text">{lanie.name}</span> — Lanie keeps every homeowner informed from the first conversation through the final walkthrough, making sure every project feels organized, transparent, and enjoyable.
+                <span className="font-semibold text-text">{lanie.name}</span> — Lanie keeps every project moving—from your first estimate to the final walkthrough—so you always know what's happening next.
               </p>
             </div>
           </div>
@@ -208,7 +208,7 @@ export default function HomePage() {
       {/* REVIEWS */}
       <Section>
         <Container>
-          <SectionHeading eyebrow="Reviews" title="What neighbors say" align="center" description={hasReviews ? "Real feedback from homeowners across the Willamette Valley." : "We're building our public review portfolio. In the meantime, we're happy to provide references from homeowners throughout the Mid-Willamette Valley."} />
+          <SectionHeading eyebrow="Reviews" title="What Homeowners Say After the Project Is Finished" align="center" description={hasReviews ? "Real experiences from families throughout the Mid-Willamette Valley." : "We're building our public review portfolio. In the meantime, we're happy to provide references from homeowners throughout the Mid-Willamette Valley."} />
           {hasReviews ? (
             <>
               <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-3">

@@ -300,7 +300,7 @@ export function EstimateWizard() {
         {/* STEP 1: Service (multi-select, up to 3) */}
         {STEPS[step] === "Service" && (
           <div>
-            <h2 className="text-xl font-bold text-text">What can we build for you?</h2>
+            <h2 className="text-xl font-bold text-text">Tell us what you're thinking about. We'll guide you through the rest.</h2>
             <p className="mt-1 text-sm text-text-muted">
               Pick up to {MAX_SERVICES} — or tell us what you need below.
             </p>
@@ -358,19 +358,15 @@ export function EstimateWizard() {
         {/* STEP 2: Tell us about your project */}
         {STEPS[step] === "Tell us about your project" && (
           <div>
-            <h2 className="text-xl font-bold text-text">Tell us about your project</h2>
+            <h2 className="text-xl font-bold text-text">What's on your mind?</h2>
             {service && (
               <p className="mt-1 text-sm text-text-muted">
-                {service.slug === "painting"
-                  ? "Surface preparation, existing coatings, and accessibility all affect planning. We'll gather a few details to make the site visit more productive."
-                  : service.slug === "decks" || service.slug === "pergolas"
-                  ? "Great. We'll ask a few questions about your outdoor structure so Taylor can understand the scope before visiting your property."
-                  : "Great. We'll ask a few questions about your project so Taylor can understand the scope before visiting your property."}
+                It doesn't have to be perfect. A few details are enough for us to understand what you're planning.
               </p>
             )}
             {!service && (
               <p className="mt-1 text-sm text-text-muted">
-                This helps us ask the right questions for your project.
+                It doesn't have to be perfect. A few details are enough for us to understand what you're planning.
               </p>
             )}
             <div className="mt-4 space-y-3">
@@ -399,15 +395,15 @@ export function EstimateWizard() {
         {/* STEP 3: Photos */}
         {STEPS[step] === "Photos" && (
           <div>
-            <h2 className="text-xl font-bold text-text">Add a few photos (optional)</h2>
+            <h2 className="text-xl font-bold text-text">Have a photo? It helps us see what you're seeing.</h2>
             <p className="mt-1 text-text-muted">
-              The more we can see, the better we can help. Snap a few photos of the space so we can understand what you&apos;re working with and give you the best possible estimate.
+              Optional, but helpful for understanding the space.
             </p>
             
             {/* Desktop file upload */}
             <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-text-subtle hover:border-primary">
               <Upload className="h-8 w-8" />
-              <span className="text-sm font-medium">UPLOAD PHOTOS</span>
+              <span className="text-sm font-medium">Upload photos</span>
               <input
                 type="file"
                 accept="image/*"
@@ -443,7 +439,7 @@ export function EstimateWizard() {
             {/* Mobile camera capture */}
             <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-text-subtle hover:border-primary">
               <Upload className="h-8 w-8" />
-              <span className="text-sm font-medium">TAKE PHOTO</span>
+              <span className="text-sm font-medium">Take a photo</span>
               <input
                 type="file"
                 accept="image/*"
@@ -662,15 +658,9 @@ export function EstimateWizard() {
             <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
               <Check className="h-8 w-8 text-primary" />
             </div>
-            <h2 className="text-2xl font-bold text-text">Thank You</h2>
+            <h2 className="text-2xl font-bold text-text">Here's what we heard</h2>
             <p className="mt-3 text-text-muted">
-              We have received your project information.
-            </p>
-            <p className="mt-2 text-text-muted">
-              Taylor will personally review your request, photos, and project details before reaching out.
-            </p>
-            <p className="mt-4 text-sm text-text-subtle">
-              Every home is different. An on site visit allows us to understand your goals, answer questions, and prepare an accurate proposal.
+              If anything looks off, now's the perfect time to fix it.
             </p>
 
             {/* Preliminary Planning Range */}
@@ -715,30 +705,8 @@ export function EstimateWizard() {
             })()}
 
             <div className="mt-8 rounded-lg bg-surface-muted p-6 text-left">
-              <h3 className="font-semibold text-text">What happens next</h3>
-              <ul className="mt-4 space-y-3 text-sm text-text-muted">
-                <li className="flex items-start gap-3">
-                  <Check className="h-5 w-5 text-primary flex-shrink-0" />
-                  <span>We review your request</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <Check className="h-5 w-5 text-primary flex-shrink-0" />
-                  <span>We will reach out within one business day</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <Check className="h-5 w-5 text-primary flex-shrink-0" />
-                  <span>We will schedule an on site visit</span>
-                </li>
-                <li className="flex items-start gap-3">
-                  <Check className="h-5 w-5 text-primary flex-shrink-0" />
-                  <span>You will receive a detailed written proposal after the walkthrough</span>
-                </li>
-              </ul>
+              <h3 className="font-semibold text-text">Everything looks good. We'll package everything up for Taylor—you just hit Send.</h3>
             </div>
-
-            <p className="mt-8 text-sm font-medium text-text">
-              We are excited to help bring your project to life.
-            </p>
           </div>
         )}
 
@@ -769,7 +737,7 @@ export function EstimateWizard() {
                 onClick={handleSubmit}
                 className={cn(buttonVariants({ variant: "primary" }))}
               >
-                <Send className="h-4 w-4" /> Submit request
+                <Send className="h-4 w-4" /> Send My Estimate Request
               </button>
             )}
           </div>

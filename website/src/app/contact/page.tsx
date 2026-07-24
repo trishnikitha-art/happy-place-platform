@@ -27,7 +27,7 @@ export default function ContactPage() {
             <SectionHeading
               eyebrow="Contact"
               title="Let's talk about your project"
-              description="The fastest way to a quote is the free estimate wizard — but you're welcome to reach out directly."
+              description="The quickest way to get started is the Estimate Wizard. If you'd rather talk first, give us a call, send a text, or email us—whatever's easiest."
             />
             <dl className="mt-8 space-y-4 text-text-muted">
               <div>
@@ -49,16 +49,15 @@ export default function ContactPage() {
             </dl>
           </div>
           <div className="rounded-2xl border border-border bg-surface-muted p-8">
-            <h2 className="text-xl font-bold text-text">Start a free estimate</h2>
+            <h2 className="text-xl font-bold text-text">Start your free estimate</h2>
             <p className="mt-2 text-text-muted">
-              Pick your service, upload a few photos, answer a couple of quick questions, and we&apos;ll
-              be in touch. It takes about two minutes.
+              Pick a service, upload a photo if you have one, and tell us what you're planning. It takes about two minutes.
             </p>
             <a
               href="/estimate"
               className="mt-6 inline-flex h-12 items-center justify-center rounded-full bg-primary px-8 font-semibold text-text transition-colors hover:bg-primary-hover"
             >
-              Get a Free Estimate
+              Start Your Free Estimate
             </a>
           </div>
         </Container>

@@ -40,14 +40,10 @@ export function SiteFooter() {
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark/60">Services</h3>
-          <ul className="mt-3 space-y-2 text-sm">
-            {services.slice(0, 6).map((s) => (
-              <li key={s.slug}>
-                <Link href={`/services/${s.slug}`} className="text-text-on-dark/80 hover:text-honey">{s.name}</Link>
-              </li>
-            ))}
-          </ul>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark/60">About</h3>
+          <p className="mt-3 text-sm text-text-on-dark/70">
+            Helping homeowners throughout the Mid-Willamette Valley repair, improve, and enjoy the homes they love.
+          </p>
         </div>
 
         <div>
@@ -78,7 +74,7 @@ export function SiteFooter() {
       </div>
 
       <div className="border-t border-text-on-dark/10 py-6 text-center text-xs text-text-on-dark/50">
-        © {new Date().getFullYear()} {company.legalName}. Built with care by {taylor.name} &amp; {lanie.name}.
+        © {new Date().getFullYear()} {company.legalName}. Helping homeowners throughout the Mid-Willamette Valley repair, improve, and enjoy the homes they love.
       </div>
     </footer>
   );
