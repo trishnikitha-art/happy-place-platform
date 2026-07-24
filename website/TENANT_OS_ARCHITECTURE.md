@@ -3,6 +3,7 @@
 **Status:** Planning
 **Purpose:** Define the relationship between Tenant OS and PING constitutional architecture
 **Context:** Convergence of happy-place-platform (Estimate Intelligence Platform) with PING constitutional framework
+**Approach:** Compiler-based architecture - Constitution → IR → Code Generator → Runtime (LLVM-style)
 
 ---
 
@@ -754,120 +755,606 @@ Tenant
 
 ---
 
-## 5. Convergence Roadmap
+## 5. Generation-Based Architecture
 
-### Phase 1: Constitutional Foundation (Weeks 1-4)
+### 5.1 Core Principle
 
-**Objective:** Establish PING constitutional layer in Tenant OS
+**PING Generates Runtime from Tenant Constitution**
 
-**Tasks:**
-1. Implement PING Layer 0 Kernel (axioms, authorities, root facts)
-2. Implement PING Layer 1 Runtime (event processing, replay, state reconstruction)
-3. Implement PING Layer 2 Adapters (Postgres, Redis, Qdrant)
-4. Implement tenant isolation model
-5. Implement multi-tenant safety enforcement
+Instead of building layers separately, PING generates everything below the Constitution:
 
-**Deliverables:**
-- Constitutional kernel with authorities
-- Event store with tenant-scoped streams
-- Replay engine with tenant-scoped reconstruction
-- Multi-tenant safety validation
+```
+PING Kernel
+        ↓
+Tenant Constitution
+        ↓
+Generation Manifest
+        ↓
+Code Generator
+        ↓
+Repositories
+Services
+Events
+APIs
+Tests
+Projections
+Replay
+Witness
+```
 
----
-
-### Phase 2: Domain Primitives (Weeks 5-8)
-
-**Objective:** Implement four domain primitives
-
-**Tasks:**
-1. Implement Identity with external identity mappings
-2. Implement Mission as event-sourced aggregate root
-3. Implement Evidence with immutable chain
-4. Implement Observation with authority pipeline
-
-**Deliverables:**
-- Identity model with provider mappings
-- Mission model with event sourcing
-- Evidence model with immutable chain
-- Observation model with authority pipeline
+**Key Insight:** The Constitution becomes executable. Instead of documentation for contractors, it becomes the source that PING agents compile into the application.
 
 ---
 
-### Phase 3: Constitutional Layer (Weeks 9-12)
+### 5.2 PING Owns Runtime
 
-**Objective:** Implement tenant-specific constitution
+**Tenant OS Does NOT Implement:**
+- Replay
+- Witness
+- Kernel
+- Repository
+- Event recording
+- Authorities
 
-**Tasks:**
-1. Implement Observation Authority
-2. Implement Claim Authority
-3. Implement Verification Authority
-4. Implement Fact Authority
-5. Implement Capability Registry with versioning
-6. Implement Constitutional Object
+**PING Already Provides:**
+- Constitutional kernel (axioms, authorities, root facts)
+- Runtime execution (event processing, replay, state reconstruction)
+- Adapters (infrastructure, transport, provider)
+- Multi-tenant safety enforcement
 
-**Deliverables:**
-- Observation, Claim, Verification, Fact authorities
-- Capability Registry with versioning
-- Constitutional Object with rules and contracts
-
----
-
-### Phase 4: Runtime Services (Weeks 13-16)
-
-**Objective:** Implement orthogonal runtime services
-
-**Tasks:**
-1. Implement Planner (Intent generation)
-2. Implement Capability Broker (Provider resolution)
-3. Implement Repository (Event store)
-4. Implement Projection (Read models)
-5. Implement Replay (State reconstruction)
-6. Implement Witness (Verification)
-
-**Deliverables:**
-- Planner with intent graph
-- Capability Broker with provider resolution
-- Repository with append-only event store
-- Projection with rebuildable read models
-- Replay with deterministic reconstruction
-- Witness with verification
+**Tenant OS Only Contributes:**
+- Mission (domain concept)
+- Identity (domain concept)
+- Evidence (domain concept)
+- Observation (domain concept)
+- Policies (business rules)
+- Capabilities (capability contracts)
+- Workflows (business processes)
 
 ---
 
-### Phase 5: Capability Layer (Weeks 17-20)
+### 5.3 Three Sprint Approach
 
-**Objective:** Implement provider adapters
+#### Sprint 1: Constitutional Domain (Week 1)
 
-**Tasks:**
-1. Implement Google Workspace adapters
-2. Implement Jobber adapters
-3. Implement Stripe adapters
-4. Implement Twilio adapters
-5. Implement Dropbox adapters
+**Define Only:**
+- Identity (Customer, Crew, Vendor)
+- Mission (Estimate, Job, Project)
+- Evidence (Photo, Video, Voice, PDF)
+- Observation (RoofDamage, WaterLeak, BrokenWindow)
 
-**Deliverables:**
-- Google Workspace provider adapters
-- Jobber provider adapters
-- Stripe provider adapters
-- Twilio provider adapters
-- Dropbox provider adapters
+**Everything Event Sourced. Nothing Else.**
+
+**Deliverable:** Declarative schemas for domain primitives.
 
 ---
 
-### Phase 6: Knowledge Computation (Weeks 21-24)
+#### Sprint 2: Capability Registry (Week 2)
 
-**Objective:** Implement knowledge as computed from facts
+**Define Only:**
+- Calendar (schedule, cancel, reschedule, availability, conflict-detection)
+- Payments (charge, refund, subscription, invoice)
+- CRM (create customer, update customer, sync contacts)
+- Messaging (send email, send SMS, send notification)
+- Storage (upload, download, delete, archive)
+- Vision (detect objects, classify images, extract text)
+- Scheduling (find window, detect conflict, optimize schedule)
 
-**Tasks:**
-1. Remove stored Knowledge objects
-2. Implement knowledge computation from facts
-3. Implement knowledge graph
-4. Implement knowledge projection
+**Only Contracts. No Providers.**
 
-**Deliverables:**
-- Knowledge computation engine
-- Knowledge graph
-- Knowledge projection
+**Deliverable:** Capability contracts with versioning.
+
+---
+
+#### Sprint 3: Generate Everything (Week 3-4)
+
+**PING Agents Generate:**
+- Services (MissionService, EvidenceService, CustomerService)
+- Events (MissionCreated, EstimateAccepted, CrewAssigned)
+- APIs (REST, GraphQL)
+- Projections (read models)
+- CQRS handlers
+- Tests (unit, integration, replay)
+- Replay tests
+- Documentation
+
+**From the Constitution.**
+
+**Deliverable:** Fully operational platform generated from constitution.
+
+---
+
+### 5.4 Planning in PING
+
+**Tenant OS Defines Intents:**
+- Need Appointment
+- Need Invoice
+- Need Crew
+- Need Review
+
+**PING Planner Decides Execution:**
+- Google Calendar (or Jobber Calendar, or Outlook Calendar, or Human)
+- Stripe (or PayPal, or Square)
+- Jobber (or HubSpot, or Salesforce)
+- Twilio (or SendGrid, or AWS SES)
+
+**Tenant OS Never Knows About Providers.**
+
+---
+
+### 5.5 Providers as Drivers
+
+**Never Reference in Tenant OS:**
+- Google
+- Stripe
+- Twilio
+- Jobber
+
+**Instead Reference:**
+- Calendar
+- Payments
+- Storage
+- Messaging
+
+**PING Runtime Loads Providers:**
+```
+Calendar
+    ↓
+Google Calendar Provider
+    ↓
+Jobber Calendar Provider
+    ↓
+Outlook Calendar Provider
+    ↓
+Human Provider
+```
+
+**Exactly Like:**
+```
+Filesystem
+    ↓
+NTFS Driver
+    ↓
+EXT4 Driver
+    ↓
+APFS Driver
+```
+
+---
+
+### 5.6 Declarative Domain Definition
+
+**Instead of Writing Services:**
+
+```typescript
+// ❌ DON'T WRITE THIS
+class MissionService {
+  async create(mission: Mission): Promise<Mission> { }
+  async accept(missionId: string): Promise<void> { }
+  async assignCrew(missionId: string, crewId: string): Promise<void> { }
+  async complete(missionId: string): Promise<void> { }
+}
+```
+
+**Define Declaratively:**
+
+```yaml
+# ✅ DEFINE THIS
+Mission:
+  owns:
+    - Tasks
+    - Evidence
+    - Crew
+  events:
+    - MissionCreated
+    - MissionAccepted
+    - CrewAssigned
+    - MissionCompleted
+  commands:
+    - Accept
+    - AssignCrew
+    - Complete
+  policies:
+    - MustHaveCustomer
+    - MustHaveProperty
+    - MustHaveCrewBeforeComplete
+```
+
+**PING Generates:**
+- Repository
+- Service
+- Events
+- Replay
+- Projections
+- REST
+- GraphQL
+- SDK
+- Tests
+
+---
+
+### 5.7 Remove Knowledge from Model
+
+**Instead of:**
+```
+Evidence → Observation → Claim → Fact → Knowledge
+```
+
+**PING Computes:**
+```
+Evidence → Observation → Claim → Fact
+```
+
+**Knowledge is computed by PING from facts. Replay always regenerates it.**
+
+**Benefits:**
+- No shadow copies of knowledge
+- Knowledge is always reproducible
+- Constitutional replay is trivial
+- Clear provenance for every fact
+
+---
+
+### 5.8 Define Only Authorities
+
+**Instead of Services, Define Authorities:**
+
+```yaml
+Mission Authority:
+  jurisdiction:
+    - Mission lifecycle
+    - Task assignment
+    - Crew assignment
+  owns:
+    - Mission events
+    - Mission state projections
+
+Observation Authority:
+  jurisdiction:
+    - Evidence observation
+    - Claim evaluation
+    - Fact verification
+  owns:
+    - Observation events
+    - Claim events
+    - Fact events
+
+Evidence Authority:
+  jurisdiction:
+    - Evidence ingestion
+    - Evidence chain validation
+  owns:
+    - Evidence events
+    - Evidence lineage
+
+Identity Authority:
+  jurisdiction:
+    - Identity assignment
+    - External identity mapping
+  owns:
+    - Identity events
+    - External identity events
+```
+
+**Everything Else Becomes Generated.**
+
+---
+
+### 5.9 One Canonical Event Model
+
+**Everything Becomes:**
+
+```
+Command
+    ↓
+Authority
+    ↓
+Event
+    ↓
+Projection
+```
+
+**Never Mutate State Directly.**
+
+**PING Already Supports This.**
+
+---
+
+### 5.10 AI Generation Manifest
+
+**Machine-Readable Constitution:**
+
+```yaml
+identities:
+  Customer:
+    fields:
+      - name
+      - email
+      - phone
+      - address
+    external_mappings:
+      - google_contacts
+      - jobber
+      - hubspot
+      - salesforce
+
+  Crew:
+    fields:
+      - name
+      - role
+      - skills
+      - availability
+
+  Vendor:
+    fields:
+      - name
+      - category
+      - rating
+
+missions:
+  Estimate:
+    owns:
+      - Tasks
+      - Evidence
+      - Crew
+    events:
+      - EstimateCreated
+      - EstimateAccepted
+      - EstimateRejected
+      - EstimateExpired
+    commands:
+      - Accept
+      - Reject
+      - Expire
+    policies:
+      - MustHaveCustomer
+      - MustHaveProperty
+
+  Job:
+    owns:
+      - Tasks
+      - Evidence
+      - Crew
+      - Invoice
+    events:
+      - JobCreated
+      - JobStarted
+      - JobCompleted
+      - JobCancelled
+    commands:
+      - Start
+      - Complete
+      - Cancel
+    policies:
+      - MustHaveEstimate
+      - MustHaveCrew
+
+evidence:
+  Photo:
+    content_type: image/*
+    processing:
+      - object_detection
+      - classification
+      - text_extraction
+
+  Video:
+    content_type: video/*
+    processing:
+      - frame_extraction
+      - motion_detection
+      - audio_extraction
+
+  Voice:
+    content_type: audio/*
+    processing:
+      - transcription
+      - sentiment_analysis
+
+  PDF:
+    content_type: application/pdf
+    processing:
+      - text_extraction
+      - table_extraction
+      - signature_detection
+
+observations:
+  RoofDamage:
+    evidence_types: [Photo, Video]
+    claims: [NeedsReplacement, NeedsRepair]
+
+  WaterLeak:
+    evidence_types: [Photo, Video]
+    claims: [NeedsRepair, NeedsReplacement]
+
+  BrokenWindow:
+    evidence_types: [Photo, Video]
+    claims: [NeedsReplacement]
+
+claims:
+  NeedsReplacement:
+    confidence_threshold: 0.8
+    requires_verification: true
+
+  NeedsRepair:
+    confidence_threshold: 0.6
+    requires_verification: false
+
+facts:
+  VerifiedRoofDamage:
+    source: NeedsReplacement
+    verification_required: true
+
+capabilities:
+  Calendar:
+    version: "1.0"
+    supports:
+      - schedule
+      - cancel
+      - reschedule
+      - availability
+      - conflict_detection
+    inputs:
+      - start_time
+      - end_time
+      - attendees
+      - location
+    outputs:
+      - event_id
+      - calendar_url
+
+  Payments:
+    version: "1.0"
+    supports:
+      - charge
+      - refund
+      - subscription
+      - invoice
+    inputs:
+      - amount
+      - currency
+      - customer_id
+    outputs:
+      - payment_id
+      - receipt_url
+
+  CRM:
+    version: "1.0"
+    supports:
+      - create_customer
+      - update_customer
+      - sync_contacts
+    inputs:
+      - name
+      - email
+      - phone
+    outputs:
+      - customer_id
+      - sync_status
+
+  Messaging:
+    version: "1.0"
+    supports:
+      - send_email
+      - send_sms
+      - send_notification
+    inputs:
+      - recipient
+      - subject
+      - body
+    outputs:
+      - message_id
+      - delivery_status
+
+  Storage:
+    version: "1.0"
+    supports:
+      - upload
+      - download
+      - delete
+      - archive
+    inputs:
+      - file
+      - metadata
+    outputs:
+      - file_id
+      - storage_url
+
+  Vision:
+    version: "1.0"
+    supports:
+      - detect_objects
+      - classify_images
+      - extract_text
+    inputs:
+      - image
+      - model
+    outputs:
+      - detections
+      - classifications
+      - text
+
+  Scheduling:
+    version: "1.0"
+    supports:
+      - find_window
+      - detect_conflict
+      - optimize_schedule
+    inputs:
+      - constraints
+      - preferences
+    outputs:
+      - windows
+      - conflicts
+      - optimized_schedule
+
+policies:
+  TenantIsolation:
+    description: "Every operation must include tenantId"
+    enforcement: "runtime"
+    scope: "all"
+
+  Replay:
+    description: "All state must be replayable from events"
+    enforcement: "constitutional"
+    scope: "all"
+
+  Witness:
+    description: "All operations must generate witness attestations"
+    enforcement: "constitutional"
+    scope: "all"
+
+  Authority:
+    description: "All mutations must go through authorities"
+    enforcement: "constitutional"
+    scope: "all"
+```
+
+**PING Agents Can Consume This Directly.**
+
+---
+
+### 5.11 Generate Instead of Code
+
+**Target Flow:**
+
+```
+Constitution
+    ↓
+PING
+    ↓
+Generate (80-90%)
+    ↓
+Humans Review
+    ↓
+Deploy
+```
+
+**Not:**
+
+```
+Architecture
+    ↓
+Developers
+    ↓
+Code
+    ↓
+Review
+```
+
+---
+
+### 5.12 Four-Week Milestone Plan
+
+| Week | Deliverable |
+|------|-------------|
+| 1 | Constitutional manifest (Identity, Mission, Evidence, Observation, Capability contracts, Policies) |
+| 2 | PING generator produces repositories, events, APIs, projections, replay tests |
+| 3 | Plug in Google, Stripe, Jobber, Twilio adapters via the Capability Registry |
+| 4 | Run an end-to-end flow: Estimate → Mission → Evidence → Observation → Fact → Planner → Capability Broker → Replay → Witness |
+
+**At That Point, The Platform Is Operational.**
+
+**Everything After That Becomes Incremental Capability Additions Rather Than Foundational Engineering.**
 
 ---
 
