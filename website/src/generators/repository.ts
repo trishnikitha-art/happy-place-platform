@@ -93,7 +93,7 @@ export class RepositoryGenerator implements Generator {
       // Generate repository class
       const repoContent = generateRepositoryClass(name, events, commands, authorityName);
       artifacts.push({
-        path: `generated/repositories/${pascalCase(name)}Repository.ts`,
+        path: `repositories/${pascalCase(name)}Repository.ts`,
         content: repoContent,
         hash: sha256(repoContent),
         generator: this.name,
@@ -258,7 +258,7 @@ export class ${pascal}Repository {
     };
 
     for (const event of stream.events) {
-      state = this.apply(state, event);
+      state = ${pascal}Repository.apply(state, event);
     }
 
     return state;
@@ -276,11 +276,12 @@ export class ${pascal}Repository {
   /**
    * Apply a single event to the current state.
    * This is the pure function: state + event → new state.
+   * Static — callable without an instance (used by replay dispatch).
    */
-  apply(state: ${pascal}State, event: ${pascal}Event): ${pascal}State {
+  static apply(state: ${pascal}State, event: ${pascal}Event): ${pascal}State {
     switch (event.type) {
 ${events.map((e) => `      case "${pascalCase(e)}":
-        return this.apply${pascalCase(e)}(state, event);`).join("\n")}
+        return ${pascal}Repository.apply${pascalCase(e)}(state, event);`).join("\n")}
       default:
         return state;
     }
@@ -290,7 +291,7 @@ ${events.map((e) => `      case "${pascalCase(e)}":
   // Event applicators (one per event type)
   // -------------------------------------------------------------------------
 
-${events.map((e) => `  private apply${pascalCase(e)}(state: ${pascal}State, event: ${pascalCase(e)}): ${pascal}State {
+${events.map((e) => `  private static apply${pascalCase(e)}(state: ${pascal}State, event: ${pascalCase(e)}): ${pascal}State {
     return {
       ...state,
       version: state.version + 1,

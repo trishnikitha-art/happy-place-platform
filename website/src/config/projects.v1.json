@@ -92,14 +92,7 @@
         "gallery": [
           "pergolas-001-construction",
           "pergolas-001-steel-frame",
-          "pergolas-001-finished",
-          "pergolas-001-detail",
-          "pergolas-001-installation",
-          "pergolas-001-outdoor-view",
-          "pergolas-001-patio",
-          "pergolas-001-landscape",
-          "pergolas-001-shade",
-          "pergolas-001-evening"
+          "pergolas-001-finished"
         ]
       },
       "story": {
@@ -314,7 +307,13 @@
           "painting-001-sanding",
           "painting-001-priming",
           "painting-001-painting",
-          "painting-001-finished"
+          "painting-001-finished",
+          "outdoor-living-001-hero",
+          "outdoor-living-001-2",
+          "outdoor-living-001-3",
+          "outdoor-living-001-4",
+          "outdoor-living-001-5",
+          "outdoor-living-001-6"
         ]
       },
       "story": {
@@ -460,14 +459,7 @@
         "gallery": [
           "pergolas-001-construction",
           "pergolas-001-steel-frame",
-          "pergolas-001-finished",
-          "pergolas-001-detail",
-          "pergolas-001-installation",
-          "pergolas-001-outdoor-view",
-          "pergolas-001-patio",
-          "pergolas-001-landscape",
-          "pergolas-001-shade",
-          "pergolas-001-evening"
+          "pergolas-001-finished"
         ]
       },
       "story": {
