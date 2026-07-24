@@ -21,7 +21,7 @@ import {
 } from "@/lib/wizard-persistence";
 import { preliminaryRange, formatRange } from "@/lib/planning-range";
 
-type PhotoMeta = { name: string; size: number; uploadedAt?: number };
+type PhotoMeta = { name: string; size: number; uploadedAt?: number; data?: string; file?: File };
 
 const ALL_STEPS = ["Service", "Tell us about your project", "Photos", "Project Details", "Property", "Contact", "Thank You"] as const;
 const MAX_SERVICES = 3;
@@ -401,26 +401,75 @@ export function EstimateWizard() {
           <div>
             <h2 className="text-xl font-bold text-text">Add a few photos (optional)</h2>
             <p className="mt-1 text-text-muted">
-              The more we can see, the better we can help. Snap a few photos of the space so we can understand what you&apos;re working with and give you the best possible estimate. Don&apos;t worry—your photos stay on your device and you&apos;ll attach them yourself when your email opens.
+              The more we can see, the better we can help. Snap a few photos of the space so we can understand what you&apos;re working with and give you the best possible estimate.
             </p>
+            
+            {/* Desktop file upload */}
             <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-text-subtle hover:border-primary">
               <Upload className="h-8 w-8" />
-              <span className="text-sm font-medium">UPLOAD OR TAKE</span>
+              <span className="text-sm font-medium">UPLOAD PHOTOS</span>
               <input
                 type="file"
                 accept="image/*"
                 multiple
-                capture="environment"
                 className="hidden"
-                onChange={(e) => {
+                onChange={async (e) => {
                   const files = Array.from(e.target.files ?? []);
-                  setPhotos((prev) => [
-                    ...prev,
-                    ...files.map((f) => ({ name: f.name, size: f.size, uploadedAt: Date.now() })),
-                  ]);
+                  const newPhotos: PhotoMeta[] = [];
+                  
+                  for (const file of files) {
+                    const reader = new FileReader();
+                    const dataUrl = await new Promise<string>((resolve) => {
+                      reader.onload = () => resolve(reader.result as string);
+                      reader.readAsDataURL(file);
+                    });
+                    newPhotos.push({
+                      name: file.name,
+                      size: file.size,
+                      uploadedAt: Date.now(),
+                      data: dataUrl,
+                      file,
+                    });
+                  }
+                  
+                  setPhotos((prev) => [...prev, ...newPhotos]);
                 }}
               />
             </label>
+            
+            {/* Mobile camera capture */}
+            <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-text-subtle hover:border-primary">
+              <Upload className="h-8 w-8" />
+              <span className="text-sm font-medium">TAKE PHOTO</span>
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={async (e) => {
+                  const files = Array.from(e.target.files ?? []);
+                  const newPhotos: PhotoMeta[] = [];
+                  
+                  for (const file of files) {
+                    const reader = new FileReader();
+                    const dataUrl = await new Promise<string>((resolve) => {
+                      reader.onload = () => resolve(reader.result as string);
+                      reader.readAsDataURL(file);
+                    });
+                    newPhotos.push({
+                      name: file.name,
+                      size: file.size,
+                      uploadedAt: Date.now(),
+                      data: dataUrl,
+                      file,
+                    });
+                  }
+                  
+                  setPhotos((prev) => [...prev, ...newPhotos]);
+                }}
+              />
+            </label>
+            
             {photos.length > 0 && (
               <ul className="mt-4 space-y-1 text-sm text-text-muted">
                 {photos.map((p, i) => (
