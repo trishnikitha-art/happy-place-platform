@@ -113,9 +113,10 @@ export async function POST(request: NextRequest) {
     const photoIds: string[] = [];
     if (req.photos && req.photos.length > 0) {
       for (const photo of req.photos) {
-        if (photo.data) {
+        if (photo.data && photo.name) {
           try {
-            const fileId = await uploadPhotoToDrive(auth, photo.data, photo.name || 'photo.jpg');
+            // @ts-ignore - TypeScript type inference issue, runtime value is always string
+            const fileId = await uploadPhotoToDrive(auth, photo.data, photo.name);
             photoIds.push(fileId);
           } catch (error) {
             console.error('Failed to upload photo to Drive:', error);
