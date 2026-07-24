@@ -1,0 +1,140 @@
+# Generation Manifest — first-class constitutional artifact
+#
+# Pipeline:
+#   PING Kernel -> Constitution -> Generation Manifest -> Code Generator
+#     -> Repositories / Services / Events / APIs / Tests / Projections / Replay / Witness
+#
+# Tenant OS contributes ONLY: Identity, Mission, Evidence, Observation, Policies, Capabilities, Workflows.
+# PING owns runtime: Replay, Witness, Kernel, Repository, Event recording, Authorities.
+# Knowledge is NOT a stored layer: Evidence -> Observation -> Claim -> Fact, computed by PING at replay.
+# Providers (Google/Stripe/Jobber/Twilio) are driver-loadable; Tenant OS NEVER names them.
+
+manifest:
+  name: happy-place-tenant-os
+  version: 1
+  generated_from: constitution
+  owner: hp-os                 # single tenant today; tenant_id field reserved for multi-tenant
+  runtime: ping               # PING owns replay/witness/kernel/repository/event-recording/authorities
+
+# --- Authorities (declared, not coded). PING generates repos/services/events/projections from these. ---
+authorities:
+  - name: IdentityAuthority
+    owns: [Customer, Crew, Vendor]
+    reference: provider        # provider owns PII bytes; HPOS holds Reference only (CUSTOMER_IDENTITY_POLICY)
+  - name: MissionAuthority
+    owns: [Estimate, Job, Project]
+    events: [MissionCreated, MissionAccepted, CrewAssigned, MissionCompleted]
+    commands: [Accept, AssignCrew, Complete]
+    policies: [MustHaveCustomer, MustHaveProperty]
+  - name: EvidenceAuthority
+    owns: [Photo, Video, Voice, PDF]
+    derived: true              # HPOS-generated variants (WEBP/AVIF) are Derived Authority (CONNECTOR_POLICY)
+  - name: ObservationAuthority
+    owns: [RoofDamage, WaterLeak, BrokenWindow]
+    emits: [Claim]             # Observation -> Claim
+  - name: FactAuthority
+    computes: [VerifiedRoofDamage]   # PING computes Facts from Claims via replay (no stored Knowledge layer)
+
+# --- Identities ---
+identities:
+  - Customer
+  - Crew
+  - Vendor
+
+# --- Missions (event-sourced, declarative; PING generates the rest) ---
+missions:
+  - name: Estimate
+    owns: [Tasks, Evidence, Crew]
+    events: [EstimateCreated, EstimateAccepted]
+    commands: [Accept, AssignCrew, Complete]
+    policies: [MustHaveCustomer, MustHaveProperty]
+  - name: Job
+    owns: [Tasks, Crew, Evidence]
+    events: [JobCreated, CrewAssigned, JobCompleted]
+    commands: [AssignCrew, Complete]
+  - name: Project
+    owns: [Missions, Media, Story]
+    events: [ProjectCreated, ProjectCompleted]
+
+# --- Evidence ---
+evidence:
+  - Photo
+  - Video
+  - Voice
+  - PDF
+
+# --- Observations -> Claims -> Facts (replay-computed knowledge) ---
+observations:
+  - RoofDamage
+  - WaterLeak
+  - BrokenWindow
+claims:
+  - NeedsReplacement
+  - NeedsRepair
+facts:
+  - VerifiedRoofDamage
+
+# --- Capabilities = driver INTERFACES. Tenant OS NEVER references a concrete provider. ---
+capabilities:
+  - name: Calendar
+    contract: [Schedule, Query, Update]
+  - name: Payments
+    contract: [Charge, Refund, Query]
+  - name: CRM
+    contract: [UpsertContact, QueryContact]
+  - name: Messaging
+    contract: [Send, Receive]
+  - name: Storage
+    contract: [Acquire, Mirror, Canonicalize, Emit]
+  - name: Vision
+    contract: [Detect, Classify]
+  - name: Scheduling
+    contract: [Plan, Assign]
+
+# --- Provider drivers: loaded by PING runtime, NOT referenced in Tenant OS code. ---
+# (Informational mapping only; generator emits capability calls, never provider names.)
+providers:
+  Calendar: [GoogleCalendar, Outlook, Jobber]
+  Payments: [Stripe]
+  CRM: [Jobber, GoogleContacts]
+  Messaging: [Twilio, Kit]
+  Storage: [GoogleDrive]
+  Vision: [PINGVision]
+  Scheduling: [PINGPlanner]
+
+# --- Planning lives in PING. Tenant OS emits NEEDS; PING planner decides execution. ---
+planning:
+  tenant_emits: [NeedAppointment, NeedInvoice, NeedCrew, NeedReview]
+  ping_decides:
+    NeedAppointment: [Calendar]
+    NeedInvoice: [Payments]
+    NeedCrew: [Scheduling]
+    NeedReview: [Messaging]
+
+# --- One canonical event model (PING already supports this). ---
+event_model:
+  flow: [Command, Authority, Event, Projection]
+  rule: never_mutate_directly
+  event_id: sha256_over_identity      # EVENT_SCHEMA_POLICY
+  witness: build_witness              # DETERMINISM_POLICY
+  replay: deterministic               # REPLAY_CERTIFICATION_POLICY
+
+# --- Policies enforced by the generator; map 1:1 to committed governance specs. ---
+policies:
+  - TenantIsolation      # PROJECTION_POLICY / REPLAY_CERTIFICATION_POLICY
+  - Replay               # EVENT_SCHEMA_POLICY
+  - Witness              # DETERMINISM_POLICY
+  - Authorities          # CUSTOMER_IDENTITY_POLICY / CONNECTOR_POLICY
+  - PIIRetention         # PII_RETENTION_POLICY
+  - ReferenceNotCopy     # CONNECTOR_POLICY
+
+# --- What PING generates from this manifest (80-90%, humans review). ---
+generate:
+  - repositories
+  - events
+  - apis                 # REST + GraphQL
+  - projections
+  - cqrs_handlers
+  - tests
+  - replay_tests
+  - documentation
