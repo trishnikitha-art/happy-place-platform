@@ -97,7 +97,7 @@ export function EstimateWizard() {
   const wizardRef = React.useRef<HTMLDivElement>(null);
 
   // Get current wizard state for persistence
-  const getCurrentState = (): WizardState => ({
+  const getCurrentState = React.useCallback((): WizardState => ({
     step,
     selected,
     projectType,
@@ -108,10 +108,10 @@ export function EstimateWizard() {
     customer,
     submitted,
     updatedAt: Date.now(),
-  });
+  }), [step, selected, projectType, otherNeed, answers, photos, property, customer, submitted]);
 
   // Create autosave function
-  const autosave = React.useMemo(() => createAutosave(getCurrentState), []);
+  const autosave = React.useMemo(() => createAutosave(getCurrentState), [getCurrentState]);
 
   // Restore draft if user chooses to continue
   // State is already initialized with draft data, just hide the modal

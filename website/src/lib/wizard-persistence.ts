@@ -98,7 +98,36 @@ export function createAutosave(
 }
 
 /**
+ * Deep equality check for objects
+ */
+function deepEqual(a: any, b: any): boolean {
+  if (a === b) return true;
+  if (a == null || b == null) return false;
+  if (typeof a !== typeof b) return false;
+  
+  if (typeof a === 'object') {
+    const keysA = Object.keys(a).sort();
+    const keysB = Object.keys(b).sort();
+    if (keysA.length !== keysB.length) return false;
+    for (const key of keysA) {
+      if (!deepEqual(a[key], b[key])) return false;
+    }
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Normalize arrays for comparison (sort to ignore order)
+ */
+function normalizeArray(arr: string[]): string[] {
+  return [...arr].sort();
+}
+
+/**
  * Validate that the submission payload matches the persisted state
+ * Uses deep equality instead of reference comparison
  */
 export function validateSubmissionIntegrity(
   uiState: WizardState,
@@ -111,21 +140,45 @@ export function validateSubmissionIntegrity(
     return { valid: true, issues: [] };
   }
   
-  // Check critical fields
-  if (uiState.selected.length !== persistedState.selected.length) {
-    issues.push("Selected services count mismatch");
+  // Check selected services - normalize order before comparison
+  if (!deepEqual(normalizeArray(uiState.selected), normalizeArray(persistedState.selected))) {
+    issues.push("Selected services mismatch");
   }
   
-  if (uiState.answers !== persistedState.answers) {
+  // Check answers using deep equality
+  if (!deepEqual(uiState.answers, persistedState.answers)) {
     issues.push("Answers mismatch");
   }
   
+  // Check property city
   if (uiState.property.city !== persistedState.property.city) {
     issues.push("Property city mismatch");
   }
   
+  // Check customer email
   if (uiState.customer.email !== persistedState.customer.email) {
     issues.push("Customer email mismatch");
+  }
+  
+  // Check photos count and names (photos are stored as metadata only)
+  if (uiState.photos.length !== persistedState.photos.length) {
+    issues.push("Photos count mismatch");
+  } else {
+    const uiPhotoNames = uiState.photos.map(p => p.name).sort();
+    const persistedPhotoNames = persistedState.photos.map(p => p.name).sort();
+    if (!deepEqual(uiPhotoNames, persistedPhotoNames)) {
+      issues.push("Photos names mismatch");
+    }
+  }
+  
+  // Check project type
+  if (uiState.projectType !== persistedState.projectType) {
+    issues.push("Project type mismatch");
+  }
+  
+  // Check other need
+  if (uiState.otherNeed !== persistedState.otherNeed) {
+    issues.push("Other need mismatch");
   }
   
   return {
