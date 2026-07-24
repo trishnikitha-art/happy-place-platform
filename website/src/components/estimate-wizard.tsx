@@ -405,11 +405,12 @@ export function EstimateWizard() {
             </p>
             <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-text-subtle hover:border-primary">
               <Upload className="h-8 w-8" />
-              <span className="text-sm font-medium">Tap to choose photos</span>
+              <span className="text-sm font-medium">UPLOAD OR TAKE</span>
               <input
                 type="file"
                 accept="image/*"
                 multiple
+                capture="environment"
                 className="hidden"
                 onChange={(e) => {
                   const files = Array.from(e.target.files ?? []);
