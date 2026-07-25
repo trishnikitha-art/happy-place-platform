@@ -61,7 +61,7 @@ export default function HomePage() {
         <div className="hero-ticks" aria-hidden="true" />
         <div className="pnw-fog" aria-hidden="true" />
 
-        <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-16 sm:py-20 lg:py-28">
+        <Container className="relative z-10 flex min-h-[78svh] sm:min-h-[84svh] lg:min-h-[90svh] flex-col justify-center py-16 sm:py-20 lg:py-28">
           <div className="max-w-3xl">
             <p className="font-signature text-xl sm:text-2xl text-honey/90 tracking-wide">Happy Place Carpentry</p>
             <h1 className="mt-4 sm:mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] sm:leading-[1.05] tracking-tight tracking-display text-text-on-dark">
@@ -219,7 +219,7 @@ export default function HomePage() {
             <>
               <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-3">
                 {topReviews.map((r) => (
-                  <figure key={r.id} className="bg-white p-5 sm:p-6 transition-all duration-300 hover:-translate-y-1 shadow-[0_2px_8px_-2px_rgba(23,50,74,0.08),0_1px_3px_-1px_rgba(23,50,74,0.06)] hover:shadow-[0_4px_16px_-4px_rgba(23,50,74,0.12),0_2px_6px_-2px_rgba(23,50,74,0.08)] border border-border/60 rounded-card">
+                  <figure key={r.id} className="bg-white p-5 sm:p-6 transition-all duration-300 hover:-translate-y-1 shadow-[0_2px_8px_-2px_rgba(23,50,74,0.08),0_1px_3px_-1px_rgba(23,50,74,0.06)] hover:shadow-[0_4px_16px_-4px_rgba(23,50,74,0.12),0_2px_6px_-2px_rgba(23,50,74,0.08)] border border-border/60 rounded-xl">
                     <StarRating rating={r.rating} />
                     {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
                     <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>

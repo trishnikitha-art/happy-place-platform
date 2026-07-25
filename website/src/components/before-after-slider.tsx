@@ -85,7 +85,7 @@ export function BeforeAfterSlider({
   const afterSrc = afterMedia.variants.original || afterMedia.variants.webp || afterMedia.variants.avif;
 
   return (
-    <figure className={cn("group relative select-none overflow-hidden rounded-card border border-border/60 bg-white shadow-[0_2px_8px_-2px_rgba(23,50,74,0.08),0_1px_3px_-1px_rgba(23,50,74,0.06)] transition-shadow duration-300 hover:shadow-[0_4px_16px_-4px_rgba(23,50,74,0.12),0_2px_6px_-2px_rgba(23,50,74,0.08)]", className)}>
+    <figure className={cn("group relative select-none overflow-hidden rounded-xl border border-border/60 bg-white shadow-[0_2px_8px_-2px_rgba(23,50,74,0.08),0_1px_3px_-1px_rgba(23,50,74,0.06)] transition-shadow duration-300 hover:shadow-[0_4px_16px_-4px_rgba(23,50,74,0.12),0_2px_6px_-2px_rgba(23,50,74,0.08)]", className)}>
       <div
         ref={containerRef}
         className="relative aspect-[4/3] w-full"
