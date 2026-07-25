@@ -560,15 +560,15 @@ a {
 .happy-gold-shine {
   background: linear-gradient(
     100deg,
-    transparent 20%,
-    #b8863f 35%,        /* deep gold */
-    #e7ad63 45%,         /* warm honey --color-honey-hover */
-    #fdf3df 50%,         /* pale champagne peak highlight */
-    #e7ad63 55%,
-    #b8863f 65%,
-    transparent 80%
+    transparent 0%,
+    #d4a84b 20%,        /* brighter gold */
+    #f5d790 35%,        /* lighter honey */
+    #fff8e7 50%,        /* bright champagne peak */
+    #f5d790 65%,
+    #d4a84b 80%,
+    transparent 100%
   );
-  background-size: 250% 100%;
+  background-size: 200% 100%;
   background-clip: text;
   -webkit-background-clip: text;
   color: transparent;
@@ -576,14 +576,14 @@ a {
 }
 
 @keyframes happy-gold-sweep {
-  0%, 60% { background-position: 200% 0; opacity: 0; }
-  65% { opacity: 1; }
-  90% { background-position: -100% 0; }
-  95%, 100% { opacity: 0; background-position: -100% 0; }
+  0%, 50% { background-position: 200% 0; opacity: 0; }
+  55% { opacity: 1; }
+  85% { background-position: -100% 0; }
+  90%, 100% { opacity: 0; background-position: -100% 0; }
 }
 
 .animate-happy-gold-idle {
-  animation: happy-gold-sweep 9s ease-in-out infinite;
+  animation: happy-gold-sweep 6s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {

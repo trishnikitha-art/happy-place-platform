@@ -12,10 +12,15 @@ export function HappyBrandSignature({ className }: HappyBrandSignatureProps) {
       {/* Base text - always visible */}
       <span className="relative z-10">Happy</span>
       
-      {/* Gold shimmer overlay - same text with gradient */}
-      <span className="absolute inset-0 z-20 pointer-events-none happy-gold-shine animate-happy-gold-idle font-display font-bold tracking-tight">
-        Happy
-      </span>
+      {/* Gold shimmer overlay - uses mix-blend-mode like NavShimmer */}
+      <span
+        className="absolute inset-0 z-20 pointer-events-none animate-happy-gold-idle"
+        style={{
+          background: 'linear-gradient(90deg, transparent 0%, rgba(212,168,75,0.4) 50%, transparent 100%)',
+          backgroundSize: '200% 100%',
+          mixBlendMode: 'overlay',
+        }}
+      />
     </span>
   );
 }
