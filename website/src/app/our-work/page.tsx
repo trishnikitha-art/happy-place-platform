@@ -93,9 +93,9 @@ export default function OurWorkPage() {
                       </span>
                     </div>
                     <div className="p-6">
-                      <h2 className="text-xl font-bold text-text-on-dark">{project.title}</h2>
-                      <p className="mt-2 line-clamp-2 text-text-on-dark/80">{project.story?.outcome || project.story?.solution || project.title}</p>
-                      <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-honey group-hover:underline">
+                      <h2 className="text-xl font-bold text-text">{project.title}</h2>
+                      <p className="mt-2 line-clamp-2 text-text-muted">{project.story?.outcome || project.story?.solution || project.title}</p>
+                      <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary group-hover:underline">
                         See the transformation →
                       </span>
                     </div>

@@ -9,27 +9,26 @@ interface HappyBrandSignatureProps {
 export function HappyBrandSignature({ className }: HappyBrandSignatureProps) {
   return (
     <span className={`relative inline-block ${className}`}>
-      {/* Normal text - same typography as surrounding text */}
+      {/* Normal text - inherits all typography from parent */}
       <span className="relative z-10">Happy</span>
       
-      {/* Specular highlight overlay - light moving across like sunlight on brass */}
+      {/* Specular highlight overlay - moving reflection like sunlight on brass */}
       <span
         className={`
-          absolute inset-0 bg-gradient-to-r 
-          from-transparent 
-          via-white/5 
+          absolute inset-0 z-20 pointer-events-none
+          bg-linear-gradient-r
+          from-transparent
+          via-white/8
           to-transparent
-          bg-clip-text text-transparent
-          pointer-events-none
-          z-20
+          opacity-0
           animate-shimmer-slow
         `}
         style={{
-          backgroundSize: '300% 100%',
+          background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)',
+          backgroundSize: '200% 100%',
+          mixBlendMode: 'overlay',
         }}
-      >
-        Happy
-      </span>
+      />
     </span>
   );
 }

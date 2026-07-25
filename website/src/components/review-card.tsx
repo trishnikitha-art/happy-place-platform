@@ -31,14 +31,14 @@ export function ReviewCard({ review }: ReviewCardProps) {
       
       {review.title && <h3 className="mt-4 font-display text-xl font-bold text-text">{review.title}</h3>}
       
-      <blockquote className="mt-3 flex-1 text-text-muted leading-relaxed">
+      <blockquote className="mt-3 flex-1 text-text leading-relaxed">
         &ldquo;{review.body}&rdquo;
       </blockquote>
       
       <figcaption className="mt-5 border-t border-border-soft pt-4 text-sm">
         <span className="font-semibold text-text">{review.reviewer.name}</span>
-        {review.location && <span className="text-text-subtle"> · {review.location.city}, {review.location.county}</span>}
-        {review.service && <span className="mt-1 block text-xs text-text-subtle capitalize">{review.service.replace('-', ' ')}</span>}
+        {review.location && <span className="text-text-muted"> · {review.location.city}, {review.location.county}</span>}
+        {review.service && <span className="mt-1 block text-xs text-text-muted capitalize">{review.service.replace('-', ' ')}</span>}
       </figcaption>
 
       {review.ownerResponse && (
@@ -46,7 +46,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
           <p className="text-xs font-semibold text-[#8B7355] uppercase tracking-wide mb-1">
             {review.ownerResponse.author} replied
           </p>
-          <p className="text-text-muted leading-relaxed text-sm">
+          <p className="text-text leading-relaxed text-sm">
             {review.ownerResponse.body}
           </p>
         </div>

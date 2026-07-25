@@ -84,7 +84,7 @@ export function ProjectSpotlight({
           <Container className="relative py-20">
             <Badge>{project.location.county ? `${project.location.county} county` : "Project"}</Badge>
             <h1 className="mt-3 max-w-3xl text-4xl font-bold sm:text-5xl">{project.title}</h1>
-            <p className="mt-4 max-w-2xl text-lg text-secondary-foreground/80">{project.story?.outcome || project.title}</p>
+            <p className="mt-4 max-w-2xl text-lg text-secondary-foreground">{project.story?.outcome || project.title}</p>
           </Container>
         </div>
         <Section>
@@ -137,7 +137,7 @@ export function ProjectSpotlight({
         <Container className="relative py-20">
           <Badge>{project.location.county ? `${project.location.county} county` : "Project"}</Badge>
           <h1 className="mt-3 max-w-3xl text-4xl font-bold sm:text-5xl">{project.title}</h1>
-          <p className="mt-4 max-w-2xl text-lg text-secondary-foreground/80">{project.story?.outcome || project.title}</p>
+          <p className="mt-4 max-w-2xl text-lg text-secondary-foreground">{project.story?.outcome || project.title}</p>
         </Container>
       </div>
 

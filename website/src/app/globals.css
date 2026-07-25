@@ -529,20 +529,22 @@ a {
 
 /* HAPPY Brand Signature Animations */
 @keyframes shimmer-slow {
-  0%, 100% {
-    background-position: -300% 0;
+  0%, 85%, 100% {
+    background-position: -200% 0;
+    opacity: 0;
   }
-  50% {
-    background-position: 300% 0;
+  90%, 95% {
+    background-position: 100% 0;
+    opacity: 1;
   }
 }
 
 @keyframes shimmer-fast {
   0% {
-    background-position: -300% 0;
+    background-position: -200% 0;
   }
   100% {
-    background-position: 300% 0;
+    background-position: 200% 0;
   }
 }
 

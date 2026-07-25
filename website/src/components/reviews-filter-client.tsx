@@ -36,13 +36,13 @@ export function ReviewsFilterClient() {
                 )}
               </div>
               {r.title && <h3 className="mt-4 font-display text-xl font-bold text-text">{r.title}</h3>}
-              <blockquote className="mt-3 flex-1 text-text-muted leading-relaxed">
+              <blockquote className="mt-3 flex-1 text-text leading-relaxed">
                 &ldquo;{r.body}&rdquo;
               </blockquote>
               <figcaption className="mt-5 border-t border-border-soft pt-4 text-sm">
                 <span className="font-semibold text-text">{r.reviewer.name}</span>
-                {r.location && <span className="text-text-subtle"> · {r.location.city}, {r.location.county}</span>}
-                {r.source && <span className="mt-1 block text-xs text-text-subtle">via {r.source}</span>}
+                {r.location && <span className="text-text-muted"> · {r.location.city}, {r.location.county}</span>}
+                {r.source && <span className="mt-1 block text-xs text-text-muted">via {r.source}</span>}
               </figcaption>
             </figure>
           ))}

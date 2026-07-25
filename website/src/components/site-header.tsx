@@ -51,7 +51,7 @@ export function SiteHeader() {
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
                 "whitespace-nowrap px-3.5 py-2.5 text-[13px] font-medium tracking-wide transition-all duration-200",
-                isActive(item.href) ? "text-primary" : "text-text-muted hover:text-text hover:bg-surface/50 rounded-md"
+                isActive(item.href) ? "text-primary" : "text-text hover:text-text hover:bg-surface/50 rounded-md"
               )}
             >
               {item.label}
@@ -93,7 +93,7 @@ export function SiteHeader() {
                 aria-current={isActive(item.href) ? "page" : undefined}
                 className={cn(
                   "rounded-lg px-3 py-3 text-base font-medium transition-colors duration-200",
-                  isActive(item.href) ? "bg-primary/10 text-primary" : "text-text-muted hover:bg-white/50"
+                  isActive(item.href) ? "bg-primary/10 text-primary" : "text-text hover:bg-white/50"
                 )}
               >
                 {item.label}
