@@ -359,6 +359,19 @@ a {
   transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
 }
 
+/* Dark mode contrast improvements */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-border: rgba(255, 255, 255, 0.12);
+    --color-border-soft: rgba(255, 255, 255, 0.08);
+  }
+}
+
+.dark {
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-border-soft: rgba(255, 255, 255, 0.08);
+}
+
 /* CRAFT RULE — a hairline double separator with a single honey pin.
    Used between major sections for quiet rhythm (no loud dividers). */
 .craft-rule {

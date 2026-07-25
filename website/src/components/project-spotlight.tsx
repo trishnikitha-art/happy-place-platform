@@ -39,7 +39,7 @@ export function ProjectSpotlight({
     return (
       <Section className="bg-surface-muted">
         <Container className="grid items-center gap-10 lg:grid-cols-2">
-          <div className="relative overflow-hidden rounded-xl border border-border/60 shadow-[0_2px_8px_-2px_rgba(23,50,74,0.08),0_1px_3px_-1px_rgba(23,50,74,0.06)]">
+          <div className="group relative overflow-hidden rounded-xl border border-border/40 shadow-[0_1px_4px_-1px_rgba(23,50,74,0.06),0_0.5px_2px_-0.5px_rgba(23,50,74,0.04)] transition-opacity duration-500">
             <Image
               src={heroSrc}
               alt={heroAlt}
@@ -49,6 +49,7 @@ export function ProjectSpotlight({
               className="h-full w-full object-cover"
               sizes="(max-width: 1024px) 100vw, 50vw"
             />
+            <div className="absolute inset-0 pointer-events-none rounded-xl bg-gradient-to-tr from-black/3 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
           </div>
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-accent">Featured project</p>

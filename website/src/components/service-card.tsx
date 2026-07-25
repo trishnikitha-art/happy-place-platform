@@ -21,16 +21,19 @@ export function ServiceCard({ service }: { service: Service }) {
   const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.original) : null;
 
   return (
-    <Card className="group flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-0.5 shadow-[0_1px_4px_-1px_rgba(23,50,74,0.06),0_0.5px_2px_-0.5px_rgba(23,50,74,0.04)] hover:shadow-[0_3px_12px_-3px_rgba(23,50,74,0.1),0_1.5px_4px_-1.5px_rgba(23,50,74,0.07)] border border-border/40 bg-white rounded-xl">
+    <Card className="group flex flex-col overflow-hidden transition-all duration-400 hover:-translate-y-0.5 shadow-[0_1px_4px_-1px_rgba(23,50,74,0.06),0_0.5px_2px_-0.5px_rgba(23,50,74,0.04)] hover:shadow-[0_3px_12px_-3px_rgba(23,50,74,0.1),0_1.5px_4px_-1.5px_rgba(23,50,74,0.07)] border border-border/40 bg-white rounded-xl">
       <div className="relative aspect-[4/3] overflow-hidden bg-[#E4DFD4] photo-mounted">
         {hasImage && imageSrc ? (
-          <Image
-            src={imageSrc}
-            alt={featuredMedia.alt || service.name}
-            fill
-            sizes="(max-width: 768px) 50vw, 33vw"
-            className="object-cover transition-transform duration-500 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.04]"
-          />
+          <>
+            <Image
+              src={imageSrc}
+              alt={featuredMedia.alt || service.name}
+              fill
+              sizes="(max-width: 768px) 50vw, 33vw"
+              className="object-cover transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]"
+            />
+            <div className="absolute inset-0 pointer-events-none rounded-t-xl bg-gradient-to-tr from-black/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
+          </>
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-deep/80 text-honey">

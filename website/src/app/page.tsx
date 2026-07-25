@@ -61,7 +61,7 @@ export default function HomePage() {
         <div className="hero-ticks" aria-hidden="true" />
         <div className="pnw-fog" aria-hidden="true" />
 
-        <Container className="relative z-10 flex min-h-[78svh] sm:min-h-[84svh] lg:min-h-[90svh] flex-col justify-center py-16 sm:py-20 lg:py-28">
+        <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20">
           <div className="max-w-3xl">
             <p className="font-signature text-xl sm:text-2xl text-honey/90 tracking-wide">Happy Place Carpentry</p>
             <h1 className="mt-4 sm:mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] sm:leading-[1.05] tracking-tight tracking-display text-text-on-dark">
@@ -125,7 +125,7 @@ export default function HomePage() {
       </section>
 
       {/* SERVICES — image-dominant cards, less chrome (Directive 034) */}
-      <Section className="relative bg-[#F6F4F0] pt-6 sm:pt-8 pb-6 sm:pb-8">
+      <Section className="relative bg-[#F6F4F0] pt-8 sm:pt-10 pb-8 sm:pb-10">
         <div className="absolute inset-0 bg-gradient-to-b from-[#F6F4F0] via-[#F3F0E9] to-[#F0ECE4] opacity-100" aria-hidden="true" />
         <Container className="relative z-10">
           <SectionHeading
@@ -133,7 +133,7 @@ export default function HomePage() {
             title="Ways to make coming home better"
             description="Pick a service to start a free estimate — we'll guide you through the rest."
           />
-          <div className="mt-6 sm:mt-8 grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
+          <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
             {homepageServices.map((s) => (
               <ServiceCard key={s.id} service={s} />
             ))}
@@ -221,9 +221,9 @@ export default function HomePage() {
           <SectionHeading eyebrow="Reviews" title="What Homeowners Say After the Project Is Finished" align="center" description={hasReviews ? "Real experiences from families throughout the Mid-Willamette Valley." : "We're building our public review portfolio. In the meantime, we're happy to provide references from homeowners throughout the Mid-Willamette Valley."} />
           {hasReviews ? (
             <>
-              <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-3">
+              <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
                 {topReviews.map((r) => (
-                  <figure key={r.id} className="bg-white p-5 sm:p-6 transition-all duration-300 hover:-translate-y-0.5 shadow-[0_1px_4px_-1px_rgba(23,50,74,0.06),0_0.5px_2px_-0.5px_rgba(23,50,74,0.04)] hover:shadow-[0_3px_12px_-3px_rgba(23,50,74,0.1),0_1.5px_4px_-1.5px_rgba(23,50,74,0.07)] border border-border/40 rounded-xl">
+                  <figure key={r.id} className="bg-white p-5 sm:p-6 transition-all duration-400 hover:-translate-y-0.5 shadow-[0_1px_4px_-1px_rgba(23,50,74,0.06),0_0.5px_2px_-0.5px_rgba(23,50,74,0.04)] hover:shadow-[0_3px_12px_-3px_rgba(23,50,74,0.1),0_1.5px_4px_-1.5px_rgba(23,50,74,0.07)] border border-border/40 rounded-xl">
                     <StarRating rating={r.rating} />
                     {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
                     <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>

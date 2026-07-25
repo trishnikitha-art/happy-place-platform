@@ -85,7 +85,7 @@ export function BeforeAfterSlider({
   const afterSrc = afterMedia.variants.original || afterMedia.variants.webp || afterMedia.variants.avif;
 
   return (
-    <figure className={cn("group relative select-none overflow-hidden rounded-xl border border-border/40 bg-white shadow-[0_1px_4px_-1px_rgba(23,50,74,0.06),0_0.5px_2px_-0.5px_rgba(23,50,74,0.04)] transition-shadow duration-300 hover:shadow-[0_3px_12px_-3px_rgba(23,50,74,0.1),0_1.5px_4px_-1.5px_rgba(23,50,74,0.07)]", className)}>
+    <figure className={cn("group relative select-none overflow-hidden rounded-xl border border-border/40 bg-white shadow-[0_1px_4px_-1px_rgba(23,50,74,0.06),0_0.5px_2px_-0.5px_rgba(23,50,74,0.04)] transition-shadow duration-400 hover:shadow-[0_3px_12px_-3px_rgba(23,50,74,0.1),0_1.5px_4px_-1.5px_rgba(23,50,74,0.07)]", className)}>
       <div
         ref={containerRef}
         className="relative aspect-[4/3] w-full"
@@ -96,6 +96,7 @@ export function BeforeAfterSlider({
         onTouchStart={(e) => setFromClientX(e.touches[0].clientX)}
         onTouchMove={(e) => setFromClientX(e.touches[0].clientX)}
       >
+        <div className="absolute inset-0 pointer-events-none rounded-xl bg-gradient-to-tr from-black/3 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
         {/* AFTER (base) */}
         {afterSrc && (
           <Image 
