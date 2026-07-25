@@ -139,7 +139,7 @@ export default async function HomePage() {
           />
           <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
             {homepageServices.map((s) => (
-              <ServiceCard key={s.id} service={s} />
+              <ServiceCard key={s.id} service={s} soft />
             ))}
           </div>
           {otherServices.length > 0 && (
@@ -147,7 +147,7 @@ export default async function HomePage() {
               <h3 className="font-display text-xl sm:text-2xl font-bold text-primary mb-4 sm:mb-6">Other ways we can help</h3>
               <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
                 {otherServices.map((s) => (
-                  <ServiceCard key={s.id} service={s} />
+                  <ServiceCard key={s.id} service={s} soft />
                 ))}
               </div>
             </div>
