@@ -104,7 +104,17 @@ export class ReplayGenerator implements Generator {
       content: dispatchContent,
       hash: sha256(dispatchContent),
       generator: this.name,
-      description: "Routes events to correct aggregate's apply method",
+      description: "Routes events to correct aggregate repository",
+    });
+
+    // Generate artifact metadata manifest
+    const metadata = generateArtifactMetadata(this.name, ir, artifacts);
+    artifacts.push({
+      path: "replay/ReplayGenerator.metadata.json",
+      content: metadata,
+      hash: sha256(metadata),
+      generator: this.name,
+      description: "Artifact metadata for ReplayGenerator",
     });
 
     return artifacts;
@@ -141,6 +151,28 @@ export class ReplayGenerator implements Generator {
 // ---------------------------------------------------------------------------
 // Code generation
 // ---------------------------------------------------------------------------
+
+function generateArtifactMetadata(generatorName: string, ir: IRDocument, artifacts: GeneratedArtifact[]): string {
+  const eventAggMap = buildEventAggregateMap(ir);
+  const eventNames = Array.from(eventAggMap.keys()).map((e) => pascalCase(e));
+  
+  const metadata = {
+    artifactId: "ReplayGenerator",
+    compilerVersion: "1.0.0",
+    constitutionVersion: ir.ir_version,
+    generator: generatorName,
+    sha256: sha256(JSON.stringify(eventNames)),
+    dependencies: eventNames,
+    generatedArtifacts: artifacts.map((a) => ({
+      path: a.path,
+      hash: a.hash,
+      description: a.description,
+    })),
+    timestamp: new Date().toISOString(),
+  };
+
+  return JSON.stringify(metadata, null, 2);
+}
 
 function generateReplayMap(aggEventMap: Map<string, string[]>): string {
   const entries = Array.from(aggEventMap.entries()).sort(([a], [b]) => a.localeCompare(b));

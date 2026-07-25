@@ -14,7 +14,7 @@ import * as path from "path";
 
 const MANIFEST_PATH = path.resolve(__dirname, "../../constitution/GENERATION_MANIFEST.yaml");
 
-describe("Full Pipeline: Manifest → IR → Generated Runtime", () => {
+describe("Full Pipeline: Manifest → IR → Artifacts", () => {
   it("real manifest compiles through full pipeline", () => {
     const yaml = fs.readFileSync(MANIFEST_PATH, "utf-8");
     const parse = parseManifest(yaml, "GENERATION_MANIFEST.yaml");

@@ -12,7 +12,14 @@
  *     → ReplayGenerator
  *     → AuthorityGenerator
  *     → ProjectionGenerator
- *     → src/generated/
+ *     → WorkflowGenerator
+ *     → CapabilityRegistryGenerator
+ *     → ProviderRegistryGenerator
+ *     → StateMachineGenerator
+ *     → src/artifacts/
+ *
+ * Note: Generated outputs are Artifacts, not Runtime.
+ * Runtime loads Artifacts. Compiler creates Artifacts.
  */
 
 import * as fs from "fs";
@@ -28,7 +35,7 @@ import type { IRDocument } from "../constitution/ir/types";
 // ---------------------------------------------------------------------------
 
 const MANIFEST_PATH = path.resolve(__dirname, "../constitution/GENERATION_MANIFEST.yaml");
-const OUTPUT_DIR = path.resolve(__dirname, "../generated");
+const OUTPUT_DIR = path.resolve(__dirname, "../artifacts");
 
 // ---------------------------------------------------------------------------
 // Main

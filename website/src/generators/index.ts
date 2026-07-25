@@ -3,7 +3,7 @@
  *
  * Every generator consumes only IRDocument.
  * The compiler pipeline is:
- *   Manifest → Parser → AST → Validator → Normalizer → IR → Generators → Generated Runtime
+ *   Manifest → Parser → AST → Validator → Normalizer → IR → Generators → Artifacts
  */
 
 import * as crypto from "crypto";
@@ -14,6 +14,10 @@ import { EventGenerator } from "./events";
 import { ReplayGenerator } from "./replay";
 import { AuthorityGenerator } from "./authority";
 import { ProjectionGenerator } from "./projection";
+import { WorkflowGenerator } from "./workflow";
+import { CapabilityRegistryGenerator } from "./capability-registry";
+import { ProviderRegistryGenerator } from "./provider-registry";
+import { StateMachineGenerator } from "./state-machine";
 
 // ---------------------------------------------------------------------------
 // Re-exports
@@ -25,6 +29,10 @@ export { EventGenerator } from "./events";
 export { ReplayGenerator } from "./replay";
 export { AuthorityGenerator } from "./authority";
 export { ProjectionGenerator } from "./projection";
+export { WorkflowGenerator } from "./workflow";
+export { CapabilityRegistryGenerator } from "./capability-registry";
+export { ProviderRegistryGenerator } from "./provider-registry";
+export { StateMachineGenerator } from "./state-machine";
 
 // ---------------------------------------------------------------------------
 // All generators (ordered by pipeline position)
@@ -36,6 +44,10 @@ export const ALL_GENERATORS: Generator[] = [
   new ReplayGenerator(),
   new AuthorityGenerator(),
   new ProjectionGenerator(),
+  new WorkflowGenerator(),
+  new CapabilityRegistryGenerator(),
+  new ProviderRegistryGenerator(),
+  new StateMachineGenerator(),
 ];
 
 // ---------------------------------------------------------------------------
@@ -157,4 +169,93 @@ export function validateAll(ir: IRDocument, artifacts: readonly GeneratedArtifac
   }
 
   return diagnostics;
+}
+
+// ---------------------------------------------------------------------------
+// Artifact Dependency Graph (DAG)
+// ---------------------------------------------------------------------------
+
+export interface ArtifactNode {
+  readonly id: string;
+  readonly path: string;
+  readonly generator: string;
+  readonly hash: string;
+  readonly dependencies: string[];
+}
+
+export interface ArtifactDependencyGraph {
+  readonly version: string;
+  readonly timestamp: string;
+  readonly constitutionVersion: string;
+  readonly compilerVersion: string;
+  readonly nodes: readonly ArtifactNode[];
+  readonly edges: readonly { from: string; to: string }[];
+}
+
+/**
+ * Generate an artifact dependency graph (DAG) from all generated artifacts.
+ * This graph represents the relationships between artifacts and can be used by
+ * the Oracle for querying and validation.
+ */
+export function generateDependencyGraph(ir: IRDocument, result: GenerationResult): ArtifactDependencyGraph {
+  const nodes: ArtifactNode[] = [];
+  const edges: { from: string; to: string }[] = [];
+  const nodeMap = new Map<string, ArtifactNode>();
+
+  // Collect all metadata artifacts
+  const metadataArtifacts = result.artifacts.filter((a) => a.path.endsWith(".metadata.json"));
+
+  for (const metadata of metadataArtifacts) {
+    try {
+      const meta = JSON.parse(metadata.content) as {
+        artifactId: string;
+        dependencies: string[];
+        generatedArtifacts: Array<{ path: string; hash: string }>;
+      };
+
+      // Add generator node
+      const generatorNode: ArtifactNode = {
+        id: meta.artifactId,
+        path: metadata.path,
+        generator: meta.artifactId,
+        hash: metadata.hash,
+        dependencies: meta.dependencies,
+      };
+      nodes.push(generatorNode);
+      nodeMap.set(meta.artifactId, generatorNode);
+
+      // Add edges from generator to its dependencies
+      for (const dep of meta.dependencies) {
+        edges.push({ from: meta.artifactId, to: dep });
+      }
+
+      // Add generated artifact nodes
+      for (const genArtifact of meta.generatedArtifacts) {
+        const artifactNode: ArtifactNode = {
+          id: genArtifact.path,
+          path: genArtifact.path,
+          generator: meta.artifactId,
+          hash: genArtifact.hash,
+          dependencies: [],
+        };
+        nodes.push(artifactNode);
+        nodeMap.set(genArtifact.path, artifactNode);
+
+        // Add edge from generator to artifact
+        edges.push({ from: meta.artifactId, to: genArtifact.path });
+      }
+    } catch (e) {
+      // Skip invalid metadata
+      console.warn(`Failed to parse metadata: ${metadata.path}`);
+    }
+  }
+
+  return {
+    version: "1.0.0",
+    timestamp: new Date().toISOString(),
+    constitutionVersion: ir.ir_version,
+    compilerVersion: "1.0.0",
+    nodes,
+    edges,
+  };
 }

@@ -1,5 +1,5 @@
 /**
- * Generated Runtime Integration Tests — Sprint 3 Phase 4.
+ * Generated Artifacts Integration Tests — Sprint 3 Phase 4.
  *
  * Tests generated code across all 5 subsystems:
  *   1. AuthorityRegistry + AuthorityResolver (ownership, mutation, policies)
@@ -8,24 +8,24 @@
  *   4. EventRegistry (event types, envelope structure)
  *   5. Repository barrel export (all repos importable)
  *
- * Uses generated runtime code only. No mocks. No handwritten logic.
+ * Uses generated artifacts only. No mocks. No handwritten logic.
  */
 
-import { AUTHORITY_REGISTRY, getAuthorityNames, getAuthority } from "../../generated/authorities/AuthorityRegistry";
-import { ownerOf, whoMayMutate, whoMayObserve, isOwnedBy, policiesFor } from "../../generated/authorities/AuthorityResolver";
-import { PROJECTIONS, getProjection, getProjectionNames, routeEvent } from "../../generated/projections/ProjectionRegistry";
-import { EVENT_TO_AGGREGATE, resolveAggregate, isRegistered } from "../../generated/replay/ReplayRegistry";
-import { EstimateRepository } from "../../generated/repositories/EstimateRepository";
-import { JobRepository } from "../../generated/repositories/JobRepository";
-import { ProjectRepository } from "../../generated/repositories/ProjectRepository";
-import { CustomerRepository } from "../../generated/repositories/CustomerRepository";
-import { dispatchEvent, replayStream } from "../../generated/replay/AggregateDispatch";
+import { AUTHORITY_REGISTRY, getAuthorityNames, getAuthority } from "../../artifacts/authorities/AuthorityRegistry";
+import { ownerOf, whoMayMutate, whoMayObserve, isOwnedBy, policiesFor } from "../../artifacts/authorities/AuthorityResolver";
+import { PROJECTIONS, getProjection, getProjectionNames, routeEvent } from "../../artifacts/projections/ProjectionRegistry";
+import { EVENT_TO_AGGREGATE, resolveAggregate, isRegistered } from "../../artifacts/replay/ReplayRegistry";
+import { EstimateRepository } from "../../artifacts/repositories/EstimateRepository";
+import { JobRepository } from "../../artifacts/repositories/JobRepository";
+import { ProjectRepository } from "../../artifacts/repositories/ProjectRepository";
+import { CustomerRepository } from "../../artifacts/repositories/CustomerRepository";
+import { dispatchEvent, replayStream } from "../../artifacts/replay/AggregateDispatch";
 
 // ---------------------------------------------------------------------------
 // 1. Authority Registry + Resolver
 // ---------------------------------------------------------------------------
 
-describe("Generated Runtime: Authority", () => {
+describe("Generated Artifacts: Authority", () => {
   it("registry has 5 authorities", () => {
     const names = getAuthorityNames();
     expect(names.length).toBe(5);
@@ -85,7 +85,7 @@ describe("Generated Runtime: Authority", () => {
 // 2. Projection Registry
 // ---------------------------------------------------------------------------
 
-describe("Generated Runtime: Projections", () => {
+describe("Generated Artifacts: Projections", () => {
   it("registry has 10 projections", () => {
     const names = getProjectionNames();
     expect(names.length).toBe(10);
@@ -168,7 +168,7 @@ describe("Generated Runtime: Projections", () => {
 // 3. Replay Registry
 // ---------------------------------------------------------------------------
 
-describe("Generated Runtime: Replay Registry", () => {
+describe("Generated Artifacts: Replay Registry", () => {
   it("routes 7 event types to 3 aggregates", () => {
     const aggregates = new Set(Object.values(EVENT_TO_AGGREGATE));
     expect(aggregates.size).toBe(3);
@@ -203,7 +203,7 @@ describe("Generated Runtime: Replay Registry", () => {
 // 4. Repository barrel export + cross-aggregate dispatch
 // ---------------------------------------------------------------------------
 
-describe("Generated Runtime: Repository Barrel + Dispatch", () => {
+describe("Generated Artifacts: Repository Barrel + Dispatch", () => {
   it("all 10 repositories are importable", () => {
     // If imports fail, this test won't even compile — the barrel is verified
     expect(EstimateRepository).toBeDefined();

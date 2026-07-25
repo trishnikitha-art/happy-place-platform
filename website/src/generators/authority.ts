@@ -90,6 +90,16 @@ export class AuthorityGenerator implements Generator {
       description: "Before/after hooks for authority-guarded mutations",
     });
 
+    // Generate artifact metadata manifest
+    const metadata = generateArtifactMetadata(this.name, ir, artifacts);
+    artifacts.push({
+      path: "authorities/AuthorityGenerator.metadata.json",
+      content: metadata,
+      hash: sha256(metadata),
+      generator: this.name,
+      description: "Artifact metadata for AuthorityGenerator",
+    });
+
     return artifacts;
   }
 
@@ -119,6 +129,27 @@ export class AuthorityGenerator implements Generator {
 // ---------------------------------------------------------------------------
 // Code generation
 // ---------------------------------------------------------------------------
+
+function generateArtifactMetadata(generatorName: string, ir: IRDocument, artifacts: GeneratedArtifact[]): string {
+  const authorityNames = ir.authorities.map((a) => a.name);
+  
+  const metadata = {
+    artifactId: "AuthorityGenerator",
+    compilerVersion: "1.0.0",
+    constitutionVersion: ir.ir_version,
+    generator: generatorName,
+    sha256: sha256(JSON.stringify(authorityNames)),
+    dependencies: authorityNames,
+    generatedArtifacts: artifacts.map((a) => ({
+      path: a.path,
+      hash: a.hash,
+      description: a.description,
+    })),
+    timestamp: new Date().toISOString(),
+  };
+
+  return JSON.stringify(metadata, null, 2);
+}
 
 function generateAuthorityRegistry(
   authorities: readonly Authority[],

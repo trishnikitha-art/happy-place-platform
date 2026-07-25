@@ -3,7 +3,7 @@
 Constitutional automation layer for Happy Place Platform.
 
 Architecture:
-Generated Runtime
+Artifacts
   ↓
 Automation Authority
   ↓
@@ -15,7 +15,7 @@ Task Providers (Google Tasks, etc.)
   ↓
 External Task Systems
 
-This layer consumes the generated runtime from Happy Place Platform
+This layer consumes the generated artifacts from Happy Place Platform
 and provides operational automation capabilities without modifying
 the compiler or constitutional structures.
 */
