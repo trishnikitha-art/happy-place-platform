@@ -20,7 +20,7 @@ export default function ReviewsPage() {
 
   return (
     <>
-      <Section className="bg-background">
+      <Section className="bg-deep">
         <Container>
           <div className="mb-8 flex items-center justify-center gap-3">
             <span className="relative block h-10 w-auto">
@@ -28,10 +28,10 @@ export default function ReviewsPage() {
             </span>
           </div>
           <SectionHeading
-            eyebrow={<span className="text-honey">Reviews</span>}
-            title={<span className="text-[#FFFFFF]">Helping neighbors find their happy place</span>}
+            eyebrow="Reviews"
+            title="Helping neighbors find their happy place"
             align="center"
-            description={<span className="text-[#F0C070]">{hasReviews ? `${stats.averageRating} / 5 across ${stats.total} featured reviews from homeowners across the Willamette Valley.` : "Google reviews coming soon. Ask us for references in your neighborhood."}</span>}
+            description={hasReviews ? `${stats.averageRating} / 5 across ${stats.total} featured reviews from homeowners across the Willamette Valley.` : "Google reviews coming soon. Ask us for references in your neighborhood."}
           />
 
           {/* trust emphasis — license + rating, not just stars */}
@@ -41,21 +41,21 @@ export default function ReviewsPage() {
                 <StarRating rating={5} /> {stats.averageRating} / 5 average
               </span>
             )}
-            <span className="text-[#F0C070]">{company.ccbNumber} · Licensed &amp; Insured</span>
-            <span className="text-[#F0C070]">Serving Benton, Linn, Marion &amp; Polk since 2024</span>
+            <span className="text-text-on-dark/80">{company.ccbNumber} · Licensed &amp; Insured</span>
+            <span className="text-text-on-dark/80">Serving Benton, Linn, Marion &amp; Polk since 2024</span>
           </div>
 
           {hasReviews && <ReviewsFilterClient />}
 
           {!hasReviews && (
             <div className="mt-10 rounded-lg bg-surface-muted p-8 text-center">
-              <p className="text-[#F0C070]">
+              <p className="text-text-on-dark/80">
                 We are building our review portfolio. In the meantime, ask us for references in your neighborhood.
               </p>
             </div>
           )}
 
-          <p className="mt-10 text-center text-sm text-[#F0C070]">
+          <p className="mt-10 text-center text-sm text-text-on-dark/80">
             {hasReviews ? "Reviews shown are a sample of our recent work. Ask us for references in your neighborhood." : "We take pride in our work and would be happy to connect you with past clients."}
           </p>
         </Container>

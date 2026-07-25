@@ -23,7 +23,7 @@ export function HappyBrandSignature({ className }: HappyBrandSignatureProps) {
         className={`
           absolute inset-0 bg-gradient-to-r 
           from-transparent 
-          via-white/30 
+          via-white/10 
           to-transparent
           bg-clip-text text-transparent
           pointer-events-none

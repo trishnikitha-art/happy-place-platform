@@ -16,7 +16,7 @@ export default function EstimatePage() {
   const company = getCompany();
 
   return (
-    <Section>
+    <Section className="bg-deep">
       <Container className="max-w-3xl">
         <div className="mb-8 flex items-center justify-center gap-3">
           <span className="relative block h-10 w-auto">
@@ -24,16 +24,16 @@ export default function EstimatePage() {
           </span>
         </div>
         <SectionHeading
-          eyebrow={<span className="text-honey">Free estimate</span>}
-          title={<span className="text-[#FFFFFF]">Let's scope your project</span>}
-          description={<span className="text-[#F0C070]">About two minutes. Your details go straight to our inbox — no account, no spam.</span>}
+          eyebrow="Free estimate"
+          title="Let's scope your project"
+          description="About two minutes. Your details go straight to our inbox — no account, no spam."
         />
         <div className="mt-8">
           <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl border border-border bg-surface" />}>
             <EstimateWizard />
           </Suspense>
         </div>
-        <p className="mt-6 text-center text-sm text-[#F0C070]">
+        <p className="mt-6 text-center text-sm text-text-on-dark/80">
           Prefer to talk? Call {company.phoneDisplay} or email {company.email}.
         </p>
       </Container>

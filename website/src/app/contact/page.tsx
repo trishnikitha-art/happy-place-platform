@@ -16,7 +16,7 @@ export default function ContactPage() {
 
   return (
     <>
-      <Section>
+      <Section className="bg-deep">
         <Container className="grid gap-10 lg:grid-cols-2">
           <div>
             <div className="mb-6 flex items-center gap-3">
@@ -25,32 +25,32 @@ export default function ContactPage() {
               </span>
             </div>
             <SectionHeading
-              eyebrow={<span className="text-honey">Contact</span>}
-              title={<span className="text-[#FFFFFF]">Let's talk about your project</span>}
-              description={<span className="text-[#F0C070]">The quickest way to get started is the Estimate Wizard. If you'd rather talk first, give us a call, send a text, or email us—whatever's easiest.</span>}
+              eyebrow="Contact"
+              title="Let's talk about your project"
+              description="The quickest way to get started is the Estimate Wizard. If you'd rather talk first, give us a call, send a text, or email us—whatever's easiest."
             />
-            <dl className="mt-8 space-y-4 text-[#F0C070]">
+            <dl className="mt-8 space-y-4 text-text-on-dark/80">
               <div>
                 <dt className="text-sm font-semibold uppercase text-honey">Phone</dt>
-                <dd><PhoneLink phone={company.phone} className="text-lg font-semibold text-[#FFFFFF]">{company.phoneDisplay}</PhoneLink></dd>
+                <dd><PhoneLink phone={company.phone} className="text-lg font-semibold text-text-on-dark">{company.phoneDisplay}</PhoneLink></dd>
               </div>
               <div>
                 <dt className="text-sm font-semibold uppercase text-honey">Email</dt>
-                <dd><EmailLink email={company.email} className="text-lg font-semibold text-[#FFFFFF]">{company.email}</EmailLink></dd>
+                <dd><EmailLink email={company.email} className="text-lg font-semibold text-text-on-dark">{company.email}</EmailLink></dd>
               </div>
               <div>
                 <dt className="text-sm font-semibold uppercase text-honey">Service area</dt>
-                <dd className="text-lg text-[#FFFFFF]">{company.serviceArea}</dd>
+                <dd className="text-lg text-text-on-dark">{company.serviceArea}</dd>
               </div>
               <div>
                 <dt className="text-sm font-semibold uppercase text-honey">Hours</dt>
-                <dd className="text-lg text-[#FFFFFF]">{company.businessHours}</dd>
+                <dd className="text-lg text-text-on-dark">{company.businessHours}</dd>
               </div>
             </dl>
           </div>
           <div className="rounded-2xl border border-border bg-surface-muted p-8">
-            <h2 className="text-xl font-bold text-[#FFFFFF]">Start your free estimate</h2>
-            <p className="mt-2 text-[#F0C070]">
+            <h2 className="text-xl font-bold text-text-on-dark">Start your free estimate</h2>
+            <p className="mt-2 text-text-on-dark/80">
               Pick a service, upload a photo if you have one, and tell us what you're planning. It takes about two minutes.
             </p>
             <a
