@@ -20,7 +20,7 @@ export function SiteFooter() {
             <span className="relative block h-8 w-auto">
               <Image src="/brand/logo.png" alt="Happy Place Carpentry logo" width={96} height={32} className="h-full w-auto" />
             </span>
-            <span className="text-lg font-signature"><HappyBrandSignature variant="signature" className="text-honey/90" /> Place</span>
+            <span className="text-lg font-signature"><HappyBrandSignature className="text-honey/90" /> Place</span>
           </Link>
           <p className="mt-3 text-sm text-text-on-dark/70">{company.description}</p>
           <p className="mt-3 text-sm font-semibold text-honey">{company.ccbNumber}</p>

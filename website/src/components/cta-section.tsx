@@ -17,9 +17,9 @@ export function CTASection({
       <div className="absolute inset-0 bg-gradient-to-br from-[#EFECE5] via-[#EAE8E0] to-[#E5E2D9] opacity-100" aria-hidden="true" />
       <Container className="relative z-10 flex flex-col items-center text-center">
         <h2 className="text-3xl font-bold text-text sm:text-4xl">
-          Tell us what you're planning to make your <HappyBrandSignature variant="inline" />.
+          Tell us what you're planning to make your <HappyBrandSignature />.
         </h2>
-        <p className="mt-4 max-w-2xl text-lg text-text-muted">{subtitle}</p>
+        <p className="mt-4 max-w-2xl text-lg text-text">{subtitle}</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link href="/estimate" className={cn(buttonVariants({ variant: "primary", size: "lg" }))}>
             Start Your Free Estimate

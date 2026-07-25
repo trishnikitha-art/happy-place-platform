@@ -45,9 +45,9 @@
   --color-deep-2: #243746;           /* blue charcoal for dark sections */
 
   /* Text */
-  --color-text: #1a202c;             /* near-black */
-  --color-text-muted: #4a5568;       /* secondary */
-  --color-text-subtle: #718096;      /* captions/meta */
+  --color-text: #111827;             /* near-black */
+  --color-text-muted: #374151;       /* secondary */
+  --color-text-subtle: #6B7280;      /* captions/meta */
   --color-text-on-dark: #FAFBFC;     /* text on dark backgrounds */
 
   /* Feedback */
@@ -529,24 +529,24 @@ a {
 /* HAPPY Brand Signature Animations */
 @keyframes shimmer-slow {
   0%, 100% {
-    background-position: -200% 0;
+    background-position: -300% 0;
   }
   50% {
-    background-position: 200% 0;
+    background-position: 300% 0;
   }
 }
 
 @keyframes shimmer-fast {
   0% {
-    background-position: -200% 0;
+    background-position: -300% 0;
   }
   100% {
-    background-position: 200% 0;
+    background-position: 300% 0;
   }
 }
 
 .animate-shimmer-slow {
-  animation: shimmer-slow 10s ease-in-out infinite;
+  animation: shimmer-slow 12s ease-in-out infinite;
 }
 
 .animate-shimmer-fast {

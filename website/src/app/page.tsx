@@ -65,12 +65,12 @@ export default function HomePage() {
         <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20">
           <div className="max-w-3xl">
             <p className="font-signature text-xl sm:text-2xl text-honey/85 tracking-wide">
-              <HappyBrandSignature variant="signature" className="text-honey/85" /> Place Carpentry
+              <HappyBrandSignature className="text-honey/85" /> Place Carpentry
             </p>
             <h1 className="mt-4 sm:mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] sm:leading-[1.05] tracking-tight tracking-display text-text-on-dark">
               Your favorite part of coming home should be the home itself.
             </h1>
-            <p className="measure mt-5 sm:mt-7 max-w-xl text-base sm:text-lg leading-[1.7] text-text-on-dark/75">
+            <p className="measure mt-5 sm:mt-7 max-w-xl text-base sm:text-lg leading-[1.7] text-text-on-dark/90">
               We restore, repair, and paint homes throughout the Mid-Willamette Valley—protecting your investment and making coming home feel better every day.</p>
             <div className="mt-6 sm:mt-8 flex flex-wrap gap-3">
               <Link href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold">
@@ -83,7 +83,7 @@ export default function HomePage() {
                 See Our Work
               </Link>
             </div>
-            <div className="mt-6 sm:mt-9 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-text-on-dark/60">
+            <div className="mt-6 sm:mt-9 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-text-on-dark/75">
               {hasReviews && (
                 <span className="inline-flex items-center gap-2">
                   <StarRating rating={5} />
@@ -192,7 +192,7 @@ export default function HomePage() {
             <h2 className="mt-3 font-display text-4xl font-bold leading-tight text-text sm:text-5xl">
               A family business built on doing things the right way.
             </h2>
-            <div className="measure mt-7 space-y-5 text-text-muted">
+            <div className="measure mt-7 space-y-5 text-text">
               <p className="text-lg leading-relaxed">
                 Great work starts long before the first board is cut.</p>
               <p>
