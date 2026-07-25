@@ -78,7 +78,7 @@ export default function ServicesPage() {
           <div className="mt-12">
             <Link
               href="/estimate"
-              className="inline-flex items-center gap-1 text-base font-semibold text-accent hover:underline"
+              className="inline-flex items-center gap-1 text-base font-semibold text-text-on-dark hover:text-honey hover:underline"
             >
               Start a free estimate →
             </Link>
