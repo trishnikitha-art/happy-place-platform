@@ -107,8 +107,8 @@ export default function HomePage() {
       <div className="h-2 bg-gradient-to-r from-deep via-primary to-deep/60" aria-hidden="true" />
 
       {/* TRUST STRIP — quiet, confident proof (woven, not a banner) */}
-      <section className="relative border-y border-border-soft bg-[#F5F3EF]">
-        <div className="absolute inset-0 bg-gradient-to-r from-[#F5F3EF] via-[#F2EFE9] to-[#F5F3EF] opacity-100" aria-hidden="true" />
+      <section className="relative border-y border-border-soft bg-[#F3EFE8]">
+        <div className="absolute inset-0 bg-gradient-to-r from-[#F3EFE8] via-[#F0ECE4] to-[#F3EFE8] opacity-100" aria-hidden="true" />
         <Container className="relative z-10 grid grid-cols-2 gap-x-4 gap-y-5 py-8 sm:gap-x-6 sm:gap-y-6 sm:py-10 text-center sm:grid-cols-4">
           {[
             ["Oregon CCB #254240", "Licensed, Bonded & Insured"],
@@ -125,8 +125,8 @@ export default function HomePage() {
       </section>
 
       {/* SERVICES — image-dominant cards, less chrome (Directive 034) */}
-      <Section className="relative bg-[#FAF9F6] pt-6 sm:pt-8 pb-6 sm:pb-8">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#FAF9F6] via-[#F7F5F0] to-[#F4F1EB] opacity-100" aria-hidden="true" />
+      <Section className="relative bg-[#F6F4F0] pt-6 sm:pt-8 pb-6 sm:pb-8">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#F6F4F0] via-[#F3F0E9] to-[#F0ECE4] opacity-100" aria-hidden="true" />
         <Container className="relative z-10">
           <SectionHeading
             eyebrow={<span className="eyebrow-mark"><ToolMark /> What we do</span>}
@@ -152,8 +152,8 @@ export default function HomePage() {
       </Section>
 
       {/* TRANSFORMATIONS — honest before→after composites, distinct from archive */}
-      <Section className="relative bg-[#F8F6F3]">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#F8F6F3] via-[#F4F1EB] to-[#EFE9E1] opacity-100" aria-hidden="true" />
+      <Section className="relative bg-[#F5F2ED]">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#F5F2ED] via-[#F1EDE6] to-[#EDE9E0] opacity-100" aria-hidden="true" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(255,255,255,0.3),transparent_70%)]" aria-hidden="true" />
         <Container className="relative z-10">
           <SectionHeading
@@ -177,8 +177,8 @@ export default function HomePage() {
       </Section>
 
       {/* THE FAMILY — philosophy first, then people, then portrait (Act II) */}
-      <Section className="relative bg-[#F8F6F3]">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#F8F6F3] via-[#F4F1EB] to-[#EFE9E1] opacity-100" aria-hidden="true" />
+      <Section className="relative bg-[#F4F1EB]">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#F4F1EB] via-[#F1EDE6] to-[#EDE9E0] opacity-100" aria-hidden="true" />
         <Container className="relative z-10 grid items-center gap-12 lg:grid-cols-2">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-accent">Built by one family. Trusted by many more.</p>
@@ -211,8 +211,8 @@ export default function HomePage() {
       </div>
 
       {/* REVIEWS */}
-      <Section className="relative bg-[#FAF9F6]">
-        <div className="absolute inset-0 bg-gradient-to-b from-[#FAF9F6] via-[#F7F5F0] to-[#F4F1EB] opacity-100" aria-hidden="true" />
+      <Section className="relative bg-[#F2EFE8]">
+        <div className="absolute inset-0 bg-gradient-to-b from-[#F2EFE8] via-[#EFECE5] to-[#ECE9E2] opacity-100" aria-hidden="true" />
         <Container className="relative z-10">
           <SectionHeading eyebrow="Reviews" title="What Homeowners Say After the Project Is Finished" align="center" description={hasReviews ? "Real experiences from families throughout the Mid-Willamette Valley." : "We're building our public review portfolio. In the meantime, we're happy to provide references from homeowners throughout the Mid-Willamette Valley."} />
           {hasReviews ? (

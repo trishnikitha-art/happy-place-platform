@@ -10,6 +10,7 @@ import { getCompany } from "@/lib/company";
 import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { CedarCorner } from "@/components/cedar-corner";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 export function SiteHeader() {
   const pathname = usePathname();
@@ -59,7 +60,8 @@ export function SiteHeader() {
         </nav>
 
         {estimate && (
-          <div className="hidden shrink-0 md:block">
+          <div className="hidden shrink-0 md:flex items-center gap-2">
+            <ThemeToggle />
             <Link
               href={estimate.href}
               className={cn(buttonVariants({ variant: "primary", size: "sm" }), "bg-honey text-honey-foreground shadow-warm hover:bg-honey-hover")}
@@ -97,6 +99,10 @@ export function SiteHeader() {
                 {item.label}
               </Link>
             ))}
+            <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between">
+              <span className="text-sm text-text-muted">Theme</span>
+              <ThemeToggle />
+            </div>
           </nav>
         </div>
       )}

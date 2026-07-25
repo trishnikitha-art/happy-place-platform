@@ -12,8 +12,8 @@ export function CTASection({
   subtitle?: string;
 }) {
   return (
-    <Section className="relative bg-[#F4F1EB]">
-      <div className="absolute inset-0 bg-gradient-to-br from-[#F4F1EB] via-[#EFE9E1] to-[#E8E3DB] opacity-100" aria-hidden="true" />
+    <Section className="relative bg-[#EFECE5]">
+      <div className="absolute inset-0 bg-gradient-to-br from-[#EFECE5] via-[#EAE8E0] to-[#E5E2D9] opacity-100" aria-hidden="true" />
       <Container className="relative z-10 flex flex-col items-center text-center">
         <h2 className="text-3xl font-bold text-text sm:text-4xl">{title}</h2>
         <p className="mt-4 max-w-2xl text-lg text-text-muted">{subtitle}</p>

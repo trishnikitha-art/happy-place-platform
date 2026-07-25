@@ -48,7 +48,7 @@
   --color-text: #1a202c;             /* near-black */
   --color-text-muted: #4a5568;       /* secondary */
   --color-text-subtle: #718096;      /* captions/meta */
-  --color-text-on-dark: #FAFBFC;
+  --color-text-on-dark: #FAFBFC;     /* text on dark backgrounds */
 
   /* Feedback */
   --color-success: #2E5A4F;
@@ -58,9 +58,18 @@
   /* Cedar tones (subtle accents only, 5-8% usage) */
   --color-walnut: #5D4037;          /* deep walnut for dividers */
   --color-burnt-cedar: #8D6E63;     /* burnt cedar for borders */
+  --color-warm-ivory: #FFF8E7;      /* warm ivory for highlights */
+  --color-cedar-dust: #D4C4B8;      /* cedar dust for subtle backgrounds */
+  --color-oak: #C4A77D;             /* oak for accents */
+  --color-pine: #5D7A5C;             /* pine for grounding */
+  --color-moss: #7A9B76;             /* moss for soft accents */
+  --color-river: #6B8E9B;            /* river for cool accents */
+  --color-sky: #8BA9B8;             /* sky for light touches */
+  --color-mist: #B8C5D1;            /* mist for subtle fills */
+
+  /* Additional accents */
   --color-aged-bronze: #A1887F;     /* aged bronze for accents */
   --color-charcoal: #30424E;        /* charcoal for text */
-  --color-warm-ivory: #FFF8E1;      /* warm ivory for highlights */
 
   /* Service category accents */
   --color-accent-decks: #4A90A4;        /* ocean blue */
@@ -76,8 +85,16 @@
   --font-mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   --font-signature: "Playball", cursive;
 
-  /* Radius scale */
-  --radius-card: 1rem;
+  /* Shadows — warm, layered, not harsh */
+  --shadow-warm: 0 1px 3px rgba(23, 50, 74, 0.12), 0 1px 2px rgba(23, 50, 74, 0.08);
+  --shadow-float: 0 4px 6px rgba(0, 0, 0, 0.07), 0 1px 3px rgba(0, 0, 0, 0.06);
+
+  /* Radius — consistent, slightly rounded */
+  --radius-sm: 0.375rem;
+  --radius-md: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-card: 0.75rem;
+  --radius-full: 9999px;
 
   /* Secondary brand — storm for dark sections */
   --color-secondary: #30424E;
@@ -87,6 +104,41 @@
   /* Signature shadow (weighty, premium, not flat) */
   --shadow-warm: 0 18px 40px -18px rgba(23, 50, 74, 0.45), 0 8px 20px -12px rgba(217, 154, 78, 0.25);
   --shadow-float: 0 24px 60px -28px rgba(23, 50, 74, 0.55), 0 10px 30px -16px rgba(0, 0, 0, 0.25);
+}
+
+/* Dark mode — warm charcoal palette (Linear/Vercel-inspired) */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-background: #111315;
+    --color-surface-2: #181B1E;
+    --color-surface: #202428;
+    --color-surface-muted: #1A1D20;
+    --color-border: rgba(255, 255, 255, 0.08);
+    --color-border-soft: rgba(255, 255, 255, 0.06);
+    --color-deep: #1A1D20;
+    --color-deep-2: #202428;
+    --color-text: #F7F6F3;
+    --color-text-muted: #C7C5BF;
+    --color-text-subtle: #8B8983;
+    --color-primary: #1E3A52;
+    --color-primary-hover: #2A4A66;
+  }
+}
+
+.dark {
+  --color-background: #111315;
+  --color-surface-2: #181B1E;
+  --color-surface: #202428;
+  --color-surface-muted: #1A1D20;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-soft: rgba(255, 255, 255, 0.06);
+  --color-deep: #1A1D20;
+  --color-deep-2: #202428;
+  --color-text: #F7F6F3;
+  --color-text-muted: #C7C5BF;
+  --color-text-subtle: #8B8983;
+  --color-primary: #1E3A52;
+  --color-primary-hover: #2A4A66;
 }
 
 html {
