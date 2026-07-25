@@ -17,7 +17,7 @@ export function Section({
   children: React.ReactNode;
   size?: "major" | "minor";
 }) {
-  const pad = size === "minor" ? "py-12 sm:py-16" : "py-20 sm:py-28";
+  const pad = size === "minor" ? "py-14 sm:py-18" : "py-20 sm:py-28";
   return <section className={cn(pad, className)}>{children}</section>;
 }
 

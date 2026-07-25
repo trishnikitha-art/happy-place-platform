@@ -118,7 +118,7 @@ export default function HomePage() {
           ].map(([stat, label]) => (
             <div key={label as string} className="relative">
               <p className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-primary">{stat}</p>
-              <p className="mt-1 text-xs sm:text-sm font-medium uppercase tracking-wide text-text-muted">{label}</p>
+              <p className="mt-1 text-xs sm:text-sm font-medium uppercase tracking-wide text-text-subtle">{label}</p>
             </div>
           ))}
         </Container>
