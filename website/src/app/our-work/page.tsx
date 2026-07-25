@@ -52,7 +52,7 @@ export default function OurWorkPage() {
           <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
             {featuredProjects.slice(0, 4).map((project, i) => (
               <Reveal key={project.id} delay={i * 60}>
-                <BeforeAfterSlider project={project} />
+                <BeforeAfterSlider project={project} tone="dark" />
               </Reveal>
             ))}
           </div>
@@ -79,7 +79,7 @@ export default function OurWorkPage() {
                     href={`/projects/${project.slug || project.id}`}
                     className="group block"
                   >
-                    <CraftCard className="overflow-hidden">
+                    <CraftCard className="overflow-hidden" tone="dark">
                       <div className="relative aspect-[16/9]">
                         <Image
                           src={heroSrc}
@@ -95,9 +95,9 @@ export default function OurWorkPage() {
                         </span>
                       </div>
                       <div className="p-6">
-                        <h2 className="text-xl font-bold text-primary sm:text-text-on-dark">{project.title}</h2>
-                        <p className="mt-2 line-clamp-2 text-text sm:text-text-on-dark/90">{project.story?.outcome || project.story?.solution || project.title}</p>
-                        <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent group-hover:underline">
+                        <h2 className="text-xl font-bold text-text-on-dark">{project.title}</h2>
+                        <p className="mt-2 line-clamp-2 text-text-on-dark/90">{project.story?.outcome || project.story?.solution || project.title}</p>
+                        <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-text-on-dark hover:text-white">
                           See the transformation →
                         </span>
                       </div>
@@ -135,7 +135,7 @@ export default function OurWorkPage() {
                     href={`/projects/${project.slug || project.id}`}
                     className="group relative block aspect-[4/3] overflow-hidden"
                   >
-                    <CraftCard className="overflow-hidden">
+                    <CraftCard className="overflow-hidden" tone="dark">
                       <img
                         src={src}
                         alt={photo!.alt || `${project.title} photo ${photoIndex + 1}`}

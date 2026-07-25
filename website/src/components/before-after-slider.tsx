@@ -33,13 +33,17 @@ export interface BeforeAfterPair {
  * Uses media.v1.json for image sources (project-owned).
  * Automatically hides if before or after media is missing.
  * Keyboard + reduced-motion accessible.
+ * 
+ * Surface-aware: accepts tone prop to adapt colors for light/dark backgrounds.
  */
 export function BeforeAfterSlider({
   project,
   className,
+  tone = "light",
 }: {
   project: Project;
   className?: string;
+  tone?: "light" | "dark";
 }) {
   // Check if project has both before and after media
   if (!project.media.before || !project.media.after) {
@@ -85,8 +89,12 @@ export function BeforeAfterSlider({
   const beforeSrc = beforeMedia.variants.original || beforeMedia.variants.webp || beforeMedia.variants.avif;
   const afterSrc = afterMedia.variants.original || afterMedia.variants.webp || afterMedia.variants.avif;
 
+  // Surface-aware text colors
+  const titleColor = tone === "dark" ? "text-text-on-dark" : "text-text";
+  const subtitleColor = tone === "dark" ? "text-text-on-dark/70" : "text-text-subtle";
+
   return (
-    <CraftCard className={cn("group relative select-none overflow-hidden", className)}>
+    <CraftCard className={cn("group relative select-none overflow-hidden", className)} tone={tone}>
       <div
         ref={containerRef}
         className="relative aspect-[4/3] w-full"
@@ -143,8 +151,8 @@ export function BeforeAfterSlider({
         <span className="absolute right-3 top-3 rounded-full bg-honey px-3 py-1 text-xs font-semibold text-honey-foreground">After</span>
       </div>
       <figcaption className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
-        <span className="font-semibold text-text">{project.title}</span>
-        {project.location.county && <span className="text-text-subtle">{project.location.county}</span>}
+        <span className={`font-semibold ${titleColor}`}>{project.title}</span>
+        {project.location.county && <span className={subtitleColor}>{project.location.county}</span>}
       </figcaption>
     </CraftCard>
   );

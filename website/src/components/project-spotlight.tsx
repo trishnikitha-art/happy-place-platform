@@ -15,13 +15,17 @@ import { cn } from "@/lib/utils";
  *
  * `variant="feature"` = compact home-page teaser.
  * `variant="full"`    = full story page (challenge/solution/materials/outcome).
+ * 
+ * Surface-aware: accepts tone prop to adapt colors for light/dark backgrounds.
  */
 export function ProjectSpotlight({
   project,
   variant = "full",
+  tone = "light",
 }: {
   project: Project;
   variant?: "feature" | "full";
+  tone?: "light" | "dark";
 }) {
   const heroMediaId = project.media?.hero;
   const heroMedia = heroMediaId ? getMediaById(heroMediaId) : null;
@@ -34,12 +38,18 @@ export function ProjectSpotlight({
     .map(id => getMediaById(id))
     .filter(m => m !== null && (m.variants?.web || m.variants?.original));
 
+  // Surface-aware text colors
+  const headingColor = tone === "dark" ? "text-text-on-dark" : "text-text";
+  const bodyColor = tone === "dark" ? "text-text-on-dark/90" : "text-text-muted";
+  const labelColor = tone === "dark" ? "text-text-on-dark/70" : "text-accent";
+  const dtColor = tone === "dark" ? "text-text-on-dark" : "text-text";
+
   if (variant === "feature") {
     if (!heroSrc) return null;
     return (
       <Section className="bg-surface-muted">
         <Container className="grid items-center gap-10 lg:grid-cols-2">
-          <CraftCard className="group relative overflow-hidden">
+          <CraftCard className="group relative overflow-hidden" tone={tone}>
             <Image
               src={heroSrc}
               alt={heroAlt}
@@ -52,17 +62,17 @@ export function ProjectSpotlight({
             <div className="absolute inset-0 pointer-events-none rounded-xl bg-gradient-to-tr from-black/3 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
           </CraftCard>
           <div>
-            <p className="text-sm font-semibold uppercase tracking-wide text-accent">Featured project</p>
-            <h2 className="mt-2 text-3xl font-bold tracking-tight text-text sm:text-4xl">{project.title}</h2>
-            <p className="mt-4 text-lg text-text-muted">{project.story?.outcome || project.title}</p>
+            <p className={`text-sm font-semibold uppercase tracking-wide ${labelColor}`}>Featured project</p>
+            <h2 className={`mt-2 text-3xl font-bold tracking-tight sm:text-4xl ${headingColor}`}>{project.title}</h2>
+            <p className={`mt-4 text-lg ${bodyColor}`}>{project.story?.outcome || project.title}</p>
             <dl className="mt-6 space-y-3 text-sm">
               <div className="flex gap-2">
-                <dt className="font-semibold text-text">Challenge:</dt>
-                <dd className="text-text-muted">{project.story?.challenge?.split(". ")[0]}.</dd>
+                <dt className={`font-semibold ${dtColor}`}>Challenge:</dt>
+                <dd className={bodyColor}>{project.story?.challenge?.split(". ")[0]}.</dd>
               </div>
               <div className="flex gap-2">
-                <dt className="font-semibold text-text">Outcome:</dt>
-                <dd className="text-text-muted">{project.story?.outcome?.split(". ")[0]}.</dd>
+                <dt className={`font-semibold ${dtColor}`}>Outcome:</dt>
+                <dd className={bodyColor}>{project.story?.outcome?.split(". ")[0]}.</dd>
               </div>
             </dl>
             <Link
@@ -95,11 +105,11 @@ export function ProjectSpotlight({
               {project.story?.outcome && <StoryBlock icon={<CheckCircle2 className="h-5 w-5" />} title="The outcome" body={project.story.outcome} />}
             </div>
             <aside>
-              <CraftCard className="p-6">
-                <h3 className="flex items-center gap-2 font-bold text-text">
+              <CraftCard className="p-6" tone={tone}>
+                <h3 className={`flex items-center gap-2 font-bold ${headingColor}`}>
                   <Package className="h-5 w-5 text-accent" /> Materials
                 </h3>
-                <ul className="mt-3 space-y-2 text-sm text-text-muted">
+                <ul className={`mt-3 space-y-2 text-sm ${bodyColor}`}>
                   {project.materials?.primary && (
                     <li className="flex items-start gap-2">
                       <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
@@ -148,11 +158,11 @@ export function ProjectSpotlight({
             {project.story?.solution && <StoryBlock icon={<Lightbulb className="h-5 w-5" />} title="The plan" body={project.story.solution} />}
           </div>
           <aside>
-            <CraftCard className="p-6">
-              <h3 className="flex items-center gap-2 font-bold text-text">
+            <CraftCard className="p-6" tone={tone}>
+              <h3 className={`flex items-center gap-2 font-bold ${headingColor}`}>
                 <Package className="h-5 w-5 text-accent" /> Materials
               </h3>
-              <ul className="mt-3 space-y-2 text-sm text-text-muted">
+              <ul className={`mt-3 space-y-2 text-sm ${bodyColor}`}>
                 {project.materials?.primary && (
                   <li className="flex items-start gap-2">
                     <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />

@@ -15,14 +15,21 @@ import { getFeaturedServiceMedia } from "@/lib/media";
  * Service cards use intent-based media lookups from Media Authority.
  * Displays the hero image of the highest-ranked project for that service.
  * Falls back to intentional empty state when no images exist for that service.
+ * 
+ * Surface-aware: accepts tone prop to adapt colors for light/dark backgrounds.
  */
-export function ServiceCard({ service }: { service: Service }) {
+export function ServiceCard({ service, tone = "light" }: { service: Service; tone?: "light" | "dark" }) {
   const featuredMedia = getFeaturedServiceMedia(service.slug);
   const hasImage = featuredMedia !== null;
   const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.original) : null;
 
+  // Surface-aware text colors
+  const headingColor = tone === "dark" ? "text-text-on-dark" : "text-primary";
+  const bodyColor = tone === "dark" ? "text-text-on-dark/90" : "text-text";
+  const linkColor = tone === "dark" ? "text-text-on-dark font-semibold hover:text-white" : "text-primary hover:underline";
+
   return (
-    <CraftCard className="group flex flex-col overflow-hidden">
+    <CraftCard className="group flex flex-col overflow-hidden" tone={tone}>
       <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
         {hasImage && imageSrc ? (
           <>
@@ -54,11 +61,11 @@ export function ServiceCard({ service }: { service: Service }) {
         )}
       </PhotoMount>
       <div className="flex flex-1 flex-col p-4 sm:p-5 lg:p-6">
-        <h3 className="font-display text-lg font-bold text-primary sm:text-xl lg:text-2xl">{service.name}</h3>
-        <p className="clamp-2 mt-2 flex-1 text-sm text-text sm:text-base">{service.description}</p>
+        <h3 className={`font-display text-lg font-bold sm:text-xl lg:text-2xl ${headingColor}`}>{service.name}</h3>
+        <p className={`clamp-2 mt-2 flex-1 text-sm sm:text-base ${bodyColor}`}>{service.description}</p>
         <Link
           href={`/estimate?service=${service.slug}`}
-          className="mt-4 inline-flex items-center gap-1 min-h-[44px] text-sm font-semibold text-primary hover:underline sm:text-base"
+          className={`mt-4 inline-flex items-center gap-1 min-h-[44px] text-sm sm:text-base ${linkColor}`}
         >
           Start a quote →
         </Link>

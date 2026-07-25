@@ -19,13 +19,21 @@ import { cn } from "@/lib/utils";
  * Premium feeling comes from depth, spacing, and typography.
  * 
  * CraftCard owns ALL card styling. Only layout classes should be passed via className.
+ * 
+ * Surface-aware: accepts tone prop to adapt for light/dark backgrounds.
  */
-export function CraftCard({ className, children }: { className?: string; children: React.ReactNode }) {
+export function CraftCard({ className, children, tone = "light" }: { className?: string; children: React.ReactNode; tone?: "light" | "dark" }) {
+  // Surface-aware background
+  const bgColor = tone === "dark" ? "bg-deep" : "bg-surface";
+  const borderColor = tone === "dark" ? "border-border/60" : "border-border/40";
+
   return (
     <div 
       className={cn(
         // Base structure - existing tokens only
-        "rounded-xl border border-border/40 bg-surface",
+        "rounded-xl border",
+        bgColor,
+        borderColor,
         
         // Premium shadow stack - layered depth (from homepage cards)
         "shadow-[--shadow-card]",
