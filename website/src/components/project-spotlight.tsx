@@ -203,11 +203,11 @@ export function ProjectSpotlight({
 function StoryBlock({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
   return (
     <div>
-      <h2 className="flex items-center gap-2 text-2xl font-bold text-text">
+      <h2 className="flex items-center gap-2 text-2xl font-bold text-[#000000]">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-accent">{icon}</span>
         {title}
       </h2>
-      <p className="mt-3 text-lg leading-relaxed text-text-muted">{body}</p>
+      <p className="mt-3 text-lg leading-relaxed text-[#000000]">{body}</p>
     </div>
   );
 }
