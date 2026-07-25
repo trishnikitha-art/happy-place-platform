@@ -29,28 +29,28 @@ export default function ContactPage() {
               title="Let's talk about your project"
               description="The quickest way to get started is the Estimate Wizard. If you'd rather talk first, give us a call, send a text, or email us—whatever's easiest."
             />
-            <dl className="mt-8 space-y-4 text-text-muted">
+            <dl className="mt-8 space-y-4 text-[#000000]">
               <div>
-                <dt className="text-sm font-semibold uppercase text-text-subtle">Phone</dt>
-                <dd><PhoneLink phone={company.phone} className="text-lg font-semibold text-accent">{company.phoneDisplay}</PhoneLink></dd>
+                <dt className="text-sm font-semibold uppercase text-[#17324A]">Phone</dt>
+                <dd><PhoneLink phone={company.phone} className="text-lg font-semibold text-[#17324A]">{company.phoneDisplay}</PhoneLink></dd>
               </div>
               <div>
-                <dt className="text-sm font-semibold uppercase text-text-subtle">Email</dt>
-                <dd><EmailLink email={company.email} className="text-lg font-semibold text-accent">{company.email}</EmailLink></dd>
+                <dt className="text-sm font-semibold uppercase text-[#17324A]">Email</dt>
+                <dd><EmailLink email={company.email} className="text-lg font-semibold text-[#17324A]">{company.email}</EmailLink></dd>
               </div>
               <div>
-                <dt className="text-sm font-semibold uppercase text-text-subtle">Service area</dt>
+                <dt className="text-sm font-semibold uppercase text-[#17324A]">Service area</dt>
                 <dd className="text-lg">{company.serviceArea}</dd>
               </div>
               <div>
-                <dt className="text-sm font-semibold uppercase text-text-subtle">Hours</dt>
+                <dt className="text-sm font-semibold uppercase text-[#17324A]">Hours</dt>
                 <dd className="text-lg">{company.businessHours}</dd>
               </div>
             </dl>
           </div>
           <div className="rounded-2xl border border-border bg-surface-muted p-8">
-            <h2 className="text-xl font-bold text-text">Start your free estimate</h2>
-            <p className="mt-2 text-text-muted">
+            <h2 className="text-xl font-bold text-[#17324A]">Start your free estimate</h2>
+            <p className="mt-2 text-[#000000]">
               Pick a service, upload a photo if you have one, and tell us what you're planning. It takes about two minutes.
             </p>
             <a

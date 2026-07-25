@@ -33,7 +33,7 @@ export default function EstimatePage() {
             <EstimateWizard />
           </Suspense>
         </div>
-        <p className="mt-6 text-center text-sm text-text-subtle">
+        <p className="mt-6 text-center text-sm text-[#000000]">
           Prefer to talk? Call {company.phoneDisplay} or email {company.email}.
         </p>
       </Container>

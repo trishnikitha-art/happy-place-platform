@@ -31,10 +31,10 @@ export default function OurWorkPage() {
           <p className="text-sm font-semibold uppercase tracking-wide text-honey">
             {company.proof.projectsCompleted} projects · {company.ccbNumber}
           </p>
-          <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-tight text-text-on-dark sm:text-6xl">
+          <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-tight text-[#FFFFFF] sm:text-6xl">
             Our Work
           </h1>
-          <p className="mt-5 max-w-xl text-lg text-text-on-dark/70">
+          <p className="mt-5 max-w-xl text-lg text-[#FFFFFF]">
             Every project tells a story. Real homes. Real families. Real craftsmanship built for Oregon's climate. Explore featured transformations first, then browse the complete portfolio.
           </p>
         </Container>
@@ -93,9 +93,9 @@ export default function OurWorkPage() {
                       </span>
                     </div>
                     <div className="p-6">
-                      <h2 className="text-xl font-bold text-text">{project.title}</h2>
-                      <p className="mt-2 line-clamp-2 text-text-muted">{project.story?.outcome || project.story?.solution || project.title}</p>
-                      <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent group-hover:underline">
+                      <h2 className="text-xl font-bold text-[#17324A]">{project.title}</h2>
+                      <p className="mt-2 line-clamp-2 text-[#000000]">{project.story?.outcome || project.story?.solution || project.title}</p>
+                      <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[#17324A] group-hover:underline">
                         See the transformation →
                       </span>
                     </div>

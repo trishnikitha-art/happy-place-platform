@@ -34,10 +34,10 @@ export default function AboutPage() {
               </span>
             </div>
             <p className="text-sm font-semibold uppercase tracking-[0.2em] text-honey">Family-owned · {company.ccbNumber}</p>
-            <h1 className="mt-3 font-display text-4xl font-bold leading-tight sm:text-5xl">
+            <h1 className="mt-3 font-display text-4xl font-bold leading-tight sm:text-5xl text-[#FFFFFF]">
               Every family deserves a <HappyBrandSignature /> place.
             </h1>
-            <p className="mt-5 max-w-xl text-lg text-text-on-dark/90">
+            <p className="mt-5 max-w-xl text-lg text-[#FFFFFF]">
               {company.name} isn't built around sales teams, project managers, or handoffs. It's built around one family that believes your home should become your happy place. From your first conversation to the final walkthrough, you'll work directly with the people doing the work—people who care about every detail as much as you do.
             </p>
             <p className="mt-6 font-display text-xl text-honey/90">
