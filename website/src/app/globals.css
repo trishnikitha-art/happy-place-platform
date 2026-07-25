@@ -576,10 +576,10 @@ a {
 }
 
 @keyframes happy-gold-sweep {
-  0%, 78% { background-position: 200% 0; opacity: 0; }
-  80% { opacity: 1; }
-  92% { background-position: -100% 0; }
-  93%, 100% { opacity: 0; background-position: -100% 0; }
+  0%, 60% { background-position: 200% 0; opacity: 0; }
+  65% { opacity: 1; }
+  90% { background-position: -100% 0; }
+  95%, 100% { opacity: 0; background-position: -100% 0; }
 }
 
 .animate-happy-gold-idle {
