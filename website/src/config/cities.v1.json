@@ -5,7 +5,7 @@
     {
       "id": "philomath",
       "name": "Philomath",
-      "county": "Benton",
+      "county": "Benton County",
       "state": "Oregon",
       "zipCodes": ["97370"],
       "featured": true,
@@ -15,7 +15,7 @@
     {
       "id": "albany",
       "name": "Albany",
-      "county": "Linn",
+      "county": "Linn County",
       "state": "Oregon",
       "zipCodes": ["97321", "97322"],
       "featured": true,
@@ -25,7 +25,7 @@
     {
       "id": "monmouth",
       "name": "Monmouth",
-      "county": "Polk",
+      "county": "Polk County",
       "state": "Oregon",
       "zipCodes": ["97361"],
       "featured": true,
@@ -35,7 +35,7 @@
     {
       "id": "independence",
       "name": "Independence",
-      "county": "Polk",
+      "county": "Polk County",
       "state": "Oregon",
       "zipCodes": ["97351"],
       "featured": true,

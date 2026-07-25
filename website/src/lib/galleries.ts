@@ -146,8 +146,14 @@ export function getServiceGallery(serviceId: string): Gallery {
     );
   }
   
+  // Special case: for painting service, also include exterior-painting projects
+  let filter: GalleryFilter = { service: serviceId };
+  if (serviceId === 'painting') {
+    filter = { services: ['painting', 'exterior-painting'] };
+  }
+  
   return createGallery(
-    { service: serviceId },
+    filter,
     `service-${serviceId}`,
     service.name,
     service.description

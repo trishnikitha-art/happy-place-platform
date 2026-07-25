@@ -141,14 +141,14 @@ export function ProjectSpotlight({
         </Container>
       </div>
 
-      <Section>
+      <Section className="bg-white">
         <Container className="grid gap-10 lg:grid-cols-3">
           <div className="space-y-8 lg:col-span-2">
             {project.story?.challenge && <StoryBlock icon={<Wrench className="h-5 w-5" />} title="The challenge" body={project.story.challenge} />}
             {project.story?.solution && <StoryBlock icon={<Lightbulb className="h-5 w-5" />} title="The plan" body={project.story.solution} />}
           </div>
           <aside>
-            <div className="rounded-card border border-border bg-surface p-6">
+            <div className="rounded-card border border-border bg-white p-6">
               <h3 className="flex items-center gap-2 font-bold text-text">
                 <Package className="h-5 w-5 text-accent" /> Materials
               </h3>
@@ -173,11 +173,11 @@ export function ProjectSpotlight({
 
       {/* Photo story */}
       {galleryMedia.length > 0 && (
-        <Section className="bg-surface-muted pt-0">
+        <Section className="bg-white pt-0">
           <Container>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {galleryMedia.map((media, i) => (
-                <figure key={i} className="overflow-hidden rounded-card border border-border bg-surface">
+                <figure key={i} className="overflow-hidden rounded-card border border-border bg-white">
                   <div className="relative aspect-[4/3]">
                     <Image
                       src={media!.variants!.web || media!.variants!.original!}

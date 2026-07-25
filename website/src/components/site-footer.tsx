@@ -66,7 +66,7 @@ export function SiteFooter() {
             </li>
             <li className="text-text-on-dark">{company.businessHours}</li>
             <li className="text-xs text-text-on-dark">
-              {taylor.name.split(' ').map((part, i) => part === 'Happy' ? <HappyBrandSignature key={i} /> : <span key={i}>{part}</span>)} &amp; {lanie.name.split(' ').map((part, i) => part === 'Happy' ? <HappyBrandSignature key={i} /> : <span key={i}>{part}</span>)} · {company.serviceArea}
+              {taylor.name.split(' ').map((part, i) => part === 'Happy' ? <span key={i}> <HappyBrandSignature /></span> : <span key={i}>{part}</span>)} &amp; {lanie.name.split(' ').map((part, i) => part === 'Happy' ? <span key={i}> <HappyBrandSignature /></span> : <span key={i}>{part}</span>)} · {company.serviceArea}
             </li>
           </ul>
         </div>
