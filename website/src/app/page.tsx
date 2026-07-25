@@ -226,7 +226,7 @@ export default function HomePage() {
             <>
               <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
                 {topReviews.map((r) => (
-                  <figure key={r.id} className="bg-white p-5 sm:p-6 transition-all duration-400 hover:-translate-y-0.5 shadow-[0_1px_4px_-1px_rgba(23,50,74,0.06),0_0.5px_2px_-0.5px_rgba(23,50,74,0.04)] hover:shadow-[0_3px_12px_-3px_rgba(23,50,74,0.1),0_1.5px_4px_-1.5px_rgba(23,50,74,0.07)] border border-border/40 rounded-xl">
+                  <figure key={r.id} className="bg-[#E8E4DC] p-5 sm:p-6 transition-all duration-400 hover:-translate-y-0.5 shadow-[0_1px_4px_-1px_rgba(23,50,74,0.06),0_0.5px_2px_-0.5px_rgba(23,50,74,0.04)] hover:shadow-[0_3px_12px_-3px_rgba(23,50,74,0.1),0_1.5px_4px_-1.5px_rgba(23,50,74,0.07)] border border-border/40 rounded-xl">
                     <StarRating rating={r.rating} />
                     {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
                     <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>

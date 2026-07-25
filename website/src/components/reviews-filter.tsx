@@ -32,8 +32,8 @@ export function ReviewsFilter({ selectedService, onServiceChange }: ReviewsFilte
         onClick={() => onServiceChange("all")}
         className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
           selectedService === "all"
-            ? "bg-primary text-white"
-            : "bg-surface text-text-muted hover:bg-surface-hover"
+            ? "bg-honey/20 text-honey border border-honey/30"
+            : "bg-surface/50 text-text-on-dark/70 hover:bg-surface/70"
         }`}
       >
         All
@@ -44,8 +44,8 @@ export function ReviewsFilter({ selectedService, onServiceChange }: ReviewsFilte
           onClick={() => onServiceChange(service)}
           className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
             selectedService === service
-              ? "bg-primary text-white"
-              : "bg-surface text-text-muted hover:bg-surface-hover"
+              ? "bg-honey/20 text-honey border border-honey/30"
+              : "bg-surface/50 text-text-on-dark/70 hover:bg-surface/70"
           }`}
         >
           {SERVICE_LABELS[service]}

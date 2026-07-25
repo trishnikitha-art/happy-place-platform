@@ -53,12 +53,12 @@ export default function AboutPage() {
       </section>
 
       {/* SERVICE AREA */}
-      <Section className="bg-cream">
+      <Section className="bg-white">
         <Container>
           <SectionHeading eyebrow="Where we work" title="Serving the mid-Willamette Valley" />
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {cities.map((c) => (
-              <div key={c.id} className="rounded-2xl border border-border bg-surface p-5">
+              <div key={c.id} className="rounded-2xl border border-border/40 bg-[#F8F6F3] p-5">
                 <h3 className="font-bold text-text">{c.name}</h3>
                 <p className="mt-2 text-sm text-text-subtle">{c.county}, Oregon</p>
               </div>
