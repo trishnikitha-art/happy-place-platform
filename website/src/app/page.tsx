@@ -67,7 +67,7 @@ export default function HomePage() {
             <h1 className="mt-4 sm:mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] sm:leading-[1.05] tracking-tight tracking-display text-text-on-dark">
               Your favorite part of coming home should be the home itself.
             </h1>
-            <p className="measure mt-5 sm:mt-7 max-w-xl text-base sm:text-lg leading-[1.7] text-text-on-dark/80">
+            <p className="measure mt-5 sm:mt-7 max-w-xl text-base sm:text-lg leading-[1.7] text-text-on-dark/75">
               We restore, repair, and paint homes throughout the Mid-Willamette Valley—protecting your investment and making coming home feel better every day.</p>
             <div className="mt-6 sm:mt-8 flex flex-wrap gap-3">
               <Link href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold">
@@ -75,12 +75,12 @@ export default function HomePage() {
               </Link>
               <Link
                 href="/our-work"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-text-on-dark/25 bg-text-on-dark/8 px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold text-text-on-dark transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-text-on-dark/15 hover:border-text-on-dark/35"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-text-on-dark/20 bg-text-on-dark/6 px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold text-text-on-dark transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-text-on-dark/12 hover:border-text-on-dark/30"
               >
                 See Our Work
               </Link>
             </div>
-            <div className="mt-6 sm:mt-9 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-text-on-dark/65">
+            <div className="mt-6 sm:mt-9 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-text-on-dark/60">
               {hasReviews && (
                 <span className="inline-flex items-center gap-2">
                   <StarRating rating={5} />
@@ -139,9 +139,9 @@ export default function HomePage() {
             ))}
           </div>
           {otherServices.length > 0 && (
-            <div className="mt-6 sm:mt-8">
+            <div className="mt-8 sm:mt-10">
               <h3 className="font-display text-xl sm:text-2xl font-bold text-text mb-4 sm:mb-6">Other ways we can help</h3>
-              <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
                 {otherServices.map((s) => (
                   <ServiceCard key={s.id} service={s} />
                 ))}
@@ -181,8 +181,8 @@ export default function HomePage() {
       </Section>
 
       {/* THE FAMILY — philosophy first, then people, then portrait (Act II) */}
-      <Section className="relative bg-[#F4F1EB]">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#F4F1EB] via-[#F1EDE6] to-[#EDE9E0] opacity-100" aria-hidden="true" />
+      <Section className="relative bg-[#F3EFE8]">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#F3EFE8] via-[#F0ECE5] to-[#ECE8E0] opacity-100" aria-hidden="true" />
         <Container className="relative z-10 grid items-center gap-12 lg:grid-cols-2">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-accent">Built by one family. Trusted by many more.</p>
