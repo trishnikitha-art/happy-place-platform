@@ -52,24 +52,6 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
     <>
       <ProjectSpotlight project={project} variant="full" />
       
-      {/* Before/After Slider */}
-      {project.media.before && project.media.after && (
-        <Section className="bg-background">
-          <Container>
-            <SectionHeading
-              eyebrow="Transformation"
-              title="Start to finish"
-              description="Every home has a story. Here's one transformation we're especially proud to have been part of."
-            />
-            <div className="mt-10">
-              <Reveal>
-                <BeforeAfterSlider project={project} />
-              </Reveal>
-            </div>
-          </Container>
-        </Section>
-      )}
-      
       <Section className="bg-surface-muted">
         <Container>
           <SectionHeading
