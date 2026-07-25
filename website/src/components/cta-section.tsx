@@ -19,7 +19,7 @@ export function CTASection({
         <h2 className="text-3xl font-bold text-text sm:text-4xl">
           Tell us what you're planning to make your <HappyBrandSignature />.
         </h2>
-        <p className="mt-4 max-w-2xl text-lg text-text">{subtitle}</p>
+        <p className="mt-4 max-w-2xl text-lg text-text-dark">{subtitle}</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link href="/estimate" className={cn(buttonVariants({ variant: "primary", size: "lg" }))}>
             Start Your Free Estimate
