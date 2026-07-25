@@ -122,7 +122,7 @@ export default async function HomePage() {
           ].map(([stat, label]) => (
             <div key={label as string} className="relative">
               <p className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-text">{stat}</p>
-              <p className="mt-1 text-xs sm:text-sm font-medium uppercase tracking-wide text-text-muted">{label}</p>
+              <p className="mt-1 text-xs sm:text-sm font-medium uppercase tracking-wide text-text">{label}</p>
             </div>
           ))}
         </Container>
@@ -193,7 +193,7 @@ export default async function HomePage() {
             <h2 className="mt-3 font-display text-4xl font-bold leading-tight text-text sm:text-5xl">
               A family business built on doing things the right way.
             </h2>
-            <div className="measure mt-7 space-y-5 text-text-muted">
+            <div className="measure mt-7 space-y-5 text-text">
               <p className="text-lg leading-relaxed">
                 Great work starts long before the first board is cut.</p>
               <p>
