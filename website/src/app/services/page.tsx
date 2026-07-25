@@ -49,9 +49,9 @@ export default function ServicesPage() {
       <Section className="bg-surface-muted">
         <Container>
           <SectionHeading
-            eyebrow="Services"
-            title="Carpentry for your whole home"
-            description="Every service has its own estimate questions, so your quote is built around exactly what you need."
+            eyebrow={<span className="text-honey">Services</span>}
+            title={<span className="text-[#FFFFFF]">Carpentry for your whole home</span>}
+            description={<span className="text-[#F0C070]">Every service has its own estimate questions, so your quote is built around exactly what you need.</span>}
           />
           <div className="mt-10 space-y-14">
             {Object.entries(groupedServices).map(([category, categoryServices]) => (
@@ -60,9 +60,9 @@ export default function ServicesPage() {
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-accent">
                     <Icon name="hammer" className="h-5 w-5" />
                   </span>
-                  <h2 className="text-2xl font-bold text-[#17324A]">{category}</h2>
+                  <h2 className="text-2xl font-bold text-[#FFFFFF]">{category}</h2>
                 </div>
-                <p className="mb-6 mt-2 max-w-2xl text-[#000000]">
+                <p className="mb-6 mt-2 max-w-2xl text-[#F0C070]">
                   {categoryServices[0]?.description || 'Professional carpentry services'}
                 </p>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">

@@ -44,9 +44,9 @@ export default function OurWorkPage() {
       <Section>
         <Container>
           <SectionHeading
-            eyebrow="Featured transformations"
-            title="Start to finish"
-            description="Real projects, real craftsmanship — the moments that turn a house into a happy place."
+            eyebrow={<span className="text-honey">Featured transformations</span>}
+            title={<span className="text-[#FFFFFF]">Start to finish</span>}
+            description={<span className="text-[#F0C070]">Real projects, real craftsmanship — the moments that turn a house into a happy place.</span>}
           />
           <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
             {featuredProjects.slice(0, 4).map((project, i) => (
@@ -62,9 +62,9 @@ export default function OurWorkPage() {
       <Section className="bg-surface-muted">
         <Container>
           <SectionHeading
-            eyebrow="Recent projects"
-            title="The story behind the work"
-            description="Real challenges, real solutions. Tap a project for the full story."
+            eyebrow={<span className="text-honey">Recent projects</span>}
+            title={<span className="text-[#FFFFFF]">The story behind the work</span>}
+            description={<span className="text-[#F0C070]">Real challenges, real solutions. Tap a project for the full story.</span>}
           />
           <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
             {allProjects.map((project, i) => {
@@ -93,9 +93,9 @@ export default function OurWorkPage() {
                       </span>
                     </div>
                     <div className="p-6">
-                      <h2 className="text-xl font-bold text-[#17324A]">{project.title}</h2>
-                      <p className="mt-2 line-clamp-2 text-[#000000]">{project.story?.outcome || project.story?.solution || project.title}</p>
-                      <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-[#17324A] group-hover:underline">
+                      <h2 className="text-xl font-bold text-[#FFFFFF]">{project.title}</h2>
+                      <p className="mt-2 line-clamp-2 text-[#F0C070]">{project.story?.outcome || project.story?.solution || project.title}</p>
+                      <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-honey group-hover:underline">
                         See the transformation →
                       </span>
                     </div>
@@ -111,9 +111,9 @@ export default function OurWorkPage() {
       <Section className="bg-background">
         <Container>
           <SectionHeading
-            eyebrow="Browse all work"
-            title="The complete archive"
-            description="Every project, every detail. Future projects simply append here."
+            eyebrow={<span className="text-honey">Browse all work</span>}
+            title={<span className="text-[#FFFFFF]">The complete archive</span>}
+            description={<span className="text-[#F0C070]">Every project, every detail. Future projects simply append here.</span>}
           />
           <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {allProjects.map((project) => {
@@ -139,7 +139,7 @@ export default function OurWorkPage() {
                       loading="lazy"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                    <span className="absolute bottom-2 left-2 text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+                    <span className="absolute bottom-2 left-2 text-xs font-semibold text-[#F0C070] opacity-0 transition-opacity group-hover:opacity-100">
                       {project.title}
                     </span>
                   </Link>
@@ -151,8 +151,8 @@ export default function OurWorkPage() {
       </Section>
 
       <CTASection
-        title="Ready to love coming home again?"
-        subtitle="Let's start building your happy place."
+        title={<span className="text-[#FFFFFF]">Ready to love coming home again?</span>}
+        subtitle={<span className="text-[#F0C070]">Let's start building your happy place.</span>}
       />
     </>
   );
