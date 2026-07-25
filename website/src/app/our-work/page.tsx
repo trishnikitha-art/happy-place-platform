@@ -97,7 +97,7 @@ export default function OurWorkPage() {
                       <div className="p-6">
                         <h2 className="text-xl font-bold text-text">{project.title}</h2>
                         <p className="mt-2 line-clamp-2 text-text-muted">{project.story?.outcome || project.story?.solution || project.title}</p>
-                        <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline">
+                        <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-text hover:text-honey">
                           See the transformation →
                         </span>
                       </div>
