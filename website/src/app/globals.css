@@ -553,7 +553,7 @@ a {
 }
 
 .animate-shimmer-fast {
-  animation: shimmer-fast 2s ease-in-out;
+  animation: shimmer-fast 1s ease-in-out;
 }
 
 /* Gold exaggerated version for HappyBrandSignature */
