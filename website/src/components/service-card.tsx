@@ -17,18 +17,16 @@ import { getFeaturedServiceMedia } from "@/lib/media";
  * Falls back to intentional empty state when no images exist for that service.
  * 
  * Surface-aware: accepts tone prop to adapt colors for light/dark backgrounds.
- * Soft mode: uses lighter text colors for a softer, more elegant look.
  */
-export function ServiceCard({ service, tone = "light", soft = false }: { service: Service; tone?: "light" | "dark"; soft?: boolean }) {
+export function ServiceCard({ service, tone = "light" }: { service: Service; tone?: "light" | "dark" }) {
   const featuredMedia = getFeaturedServiceMedia(service.slug);
   const hasImage = featuredMedia !== null;
   const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.original) : null;
 
   // Surface-aware text colors
-  // Soft mode uses lighter text on desktop only (lg breakpoint) to preserve mobile appearance
-  const headingColor = tone === "dark" ? "text-text-on-dark" : (soft ? "text-text lg:text-text-muted" : "text-primary");
-  const bodyColor = tone === "dark" ? "text-text-on-dark/90" : (soft ? "text-text lg:text-text-muted" : "text-text");
-  const linkColor = tone === "dark" ? "text-text-on-dark font-semibold hover:text-white" : (soft ? "text-primary lg:text-text-muted lg:hover:text-text" : "text-primary hover:underline");
+  const headingColor = tone === "dark" ? "text-text-on-dark" : "text-primary";
+  const bodyColor = tone === "dark" ? "text-text-on-dark/90" : "text-text";
+  const linkColor = tone === "dark" ? "text-text-on-dark font-semibold hover:text-white" : "text-primary hover:underline";
 
   return (
     <CraftCard className="group flex flex-col overflow-hidden" tone={tone}>

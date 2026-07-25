@@ -300,8 +300,8 @@ export function EstimateWizard() {
         {/* STEP 1: Service (multi-select, up to 3) */}
         {STEPS[step] === "Service" && (
           <div>
-            <h2 className="text-xl font-bold text-text-on-dark">Tell us what you're thinking about. We'll guide you through the rest.</h2>
-            <p className="mt-1 text-sm text-text-on-dark/90">
+            <h2 className="text-xl font-bold text-primary">Tell us what you're thinking about. We'll guide you through the rest.</h2>
+            <p className="mt-1 text-sm text-text">
               Pick up to {MAX_SERVICES} — or tell us what you need below.
             </p>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -365,14 +365,14 @@ export function EstimateWizard() {
         {/* STEP 2: Tell us about your project */}
         {STEPS[step] === "Tell us about your project" && (
           <div>
-            <h2 className="text-xl font-bold text-black sm:text-text-on-dark">What's on your mind?</h2>
+            <h2 className="text-xl font-bold text-primary">What's on your mind?</h2>
             {service && (
-              <p className="mt-1 text-sm text-black sm:text-text-on-dark/90">
+              <p className="mt-1 text-sm text-text">
                 It doesn't have to be perfect. A few details are enough for us to understand what you're planning.
               </p>
             )}
             {!service && (
-              <p className="mt-1 text-sm text-black sm:text-text-on-dark/90">
+              <p className="mt-1 text-sm text-text">
                 It doesn't have to be perfect. A few details are enough for us to understand what you're planning.
               </p>
             )}
@@ -397,7 +397,7 @@ export function EstimateWizard() {
                     }} />
                   )}
                   <span className="relative z-10 flex items-center justify-between">
-                    <span className="font-semibold text-black sm:text-text-on-dark">{type}</span>
+                    <span className="font-semibold text-primary">{type}</span>
                     {projectType === type && <Check className="h-4 w-4 text-primary" />}
                   </span>
                 </button>
@@ -409,13 +409,13 @@ export function EstimateWizard() {
         {/* STEP 3: Photos */}
         {STEPS[step] === "Photos" && (
           <div>
-            <h2 className="text-xl font-bold text-black sm:text-text-on-dark">Have a photo? It helps us see what you're seeing.</h2>
-            <p className="mt-1 text-black sm:text-text-on-dark/90">
+            <h2 className="text-xl font-bold text-primary">Have a photo? It helps us see what you're seeing.</h2>
+            <p className="mt-1 text-text">
               Optional, but helpful for understanding the space.
             </p>
             
             {/* Desktop file upload */}
-            <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-black sm:text-text-on-dark/70 hover:border-primary">
+            <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-text hover:border-primary">
               <Upload className="h-8 w-8" />
               <span className="text-sm font-medium">Upload photos</span>
               <input
@@ -451,7 +451,7 @@ export function EstimateWizard() {
             </label>
             
             {/* Mobile camera capture */}
-            <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-black sm:text-text-on-dark/70 hover:border-primary">
+            <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-text hover:border-primary">
               <Upload className="h-8 w-8" />
               <span className="text-sm font-medium">Take a photo</span>
               <input
@@ -508,18 +508,18 @@ export function EstimateWizard() {
         {/* STEP 4: Project Details */}
         {STEPS[step] === "Project Details" && (
           <div>
-            <h2 className="text-xl font-bold text-black sm:text-text-on-dark">A couple quick questions</h2>
+            <h2 className="text-xl font-bold text-primary">A couple quick questions</h2>
             <div className="mt-4 space-y-4">
               {questions.map((q) => (
                 <div key={q.id}>
-                  <label className="block text-sm font-semibold text-black sm:text-text-on-dark">
+                  <label className="block text-sm font-semibold text-primary">
                     {q.label}
                     {q.required && <span className="text-red-500"> *</span>}
                   </label>
-                  {q.help && <p className="mt-1 text-xs text-black sm:text-text-on-dark/90">{q.help}</p>}
+                  {q.help && <p className="mt-1 text-xs text-text-muted">{q.help}</p>}
                   {q.type === "textarea" && (
                     <textarea
-                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                       rows={3}
                       placeholder={q.placeholder}
                       value={(answers[q.id] as string) ?? ""}
@@ -528,7 +528,7 @@ export function EstimateWizard() {
                   )}
                   {q.type === "text" && (
                     <input
-                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                       placeholder={q.placeholder}
                       value={(answers[q.id] as string) ?? ""}
                       onChange={(e) => setAnswer(q.id, e.target.value)}
@@ -537,7 +537,7 @@ export function EstimateWizard() {
                   {q.type === "number" && (
                     <input
                       type="number"
-                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                       placeholder={q.placeholder}
                       value={(answers[q.id] as number) ?? ""}
                       onChange={(e) => setAnswer(q.id, Number(e.target.value))}
@@ -545,7 +545,7 @@ export function EstimateWizard() {
                   )}
                   {q.type === "select" && (
                     <select
-                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                       value={(answers[q.id] as string) ?? ""}
                       onChange={(e) => setAnswer(q.id, e.target.value)}
                     >
@@ -581,12 +581,12 @@ export function EstimateWizard() {
         {/* STEP 5: Property */}
         {STEPS[step] === "Property" && (
           <div>
-            <h2 className="text-xl font-bold text-black sm:text-text-on-dark">Where is the work?</h2>
+            <h2 className="text-xl font-bold text-primary">Where is the work?</h2>
             <div className="mt-4 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-black sm:text-text-on-dark">Street address</label>
+                <label className="block text-sm font-semibold text-primary">Street address</label>
                 <input
-                  className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                  className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                   placeholder="123 Main St (optional)"
                   value={property.address}
                   onChange={(e) => setProperty((p) => ({ ...p, address: e.target.value }))}
@@ -594,17 +594,17 @@ export function EstimateWizard() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-semibold text-black sm:text-text-on-dark">City *</label>
+                  <label className="block text-sm font-semibold text-primary">City *</label>
                   <input
-                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                     value={property.city}
                     onChange={(e) => setProperty((p) => ({ ...p, city: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-black sm:text-text-on-dark">County *</label>
+                  <label className="block text-sm font-semibold text-primary">County *</label>
                   <select
-                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                     value={property.county}
                     onChange={(e) => setProperty((p) => ({ ...p, county: e.target.value }))}
                   >
@@ -616,9 +616,9 @@ export function EstimateWizard() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-black sm:text-text-on-dark">Anything else about the property?</label>
+                <label className="block text-sm font-semibold text-primary">Anything else about the property?</label>
                 <textarea
-                  className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                  className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                   rows={3}
                   placeholder="access, parking, gate code, HOA…"
                   value={property.details}
@@ -632,31 +632,31 @@ export function EstimateWizard() {
         {/* STEP 6: Contact */}
         {STEPS[step] === "Contact" && (
           <div>
-            <h2 className="text-xl font-bold text-black sm:text-text-on-dark">How do we reach you?</h2>
+            <h2 className="text-xl font-bold text-primary">How do we reach you?</h2>
             <div className="mt-4 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-black sm:text-text-on-dark">Name *</label>
+                <label className="block text-sm font-semibold text-primary">Name *</label>
                 <input
-                  className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                  className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                   value={customer.name}
                   onChange={(e) => setCustomer((c) => ({ ...c, name: e.target.value }))}
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-semibold text-black sm:text-text-on-dark">Email *</label>
+                  <label className="block text-sm font-semibold text-primary">Email *</label>
                   <input
                     type="email"
-                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                     value={customer.email}
                     onChange={(e) => setCustomer((c) => ({ ...c, email: e.target.value }))}
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-black sm:text-text-on-dark">Phone *</label>
+                  <label className="block text-sm font-semibold text-primary">Phone *</label>
                   <input
                     type="tel"
-                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                     value={customer.phone}
                     onChange={(e) => setCustomer((c) => ({ ...c, phone: e.target.value }))}
                   />
@@ -672,8 +672,8 @@ export function EstimateWizard() {
             <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
               <Check className="h-8 w-8 text-primary" />
             </div>
-            <h2 className="text-2xl font-bold text-text-on-dark">Here's what we heard</h2>
-            <p className="mt-3 text-text-on-dark/90">
+            <h2 className="text-2xl font-bold text-primary">Here's what we heard</h2>
+            <p className="mt-3 text-text">
               If anything looks off, now's the perfect time to fix it.
             </p>
 
@@ -683,28 +683,28 @@ export function EstimateWizard() {
               if (result.low > 0 || result.high > 0) {
                 return (
                   <div className="mt-8 rounded-lg bg-surface-muted p-6 text-left">
-                    <h3 className="font-semibold text-text-on-dark">Preliminary Planning Range</h3>
+                    <h3 className="font-semibold text-primary">Preliminary Planning Range</h3>
                     <div className="mt-4">
-                      <p className="text-2xl font-bold text-text-on-dark">
+                      <p className="text-2xl font-bold text-primary">
                         {formatRange(result.low)} – {formatRange(result.high)}
                       </p>
-                      <p className="mt-2 text-sm text-text-on-dark/90">{result.note}</p>
+                      <p className="mt-2 text-sm text-text-muted">{result.note}</p>
                     </div>
                     
                     {/* Per-service breakdown */}
                     {result.breakdown && result.breakdown.length > 1 && (
                       <div className="mt-6 border-t border-border pt-4">
-                        <h4 className="text-sm font-semibold text-text-on-dark">How this range breaks down</h4>
+                        <h4 className="text-sm font-semibold text-primary">How this range breaks down</h4>
                         <div className="mt-3 space-y-2">
                           {result.breakdown.map((item, idx) => (
                             <div key={idx} className="flex items-center justify-between text-sm">
-                              <span className="text-text-on-dark/90">
+                              <span className="text-text-muted">
                                 {item.label}
                                 {item.scopeUsed && (
-                                  <span className="ml-2 text-xs text-text-on-dark/70">({item.scopeUsed})</span>
+                                  <span className="ml-2 text-xs text-text-subtle">({item.scopeUsed})</span>
                                 )}
                               </span>
-                              <span className="font-medium text-text-on-dark">
+                              <span className="font-medium text-primary">
                                 {formatRange(item.low)} – {formatRange(item.high)}
                               </span>
                             </div>
@@ -719,7 +719,7 @@ export function EstimateWizard() {
             })()}
 
             <div className="mt-8 rounded-lg bg-surface-muted p-6 text-left">
-              <h3 className="font-semibold text-text-on-dark">Everything looks good. We'll package everything up for Taylor—you just hit Send.</h3>
+              <h3 className="font-semibold text-primary">Everything looks good. We'll package everything up for Taylor—you just hit Send.</h3>
             </div>
           </div>
         )}
