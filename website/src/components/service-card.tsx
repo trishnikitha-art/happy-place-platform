@@ -53,8 +53,8 @@ export function ServiceCard({ service }: { service: Service }) {
         )}
       </div>
       <div className="flex flex-1 flex-col p-5">
-        <h3 className="font-display text-xl font-bold text-text">{service.name}</h3>
-        <p className="clamp-2 mt-2 flex-1 text-sm text-text-dark">{service.description}</p>
+        <h3 className="font-display text-xl font-bold text-[#17324A]">{service.name}</h3>
+        <p className="clamp-2 mt-2 flex-1 text-sm text-[#000000]">{service.description}</p>
         <Link
           href={`/estimate?service=${service.slug}`}
           className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
