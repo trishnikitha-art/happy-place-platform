@@ -121,8 +121,8 @@ export default async function HomePage() {
             [company.proof.projectsCompleted, "Projects Completed"],
           ].map(([stat, label]) => (
             <div key={label as string} className="relative">
-              <p className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-primary">{stat}</p>
-              <p className="mt-1 text-xs sm:text-sm font-medium uppercase tracking-wide text-text-subtle">{label}</p>
+              <p className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-text">{stat}</p>
+              <p className="mt-1 text-xs sm:text-sm font-medium uppercase tracking-wide text-text-muted">{label}</p>
             </div>
           ))}
         </Container>
@@ -135,7 +135,7 @@ export default async function HomePage() {
           <SectionHeading
             eyebrow={<span className="eyebrow-mark"><ToolMark /> What we do</span>}
             title={<span className="text-text">Ways to make coming home better</span>}
-            description={<span className="text-text">Pick a service to start a free estimate — we'll guide you through the rest.</span>}
+            description="Pick a service to start a free estimate — we'll guide you through the rest."
           />
           <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
             {homepageServices.map((s) => (
@@ -164,7 +164,7 @@ export default async function HomePage() {
           <SectionHeading
             eyebrow="Real transformations"
             title={<span className="text-text">Protected and restored</span>}
-            description={<span className="text-text">Every home has a story. Here's one exterior restoration we're especially proud to have been part of.</span>}
+            description="Every home has a story. Here's one exterior restoration we're especially proud to have been part of."
           />
           {paintingProject && paintingProject.media.before && paintingProject.media.after && (
             <div className="mt-12">
@@ -193,7 +193,7 @@ export default async function HomePage() {
             <h2 className="mt-3 font-display text-4xl font-bold leading-tight text-text sm:text-5xl">
               A family business built on doing things the right way.
             </h2>
-            <div className="measure mt-7 space-y-5 text-text">
+            <div className="measure mt-7 space-y-5 text-text-muted">
               <p className="text-lg leading-relaxed">
                 Great work starts long before the first board is cut.</p>
               <p>
@@ -222,7 +222,7 @@ export default async function HomePage() {
       <Section className="relative bg-[#F2EFE8]">
         <div className="absolute inset-0 bg-gradient-to-b from-[#F2EFE8] via-[#EFECE5] to-[#ECE9E2] opacity-100" aria-hidden="true" />
         <Container className="relative z-10">
-          <SectionHeading eyebrow="Reviews" title={<span className="text-text">What Homeowners Say After the Project Is Finished</span>} align="center" description={hasReviews ? <span className="text-text">Real experiences from families throughout the Mid-Willamette Valley.</span> : <span className="text-text">We're building our public review portfolio. In the meantime, we're happy to provide references from homeowners throughout the Mid-Willamette Valley.</span>} />
+          <SectionHeading eyebrow="Reviews" title={<span className="text-text">What Homeowners Say After the Project Is Finished</span>} align="center" description={hasReviews ? "Real experiences from families throughout the Mid-Willamette Valley." : "We're building our public review portfolio. In the meantime, we're happy to provide references from homeowners throughout the Mid-Willamette Valley."} />
           {hasReviews ? (
             <>
               <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
