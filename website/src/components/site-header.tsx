@@ -29,9 +29,9 @@ function NavShimmer({ children, className }: { children: React.ReactNode; classN
           isHovered ? "animate-shimmer-fast" : "animate-shimmer-slow"
         )}
         style={{
-          background: 'linear-gradient(90deg, transparent 0%, rgba(231,173,99,0.6) 50%, transparent 100%)',
+          background: 'linear-gradient(90deg, transparent 0%, rgba(231,173,99,0.4) 50%, transparent 100%)',
           backgroundSize: '200% 100%',
-          mixBlendMode: 'color',
+          mixBlendMode: 'overlay',
         }}
       />
     </span>
