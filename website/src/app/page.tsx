@@ -52,7 +52,7 @@ export default function HomePage() {
             style={{ filter: "brightness(0.45)" }}
           />
         )}
-        <div className="absolute inset-0 z-[1] bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(217,154,78,0.22),transparent_55%),radial-gradient(90%_90%_at_10%_110%,rgba(22,43,41,0.7),transparent_60%)]" aria-hidden="true" />
+        <div className="absolute inset-0 z-[1] bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(217,154,78,0.18),transparent_55%),radial-gradient(90%_90%_at_10%_110%,rgba(22,43,41,0.6),transparent_60%)]" aria-hidden="true" />
         <div className="absolute inset-0 z-[1] bg-gradient-to-b from-deep/30 via-transparent to-deep" aria-hidden="true" />
         <div className="absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-honey/25 to-transparent" aria-hidden="true" />
 
@@ -107,8 +107,9 @@ export default function HomePage() {
       <div className="h-2 bg-gradient-to-r from-deep via-primary to-deep/60" aria-hidden="true" />
 
       {/* TRUST STRIP — quiet, confident proof (woven, not a banner) */}
-      <section className="border-y border-border-soft bg-[#F5F3EF]">
-        <Container className="grid grid-cols-2 gap-x-4 gap-y-5 py-8 sm:gap-x-6 sm:gap-y-6 sm:py-10 text-center sm:grid-cols-4">
+      <section className="relative border-y border-border-soft bg-[#F5F3EF]">
+        <div className="absolute inset-0 bg-gradient-to-r from-[#F5F3EF] via-[#F2EFE9] to-[#F5F3EF] opacity-100" aria-hidden="true" />
+        <Container className="relative z-10 grid grid-cols-2 gap-x-4 gap-y-5 py-8 sm:gap-x-6 sm:gap-y-6 sm:py-10 text-center sm:grid-cols-4">
           {[
             ["Oregon CCB #254240", "Licensed, Bonded & Insured"],
             ["Family-Owned", "Local Craftsmanship"],
