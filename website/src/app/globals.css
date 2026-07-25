@@ -94,7 +94,12 @@ html {
 }
 
 body {
-  background: var(--color-background);
+  background: 
+    /* Subtle paper grain texture */
+    radial-gradient(ellipse at 20% 30%, rgba(220, 234, 243, 0.03) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, rgba(232, 241, 245, 0.02) 0%, transparent 50%),
+    linear-gradient(180deg, rgba(250, 251, 252, 0.5) 0%, rgba(250, 251, 252, 0.8) 100%),
+    var(--color-background);
   color: var(--color-text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
