@@ -16,10 +16,10 @@ export function CTASection({
     <Section className="relative bg-[#EFECE5]">
       <div className="absolute inset-0 bg-gradient-to-br from-[#EFECE5] via-[#EAE8E0] to-[#E5E2D9] opacity-100" aria-hidden="true" />
       <Container className="relative z-10 flex flex-col items-center text-center">
-        <h2 className="text-3xl font-bold text-text sm:text-4xl">
+        <h2 className="text-3xl font-bold text-[#17324A] sm:text-4xl">
           {typeof title === 'string' ? title : title}
         </h2>
-        <p className="mt-4 max-w-2xl text-lg text-text-muted">{typeof subtitle === 'string' ? subtitle : subtitle}</p>
+        <p className="mt-4 max-w-2xl text-lg text-[#000000]">{typeof subtitle === 'string' ? subtitle : subtitle}</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
           <Link href="/estimate" className={cn(buttonVariants({ variant: "primary", size: "lg" }))}>
             Start Your Free Estimate
