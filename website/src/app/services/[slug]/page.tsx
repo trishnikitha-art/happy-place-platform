@@ -84,12 +84,12 @@ export default async function ServicePage({ params }: ServicePageProps) {
 
       {/* FEATURED PROJECT */}
       {featuredProject && (
-        <Section>
+        <Section className="bg-deep text-text-on-dark">
           <Container>
             <SectionHeading
-              eyebrow="Featured Project"
-              title={featuredProject.title}
-              description={isPergolas ? "A modern outdoor living space that combines the privacy of custom fencing with the open feel of a steel-framed pergola, creating a durable, comfortable area for relaxing and entertaining." : (featuredProject.story?.outcome || "See our latest work in this service area.")}
+              eyebrow={<span className="text-honey">Featured Project</span>}
+              title={<span className="text-text-on-dark">{featuredProject.title}</span>}
+              description={<span className="text-text-on-dark/90">{isPergolas ? "A modern outdoor living space that combines the privacy of custom fencing with the open feel of a steel-framed pergola, creating a durable, comfortable area for relaxing and entertaining." : (featuredProject.story?.outcome || "See our latest work in this service area.")}</span>}
             />
             <div className="mt-8">
               {featuredProject.media.before && featuredProject.media.after && (
@@ -97,7 +97,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
               )}
               <Link
                 href={`/projects/${featuredProject.slug || featuredProject.id}`}
-                className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-primary hover:text-primary-hover transition-colors"
+                className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-honey hover:text-honey-hover transition-colors"
               >
                 View Full Project →
               </Link>
@@ -107,12 +107,12 @@ export default async function ServicePage({ params }: ServicePageProps) {
       )}
 
       {/* PROJECT GALLERY */}
-      <Section className="bg-surface-muted">
+      <Section className="bg-deep text-text-on-dark">
         <Container>
           <SectionHeading
-            eyebrow="Our Work"
-            title={isPergolas ? "Steel-Framed Covered Privacy Courtyard Projects" : `${service.name} Projects`}
-            description={isPergolas ? "Browse our completed steel-framed covered privacy courtyard projects across the Mid-Willamette Valley." : `Browse our completed ${service.name.toLowerCase()} projects across the Mid-Willamette Valley.`}
+            eyebrow={<span className="text-honey">Our Work</span>}
+            title={<span className="text-text-on-dark">{isPergolas ? "Steel-Framed Covered Privacy Courtyard Projects" : `${service.name} Projects`}</span>}
+            description={<span className="text-text-on-dark/90">{isPergolas ? "Browse our completed steel-framed covered privacy courtyard projects across the Mid-Willamette Valley." : `Browse our completed ${service.name.toLowerCase()} projects across the Mid-Willamette Valley.`}</span>}
           />
           <div className="mt-8">
             {serviceGallery.projects.length > 0 ? (
@@ -148,7 +148,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
             <div className="mt-8 text-center">
               <Link
                 href="/our-work"
-                className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary-hover transition-colors"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-honey hover:text-honey-hover transition-colors"
               >
                 View All Projects →
               </Link>
@@ -159,12 +159,12 @@ export default async function ServicePage({ params }: ServicePageProps) {
 
       {/* RELATED SERVICES */}
       {relatedServices.length > 0 && (
-        <Section>
+        <Section className="bg-deep text-text-on-dark">
           <Container>
             <SectionHeading
-              eyebrow="Other Services"
-              title="Explore More"
-              description="We offer a full range of carpentry services for your home."
+              eyebrow={<span className="text-honey">Other Services</span>}
+              title={<span className="text-text-on-dark">Explore More</span>}
+              description={<span className="text-text-on-dark/90">We offer a full range of carpentry services for your home.</span>}
             />
             <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {relatedServices.map((s) => (
