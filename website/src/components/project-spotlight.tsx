@@ -38,18 +38,23 @@ export function ProjectSpotlight({
     .map(id => getMediaById(id))
     .filter(m => m !== null && (m.variants?.web || m.variants?.original));
 
-  // Surface-aware text colors
+  // Surface-aware text colors for non-card elements
+  // Cards (CraftCard) always use light register regardless of page background
   const headingColor = tone === "dark" ? "text-text-on-dark" : "text-text";
   const bodyColor = tone === "dark" ? "text-text-on-dark/90" : "text-text-muted";
   const labelColor = tone === "dark" ? "text-text-on-dark/70" : "text-accent";
   const dtColor = tone === "dark" ? "text-text-on-dark" : "text-text";
+  
+  // Card text colors - always light register (cards are always light surfaces)
+  const cardHeadingColor = "text-text";
+  const cardBodyColor = "text-text-muted";
 
   if (variant === "feature") {
     if (!heroSrc) return null;
     return (
       <Section className="bg-surface-muted">
         <Container className="grid items-center gap-10 lg:grid-cols-2">
-          <CraftCard className="group relative overflow-hidden" tone={tone}>
+          <CraftCard className="group relative overflow-hidden">
             <Image
               src={heroSrc}
               alt={heroAlt}
@@ -105,11 +110,11 @@ export function ProjectSpotlight({
               {project.story?.outcome && <StoryBlock icon={<CheckCircle2 className="h-5 w-5" />} title="The outcome" body={project.story.outcome} />}
             </div>
             <aside>
-              <CraftCard className="p-6" tone={tone}>
-                <h3 className={`flex items-center gap-2 font-bold ${headingColor}`}>
+              <CraftCard className="p-6">
+                <h3 className={`flex items-center gap-2 font-bold ${cardHeadingColor}`}>
                   <Package className="h-5 w-5 text-accent" /> Materials
                 </h3>
-                <ul className={`mt-3 space-y-2 text-sm ${bodyColor}`}>
+                <ul className={`mt-3 space-y-2 text-sm ${cardBodyColor}`}>
                   {project.materials?.primary && (
                     <li className="flex items-start gap-2">
                       <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
@@ -158,11 +163,11 @@ export function ProjectSpotlight({
             {project.story?.solution && <StoryBlock icon={<Lightbulb className="h-5 w-5" />} title="The plan" body={project.story.solution} />}
           </div>
           <aside>
-            <CraftCard className="p-6" tone={tone}>
-              <h3 className={`flex items-center gap-2 font-bold ${headingColor}`}>
+            <CraftCard className="p-6">
+              <h3 className={`flex items-center gap-2 font-bold ${cardHeadingColor}`}>
                 <Package className="h-5 w-5 text-accent" /> Materials
               </h3>
-              <ul className={`mt-3 space-y-2 text-sm ${bodyColor}`}>
+              <ul className={`mt-3 space-y-2 text-sm ${cardBodyColor}`}>
                 {project.materials?.primary && (
                   <li className="flex items-start gap-2">
                     <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
@@ -213,11 +218,11 @@ export function ProjectSpotlight({
 function StoryBlock({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
   return (
     <div>
-      <h2 className="flex items-center gap-2 text-2xl font-bold text-[#000000]">
+      <h2 className="flex items-center gap-2 text-2xl font-bold text-text">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-accent">{icon}</span>
         {title}
       </h2>
-      <p className="mt-3 text-lg leading-relaxed text-[#000000]">{body}</p>
+      <p className="mt-3 text-lg leading-relaxed text-text-muted">{body}</p>
     </div>
   );
 }

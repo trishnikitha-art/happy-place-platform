@@ -60,15 +60,15 @@ export default function ServicesPage() {
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-accent">
                     <Icon name="hammer" className="h-5 w-5" />
                   </span>
-                  <h2 className="text-2xl font-bold text-white sm:text-text">{category}</h2>
+                  <h2 className="text-2xl font-bold text-text-on-dark">{category}</h2>
                 </div>
-                <p className="mb-6 mt-2 max-w-2xl text-white sm:text-text-muted">
+                <p className="mb-6 mt-2 max-w-2xl text-text-on-dark/90">
                   {categoryServices[0]?.description || 'Professional carpentry services'}
                 </p>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   {categoryServices.map((s) => (
                     <Link key={s.id} href={`/services/${s.slug}`}>
-                      <ServiceCard service={s} tone="dark" />
+                      <ServiceCard service={s} />
                     </Link>
                   ))}
                 </div>

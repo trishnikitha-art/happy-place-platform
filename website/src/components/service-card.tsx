@@ -16,20 +16,21 @@ import { getFeaturedServiceMedia } from "@/lib/media";
  * Displays the hero image of the highest-ranked project for that service.
  * Falls back to intentional empty state when no images exist for that service.
  * 
- * Surface-aware: accepts tone prop to adapt colors for light/dark backgrounds.
+ * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
+ * Card text always uses light register tokens regardless of page background.
  */
-export function ServiceCard({ service, tone = "light" }: { service: Service; tone?: "light" | "dark" }) {
+export function ServiceCard({ service }: { service: Service }) {
   const featuredMedia = getFeaturedServiceMedia(service.slug);
   const hasImage = featuredMedia !== null;
   const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.original) : null;
 
-  // Surface-aware text colors
-  const headingColor = tone === "dark" ? "text-text-on-dark" : "text-primary";
-  const bodyColor = tone === "dark" ? "text-text-on-dark/90" : "text-text";
-  const linkColor = tone === "dark" ? "text-text-on-dark font-semibold hover:text-white" : "text-primary hover:underline";
+  // Card text colors - always light register (cards are always light surfaces)
+  const headingColor = "text-primary";
+  const bodyColor = "text-text";
+  const linkColor = "text-primary hover:underline";
 
   return (
-    <CraftCard className="group flex flex-col overflow-hidden" tone={tone}>
+    <CraftCard className="group flex flex-col overflow-hidden">
       <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
         {hasImage && imageSrc ? (
           <>

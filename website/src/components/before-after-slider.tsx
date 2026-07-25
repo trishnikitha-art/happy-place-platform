@@ -34,16 +34,15 @@ export interface BeforeAfterPair {
  * Automatically hides if before or after media is missing.
  * Keyboard + reduced-motion accessible.
  * 
- * Surface-aware: accepts tone prop to adapt colors for light/dark backgrounds.
+ * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
+ * Card text always uses light register tokens regardless of page background.
  */
 export function BeforeAfterSlider({
   project,
   className,
-  tone = "light",
 }: {
   project: Project;
   className?: string;
-  tone?: "light" | "dark";
 }) {
   // Check if project has both before and after media
   if (!project.media.before || !project.media.after) {
@@ -89,12 +88,12 @@ export function BeforeAfterSlider({
   const beforeSrc = beforeMedia.variants.original || beforeMedia.variants.webp || beforeMedia.variants.avif;
   const afterSrc = afterMedia.variants.original || afterMedia.variants.webp || afterMedia.variants.avif;
 
-  // Surface-aware text colors
-  const titleColor = tone === "dark" ? "text-text-on-dark" : "text-text";
-  const subtitleColor = tone === "dark" ? "text-text-on-dark/70" : "text-text-subtle";
+  // Card text colors - always light register (cards are always light surfaces)
+  const titleColor = "text-text";
+  const subtitleColor = "text-text-subtle";
 
   return (
-    <CraftCard className={cn("group relative select-none overflow-hidden", className)} tone={tone}>
+    <CraftCard className={cn("group relative select-none overflow-hidden", className)}>
       <div
         ref={containerRef}
         className="relative aspect-[4/3] w-full"

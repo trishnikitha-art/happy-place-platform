@@ -8,7 +8,6 @@ import { getMediaById } from "@/lib/media";
 
 interface ReviewCardProps {
   review: Review;
-  tone?: "light" | "dark";
 }
 
 /**
@@ -31,9 +30,10 @@ interface ReviewCardProps {
  * - Project association (link to project)
  * - Photos (review images)
  * 
- * Surface-aware: accepts tone prop to adapt colors for light/dark backgrounds.
+ * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
+ * Card text always uses light register tokens regardless of page background.
  */
-export function ReviewCard({ review, tone = "light" }: ReviewCardProps) {
+export function ReviewCard({ review }: ReviewCardProps) {
   // Review Authority: Reviews should only reference projectId, never image IDs
   // The UI automatically displays hero image, gallery, location, project page, before/after
   // from Project Authority via Media Authority
@@ -47,22 +47,22 @@ export function ReviewCard({ review, tone = "light" }: ReviewCardProps) {
   const isRejected = review.status === "rejected";
   const isVerified = review.verified || review.externalSource === "google" || review.externalSource === "yelp";
 
-  // Surface-aware text colors
-  const headingColor = tone === "dark" ? "text-text-on-dark" : "text-primary";
-  const bodyColor = tone === "dark" ? "text-text-on-dark/90" : "text-text";
-  const mutedColor = tone === "dark" ? "text-text-on-dark/70" : "text-text-muted";
-  const avatarBg = tone === "dark" ? "bg-text-on-dark/20" : "bg-primary/15";
-  const avatarText = tone === "dark" ? "text-text-on-dark" : "text-primary";
-  const badgeBg = tone === "dark" ? "bg-text-on-dark/20" : "bg-primary/10";
-  const badgeText = tone === "dark" ? "text-text-on-dark" : "text-primary";
-  const borderColor = tone === "dark" ? "border-text-on-dark/30" : "border-border/40";
-  const responseBg = tone === "dark" ? "bg-text-on-dark/10" : "bg-surface-muted";
-  const responseBorder = tone === "dark" ? "border-text-on-dark/40" : "border-primary";
-  const responseLabel = tone === "dark" ? "text-text-on-dark" : "text-primary";
-  const linkColor = tone === "dark" ? "text-text-on-dark hover:text-white" : "text-primary hover:underline";
+  // Card text colors - always light register (cards are always light surfaces)
+  const headingColor = "text-primary";
+  const bodyColor = "text-text";
+  const mutedColor = "text-text-muted";
+  const avatarBg = "bg-primary/15";
+  const avatarText = "text-primary";
+  const badgeBg = "bg-primary/10";
+  const badgeText = "text-primary";
+  const borderColor = "border-border/40";
+  const responseBg = "bg-surface-muted";
+  const responseBorder = "border-primary";
+  const responseLabel = "text-primary";
+  const linkColor = "text-primary hover:underline";
 
   return (
-    <CraftCard className="flex flex-col p-5 sm:p-6" tone={tone}>
+    <CraftCard className="flex flex-col p-5 sm:p-6">
       {/* Header: Rating + Status Badges */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
