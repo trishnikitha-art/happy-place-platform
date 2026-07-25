@@ -415,7 +415,7 @@ export function EstimateWizard() {
             </p>
             
             {/* Desktop file upload */}
-            <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-text-on-dark/70 hover:border-primary">
+            <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-black sm:text-text-on-dark/70 hover:border-primary">
               <Upload className="h-8 w-8" />
               <span className="text-sm font-medium">Upload photos</span>
               <input
@@ -451,7 +451,7 @@ export function EstimateWizard() {
             </label>
             
             {/* Mobile camera capture */}
-            <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-text-on-dark/70 hover:border-primary">
+            <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-black sm:text-text-on-dark/70 hover:border-primary">
               <Upload className="h-8 w-8" />
               <span className="text-sm font-medium">Take a photo</span>
               <input
