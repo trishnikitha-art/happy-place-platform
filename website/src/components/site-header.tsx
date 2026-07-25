@@ -12,6 +12,31 @@ import { buttonVariants } from "@/components/ui/button";
 import { CedarCorner } from "@/components/cedar-corner";
 import { ThemeToggle } from "@/components/theme-toggle";
 
+function NavShimmer({ children, className }: { children: React.ReactNode; className?: string }) {
+  const [isHovered, setIsHovered] = React.useState(false);
+
+  return (
+    <span
+      className={cn("relative inline-block", className)}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+    >
+      <span className="relative z-10">{children}</span>
+      <span
+        className={cn(
+          "absolute inset-0 z-20 pointer-events-none opacity-0",
+          isHovered ? "animate-shimmer-fast" : "animate-shimmer-slow"
+        )}
+        style={{
+          background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)',
+          backgroundSize: '200% 100%',
+          mixBlendMode: 'overlay',
+        }}
+      />
+    </span>
+  );
+}
+
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
@@ -54,7 +79,7 @@ export function SiteHeader() {
                 isActive(item.href) ? "text-primary" : "text-text hover:text-text hover:bg-surface/50 rounded-md"
               )}
             >
-              {item.label}
+              {isActive(item.href) ? <NavShimmer>{item.label}</NavShimmer> : item.label}
             </Link>
           ))}
         </nav>
@@ -96,7 +121,7 @@ export function SiteHeader() {
                   isActive(item.href) ? "bg-primary/10 text-primary" : "text-text hover:bg-white/50"
                 )}
               >
-                {item.label}
+                {isActive(item.href) ? <NavShimmer>{item.label}</NavShimmer> : item.label}
               </Link>
             ))}
             <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between">
