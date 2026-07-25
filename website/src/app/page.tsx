@@ -65,7 +65,7 @@ export default function HomePage() {
         <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20">
           <div className="max-w-3xl">
             <p className="font-signature text-xl sm:text-2xl text-text-on-dark tracking-wide">
-              <HappyBrandSignature /> Place Carpentry
+              <HappyBrandSignature className="inline-block" /> Place Carpentry
             </p>
             <h1 className="mt-4 sm:mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] sm:leading-[1.05] tracking-tight tracking-display text-text-on-dark">
               Your favorite part of coming home should be the home itself.
