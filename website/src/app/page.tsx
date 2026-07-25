@@ -218,7 +218,7 @@ export default function HomePage() {
             <>
               <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-3">
                 {topReviews.map((r) => (
-                  <figure key={r.id} className="float-card bg-surface p-5 sm:p-6 transition-all duration-300 hover:-translate-y-1 hover:shadow-float">
+                  <figure key={r.id} className="bg-white p-5 sm:p-6 transition-all duration-300 hover:-translate-y-1 shadow-[0_2px_8px_-2px_rgba(23,50,74,0.08),0_1px_3px_-1px_rgba(23,50,74,0.06)] hover:shadow-[0_4px_16px_-4px_rgba(23,50,74,0.12),0_2px_6px_-2px_rgba(23,50,74,0.08)] border border-border/60 rounded-card">
                     <StarRating rating={r.rating} />
                     {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
                     <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>

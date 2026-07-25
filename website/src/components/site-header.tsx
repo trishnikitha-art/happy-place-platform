@@ -49,8 +49,8 @@ export function SiteHeader() {
               href={item.href}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "whitespace-nowrap px-3.5 py-2.5 text-[13px] font-medium tracking-wide transition-colors",
-                isActive(item.href) ? "text-primary" : "text-text-muted hover:text-text"
+                "whitespace-nowrap px-3.5 py-2.5 text-[13px] font-medium tracking-wide transition-all duration-200",
+                isActive(item.href) ? "text-primary" : "text-text-muted hover:text-text hover:bg-surface/50 rounded-md"
               )}
             >
               {item.label}
