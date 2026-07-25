@@ -45,11 +45,11 @@
   --color-deep-2: #243746;           /* blue charcoal for dark sections */
 
   /* Text */
-  --color-text: #000000;             /* pure black */
-  --color-text-muted: #000000;       /* secondary */
-  --color-text-subtle: #000000;      /* captions/meta */
+  --color-text: #111827;             /* near-black */
+  --color-text-muted: #374151;       /* secondary */
+  --color-text-subtle: #4A4F58;      /* captions/meta */
   --color-text-on-dark: #FAFBFC;     /* text on dark backgrounds */
-  --color-text-dark: #000000;        /* pure black for body text on warm backgrounds */
+  --color-text-dark: #000000;        /* near-black for body text on warm backgrounds */
 
   /* Feedback */
   --color-success: #2E5A4F;
