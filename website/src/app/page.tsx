@@ -143,7 +143,7 @@ export default function HomePage() {
           </div>
           {otherServices.length > 0 && (
             <div className="mt-8 sm:mt-10">
-              <h3 className="font-display text-xl sm:text-2xl font-bold text-text mb-4 sm:mb-6">Other ways we can help</h3>
+              <h3 className="font-display text-xl sm:text-2xl font-bold text-[#17324A] mb-4 sm:mb-6">Other ways we can help</h3>
               <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
                 {otherServices.map((s) => (
                   <ServiceCard key={s.id} service={s} />
@@ -189,17 +189,17 @@ export default function HomePage() {
         <Container className="relative z-10 grid items-center gap-12 lg:grid-cols-2">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-accent">Built by one family. Trusted by many more.</p>
-            <h2 className="mt-3 font-display text-4xl font-bold leading-tight text-text sm:text-5xl">
+            <h2 className="mt-3 font-display text-4xl font-bold leading-tight text-[#17324A] sm:text-5xl">
               A family business built on doing things the right way.
             </h2>
-            <div className="measure mt-7 space-y-5 text-text-muted">
+            <div className="measure mt-7 space-y-5 text-[#000000]">
               <p className="text-lg leading-relaxed">
                 Great work starts long before the first board is cut.</p>
               <p>
-                <span className="font-semibold text-text">{taylor.name}</span> — Taylor approaches every project with one goal: build something he'll still be proud to drive past years from now.
+                <span className="font-semibold text-[#17324A]">{taylor.name}</span> — Taylor approaches every project with one goal: build something he'll still be proud to drive past years from now.
               </p>
               <p>
-                <span className="font-semibold text-text">{lanie.name}</span> — Lanie keeps every project moving—from your first estimate to the final walkthrough—so you always know what's happening next.
+                <span className="font-semibold text-[#17324A]">{lanie.name}</span> — Lanie keeps every project moving—from your first estimate to the final walkthrough—so you always know what's happening next.
               </p>
             </div>
           </div>

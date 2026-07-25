@@ -47,7 +47,7 @@
   /* Text */
   --color-text: #111827;             /* near-black */
   --color-text-muted: #374151;       /* secondary */
-  --color-text-subtle: #6B7280;      /* captions/meta */
+  --color-text-subtle: #4A4F58;      /* captions/meta */
   --color-text-on-dark: #FAFBFC;     /* text on dark backgrounds */
   --color-text-dark: #000000;        /* near-black for body text on warm backgrounds */
 

@@ -62,7 +62,7 @@ export default function ServicesPage() {
                   </span>
                   <h2 className="text-2xl font-bold text-text-on-dark">{category}</h2>
                 </div>
-                <p className="mb-6 mt-2 max-w-2xl text-text-on-dark/80">
+                <p className="mb-6 mt-2 max-w-2xl text-text-on-dark">
                   {categoryServices[0]?.description || 'Professional carpentry services'}
                 </p>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">

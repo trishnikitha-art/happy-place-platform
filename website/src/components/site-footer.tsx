@@ -20,61 +20,61 @@ export function SiteFooter() {
             <span className="relative block h-8 w-auto">
               <Image src="/brand/logo.png" alt="Happy Place Carpentry logo" width={96} height={32} className="h-full w-auto" />
             </span>
-            <span className="text-lg font-signature"><HappyBrandSignature className="text-honey/90" /> Place</span>
+            <span className="text-lg"><HappyBrandSignature /> Place</span>
           </Link>
-          <p className="mt-3 text-sm text-text-on-dark/70">{company.description}</p>
+          <p className="mt-3 text-sm text-text-on-dark">{company.description}</p>
           <p className="mt-3 text-sm font-semibold text-honey">{company.ccbNumber}</p>
-          <p className="mt-1 text-xs text-text-on-dark/60">
+          <p className="mt-1 text-xs text-text-on-dark">
             {company.proof.insured ? "Licensed · Insured" : "Licensed"} · {company.proof.yearsInBusiness} · {company.proof.projectsCompleted} projects
           </p>
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark/60">Explore</h3>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark">Explore</h3>
           <ul className="mt-3 space-y-2 text-sm">
             {navigation.filter((n) => !n.secondary).map((n) => (
               <li key={n.href}>
-                <Link href={n.href} className="text-text-on-dark/80 hover:text-honey">{n.label}</Link>
+                <Link href={n.href} className="text-text-on-dark hover:text-honey">{n.label}</Link>
               </li>
             ))}
           </ul>
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark/60">About</h3>
-          <p className="mt-3 text-sm text-text-on-dark/70">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark">About</h3>
+          <p className="mt-3 text-sm text-text-on-dark">
             Helping homeowners throughout the Mid-Willamette Valley repair, improve, and enjoy the homes they love.
           </p>
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark/60">Contact</h3>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark">Contact</h3>
           <ul className="mt-3 space-y-3 text-sm">
             <li className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-honey" aria-hidden="true" />
               {company.address.city}, {company.address.region}
             </li>
             <li>
-              <PhoneLink phone={company.phone} className="flex items-center gap-2 text-text-on-dark/80 hover:text-honey">
+              <PhoneLink phone={company.phone} className="flex items-center gap-2 text-text-on-dark hover:text-honey">
                 <Phone className="h-4 w-4 text-honey" aria-hidden="true" /> {company.phoneDisplay}
               </PhoneLink>
             </li>
             <li>
-              <EmailLink email={company.email} className="flex items-center gap-2 text-text-on-dark/80 hover:text-honey">
+              <EmailLink email={company.email} className="flex items-center gap-2 text-text-on-dark hover:text-honey">
                 <Mail className="h-4 w-4 text-honey" aria-hidden="true" /> {company.email}
               </EmailLink>
             </li>
-            <li className="text-text-on-dark/60">{company.businessHours}</li>
-            <li className="text-xs text-text-on-dark/50">{taylor.name} &amp; {lanie.name} · {company.serviceArea}</li>
+            <li className="text-text-on-dark">{company.businessHours}</li>
+            <li className="text-xs text-text-on-dark">{taylor.name} &amp; {lanie.name} · {company.serviceArea}</li>
           </ul>
         </div>
       </div>
 
-      <div className="border-t border-text-on-dark/8 py-4 text-center text-xs text-text-on-dark/50">
+      <div className="border-t border-text-on-dark/8 py-4 text-center text-xs text-text-on-dark">
         {company.proof.estimateResponse}
       </div>
 
-      <div className="border-t border-text-on-dark/8 py-6 text-center text-xs text-text-on-dark/50">
+      <div className="border-t border-text-on-dark/8 py-6 text-center text-xs text-text-on-dark">
         © {new Date().getFullYear()} {company.legalName}. Helping homeowners throughout the Mid-Willamette Valley repair, improve, and enjoy the homes they love.
       </div>
     </footer>

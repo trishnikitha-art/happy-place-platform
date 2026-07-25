@@ -29,7 +29,7 @@ export default function ContactPage() {
               title="Let's talk about your project"
               description="The quickest way to get started is the Estimate Wizard. If you'd rather talk first, give us a call, send a text, or email us—whatever's easiest."
             />
-            <dl className="mt-8 space-y-4 text-text-on-dark/80">
+            <dl className="mt-8 space-y-4 text-text-on-dark">
               <div>
                 <dt className="text-sm font-semibold uppercase text-honey">Phone</dt>
                 <dd><PhoneLink phone={company.phone} className="text-lg font-semibold text-text-on-dark">{company.phoneDisplay}</PhoneLink></dd>
@@ -50,7 +50,7 @@ export default function ContactPage() {
           </div>
           <div className="rounded-2xl border border-border bg-surface-muted p-8">
             <h2 className="text-xl font-bold text-text-on-dark">Start your free estimate</h2>
-            <p className="mt-2 text-text-on-dark/80">
+            <p className="mt-2 text-text-on-dark">
               Pick a service, upload a photo if you have one, and tell us what you're planning. It takes about two minutes.
             </p>
             <a

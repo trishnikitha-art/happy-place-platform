@@ -41,21 +41,21 @@ export default function ReviewsPage() {
                 <StarRating rating={5} /> {stats.averageRating} / 5 average
               </span>
             )}
-            <span className="text-text-on-dark/80">{company.ccbNumber} · Licensed &amp; Insured</span>
-            <span className="text-text-on-dark/80">Serving Benton, Linn, Marion &amp; Polk since 2024</span>
+            <span className="text-text-on-dark">{company.ccbNumber} · Licensed &amp; Insured</span>
+            <span className="text-text-on-dark">Serving Benton, Linn, Marion &amp; Polk since 2024</span>
           </div>
 
           {hasReviews && <ReviewsFilterClient />}
 
           {!hasReviews && (
             <div className="mt-10 rounded-lg bg-surface-muted p-8 text-center">
-              <p className="text-text-on-dark/80">
+              <p className="text-text-on-dark">
                 We are building our review portfolio. In the meantime, ask us for references in your neighborhood.
               </p>
             </div>
           )}
 
-          <p className="mt-10 text-center text-sm text-text-on-dark/80">
+          <p className="mt-10 text-center text-sm text-text-on-dark">
             {hasReviews ? "Reviews shown are a sample of our recent work. Ask us for references in your neighborhood." : "We take pride in our work and would be happy to connect you with past clients."}
           </p>
         </Container>
