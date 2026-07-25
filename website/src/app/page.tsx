@@ -83,7 +83,7 @@ export default function HomePage() {
                 See Our Work
               </Link>
             </div>
-            <div className="mt-6 sm:mt-9 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-text-on-dark/75">
+            <div className="mt-6 sm:mt-9 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-text-on-dark/90">
               {hasReviews && (
                 <span className="inline-flex items-center gap-2">
                   <StarRating rating={5} />

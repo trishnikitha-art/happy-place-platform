@@ -21,7 +21,7 @@ export function BeforeAfterCard({ pair, beforeMedia, afterMedia }: { pair: Befor
         />
         <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-deep/90 to-transparent p-4 pt-12">
           <p className="font-display text-lg font-bold text-text-on-dark">{pair.title || "Before & After"}</p>
-          <p className="text-xs text-text-on-dark/70">{pair.service}</p>
+          <p className="text-xs text-text-on-dark/90">{pair.service}</p>
         </div>
         <span className="absolute left-3 top-3 rounded-full bg-deep/80 px-3 py-1 text-xs font-semibold text-text-on-dark backdrop-blur-sm">
           Before → After
