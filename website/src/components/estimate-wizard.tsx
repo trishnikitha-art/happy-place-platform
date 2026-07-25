@@ -257,8 +257,8 @@ export function EstimateWizard() {
       {/* Draft Recovery Modal */}
       {showDraftRecovery && (
         <div className="mb-6 rounded-xl border border-primary/50 bg-primary/5 p-6">
-          <h3 className="text-lg font-semibold text-text-muted">We found an unfinished project</h3>
-          <p className="mt-2 text-sm text-text-muted">
+          <h3 className="text-lg font-semibold text-primary">We found an unfinished project</h3>
+          <p className="mt-2 text-sm text-primary">
             Would you like to continue where you left off, or start fresh?
           </p>
           <div className="mt-4 flex gap-3">
@@ -287,7 +287,7 @@ export function EstimateWizard() {
             key={s}
             className={cn(
               "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold",
-              i === step ? "bg-primary text-white" : i < step ? "bg-accent/10 text-accent" : "bg-surface-muted text-text-muted"
+              i === step ? "bg-primary text-white" : i < step ? "bg-accent/10 text-accent" : "bg-surface-muted text-text-subtle"
             )}
           >
             {i < step && <Check className="h-3 w-3" />}
