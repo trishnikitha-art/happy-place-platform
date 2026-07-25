@@ -4,16 +4,17 @@ import * as React from "react";
 
 interface HappyBrandSignatureProps {
   className?: string;
+  autoPlay?: boolean;
 }
 
-export function HappyBrandSignature({ className }: HappyBrandSignatureProps) {
+export function HappyBrandSignature({ className, autoPlay = false }: HappyBrandSignatureProps) {
   const [isHovered, setIsHovered] = React.useState(false);
 
   return (
     <span
       className={`relative inline-block ${className}`}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
+      onMouseEnter={() => !autoPlay && setIsHovered(true)}
+      onMouseLeave={() => !autoPlay && setIsHovered(false)}
     >
       {/* Base gold text with layered gradients */}
       <span
@@ -22,10 +23,10 @@ export function HappyBrandSignature({ className }: HappyBrandSignatureProps) {
           bg-gradient-to-br from-[#A67C00] via-[#D99A4E] via-[#E7AD63] to-[#F0C070]
           bg-clip-text text-transparent
           transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]
-          ${isHovered ? 'scale-[1.01]' : 'scale-100'}
+          ${!autoPlay && isHovered ? 'scale-[1.01]' : 'scale-100'}
         `}
         style={{
-          filter: isHovered ? 'brightness(1.08) saturate(1.1)' : 'brightness(1) saturate(1)',
+          filter: !autoPlay && isHovered ? 'brightness(1.08) saturate(1.1)' : 'brightness(1) saturate(1)',
         }}
       >
         Happy
@@ -37,7 +38,7 @@ export function HappyBrandSignature({ className }: HappyBrandSignatureProps) {
           absolute inset-0 z-20 bg-gradient-to-r from-transparent via-white/15 via-white/10 to-transparent
           bg-clip-text text-transparent
           pointer-events-none
-          ${isHovered ? 'animate-shimmer-fast' : 'animate-shimmer-slow'}
+          ${autoPlay ? 'animate-shimmer-slow' : (isHovered ? 'animate-shimmer-fast' : 'animate-shimmer-slow')}
         `}
         style={{
           backgroundSize: '200% 100%',
