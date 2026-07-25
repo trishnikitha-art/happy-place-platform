@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { buttonVariants } from "@/components/ui/button";
 import { CedarCorner } from "@/components/cedar-corner";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { HappyBrandSignature } from "@/components/happy-brand-signature";
 
 function NavShimmer({ children, className }: { children: React.ReactNode; className?: string }) {
   const [isHovered, setIsHovered] = React.useState(false);
@@ -28,7 +29,7 @@ function NavShimmer({ children, className }: { children: React.ReactNode; classN
           isHovered ? "animate-shimmer-fast" : "animate-shimmer-slow"
         )}
         style={{
-          background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)',
+          background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%)',
           backgroundSize: '200% 100%',
           mixBlendMode: 'overlay',
         }}
@@ -63,7 +64,7 @@ export function SiteHeader() {
             <CedarCorner className="absolute -left-1 -top-1 h-3 w-3 text-honey" />
           </span>
           <span className="flex flex-col leading-none">
-            <span className="font-display text-xl font-bold tracking-tight text-text">Happy Place</span>
+            <span className="font-display text-xl font-bold tracking-tight text-text"><HappyBrandSignature /> Place</span>
             <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-text-subtle">Carpentry</span>
           </span>
         </Link>
