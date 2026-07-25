@@ -29,9 +29,9 @@ export default function ReviewsPage() {
           </div>
           <SectionHeading
             eyebrow={<span className="text-honey">Reviews</span>}
-            title="Helping neighbors find their happy place"
+            title={<span className="text-text-on-dark">Helping neighbors find their happy place</span>}
             align="center"
-            description={hasReviews ? `${stats.averageRating} / 5 across ${stats.total} featured reviews from homeowners across the Willamette Valley.` : "Google reviews coming soon. Ask us for references in your neighborhood."}
+            description={<span className="text-text-on-dark/90">{hasReviews ? `${stats.averageRating} / 5 across ${stats.total} featured reviews from homeowners across the Willamette Valley.` : "Google reviews coming soon. Ask us for references in your neighborhood."}</span>}
           />
 
           {/* trust emphasis — license + rating, not just stars */}

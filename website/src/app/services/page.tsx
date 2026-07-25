@@ -50,8 +50,8 @@ export default function ServicesPage() {
         <Container>
           <SectionHeading
             eyebrow={<span className="text-honey">Services</span>}
-            title="Carpentry for your whole home"
-            description="Every service has its own estimate questions, so your quote is built around exactly what you need."
+            title={<span className="text-text-on-dark">Carpentry for your whole home</span>}
+            description={<span className="text-text-on-dark/90">Every service has its own estimate questions, so your quote is built around exactly what you need.</span>}
           />
           <div className="mt-10 space-y-14">
             {Object.entries(groupedServices).map(([category, categoryServices]) => (

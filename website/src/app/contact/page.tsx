@@ -26,8 +26,8 @@ export default function ContactPage() {
             </div>
             <SectionHeading
               eyebrow={<span className="text-honey">Contact</span>}
-              title="Let's talk about your project"
-              description="The quickest way to get started is the Estimate Wizard. If you'd rather talk first, give us a call, send a text, or email us—whatever's easiest."
+              title={<span className="text-text-on-dark">Let's talk about your project</span>}
+              description={<span className="text-text-on-dark/90">The quickest way to get started is the Estimate Wizard. If you'd rather talk first, give us a call, send a text, or email us—whatever's easiest.</span>}
             />
             <dl className="mt-8 space-y-4 text-text-on-dark">
               <div>

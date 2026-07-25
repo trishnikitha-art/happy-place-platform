@@ -25,8 +25,8 @@ export default function EstimatePage() {
         </div>
         <SectionHeading
           eyebrow={<span className="text-honey">Free estimate</span>}
-          title="Let's scope your project"
-          description="About two minutes. Your details go straight to our inbox — no account, no spam."
+          title={<span className="text-text-on-dark">Let's scope your project</span>}
+          description={<span className="text-text-on-dark/90">About two minutes. Your details go straight to our inbox — no account, no spam.</span>}
         />
         <div className="mt-8">
           <Suspense fallback={<div className="h-64 animate-pulse rounded-2xl border border-border bg-surface" />}>

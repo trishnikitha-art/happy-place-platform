@@ -44,9 +44,9 @@ export default function OurWorkPage() {
       <Section className="bg-deep">
         <Container>
           <SectionHeading
-            eyebrow="Featured transformations"
-            title="Start to finish"
-            description="Real projects, real craftsmanship — the moments that turn a house into a happy place."
+            eyebrow={<span className="text-honey">Featured transformations</span>}
+            title={<span className="text-text-on-dark">Start to finish</span>}
+            description={<span className="text-text-on-dark/90">Real projects, real craftsmanship — the moments that turn a house into a happy place.</span>}
           />
           <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
             {featuredProjects.slice(0, 4).map((project, i) => (
@@ -63,8 +63,8 @@ export default function OurWorkPage() {
         <Container>
           <SectionHeading
             eyebrow={<span className="text-honey">Recent projects</span>}
-            title="The story behind the work"
-            description="Real challenges, real solutions. Tap a project for the full story."
+            title={<span className="text-text-on-dark">The story behind the work</span>}
+            description={<span className="text-text-on-dark/90">Real challenges, real solutions. Tap a project for the full story.</span>}
           />
           <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
             {allProjects.map((project, i) => {
@@ -112,8 +112,8 @@ export default function OurWorkPage() {
         <Container>
           <SectionHeading
             eyebrow={<span className="text-honey">Browse all work</span>}
-            title="The complete archive"
-            description="Every project, every detail. Future projects simply append here."
+            title={<span className="text-text-on-dark">The complete archive</span>}
+            description={<span className="text-text-on-dark/90">Every project, every detail. Future projects simply append here.</span>}
           />
           <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
             {allProjects.map((project) => {
