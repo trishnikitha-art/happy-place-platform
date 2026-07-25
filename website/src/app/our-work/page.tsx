@@ -76,7 +76,7 @@ export default function OurWorkPage() {
                 <Reveal key={project.id} delay={i * 80}>
                   <Link
                     href={`/projects/${project.slug || project.id}`}
-                    className="group block overflow-hidden rounded-card border border-border bg-[#17324A] sm:bg-surface shadow-sm transition-shadow hover:shadow-lg"
+                    className="group block overflow-hidden rounded-card border border-border bg-[#E8F1F5] sm:bg-surface shadow-sm transition-shadow hover:shadow-lg"
                   >
                     <div className="relative aspect-[16/9]">
                       <Image

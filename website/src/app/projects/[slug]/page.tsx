@@ -56,8 +56,8 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
         <Container>
           <SectionHeading
             eyebrow={<span className="text-honey">Project Photos</span>}
-            title={<span className="text-text">Project Gallery</span>}
-            description={<span className="text-text/90">Photos from this project</span>}
+            title={<span className="text-[#000000]">Project Gallery</span>}
+            description={<span className="text-[#000000]">Photos from this project</span>}
           />
           <div className="mt-8">
             <ProjectPhotos photos={photos} />
