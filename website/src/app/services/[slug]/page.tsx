@@ -64,12 +64,12 @@ export default async function ServicePage({ params }: ServicePageProps) {
   return (
     <>
       {/* HERO SECTION */}
-      <Section className="bg-surface-muted">
+      <Section className="bg-deep text-text-on-dark">
         <Container>
           <SectionHeading
-            eyebrow={service.name}
-            title={isPergolas ? "Steel-Framed Covered Privacy Courtyards" : service.name}
-            description={service.description}
+            eyebrow={<span className="text-honey">{service.name}</span>}
+            title={<span className="text-text-on-dark">{isPergolas ? "Steel-Framed Covered Privacy Courtyards" : service.name}</span>}
+            description={<span className="text-text-on-dark/90">{service.description}</span>}
           />
           <div className="mt-8">
             <Link
@@ -97,7 +97,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
               )}
               <Link
                 href={`/projects/${featuredProject.slug || featuredProject.id}`}
-                className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-amber-600 hover:text-amber-700 transition-colors"
+                className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-primary hover:text-primary-hover transition-colors"
               >
                 View Full Project →
               </Link>
@@ -148,7 +148,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
             <div className="mt-8 text-center">
               <Link
                 href="/our-work"
-                className="inline-flex items-center gap-2 text-sm font-semibold text-amber-600 hover:text-amber-700 transition-colors"
+                className="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:text-primary-hover transition-colors"
               >
                 View All Projects →
               </Link>
