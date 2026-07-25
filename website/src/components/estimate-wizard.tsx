@@ -125,9 +125,9 @@ export function EstimateWizard() {
     clearWizardState();
     setShowDraftRecovery(false);
     setDraftState(null);
-    // Reset all state to initial values
-    setStep(stepParam ? ALL_STEPS.indexOf(stepParam as any) : 0);
-    setSelected(prefillService && services.some((s) => s.slug === prefillService) ? [prefillService] : []);
+    // Reset all state to initial values and go to Service step
+    setStep(0);
+    setSelected([]);
     setProjectType("");
     setOtherNeed("");
     setAnswers({});
