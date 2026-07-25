@@ -75,7 +75,7 @@ export default function HomePage() {
               </Link>
               <Link
                 href="/our-work"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-text-on-dark/30 bg-text-on-dark/10 px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold text-text-on-dark transition-colors hover:bg-text-on-dark/20"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-text-on-dark/25 bg-text-on-dark/8 px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold text-text-on-dark transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-text-on-dark/15 hover:border-text-on-dark/35"
               >
                 See Our Work
               </Link>

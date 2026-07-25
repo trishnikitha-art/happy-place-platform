@@ -82,7 +82,7 @@ export function SiteHeader() {
       </div>
 
       {open && (
-        <div id="mobile-menu" className="border-t border-border bg-background md:hidden">
+        <div id="mobile-menu" className="border-t border-border/60 bg-[#F8F6F3] md:hidden">
           <nav className="flex flex-col p-3" aria-label="Mobile">
             {navigation.map((item) => (
               <Link
@@ -90,8 +90,8 @@ export function SiteHeader() {
                 href={item.href}
                 aria-current={isActive(item.href) ? "page" : undefined}
                 className={cn(
-                  "rounded-lg px-3 py-3 text-base font-medium",
-                  isActive(item.href) ? "bg-primary/10 text-primary" : "text-text-muted hover:bg-surface-muted"
+                  "rounded-lg px-3 py-3 text-base font-medium transition-colors duration-200",
+                  isActive(item.href) ? "bg-primary/10 text-primary" : "text-text-muted hover:bg-white/50"
                 )}
               >
                 {item.label}

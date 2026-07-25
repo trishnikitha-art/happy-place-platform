@@ -308,7 +308,7 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 10px;
+  gap: 12px;
   height: 1px;
   background: transparent;
 }
@@ -317,15 +317,17 @@ body {
   content: "";
   height: 1px;
   flex: 1;
-  max-width: 120px;
+  max-width: 140px;
   background: linear-gradient(90deg, transparent, var(--color-accent));
+  opacity: 0.5;
 }
 .craft-rule::after { background: linear-gradient(90deg, var(--color-accent), transparent); }
 .craft-rule > span {
-  width: 6px; height: 6px;
+  width: 5px; height: 5px;
   transform: rotate(45deg);
   background: var(--color-honey);
-  box-shadow: 0 0 0 3px rgba(217, 154, 78, 0.18);
+  box-shadow: 0 0 0 2px rgba(217, 154, 78, 0.12);
+  opacity: 0.7;
 }
 
 /* Section eyebrow tool mark (small carpenter square) */
