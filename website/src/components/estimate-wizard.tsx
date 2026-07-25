@@ -319,18 +319,25 @@ export function EstimateWizard() {
                     className={cn(
                       "relative rounded-xl border p-4 text-left transition-all",
                       active
-                        ? "border-primary bg-primary/10 shadow-sm"
+                        ? "border-primary bg-primary/10 shadow-sm ring-2 ring-primary/50 ring-offset-2"
                         : atCap
                         ? "border-border bg-surface-muted opacity-50 cursor-not-allowed"
                         : "border-border bg-surface hover:border-primary/60",
-                      isTopService && !active && "border-primary/30 bg-surface"
+                      isTopService && !active && "border-primary bg-surface"
                     )}
                   >
-                    <span className="flex items-center justify-between">
+                    {active && (
+                      <span className="absolute inset-0 rounded-xl animate-shimmer-fast" style={{
+                        background: 'linear-gradient(90deg, transparent 0%, rgba(231,173,99,0.3) 50%, transparent 100%)',
+                        backgroundSize: '200% 100%',
+                        mixBlendMode: 'overlay',
+                      }} />
+                    )}
+                    <span className="relative z-10 flex items-center justify-between">
                       <span className="font-semibold text-text">{s.name}</span>
                       {active && <Check className="h-4 w-4 text-primary" />}
                     </span>
-                    <span className="block text-sm text-text-subtle">{s.description}</span>
+                    <span className="relative z-10 block text-sm text-text-subtle">{s.description}</span>
                   </button>
                 );
               })}
@@ -376,13 +383,20 @@ export function EstimateWizard() {
                   type="button"
                   onClick={() => setProjectType(type)}
                   className={cn(
-                    "w-full rounded-xl border p-4 text-left transition-colors",
+                    "relative w-full rounded-xl border p-4 text-left transition-colors",
                     projectType === type
-                      ? "border-primary bg-primary/10"
+                      ? "border-primary bg-primary/10 ring-2 ring-primary/50 ring-offset-2"
                       : "border-border hover:border-primary/60"
                   )}
                 >
-                  <span className="flex items-center justify-between">
+                  {projectType === type && (
+                    <span className="absolute inset-0 rounded-xl animate-shimmer-fast" style={{
+                      background: 'linear-gradient(90deg, transparent 0%, rgba(231,173,99,0.3) 50%, transparent 100%)',
+                      backgroundSize: '200% 100%',
+                      mixBlendMode: 'overlay',
+                    }} />
+                  )}
+                  <span className="relative z-10 flex items-center justify-between">
                     <span className="font-semibold text-text-on-dark">{type}</span>
                     {projectType === type && <Check className="h-4 w-4 text-primary" />}
                   </span>
