@@ -21,7 +21,7 @@ export function ServiceCard({ service }: { service: Service }) {
   const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.original) : null;
 
   return (
-    <Card className="group flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-float">
+    <Card className="group flex flex-col overflow-hidden transition-all duration-300 hover:-translate-y-1 shadow-[0_2px_8px_-2px_rgba(23,50,74,0.08),0_1px_3px_-1px_rgba(23,50,74,0.06)] hover:shadow-[0_4px_16px_-4px_rgba(23,50,74,0.12),0_2px_6px_-2px_rgba(23,50,74,0.08)] border-border/60 bg-white">
       <div className="relative aspect-[4/3] overflow-hidden bg-[#E4DFD4] photo-mounted">
         {hasImage && imageSrc ? (
           <Image
