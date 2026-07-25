@@ -5,6 +5,7 @@ import { Container, Section, SectionHeading } from "@/components/section";
 import { CTASection } from "@/components/cta-section";
 import { Reveal } from "@/components/reveal";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
+import { CraftCard } from "@/components/ui/card";
 import { getAllProjects, getFeaturedProjects } from "@/lib/projects";
 import { getCompany } from "@/lib/company";
 import { PlaceholderSection } from "@/components/placeholder-section";
@@ -76,29 +77,31 @@ export default function OurWorkPage() {
                 <Reveal key={project.id} delay={i * 80}>
                   <Link
                     href={`/projects/${project.slug || project.id}`}
-                    className="group block overflow-hidden rounded-card border border-border bg-[#E8F1F5] sm:bg-surface shadow-sm transition-shadow hover:shadow-lg"
+                    className="group block"
                   >
-                    <div className="relative aspect-[16/9]">
-                      <Image
-                        src={heroSrc}
-                        alt={heroMedia?.alt || project.title}
-                        fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-                        sizes="(max-width: 768px) 100vw, 50vw"
-                      />
-                      <span className="absolute left-4 top-4 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-                        {project.location.county
-                          ? `${project.location.county.charAt(0).toUpperCase()}${project.location.county.slice(1)} County`
-                          : "Project"}
-                      </span>
-                    </div>
-                    <div className="p-6">
-                      <h2 className="text-xl font-bold text-black sm:text-text-on-dark">{project.title}</h2>
-                      <p className="mt-2 line-clamp-2 text-black sm:text-text-on-dark/90">{project.story?.outcome || project.story?.solution || project.title}</p>
-                      <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-honey group-hover:underline">
-                        See the transformation →
-                      </span>
-                    </div>
+                    <CraftCard className="overflow-hidden">
+                      <div className="relative aspect-[16/9]">
+                        <Image
+                          src={heroSrc}
+                          alt={heroMedia?.alt || project.title}
+                          fill
+                          className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                          sizes="(max-width: 768px) 100vw, 50vw"
+                        />
+                        <span className="absolute left-4 top-4 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                          {project.location.county
+                            ? `${project.location.county.charAt(0).toUpperCase()}${project.location.county.slice(1)} County`
+                            : "Project"}
+                        </span>
+                      </div>
+                      <div className="p-6">
+                        <h2 className="text-xl font-bold text-primary sm:text-text-on-dark">{project.title}</h2>
+                        <p className="mt-2 line-clamp-2 text-text sm:text-text-on-dark/90">{project.story?.outcome || project.story?.solution || project.title}</p>
+                        <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-accent group-hover:underline">
+                          See the transformation →
+                        </span>
+                      </div>
+                    </CraftCard>
                   </Link>
                 </Reveal>
               );
@@ -130,18 +133,20 @@ export default function OurWorkPage() {
                   <Link
                     key={`${project.id}-${photoIndex}`}
                     href={`/projects/${project.slug || project.id}`}
-                    className="group relative block aspect-[4/3] overflow-hidden rounded-lg border border-border bg-surface-muted transition-all hover:shadow-lg"
+                    className="group relative block aspect-[4/3] overflow-hidden"
                   >
-                    <img
-                      src={src}
-                      alt={photo!.alt || `${project.title} photo ${photoIndex + 1}`}
-                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                      loading="lazy"
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
-                    <span className="absolute bottom-2 left-2 text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
-                      {project.title}
-                    </span>
+                    <CraftCard className="overflow-hidden">
+                      <img
+                        src={src}
+                        alt={photo!.alt || `${project.title} photo ${photoIndex + 1}`}
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
+                      <span className="absolute bottom-2 left-2 text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
+                        {project.title}
+                      </span>
+                    </CraftCard>
                   </Link>
                 );
               });

@@ -13,10 +13,10 @@ export const metadata: Metadata = {
   alternates: { canonical: "/reviews" },
 };
 
-export default function ReviewsPage() {
+export default async function ReviewsPage() {
   const company = getCompany();
-  const stats = getReviewStats();
-  const hasReviews = stats.total > 0;
+  const stats = await getReviewStats();
+  const hasReviews = stats.count > 0;
 
   return (
     <>
@@ -31,14 +31,25 @@ export default function ReviewsPage() {
             eyebrow={<span className="text-honey">Reviews</span>}
             title={<span className="text-text-on-dark">Helping neighbors find their happy place</span>}
             align="center"
-            description={<span className="text-text-on-dark/90">{hasReviews ? `${stats.averageRating} / 5 across ${stats.total} featured reviews from homeowners across the Willamette Valley.` : "Google reviews coming soon. Ask us for references in your neighborhood."}</span>}
+            description={<span className="text-text-on-dark/90">{hasReviews ? `${stats.average} / 5 across ${stats.count} featured reviews from homeowners across the Willamette Valley.` : "Google reviews coming soon. Ask us for references in your neighborhood."}</span>}
           />
+
+          {/* Leave a Review CTA */}
+          <div className="mt-8 flex justify-center">
+            <a
+              href="/review"
+              className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
+            >
+              <StarRating rating={5} />
+              Leave a Review →
+            </a>
+          </div>
 
           {/* trust emphasis — license + rating, not just stars */}
           <div className="mx-auto mt-6 flex max-w-2xl flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm">
             {hasReviews && (
               <span className="flex items-center gap-2 font-semibold text-primary">
-                <StarRating rating={5} /> {stats.averageRating} / 5 average
+                <StarRating rating={5} /> {stats.average} / 5 average
               </span>
             )}
             <span className="text-text-on-dark">{company.ccbNumber} · Licensed &amp; Insured</span>

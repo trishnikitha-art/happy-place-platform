@@ -3,10 +3,10 @@ import { getMediaManifest } from "@/lib/media";
 import { getFeaturedReviews } from "@/lib/reviews";
 import { getAllServices } from "@/lib/registries";
 
-export default function AuthorityEditorDashboard() {
+export default async function AuthorityEditorDashboard() {
   const projects = getAllProjects();
   const mediaManifest = getMediaManifest();
-  const reviews = getFeaturedReviews();
+  const reviews = await getFeaturedReviews();
   const services = getAllServices();
   
   const stats = {

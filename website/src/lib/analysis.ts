@@ -271,8 +271,8 @@ export function analyzeReviews(manifest: ReviewsManifest): ReviewAnalysis {
     }
 
     // Count by source
-    if (review.source) {
-      analysis.bySource[review.source] = (analysis.bySource[review.source] || 0) + 1;
+    if (review.provider) {
+      analysis.bySource[review.provider] = (analysis.bySource[review.provider] || 0) + 1;
     }
   });
 

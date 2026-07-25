@@ -1,7 +1,7 @@
 import { getFeaturedReviews } from "@/lib/reviews";
 
-export default function AuthorityEditorReviewsPage() {
-  const reviews = getFeaturedReviews();
+export default async function AuthorityEditorReviewsPage() {
+  const reviews = await getFeaturedReviews();
   
   return (
     <div className="space-y-6">

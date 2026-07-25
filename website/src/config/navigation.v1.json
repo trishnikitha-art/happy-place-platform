@@ -23,6 +23,11 @@
       "href": "/reviews"
     },
     {
+      "label": "Leave a Review",
+      "href": "/review",
+      "secondary": true
+    },
+    {
       "label": "Estimate",
       "href": "/estimate",
       "secondary": true

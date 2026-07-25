@@ -4,7 +4,7 @@ import { Wrench, Lightbulb, Package, CheckCircle2 } from "lucide-react";
 import type { Project } from "@/types/projects";
 import { getMediaById } from "@/lib/media";
 import { Container, Section } from "@/components/section";
-import { Badge } from "@/components/ui/card";
+import { Badge, CraftCard } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -39,7 +39,7 @@ export function ProjectSpotlight({
     return (
       <Section className="bg-surface-muted">
         <Container className="grid items-center gap-10 lg:grid-cols-2">
-          <div className="group relative overflow-hidden rounded-xl border border-border/40 shadow-[0_1px_4px_-1px_rgba(23,50,74,0.06),0_0.5px_2px_-0.5px_rgba(23,50,74,0.04)] transition-opacity duration-500">
+          <CraftCard className="group relative overflow-hidden">
             <Image
               src={heroSrc}
               alt={heroAlt}
@@ -50,7 +50,7 @@ export function ProjectSpotlight({
               sizes="(max-width: 1024px) 100vw, 50vw"
             />
             <div className="absolute inset-0 pointer-events-none rounded-xl bg-gradient-to-tr from-black/3 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
-          </div>
+          </CraftCard>
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-accent">Featured project</p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-text sm:text-4xl">{project.title}</h2>
@@ -95,7 +95,7 @@ export function ProjectSpotlight({
               {project.story?.outcome && <StoryBlock icon={<CheckCircle2 className="h-5 w-5" />} title="The outcome" body={project.story.outcome} />}
             </div>
             <aside>
-              <div className="rounded-card border border-border bg-surface p-6">
+              <CraftCard className="p-6">
                 <h3 className="flex items-center gap-2 font-bold text-text">
                   <Package className="h-5 w-5 text-accent" /> Materials
                 </h3>
@@ -113,7 +113,7 @@ export function ProjectSpotlight({
                     </li>
                   ))}
                 </ul>
-              </div>
+              </CraftCard>
             </aside>
           </Container>
         </Section>
@@ -148,7 +148,7 @@ export function ProjectSpotlight({
             {project.story?.solution && <StoryBlock icon={<Lightbulb className="h-5 w-5" />} title="The plan" body={project.story.solution} />}
           </div>
           <aside>
-            <div className="rounded-card border border-border bg-white p-6">
+            <CraftCard className="p-6">
               <h3 className="flex items-center gap-2 font-bold text-text">
                 <Package className="h-5 w-5 text-accent" /> Materials
               </h3>
@@ -166,7 +166,7 @@ export function ProjectSpotlight({
                   </li>
                 ))}
               </ul>
-            </div>
+            </CraftCard>
           </aside>
         </Container>
       </Section>

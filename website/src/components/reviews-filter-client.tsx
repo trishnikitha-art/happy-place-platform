@@ -1,16 +1,34 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getAllReviews, getReviewsByService, type ReviewService } from "@/lib/reviews";
 import { ReviewsFilter } from "@/components/reviews-filter";
 import { StarRating } from "@/components/star-rating";
+import type { Review } from "@/types/reviews";
 
 export function ReviewsFilterClient() {
   const [selectedService, setSelectedService] = useState<ReviewService | "all">("all");
-  const allReviews = getAllReviews();
+  const [allReviews, setAllReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    getAllReviews().then(reviews => {
+      setAllReviews(reviews);
+      setLoading(false);
+    });
+  }, []);
+
   const filteredReviews = selectedService === "all" 
     ? allReviews 
-    : getReviewsByService(selectedService);
+    : allReviews.filter(r => r.service === selectedService);
+
+  if (loading) {
+    return (
+      <div className="mt-10 text-center">
+        <p className="text-text-muted">Loading reviews...</p>
+      </div>
+    );
+  }
 
   return (
     <>
@@ -42,7 +60,7 @@ export function ReviewsFilterClient() {
               <figcaption className="mt-5 border-t border-border-soft pt-4 text-sm">
                 <span className="font-semibold text-text">{r.reviewer.name}</span>
                 {r.location && <span className="text-text-muted"> · {r.location.city}, {r.location.county}</span>}
-                {r.source && <span className="mt-1 block text-xs text-text-muted">via {r.source}</span>}
+                {r.provider && <span className="mt-1 block text-xs text-text-muted">via {r.provider}</span>}
               </figcaption>
             </figure>
           ))}

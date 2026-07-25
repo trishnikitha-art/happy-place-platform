@@ -2,7 +2,8 @@ import Link from "next/link";
 import Image from "next/image";
 import type { Service } from "@/types/registries";
 import { Icon } from "@/components/icon";
-import { Card } from "@/components/ui/card";
+import { CraftCard } from "@/components/ui/card";
+import { PhotoMount } from "@/components/photo-mount";
 import { getFeaturedServiceMedia } from "@/lib/media";
 
 /**
@@ -21,8 +22,8 @@ export function ServiceCard({ service }: { service: Service }) {
   const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.original) : null;
 
   return (
-    <Card className="group flex flex-col overflow-hidden transition-all duration-400 hover:-translate-y-0.5 shadow-[0_1px_4px_-1px_rgba(23,50,74,0.06),0_0.5px_2px_-0.5px_rgba(23,50,74,0.04)] hover:shadow-[0_3px_12px_-3px_rgba(23,50,74,0.1),0_1.5px_4px_-1.5px_rgba(23,50,74,0.07)] border border-border/40 bg-white rounded-xl">
-      <div className="relative aspect-[4/3] overflow-hidden bg-[#E4DFD4] photo-mounted">
+    <CraftCard className="group flex flex-col overflow-hidden">
+      <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
         {hasImage && imageSrc ? (
           <>
             <Image
@@ -51,17 +52,17 @@ export function ServiceCard({ service }: { service: Service }) {
             Project photos coming soon
           </div>
         )}
-      </div>
-      <div className="flex flex-1 flex-col p-5">
-        <h3 className="font-display text-xl font-bold text-[#17324A]">{service.name}</h3>
-        <p className="clamp-2 mt-2 flex-1 text-sm text-[#000000]">{service.description}</p>
+      </PhotoMount>
+      <div className="flex flex-1 flex-col p-4 sm:p-5 lg:p-6">
+        <h3 className="font-display text-lg font-bold text-primary sm:text-xl lg:text-2xl">{service.name}</h3>
+        <p className="clamp-2 mt-2 flex-1 text-sm text-text sm:text-base">{service.description}</p>
         <Link
           href={`/estimate?service=${service.slug}`}
-          className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-primary hover:underline"
+          className="mt-4 inline-flex items-center gap-1 min-h-[44px] text-sm font-semibold text-primary hover:underline sm:text-base"
         >
           Start a quote →
         </Link>
       </div>
-    </Card>
+    </CraftCard>
   );
 }

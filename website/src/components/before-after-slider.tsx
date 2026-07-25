@@ -16,6 +16,7 @@ import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { getMediaById } from "@/lib/media";
 import type { Project } from "@/types/projects";
+import { CraftCard } from "@/components/ui/card";
 
 export interface BeforeAfterPair {
   id: string;
@@ -85,7 +86,7 @@ export function BeforeAfterSlider({
   const afterSrc = afterMedia.variants.original || afterMedia.variants.webp || afterMedia.variants.avif;
 
   return (
-    <figure className={cn("group relative select-none overflow-hidden rounded-xl border border-border/40 bg-white shadow-[0_1px_4px_-1px_rgba(23,50,74,0.06),0_0.5px_2px_-0.5px_rgba(23,50,74,0.04)] transition-shadow duration-400 hover:shadow-[0_3px_12px_-3px_rgba(23,50,74,0.1),0_1.5px_4px_-1.5px_rgba(23,50,74,0.07)]", className)}>
+    <CraftCard className={cn("group relative select-none overflow-hidden", className)}>
       <div
         ref={containerRef}
         className="relative aspect-[4/3] w-full"
@@ -145,6 +146,6 @@ export function BeforeAfterSlider({
         <span className="font-semibold text-text">{project.title}</span>
         {project.location.county && <span className="text-text-subtle">{project.location.county}</span>}
       </figcaption>
-    </figure>
+    </CraftCard>
   );
 }

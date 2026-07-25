@@ -3,8 +3,12 @@
  * Single source of truth: one review record, referenced everywhere
  * (homepage, reviews page, aggregate rating, estimate emails, analytics, CRM).
  * No review text is ever duplicated or manually copied from Google.
+ * 
+ * Uses canonical Review type from src/types/reviews.ts
+ * Website never knows Google exists - Google is just an adapter.
  */
-import type { Review } from "../sheets/schema";
+import type { Review, ReviewAggregate } from "../../src/types/reviews";
+import { ReviewProvider } from "../../src/types/reviews";
 
 export interface ReviewSource {
   /** Pull published reviews from the operational store (Google Sheet / API). */
@@ -15,10 +19,55 @@ export interface ReviewSource {
  * Aggregate rating derived from the single source — never recomputed from
  * copied strings. The homepage and reviews page both call this.
  */
-export function aggregate(reviews: Review[]): { average: number; count: number } {
-  if (!reviews.length) return { average: 0, count: 0 };
+export function aggregate(reviews: Review[]): ReviewAggregate {
+  if (!reviews.length) {
+    return {
+      average: 0,
+      count: 0,
+      fiveStarCount: 0,
+      fourStarCount: 0,
+      threeStarCount: 0,
+      twoStarCount: 0,
+      oneStarCount: 0,
+      verifiedCount: 0,
+      featuredCount: 0,
+      googleCount: 0,
+      manualCount: 0,
+    };
+  }
+  
   const sum = reviews.reduce((a, r) => a + r.rating, 0);
-  return { average: Math.round((sum / reviews.length) * 10) / 10, count: reviews.length };
+  const average = Math.round((sum / reviews.length) * 10) / 10;
+  const count = reviews.length;
+  
+  const fiveStarCount = reviews.filter(r => r.rating === 5).length;
+  const fourStarCount = reviews.filter(r => r.rating === 4).length;
+  const threeStarCount = reviews.filter(r => r.rating === 3).length;
+  const twoStarCount = reviews.filter(r => r.rating === 2).length;
+  const oneStarCount = reviews.filter(r => r.rating === 1).length;
+  const verifiedCount = reviews.filter(r => r.verified).length;
+  const featuredCount = reviews.filter(r => r.featured).length;
+  const googleCount = reviews.filter(r => r.provider === ReviewProvider.Google).length;
+  const manualCount = reviews.filter(r => r.provider === ReviewProvider.Manual).length;
+  
+  const latestReview = [...reviews].sort((a, b) => 
+    new Date(b.date).getTime() - new Date(a.date).getTime()
+  )[0];
+  
+  return {
+    average,
+    count,
+    fiveStarCount,
+    fourStarCount,
+    threeStarCount,
+    twoStarCount,
+    oneStarCount,
+    verifiedCount,
+    featuredCount,
+    googleCount,
+    manualCount,
+    latestReview,
+  };
 }
 
 /**
@@ -35,20 +84,53 @@ export const FOLLOW_UP_TIMELINE = [
 ] as const;
 
 /** Social-proof snippet for estimate emails / CTAs: "Based on 87 verified Google reviews." */
-export function verifiedSocialProof(reviews: Review[], source: "google" = "google"): string {
-  const n = reviews.filter((r) => r.source === source && r.published).length;
-  return `Based on ${n} verified Google reviews.`;
+export function verifiedSocialProof(reviews: Review[], provider: ReviewProvider = ReviewProvider.Google): string {
+  const n = reviews.filter((r) => r.provider === provider && r.verified).length;
+  return `Based on ${n} verified ${provider} reviews.`;
 }
 
 export class ReviewAuthority {
   constructor(private source: ReviewSource) {}
 
-  async getForHomepage(limit = 3): Promise<Review[]> {
+  /**
+   * Intent-based methods - website asks for what it needs, not how to slice
+   */
+  async getHomepageReviews(limit = 3): Promise<Review[]> {
     const all = await this.source.listPublished();
-    return all.slice(0, limit);
+    const homepageEligible = all.filter(r => r.homepageEligible && r.featured);
+    return homepageEligible.slice(0, limit);
   }
 
-  async getAggregate() {
+  async getHeroReviews(limit = 1): Promise<Review[]> {
+    const all = await this.source.listPublished();
+    const heroEligible = all.filter(r => r.heroEligible && r.featured);
+    return heroEligible.slice(0, limit);
+  }
+
+  async getLatest(limit?: number): Promise<Review[]> {
+    const all = await this.source.listPublished();
+    const sorted = [...all].sort((a, b) => 
+      new Date(b.date).getTime() - new Date(a.date).getTime()
+    );
+    return limit ? sorted.slice(0, limit) : sorted;
+  }
+
+  async getFeatured(): Promise<Review[]> {
+    const all = await this.source.listPublished();
+    return all.filter(r => r.featured);
+  }
+
+  async getVerified(): Promise<Review[]> {
+    const all = await this.source.listPublished();
+    return all.filter(r => r.verified);
+  }
+
+  async getServiceReviews(service: string): Promise<Review[]> {
+    const all = await this.source.listPublished();
+    return all.filter(r => r.service === service);
+  }
+
+  async getAggregate(): Promise<ReviewAggregate> {
     return aggregate(await this.source.listPublished());
   }
 }

@@ -8,6 +8,7 @@ import { Reveal } from "@/components/reveal";
 import { CedarCorner } from "@/components/cedar-corner";
 import { ToolMark } from "@/components/tool-mark";
 import { HappyBrandSignature } from "@/components/happy-brand-signature";
+import { CraftCard } from "@/components/ui/card";
 import { getAllServices } from "@/lib/registries";
 import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
@@ -16,11 +17,11 @@ import { getOwnerPortrait, getHomepageHero } from "@/lib/brand";
 import { getMediaById, getProjectBeforeAfter } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 
-export default function HomePage() {
+export default async function HomePage() {
   const company = getCompany();
-  const topReviews = getFeaturedReviews().slice(0, 3);
-  const stats = getReviewStats();
-  const hasReviews = stats.total > 0;
+  const topReviews = (await getFeaturedReviews()).slice(0, 3);
+  const stats = await getReviewStats();
+  const hasReviews = stats.count > 0;
   const [taylor, lanie] = company.owners;
   const heroBrand = getHomepageHero();       // primary full-width hero photograph from Brand Authority
   const heroMedia = heroBrand?.mediaId ? getMediaById(heroBrand.mediaId) : null;
@@ -87,7 +88,7 @@ export default function HomePage() {
               {hasReviews && (
                 <span className="inline-flex items-center gap-2">
                   <StarRating rating={5} />
-                  {stats.averageRating} / 5 · {company.proof.projectsCompleted} projects
+                  {stats.average} / 5 · {company.proof.projectsCompleted} projects
                 </span>
               )}
               {!hasReviews && (
@@ -226,12 +227,12 @@ export default function HomePage() {
             <>
               <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
                 {topReviews.map((r) => (
-                  <figure key={r.id} className="bg-[#E8E4DC] p-5 sm:p-6 transition-all duration-400 hover:-translate-y-0.5 shadow-[0_1px_4px_-1px_rgba(23,50,74,0.06),0_0.5px_2px_-0.5px_rgba(23,50,74,0.04)] hover:shadow-[0_3px_12px_-3px_rgba(23,50,74,0.1),0_1.5px_4px_-1.5px_rgba(23,50,74,0.07)] border border-border/40 rounded-xl">
+                  <CraftCard key={r.id} className="p-5 sm:p-6">
                     <StarRating rating={r.rating} />
-                    {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-[#17324A]">{r.title}</h3>}
-                    <blockquote className="mt-2 text-sm sm:text-base text-[#000000]">&ldquo;{r.body}&rdquo;</blockquote>
-                    <figcaption className="mt-3 sm:mt-4 text-xs sm:text-sm text-[#4A4F58]">{r.reviewer.name} · {r.location ? `${r.location.city}, ${r.location.county}` : 'Willamette Valley'}</figcaption>
-                  </figure>
+                    {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-primary">{r.title}</h3>}
+                    <blockquote className="mt-2 text-sm sm:text-base text-text">&ldquo;{r.body}&rdquo;</blockquote>
+                    <figcaption className="mt-3 sm:mt-4 text-xs sm:text-sm text-text-muted">{r.reviewer.name} · {r.location ? `${r.location.city}, ${r.location.county}` : 'Willamette Valley'}</figcaption>
+                  </CraftCard>
                 ))}
               </div>
               <div className="mt-6 sm:mt-8 text-center">

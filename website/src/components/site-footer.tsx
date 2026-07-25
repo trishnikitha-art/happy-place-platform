@@ -37,6 +37,9 @@ export function SiteFooter() {
                 <Link href={n.href} className="text-text-on-dark hover:text-honey">{n.label}</Link>
               </li>
             ))}
+            <li>
+              <Link href="/review" className="text-honey hover:text-honey/80 font-semibold">Leave a Review</Link>
+            </li>
           </ul>
         </div>
 
