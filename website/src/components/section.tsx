@@ -44,8 +44,8 @@ export function SectionHeading({
   return (
     <div className={cn("max-w-2xl", align === "center" && "mx-auto text-center")}>
       {eyebrow && <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">{eyebrow}</p>}
-      <h2 className="mt-3 font-display text-4xl font-bold leading-[1.08] tracking-tight text-text sm:text-5xl">{title}</h2>
-      {description && <p className="mt-4 text-lg text-text-muted sm:text-xl">{description}</p>}
+      <h2 className="mt-4 font-display text-4xl font-bold leading-[1.08] tracking-tight text-text sm:text-5xl">{title}</h2>
+      {description && <p className="mt-5 text-lg text-text-muted sm:text-xl leading-relaxed">{description}</p>}
     </div>
   );
 }

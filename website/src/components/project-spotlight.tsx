@@ -39,7 +39,7 @@ export function ProjectSpotlight({
     return (
       <Section className="bg-surface-muted">
         <Container className="grid items-center gap-10 lg:grid-cols-2">
-          <div className="relative overflow-hidden rounded-card border border-border">
+          <div className="relative overflow-hidden rounded-card border border-border/60 shadow-[0_2px_8px_-2px_rgba(23,50,74,0.08),0_1px_3px_-1px_rgba(23,50,74,0.06)]">
             <Image
               src={heroSrc}
               alt={heroAlt}
