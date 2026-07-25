@@ -44,7 +44,7 @@ export default function OurWorkPage() {
       <Section className="bg-deep">
         <Container>
           <SectionHeading
-            eyebrow={<span className="text-honey">Featured transformations</span>}
+            eyebrow="Featured transformations"
             title="Start to finish"
             description="Real projects, real craftsmanship — the moments that turn a house into a happy place."
           />
