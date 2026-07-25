@@ -12,22 +12,14 @@ export function HappyBrandSignature({ className }: HappyBrandSignatureProps) {
       {/* Normal text - inherits all typography from parent */}
       <span className="relative z-10">Happy</span>
       
-      {/* Specular highlight overlay - moving reflection like sunlight on brass */}
+      {/* Gold specular highlight overlay - moving reflection like sunlight on brass */}
       <span
         className={`
           absolute inset-0 z-20 pointer-events-none
-          bg-linear-gradient-r
-          from-transparent
-          via-white/8
-          to-transparent
+          happy-gold-shine
           opacity-0
-          animate-shimmer-slow
+          animate-happy-gold-idle
         `}
-        style={{
-          background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.08) 50%, transparent 100%)',
-          backgroundSize: '200% 100%',
-          mixBlendMode: 'overlay',
-        }}
       />
     </span>
   );

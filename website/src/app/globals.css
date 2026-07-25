@@ -556,9 +556,40 @@ a {
   animation: shimmer-fast 2s ease-in-out;
 }
 
+/* Gold exaggerated version for HappyBrandSignature */
+.happy-gold-shine {
+  background: linear-gradient(
+    100deg,
+    transparent 20%,
+    #b8863f 35%,        /* deep gold */
+    #e7ad63 45%,         /* warm honey --color-honey-hover */
+    #fdf3df 50%,         /* pale champagne peak highlight */
+    #e7ad63 55%,
+    #b8863f 65%,
+    transparent 80%
+  );
+  background-size: 250% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+}
+
+@keyframes happy-gold-sweep {
+  0%, 78% { background-position: 200% 0; opacity: 0; }
+  80% { opacity: 1; }
+  92% { background-position: -100% 0; }
+  93%, 100% { opacity: 0; background-position: -100% 0; }
+}
+
+.animate-happy-gold-idle {
+  animation: happy-gold-sweep 9s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .animate-shimmer-slow,
   .animate-shimmer-fast,
+  .animate-happy-gold-idle,
   .animate-breathe,
   .animate-drift {
     animation: none;
