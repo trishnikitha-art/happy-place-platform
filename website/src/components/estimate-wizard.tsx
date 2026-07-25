@@ -365,14 +365,14 @@ export function EstimateWizard() {
         {/* STEP 2: Tell us about your project */}
         {STEPS[step] === "Tell us about your project" && (
           <div>
-            <h2 className="text-xl font-bold text-primary">What's on your mind?</h2>
+            <h2 className="text-xl font-bold text-white">What's on your mind?</h2>
             {service && (
-              <p className="mt-1 text-sm text-text">
+              <p className="mt-1 text-sm text-white">
                 It doesn't have to be perfect. A few details are enough for us to understand what you're planning.
               </p>
             )}
             {!service && (
-              <p className="mt-1 text-sm text-text">
+              <p className="mt-1 text-sm text-white">
                 It doesn't have to be perfect. A few details are enough for us to understand what you're planning.
               </p>
             )}
@@ -397,7 +397,7 @@ export function EstimateWizard() {
                     }} />
                   )}
                   <span className="relative z-10 flex items-center justify-between">
-                    <span className="font-semibold text-primary">{type}</span>
+                    <span className="font-semibold text-white">{type}</span>
                     {projectType === type && <Check className="h-4 w-4 text-primary" />}
                   </span>
                 </button>
