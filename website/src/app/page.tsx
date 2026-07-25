@@ -7,6 +7,7 @@ import { StarRating } from "@/components/star-rating";
 import { Reveal } from "@/components/reveal";
 import { CedarCorner } from "@/components/cedar-corner";
 import { ToolMark } from "@/components/tool-mark";
+import { HappyBrandSignature } from "@/components/happy-brand-signature";
 import { getAllServices } from "@/lib/registries";
 import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
@@ -48,7 +49,7 @@ export default function HomePage() {
             fill
             priority
             sizes="100vw"
-            className="object-cover"
+            className="object-cover animate-breathe"
             style={{ filter: "brightness(0.45)" }}
           />
         )}
@@ -56,14 +57,16 @@ export default function HomePage() {
         <div className="absolute inset-0 z-[1] bg-gradient-to-b from-deep/30 via-transparent to-deep" aria-hidden="true" />
         <div className="absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-honey/20 to-transparent" aria-hidden="true" />
 
-        <div className="hero-craft" aria-hidden="true" />
+        <div className="hero-craft animate-drift" aria-hidden="true" />
         <div className="hero-square" aria-hidden="true" />
         <div className="hero-ticks" aria-hidden="true" />
-        <div className="pnw-fog" aria-hidden="true" />
+        <div className="pnw-fog animate-drift" aria-hidden="true" />
 
         <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20">
           <div className="max-w-3xl">
-            <p className="font-signature text-xl sm:text-2xl text-honey/85 tracking-wide">Happy Place Carpentry</p>
+            <p className="font-signature text-xl sm:text-2xl text-honey/85 tracking-wide">
+              <HappyBrandSignature variant="signature" className="text-honey/85" /> Place Carpentry
+            </p>
             <h1 className="mt-4 sm:mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] sm:leading-[1.05] tracking-tight tracking-display text-text-on-dark">
               Your favorite part of coming home should be the home itself.
             </h1>

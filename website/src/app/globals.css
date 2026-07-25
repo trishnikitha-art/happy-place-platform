@@ -526,6 +526,69 @@ a {
   }
 }
 
+/* HAPPY Brand Signature Animations */
+@keyframes shimmer-slow {
+  0%, 100% {
+    background-position: -200% 0;
+  }
+  50% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes shimmer-fast {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.animate-shimmer-slow {
+  animation: shimmer-slow 10s ease-in-out infinite;
+}
+
+.animate-shimmer-fast {
+  animation: shimmer-fast 2s ease-in-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-shimmer-slow,
+  .animate-shimmer-fast,
+  .animate-breathe,
+  .animate-drift {
+    animation: none;
+  }
+}
+
+/* Hero atmospheric motion */
+@keyframes breathe {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.005);
+  }
+}
+
+@keyframes drift {
+  0%, 100% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(10px);
+  }
+}
+
+.animate-breathe {
+  animation: breathe 50s ease-in-out infinite;
+}
+
+.animate-drift {
+  animation: drift 60s ease-in-out infinite;
+}
+
 /* ============================================================================
    ENVIRONMENTAL RICHNESS — PNW-inspired backgrounds (2-8% opacity)
    ========================================================================== */
