@@ -152,9 +152,10 @@ export default function HomePage() {
       </Section>
 
       {/* TRANSFORMATIONS — honest before→after composites, distinct from archive */}
-      <Section className="relative bg-[#F5F2ED]">
+      <Section className="relative bg-[#F5F2ED] py-24 sm:py-32">
         <div className="absolute inset-0 bg-gradient-to-br from-[#F5F2ED] via-[#F1EDE6] to-[#EDE9E0] opacity-100" aria-hidden="true" />
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(255,255,255,0.3),transparent_70%)]" aria-hidden="true" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(255,255,255,0.4),transparent_70%)]" aria-hidden="true" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_100%,rgba(217,154,78,0.06),transparent_60%)]" aria-hidden="true" />
         <Container className="relative z-10">
           <SectionHeading
             eyebrow="Real transformations"
@@ -162,9 +163,12 @@ export default function HomePage() {
             description="Every home has a story. Here's one exterior restoration we're especially proud to have been part of."
           />
           {paintingProject && paintingProject.media.before && paintingProject.media.after && (
-            <div className="mt-10">
+            <div className="mt-12">
               <Reveal>
-                <BeforeAfterSlider project={paintingProject} />
+                <div className="relative">
+                  <div className="absolute -inset-4 bg-gradient-to-br from-honey/10 to-transparent rounded-2xl blur-xl opacity-50" aria-hidden="true" />
+                  <BeforeAfterSlider project={paintingProject} />
+                </div>
               </Reveal>
             </div>
           )}
@@ -219,7 +223,7 @@ export default function HomePage() {
             <>
               <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-3">
                 {topReviews.map((r) => (
-                  <figure key={r.id} className="bg-white p-5 sm:p-6 transition-all duration-300 hover:-translate-y-1 shadow-[0_2px_8px_-2px_rgba(23,50,74,0.08),0_1px_3px_-1px_rgba(23,50,74,0.06)] hover:shadow-[0_4px_16px_-4px_rgba(23,50,74,0.12),0_2px_6px_-2px_rgba(23,50,74,0.08)] border border-border/60 rounded-xl">
+                  <figure key={r.id} className="bg-white p-5 sm:p-6 transition-all duration-300 hover:-translate-y-0.5 shadow-[0_1px_4px_-1px_rgba(23,50,74,0.06),0_0.5px_2px_-0.5px_rgba(23,50,74,0.04)] hover:shadow-[0_3px_12px_-3px_rgba(23,50,74,0.1),0_1.5px_4px_-1.5px_rgba(23,50,74,0.07)] border border-border/40 rounded-xl">
                     <StarRating rating={r.rating} />
                     {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
                     <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>
