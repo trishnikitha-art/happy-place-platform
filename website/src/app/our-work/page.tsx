@@ -34,7 +34,7 @@ export default function OurWorkPage() {
           <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-tight text-text-on-dark sm:text-6xl">
             Our Work
           </h1>
-          <p className="mt-5 max-w-xl text-lg text-text-on-dark/90">
+          <p className="mt-5 max-w-xl text-lg text-text-on-dark">
             Every project tells a story. Real homes. Real families. Real craftsmanship built for Oregon's climate. Explore featured transformations first, then browse the complete portfolio.
           </p>
         </Container>
@@ -44,7 +44,7 @@ export default function OurWorkPage() {
       <Section className="bg-deep">
         <Container>
           <SectionHeading
-            eyebrow="Featured transformations"
+            eyebrow={<span className="text-honey">Featured transformations</span>}
             title="Start to finish"
             description="Real projects, real craftsmanship — the moments that turn a house into a happy place."
           />
@@ -62,7 +62,7 @@ export default function OurWorkPage() {
       <Section className="bg-deep">
         <Container>
           <SectionHeading
-            eyebrow="Recent projects"
+            eyebrow={<span className="text-honey">Recent projects</span>}
             title="The story behind the work"
             description="Real challenges, real solutions. Tap a project for the full story."
           />
@@ -111,7 +111,7 @@ export default function OurWorkPage() {
       <Section className="bg-deep">
         <Container>
           <SectionHeading
-            eyebrow="Browse all work"
+            eyebrow={<span className="text-honey">Browse all work</span>}
             title="The complete archive"
             description="Every project, every detail. Future projects simply append here."
           />

@@ -25,7 +25,7 @@ export default function ContactPage() {
               </span>
             </div>
             <SectionHeading
-              eyebrow="Contact"
+              eyebrow={<span className="text-honey">Contact</span>}
               title="Let's talk about your project"
               description="The quickest way to get started is the Estimate Wizard. If you'd rather talk first, give us a call, send a text, or email us—whatever's easiest."
             />

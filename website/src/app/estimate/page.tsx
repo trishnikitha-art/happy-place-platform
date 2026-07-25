@@ -24,7 +24,7 @@ export default function EstimatePage() {
           </span>
         </div>
         <SectionHeading
-          eyebrow="Free estimate"
+          eyebrow={<span className="text-honey">Free estimate</span>}
           title="Let's scope your project"
           description="About two minutes. Your details go straight to our inbox — no account, no spam."
         />

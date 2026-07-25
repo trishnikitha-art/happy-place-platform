@@ -28,7 +28,7 @@ export default function ReviewsPage() {
             </span>
           </div>
           <SectionHeading
-            eyebrow="Reviews"
+            eyebrow={<span className="text-honey">Reviews</span>}
             title="Helping neighbors find their happy place"
             align="center"
             description={hasReviews ? `${stats.averageRating} / 5 across ${stats.total} featured reviews from homeowners across the Willamette Valley.` : "Google reviews coming soon. Ask us for references in your neighborhood."}

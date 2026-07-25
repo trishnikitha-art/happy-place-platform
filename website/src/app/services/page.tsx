@@ -49,7 +49,7 @@ export default function ServicesPage() {
       <Section className="bg-deep">
         <Container>
           <SectionHeading
-            eyebrow="Services"
+            eyebrow={<span className="text-honey">Services</span>}
             title="Carpentry for your whole home"
             description="Every service has its own estimate questions, so your quote is built around exactly what you need."
           />
