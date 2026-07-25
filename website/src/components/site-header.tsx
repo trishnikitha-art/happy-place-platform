@@ -25,7 +25,7 @@ function NavShimmer({ children, className }: { children: React.ReactNode; classN
       <span className="relative z-10">{children}</span>
       <span
         className={cn(
-          "absolute inset-0 z-20 pointer-events-none opacity-0",
+          "absolute inset-0 z-20 pointer-events-none",
           isHovered ? "animate-shimmer-fast" : "animate-shimmer-slow"
         )}
         style={{

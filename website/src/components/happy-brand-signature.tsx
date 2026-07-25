@@ -17,7 +17,6 @@ export function HappyBrandSignature({ className }: HappyBrandSignatureProps) {
         className={`
           absolute inset-0 z-20 pointer-events-none
           happy-gold-shine
-          opacity-0
           animate-happy-gold-idle
         `}
       />
