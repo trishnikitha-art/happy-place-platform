@@ -177,7 +177,7 @@ export default async function HomePage() {
             </div>
           )}
           <div className="mt-8">
-            <Link href="/our-work" className="inline-flex items-center gap-1 font-semibold text-text hover:text-honey">
+            <Link href="/our-work" className="inline-flex items-center gap-1 font-semibold text-primary hover:text-honey">
               See the full portfolio →
             </Link>
           </div>
