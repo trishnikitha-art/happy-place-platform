@@ -22,18 +22,36 @@ function NavShimmer({ children, className }: { children: React.ReactNode; classN
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <span className="relative z-10">{children}</span>
+      {/* Base gold text with layered gradients */}
       <span
-        className={cn(
-          "absolute inset-0 z-20 pointer-events-none",
-          isHovered ? "animate-shimmer-fast" : "animate-shimmer-slow"
-        )}
+        className={`
+          relative z-10
+          bg-gradient-to-br from-[#A67C00] via-[#D99A4E] via-[#E7AD63] to-[#F0C070]
+          bg-clip-text text-transparent
+          transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]
+          ${isHovered ? 'scale-[1.01]' : 'scale-100'}
+        `}
         style={{
-          background: 'linear-gradient(90deg, transparent 0%, rgba(231,173,99,0.4) 50%, transparent 100%)',
-          backgroundSize: '200% 100%',
-          mixBlendMode: 'overlay',
+          filter: isHovered ? 'brightness(1.08) saturate(1.1)' : 'brightness(1) saturate(1)',
         }}
-      />
+      >
+        {children}
+      </span>
+      
+      {/* Animated shimmer sweep - warm light traveling left to right */}
+      <span
+        className={`
+          absolute inset-0 z-20 bg-gradient-to-r from-transparent via-white/15 via-white/10 to-transparent
+          bg-clip-text text-transparent
+          pointer-events-none
+          ${isHovered ? 'animate-shimmer-fast' : 'animate-shimmer-slow'}
+        `}
+        style={{
+          backgroundSize: '200% 100%',
+        }}
+      >
+        {children}
+      </span>
     </span>
   );
 }
