@@ -69,11 +69,11 @@ export function SiteFooter() {
         </div>
       </div>
 
-      <div className="border-t border-text-on-dark/10 py-4 text-center text-xs text-text-on-dark/50">
+      <div className="border-t border-text-on-dark/8 py-4 text-center text-xs text-text-on-dark/50">
         {company.proof.estimateResponse}
       </div>
 
-      <div className="border-t border-text-on-dark/10 py-6 text-center text-xs text-text-on-dark/50">
+      <div className="border-t border-text-on-dark/8 py-6 text-center text-xs text-text-on-dark/50">
         © {new Date().getFullYear()} {company.legalName}. Helping homeowners throughout the Mid-Willamette Valley repair, improve, and enjoy the homes they love.
       </div>
     </footer>

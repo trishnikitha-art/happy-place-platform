@@ -302,6 +302,11 @@ body {
   box-shadow: 0 0 0 4px rgba(217, 154, 78, 0.05);
 }
 
+/* Smooth link transitions */
+a {
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
+}
+
 /* CRAFT RULE — a hairline double separator with a single honey pin.
    Used between major sections for quiet rhythm (no loud dividers). */
 .craft-rule {
