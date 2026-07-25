@@ -150,8 +150,10 @@ export default function HomePage() {
       </Section>
 
       {/* TRANSFORMATIONS — honest before→after composites, distinct from archive */}
-      <Section className="bg-background">
-        <Container>
+      <Section className="relative bg-[#F8F6F3]">
+        <div className="absolute inset-0 bg-gradient-to-br from-[#F8F6F3] via-[#F4F1EB] to-[#EFE9E1] opacity-100" aria-hidden="true" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(255,255,255,0.3),transparent_70%)]" aria-hidden="true" />
+        <Container className="relative z-10">
           <SectionHeading
             eyebrow="Real transformations"
             title="Protected and restored"
