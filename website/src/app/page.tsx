@@ -134,7 +134,7 @@ export default async function HomePage() {
         <Container className="relative z-10">
           <SectionHeading
             eyebrow={<span className="eyebrow-mark"><ToolMark /> What we do</span>}
-            title="Ways to make coming home better"
+            title={<span className="text-text">Ways to make coming home better</span>}
             description="Pick a service to start a free estimate — we'll guide you through the rest."
           />
           <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
@@ -144,7 +144,7 @@ export default async function HomePage() {
           </div>
           {otherServices.length > 0 && (
             <div className="mt-8 sm:mt-10">
-              <h3 className="font-display text-xl sm:text-2xl font-bold text-primary mb-4 sm:mb-6">Other ways we can help</h3>
+              <h3 className="font-display text-xl sm:text-2xl font-bold text-text mb-4 sm:mb-6">Other ways we can help</h3>
               <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
                 {otherServices.map((s) => (
                   <ServiceCard key={s.id} service={s} />
@@ -190,17 +190,17 @@ export default async function HomePage() {
         <Container className="relative z-10 grid items-center gap-12 lg:grid-cols-2">
           <div>
             <p className="text-sm font-semibold uppercase tracking-wide text-accent">Built by one family. Trusted by many more.</p>
-            <h2 className="mt-3 font-display text-4xl font-bold leading-tight text-primary sm:text-5xl">
+            <h2 className="mt-3 font-display text-4xl font-bold leading-tight text-text sm:text-5xl">
               A family business built on doing things the right way.
             </h2>
-            <div className="measure mt-7 space-y-5 text-text">
+            <div className="measure mt-7 space-y-5 text-text-muted">
               <p className="text-lg leading-relaxed">
                 Great work starts long before the first board is cut.</p>
               <p>
-                <span className="font-semibold text-primary">{taylor.name}</span> — Taylor approaches every project with one goal: build something he'll still be proud to drive past years from now.
+                <span className="font-semibold text-text">{taylor.name}</span> — Taylor approaches every project with one goal: build something he'll still be proud to drive past years from now.
               </p>
               <p>
-                <span className="font-semibold text-primary">{lanie.name}</span> — Lanie keeps every project moving—from your first estimate to the final walkthrough—so you always know what's happening next.
+                <span className="font-semibold text-text">{lanie.name}</span> — Lanie keeps every project moving—from your first estimate to the final walkthrough—so you always know what's happening next.
               </p>
             </div>
           </div>
@@ -222,15 +222,15 @@ export default async function HomePage() {
       <Section className="relative bg-[#F2EFE8]">
         <div className="absolute inset-0 bg-gradient-to-b from-[#F2EFE8] via-[#EFECE5] to-[#ECE9E2] opacity-100" aria-hidden="true" />
         <Container className="relative z-10">
-          <SectionHeading eyebrow="Reviews" title="What Homeowners Say After the Project Is Finished" align="center" description={hasReviews ? "Real experiences from families throughout the Mid-Willamette Valley." : "We're building our public review portfolio. In the meantime, we're happy to provide references from homeowners throughout the Mid-Willamette Valley."} />
+          <SectionHeading eyebrow="Reviews" title={<span className="text-text">What Homeowners Say After the Project Is Finished</span>} align="center" description={hasReviews ? "Real experiences from families throughout the Mid-Willamette Valley." : "We're building our public review portfolio. In the meantime, we're happy to provide references from homeowners throughout the Mid-Willamette Valley."} />
           {hasReviews ? (
             <>
               <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
                 {topReviews.map((r) => (
                   <CraftCard key={r.id} className="p-5 sm:p-6">
                     <StarRating rating={r.rating} />
-                    {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-primary">{r.title}</h3>}
-                    <blockquote className="mt-2 text-sm sm:text-base text-text">&ldquo;{r.body}&rdquo;</blockquote>
+                    {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
+                    <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>
                     <figcaption className="mt-3 sm:mt-4 text-xs sm:text-sm text-text-muted">{r.reviewer.name} · {r.location ? `${r.location.city}, ${r.location.county}` : 'Willamette Valley'}</figcaption>
                   </CraftCard>
                 ))}

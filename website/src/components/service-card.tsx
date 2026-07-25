@@ -25,9 +25,9 @@ export function ServiceCard({ service }: { service: Service }) {
   const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.original) : null;
 
   // Card text colors - always light register (cards are always light surfaces)
-  const headingColor = "text-primary";
-  const bodyColor = "text-text";
-  const linkColor = "text-primary hover:underline";
+  const headingColor = "text-text";
+  const bodyColor = "text-text-muted";
+  const linkColor = "text-text hover:text-honey";
 
   return (
     <CraftCard className="group flex flex-col overflow-hidden">

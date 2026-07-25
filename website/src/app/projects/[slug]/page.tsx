@@ -52,12 +52,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
     <>
       <ProjectSpotlight project={project} variant="full" />
       
-      <Section className="bg-white text-text">
+      <Section className="bg-deep text-text-on-dark">
         <Container>
           <SectionHeading
             eyebrow={<span className="text-honey">Project Photos</span>}
-            title="Project Gallery"
-            description="Photos from this project"
+            title={<span className="text-text-on-dark">Project Gallery</span>}
+            description={<span className="text-text-on-dark/90">Photos from this project</span>}
           />
           <div className="mt-8">
             <ProjectPhotos photos={photos} />

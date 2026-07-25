@@ -48,18 +48,18 @@ export function ReviewCard({ review }: ReviewCardProps) {
   const isVerified = review.verified || review.externalSource === "google" || review.externalSource === "yelp";
 
   // Card text colors - always light register (cards are always light surfaces)
-  const headingColor = "text-primary";
-  const bodyColor = "text-text";
+  const headingColor = "text-text";
+  const bodyColor = "text-text-muted";
   const mutedColor = "text-text-muted";
   const avatarBg = "bg-primary/15";
-  const avatarText = "text-primary";
+  const avatarText = "text-text";
   const badgeBg = "bg-primary/10";
-  const badgeText = "text-primary";
+  const badgeText = "text-text";
   const borderColor = "border-border/40";
   const responseBg = "bg-surface-muted";
   const responseBorder = "border-primary";
-  const responseLabel = "text-primary";
-  const linkColor = "text-primary hover:underline";
+  const responseLabel = "text-text";
+  const linkColor = "text-text hover:text-honey";
 
   return (
     <CraftCard className="flex flex-col p-5 sm:p-6">
