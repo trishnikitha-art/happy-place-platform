@@ -156,11 +156,11 @@ export function ProjectSpotlight({
         </Container>
       </div>
 
-      <Section className="bg-white">
+      <Section className="bg-deep">
         <Container className="grid gap-10 lg:grid-cols-3">
           <div className="space-y-8 lg:col-span-2">
-            {project.story?.challenge && <StoryBlock icon={<Wrench className="h-5 w-5" />} title="The challenge" body={project.story.challenge} />}
-            {project.story?.solution && <StoryBlock icon={<Lightbulb className="h-5 w-5" />} title="The plan" body={project.story.solution} />}
+            {project.story?.challenge && <StoryBlock icon={<Wrench className="h-5 w-5" />} title="The challenge" body={project.story.challenge} tone="dark" />}
+            {project.story?.solution && <StoryBlock icon={<Lightbulb className="h-5 w-5" />} title="The plan" body={project.story.solution} tone="dark" />}
           </div>
           <aside>
             <CraftCard className="p-6">
@@ -188,11 +188,11 @@ export function ProjectSpotlight({
 
       {/* Photo story */}
       {galleryMedia.length > 0 && (
-        <Section className="bg-white pt-0">
+        <Section className="bg-deep pt-0">
           <Container>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {galleryMedia.map((media, i) => (
-                <figure key={i} className="overflow-hidden rounded-card border border-border bg-white">
+                <figure key={i} className="overflow-hidden rounded-card border border-border/40 bg-surface">
                   <div className="relative aspect-[4/3]">
                     <Image
                       src={media!.variants!.web || media!.variants!.original!}
@@ -215,14 +215,17 @@ export function ProjectSpotlight({
   );
 }
 
-function StoryBlock({ icon, title, body }: { icon: React.ReactNode; title: string; body: string }) {
+function StoryBlock({ icon, title, body, tone = "light" }: { icon: React.ReactNode; title: string; body: string; tone?: "light" | "dark" }) {
+  const headingColor = tone === "dark" ? "text-text-on-dark" : "text-text";
+  const bodyColor = tone === "dark" ? "text-text-on-dark/90" : "text-text";
+  
   return (
     <div>
-      <h2 className="flex items-center gap-2 text-2xl font-bold text-text">
+      <h2 className={`flex items-center gap-2 text-2xl font-bold ${headingColor}`}>
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/15 text-accent">{icon}</span>
         {title}
       </h2>
-      <p className="mt-3 text-lg leading-relaxed text-text-muted">{body}</p>
+      <p className={`mt-3 text-lg leading-relaxed ${bodyColor}`}>{body}</p>
     </div>
   );
 }

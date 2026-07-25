@@ -193,7 +193,7 @@ export default async function HomePage() {
             <h2 className="mt-3 font-display text-4xl font-bold leading-tight text-text sm:text-5xl">
               A family business built on doing things the right way.
             </h2>
-            <div className="measure mt-7 space-y-5 text-text-muted">
+            <div className="measure mt-7 space-y-5 text-text">
               <p className="text-lg leading-relaxed">
                 Great work starts long before the first board is cut.</p>
               <p>
