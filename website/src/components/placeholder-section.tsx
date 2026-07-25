@@ -23,6 +23,7 @@ export interface PlaceholderSectionProps {
     label: string;
     href: string;
   };
+  darkMode?: boolean;
 }
 
 export function PlaceholderSection({
@@ -32,6 +33,7 @@ export function PlaceholderSection({
   count = 0,
   icon,
   action,
+  darkMode = false,
 }: PlaceholderSectionProps) {
   const getPlaceholderContent = () => {
     switch (type) {
@@ -168,9 +170,9 @@ export function PlaceholderSection({
   const content = getPlaceholderContent();
 
   return (
-    <div className="flex flex-col items-center justify-center py-16 px-4 text-center bg-stone-50 rounded-lg border border-stone-200">
+    <div className={`flex flex-col items-center justify-center py-16 px-4 text-center rounded-lg border ${darkMode ? 'bg-surface-muted border-border text-text-on-dark' : 'bg-stone-50 border-stone-200'}`}>
       <div className="mb-4">{content.icon}</div>
-      <h3 className="text-2xl font-semibold text-stone-900 mb-2">
+      <h3 className={`text-2xl font-semibold mb-2 ${darkMode ? 'text-text-on-dark' : 'text-stone-900'}`}>
         {content.title}
       </h3>
       {content.countLabel && (
@@ -178,7 +180,7 @@ export function PlaceholderSection({
           {content.countLabel}
         </p>
       )}
-      <p className="text-stone-600 max-w-md mb-6">
+      <p className={`max-w-md mb-6 ${darkMode ? 'text-text-on-dark/90' : 'text-stone-600'}`}>
         {content.description}
       </p>
       {action && (

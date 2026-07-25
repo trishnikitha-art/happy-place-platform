@@ -21,7 +21,7 @@ export function ProjectPhotos({ photos, limit }: ProjectPhotosProps) {
   if (displayPhotos.length === 0) {
     return (
       <div className="rounded-lg bg-surface-muted p-8 text-center">
-        <p className="text-text-muted">Project photos coming soon</p>
+        <p className="text-text-on-dark">Project photos coming soon</p>
       </div>
     );
   }

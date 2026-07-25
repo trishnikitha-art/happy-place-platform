@@ -27,10 +27,10 @@ export function PhotoPlaceholder() {
         </svg>
       </div>
       <div className="text-center">
-        <p className="text-xs font-medium text-text-subtle/60">
+        <p className="text-xs font-medium text-text-on-dark/80">
           Project photos
         </p>
-        <p className="text-xs font-medium text-text-subtle/60">
+        <p className="text-xs font-medium text-text-on-dark/80">
           coming soon
         </p>
       </div>

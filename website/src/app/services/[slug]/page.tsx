@@ -137,6 +137,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
                 title={`${service.name} Projects Coming Soon`}
                 description={`We're currently working on exciting ${service.name.toLowerCase()} projects. Check back soon to see our latest work.`}
                 count={0}
+                darkMode={true}
                 action={{
                   label: "Get a Free Estimate",
                   href: "/estimate",
