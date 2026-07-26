@@ -3,6 +3,7 @@
 import { motion, useMotionValue, useTransform, useSpring, MotionValue } from "framer-motion";
 import { useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
+import { useMotion } from "@/components/motion-provider";
 
 interface AmbientParticlesProps {
   className?: string;
@@ -17,6 +18,7 @@ interface AmbientParticlesProps {
  * Replaces custom canvas animation with DOM-based motion system.
  * 
  * Respects prefers-reduced-motion: disables all animation when enabled.
+ * Uses centralized MotionProvider for consistent reduced-motion detection.
  * 
  * Default: 30 particles, warm wood color
  */
@@ -25,6 +27,7 @@ export function AmbientParticles({
   count = 30,
   color = "rgba(217, 154, 78, 0.15)" // Honey color, very subtle
 }: AmbientParticlesProps) {
+  const { prefersReducedMotion } = useMotion();
   const particlesRef = useRef<Array<{
     x: MotionValue<number>;
     y: MotionValue<number>;
@@ -33,11 +36,6 @@ export function AmbientParticles({
   }>>([]);
 
   useEffect(() => {
-    // Check if user prefers reduced motion
-    const prefersReducedMotion = window.matchMedia(
-      "(prefers-reduced-motion: reduce)"
-    ).matches;
-
     if (prefersReducedMotion) {
       // Don't initialize animation loop for reduced motion
       // Render static particles only
@@ -98,7 +96,7 @@ export function AmbientParticles({
     return () => {
       cancelAnimationFrame(animationFrame);
     };
-  }, [count]);
+  }, [count, prefersReducedMotion]);
 
   return (
     <div className={cn("absolute inset-0 pointer-events-none", className)} aria-hidden="true">

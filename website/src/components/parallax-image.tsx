@@ -3,6 +3,7 @@
 import { motion, useScroll, useTransform } from "framer-motion";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
+import { useMotion } from "@/components/motion-provider";
 
 interface ParallaxImageProps {
   src: string;
@@ -22,6 +23,7 @@ interface ParallaxImageProps {
  * Replaces custom scroll listener with optimized motion system.
  * 
  * Respects prefers-reduced-motion: disables parallax when enabled.
+ * Uses centralized MotionProvider for consistent reduced-motion detection.
  * 
  * Default speed: 0.3 (30% of scroll speed)
  */
@@ -35,13 +37,9 @@ export function ParallaxImage({
   speed = 0.3,
   children,
 }: ParallaxImageProps) {
+  const { prefersReducedMotion } = useMotion();
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 1000], [0, 100 * speed]);
-
-  // Check if user prefers reduced motion
-  const prefersReducedMotion = typeof window !== 'undefined' 
-    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches 
-    : false;
 
   if (prefersReducedMotion) {
     // Render static image without parallax

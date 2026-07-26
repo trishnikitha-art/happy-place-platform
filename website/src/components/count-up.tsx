@@ -3,6 +3,7 @@
 import { motion, useInView, useMotionValue, useSpring, useTransform } from "framer-motion";
 import { useRef, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
+import { useMotion } from "@/components/motion-provider";
 
 interface CountUpProps {
   end: number;
@@ -19,6 +20,7 @@ interface CountUpProps {
  * Replaces custom requestAnimationFrame loop with optimized motion system.
  * 
  * Respects prefers-reduced-motion: immediately displays final value when enabled.
+ * Uses centralized MotionProvider for consistent reduced-motion detection.
  * 
  * Default: 800ms duration
  */
@@ -29,10 +31,7 @@ export function CountUp({
   suffix = "",
   prefix = ""
 }: CountUpProps) {
-  // Check if user prefers reduced motion
-  const prefersReducedMotion = typeof window !== 'undefined' 
-    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches 
-    : false;
+  const { prefersReducedMotion } = useMotion();
 
   if (prefersReducedMotion) {
     // Immediately display final value without animation

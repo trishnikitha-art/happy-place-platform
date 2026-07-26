@@ -2,6 +2,7 @@
 
 import { motion, useMotionValue, useSpring } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { useMotion } from "@/components/motion-provider";
 
 interface CursorSpotlightProps {
   className?: string;
@@ -17,6 +18,7 @@ interface CursorSpotlightProps {
  * 
  * Respects prefers-reduced-motion: spotlight disappears completely when enabled.
  * This is a decorative effect that does not improve usability.
+ * Uses centralized MotionProvider for consistent reduced-motion detection.
  * 
  * Default: 300px spotlight, low intensity
  */
@@ -25,10 +27,7 @@ export function CursorSpotlight({
   size = 300,
   intensity = 0.06
 }: CursorSpotlightProps) {
-  // Check if user prefers reduced motion
-  const prefersReducedMotion = typeof window !== 'undefined' 
-    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches 
-    : false;
+  const { prefersReducedMotion } = useMotion();
 
   if (prefersReducedMotion) {
     // Spotlight is decorative - disable completely for reduced motion

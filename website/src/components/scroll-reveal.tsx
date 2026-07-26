@@ -3,6 +3,7 @@
 import { motion, Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { revealUp, revealDown, revealLeft, revealRight } from "@/motion";
+import { useMotion } from "@/components/motion-provider";
 
 interface ScrollRevealProps {
   children: React.ReactNode;
@@ -18,6 +19,7 @@ interface ScrollRevealProps {
  * Uses motion system primitives instead of custom IntersectionObserver.
  * 
  * Respects prefers-reduced-motion: elements are immediately visible when enabled.
+ * Uses centralized MotionProvider for consistent reduced-motion detection.
  * 
  * Default behavior: Fade up with slight translateY
  */
@@ -27,10 +29,7 @@ export function ScrollReveal({
   delay = 0,
   direction = "up"
 }: ScrollRevealProps) {
-  // Check if user prefers reduced motion
-  const prefersReducedMotion = typeof window !== 'undefined' 
-    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches 
-    : false;
+  const { prefersReducedMotion } = useMotion();
 
   if (prefersReducedMotion) {
     // Render children immediately without animation
