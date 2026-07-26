@@ -105,6 +105,8 @@ export function EstimateWizard() {
   const [property, setProperty] = React.useState(() => initialDraft?.property ?? { address: "", city: "", county: "", details: "" });
   const [customer, setCustomer] = React.useState(() => initialDraft?.customer ?? { name: "", email: "", phone: "" });
   const [submitted, setSubmitted] = React.useState(() => initialDraft?.submitted ?? false);
+  const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [showSuccessPulse, setShowSuccessPulse] = React.useState(false);
   const tracked = React.useRef<Set<string>>(new Set());
   const wizardRef = React.useRef<HTMLDivElement>(null);
 
@@ -256,6 +258,7 @@ export function EstimateWizard() {
   }
 
   async function handleSubmit() {
+    setIsSubmitting(true);
     const currentState = getCurrentState();
     const persistedState = loadWizardState();
     
@@ -264,6 +267,7 @@ export function EstimateWizard() {
     if (!validation.valid) {
       console.error("Submission integrity validation failed:", validation.issues);
       alert("There was a problem with your submission. Please try refreshing the page and completing the wizard again.");
+      setIsSubmitting(false);
       return;
     }
 
@@ -274,6 +278,11 @@ export function EstimateWizard() {
     // Clear draft after successful submission
     clearWizardState();
     
+    // Show success pulse animation
+    setShowSuccessPulse(true);
+    setTimeout(() => setShowSuccessPulse(false), 1000);
+    
+    setIsSubmitting(false);
     setStep(STEPS.length - 1); // Advance to Thank You step
   }
 
@@ -306,22 +315,41 @@ export function EstimateWizard() {
       )}
 
       {/* Stepper */}
-      <ol className="mb-8 flex flex-wrap gap-2" aria-label="Progress">
-        {STEPS.map((s, i) => (
-          <li
-            key={s}
-            className={cn(
-              "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold",
-              i === step ? "bg-primary text-white" : i < step ? "bg-accent/10 text-accent" : "bg-surface-muted text-text md:text-white"
-            )}
-          >
-            {i < step && <Check className="h-3 w-3" />}
-            {s}
-          </li>
-        ))}
+      <ol className="mb-8 relative" aria-label="Progress">
+        {/* Progress line */}
+        <div 
+          className="absolute top-1/2 left-0 h-0.5 bg-surface-muted -translate-y-1/2 transition-all duration-500 ease-out"
+          style={{ width: `${(step / (STEPS.length - 1)) * 100}%` }}
+        />
+        <div 
+          className="absolute top-1/2 left-0 h-0.5 bg-primary -translate-y-1/2 transition-all duration-500 ease-out"
+          style={{ width: `${(step / (STEPS.length - 1)) * 100}%` }}
+        />
+        
+        <div className="flex flex-wrap gap-2 relative">
+          {STEPS.map((s, i) => (
+            <li
+              key={s}
+              className={cn(
+                "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold transition-all duration-300 ease-out",
+                i === step 
+                  ? "bg-primary text-white scale-105 shadow-md" 
+                  : i < step 
+                  ? "bg-accent/10 text-accent" 
+                  : "bg-surface-muted text-text md:text-white"
+              )}
+            >
+              {i < step && <Check className="h-3 w-3" />}
+              {s}
+            </li>
+          ))}
+        </div>
       </ol>
 
-      <div className="rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8">
+      <div className={cn(
+        "rounded-2xl border border-border bg-surface p-6 shadow-sm sm:p-8 transition-all duration-300 ease-out",
+        showSuccessPulse ? "ring-4 ring-accent/50 scale-[1.02]" : ""
+      )}>
         {/* STEP 1: Service (multi-select, up to 3) */}
         {STEPS[step] === "Service" && (
           <div>
