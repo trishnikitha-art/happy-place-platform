@@ -9,10 +9,8 @@ import { CedarCorner } from "@/components/cedar-corner";
 import { ToolMark } from "@/components/tool-mark";
 import { HappyBrandSignature } from "@/components/happy-brand-signature";
 import { CraftCard } from "@/components/ui/card";
-import { AmbientParticles } from "@/components/ambient-particles";
 import { RouterLink } from "@/components/router-link";
 import { PencilLine } from "@/components/pencil-line";
-import { CountUp } from "@/components/count-up";
 import { BlueprintGrid } from "@/components/blueprint-grid";
 import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
 import { getAllServices } from "@/lib/registries";
@@ -117,7 +115,7 @@ export default async function HomePage() {
             ].map(([stat, label, isNumber]) => (
               <div key={label as string} className="relative">
                 <p className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-primary">
-                  {isNumber ? <CountUp end={Number(stat)} suffix="+" /> : stat}
+                  {isNumber ? `${stat}+` : stat}
                 </p>
                 <p className="mt-1 text-xs sm:text-sm font-medium uppercase tracking-wide text-primary">{label}</p>
               </div>
