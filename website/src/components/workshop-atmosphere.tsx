@@ -28,6 +28,9 @@ export function WorkshopAtmosphere({
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    // Debug: detect duplicate mounts
+    console.count("WorkshopAtmosphere mounted");
+
     // Don't animate if user prefers reduced motion
     if (prefersReducedMotion) {
       return;
@@ -96,8 +99,17 @@ export function WorkshopAtmosphere({
       animationFrameId = requestAnimationFrame(animate);
     };
 
+    let rafCount = 0;
+    const animateWithLogging = () => {
+      rafCount++;
+      if (rafCount % 60 === 0) { // Log every 60 frames (approx 1 second)
+        console.count("WorkshopAtmosphere RAF loop");
+      }
+      animate();
+    };
+
     resize();
-    animate();
+    animateWithLogging();
 
     const resizeObserver = new ResizeObserver(resize);
     if (canvas.parentElement) {
@@ -105,6 +117,7 @@ export function WorkshopAtmosphere({
     }
 
     return () => {
+      console.log("WorkshopAtmosphere cleanup - cancelling RAF and disconnecting ResizeObserver");
       cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
     };
