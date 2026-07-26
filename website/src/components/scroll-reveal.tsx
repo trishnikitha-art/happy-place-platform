@@ -4,6 +4,7 @@ import { motion, Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { revealUp, revealDown, revealLeft, revealRight } from "@/motion";
 import { useMotion } from "@/components/motion-provider";
+import { useEffect } from "react";
 
 interface ScrollRevealProps {
   children: React.ReactNode;
@@ -30,6 +31,11 @@ export function ScrollReveal({
   direction = "up"
 }: ScrollRevealProps) {
   const { prefersReducedMotion } = useMotion();
+
+  // Debug: detect duplicate mounts
+  useEffect(() => {
+    console.count("ScrollReveal mounted");
+  }, []);
 
   if (prefersReducedMotion) {
     // Render children immediately without animation
