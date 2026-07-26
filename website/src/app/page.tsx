@@ -4,12 +4,11 @@ import { Container, Section, SectionHeading } from "@/components/section";
 import { ServiceCard } from "@/components/service-card";
 import { CTASection } from "@/components/cta-section";
 import { StarRating } from "@/components/star-rating";
-import { Reveal } from "@/components/reveal";
+import { ScrollReveal } from "@/components/scroll-reveal";
 import { CedarCorner } from "@/components/cedar-corner";
 import { ToolMark } from "@/components/tool-mark";
 import { HappyBrandSignature } from "@/components/happy-brand-signature";
 import { CraftCard } from "@/components/ui/card";
-import { ScrollReveal } from "@/components/scroll-reveal";
 import { ParallaxImage } from "@/components/parallax-image";
 import { AmbientParticles } from "@/components/ambient-particles";
 import { RouterLink } from "@/components/router-link";
@@ -190,12 +189,12 @@ export default async function HomePage() {
             />
             {paintingProject && paintingProject.media.before && paintingProject.media.after && (
               <div className="mt-12">
-                <Reveal>
+                <ScrollReveal>
                   <div className="relative">
                     <div className="absolute -inset-4 bg-gradient-to-br from-honey/10 to-transparent rounded-2xl blur-xl opacity-50" aria-hidden="true" />
                     <BeforeAfterSlider project={paintingProject} />
                   </div>
-                </Reveal>
+                </ScrollReveal>
               </div>
             )}
             <div className="mt-8">

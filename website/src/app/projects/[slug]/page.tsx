@@ -4,7 +4,7 @@ import { ProjectSpotlight } from "@/components/project-spotlight";
 import { CTASection } from "@/components/cta-section";
 import { ProjectPhotos } from "@/components/project-photos";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
-import { Reveal } from "@/components/reveal";
+import { ScrollReveal } from "@/components/scroll-reveal";
 import { getAllProjects, getProjectBySlug } from "@/lib/projects";
 import { getMediaById } from "@/lib/media";
 import { Container, Section, SectionHeading } from "@/components/section";
