@@ -163,11 +163,7 @@ html {
 }
 
 body {
-  background:
-    /* Pacific Northwest atmospheric lighting - single upper left morning light */
-    radial-gradient(ellipse 100% 80% at 17% 23%, rgba(94, 98, 89, 0.02) 0%, transparent 50%),
-    radial-gradient(ellipse 105% 85% at 73% 81%, rgba(133, 141, 129, 0.008) 0%, transparent 50%),
-    var(--color-background);
+  background: var(--color-background);
   color: var(--color-text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
