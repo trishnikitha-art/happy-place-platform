@@ -422,7 +422,7 @@ export function EstimateWizard() {
                     }} />
                   )}
                   <span className="relative z-10 flex items-center justify-between">
-                    <span className="font-semibold text-text md:text-white">{type}</span>
+                    <span className="font-semibold text-text">{type}</span>
                     {projectType === type && <Check className="h-4 w-4 text-primary" />}
                   </span>
                 </button>
