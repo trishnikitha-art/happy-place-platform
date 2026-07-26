@@ -32,7 +32,7 @@ export function LenisProvider({ children }: { children: ReactNode }) {
 
     // Initialize Lenis
     const lenisInstance = new Lenis({
-      lerp: 0.15, // Higher lerp = snappier feel (default 0.1)
+      lerp: 0.25, // Higher lerp = snappier feel (default 0.1)
     });
 
     setLenis(lenisInstance);
