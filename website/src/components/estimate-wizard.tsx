@@ -336,7 +336,7 @@ export function EstimateWizard() {
                   ? "bg-primary text-white scale-105 shadow-md" 
                   : i < step 
                   ? "bg-accent/10 text-accent" 
-                  : "bg-surface-muted text-text md:text-white"
+                  : "bg-surface-muted text-text"
               )}
             >
               {i < step && <Check className="h-3 w-3" />}
