@@ -13,6 +13,7 @@ import { getCompany } from "@/lib/company";
 import { PlaceholderSection } from "@/components/placeholder-section";
 import { getMediaById } from "@/lib/media";
 import { ProjectLightbox } from "@/components/project-lightbox";
+import { BlueprintGrid } from "@/components/blueprint-grid";
 import { useState } from "react";
 
 export const metadata: Metadata = {
@@ -55,7 +56,8 @@ export default function OurWorkPage() {
       </section>
 
       {/* FEATURED TRANSFORMATIONS — the emotional open */}
-      <Section className="bg-deep">
+      <Section className="relative bg-deep">
+        <BlueprintGrid gridSize={24} lineColor="rgba(217, 154, 78, 0.06)" />
         <Container>
           <SectionHeading
             eyebrow={<span className="text-honey">Featured transformations</span>}
@@ -73,7 +75,8 @@ export default function OurWorkPage() {
       </Section>
 
       {/* RECENT PROJECTS — photo-led project stories */}
-      <Section className="bg-deep">
+      <Section className="relative bg-deep">
+        <BlueprintGrid gridSize={20} lineColor="rgba(217, 154, 78, 0.04)" />
         <Container>
           <SectionHeading
             eyebrow={<span className="text-honey">Recent projects</span>}

@@ -14,6 +14,7 @@ import { AmbientParticles } from "@/components/ambient-particles";
 import { RouterLink } from "@/components/router-link";
 import { PencilLine } from "@/components/pencil-line";
 import { CountUp } from "@/components/count-up";
+import { BlueprintGrid } from "@/components/blueprint-grid";
 import { getAllServices } from "@/lib/registries";
 import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
@@ -143,6 +144,7 @@ export default async function HomePage() {
       {/* SERVICES — image-dominant cards, less chrome (Directive 034) */}
       <ScrollReveal>
         <Section className="relative bg-[#F6F4F0] pt-8 sm:pt-10 pb-8 sm:pb-10">
+          <BlueprintGrid gridSize={20} lineColor="rgba(22, 43, 41, 0.04)" />
           <div className="absolute inset-0 bg-gradient-to-b from-[#F6F4F0] via-[#F3F0E9] to-[#F0ECE4] opacity-100" aria-hidden="true" />
           <Container className="relative z-10">
             <SectionHeading
@@ -178,6 +180,7 @@ export default async function HomePage() {
       {/* FEATURED PROJECTS — bento grid layout */}
       <ScrollReveal>
         <Section className="relative bg-[#F5F2ED] py-24 sm:py-32">
+          <BlueprintGrid gridSize={24} lineColor="rgba(217, 154, 78, 0.05)" />
           <div className="absolute inset-0 bg-gradient-to-br from-[#F5F2ED] via-[#F1EDE6] to-[#EDE9E0] opacity-100" aria-hidden="true" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(255,255,255,0.4),transparent_70%)]" aria-hidden="true" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_100%,rgba(217,154,78,0.06),transparent_60%)]" aria-hidden="true" />
