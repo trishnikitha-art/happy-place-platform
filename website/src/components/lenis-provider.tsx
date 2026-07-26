@@ -1,15 +1,24 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, createContext, useContext, ReactNode, useState } from "react";
 import Lenis from "@studio-freight/lenis";
+
+interface LenisContextValue {
+  lenis: Lenis | null;
+}
+
+const LenisContext = createContext<LenisContextValue>({ lenis: null });
 
 /**
  * LenisProvider - Smooth scroll integration
  * 
  * Provides premium smooth scroll experience across the site.
  * Respects prefers-reduced-motion for accessibility.
+ * Exposes Lenis instance for Framer Motion scroll synchronization.
  */
-export function LenisProvider() {
+export function LenisProvider({ children }: { children: ReactNode }) {
+  const [lenis, setLenis] = useState<Lenis | null>(null);
+
   useEffect(() => {
     // Check if user prefers reduced motion
     const prefersReducedMotion = window.matchMedia(
@@ -22,15 +31,17 @@ export function LenisProvider() {
     }
 
     // Initialize Lenis
-    const lenis = new Lenis({
+    const lenisInstance = new Lenis({
       duration: 1.2,
       easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smooth: true,
     } as any);
 
+    setLenis(lenisInstance);
+
     // Animation loop
     function raf(time: number) {
-      lenis.raf(time);
+      lenisInstance.raf(time);
       requestAnimationFrame(raf);
     }
 
@@ -38,9 +49,20 @@ export function LenisProvider() {
 
     // Cleanup
     return () => {
-      lenis.destroy();
+      lenisInstance.destroy();
     };
   }, []);
 
-  return null;
+  return (
+    <LenisContext.Provider value={{ lenis }}>
+      {children}
+    </LenisContext.Provider>
+  );
+}
+
+/**
+ * Hook to access Lenis instance for scroll synchronization
+ */
+export function useLenis() {
+  return useContext(LenisContext);
 }

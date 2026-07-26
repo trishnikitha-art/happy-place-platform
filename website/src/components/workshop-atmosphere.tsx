@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
+import { useMotion } from "@/components/motion-provider";
 
 interface WorkshopAtmosphereProps {
   className?: string;
@@ -16,14 +17,22 @@ interface WorkshopAtmosphereProps {
  * 
  * Effect: subtle workshop atmosphere, drifting sawdust, craftsmanship
  * Not: stars, confetti, sparkles, fireworks, galaxy
+ * 
+ * Respects prefers-reduced-motion: disables animation when enabled.
  */
 export function WorkshopAtmosphere({ 
   className,
   particleCount = 20 
 }: WorkshopAtmosphereProps) {
+  const { prefersReducedMotion } = useMotion();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
+    // Don't animate if user prefers reduced motion
+    if (prefersReducedMotion) {
+      return;
+    }
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -99,7 +108,12 @@ export function WorkshopAtmosphere({
       cancelAnimationFrame(animationFrameId);
       resizeObserver.disconnect();
     };
-  }, [particleCount]);
+  }, [particleCount, prefersReducedMotion]);
+
+  // Return null if reduced motion is enabled
+  if (prefersReducedMotion) {
+    return null;
+  }
 
   return (
     <canvas

@@ -1,9 +1,11 @@
 "use client";
 
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion, useScroll, useTransform, useSpring, useMotionValue } from "framer-motion";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useMotion } from "@/components/motion-provider";
+import { useLenis } from "@/components/lenis-provider";
+import { useEffect } from "react";
 
 interface ParallaxImageProps {
   src: string;
@@ -19,8 +21,8 @@ interface ParallaxImageProps {
 /**
  * ParallaxImage - Subtle parallax effect for hero images
  * 
- * Migrated to use Framer Motion's useScroll for smooth parallax.
- * Replaces custom scroll listener with optimized motion system.
+ * Uses Lenis scroll value synchronized with Framer Motion to prevent
+ * the "overshoot, catch-up" symptom caused by independent scroll systems.
  * 
  * Respects prefers-reduced-motion: disables parallax when enabled.
  * Uses centralized MotionProvider for consistent reduced-motion detection.
@@ -38,8 +40,36 @@ export function ParallaxImage({
   children,
 }: ParallaxImageProps) {
   const { prefersReducedMotion } = useMotion();
+  const { lenis } = useLenis();
+  
+  // Create a MotionValue for Lenis scroll
+  const lenisScroll = useMotionValue(0);
+
+  // Sync Lenis scroll value with Framer Motion
+  useEffect(() => {
+    if (!lenis) return;
+
+    const updateScroll = () => {
+      lenisScroll.set(lenis.scroll);
+    };
+
+    lenis.on('scroll', updateScroll);
+    return () => {
+      lenis.off('scroll', updateScroll);
+    };
+  }, [lenis, lenisScroll]);
+
+  // Use Lenis scroll value if available, otherwise fall back to native scroll
   const { scrollY } = useScroll();
-  const y = useTransform(scrollY, [0, 1000], [0, 100 * speed]);
+  const scrollSource = lenis ? lenisScroll : scrollY;
+  const y = useTransform(
+    scrollSource,
+    [0, 1000],
+    [0, 100 * speed]
+  );
+
+  // Spring physics for smoother parallax
+  const springY = useSpring(y, { stiffness: 100, damping: 30 });
 
   if (prefersReducedMotion) {
     // Render static image without parallax
@@ -60,7 +90,7 @@ export function ParallaxImage({
 
   return (
     <div className={cn("relative overflow-hidden", className)}>
-      <motion.div style={{ y }}>
+      <motion.div style={{ y: springY }}>
         <Image
           src={src}
           alt={alt}
