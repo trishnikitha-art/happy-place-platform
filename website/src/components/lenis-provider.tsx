@@ -20,6 +20,9 @@ export function LenisProvider({ children }: { children: ReactNode }) {
   const [lenis, setLenis] = useState<Lenis | null>(null);
 
   useEffect(() => {
+    // Debug: detect duplicate mounts
+    console.count("LenisProvider mounted");
+
     // Check if user prefers reduced motion
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
@@ -40,16 +43,24 @@ export function LenisProvider({ children }: { children: ReactNode }) {
 
     setLenis(lenisInstance);
 
-    // Animation loop
+    // Animation loop with proper cancellation
+    let frameId: number;
+    let rafCount = 0;
     function raf(time: number) {
+      rafCount++;
+      if (rafCount % 60 === 0) { // Log every 60 frames (approx 1 second)
+        console.count("Lenis RAF loop");
+      }
       lenisInstance.raf(time);
-      requestAnimationFrame(raf);
+      frameId = requestAnimationFrame(raf);
     }
 
-    requestAnimationFrame(raf);
+    frameId = requestAnimationFrame(raf);
 
     // Cleanup
     return () => {
+      console.log("LenisProvider cleanup - cancelling RAF and destroying instance");
+      cancelAnimationFrame(frameId);
       lenisInstance.destroy();
     };
   }, []);
