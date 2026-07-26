@@ -168,7 +168,6 @@ function generateArtifactMetadata(generatorName: string, ir: IRDocument, artifac
       hash: a.hash,
       description: a.description,
     })),
-    timestamp: new Date().toISOString(),
   };
 
   return JSON.stringify(metadata, null, 2);

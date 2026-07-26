@@ -1,0 +1,68 @@
+{
+  "artifactId": "EventGenerator",
+  "compilerVersion": "1.0.0",
+  "constitutionVersion": "1.0.0",
+  "generator": "EventGenerator",
+  "sha256": "7e8a31c8d61bf9476f1412b4977192529c4c417527e40b40318ae88df65bbe75",
+  "dependencies": [
+    "EstimateCreated",
+    "EstimateAccepted",
+    "JobCreated",
+    "CrewAssigned",
+    "JobCompleted",
+    "ProjectCreated",
+    "ProjectCompleted"
+  ],
+  "generatedArtifacts": [
+    {
+      "path": "events/EventEnvelope.ts",
+      "hash": "8a9dcf14e07e0fdb5a30f731f29ec3306d1189c066a95eda15017eb3f5ec954f",
+      "description": "Canonical event envelope — all events share this structure"
+    },
+    {
+      "path": "events/EventRegistry.ts",
+      "hash": "0a9a946450700cbb1670cc6314879b8cbca41b3f4bccc65be059387acff501f6",
+      "description": "Event type registry — discriminated union of all event payloads"
+    },
+    {
+      "path": "events/EstimateCreated.ts",
+      "hash": "1210e6adaa8cb6c6f1c6d247babc799a7c75b2ad4c3c39a210e5657954d21742",
+      "description": "Canonical event type for EstimateCreated"
+    },
+    {
+      "path": "events/EstimateAccepted.ts",
+      "hash": "58517d2e85c06fa46b3b61fe8fac1d730660791819825dcf8bd3cbd5279f1662",
+      "description": "Canonical event type for EstimateAccepted"
+    },
+    {
+      "path": "events/JobCreated.ts",
+      "hash": "d68f17af109a75af4efee7b38f7d9912759d62395fe5b9313f7e0514f72e5409",
+      "description": "Canonical event type for JobCreated"
+    },
+    {
+      "path": "events/CrewAssigned.ts",
+      "hash": "a1facd145d0bb1aae9dc8f2327c2ec809816cfee503cfcaea58d3077adb0e847",
+      "description": "Canonical event type for CrewAssigned"
+    },
+    {
+      "path": "events/JobCompleted.ts",
+      "hash": "043cb4d5e8c001948051396c82f903412ff90b5d65d015afd75d30d99f822cea",
+      "description": "Canonical event type for JobCompleted"
+    },
+    {
+      "path": "events/ProjectCreated.ts",
+      "hash": "9f4c0e90e4347bbb0700f0d7ca8cf72682663aa51be303b390c328892aa3bdac",
+      "description": "Canonical event type for ProjectCreated"
+    },
+    {
+      "path": "events/ProjectCompleted.ts",
+      "hash": "27d0d3e7585bc5f6fc59f4daa40528ea24ac95eefc69be222d56a24a60caff25",
+      "description": "Canonical event type for ProjectCompleted"
+    },
+    {
+      "path": "events/createEvent.ts",
+      "hash": "ec8c340932800bdea24452ecbec8a1e337fb8830a4066e249338769ce913da05",
+      "description": "Type-safe event factory — creates events with generated IDs"
+    }
+  ]
+}

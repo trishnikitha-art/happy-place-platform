@@ -185,7 +185,6 @@ export interface ArtifactNode {
 
 export interface ArtifactDependencyGraph {
   readonly version: string;
-  readonly timestamp: string;
   readonly constitutionVersion: string;
   readonly compilerVersion: string;
   readonly nodes: readonly ArtifactNode[];
@@ -252,7 +251,6 @@ export function generateDependencyGraph(ir: IRDocument, result: GenerationResult
 
   return {
     version: "1.0.0",
-    timestamp: new Date().toISOString(),
     constitutionVersion: ir.ir_version,
     compilerVersion: "1.0.0",
     nodes,

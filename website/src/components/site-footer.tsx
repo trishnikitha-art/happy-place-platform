@@ -13,7 +13,7 @@ export function SiteFooter() {
   const services = getAllServices();
   const [taylor, lanie] = company.owners;
   return (
-    <footer className="border-t border-border/60 bg-[#17324A] text-text-on-dark">
+    <footer className="border-t border-border/60 bg-deep text-text-on-dark">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-4 lg:px-8">
         <div>
           <Link href="/" className="flex items-center gap-2.5 font-bold text-text-on-dark">

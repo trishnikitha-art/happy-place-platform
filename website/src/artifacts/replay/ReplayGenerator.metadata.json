@@ -1,0 +1,33 @@
+{
+  "artifactId": "ReplayGenerator",
+  "compilerVersion": "1.0.0",
+  "constitutionVersion": "1.0.0",
+  "generator": "ReplayGenerator",
+  "sha256": "7e8a31c8d61bf9476f1412b4977192529c4c417527e40b40318ae88df65bbe75",
+  "dependencies": [
+    "EstimateCreated",
+    "EstimateAccepted",
+    "JobCreated",
+    "CrewAssigned",
+    "JobCompleted",
+    "ProjectCreated",
+    "ProjectCompleted"
+  ],
+  "generatedArtifacts": [
+    {
+      "path": "replay/ReplayMap.ts",
+      "hash": "ea9a4f7e5d7984f169f03c0493e0c5f2af1527c62c9c2eab6a20139a26ac1906",
+      "description": "Event type → aggregate apply method mapping"
+    },
+    {
+      "path": "replay/ReplayRegistry.ts",
+      "hash": "0fec2547656351a9b306063092f930f09cd1adb3174398fd33ef7837251d7b98",
+      "description": "Central registry of all replay mappings"
+    },
+    {
+      "path": "replay/AggregateDispatch.ts",
+      "hash": "600efb58c4bce1ac0b5198d42694f60268b7b934ece87d6d934cb19347622847",
+      "description": "Routes events to correct aggregate repository"
+    }
+  ]
+}

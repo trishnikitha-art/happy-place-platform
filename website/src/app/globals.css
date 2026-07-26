@@ -14,7 +14,7 @@
  */
 @theme {
   /* Brand — Deep Navy (primary brand color) */
-  --color-primary: #17324A;
+  --color-primary: #44483D;
   --color-primary-hover: #243746;
   --color-primary-foreground: #FAFBFC;
 
@@ -41,7 +41,7 @@
   --color-border-soft: #D8E3EA;
 
   /* Deep (hero / dark sections) */
-  --color-deep: #17324A;             /* deep navy for hero */
+  --color-deep: #44483D;             /* ripe olive for hero */
   --color-deep-2: #243746;           /* blue charcoal for dark sections */
 
   /* Text */

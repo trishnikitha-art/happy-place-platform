@@ -59,7 +59,7 @@ export default function AboutPage() {
           <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {cities.map((c) => (
               <div key={c.id} className="rounded-2xl border border-border/40 bg-[#F8F6F3] p-5">
-                <h3 className="font-bold text-[#17324A]">{c.name}</h3>
+                <h3 className="font-bold text-primary">{c.name}</h3>
                 <p className="mt-2 text-sm text-[#000000]">{c.county}, Oregon</p>
               </div>
             ))}
