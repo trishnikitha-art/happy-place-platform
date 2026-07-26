@@ -59,11 +59,11 @@ export default async function HomePage() {
             speed={0.3}
             className="absolute inset-0"
           >
-            <div className="absolute inset-0 animate-breathe" style={{ filter: "brightness(0.45)" }} />
+            <div className="absolute inset-0 animate-breathe" style={{ filter: "brightness(0.85)" }} />
           </ParallaxImage>
         )}
-        <div className="absolute inset-0 z-[1] bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(217,154,78,0.15),transparent_55%),radial-gradient(90%_90%_at_10%_110%,rgba(22,43,41,0.5),transparent_60%)]" aria-hidden="true" />
-        <div className="absolute inset-0 z-[1] bg-gradient-to-b from-deep/30 via-transparent to-deep" aria-hidden="true" />
+        <div className="absolute inset-0 z-[1] bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(217,154,78,0.08),transparent_55%),radial-gradient(90%_90%_at_10%_110%,rgba(22,43,41,0.25),transparent_60%)]" aria-hidden="true" />
+        <div className="absolute inset-0 z-[1] bg-gradient-to-b from-deep/10 via-transparent to-deep/60" aria-hidden="true" />
         <div className="absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-honey/20 to-transparent" aria-hidden="true" />
 
         <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20">
