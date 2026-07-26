@@ -49,6 +49,9 @@
   --color-atmosphere-primary: #5E6259; /* Pewter Green — primary drifting atmospheric layer */
   --color-atmosphere-highlight: #858D81; /* Carolina Gull — gentle moving highlights */
 
+  /* Happy Light — warm luminous neutral for interior warmth */
+  --color-happy-light: #F5F0E6;
+
   /* Text */
   --color-text: #111827;             /* near-black */
   --color-text-muted: #374151;       /* secondary */

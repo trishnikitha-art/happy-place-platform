@@ -105,8 +105,7 @@ export default async function HomePage() {
 
       {/* TRUST STRIP — quiet, confident proof (woven, not a banner) */}
       <ScrollReveal>
-        <section className="relative border-y border-border-soft bg-[#F3EFE8]">
-          <div className="absolute inset-0 bg-gradient-to-r from-[#F3EFE8] via-[#F0ECE4] to-[#F3EFE8] opacity-100" aria-hidden="true" />
+        <section className="relative border-y border-border-soft" style={{ backgroundColor: 'var(--color-happy-light)' }}>
           <Container className="relative z-10 grid grid-cols-2 gap-x-4 gap-y-5 py-8 sm:gap-x-6 sm:gap-y-6 sm:py-10 text-center sm:grid-cols-4">
             {[
               ["Oregon CCB #254240", "Licensed, Bonded & Insured", false],
