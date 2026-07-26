@@ -53,8 +53,9 @@ export default async function HomePage() {
           priority
           sizes="100vw"
           className="object-cover"
+          style={{ filter: "brightness(0.7)" }}
         />
-        <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/20 via-transparent to-black/40" aria-hidden="true" />
+        <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/40 via-black/20 to-black/60" aria-hidden="true" />
 
         <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20">
           <div className="max-w-3xl">
