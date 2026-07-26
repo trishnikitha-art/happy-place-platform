@@ -165,8 +165,8 @@ html {
 body {
   background:
     /* Pacific Northwest atmospheric lighting - single upper left morning light */
-    radial-gradient(ellipse at 17% 23%, rgba(94, 98, 89, 0.02) 0%, transparent 50%),
-    radial-gradient(ellipse at 73% 81%, rgba(133, 141, 129, 0.008) 0%, transparent 50%),
+    radial-gradient(ellipse 150% 120% at 17% 23%, rgba(94, 98, 89, 0.02) 0%, transparent 50%),
+    radial-gradient(ellipse 160% 130% at 73% 81%, rgba(133, 141, 129, 0.008) 0%, transparent 50%),
     var(--color-background);
   color: var(--color-text);
   font-family: var(--font-sans);
@@ -596,8 +596,8 @@ a {
     rgba(94, 98, 89, 0.04) 79%,
     transparent 100%
   );
-  mask-image: radial-gradient(ellipse 100% 60% at 47% 97%, black, transparent 70%);
-  -webkit-mask-image: radial-gradient(ellipse 100% 60% at 47% 97%, black, transparent 70%);
+  mask-image: radial-gradient(ellipse 140% 80% at 47% 97%, black, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse 140% 80% at 47% 97%, black, transparent 70%);
 }
 
 /* ============================================================================
