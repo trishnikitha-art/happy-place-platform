@@ -61,10 +61,19 @@ export function SiteHeader() {
   const [open, setOpen] = React.useState(false);
   const navigation = getNavigation();
   const company = getCompany();
+  const menuRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     setOpen(false);
   }, [pathname]);
+
+  const handleMenuClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!menuRef.current) return;
+    const nav = menuRef.current.querySelector('nav');
+    if (nav && !nav.contains(e.target as Node)) {
+      setOpen(false);
+    }
+  };
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -128,7 +137,7 @@ export function SiteHeader() {
       </div>
 
       {open && (
-        <div id="mobile-menu" className="border-t border-border/60 bg-[#F8F6F3] dark:bg-surface md:hidden">
+        <div id="mobile-menu" ref={menuRef} onClick={handleMenuClick} className="border-t border-border/60 bg-[#F8F6F3] dark:bg-surface md:hidden">
           <nav className="flex flex-col p-3" aria-label="Mobile">
             {navigation.map((item) => (
               <Link
