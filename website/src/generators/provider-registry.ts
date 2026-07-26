@@ -88,7 +88,7 @@ export class ProviderRegistryGenerator implements Generator {
 
     // Verify no constructors are generated
     for (const artifact of artifacts) {
-      if (artifact.content.includes("constructor") || artifact.content.includes("new ")) {
+      if (artifact.content.includes("constructor(") || /new\s+[A-Z]/.test(artifact.content)) {
         diagnostics.push(
           createDiagnostic({
             code: "G501",

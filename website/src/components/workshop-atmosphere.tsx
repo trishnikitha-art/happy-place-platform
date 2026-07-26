@@ -24,6 +24,9 @@ export function WorkshopAtmosphere({
   className,
   particleCount = 20 
 }: WorkshopAtmosphereProps) {
+  // TEMP: Disabled for scroll performance investigation
+  return null;
+
   const { prefersReducedMotion } = useMotion();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 

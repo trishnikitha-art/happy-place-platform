@@ -105,6 +105,7 @@ export class EventGenerator implements Generator {
     const diagnostics: CompilerDiagnostic[] = [];
 
     for (const artifact of artifacts) {
+      if (artifact.path.endsWith(".metadata.json")) continue;
       if (!artifact.content.includes("export")) {
         diagnostics.push(
           createDiagnostic({
