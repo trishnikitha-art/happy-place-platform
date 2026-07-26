@@ -353,7 +353,7 @@ export function EstimateWizard() {
               <textarea
                 id="otherNeed"
                 rows={3}
-                className="mt-2 w-full rounded-lg border border-border bg-white p-3 text-sm text-black"
+                className="mt-2 w-full rounded-lg border border-border bg-white p-3 text-sm text-text md:text-text"
                 placeholder="e.g. a custom mudroom bench, a sliding barn door, a sunroom…"
                 value={otherNeed}
                 onChange={(e) => setOtherNeed(e.target.value)}
@@ -519,7 +519,7 @@ export function EstimateWizard() {
                   {q.help && <p className="mt-1 text-xs text-text md:text-white">{q.help}</p>}
                   {q.type === "textarea" && (
                     <textarea
-                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
+                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text md:text-text"
                       rows={3}
                       placeholder={q.placeholder}
                       value={(answers[q.id] as string) ?? ""}
@@ -528,7 +528,7 @@ export function EstimateWizard() {
                   )}
                   {q.type === "text" && (
                     <input
-                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
+                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text md:text-text"
                       placeholder={q.placeholder}
                       value={(answers[q.id] as string) ?? ""}
                       onChange={(e) => setAnswer(q.id, e.target.value)}
@@ -537,7 +537,7 @@ export function EstimateWizard() {
                   {q.type === "number" && (
                     <input
                       type="number"
-                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
+                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text md:text-text"
                       placeholder={q.placeholder}
                       value={(answers[q.id] as number) ?? ""}
                       onChange={(e) => setAnswer(q.id, Number(e.target.value))}
@@ -545,7 +545,7 @@ export function EstimateWizard() {
                   )}
                   {q.type === "select" && (
                     <select
-                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
+                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text md:text-text"
                       value={(answers[q.id] as string) ?? ""}
                       onChange={(e) => setAnswer(q.id, e.target.value)}
                     >
@@ -586,7 +586,7 @@ export function EstimateWizard() {
               <div>
                 <label className="block text-sm font-semibold text-text md:text-white">Street address</label>
                 <input
-                  className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
+                  className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text md:text-text"
                   placeholder="123 Main St (optional)"
                   value={property.address}
                   onChange={(e) => setProperty((p) => ({ ...p, address: e.target.value }))}
@@ -596,7 +596,7 @@ export function EstimateWizard() {
                 <div>
                   <label className="block text-sm font-semibold text-text md:text-white">City *</label>
                   <input
-                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
+                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text md:text-text"
                     value={property.city}
                     onChange={(e) => setProperty((p) => ({ ...p, city: e.target.value }))}
                   />
@@ -604,7 +604,7 @@ export function EstimateWizard() {
                 <div>
                   <label className="block text-sm font-semibold text-text md:text-white">County *</label>
                   <select
-                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
+                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text md:text-text"
                     value={property.county}
                     onChange={(e) => setProperty((p) => ({ ...p, county: e.target.value }))}
                   >
@@ -618,7 +618,7 @@ export function EstimateWizard() {
               <div>
                 <label className="block text-sm font-semibold text-text md:text-white">Anything else about the property?</label>
                 <textarea
-                  className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
+                  className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text md:text-text"
                   rows={3}
                   placeholder="access, parking, gate code, HOA…"
                   value={property.details}
@@ -637,7 +637,7 @@ export function EstimateWizard() {
               <div>
                 <label className="block text-sm font-semibold text-text md:text-white">Name *</label>
                 <input
-                  className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
+                  className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text md:text-text"
                   value={customer.name}
                   onChange={(e) => setCustomer((c) => ({ ...c, name: e.target.value }))}
                 />
@@ -647,7 +647,7 @@ export function EstimateWizard() {
                   <label className="block text-sm font-semibold text-text md:text-white">Email *</label>
                   <input
                     type="email"
-                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
+                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text md:text-text"
                     value={customer.email}
                     onChange={(e) => setCustomer((c) => ({ ...c, email: e.target.value }))}
                   />
@@ -656,7 +656,7 @@ export function EstimateWizard() {
                   <label className="block text-sm font-semibold text-text md:text-white">Phone *</label>
                   <input
                     type="tel"
-                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
+                    className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text md:text-text"
                     value={customer.phone}
                     onChange={(e) => setCustomer((c) => ({ ...c, phone: e.target.value }))}
                   />
