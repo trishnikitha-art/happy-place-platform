@@ -6,8 +6,11 @@ import { ProjectPhotos } from "@/components/project-photos";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { BlueprintGrid } from "@/components/blueprint-grid";
+import { StarRating } from "@/components/star-rating";
+import { CraftCard } from "@/components/ui/card";
 import { getAllProjects, getProjectBySlug } from "@/lib/projects";
 import { getMediaById } from "@/lib/media";
+import { getReviewById } from "@/lib/reviews";
 import { Container, Section, SectionHeading } from "@/components/section";
 import type { Media } from "@/types/media";
 
@@ -49,6 +52,10 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
     .map(id => getMediaById(id))
     .filter(m => m !== null && (m.variants?.web || m.variants?.original)) as Media[];
   
+  // Load customer review if available
+  const reviewId = project.reviews?.[0];
+  const review = reviewId ? await getReviewById(reviewId) : null;
+  
   return (
     <>
       <ProjectSpotlight project={project} variant="full" />
@@ -86,6 +93,41 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
                     {material}
                   </span>
                 ))}
+              </div>
+            </Container>
+          </Section>
+        </ScrollReveal>
+      )}
+      
+      {/* CUSTOMER REVIEW SECTION */}
+      {review && (
+        <ScrollReveal>
+          <Section className="relative bg-deep text-text-on-dark">
+            <BlueprintGrid gridSize={20} lineColor="rgba(217, 154, 78, 0.04)" />
+            <Container>
+              <SectionHeading
+                eyebrow={<span className="text-honey">Customer Review</span>}
+                title={<span className="text-text-on-dark">What the homeowner says</span>}
+                description={<span className="text-text-on-dark/90">Real feedback from the homeowner after project completion.</span>}
+              />
+              <div className="mt-8">
+                <CraftCard className="p-6 sm:p-8 bg-primary/5 border-primary/10">
+                  <div className="flex items-start gap-4">
+                    <div className="flex-1">
+                      <div className="flex items-center gap-3 mb-4">
+                        <StarRating rating={review.rating} />
+                        {review.title && <h3 className="text-lg font-bold text-text-on-dark">{review.title}</h3>}
+                      </div>
+                      <blockquote className="text-base sm:text-lg text-text-on-dark/90 leading-relaxed">
+                        &ldquo;{review.body}&rdquo;
+                      </blockquote>
+                      <figcaption className="mt-4 text-sm text-text-on-dark/70">
+                        <span className="font-semibold text-text-on-dark">{review.reviewer.name}</span>
+                        {review.location && <span> · {review.location.city}, {review.location.county}</span>}
+                      </figcaption>
+                    </div>
+                  </div>
+                </CraftCard>
               </div>
             </Container>
           </Section>
