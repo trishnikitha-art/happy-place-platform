@@ -9,7 +9,6 @@ import { CedarCorner } from "@/components/cedar-corner";
 import { ToolMark } from "@/components/tool-mark";
 import { HappyBrandSignature } from "@/components/happy-brand-signature";
 import { CraftCard } from "@/components/ui/card";
-import { ParallaxImage } from "@/components/parallax-image";
 import { AmbientParticles } from "@/components/ambient-particles";
 import { RouterLink } from "@/components/router-link";
 import { PencilLine } from "@/components/pencil-line";
@@ -20,8 +19,8 @@ import { getAllServices } from "@/lib/registries";
 import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
-import { getOwnerPortrait, getHomepageHero } from "@/lib/brand";
-import { getMediaById, getProjectBeforeAfter } from "@/lib/media";
+import { getOwnerPortrait } from "@/lib/brand";
+import { getMediaById } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 
 export default async function HomePage() {
@@ -30,9 +29,6 @@ export default async function HomePage() {
   const stats = await getReviewStats();
   const hasReviews = stats.count > 0;
   const [taylor, lanie] = company.owners;
-  const heroBrand = getHomepageHero();       // primary full-width hero photograph from Brand Authority
-  const heroMedia = heroBrand?.mediaId ? getMediaById(heroBrand.mediaId) : null;
-  const heroBg = heroMedia?.variants?.web || heroMedia?.variants?.original;
   const ownerBrand = getOwnerPortrait();    // owner portrait from Brand Authority
   const ownerMedia = ownerBrand?.mediaId ? getMediaById(ownerBrand.mediaId) : null;
   const ownerSrc = ownerMedia?.variants?.web || ownerMedia?.variants?.original;
@@ -50,18 +46,14 @@ export default async function HomePage() {
     <>
       {/* HERO — full-width photograph with text overlay */}
       <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
-        {heroBg && (
-          <ParallaxImage
-            src={heroBg}
-            alt={heroBrand?.alt || "Happy Place Carpentry"}
-            priority
-            sizes="100vw"
-            speed={0.3}
-            className="absolute inset-0"
-          >
-            <div className="absolute inset-0 animate-breathe" />
-          </ParallaxImage>
-        )}
+        <Image
+          src="/images/hero-background.jpeg"
+          alt="Happy Place Carpentry"
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover"
+        />
         <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/20 via-transparent to-black/40" aria-hidden="true" />
 
         <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20">
