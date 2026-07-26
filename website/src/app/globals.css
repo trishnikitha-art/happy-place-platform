@@ -167,6 +167,18 @@ body {
     /* Pacific Northwest atmospheric lighting - single upper left morning light */
     radial-gradient(ellipse 150% 120% at 17% 23%, rgba(94, 98, 89, 0.02) 0%, transparent 50%),
     radial-gradient(ellipse 160% 130% at 73% 81%, rgba(133, 141, 129, 0.008) 0%, transparent 50%),
+    /* Material texture - microscopic paper grain */
+    radial-gradient(circle at 23% 17%, rgba(0, 0, 0, 0.003) 0%, transparent 0.5%),
+    radial-gradient(circle at 79% 31%, rgba(0, 0, 0, 0.002) 0%, transparent 0.6%),
+    radial-gradient(circle at 41% 67%, rgba(0, 0, 0, 0.0025) 0%, transparent 0.4%),
+    radial-gradient(circle at 87% 83%, rgba(0, 0, 0, 0.003) 0%, transparent 0.5%),
+    radial-gradient(circle at 13% 91%, rgba(0, 0, 0, 0.002) 0%, transparent 0.7%),
+    radial-gradient(circle at 63% 43%, rgba(0, 0, 0, 0.0025) 0%, transparent 0.5%),
+    radial-gradient(circle at 34% 29%, rgba(0, 0, 0, 0.002) 0%, transparent 0.6%),
+    radial-gradient(circle at 71% 73%, rgba(0, 0, 0, 0.003) 0%, transparent 0.4%),
+    radial-gradient(circle at 52% 11%, rgba(0, 0, 0, 0.002) 0%, transparent 0.5%),
+    radial-gradient(circle at 19% 57%, rgba(0, 0, 0, 0.0025) 0%, transparent 0.6%),
+    radial-gradient(circle at 84% 39%, rgba(0, 0, 0, 0.002) 0%, transparent 0.5%),
     var(--color-background);
   color: var(--color-text);
   font-family: var(--font-sans);
