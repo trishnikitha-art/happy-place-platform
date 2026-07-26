@@ -38,3 +38,5 @@ Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/bui
 ## Deployment Status
 
 Latest deployment: https://happy-place-platform.vercel.app
+
+Last updated: Hero restoration reverted to stable state
