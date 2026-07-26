@@ -57,7 +57,7 @@ export function ParallaxImage({
     return () => {
       lenis.off('scroll', updateScroll);
     };
-  }, [lenis, lenisScroll]);
+  }, [lenis]);
 
   // Use Lenis scroll value if available, otherwise fall back to native scroll
   const { scrollY } = useScroll();
