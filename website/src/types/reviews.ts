@@ -116,6 +116,35 @@ export interface Review {
       classifiedAt: string;
     };
   };
+
+  // Moderation pipeline metadata
+  normalizedBody?: string; // Normalized version of the review text
+  qualityScore?: number; // 0-100, measures usefulness
+  qualityFactors?: {
+    length: number;
+    specificity: number;
+    mentions_project: number;
+    mentions_materials: number;
+    mentions_crew: number;
+    mentions_communication: number;
+    mentions_timeline: number;
+    mentions_craftsmanship: number;
+  };
+  isDuplicate?: boolean; // Duplicate flag
+  duplicateType?: 'email' | 'phone' | 'text' | 'similar' | 'ip' | 'google_id' | 'none';
+  duplicateMatchId?: string; // ID of matched duplicate review
+  suggestedTags?: string[]; // Suggested tags for the review
+  suggestedService?: string; // Suggested service slug
+  suggestedProject?: string; // Suggested project ID
+  suggestedCounty?: string; // Suggested county
+  auditTrail?: Array<{
+    id: string;
+    eventType: string;
+    timestamp: string;
+    actor: string;
+    data?: Record<string, any>;
+    notes?: string;
+  }>; // Audit trail of all moderation decisions
 }
 
 export interface ReviewAggregate {

@@ -191,8 +191,75 @@ function hasQuestion(text: string): boolean {
 }
 
 /**
- * Calculate confidence based on compound score
- * Higher absolute score = higher confidence
+ * Calculate caps ratio (percentage of uppercase letters)
+ */
+function calculateCapsRatio(text: string): number {
+  const letters = text.replace(/[^a-zA-Z]/g, '');
+  if (letters.length === 0) return 0;
+  const uppercase = letters.replace(/[^A-Z]/g, '').length;
+  return uppercase / letters.length;
+}
+
+/**
+ * Calculate text length score
+ * Longer reviews are generally more thoughtful
+ */
+function calculateLengthScore(text: string): number {
+  const length = text.length;
+  if (length < 20) return 0.3; // Very short
+  if (length < 50) return 0.5; // Short
+  if (length < 100) return 0.7; // Medium
+  if (length < 200) return 0.9; // Long
+  return 1.0; // Very long
+}
+
+/**
+ * Calculate enhanced confidence using multiple factors
+ * - VADER compound score
+ * - Rating (if provided)
+ * - Profanity flag
+ * - Question flag
+ * - Caps ratio
+ * - Spam flag
+ * - Length score
+ */
+function calculateEnhancedConfidence(
+  compoundScore: number,
+  hasProfanity: boolean,
+  hasQuestion: boolean,
+  capsRatio: number,
+  hasSpam: boolean,
+  lengthScore: number,
+  rating?: number
+): number {
+  let confidence = 0.5; // Base confidence
+
+  // VADER score contribution (40%)
+  const vaderContribution = Math.abs(compoundScore) * 0.4;
+  confidence += vaderContribution;
+
+  // Rating contribution (20%)
+  if (rating) {
+    const ratingScore = (rating - 3) / 2; // Map 1-5 to -1 to 1
+    const ratingContribution = Math.abs(ratingScore) * 0.2;
+    confidence += ratingContribution;
+  }
+
+  // Length contribution (15%)
+  confidence += lengthScore * 0.15;
+
+  // Negative factors
+  if (hasProfanity) confidence -= 0.15;
+  if (hasQuestion) confidence -= 0.1;
+  if (hasSpam) confidence -= 0.2;
+  if (capsRatio > 0.5) confidence -= 0.1; // More than 50% caps
+
+  // Clamp to [0, 1]
+  return Math.max(0, Math.min(1, confidence));
+}
+
+/**
+ * Calculate confidence based on compound score (legacy, kept for compatibility)
  */
 function calculateConfidence(compoundScore: number): number {
   const absScore = Math.abs(compoundScore);
@@ -201,14 +268,24 @@ function calculateConfidence(compoundScore: number): number {
 }
 
 /**
- * Classify review sentiment and assign moderation bucket
+ * Classify review sentiment and assign moderation bucket (enhanced)
  */
 export function classifyReview(text: string, rating?: number): SentimentResult {
   const compoundScore = calculateVADERScore(text);
   const profanityFlag = hasProfanity(text);
   const spamFlag = hasSpam(text);
   const questionFlag = hasQuestion(text);
-  const confidence = calculateConfidence(compoundScore);
+  const capsRatio = calculateCapsRatio(text);
+  const lengthScore = calculateLengthScore(text);
+  const confidence = calculateEnhancedConfidence(
+    compoundScore,
+    profanityFlag,
+    questionFlag,
+    capsRatio,
+    spamFlag,
+    lengthScore,
+    rating
+  );
 
   // Determine sentiment
   let sentiment: 'positive' | 'neutral' | 'negative';
@@ -224,7 +301,7 @@ export function classifyReview(text: string, rating?: number): SentimentResult {
   // Positive bucket: high confidence positive, no profanity, no spam, no abuse, no questions
   let bucket: 'positive' | 'review';
   const isHighConfidencePositive = sentiment === 'positive' && confidence >= 0.7;
-  const isClean = !profanityFlag && !spamFlag && !questionFlag;
+  const isClean = !profanityFlag && !spamFlag && !questionFlag && capsRatio <= 0.5;
   const isHighRating = !rating || rating >= 4;
 
   if (isHighConfidencePositive && isClean && isHighRating) {
@@ -245,7 +322,7 @@ export function classifyReview(text: string, rating?: number): SentimentResult {
 }
 
 /**
- * Classify review with extensible classifier metadata
+ * Classify review with extensible classifier metadata (enhanced)
  * This allows future classifiers to plug into the same pipeline
  */
 export function classifyReviewWithMetadata(
@@ -276,9 +353,21 @@ export function classifyReviewWithMetadata(
       confidence: number;
       classifiedAt: string;
     };
+    caps_ratio: {
+      value: number;
+      confidence: number;
+      classifiedAt: string;
+    };
+    length_score: {
+      value: number;
+      confidence: number;
+      classifiedAt: string;
+    };
   };
 } {
   const result = classifyReview(text, rating);
+  const capsRatio = calculateCapsRatio(text);
+  const lengthScore = calculateLengthScore(text);
   const now = new Date().toISOString();
 
   return {
@@ -304,6 +393,16 @@ export function classifyReviewWithMetadata(
       question: {
         value: result.hasQuestion,
         confidence: result.hasQuestion ? 0.95 : 0.9,
+        classifiedAt: now,
+      },
+      caps_ratio: {
+        value: capsRatio,
+        confidence: 1.0,
+        classifiedAt: now,
+      },
+      length_score: {
+        value: lengthScore,
+        confidence: 1.0,
         classifiedAt: now,
       },
     },

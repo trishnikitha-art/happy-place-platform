@@ -4,6 +4,16 @@ import { ReviewProvider, ReviewStatus } from "@/types/reviews";
 import { validateReview } from "@/lib/reviews";
 import { createGoogleSheetsReviewSource } from "@/lib/google-sheets";
 import { classifyReviewWithMetadata } from "@/lib/sentiment/classifier";
+import { normalizeText } from "@/lib/sentiment/normalizer";
+import { extractMetadata } from "@/lib/sentiment/metadata-extractor";
+import { calculateQualityScore } from "@/lib/sentiment/quality-scorer";
+import { checkForDuplicates } from "@/lib/sentiment/duplicate-detector";
+import { suggestTags } from "@/lib/sentiment/tag-suggester";
+import { suggestService } from "@/lib/sentiment/service-suggester";
+import { suggestProject } from "@/lib/sentiment/project-suggester";
+import { suggestCounty } from "@/lib/sentiment/county-suggester";
+import { createInitialAuditTrail } from "@/lib/sentiment/audit-trail";
+import { getAllReviews } from "@/lib/reviews";
 
 /**
  * POST /api/reviews — Webhook endpoint for review submissions
@@ -31,14 +41,75 @@ interface ReviewSubmission {
 }
 
 /**
- * Convert submission to canonical Review object with sentiment classification
+ * Convert submission to canonical Review object with full moderation pipeline
+ * 
+ * Pipeline stages:
+ * 1. Normalize text
+ * 2. Extract metadata
+ * 3. Classify sentiment
+ * 4. Calculate quality score
+ * 5. Check for duplicates
+ * 6. Suggest tags
+ * 7. Suggest service
+ * 8. Suggest project
+ * 9. Suggest county
+ * 10. Create audit trail
  */
-function submissionToReview(submission: ReviewSubmission): Review {
+async function submissionToReview(submission: ReviewSubmission): Promise<Review> {
   const now = new Date().toISOString();
   const id = `review-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  // Classify sentiment for moderation bucket assignment
-  const classification = classifyReviewWithMetadata(submission.body, submission.rating);
+  // Stage 1: Normalize text
+  const normalization = normalizeText(submission.body);
+  const normalizedText = normalization.normalized;
+
+  // Stage 2: Extract metadata
+  const metadata = extractMetadata(normalizedText);
+
+  // Stage 3: Classify sentiment
+  const classification = classifyReviewWithMetadata(normalizedText, submission.rating);
+
+  // Stage 4: Calculate quality score
+  const qualityScore = calculateQualityScore(normalizedText);
+
+  // Stage 5: Check for duplicates
+  const existingReviews = await getAllReviews();
+  const duplicateCheck = checkForDuplicates(
+    {
+      email: submission.email,
+      phone: undefined, // Not collected in current form
+      text: normalizedText,
+      ip: undefined, // Not collected in current form
+      googleReviewId: undefined,
+    },
+    existingReviews
+  );
+
+  // Stage 6: Suggest tags
+  const tagSuggestions = suggestTags(normalizedText);
+
+  // Stage 7: Suggest service
+  const serviceSuggestion = suggestService(normalizedText);
+
+  // Stage 8: Suggest project
+  const projectSuggestion = suggestProject(normalizedText, serviceSuggestion.suggestedService?.serviceSlug);
+
+  // Stage 9: Suggest county
+  const countySuggestion = suggestCounty(normalizedText);
+
+  // Stage 10: Create audit trail
+  const auditTrail = createInitialAuditTrail(
+    id,
+    submission.name,
+    normalization,
+    classification,
+    qualityScore,
+    duplicateCheck,
+    tagSuggestions.suggestedTags,
+    serviceSuggestion.suggestedService,
+    projectSuggestion.suggestedProject,
+    countySuggestion.suggestedCounty
+  );
 
   // All reviews start as Pending for human review
   // The sentiment classifier only recommends the bucket, never auto-publishes
@@ -74,6 +145,19 @@ function submissionToReview(submission: ReviewSubmission): Review {
     bucket: classification.bucket,
     confidence: classification.confidence,
     classifiers: classification.classifiers,
+    // Additional moderation metadata
+    normalizedBody: normalizedText,
+    qualityScore: qualityScore.score,
+    qualityFactors: qualityScore.factors,
+    isDuplicate: duplicateCheck.isDuplicate,
+    duplicateType: duplicateCheck.duplicateType,
+    duplicateMatchId: duplicateCheck.matchedReviewId,
+    suggestedTags: tagSuggestions.suggestedTags.map(t => t.tag),
+    suggestedService: serviceSuggestion.suggestedService?.serviceSlug,
+    suggestedProject: projectSuggestion.suggestedProject?.projectId,
+    suggestedCounty: countySuggestion.suggestedCounty?.county,
+    // Audit trail (stored as metadata for now, will be persisted separately in production)
+    auditTrail: auditTrail.events,
   };
 }
 
@@ -100,7 +184,7 @@ function validateSubmission(submission: unknown): submission is ReviewSubmission
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    
+
     // Validate submission
     if (!validateSubmission(body)) {
       return NextResponse.json(
@@ -108,10 +192,10 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
-    // Convert to canonical Review with auto-publish logic
-    const review = submissionToReview(body);
-    
+
+    // Convert to canonical Review with full moderation pipeline
+    const review = await submissionToReview(body);
+
     // Validate canonical Review
     if (!validateReview(review)) {
       return NextResponse.json(
@@ -119,19 +203,25 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
-    
+
     // Persist to Google Sheets operational store
     const sheetsSource = createGoogleSheetsReviewSource();
     await sheetsSource.addReview(review);
-    
+
     return NextResponse.json({
       ok: true,
       review,
-      message: "Review received and classified for moderation",
+      message: "Review received and processed through moderation pipeline",
       bucket: review.bucket,
       confidence: review.confidence,
+      qualityScore: review.qualityScore,
+      isDuplicate: review.isDuplicate,
+      suggestedTags: review.suggestedTags,
+      suggestedService: review.suggestedService,
+      suggestedProject: review.suggestedProject,
+      suggestedCounty: review.suggestedCounty,
     });
-    
+
   } catch (error) {
     console.error("Review webhook failed", error);
     return NextResponse.json(
