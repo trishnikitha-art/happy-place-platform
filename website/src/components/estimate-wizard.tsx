@@ -70,7 +70,19 @@ export function EstimateWizard() {
     }
   }, []);
 
-  const [showDraftRecovery, setShowDraftRecovery] = React.useState(!!initialDraft);
+  // Track if this is a restored session (page refresh or browser reopen)
+  // Only show recovery dialog after a refresh/reopen, not on initial navigation
+  const isRestoredSession = React.useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const hasVisited = sessionStorage.getItem("estimate-wizard-visited");
+    if (hasVisited) {
+      return true;
+    }
+    sessionStorage.setItem("estimate-wizard-visited", "true");
+    return false;
+  }, []);
+
+  const [showDraftRecovery, setShowDraftRecovery] = React.useState(false);
   const [draftState, setDraftState] = React.useState<WizardState | null>(initialDraft);
 
   const [step, setStep] = React.useState(() => {
@@ -152,6 +164,19 @@ export function EstimateWizard() {
       block: "start",
     });
   }, [step]);
+
+  // Show recovery dialog only after page refresh/reopen AND when user reaches Property step or further
+  React.useEffect(() => {
+    const propertyStepIndex = ALL_STEPS.indexOf("Property");
+
+    // Only show if:
+    // 1. Draft exists
+    // 2. This is a restored session (refresh/reopen)
+    // 3. User is at Property step or further
+    if (initialDraft && isRestoredSession && step >= propertyStepIndex) {
+      setShowDraftRecovery(true);
+    }
+  }, [step, initialDraft, isRestoredSession]);
 
   // Service questions are driven by the primary (first) selected service.
   const primarySlug = selected[0];
@@ -257,8 +282,8 @@ export function EstimateWizard() {
       {/* Draft Recovery Modal */}
       {showDraftRecovery && (
         <div className="mb-6 rounded-xl border border-primary/50 bg-primary/5 p-6">
-          <h3 className="text-lg font-semibold text-text md:text-white">We found an unfinished project</h3>
-          <p className="mt-2 text-sm text-text md:text-white">
+          <h3 className="text-lg font-semibold text-text-on-dark">We found an unfinished project</h3>
+          <p className="mt-2 text-sm text-text-on-dark/90">
             Would you like to continue where you left off, or start fresh?
           </p>
           <div className="mt-4 flex gap-3">
