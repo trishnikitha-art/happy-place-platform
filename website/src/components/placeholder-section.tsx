@@ -180,7 +180,7 @@ export function PlaceholderSection({
           {content.countLabel}
         </p>
       )}
-      <p className={`max-w-md mb-6 ${darkMode ? 'text-text-on-dark/90' : 'text-stone-600'}`}>
+      <p className={`max-w-md mb-6 ${darkMode ? 'text-text-on-dark/90' : 'text-stone-900'}`}>
         {content.description}
       </p>
       {action && (
