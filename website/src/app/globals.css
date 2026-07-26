@@ -493,11 +493,6 @@ a {
   .photo-breathe:hover { transform: scale(1.03); }
 }
 
-/* Reveal: fade + slight upward (reuse Reveal component styles here for
-   sections that aren't React client components). */
-.reveal-up { opacity: 0; transform: translateY(18px); transition: opacity 0.7s ease-out, transform 0.7s ease-out; }
-.reveal-up.is-visible { opacity: 1; transform: none; }
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
