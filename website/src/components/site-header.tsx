@@ -66,6 +66,43 @@ export function SiteHeader() {
     setOpen(false);
   }, [pathname]);
 
+  // Lock body scroll when menu is open
+  React.useEffect(() => {
+    if (open) {
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+    };
+  }, [open]);
+
+  // Close on ESC key
+  React.useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && open) {
+        setOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [open]);
+
+  const handleBackdropClick = () => {
+    setOpen(false);
+  };
+
+  const handleMenuClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
+
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
@@ -128,27 +165,43 @@ export function SiteHeader() {
       </div>
 
       {open && (
-        <div id="mobile-menu" className="border-t border-border/60 bg-[#F8F6F3] dark:bg-surface md:hidden">
-          <nav className="flex flex-col p-3" aria-label="Mobile">
-            {navigation.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                aria-current={isActive(item.href) ? "page" : undefined}
-                className={cn(
-                  "rounded-lg px-3 py-3 text-base font-medium transition-colors duration-200",
-                  isActive(item.href) ? "bg-primary/10 text-primary" : "text-black dark:text-text-on-dark hover:bg-white/50 dark:hover:bg-surface-muted/50"
-                )}
-              >
-                {isActive(item.href) ? <NavShimmer>{item.label}</NavShimmer> : item.label}
-              </Link>
-            ))}
-            <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between">
-              <span className="text-sm text-black dark:text-text-on-dark">Theme</span>
-              <ThemeToggle />
-            </div>
-          </nav>
-        </div>
+        <>
+          {/* Backdrop - clickable to close */}
+          <div
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
+            onClick={handleBackdropClick}
+            aria-hidden="true"
+          />
+          {/* Mobile menu drawer */}
+          <div
+            id="mobile-menu"
+            className="fixed inset-x-0 bottom-0 z-50 border-t border-border/60 bg-[#F8F6F3] dark:bg-surface md:hidden"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            onClick={handleMenuClick}
+          >
+            <nav className="flex flex-col p-3" aria-label="Mobile">
+              {navigation.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  aria-current={isActive(item.href) ? "page" : undefined}
+                  className={cn(
+                    "rounded-lg px-3 py-3 text-base font-medium transition-colors duration-200",
+                    isActive(item.href) ? "bg-primary/10 text-primary" : "text-black dark:text-text-on-dark hover:bg-white/50 dark:hover:bg-surface-muted/50"
+                  )}
+                >
+                  {isActive(item.href) ? <NavShimmer>{item.label}</NavShimmer> : item.label}
+                </Link>
+              ))}
+              <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between">
+                <span className="text-sm text-black dark:text-text-on-dark">Theme</span>
+                <ThemeToggle />
+              </div>
+            </nav>
+          </div>
+        </>
       )}
     </header>
   );
