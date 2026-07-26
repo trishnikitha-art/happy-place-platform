@@ -1,3 +1,5 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
 import { Wrench, Lightbulb, Package, CheckCircle2 } from "lucide-react";
