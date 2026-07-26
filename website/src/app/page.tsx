@@ -12,7 +12,6 @@ import { CraftCard } from "@/components/ui/card";
 import { RouterLink } from "@/components/router-link";
 import { PencilLine } from "@/components/pencil-line";
 import { BlueprintGrid } from "@/components/blueprint-grid";
-import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
 import { getAllServices } from "@/lib/registries";
 import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
@@ -138,12 +137,7 @@ export default async function HomePage() {
             <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
               {homepageServices.map((s, i) => (
                 <ScrollReveal key={s.id} delay={i * 100}>
-                  <div className="relative">
-                    <WorkshopAtmosphere particleCount={12} className="opacity-30" />
-                    <div className="relative z-10">
-                      <ServiceCard service={s} />
-                    </div>
-                  </div>
+                  <ServiceCard service={s} />
                 </ScrollReveal>
               ))}
             </div>
@@ -153,12 +147,7 @@ export default async function HomePage() {
                 <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
                   {otherServices.map((s, i) => (
                     <ScrollReveal key={s.id} delay={i * 100}>
-                      <div className="relative">
-                        <WorkshopAtmosphere particleCount={12} className="opacity-30" />
-                        <div className="relative z-10">
-                          <ServiceCard service={s} />
-                        </div>
-                      </div>
+                      <ServiceCard service={s} />
                     </ScrollReveal>
                   ))}
                 </div>
@@ -273,14 +262,11 @@ export default async function HomePage() {
                 <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
                   {topReviews.map((r, i) => (
                     <ScrollReveal key={r.id} delay={i * 100}>
-                      <CraftCard className="p-5 sm:p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl relative overflow-hidden">
-                        <WorkshopAtmosphere particleCount={15} className="opacity-40" />
-                        <div className="relative z-10">
-                          <StarRating rating={r.rating} />
-                          {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
-                          <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>
-                          <figcaption className="mt-3 sm:mt-4 text-xs sm:text-sm text-text-muted">{r.reviewer.name} · {r.location ? `${r.location.city}, ${r.location.county}` : 'Willamette Valley'}</figcaption>
-                        </div>
+                      <CraftCard className="p-5 sm:p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
+                        <StarRating rating={r.rating} />
+                        {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
+                        <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>
+                        <figcaption className="mt-3 sm:mt-4 text-xs sm:text-sm text-text-muted">{r.reviewer.name} · {r.location ? `${r.location.city}, ${r.location.county}` : 'Willamette Valley'}</figcaption>
                       </CraftCard>
                     </ScrollReveal>
                   ))}
@@ -300,14 +286,9 @@ export default async function HomePage() {
         </Section>
       </ScrollReveal>
 
-      <div className="relative overflow-hidden">
-        <WorkshopAtmosphere particleCount={25} className="opacity-50" />
-        <ScrollReveal>
-          <div className="relative z-10">
-            <CTASection />
-          </div>
-        </ScrollReveal>
-      </div>
+      <ScrollReveal>
+        <CTASection />
+      </ScrollReveal>
     </>
   );
 }
