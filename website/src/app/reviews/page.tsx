@@ -60,7 +60,7 @@ export default async function ReviewsPage() {
 
           {!hasReviews && (
             <div className="mt-10 rounded-lg bg-surface-muted p-8 text-center">
-              <p className="text-text-on-dark">
+              <p className="text-text">
                 We are building our review portfolio. In the meantime, ask us for references in your neighborhood.
               </p>
             </div>
