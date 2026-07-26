@@ -166,8 +166,8 @@ body {
   background:
     /* Pacific Northwest atmospheric lighting - environmental depth */
     radial-gradient(ellipse at 20% 30%, rgba(94, 98, 89, 0.03) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 70%, rgba(133, 141, 129, 0.02) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, rgba(68, 72, 61, 0.015) 0%, transparent 70%),
+    radial-gradient(ellipse at 80% 70%, rgba(133, 141, 129, 0.01) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 50%, rgba(94, 98, 89, 0.02) 0%, transparent 70%),
     var(--color-background);
   color: var(--color-text);
   font-family: var(--font-sans);
@@ -228,7 +228,7 @@ body {
     135deg,
     rgba(250, 251, 252, 0.04) 0%,
     rgba(94, 98, 89, 0.03) 50%,
-    rgba(68, 72, 61, 0.02) 100%
+    rgba(94, 98, 89, 0.02) 100%
   );
   mix-blend-mode: overlay;
   opacity: 0.5;
@@ -592,9 +592,9 @@ a {
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(94, 98, 89, 0.08) 40%,
-    rgba(133, 141, 129, 0.12) 60%,
-    rgba(94, 98, 89, 0.08) 80%,
+    rgba(94, 98, 89, 0.04) 40%,
+    rgba(133, 141, 129, 0.06) 60%,
+    rgba(94, 98, 89, 0.04) 80%,
     transparent 100%
   );
   mask-image: radial-gradient(ellipse 100% 60% at 50% 100%, black, transparent 70%);
