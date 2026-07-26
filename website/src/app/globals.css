@@ -163,7 +163,11 @@ html {
 }
 
 body {
-  background: var(--color-background);
+  background:
+    /* Pacific Northwest atmospheric lighting - single upper left morning light */
+    radial-gradient(ellipse at 17% 23%, rgba(94, 98, 89, 0.02) 0%, transparent 50%),
+    radial-gradient(ellipse at 73% 81%, rgba(133, 141, 129, 0.008) 0%, transparent 50%),
+    var(--color-background);
   color: var(--color-text);
   font-family: var(--font-sans);
   -webkit-font-smoothing: antialiased;
@@ -219,6 +223,12 @@ body {
   content: "";
   position: absolute;
   inset: 0;
+  background: linear-gradient(
+    127deg,
+    rgba(250, 251, 252, 0.04) 0%,
+    rgba(94, 98, 89, 0.03) 50%,
+    rgba(94, 98, 89, 0.02) 100%
+  );
   mix-blend-mode: overlay;
   opacity: 0.35;
 }
@@ -578,6 +588,16 @@ a {
   pointer-events: none;
   z-index: 2;
   opacity: 0.03;
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(94, 98, 89, 0.04) 37%,
+    rgba(133, 141, 129, 0.06) 63%,
+    rgba(94, 98, 89, 0.04) 79%,
+    transparent 100%
+  );
+  mask-image: radial-gradient(ellipse at 47% 97%, black, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse at 47% 97%, black, transparent 70%);
 }
 
 /* ============================================================================
