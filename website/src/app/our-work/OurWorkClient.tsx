@@ -10,7 +10,6 @@ import { CraftCard } from "@/components/ui/card";
 import { getMediaById } from "@/lib/media";
 import { ProjectLightbox } from "@/components/project-lightbox";
 import { BlueprintGrid } from "@/components/blueprint-grid";
-import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
 import { useState } from "react";
 import type { Project } from "@/types/projects";
 
@@ -95,7 +94,6 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                     className="group block"
                   >
                     <div className="relative">
-                      <WorkshopAtmosphere particleCount={15} className="opacity-30" />
                       <div className="relative z-10">
                         <CraftCard className="overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
                           <div className="relative aspect-[16/9] overflow-hidden">

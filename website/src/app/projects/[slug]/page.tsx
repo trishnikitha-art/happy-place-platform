@@ -106,7 +106,6 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
         <ScrollReveal>
           <Section className="relative bg-deep text-text-on-dark">
             <BlueprintGrid gridSize={20} lineColor="rgba(217, 154, 78, 0.04)" />
-            <WorkshopAtmosphere particleCount={20} className="opacity-35" />
             <Container className="relative z-10">
               <SectionHeading
                 eyebrow={<span className="text-honey">Customer Review</span>}
@@ -114,8 +113,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
                 description={<span className="text-text-on-dark/90">Real feedback from the homeowner after project completion.</span>}
               />
               <div className="mt-8">
-                <CraftCard className="p-6 sm:p-8 bg-primary/5 border-primary/10 relative overflow-hidden">
-                  <WorkshopAtmosphere particleCount={15} className="opacity-30" />
+                <CraftCard className="p-6 sm:p-8 bg-primary/5 border-primary/10">
                   <div className="relative z-10">
                     <div className="flex items-start gap-4">
                       <div className="flex-1">
