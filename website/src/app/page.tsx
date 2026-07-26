@@ -175,7 +175,7 @@ export default async function HomePage() {
 
       <PencilLine className="py-8" />
 
-      {/* TRANSFORMATIONS — honest before→after composites, distinct from archive */}
+      {/* FEATURED PROJECTS — bento grid layout */}
       <ScrollReveal>
         <Section className="relative bg-[#F5F2ED] py-24 sm:py-32">
           <div className="absolute inset-0 bg-gradient-to-br from-[#F5F2ED] via-[#F1EDE6] to-[#EDE9E0] opacity-100" aria-hidden="true" />
@@ -183,22 +183,46 @@ export default async function HomePage() {
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_100%,rgba(217,154,78,0.06),transparent_60%)]" aria-hidden="true" />
           <Container className="relative z-10">
             <SectionHeading
-              eyebrow="Real transformations"
-              title={<span className="text-primary">Protected and restored</span>}
-              description="Every home has a story. Here's one exterior restoration we're especially proud to have been part of."
+              eyebrow="Featured projects"
+              title={<span className="text-primary">Recent transformations</span>}
+              description="A selection of our latest work across the Mid-Willamette Valley."
             />
-            {paintingProject && paintingProject.media.before && paintingProject.media.after && (
-              <div className="mt-12">
-                <ScrollReveal>
-                  <div className="relative">
-                    <div className="absolute -inset-4 bg-gradient-to-br from-honey/10 to-transparent rounded-2xl blur-xl opacity-50" aria-hidden="true" />
-                    <BeforeAfterSlider project={paintingProject} />
-                  </div>
-                </ScrollReveal>
-              </div>
-            )}
+            <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 auto-rows-[200px]">
+              {featuredProjects.slice(0, 4).map((project, i) => {
+                const heroMediaId = project.media.hero;
+                const heroMedia = heroMediaId ? getMediaById(heroMediaId) : null;
+                const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original;
+                if (!heroSrc) return null;
+                
+                // Bento grid spans: first item spans 2 cols, 2 rows on desktop
+                const isFeatured = i === 0;
+                
+                return (
+                  <Link 
+                    key={project.id} 
+                    href={`/projects/${project.slug || project.id}`}
+                    className={`group relative overflow-hidden rounded-lg ${isFeatured ? 'sm:col-span-2 sm:row-span-2' : ''}`}
+                  >
+                    <img
+                      src={heroSrc}
+                      alt={heroMedia?.alt || project.title}
+                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      loading={i === 0 ? "eager" : "lazy"}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                    <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
+                      <span className="inline-block px-2 py-1 mb-2 text-xs font-semibold bg-honey/90 text-white rounded">
+                        {project.location.county || 'Willamette Valley'}
+                      </span>
+                      <h3 className="text-white font-bold text-lg sm:text-xl">{project.title}</h3>
+                      <p className="text-white/80 text-sm mt-1 line-clamp-2">{project.story?.outcome || project.story?.solution}</p>
+                    </div>
+                  </Link>
+                );
+              })}
+            </div>
             <div className="mt-8">
-              <RouterLink href="/our-work">See the full portfolio</RouterLink>
+              <RouterLink href="/our-work">See all projects</RouterLink>
             </div>
           </Container>
         </Section>
