@@ -32,9 +32,8 @@ export function LenisProvider({ children }: { children: ReactNode }) {
 
     // Initialize Lenis
     const lenisInstance = new Lenis({
-      duration: 1.2,
-      easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-    } as any);
+      lerp: 0.15, // Higher lerp = snappier feel (default 0.1)
+    });
 
     setLenis(lenisInstance);
 
