@@ -128,7 +128,7 @@ export function SiteHeader() {
       </div>
 
       {open && (
-        <div id="mobile-menu" className="border-t border-border/60 bg-[#F8F6F3] md:hidden">
+        <div id="mobile-menu" className="border-t border-border/60 bg-[#F8F6F3] dark:bg-surface md:hidden">
           <nav className="flex flex-col p-3" aria-label="Mobile">
             {navigation.map((item) => (
               <Link
@@ -137,14 +137,14 @@ export function SiteHeader() {
                 aria-current={isActive(item.href) ? "page" : undefined}
                 className={cn(
                   "rounded-lg px-3 py-3 text-base font-medium transition-colors duration-200",
-                  isActive(item.href) ? "bg-primary/10 text-primary" : "text-text hover:bg-white/50"
+                  isActive(item.href) ? "bg-primary/10 text-primary" : "text-black dark:text-text-on-dark hover:bg-white/50 dark:hover:bg-surface-muted/50"
                 )}
               >
                 {isActive(item.href) ? <NavShimmer>{item.label}</NavShimmer> : item.label}
               </Link>
             ))}
             <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between">
-              <span className="text-sm text-text-muted">Theme</span>
+              <span className="text-sm text-black dark:text-text-on-dark">Theme</span>
               <ThemeToggle />
             </div>
           </nav>
