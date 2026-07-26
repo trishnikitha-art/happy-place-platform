@@ -291,8 +291,8 @@ export function EstimateWizard() {
       {/* Draft Recovery Modal */}
       {showDraftRecovery && (
         <div className="mb-6 rounded-xl border border-primary/50 bg-primary/5 p-6">
-          <h3 className="text-lg font-semibold text-text-on-dark">We found an unfinished project</h3>
-          <p className="mt-2 text-sm text-text-on-dark/90">
+          <h3 className="text-lg font-semibold text-text">We found an unfinished project</h3>
+          <p className="mt-2 text-sm text-text-muted/90">
             Would you like to continue where you left off, or start fresh?
           </p>
           <div className="mt-4 flex gap-3">
