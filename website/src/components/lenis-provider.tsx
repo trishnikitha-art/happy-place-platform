@@ -34,7 +34,6 @@ export function LenisProvider({ children }: { children: ReactNode }) {
     const lenisInstance = new Lenis({
       duration: 1.2,
       easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-      smooth: true,
     } as any);
 
     setLenis(lenisInstance);
