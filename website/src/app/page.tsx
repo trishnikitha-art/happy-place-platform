@@ -15,6 +15,7 @@ import { RouterLink } from "@/components/router-link";
 import { PencilLine } from "@/components/pencil-line";
 import { CountUp } from "@/components/count-up";
 import { BlueprintGrid } from "@/components/blueprint-grid";
+import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
 import { getAllServices } from "@/lib/registries";
 import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
@@ -64,13 +65,6 @@ export default async function HomePage() {
         <div className="absolute inset-0 z-[1] bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(217,154,78,0.15),transparent_55%),radial-gradient(90%_90%_at_10%_110%,rgba(22,43,41,0.5),transparent_60%)]" aria-hidden="true" />
         <div className="absolute inset-0 z-[1] bg-gradient-to-b from-deep/30 via-transparent to-deep" aria-hidden="true" />
         <div className="absolute inset-x-0 top-0 z-[1] h-px bg-gradient-to-r from-transparent via-honey/20 to-transparent" aria-hidden="true" />
-
-        <AmbientParticles count={40} className="z-[2]" />
-
-        <div className="hero-craft animate-drift" aria-hidden="true" />
-        <div className="hero-square" aria-hidden="true" />
-        <div className="hero-ticks" aria-hidden="true" />
-        <div className="pnw-fog animate-drift" aria-hidden="true" />
 
         <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20">
           <div className="max-w-3xl">
@@ -143,7 +137,7 @@ export default async function HomePage() {
 
       {/* SERVICES — image-dominant cards, less chrome (Directive 034) */}
       <ScrollReveal>
-        <Section className="relative bg-[#F6F4F0] pt-8 sm:pt-10 pb-8 sm:pb-10">
+        <Section className="relative bg-[#F6F4F0] pt-8 sm:pt-10 pb-8 sm:pb-10 section-diagonal-top">
           <BlueprintGrid gridSize={20} lineColor="rgba(22, 43, 41, 0.04)" />
           <div className="absolute inset-0 bg-gradient-to-b from-[#F6F4F0] via-[#F3F0E9] to-[#F0ECE4] opacity-100" aria-hidden="true" />
           <Container className="relative z-10">
@@ -155,7 +149,12 @@ export default async function HomePage() {
             <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
               {homepageServices.map((s, i) => (
                 <ScrollReveal key={s.id} delay={i * 100}>
-                  <ServiceCard service={s} />
+                  <div className="relative">
+                    <WorkshopAtmosphere particleCount={12} className="opacity-30" />
+                    <div className="relative z-10">
+                      <ServiceCard service={s} />
+                    </div>
+                  </div>
                 </ScrollReveal>
               ))}
             </div>
@@ -165,7 +164,12 @@ export default async function HomePage() {
                 <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
                   {otherServices.map((s, i) => (
                     <ScrollReveal key={s.id} delay={i * 100}>
-                      <ServiceCard service={s} />
+                      <div className="relative">
+                        <WorkshopAtmosphere particleCount={12} className="opacity-30" />
+                        <div className="relative z-10">
+                          <ServiceCard service={s} />
+                        </div>
+                      </div>
                     </ScrollReveal>
                   ))}
                 </div>
@@ -179,7 +183,7 @@ export default async function HomePage() {
 
       {/* FEATURED PROJECTS — bento grid layout */}
       <ScrollReveal>
-        <Section className="relative bg-[#F5F2ED] py-24 sm:py-32">
+        <Section className="relative bg-[#F5F2ED] py-24 sm:py-32 section-curved-bottom">
           <BlueprintGrid gridSize={24} lineColor="rgba(217, 154, 78, 0.05)" />
           <div className="absolute inset-0 bg-gradient-to-br from-[#F5F2ED] via-[#F1EDE6] to-[#EDE9E0] opacity-100" aria-hidden="true" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(255,255,255,0.4),transparent_70%)]" aria-hidden="true" />
@@ -280,11 +284,14 @@ export default async function HomePage() {
                 <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
                   {topReviews.map((r, i) => (
                     <ScrollReveal key={r.id} delay={i * 100}>
-                      <CraftCard className="p-5 sm:p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
-                        <StarRating rating={r.rating} />
-                        {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
-                        <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>
-                        <figcaption className="mt-3 sm:mt-4 text-xs sm:text-sm text-text-muted">{r.reviewer.name} · {r.location ? `${r.location.city}, ${r.location.county}` : 'Willamette Valley'}</figcaption>
+                      <CraftCard className="p-5 sm:p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl relative overflow-hidden">
+                        <WorkshopAtmosphere particleCount={15} className="opacity-40" />
+                        <div className="relative z-10">
+                          <StarRating rating={r.rating} />
+                          {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
+                          <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>
+                          <figcaption className="mt-3 sm:mt-4 text-xs sm:text-sm text-text-muted">{r.reviewer.name} · {r.location ? `${r.location.city}, ${r.location.county}` : 'Willamette Valley'}</figcaption>
+                        </div>
                       </CraftCard>
                     </ScrollReveal>
                   ))}
@@ -304,9 +311,14 @@ export default async function HomePage() {
         </Section>
       </ScrollReveal>
 
-      <ScrollReveal>
-        <CTASection />
-      </ScrollReveal>
+      <div className="relative overflow-hidden">
+        <WorkshopAtmosphere particleCount={25} className="opacity-50" />
+        <ScrollReveal>
+          <div className="relative z-10">
+            <CTASection />
+          </div>
+        </ScrollReveal>
+      </div>
     </>
   );
 }

@@ -14,6 +14,7 @@ import { PlaceholderSection } from "@/components/placeholder-section";
 import { getMediaById } from "@/lib/media";
 import { ProjectLightbox } from "@/components/project-lightbox";
 import { BlueprintGrid } from "@/components/blueprint-grid";
+import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
 import { useState } from "react";
 
 export const metadata: Metadata = {
@@ -95,29 +96,34 @@ export default function OurWorkPage() {
                     href={`/projects/${project.slug || project.id}`}
                     className="group block"
                   >
-                    <CraftCard className="overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
-                      <div className="relative aspect-[16/9] overflow-hidden">
-                        <Image
-                          src={heroSrc}
-                          alt={heroMedia?.alt || project.title}
-                          fill
-                          className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                          sizes="(max-width: 768px) 100vw, 50vw"
-                        />
-                        <span className="absolute left-4 top-4 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground transition-transform duration-300 group-hover:scale-110">
-                          {project.location.county
-                            ? `${project.location.county.charAt(0).toUpperCase()}${project.location.county.slice(1)} County`
-                            : "Project"}
-                        </span>
+                    <div className="relative">
+                      <WorkshopAtmosphere particleCount={15} className="opacity-30" />
+                      <div className="relative z-10">
+                        <CraftCard className="overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
+                          <div className="relative aspect-[16/9] overflow-hidden">
+                            <Image
+                              src={heroSrc}
+                              alt={heroMedia?.alt || project.title}
+                              fill
+                              className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                              sizes="(max-width: 768px) 100vw, 50vw"
+                            />
+                            <span className="absolute left-4 top-4 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground transition-transform duration-300 group-hover:scale-110">
+                              {project.location.county
+                                ? `${project.location.county.charAt(0).toUpperCase()}${project.location.county.slice(1)} County`
+                                : "Project"}
+                            </span>
+                          </div>
+                          <div className="p-6 transition-transform duration-300 group-hover:translate-y-[-4px]">
+                            <h2 className="text-xl font-bold text-text">{project.title}</h2>
+                            <p className="mt-2 line-clamp-2 text-text-muted">{project.story?.outcome || project.story?.solution || project.title}</p>
+                            <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold min-h-[44px] text-text hover:text-honey transition-opacity duration-300 opacity-90 group-hover:opacity-100">
+                              See the transformation →
+                            </span>
+                          </div>
+                        </CraftCard>
                       </div>
-                      <div className="p-6 transition-transform duration-300 group-hover:translate-y-[-4px]">
-                        <h2 className="text-xl font-bold text-text">{project.title}</h2>
-                        <p className="mt-2 line-clamp-2 text-text-muted">{project.story?.outcome || project.story?.solution || project.title}</p>
-                        <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold min-h-[44px] text-text hover:text-honey transition-opacity duration-300 opacity-90 group-hover:opacity-100">
-                          See the transformation →
-                        </span>
-                      </div>
-                    </CraftCard>
+                    </div>
                   </Link>
                 </ScrollReveal>
               );

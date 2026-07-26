@@ -657,6 +657,93 @@ a {
   -webkit-mask-image: radial-gradient(ellipse 100% 60% at 50% 100%, black, transparent 70%);
 }
 
+/* ============================================================================
+   SECTION TRANSITIONS — native CSS clip-path and layering
+   ========================================================================== */
+
+/* Diagonal section transition - clip-path based */
+.section-diagonal-top {
+  position: relative;
+}
+.section-diagonal-top::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: inherit;
+  clip-path: polygon(0 100%, 100% 0, 100% 100%);
+  transform: translateY(-100%);
+  z-index: 1;
+}
+
+.section-diagonal-bottom {
+  position: relative;
+}
+.section-diagonal-bottom::after {
+  content: "";
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 60px;
+  background: inherit;
+  clip-path: polygon(0 0, 100% 100%, 0 100%);
+  transform: translateY(100%);
+  z-index: 1;
+}
+
+/* Image bleed transition with layering */
+.section-bleed-image {
+  position: relative;
+  overflow: hidden;
+}
+.section-bleed-image::before {
+  content: "";
+  position: absolute;
+  top: -20px;
+  left: -20px;
+  right: -20px;
+  bottom: -20px;
+  background: linear-gradient(135deg, rgba(217, 154, 78, 0.05) 0%, transparent 50%);
+  z-index: 0;
+  pointer-events: none;
+}
+
+/* Curved section transition */
+.section-curved-bottom {
+  position: relative;
+}
+.section-curved-bottom::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: inherit;
+  border-radius: 50% 50% 0 0;
+  transform: translateY(50%);
+  z-index: 1;
+}
+
+/* Asymmetric section transition */
+.section-asymmetric {
+  position: relative;
+}
+.section-asymmetric::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: linear-gradient(135deg, transparent 30%, var(--color-background) 30%, var(--color-background) 70%, transparent 70%);
+  transform: translateY(-100%);
+  z-index: 1;
+}
+
 
 
 
