@@ -50,7 +50,7 @@ export default async function HomePage() {
         {/* full-bleed background photo (parallax) */}
         <div className="absolute inset-0 -z-10">
           <Image
-            src="/images/hero.svg"
+            src="/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.webp"
             alt=""
             fill
             priority
