@@ -10,6 +10,8 @@ import { ScrollToTop } from "@/components/scroll-to-top";
 import { getHomepageHero } from "@/lib/brand";
 import { getMediaById } from "@/lib/media";
 import { ThemeProvider } from "@/components/theme-provider";
+import { LenisProvider } from "@/components/lenis-provider";
+import { MotionProvider } from "@/components/motion-provider";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -74,28 +76,31 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${playball.variable} h-full antialiased`} style={{ colorScheme: 'dark light' }}>
       <body className="min-h-full flex flex-col bg-background">
         <ThemeProvider defaultTheme="system" storageKey="hpp-theme">
-          <script
-            dangerouslySetInnerHTML={{
-              __html: `
-                (function() {
-                  const theme = localStorage.getItem('hpp-theme');
-                  if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
-                    document.documentElement.classList.add('dark');
-                  } else {
-                    document.documentElement.classList.remove('dark');
-                  }
-                })();
-              `,
-            }}
-          />
-          <script
-            type="application/ld+json"
-            dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
-          />
-          <ScrollToTop />
-          <SiteHeader />
-          <main className="flex-1">{children}</main>
-          <SiteFooter />
+          <MotionProvider>
+            <LenisProvider />
+            <script
+              dangerouslySetInnerHTML={{
+                __html: `
+                  (function() {
+                    const theme = localStorage.getItem('hpp-theme');
+                    if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                      document.documentElement.classList.add('dark');
+                    } else {
+                      document.documentElement.classList.remove('dark');
+                    }
+                  })();
+                `,
+              }}
+            />
+            <script
+              type="application/ld+json"
+              dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+            />
+            <ScrollToTop />
+            <SiteHeader />
+            <main className="flex-1">{children}</main>
+            <SiteFooter />
+          </MotionProvider>
         </ThemeProvider>
       </body>
     </html>
