@@ -1,7 +1,11 @@
+"use client";
+
 import Image from "next/image";
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import { StarRating } from "@/components/star-rating";
 import { CraftCard } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 import type { Review } from "@/types/reviews";
 import { getProjectById } from "@/lib/projects";
 import { getMediaById } from "@/lib/media";
@@ -34,6 +38,13 @@ interface ReviewCardProps {
  * Card text always uses light register tokens regardless of page background.
  */
 export function ReviewCard({ review }: ReviewCardProps) {
+  const [isResponseExpanded, setIsResponseExpanded] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Review Authority: Reviews should only reference projectId, never image IDs
   // The UI automatically displays hero image, gallery, location, project page, before/after
   // from Project Authority via Media Authority
@@ -76,17 +87,26 @@ export function ReviewCard({ review }: ReviewCardProps) {
         {/* Status badges */}
         <div className="flex flex-col items-end gap-1">
           {isPending && (
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800">
+            <span className={cn(
+              "rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-800 transition-all duration-300 ease-out",
+              isMounted ? "opacity-100 scale-100" : "opacity-0 scale-75"
+            )}>
               Pending
             </span>
           )}
           {isVerified && !isPending && (
-            <span className={`rounded-full ${badgeBg} px-2 py-0.5 text-xs font-semibold ${badgeText}`}>
+            <span className={cn(
+              `rounded-full ${badgeBg} px-2 py-0.5 text-xs font-semibold ${badgeText} transition-all duration-300 ease-out`,
+              isMounted ? "opacity-100 scale-100" : "opacity-0 scale-75"
+            )}>
               ✓ Verified
             </span>
           )}
           {review.externalSource && !isPending && (
-            <span className={`text-xs ${mutedColor} capitalize`}>
+            <span className={cn(
+              `text-xs ${mutedColor} capitalize transition-all duration-300 ease-out`,
+              isMounted ? "opacity-100 scale-100" : "opacity-0 scale-75"
+            )}>
               {review.externalSource}
             </span>
           )}
@@ -110,13 +130,33 @@ export function ReviewCard({ review }: ReviewCardProps) {
 
       {/* Owner response slot */}
       {review.ownerResponse && (
-        <div className={`mt-4 rounded-lg ${responseBg} p-4 border-l-4 ${responseBorder}`}>
-          <p className={`text-xs font-semibold ${responseLabel} uppercase tracking-wide mb-1`}>
-            {review.ownerResponse.author} replied
-          </p>
-          <p className={`${bodyColor} leading-relaxed text-sm`}>
-            {review.ownerResponse.body}
-          </p>
+        <div 
+          className={`mt-4 rounded-lg ${responseBg} p-4 border-l-4 ${responseBorder} transition-all duration-300 ease-out overflow-hidden`}
+        >
+          <button
+            onClick={() => setIsResponseExpanded(!isResponseExpanded)}
+            className="w-full text-left"
+          >
+            <p className={`text-xs font-semibold ${responseLabel} uppercase tracking-wide mb-1 flex items-center justify-between`}>
+              {review.ownerResponse.author} replied
+              <span className={cn(
+                "transition-transform duration-300",
+                isResponseExpanded ? "rotate-180" : "rotate-0"
+              )}>
+                ▼
+              </span>
+            </p>
+          </button>
+          <div 
+            className={cn(
+              "transition-all duration-300 ease-out",
+              isResponseExpanded ? "max-h-96 opacity-100 mt-2" : "max-h-0 opacity-0"
+            )}
+          >
+            <p className={`${bodyColor} leading-relaxed text-sm`}>
+              {review.ownerResponse.body}
+            </p>
+          </div>
         </div>
       )}
 

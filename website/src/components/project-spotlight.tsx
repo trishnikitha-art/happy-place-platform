@@ -206,7 +206,7 @@ export function ProjectSpotlight({
               {galleryMedia.map((media, i) => (
                 <figure 
                   key={i} 
-                  className="overflow-hidden rounded-card border border-border/40 bg-surface cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-xl"
+                  className="overflow-hidden rounded-card border border-border/40 bg-surface cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-xl group"
                   onClick={() => {
                     setLightboxIndex(i);
                     setLightboxOpen(true);
@@ -220,9 +220,10 @@ export function ProjectSpotlight({
                       loading="lazy"
                       placeholder="blur"
                       blurDataURL={media!.variants?.blur}
-                      className="object-cover transition-transform duration-200 ease-out hover:scale-[1.02]"
+                      className="object-cover transition-all duration-200 ease-out group-hover:scale-[1.05] group-hover:brightness-110"
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     />
+                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-200" />
                   </div>
                 </figure>
               ))}

@@ -12,6 +12,8 @@ import { CraftCard } from "@/components/ui/card";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { ParallaxImage } from "@/components/parallax-image";
 import { AmbientParticles } from "@/components/ambient-particles";
+import { RouterLink } from "@/components/router-link";
+import { PencilLine } from "@/components/pencil-line";
 import { getAllServices } from "@/lib/registries";
 import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
@@ -169,6 +171,8 @@ export default async function HomePage() {
         </Section>
       </ScrollReveal>
 
+      <PencilLine className="py-8" />
+
       {/* TRANSFORMATIONS — honest before→after composites, distinct from archive */}
       <ScrollReveal>
         <Section className="relative bg-[#F5F2ED] py-24 sm:py-32">
@@ -192,9 +196,7 @@ export default async function HomePage() {
               </div>
             )}
             <div className="mt-8">
-              <Link href="/our-work" className="inline-flex items-center gap-1 font-semibold text-primary hover:text-honey">
-                See the full portfolio →
-              </Link>
+              <RouterLink href="/our-work">See the full portfolio</RouterLink>
             </div>
           </Container>
         </Section>
@@ -231,6 +233,8 @@ export default async function HomePage() {
         </Section>
       </ScrollReveal>
 
+      <PencilLine className="py-8" />
+
       {/* CRAFT RULE separator before reviews */}
       <div className="py-4 sm:py-6">
         <div className="craft-rule"><span /></div>
@@ -257,7 +261,7 @@ export default async function HomePage() {
                   ))}
                 </div>
                 <div className="mt-6 sm:mt-8 text-center">
-                  <Link href="/reviews" className="inline-flex items-center gap-1 font-semibold text-accent hover:underline">Read all reviews →</Link>
+                  <RouterLink href="/reviews">Read all reviews</RouterLink>
                 </div>
               </>
             ) : (
