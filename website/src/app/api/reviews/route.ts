@@ -3,6 +3,7 @@ import type { Review } from "@/types/reviews";
 import { ReviewProvider, ReviewStatus } from "@/types/reviews";
 import { validateReview } from "@/lib/reviews";
 import { createGoogleSheetsReviewSource } from "@/lib/google-sheets";
+import { classifyReviewWithMetadata } from "@/lib/sentiment/classifier";
 
 /**
  * POST /api/reviews — Webhook endpoint for review submissions
@@ -30,19 +31,23 @@ interface ReviewSubmission {
 }
 
 /**
- * Convert submission to canonical Review object with auto-publish logic
+ * Convert submission to canonical Review object with sentiment classification
  */
 function submissionToReview(submission: ReviewSubmission): Review {
   const now = new Date().toISOString();
   const id = `review-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  
-  // Auto-publish logic: rating >= 4 and has review text
-  const autoPublish = submission.rating >= 4 && submission.body.length > 0;
-  
+
+  // Classify sentiment for moderation bucket assignment
+  const classification = classifyReviewWithMetadata(submission.body, submission.rating);
+
+  // All reviews start as Pending for human review
+  // The sentiment classifier only recommends the bucket, never auto-publishes
+  const status = ReviewStatus.Pending;
+
   return {
     id,
     provider: submission.provider || ReviewProvider.Form,
-    status: autoPublish ? ReviewStatus.Published : ReviewStatus.Submitted,
+    status,
     featured: false,
     verified: false,
     reviewer: {
@@ -62,7 +67,13 @@ function submissionToReview(submission: ReviewSubmission): Review {
     highlight: false,
     featuredWeight: 50,
     heroEligible: false,
-    homepageEligible: autoPublish, // Auto-eligible for homepage if auto-published
+    homepageEligible: false, // Not auto-eligible until human approval
+    submittedAt: now,
+    // Sentiment classification metadata
+    sentiment: classification.sentiment,
+    bucket: classification.bucket,
+    confidence: classification.confidence,
+    classifiers: classification.classifiers,
   };
 }
 
@@ -116,8 +127,9 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       review,
-      message: "Review received and published successfully",
-      autoPublished: review.status === ReviewStatus.Published,
+      message: "Review received and classified for moderation",
+      bucket: review.bucket,
+      confidence: review.confidence,
     });
     
   } catch (error) {

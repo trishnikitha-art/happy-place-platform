@@ -102,6 +102,20 @@ export interface Review {
   photos?: string[]; // Array of media IDs for review photos
   projectAssociation?: string; // Project ID for contextual linking
   verificationIndicator?: boolean; // Badge for verified purchases/projects
+
+  // Sentiment classification metadata (moderation bucket)
+  sentiment?: 'positive' | 'neutral' | 'negative';
+  bucket?: 'positive' | 'review'; // Moderation bucket for human review
+  confidence?: number; // 0.00-1.00, classifier confidence score
+
+  // Future classifier metadata (extensible for additional classifiers)
+  classifiers?: {
+    [key: string]: {
+      value: string | number | boolean;
+      confidence: number;
+      classifiedAt: string;
+    };
+  };
 }
 
 export interface ReviewAggregate {
