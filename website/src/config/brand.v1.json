@@ -3,7 +3,7 @@
   "generatedAt": "2026-07-22T00:00:00.000Z",
   "homepageHero": {
     "id": "brand-hero-001",
-    "mediaId": "pergolas-001-hero",
+    "mediaId": "brand-hero",
     "alt": "Happy Place Carpentry - Building decks, fences, and custom carpentry across Oregon's Mid-Willamette Valley",
     "fallback": {
       "gradient": true,
