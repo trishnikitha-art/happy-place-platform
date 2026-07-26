@@ -164,10 +164,9 @@ html {
 
 body {
   background:
-    /* Pacific Northwest atmospheric lighting - environmental depth */
-    radial-gradient(ellipse at 20% 30%, rgba(94, 98, 89, 0.03) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 70%, rgba(133, 141, 129, 0.01) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, rgba(94, 98, 89, 0.02) 0%, transparent 70%),
+    /* Pacific Northwest atmospheric lighting - single upper left morning light */
+    radial-gradient(ellipse at 17% 23%, rgba(94, 98, 89, 0.02) 0%, transparent 50%),
+    radial-gradient(ellipse at 73% 81%, rgba(133, 141, 129, 0.008) 0%, transparent 50%),
     var(--color-background);
   color: var(--color-text);
   font-family: var(--font-sans);
@@ -225,13 +224,13 @@ body {
   position: absolute;
   inset: 0;
   background: linear-gradient(
-    135deg,
+    127deg,
     rgba(250, 251, 252, 0.04) 0%,
     rgba(94, 98, 89, 0.03) 50%,
     rgba(94, 98, 89, 0.02) 100%
   );
   mix-blend-mode: overlay;
-  opacity: 0.5;
+  opacity: 0.35;
 }
 
 /* carpenter-square corner - engraved feel */
@@ -459,7 +458,7 @@ a {
 @media (prefers-reduced-motion: no-preference) {
   .hero-parallax {
     will-change: transform;
-    animation: heroDrift 45s ease-in-out infinite alternate;
+    animation: heroDrift 37s ease-in-out infinite alternate;
   }
   @keyframes heroDrift {
     from { transform: scale(1.06) translateY(0); }
@@ -533,7 +532,7 @@ a {
 }
 
 .animate-shimmer-slow {
-  animation: shimmer-slow 45s ease-in-out infinite;
+  animation: shimmer-slow 53s ease-in-out infinite;
 }
 
 .animate-shimmer-fast {
@@ -567,7 +566,7 @@ a {
 }
 
 .animate-happy-gold-idle {
-  animation: happy-gold-sweep 30s ease-in-out infinite;
+  animation: happy-gold-sweep 71s ease-in-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -588,17 +587,17 @@ a {
   inset: 0;
   pointer-events: none;
   z-index: 2;
-  opacity: 0.05;
+  opacity: 0.03;
   background: linear-gradient(
     180deg,
     transparent 0%,
-    rgba(94, 98, 89, 0.04) 40%,
-    rgba(133, 141, 129, 0.06) 60%,
-    rgba(94, 98, 89, 0.04) 80%,
+    rgba(94, 98, 89, 0.04) 37%,
+    rgba(133, 141, 129, 0.06) 63%,
+    rgba(94, 98, 89, 0.04) 79%,
     transparent 100%
   );
-  mask-image: radial-gradient(ellipse 100% 60% at 50% 100%, black, transparent 70%);
-  -webkit-mask-image: radial-gradient(ellipse 100% 60% at 50% 100%, black, transparent 70%);
+  mask-image: radial-gradient(ellipse 100% 60% at 47% 97%, black, transparent 70%);
+  -webkit-mask-image: radial-gradient(ellipse 100% 60% at 47% 97%, black, transparent 70%);
 }
 
 /* ============================================================================
