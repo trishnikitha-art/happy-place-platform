@@ -64,7 +64,7 @@ export default async function HomePage() {
               Your favorite part of coming home should be the home itself.
             </h1>
             <p className="measure mt-5 sm:mt-7 max-w-xl text-base sm:text-lg leading-[1.7] text-text-on-dark/90">
-              We restore, repair, and paint homes throughout the Mid-Willamette Valley—protecting your investment and making coming home feel better every day.</p>
+              We repair, restore, and improve homes across the Mid-Willamette Valley. The work should look right the day we leave, and still look right years later.</p>
             <div className="mt-6 sm:mt-8 flex flex-wrap gap-3">
               <Link href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold">
                 Get a Free Estimate
@@ -180,7 +180,7 @@ export default async function HomePage() {
           <Container className="relative z-10">
             <SectionHeading
               eyebrow="Featured projects"
-              title={<span className="text-primary">Recent transformations</span>}
+              title={<span className="text-primary">Recent Work</span>}
               description="A selection of our latest work across the Mid-Willamette Valley."
             />
             <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 auto-rows-[200px]">
@@ -236,12 +236,12 @@ export default async function HomePage() {
               </h2>
               <div className="measure mt-7 space-y-5 text-primary">
                 <p className="text-lg leading-relaxed">
-                  Great work starts long before the first board is cut.</p>
+                  Good projects don't start with lumber. They start with good communication and realistic expectations.</p>
                 <p>
-                  <span className="font-semibold text-primary">{taylor.name}</span> — Taylor approaches every project with one goal: build something he'll still be proud to drive past years from now.
+                  <span className="font-semibold text-primary">{taylor.name}</span> — Taylor cares about the work you'll notice five years from now, not just on the day it passes inspection.
                 </p>
                 <p>
-                  <span className="font-semibold text-primary">{lanie.name}</span> — Lanie keeps every project moving—from your first estimate to the final walkthrough—so you always know what's happening next.
+                  <span className="font-semibold text-primary">{lanie.name}</span> — Lanie keeps every project organized so you always know what's happening, what's next, and who to call.
                 </p>
               </div>
             </div>

@@ -41,7 +41,7 @@ export default function AboutPage() {
               {company.name} isn't built around sales teams, project managers, or handoffs. It's built around one family that believes your home should become your happy place. From your first conversation to the final walkthrough, you'll work directly with the people doing the work—people who care about every detail as much as you do.
             </p>
             <p className="mt-6 font-display text-xl text-text-on-dark/90">
-              Built carefully. Communicated clearly. Finished with pride.
+              Build it right. Explain it clearly. Stand behind the work.
             </p>
           </div>
           <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">

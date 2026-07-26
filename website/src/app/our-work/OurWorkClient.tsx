@@ -49,7 +49,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
             Our Work
           </h1>
           <p className="mt-5 max-w-xl text-lg text-text-on-dark">
-            Every project tells a story. Real homes. Real families. Real craftsmanship built for Oregon's climate. Explore featured transformations first, then browse the complete portfolio.
+            Every project solves a different problem. Here are a few of the homes we've worked on and the decisions behind them.
           </p>
         </Container>
       </section>
@@ -79,7 +79,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
         <Container>
           <SectionHeading
             eyebrow={<span className="text-honey">Recent projects</span>}
-            title={<span className="text-text-on-dark">The story behind the work</span>}
+            title={<span className="text-text-on-dark">Why We Built It This Way</span>}
             description={<span className="text-text-on-dark/90">Real challenges, real solutions. Tap a project for the full story.</span>}
           />
           <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
