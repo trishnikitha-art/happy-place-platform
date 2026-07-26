@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { motion, useScroll, useTransform } from "framer-motion";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 
@@ -18,8 +18,8 @@ interface ParallaxImageProps {
 /**
  * ParallaxImage - Subtle parallax effect for hero images
  * 
- * Hero images move slightly slower than the page scroll for depth.
- * Very subtle effect - not dramatic.
+ * Migrated to use Framer Motion's useScroll for smooth parallax.
+ * Replaces custom scroll listener with optimized motion system.
  * 
  * Default speed: 0.3 (30% of scroll speed)
  */
@@ -33,42 +33,12 @@ export function ParallaxImage({
   speed = 0.3,
   children,
 }: ParallaxImageProps) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [offset, setOffset] = useState(0);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      if (!ref.current) return;
-      
-      const rect = ref.current.getBoundingClientRect();
-      const windowHeight = window.innerHeight;
-      const elementTop = rect.top;
-      
-      // Calculate parallax offset only when element is in/near viewport
-      if (elementTop < windowHeight && elementTop > -rect.height) {
-        const scrollProgress = (windowHeight - elementTop) / (windowHeight + rect.height);
-        const parallaxOffset = scrollProgress * 100 * speed;
-        setOffset(parallaxOffset);
-      }
-    };
-
-    // Use passive listener for better scroll performance
-    window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll(); // Initial calculation
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, [speed]);
+  const { scrollY } = useScroll();
+  const y = useTransform(scrollY, [0, 1000], [0, 100 * speed]);
 
   return (
-    <div ref={ref} className={cn("relative overflow-hidden", className)}>
-      <div
-        style={{
-          transform: `translateY(${offset}px)`,
-          transition: "transform 0.1s ease-out",
-        }}
-      >
+    <div className={cn("relative overflow-hidden", className)}>
+      <motion.div style={{ y }}>
         <Image
           src={src}
           alt={alt}
@@ -78,7 +48,7 @@ export function ParallaxImage({
           className="object-cover"
         />
         {children}
-      </div>
+      </motion.div>
     </div>
   );
 }

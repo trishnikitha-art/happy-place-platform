@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { motion, useMotionValue, useTransform, useSpring, MotionValue } from "framer-motion";
+import { useRef, useEffect } from "react";
 import { cn } from "@/lib/utils";
 
 interface AmbientParticlesProps {
@@ -12,8 +13,8 @@ interface AmbientParticlesProps {
 /**
  * AmbientParticles - Tiny floating sawdust particles in hero areas
  * 
- * Barely visible, very slow floating particles that feel like a workshop.
- * Not confetti - subtle dust motes floating in the air.
+ * Migrated to use Framer Motion for smooth particle animation.
+ * Replaces custom canvas animation with DOM-based motion system.
  * 
  * Default: 30 particles, warm wood color
  */
@@ -22,85 +23,80 @@ export function AmbientParticles({
   count = 30,
   color = "rgba(217, 154, 78, 0.15)" // Honey color, very subtle
 }: AmbientParticlesProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Array<{
-    x: number;
-    y: number;
+    x: MotionValue<number>;
+    y: MotionValue<number>;
     vx: number;
     vy: number;
-    size: number;
-    opacity: number;
   }>>([]);
 
   useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-
-    // Set canvas size
-    const resize = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-    };
-    resize();
-    window.addEventListener("resize", resize);
-
-    // Initialize particles
-    const initParticles = () => {
-      particlesRef.current = [];
-      for (let i = 0; i < count; i++) {
-        particlesRef.current.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          vx: (Math.random() - 0.5) * 0.2, // Very slow horizontal movement
-          vy: (Math.random() - 0.5) * 0.2, // Very slow vertical movement
-          size: Math.random() * 2 + 0.5, // Tiny particles (0.5-2.5px)
-          opacity: Math.random() * 0.3 + 0.1, // Very subtle opacity (0.1-0.4)
-        });
-      }
-    };
-    initParticles();
+    // Initialize particles with motion values
+    particlesRef.current = [];
+    for (let i = 0; i < count; i++) {
+      const x = useMotionValue(Math.random() * window.innerWidth);
+      const y = useMotionValue(Math.random() * window.innerHeight);
+      
+      particlesRef.current.push({
+        x,
+        y,
+        vx: (Math.random() - 0.5) * 0.2, // Very slow horizontal movement
+        vy: (Math.random() - 0.5) * 0.2, // Very slow vertical movement
+      });
+    }
 
     // Animation loop
-    let animationId: number;
+    let animationFrame: number;
     const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
       particlesRef.current.forEach((particle) => {
+        const currentX = particle.x.get();
+        const currentY = particle.y.get();
+        
         // Update position
-        particle.x += particle.vx;
-        particle.y += particle.vy;
+        let newX = currentX + particle.vx;
+        let newY = currentY + particle.vy;
 
         // Wrap around edges
-        if (particle.x < 0) particle.x = canvas.width;
-        if (particle.x > canvas.width) particle.x = 0;
-        if (particle.y < 0) particle.y = canvas.height;
-        if (particle.y > canvas.height) particle.y = 0;
+        if (newX < 0) newX = window.innerWidth;
+        if (newX > window.innerWidth) newX = 0;
+        if (newY < 0) newY = window.innerHeight;
+        if (newY > window.innerHeight) newY = 0;
 
-        // Draw particle
-        ctx.beginPath();
-        ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-        ctx.fillStyle = color.replace("0.15", String(particle.opacity));
-        ctx.fill();
+        particle.x.set(newX);
+        particle.y.set(newY);
       });
 
-      animationId = requestAnimationFrame(animate);
+      animationFrame = requestAnimationFrame(animate);
     };
     animate();
 
     return () => {
-      window.removeEventListener("resize", resize);
-      cancelAnimationFrame(animationId);
+      cancelAnimationFrame(animationFrame);
     };
-  }, [count, color]);
+  }, [count]);
 
   return (
-    <canvas
-      ref={canvasRef}
-      className={cn("absolute inset-0 pointer-events-none", className)}
-      aria-hidden="true"
-    />
+    <div className={cn("absolute inset-0 pointer-events-none", className)} aria-hidden="true">
+      {particlesRef.current.map((particle, index) => {
+        const springX = useSpring(particle.x, { stiffness: 50, damping: 20 });
+        const springY = useSpring(particle.y, { stiffness: 50, damping: 20 });
+        const size = Math.random() * 2 + 0.5; // Tiny particles (0.5-2.5px)
+        const opacity = Math.random() * 0.3 + 0.1; // Very subtle opacity (0.1-0.4)
+        
+        return (
+          <motion.div
+            key={index}
+            className="absolute rounded-full"
+            style={{
+              x: springX,
+              y: springY,
+              width: size,
+              height: size,
+              backgroundColor: color.replace("0.15", String(opacity)),
+            }}
+          />
+        );
+      })}
+    </div>
   );
 }

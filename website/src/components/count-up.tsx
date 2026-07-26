@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { motion, useInView, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { useRef, useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 
 interface CountUpProps {
@@ -14,8 +15,8 @@ interface CountUpProps {
 /**
  * CountUp - Animated number counter for statistics
  * 
- * Animates from 0 to target value over specified duration.
- * Subtle but noticeable polish for trust statistics.
+ * Migrated to use Framer Motion for smooth, performant counting.
+ * Replaces custom requestAnimationFrame loop with optimized motion system.
  * 
  * Default: 800ms duration
  */
@@ -26,62 +27,32 @@ export function CountUp({
   suffix = "",
   prefix = ""
 }: CountUpProps) {
-  const [count, setCount] = useState(0);
-  const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLSpanElement>(null);
+  const isInView = useInView(ref, { once: true, margin: "-50px" });
+  const [displayValue, setDisplayValue] = useState(0);
+  
+  const motionValue = useMotionValue(0);
+  const springValue = useSpring(motionValue, { stiffness: 100, damping: 30 });
+  
+  const transformedValue = useTransform(springValue, (latest) => Math.floor(latest));
+  
+  useEffect(() => {
+    const unsubscribe = transformedValue.on("change", (latest) => {
+      setDisplayValue(latest);
+    });
+    
+    return unsubscribe;
+  }, [transformedValue]);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (ref.current) {
-      observer.observe(ref.current);
+    if (isInView) {
+      motionValue.set(end);
     }
-
-    return () => {
-      if (ref.current) {
-        observer.unobserve(ref.current);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!isVisible) return;
-
-    let startTime: number;
-    let animationFrame: number;
-
-    const animate = (currentTime: number) => {
-      if (!startTime) startTime = currentTime;
-      const progress = Math.min((currentTime - startTime) / duration, 1);
-      
-      // Ease out cubic for smooth deceleration
-      const easeOut = 1 - Math.pow(1 - progress, 3);
-      setCount(Math.floor(easeOut * end));
-
-      if (progress < 1) {
-        animationFrame = requestAnimationFrame(animate);
-      } else {
-        setCount(end);
-      }
-    };
-
-    animationFrame = requestAnimationFrame(animate);
-
-    return () => {
-      cancelAnimationFrame(animationFrame);
-    };
-  }, [isVisible, end, duration]);
+  }, [isInView, motionValue, end]);
 
   return (
     <span ref={ref} className={cn(className)}>
-      {prefix}{count.toLocaleString()}{suffix}
+      {prefix}{displayValue.toLocaleString()}{suffix}
     </span>
   );
 }

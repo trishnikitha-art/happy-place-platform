@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { motion, useMotionValue, useSpring } from "framer-motion";
 import { cn } from "@/lib/utils";
 
 interface CursorSpotlightProps {
@@ -12,8 +12,8 @@ interface CursorSpotlightProps {
 /**
  * CursorSpotlight - High-end polish cursor spotlight effect
  * 
- * Premium feel: Subtle spotlight follows cursor across the page.
- * Very subtle effect that adds depth without being distracting.
+ * Migrated to use Framer Motion's useMotionValue for smooth cursor tracking.
+ * Replaces custom mousemove event listener with optimized motion system.
  * 
  * Default: 300px spotlight, low intensity
  */
@@ -22,46 +22,35 @@ export function CursorSpotlight({
   size = 300,
   intensity = 0.06
 }: CursorSpotlightProps) {
-  const [position, setPosition] = useState({ x: 0, y: 0 });
-  const [isVisible, setIsVisible] = useState(false);
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+  
+  const springX = useSpring(mouseX, { stiffness: 300, damping: 30 });
+  const springY = useSpring(mouseY, { stiffness: 300, damping: 30 });
 
-  useEffect(() => {
-    const handleMouseMove = (e: MouseEvent) => {
-      setPosition({ x: e.clientX, y: e.clientY });
-      setIsVisible(true);
-    };
-
-    const handleMouseLeave = () => {
-      setIsVisible(false);
-    };
-
-    window.addEventListener('mousemove', handleMouseMove);
-    window.addEventListener('mouseleave', handleMouseLeave);
-
-    return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
-      window.removeEventListener('mouseleave', handleMouseLeave);
-    };
-  }, []);
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    mouseX.set(e.clientX);
+    mouseY.set(e.clientY);
+  };
 
   return (
-    <div
+    <motion.div
       className={cn("fixed inset-0 pointer-events-none z-50", className)}
       aria-hidden="true"
+      onMouseMove={handleMouseMove}
     >
-      <div
-        className="absolute rounded-full transition-opacity duration-300"
+      <motion.div
+        className="absolute rounded-full"
         style={{
-          left: position.x - size / 2,
-          top: position.y - size / 2,
           width: size,
           height: size,
           background: `radial-gradient(circle, rgba(255,255,255,${intensity}) 0%, transparent 70%)`,
-          opacity: isVisible ? 1 : 0,
-          transform: 'translate3d(0, 0, 0)',
-          willChange: 'transform'
+          x: springX,
+          y: springY,
+          translateX: "-50%",
+          translateY: "-50%",
         }}
       />
-    </div>
+    </motion.div>
   );
 }

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { motion, Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
+import { revealUp, revealDown, revealLeft, revealRight } from "@/motion";
 
 interface ScrollRevealProps {
   children: React.ReactNode;
@@ -13,8 +14,8 @@ interface ScrollRevealProps {
 /**
  * ScrollReveal - Gentle fade/slide animation when element enters viewport
  * 
- * Subtle scroll-triggered animation that makes sections feel alive without being dramatic.
- * Uses Intersection Observer for performance.
+ * Migrated to use Framer Motion for consistent, performant animations.
+ * Uses motion system primitives instead of custom IntersectionObserver.
  * 
  * Default behavior: Fade up with slight translateY
  */
@@ -24,66 +25,23 @@ export function ScrollReveal({
   delay = 0,
   direction = "up"
 }: ScrollRevealProps) {
-  const [isVisible, setIsVisible] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.unobserve(entry.target);
-        }
-      },
-      {
-        threshold: 0.1,
-        rootMargin: "0px 0px -50px 0px"
-      }
-    );
-
-    const currentRef = ref.current;
-    if (currentRef) {
-      observer.observe(currentRef);
-    }
-
-    return () => {
-      if (currentRef) {
-        observer.unobserve(currentRef);
-      }
-    };
-  }, []);
-
-  const getTransform = () => {
-    if (isVisible) return "translateY(0) translateX(0)";
-    
-    switch (direction) {
-      case "up":
-        return "translateY(20px)";
-      case "down":
-        return "translateY(-20px)";
-      case "left":
-        return "translateX(20px)";
-      case "right":
-        return "translateX(-20px)";
-      default:
-        return "translateY(20px)";
-    }
+  const variants: Record<string, Variants> = {
+    up: revealUp,
+    down: revealDown,
+    left: revealLeft,
+    right: revealRight,
   };
 
   return (
-    <div
-      ref={ref}
-      className={cn(
-        "transition-all duration-700 ease-out",
-        isVisible ? "opacity-100" : "opacity-0",
-        className
-      )}
-      style={{
-        transform: getTransform(),
-        transitionDelay: `${delay}ms`
-      }}
+    <motion.div
+      initial="hidden"
+      whileInView="visible"
+      viewport={{ once: true, margin: "-50px" }}
+      variants={variants[direction]}
+      transition={{ delay }}
+      className={cn(className)}
     >
       {children}
-    </div>
+    </motion.div>
   );
 }
