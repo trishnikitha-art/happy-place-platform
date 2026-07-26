@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { CTASection } from "@/components/cta-section";
-import { Reveal } from "@/components/reveal";
+import { ScrollReveal } from "@/components/scroll-reveal";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { CraftCard } from "@/components/ui/card";
 import { getAllProjects, getFeaturedProjects } from "@/lib/projects";
@@ -64,9 +64,9 @@ export default function OurWorkPage() {
           />
           <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
             {featuredProjects.slice(0, 4).map((project, i) => (
-              <Reveal key={project.id} delay={i * 60}>
+              <ScrollReveal key={project.id} delay={i * 60}>
                 <BeforeAfterSlider project={project} />
-              </Reveal>
+              </ScrollReveal>
             ))}
           </div>
         </Container>
@@ -87,7 +87,7 @@ export default function OurWorkPage() {
               const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original;
               if (!heroSrc) return null;
               return (
-                <Reveal key={project.id} delay={i * 80}>
+                <ScrollReveal key={project.id} delay={i * 80}>
                   <Link
                     href={`/projects/${project.slug || project.id}`}
                     className="group block"
@@ -116,7 +116,7 @@ export default function OurWorkPage() {
                       </div>
                     </CraftCard>
                   </Link>
-                </Reveal>
+                </ScrollReveal>
               );
             })}
           </div>
