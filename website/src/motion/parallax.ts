@@ -3,12 +3,14 @@
  * 
  * Parallax effects for hero images and background elements.
  * Uses Framer Motion's useScroll and useTransform for smooth parallax.
+ * Respects reduced motion preferences.
  */
 
 import { Variants } from "framer-motion";
 
 /**
  * Subtle parallax for hero backgrounds
+ * Disabled under reduced motion - uses static scale instead
  */
 export const parallaxSlow: Variants = {
   initial: { scale: 1.05, y: 0 },
@@ -21,11 +23,17 @@ export const parallaxSlow: Variants = {
       repeat: Infinity,
       repeatType: "reverse"
     }
+  },
+  reducedMotion: {
+    scale: 1.05,
+    y: 0,
+    transition: { duration: 0 }
   }
 };
 
 /**
  * Medium parallax for featured images
+ * Disabled under reduced motion - uses static scale instead
  */
 export const parallaxMedium: Variants = {
   initial: { scale: 1.05, y: 0 },
@@ -38,11 +46,17 @@ export const parallaxMedium: Variants = {
       repeat: Infinity,
       repeatType: "reverse"
     }
+  },
+  reducedMotion: {
+    scale: 1.05,
+    y: 0,
+    transition: { duration: 0 }
   }
 };
 
 /**
  * Fast parallax for decorative elements
+ * Disabled under reduced motion - uses static scale instead
  */
 export const parallaxFast: Variants = {
   initial: { scale: 1.05, y: 0 },
@@ -55,11 +69,17 @@ export const parallaxFast: Variants = {
       repeat: Infinity,
       repeatType: "reverse"
     }
+  },
+  reducedMotion: {
+    scale: 1.05,
+    y: 0,
+    transition: { duration: 0 }
   }
 };
 
 /**
  * Horizontal parallax (for horizontal scroll sections)
+ * Disabled under reduced motion - uses static position instead
  */
 export const parallaxHorizontal: Variants = {
   initial: { x: 0 },
@@ -71,5 +91,9 @@ export const parallaxHorizontal: Variants = {
       repeat: Infinity,
       repeatType: "reverse"
     }
+  },
+  reducedMotion: {
+    x: 0,
+    transition: { duration: 0 }
   }
 };
