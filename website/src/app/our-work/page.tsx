@@ -1,3 +1,5 @@
+"use client";
+
 import type { Metadata } from "next";
 import Link from "next/link";
 import Image from "next/image";
@@ -10,6 +12,8 @@ import { getAllProjects, getFeaturedProjects } from "@/lib/projects";
 import { getCompany } from "@/lib/company";
 import { PlaceholderSection } from "@/components/placeholder-section";
 import { getMediaById } from "@/lib/media";
+import { ProjectLightbox } from "@/components/project-lightbox";
+import { useState } from "react";
 
 export const metadata: Metadata = {
   title: "Our Work",
@@ -22,6 +26,15 @@ export default function OurWorkPage() {
   const company = getCompany();
   const allProjects = getAllProjects();
   const featuredProjects = getFeaturedProjects();
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+  const [lightboxImages, setLightboxImages] = useState<Array<{src: string; alt: string; blurDataURL?: string}>>([]);
+
+  const openLightbox = (images: Array<{src: string; alt: string; blurDataURL?: string}>, index: number) => {
+    setLightboxImages(images);
+    setLightboxIndex(index);
+    setLightboxOpen(true);
+  };
 
   return (
     <>
@@ -79,25 +92,25 @@ export default function OurWorkPage() {
                     href={`/projects/${project.slug || project.id}`}
                     className="group block"
                   >
-                    <CraftCard className="overflow-hidden transition-transform duration-150 active:scale-[0.98] hover:shadow-lg">
-                      <div className="relative aspect-[16/9]">
+                    <CraftCard className="overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
+                      <div className="relative aspect-[16/9] overflow-hidden">
                         <Image
                           src={heroSrc}
                           alt={heroMedia?.alt || project.title}
                           fill
-                          className="object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+                          className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
                           sizes="(max-width: 768px) 100vw, 50vw"
                         />
-                        <span className="absolute left-4 top-4 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
+                        <span className="absolute left-4 top-4 rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground transition-transform duration-300 group-hover:scale-110">
                           {project.location.county
                             ? `${project.location.county.charAt(0).toUpperCase()}${project.location.county.slice(1)} County`
                             : "Project"}
                         </span>
                       </div>
-                      <div className="p-6">
+                      <div className="p-6 transition-transform duration-300 group-hover:translate-y-[-4px]">
                         <h2 className="text-xl font-bold text-text">{project.title}</h2>
                         <p className="mt-2 line-clamp-2 text-text-muted">{project.story?.outcome || project.story?.solution || project.title}</p>
-                        <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold min-h-[44px] text-text hover:text-honey">
+                        <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold min-h-[44px] text-text hover:text-honey transition-opacity duration-300 opacity-90 group-hover:opacity-100">
                           See the transformation →
                         </span>
                       </div>
@@ -119,7 +132,7 @@ export default function OurWorkPage() {
             description={<span className="text-text-on-dark/90">Every project, every detail. Future projects simply append here.</span>}
           />
           <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-            {allProjects.map((project) => {
+            {allProjects.map((project, projectIndex) => {
               const galleryMediaIds = project.media?.gallery || [];
               const galleryPhotos = galleryMediaIds
                 .map(id => getMediaById(id))
@@ -130,10 +143,25 @@ export default function OurWorkPage() {
                 if (!src) return null;
                 
                 return (
-                  <Link
+                  <button
                     key={`${project.id}-${photoIndex}`}
-                    href={`/projects/${project.slug || project.id}`}
-                    className="group relative block aspect-[4/3] overflow-hidden"
+                    className="group relative block aspect-[4/3] overflow-hidden cursor-pointer"
+                    onClick={() => {
+                      const allGalleryImages = allProjects.flatMap(p => {
+                        const pGalleryIds = p.media?.gallery || [];
+                        return pGalleryIds
+                          .map(id => getMediaById(id))
+                          .filter(m => m !== null && (m.variants?.web || m.variants?.original))
+                          .map(m => ({
+                            src: m!.variants.web || m!.variants.original || m!.variants.thumbnail!,
+                            alt: m!.alt,
+                            blurDataURL: m!.variants?.blur
+                          }));
+                      });
+                      const globalIndex = allGalleryImages.findIndex(img => img.src === src);
+                      openLightbox(allGalleryImages, globalIndex);
+                    }}
+                    aria-label={`View ${photo!.alt} in full screen`}
                   >
                     <CraftCard className="overflow-hidden">
                       <img
@@ -147,13 +175,21 @@ export default function OurWorkPage() {
                         {project.title}
                       </span>
                     </CraftCard>
-                  </Link>
+                  </button>
                 );
               });
             })}
           </div>
         </Container>
       </Section>
+
+      {/* Lightbox */}
+      <ProjectLightbox
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
 
       <CTASection
         title="Ready to love coming home again?"

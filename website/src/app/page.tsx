@@ -14,6 +14,7 @@ import { ParallaxImage } from "@/components/parallax-image";
 import { AmbientParticles } from "@/components/ambient-particles";
 import { RouterLink } from "@/components/router-link";
 import { PencilLine } from "@/components/pencil-line";
+import { CountUp } from "@/components/count-up";
 import { getAllServices } from "@/lib/registries";
 import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
@@ -124,13 +125,15 @@ export default async function HomePage() {
           <div className="absolute inset-0 bg-gradient-to-r from-[#F3EFE8] via-[#F0ECE4] to-[#F3EFE8] opacity-100" aria-hidden="true" />
           <Container className="relative z-10 grid grid-cols-2 gap-x-4 gap-y-5 py-8 sm:gap-x-6 sm:gap-y-6 sm:py-10 text-center sm:grid-cols-4">
             {[
-              ["Oregon CCB #254240", "Licensed, Bonded & Insured"],
-              ["Family-Owned", "Local Craftsmanship"],
-              ["Mid-Willamette Valley", "Service Area"],
-              [company.proof.projectsCompleted, "Projects Completed"],
-            ].map(([stat, label]) => (
+              ["Oregon CCB #254240", "Licensed, Bonded & Insured", false],
+              ["Family-Owned", "Local Craftsmanship", false],
+              ["Mid-Willamette Valley", "Service Area", false],
+              [company.proof.projectsCompleted, "Projects Completed", true],
+            ].map(([stat, label, isNumber]) => (
               <div key={label as string} className="relative">
-                <p className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-primary">{stat}</p>
+                <p className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-primary">
+                  {isNumber ? <CountUp end={Number(stat)} suffix="+" /> : stat}
+                </p>
                 <p className="mt-1 text-xs sm:text-sm font-medium uppercase tracking-wide text-primary">{label}</p>
               </div>
             ))}
