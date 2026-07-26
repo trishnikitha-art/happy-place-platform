@@ -87,8 +87,7 @@ export function ParallaxImage({
 
   return (
     <div className={cn("relative overflow-hidden", className)}>
-      {/* <motion.div style={{ y}> */}
-      <div>
+      <motion.div style={{ y }}>
         <Image
           src={src}
           alt={alt}
@@ -98,8 +97,7 @@ export function ParallaxImage({
           className="object-cover"
         />
         {children}
-      </div>
-      {/* </motion.div> */}
+      </motion.div>
     </div>
   );
 }

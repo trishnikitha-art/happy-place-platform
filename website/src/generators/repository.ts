@@ -151,7 +151,7 @@ export class RepositoryGenerator implements Generator {
 
     // Only validate repository classes, not test files
     const repoFiles = artifacts.filter(
-      (a) => a.path.startsWith("repositories/") && !a.path.includes("__tests__") && a.path !== "repositories/index.ts",
+      (a) => a.path.startsWith("repositories/") && !a.path.includes("__tests__") && a.path !== "repositories/index.ts" && !a.path.endsWith(".metadata.json"),
     );
 
     for (const artifact of repoFiles) {
