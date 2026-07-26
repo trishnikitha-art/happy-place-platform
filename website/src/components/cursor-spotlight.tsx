@@ -15,6 +15,9 @@ interface CursorSpotlightProps {
  * Migrated to use Framer Motion's useMotionValue for smooth cursor tracking.
  * Replaces custom mousemove event listener with optimized motion system.
  * 
+ * Respects prefers-reduced-motion: spotlight disappears completely when enabled.
+ * This is a decorative effect that does not improve usability.
+ * 
  * Default: 300px spotlight, low intensity
  */
 export function CursorSpotlight({ 
@@ -22,6 +25,16 @@ export function CursorSpotlight({
   size = 300,
   intensity = 0.06
 }: CursorSpotlightProps) {
+  // Check if user prefers reduced motion
+  const prefersReducedMotion = typeof window !== 'undefined' 
+    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches 
+    : false;
+
+  if (prefersReducedMotion) {
+    // Spotlight is decorative - disable completely for reduced motion
+    return null;
+  }
+
   const mouseX = useMotionValue(0);
   const mouseY = useMotionValue(0);
   

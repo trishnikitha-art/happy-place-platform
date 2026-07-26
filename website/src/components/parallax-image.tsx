@@ -21,6 +21,8 @@ interface ParallaxImageProps {
  * Migrated to use Framer Motion's useScroll for smooth parallax.
  * Replaces custom scroll listener with optimized motion system.
  * 
+ * Respects prefers-reduced-motion: disables parallax when enabled.
+ * 
  * Default speed: 0.3 (30% of scroll speed)
  */
 export function ParallaxImage({
@@ -35,6 +37,28 @@ export function ParallaxImage({
 }: ParallaxImageProps) {
   const { scrollY } = useScroll();
   const y = useTransform(scrollY, [0, 1000], [0, 100 * speed]);
+
+  // Check if user prefers reduced motion
+  const prefersReducedMotion = typeof window !== 'undefined' 
+    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches 
+    : false;
+
+  if (prefersReducedMotion) {
+    // Render static image without parallax
+    return (
+      <div className={cn("relative overflow-hidden", className)}>
+        <Image
+          src={src}
+          alt={alt}
+          fill={fill}
+          priority={priority}
+          sizes={sizes}
+          className="object-cover"
+        />
+        {children}
+      </div>
+    );
+  }
 
   return (
     <div className={cn("relative overflow-hidden", className)}>

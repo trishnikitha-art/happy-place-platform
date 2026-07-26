@@ -16,6 +16,8 @@ interface AmbientParticlesProps {
  * Migrated to use Framer Motion for smooth particle animation.
  * Replaces custom canvas animation with DOM-based motion system.
  * 
+ * Respects prefers-reduced-motion: disables all animation when enabled.
+ * 
  * Default: 30 particles, warm wood color
  */
 export function AmbientParticles({ 
@@ -31,6 +33,29 @@ export function AmbientParticles({
   }>>([]);
 
   useEffect(() => {
+    // Check if user prefers reduced motion
+    const prefersReducedMotion = window.matchMedia(
+      "(prefers-reduced-motion: reduce)"
+    ).matches;
+
+    if (prefersReducedMotion) {
+      // Don't initialize animation loop for reduced motion
+      // Render static particles only
+      particlesRef.current = [];
+      for (let i = 0; i < count; i++) {
+        const x = useMotionValue(Math.random() * window.innerWidth);
+        const y = useMotionValue(Math.random() * window.innerHeight);
+        
+        particlesRef.current.push({
+          x,
+          y,
+          vx: 0, // No movement
+          vy: 0, // No movement
+        });
+      }
+      return;
+    }
+
     // Initialize particles with motion values
     particlesRef.current = [];
     for (let i = 0; i < count; i++) {

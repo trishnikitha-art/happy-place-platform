@@ -18,6 +18,8 @@ interface CountUpProps {
  * Migrated to use Framer Motion for smooth, performant counting.
  * Replaces custom requestAnimationFrame loop with optimized motion system.
  * 
+ * Respects prefers-reduced-motion: immediately displays final value when enabled.
+ * 
  * Default: 800ms duration
  */
 export function CountUp({ 
@@ -27,6 +29,20 @@ export function CountUp({
   suffix = "",
   prefix = ""
 }: CountUpProps) {
+  // Check if user prefers reduced motion
+  const prefersReducedMotion = typeof window !== 'undefined' 
+    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches 
+    : false;
+
+  if (prefersReducedMotion) {
+    // Immediately display final value without animation
+    return (
+      <span className={cn(className)}>
+        {prefix}{end.toLocaleString()}{suffix}
+      </span>
+    );
+  }
+
   const ref = useRef<HTMLSpanElement>(null);
   const isInView = useInView(ref, { once: true, margin: "-50px" });
   const [displayValue, setDisplayValue] = useState(0);
