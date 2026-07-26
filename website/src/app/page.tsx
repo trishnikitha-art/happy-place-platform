@@ -47,7 +47,7 @@ export default async function HomePage() {
       {/* HERO — full-width photograph with text overlay */}
       <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
         <Image
-          src="/images/hero-background.jpeg"
+          src="/images/hero-background-enhanced.jpg"
           alt="Happy Place Carpentry"
           fill
           priority
