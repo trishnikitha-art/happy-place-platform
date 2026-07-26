@@ -1,6 +1,6 @@
 "use client";
 
-import { motion, useScroll, useTransform, useSpring, useMotionValue } from "framer-motion";
+import { motion, useScroll, useTransform, useMotionValue } from "framer-motion";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { useMotion } from "@/components/motion-provider";
@@ -68,9 +68,6 @@ export function ParallaxImage({
     [0, 100 * speed]
   );
 
-  // Spring physics for smoother parallax
-  const springY = useSpring(y, { stiffness: 100, damping: 30 });
-
   if (prefersReducedMotion) {
     // Render static image without parallax
     return (
@@ -90,7 +87,7 @@ export function ParallaxImage({
 
   return (
     <div className={cn("relative overflow-hidden", className)}>
-      <motion.div style={{ y: springY }}>
+      <motion.div style={{ y }}>
         <Image
           src={src}
           alt={alt}
