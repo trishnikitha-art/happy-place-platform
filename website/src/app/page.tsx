@@ -7,7 +7,10 @@ import { StarRating } from "@/components/star-rating";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { CedarCorner } from "@/components/cedar-corner";
 import { ToolMark } from "@/components/tool-mark";
+import { HappyBrandSignature } from "@/components/happy-brand-signature";
 import { CraftCard } from "@/components/ui/card";
+import { ParallaxImage } from "@/components/parallax-image";
+import { AmbientParticles } from "@/components/ambient-particles";
 import { RouterLink } from "@/components/router-link";
 import { PencilLine } from "@/components/pencil-line";
 import { CountUp } from "@/components/count-up";
@@ -17,8 +20,8 @@ import { getAllServices } from "@/lib/registries";
 import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
-import { getOwnerPortrait } from "@/lib/brand";
-import { getMediaById } from "@/lib/media";
+import { getOwnerPortrait, getHomepageHero } from "@/lib/brand";
+import { getMediaById, getProjectBeforeAfter } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 
 export default async function HomePage() {
@@ -27,6 +30,9 @@ export default async function HomePage() {
   const stats = await getReviewStats();
   const hasReviews = stats.count > 0;
   const [taylor, lanie] = company.owners;
+  const heroBrand = getHomepageHero();       // primary full-width hero photograph from Brand Authority
+  const heroMedia = heroBrand?.mediaId ? getMediaById(heroBrand.mediaId) : null;
+  const heroBg = heroMedia?.variants?.web || heroMedia?.variants?.original;
   const ownerBrand = getOwnerPortrait();    // owner portrait from Brand Authority
   const ownerMedia = ownerBrand?.mediaId ? getMediaById(ownerBrand.mediaId) : null;
   const ownerSrc = ownerMedia?.variants?.web || ownerMedia?.variants?.original;
@@ -42,85 +48,63 @@ export default async function HomePage() {
 
   return (
     <>
-      {/* HERO — magazine composition: layered full-bleed background + golden
-          light + floating cedar card. Content lowered (~100px) so nav and hero
-          don't compete. Structurally non-overlapping (stacked < lg, layered
-          absolute bg behind a relative content card at lg). */}
+      {/* HERO — full-width photograph with text overlay */}
       <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
-        {/* full-bleed background photo (parallax) */}
-        <div className="absolute inset-0 -z-10">
-          <Image
-            src="/images/hero.svg"
-            alt=""
-            fill
+        {heroBg && (
+          <ParallaxImage
+            src={heroBg}
+            alt={heroBrand?.alt || "Happy Place Carpentry"}
             priority
             sizes="100vw"
-            className="hero-parallax object-cover opacity-60"
-          />
-          {/* golden-hour warm light wash */}
-          <div className="absolute inset-0 bg-gradient-to-tr from-deep via-deep/70 to-honey/20" aria-hidden="true" />
-          <div className="absolute inset-0 bg-gradient-to-b from-deep/40 via-transparent to-deep" aria-hidden="true" />
-        </div>
+            speed={0.3}
+            className="absolute inset-0"
+          >
+            <div className="absolute inset-0 animate-breathe" />
+          </ParallaxImage>
+        )}
+        <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/20 via-transparent to-black/40" aria-hidden="true" />
 
-        <Container className="relative grid min-h-[88svh] grid-cols-1 items-end pb-16 pt-36 lg:grid-cols-12 lg:items-center lg:pb-24 lg:pt-40">
-          {/* floating cedar card (owner + headline + CTA) */}
-          <div className="lg:col-span-7">
-            <div className="relative float-card bg-deep/55 p-7 backdrop-blur-md ring-1 ring-honey/15 sm:p-10 lg:bg-deep/45">
-              <CedarCorner className="absolute -left-2 -top-2 h-7 w-7 text-honey" />
-              <p className="font-display text-sm font-semibold uppercase tracking-[0.2em] text-honey">
-                {company.ccbNumber} · {company.proof.serviceCounties.join(" · ")}
-              </p>
-              <h1 className="mt-4 font-display text-4xl font-bold leading-[1.04] text-text-on-dark sm:text-5xl lg:text-6xl">
-                Building spaces you&rsquo;ll love coming home to.
-              </h1>
-              <p className="mt-5 max-w-xl text-lg text-text-on-dark/80">
-                Custom decks, kitchens, fences, and outdoor living across the
-                mid-Willamette Valley — crafted in cedar, finished by hand.
-              </p>
-              <div className="mt-7 flex flex-wrap gap-3">
-                <Link href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-7 py-3.5 text-base font-semibold">
-                  Get a Free Estimate
-                </Link>
-                <Link
-                  href="/our-work"
-                  className="inline-flex items-center justify-center gap-2 rounded-full border border-text-on-dark/30 bg-text-on-dark/10 px-7 py-3.5 text-base font-semibold text-text-on-dark transition-colors hover:bg-text-on-dark/20"
-                >
-                  See Our Work
-                </Link>
-              </div>
-              <div className="mt-6 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-text-on-dark/75">
-                {hasReviews && (
-                  <span className="inline-flex items-center gap-2">
-                    <StarRating rating={5} />
-                    {stats.average} / 5 · {company.proof.projectsCompleted} projects
-                  </span>
-                )}
-                {!hasReviews && (
-                  <span className="inline-flex items-center gap-2">
-                    {company.proof.projectsCompleted} projects completed
-                  </span>
-                )}
-                <span className="text-text-on-dark/35">·</span>
-                <span className="hidden sm:inline">Licensed · Insured</span>
-                <span className="text-text-on-dark/35">·</span>
-                <span className="hidden sm:inline">{company.proof.serviceCounties.join(" · ")}</span>
-                <span className="sm:hidden">{company.proof.serviceCounties[0]}</span>
-              </div>
-              <span className="mt-5 block font-signature text-2xl text-honey">Tell us what you're planning.</span>
+        <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20">
+          <div className="max-w-3xl">
+            <p className="font-signature text-xl sm:text-2xl text-text-on-dark tracking-wide">
+              <HappyBrandSignature /> Place Carpentry
+            </p>
+            <h1 className="mt-4 sm:mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] sm:leading-[1.05] tracking-tight tracking-display text-text-on-dark">
+              Your favorite part of coming home should be the home itself.
+            </h1>
+            <p className="measure mt-5 sm:mt-7 max-w-xl text-base sm:text-lg leading-[1.7] text-text-on-dark/90">
+              We restore, repair, and paint homes throughout the Mid-Willamette Valley—protecting your investment and making coming home feel better every day.</p>
+            <div className="mt-6 sm:mt-8 flex flex-wrap gap-3">
+              <Link href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold">
+                Get a Free Estimate
+              </Link>
+              <Link
+                href="/our-work"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-text-on-dark/20 bg-text-on-dark/6 px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold text-text-on-dark transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-text-on-dark/12 hover:border-text-on-dark/30"
+              >
+                See Our Work
+              </Link>
             </div>
-          </div>
-          <div className="relative mt-10 lg:col-span-5 lg:mt-0 lg:self-center">
-            <div className="relative mx-auto aspect-[4/5] w-2/3 overflow-hidden rounded-card shadow-float ring-1 ring-text-on-dark/20 sm:w-1/2 lg:ml-auto lg:w-full lg:translate-y-6">
-              {ownerSrc && (
-                <Image
-                  src={ownerSrc}
-                  alt="Taylor & Lanie of Happy Place Carpentry"
-                  fill
-                  sizes="(max-width: 1024px) 60vw, 40vw"
-                  className="object-cover"
-                />
+            <div className="mt-6 sm:mt-9 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-text-on-dark/90">
+              {hasReviews && (
+                <span className="inline-flex items-center gap-2">
+                  <StarRating rating={5} />
+                  {stats.average} / 5 · {company.proof.projectsCompleted} projects
+                </span>
               )}
+              {!hasReviews && (
+                <span className="inline-flex items-center gap-2">
+                  {company.proof.projectsCompleted} projects completed
+                </span>
+              )}
+              <span className="text-text-on-dark/35">·</span>
+              <span className="hidden sm:inline">{company.ccbNumber} · Licensed · Insured</span>
+              <span className="sm:hidden">{company.ccbNumber}</span>
+              <span className="text-text-on-dark/35">·</span>
+              <span className="hidden sm:inline">{company.proof.serviceCounties.join(" · ")}</span>
+              <span className="sm:hidden">{company.proof.serviceCounties[0]}</span>
             </div>
+            <span className="mt-5 sm:mt-7 block font-signature text-2xl sm:text-3xl text-honey">Tell us what you're planning.</span>
           </div>
         </Container>
       </section>
