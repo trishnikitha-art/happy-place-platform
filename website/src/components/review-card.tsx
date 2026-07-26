@@ -62,7 +62,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
   const linkColor = "text-text hover:text-honey";
 
   return (
-    <CraftCard className="flex flex-col p-5 sm:p-6">
+    <CraftCard className="flex flex-col p-5 sm:p-6 transition-transform duration-150 active:scale-[0.98] hover:shadow-lg">
       {/* Header: Rating + Status Badges */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -72,7 +72,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
           </div>
           <StarRating rating={review.rating} />
         </div>
-        
+
         {/* Status badges */}
         <div className="flex flex-col items-end gap-1">
           {isPending && (
@@ -92,15 +92,15 @@ export function ReviewCard({ review }: ReviewCardProps) {
           )}
         </div>
       </div>
-      
+
       {/* Title slot */}
       {review.title && <h3 className={`mt-4 font-display text-lg font-bold sm:text-xl ${headingColor}`}>{review.title}</h3>}
-      
+
       {/* Body slot */}
       <blockquote className={`mt-3 flex-1 text-sm leading-relaxed sm:text-base ${bodyColor}`}>
         &ldquo;{review.body}&rdquo;
       </blockquote>
-      
+
       {/* Footer: Reviewer info */}
       <figcaption className={`mt-5 border-t ${borderColor} pt-4 text-sm`}>
         <span className={`font-semibold ${bodyColor}`}>{review.reviewer.name}</span>
@@ -136,7 +136,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
           )}
           <Link
             href={`/projects/${project.seo?.slug || project.id}`}
-            className={`inline-flex items-center gap-2 text-sm font-semibold ${linkColor}`}
+            className={`inline-flex items-center gap-2 text-sm font-semibold min-h-[44px] ${linkColor}`}
           >
             View Project →
           </Link>

@@ -79,7 +79,7 @@ export default function OurWorkPage() {
                     href={`/projects/${project.slug || project.id}`}
                     className="group block"
                   >
-                    <CraftCard className="overflow-hidden">
+                    <CraftCard className="overflow-hidden transition-transform duration-150 active:scale-[0.98] hover:shadow-lg">
                       <div className="relative aspect-[16/9]">
                         <Image
                           src={heroSrc}
@@ -97,7 +97,7 @@ export default function OurWorkPage() {
                       <div className="p-6">
                         <h2 className="text-xl font-bold text-text">{project.title}</h2>
                         <p className="mt-2 line-clamp-2 text-text-muted">{project.story?.outcome || project.story?.solution || project.title}</p>
-                        <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold text-text hover:text-honey">
+                        <span className="mt-4 inline-flex items-center gap-1 text-sm font-semibold min-h-[44px] text-text hover:text-honey">
                           See the transformation →
                         </span>
                       </div>

@@ -21,10 +21,10 @@ export function CTASection({
         </h2>
         <p className="mt-4 max-w-2xl text-lg text-[#000000]">{typeof subtitle === 'string' ? subtitle : subtitle}</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link href="/estimate" className={cn(buttonVariants({ variant: "primary", size: "lg" }))}>
+          <Link href="/estimate" className={cn(buttonVariants({ variant: "primary", size: "lg" }), "transition-transform duration-150 active:scale-[0.98]")}>
             Start Your Free Estimate
           </Link>
-          <Link href="/gallery" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>
+          <Link href="/gallery" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "transition-transform duration-150 active:scale-[0.98]")}>
             See Our Work
           </Link>
         </div>

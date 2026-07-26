@@ -227,7 +227,7 @@ export default async function HomePage() {
             <>
               <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
                 {topReviews.map((r) => (
-                  <CraftCard key={r.id} className="p-5 sm:p-6">
+                  <CraftCard key={r.id} className="p-5 sm:p-6 transition-transform duration-150 active:scale-[0.98] hover:shadow-lg">
                     <StarRating rating={r.rating} />
                     {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
                     <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>
