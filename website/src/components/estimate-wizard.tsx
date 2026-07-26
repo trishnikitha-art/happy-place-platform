@@ -257,8 +257,8 @@ export function EstimateWizard() {
       {/* Draft Recovery Modal */}
       {showDraftRecovery && (
         <div className="mb-6 rounded-xl border border-primary/50 bg-primary/5 p-6">
-          <h3 className="text-lg font-semibold text-white">We found an unfinished project</h3>
-          <p className="mt-2 text-sm text-white">
+          <h3 className="text-lg font-semibold text-text md:text-white">We found an unfinished project</h3>
+          <p className="mt-2 text-sm text-text md:text-white">
             Would you like to continue where you left off, or start fresh?
           </p>
           <div className="mt-4 flex gap-3">
@@ -287,7 +287,7 @@ export function EstimateWizard() {
             key={s}
             className={cn(
               "flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold",
-              i === step ? "bg-primary text-white" : i < step ? "bg-accent/10 text-accent" : "bg-surface-muted text-white"
+              i === step ? "bg-primary text-white" : i < step ? "bg-accent/10 text-accent" : "bg-surface-muted text-text md:text-white"
             )}
           >
             {i < step && <Check className="h-3 w-3" />}
@@ -300,8 +300,8 @@ export function EstimateWizard() {
         {/* STEP 1: Service (multi-select, up to 3) */}
         {STEPS[step] === "Service" && (
           <div>
-            <h2 className="text-xl font-bold text-white">Tell us what you're thinking about. We'll guide you through the rest.</h2>
-            <p className="mt-1 text-sm text-white">
+            <h2 className="text-xl font-bold text-text md:text-white">Tell us what you're thinking about. We'll guide you through the rest.</h2>
+            <p className="mt-1 text-sm text-text md:text-white">
               Pick up to {MAX_SERVICES} — or tell us what you need below.
             </p>
             <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -365,14 +365,14 @@ export function EstimateWizard() {
         {/* STEP 2: Tell us about your project */}
         {STEPS[step] === "Tell us about your project" && (
           <div>
-            <h2 className="text-xl font-bold text-white">What's on your mind?</h2>
+            <h2 className="text-xl font-bold text-text md:text-white">What's on your mind?</h2>
             {service && (
-              <p className="mt-1 text-sm text-white">
+              <p className="mt-1 text-sm text-text md:text-white">
                 It doesn't have to be perfect. A few details are enough for us to understand what you're planning.
               </p>
             )}
             {!service && (
-              <p className="mt-1 text-sm text-white">
+              <p className="mt-1 text-sm text-text md:text-white">
                 It doesn't have to be perfect. A few details are enough for us to understand what you're planning.
               </p>
             )}
@@ -397,7 +397,7 @@ export function EstimateWizard() {
                     }} />
                   )}
                   <span className="relative z-10 flex items-center justify-between">
-                    <span className="font-semibold text-white">{type}</span>
+                    <span className="font-semibold text-text md:text-white">{type}</span>
                     {projectType === type && <Check className="h-4 w-4 text-primary" />}
                   </span>
                 </button>
@@ -409,8 +409,8 @@ export function EstimateWizard() {
         {/* STEP 3: Photos */}
         {STEPS[step] === "Photos" && (
           <div>
-            <h2 className="text-xl font-bold text-white">Have a photo? It helps us see what you're seeing.</h2>
-            <p className="mt-1 text-white">
+            <h2 className="text-xl font-bold text-text md:text-white">Have a photo? It helps us see what you're seeing.</h2>
+            <p className="mt-1 text-text md:text-white">
               Optional, but helpful for understanding the space.
             </p>
             
@@ -508,15 +508,15 @@ export function EstimateWizard() {
         {/* STEP 4: Project Details */}
         {STEPS[step] === "Project Details" && (
           <div>
-            <h2 className="text-xl font-bold text-white">A couple quick questions</h2>
+            <h2 className="text-xl font-bold text-text md:text-white">A couple quick questions</h2>
             <div className="mt-4 space-y-4">
               {questions.map((q) => (
                 <div key={q.id}>
-                  <label className="block text-sm font-semibold text-white">
+                  <label className="block text-sm font-semibold text-text md:text-white">
                     {q.label}
                     {q.required && <span className="text-red-500"> *</span>}
                   </label>
-                  {q.help && <p className="mt-1 text-xs text-white">{q.help}</p>}
+                  {q.help && <p className="mt-1 text-xs text-text md:text-white">{q.help}</p>}
                   {q.type === "textarea" && (
                     <textarea
                       className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
@@ -581,10 +581,10 @@ export function EstimateWizard() {
         {/* STEP 5: Property */}
         {STEPS[step] === "Property" && (
           <div>
-            <h2 className="text-xl font-bold text-white">Where is the work?</h2>
+            <h2 className="text-xl font-bold text-text md:text-white">Where is the work?</h2>
             <div className="mt-4 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-white">Street address</label>
+                <label className="block text-sm font-semibold text-text md:text-white">Street address</label>
                 <input
                   className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                   placeholder="123 Main St (optional)"
@@ -594,7 +594,7 @@ export function EstimateWizard() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-semibold text-white">City *</label>
+                  <label className="block text-sm font-semibold text-text md:text-white">City *</label>
                   <input
                     className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                     value={property.city}
@@ -602,7 +602,7 @@ export function EstimateWizard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-white">County *</label>
+                  <label className="block text-sm font-semibold text-text md:text-white">County *</label>
                   <select
                     className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                     value={property.county}
@@ -616,7 +616,7 @@ export function EstimateWizard() {
                 </div>
               </div>
               <div>
-                <label className="block text-sm font-semibold text-white">Anything else about the property?</label>
+                <label className="block text-sm font-semibold text-text md:text-white">Anything else about the property?</label>
                 <textarea
                   className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                   rows={3}
@@ -632,10 +632,10 @@ export function EstimateWizard() {
         {/* STEP 6: Contact */}
         {STEPS[step] === "Contact" && (
           <div>
-            <h2 className="text-xl font-bold text-white">How do we reach you?</h2>
+            <h2 className="text-xl font-bold text-text md:text-white">How do we reach you?</h2>
             <div className="mt-4 space-y-4">
               <div>
-                <label className="block text-sm font-semibold text-white">Name *</label>
+                <label className="block text-sm font-semibold text-text md:text-white">Name *</label>
                 <input
                   className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
                   value={customer.name}
@@ -644,7 +644,7 @@ export function EstimateWizard() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <label className="block text-sm font-semibold text-white">Email *</label>
+                  <label className="block text-sm font-semibold text-text md:text-white">Email *</label>
                   <input
                     type="email"
                     className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
@@ -653,7 +653,7 @@ export function EstimateWizard() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold text-white">Phone *</label>
+                  <label className="block text-sm font-semibold text-text md:text-white">Phone *</label>
                   <input
                     type="tel"
                     className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-text"
