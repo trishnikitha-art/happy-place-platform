@@ -123,7 +123,7 @@ export default function OurWorkPage() {
         </Container>
       </Section>
 
-      {/* BROWSE ALL WORK — project gallery grid */}
+      {/* BROWSE ALL WORK — project gallery grid (masonry layout) */}
       <Section className="bg-deep">
         <Container>
           <SectionHeading
@@ -131,7 +131,7 @@ export default function OurWorkPage() {
             title={<span className="text-text-on-dark">The complete archive</span>}
             description={<span className="text-text-on-dark/90">Every project, every detail. Future projects simply append here.</span>}
           />
-          <div className="mt-10 grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
+          <div className="mt-10 columns-2 gap-4 space-y-4 md:columns-3 lg:columns-4">
             {allProjects.map((project, projectIndex) => {
               const galleryMediaIds = project.media?.gallery || [];
               const galleryPhotos = galleryMediaIds
@@ -145,7 +145,7 @@ export default function OurWorkPage() {
                 return (
                   <button
                     key={`${project.id}-${photoIndex}`}
-                    className="group relative block aspect-[4/3] overflow-hidden cursor-pointer"
+                    className="group relative block aspect-[4/3] overflow-hidden cursor-pointer break-inside-avoid mb-4"
                     onClick={() => {
                       const allGalleryImages = allProjects.flatMap(p => {
                         const pGalleryIds = p.media?.gallery || [];

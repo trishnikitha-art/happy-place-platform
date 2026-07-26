@@ -106,7 +106,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
         </Section>
       )}
 
-      {/* PROJECT GALLERY */}
+      {/* PROJECT GALLERY (masonry layout) */}
       <Section className="bg-deep text-text-on-dark">
         <Container>
           <SectionHeading
@@ -116,9 +116,9 @@ export default async function ServicePage({ params }: ServicePageProps) {
           />
           <div className="mt-8">
             {serviceGallery.projects.length > 0 ? (
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="columns-1 gap-6 space-y-6 sm:columns-2 lg:columns-3">
                 {serviceGallery.projects.slice(0, 6).map((project) => (
-                  <Link key={project.id} href={`/projects/${project.slug || project.id}`}>
+                  <Link key={project.id} href={`/projects/${project.slug || project.id}`} className="block break-inside-avoid mb-6">
                     <div className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-surface">
                       {project.media.hero && (
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
