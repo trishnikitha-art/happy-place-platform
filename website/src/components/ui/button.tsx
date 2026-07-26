@@ -5,7 +5,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 /**
  * Button — uses SEMANTIC design tokens only (bg-primary, bg-secondary, …).
  * Re-skinning the brand happens in globals.css @theme, not here.
- * Premium micro-interactions: press animation, hover glow, shadow shift.
+ * Premium micro-interactions: press animation, hover glow, shadow shift, ripple, magnetic effect.
  */
 const buttonVariants = cva(
   "inline-flex items-center justify-center gap-2 rounded-full font-semibold transition-all duration-200 ease-out active:scale-[0.96] active:shadow-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none relative overflow-hidden",
@@ -35,13 +35,47 @@ export interface ButtonProps
 
 export function Button({ className, variant, size, children, ...props }: ButtonProps) {
   const [isPressed, setIsPressed] = React.useState(false);
+  const [magneticOffset, setMagneticOffset] = React.useState({ x: 0, y: 0 });
+  const buttonRef = React.useRef<HTMLButtonElement>(null);
+
+  // Magnetic effect
+  React.useEffect(() => {
+    const button = buttonRef.current;
+    if (!button) return;
+
+    const handleMouseMove = (e: MouseEvent) => {
+      const rect = button.getBoundingClientRect();
+      const x = e.clientX - rect.left - rect.width / 2;
+      const y = e.clientY - rect.top - rect.height / 2;
+
+      
+      // Subtle magnetic pull (10% of distance)
+      setMagneticOffset({ x: x * 0.1, y: y * 0.1 });
+    };
+
+    const handleMouseLeave = () => {
+      setMagneticOffset({ x: 0, y: 0 });
+    };
+
+    button.addEventListener('mousemove', handleMouseMove);
+    button.addEventListener('mouseleave', handleMouseLeave);
+
+    return () => {
+      button.removeEventListener('mousemove', handleMouseMove);
+      button.removeEventListener('mouseleave', handleMouseLeave);
+    };
+  }, []);
 
   return (
     <button
+      ref={buttonRef}
       className={cn(buttonVariants({ variant, size }), className)}
       onMouseDown={() => setIsPressed(true)}
       onMouseUp={() => setIsPressed(false)}
       onMouseLeave={() => setIsPressed(false)}
+      style={{
+        transform: `translate(${magneticOffset.x}px, ${magneticOffset.y}px) ${isPressed ? 'scale(0.96)' : 'scale(1)'}`
+      }}
       {...props}
     >
       {children}
