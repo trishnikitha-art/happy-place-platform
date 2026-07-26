@@ -6,7 +6,9 @@ import { getMediaById } from "@/lib/media";
 import { Container, Section } from "@/components/section";
 import { Badge, CraftCard } from "@/components/ui/card";
 import { buttonVariants } from "@/components/ui/button";
+import { ProjectLightbox } from "@/components/project-lightbox";
 import { cn } from "@/lib/utils";
+import { useState } from "react";
 
 /**
  * ProjectSpotlight — reusable completed-project story.
@@ -27,6 +29,9 @@ export function ProjectSpotlight({
   variant?: "feature" | "full";
   tone?: "light" | "dark";
 }) {
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [lightboxIndex, setLightboxIndex] = useState(0);
+
   const heroMediaId = project.media?.hero;
   const heroMedia = heroMediaId ? getMediaById(heroMediaId) : null;
   const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original;
@@ -37,6 +42,13 @@ export function ProjectSpotlight({
   const galleryMedia = galleryMediaIds
     .map(id => getMediaById(id))
     .filter(m => m !== null && (m.variants?.web || m.variants?.original));
+
+  // Prepare lightbox images
+  const lightboxImages = galleryMedia.map(m => ({
+    src: m!.variants!.web || m!.variants!.original!,
+    alt: m!.alt,
+    blurDataURL: m!.variants?.blur
+  }));
 
   // Surface-aware text colors for non-card elements
   // Cards (CraftCard) always use light register regardless of page background
@@ -54,14 +66,14 @@ export function ProjectSpotlight({
     return (
       <Section className="bg-surface-muted">
         <Container className="grid items-center gap-10 lg:grid-cols-2">
-          <CraftCard className="group relative overflow-hidden">
+          <CraftCard className="group relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
             <Image
               src={heroSrc}
               alt={heroAlt}
               fill
               placeholder="blur"
               blurDataURL={heroMedia?.variants?.blur}
-              className="h-full w-full object-cover"
+              className="h-full w-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
               sizes="(max-width: 1024px) 100vw, 50vw"
             />
             <div className="absolute inset-0 pointer-events-none rounded-xl bg-gradient-to-tr from-black/3 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
@@ -192,7 +204,14 @@ export function ProjectSpotlight({
           <Container>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {galleryMedia.map((media, i) => (
-                <figure key={i} className="overflow-hidden rounded-card border border-border/40 bg-surface">
+                <figure 
+                  key={i} 
+                  className="overflow-hidden rounded-card border border-border/40 bg-surface cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-xl"
+                  onClick={() => {
+                    setLightboxIndex(i);
+                    setLightboxOpen(true);
+                  }}
+                >
                   <div className="relative aspect-[4/3]">
                     <Image
                       src={media!.variants!.web || media!.variants!.original!}
@@ -201,7 +220,7 @@ export function ProjectSpotlight({
                       loading="lazy"
                       placeholder="blur"
                       blurDataURL={media!.variants?.blur}
-                      className="object-cover"
+                      className="object-cover transition-transform duration-200 ease-out hover:scale-[1.02]"
                       sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                     />
                   </div>
@@ -211,6 +230,14 @@ export function ProjectSpotlight({
           </Container>
         </Section>
       )}
+
+      {/* Lightbox */}
+      <ProjectLightbox
+        images={lightboxImages}
+        initialIndex={lightboxIndex}
+        isOpen={lightboxOpen}
+        onClose={() => setLightboxOpen(false)}
+      />
     </article>
   );
 }

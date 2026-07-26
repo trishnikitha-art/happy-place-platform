@@ -31,7 +31,7 @@ export function ServiceCard({ service }: { service: Service }) {
 
   return (
     <Link href={`/estimate?service=${service.slug}`} className="block">
-      <CraftCard className="group flex flex-col overflow-hidden transition-transform duration-150 active:scale-[0.98] hover:shadow-lg">
+      <CraftCard className="group flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
         <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
           {hasImage && imageSrc ? (
             <>
@@ -40,7 +40,7 @@ export function ServiceCard({ service }: { service: Service }) {
                 alt={featuredMedia.alt || service.name}
                 fill
                 sizes="(max-width: 768px) 50vw, 33vw"
-                className="object-cover transition-transform duration-700 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-[1.03]"
+                className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
               />
               <div className="absolute inset-0 pointer-events-none rounded-t-xl bg-gradient-to-tr from-black/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
             </>

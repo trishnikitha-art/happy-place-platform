@@ -62,7 +62,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
   const linkColor = "text-text hover:text-honey";
 
   return (
-    <CraftCard className="flex flex-col p-5 sm:p-6 transition-transform duration-150 active:scale-[0.98] hover:shadow-lg">
+    <CraftCard className="flex flex-col p-5 sm:p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
       {/* Header: Rating + Status Badges */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
