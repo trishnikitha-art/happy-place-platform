@@ -12,6 +12,7 @@ import { CraftCard } from "@/components/ui/card";
 import { RouterLink } from "@/components/router-link";
 import { PencilLine } from "@/components/pencil-line";
 import { BlueprintGrid } from "@/components/blueprint-grid";
+import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
 import { getAllServices } from "@/lib/registries";
 import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
@@ -43,6 +44,7 @@ export default async function HomePage() {
     <>
       {/* HERO — full-width photograph with text overlay */}
       <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
+        <WorkshopAtmosphere particleCount={20} />
         <Image
           src="/images/hero-background-enhanced.jpg"
           alt="Happy Place Carpentry"
