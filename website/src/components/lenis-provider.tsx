@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect } from "react";
-// @ts-ignore - Lenis types will be available after npm install
 import Lenis from "@studio-freight/lenis";
 
 /**
@@ -27,7 +26,7 @@ export function LenisProvider() {
       duration: 1.2,
       easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
       smooth: true,
-    });
+    } as any);
 
     // Animation loop
     function raf(time: number) {
