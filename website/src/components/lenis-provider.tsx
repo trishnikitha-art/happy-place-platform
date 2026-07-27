@@ -33,8 +33,8 @@ export function LenisProvider({ children }: { children: ReactNode }) {
     // Initialize Lenis with wheel event throttling
     const lenisInstance = new Lenis({
       lerp: 0.25, // Higher lerp = snappier feel (default 0.1)
-      wheelMultiplier: 0.8, // Reduce wheel sensitivity to prevent jank
-      touchMultiplier: 0.8, // Reduce touch sensitivity to prevent jank
+      // wheelMultiplier: 0.8, // Removed - was causing touchpad to stop at card sections
+      // touchMultiplier: 0.8, // Removed - was causing touchpad to stop at card sections
       duration: 1.2, // Add duration for smoother transitions
     });
 
