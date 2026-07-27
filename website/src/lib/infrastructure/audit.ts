@@ -20,6 +20,12 @@ export interface AuditResult {
   message: string;
   details?: Record<string, any>;
   requiredFor?: string[];
+  layers?: {
+    configuration: 'pass' | 'fail';
+    connectivity: 'pass' | 'fail' | 'skipped';
+    capability: 'pass' | 'fail' | 'skipped';
+    health: 'pass' | 'fail' | 'skipped';
+  };
 }
 
 export interface InfrastructureAudit {
@@ -37,50 +43,201 @@ export interface InfrastructureAudit {
 
 /**
  * Audit Google Workspace connectivity and configuration
+ * 
+ * Layered approach:
+ * - Configuration: Check environment variables
+ * - Connectivity: Verify authentication works
+ * - Capability: Perform a real API operation
+ * - Health: Check ongoing operation health
  */
 async function auditGoogleWorkspace(): Promise<AuditResult> {
-  const checks = {
+  const layers = {
+    configuration: 'pass' as 'pass' | 'fail',
+    connectivity: 'skipped' as 'pass' | 'fail' | 'skipped',
+    capability: 'skipped' as 'pass' | 'fail' | 'skipped',
+    health: 'skipped' as 'pass' | 'fail' | 'skipped',
+  };
+
+  // Layer 1: Configuration
+  const configChecks = {
     clientId: !!process.env.GOOGLE_CLIENT_ID,
     clientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
     refreshToken: !!process.env.GOOGLE_REFRESH_TOKEN,
     redirectUri: !!process.env.GOOGLE_REDIRECT_URI,
   };
 
-  const allPresent = Object.values(checks).every(Boolean);
+  const configPresent = Object.values(configChecks).every(Boolean);
+  layers.configuration = configPresent ? 'pass' : 'fail';
+
+  if (!configPresent) {
+    return {
+      component: 'Google Workspace',
+      status: 'missing',
+      message: 'Missing Google OAuth credentials',
+      details: configChecks,
+      layers,
+      requiredFor: ['Reviews Sheet', 'Gmail automation', 'Drive integration', 'Apps Script deployment'],
+    };
+  }
+
+  // Layer 2: Connectivity (verify authentication works)
+  try {
+    const { google } = await import('googleapis');
+    const oauth2 = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
+    oauth2.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
+    
+    // Try to get a fresh access token to verify connectivity
+    await oauth2.getAccessToken();
+    layers.connectivity = 'pass';
+  } catch (error) {
+    layers.connectivity = 'fail';
+    return {
+      component: 'Google Workspace',
+      status: 'error',
+      message: `Authentication failed: ${error instanceof Error ? error.message : String(error)}`,
+      details: configChecks,
+      layers,
+      requiredFor: ['Reviews Sheet', 'Gmail automation', 'Drive integration', 'Apps Script deployment'],
+    };
+  }
+
+  // Layer 3: Capability (perform a real operation - list Drive files)
+  try {
+    const { google } = await import('googleapis');
+    const oauth2 = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
+    oauth2.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
+    
+    const drive = google.drive({ version: 'v3', auth: oauth2 });
+    await drive.files.list({ pageSize: 1, fields: 'files(id, name)' });
+    layers.capability = 'pass';
+  } catch (error) {
+    layers.capability = 'fail';
+    return {
+      component: 'Google Workspace',
+      status: 'degraded',
+      message: `API operation failed: ${error instanceof Error ? error.message : String(error)}`,
+      details: configChecks,
+      layers,
+      requiredFor: ['Reviews Sheet', 'Gmail automation', 'Drive integration', 'Apps Script deployment'],
+    };
+  }
+
+  // Layer 4: Health (ongoing health - skipped for now, would track API success rates)
+  layers.health = 'skipped';
 
   return {
     component: 'Google Workspace',
-    status: allPresent ? 'healthy' : 'missing',
-    message: allPresent 
-      ? 'Google Workspace authentication configured' 
-      : 'Missing Google OAuth credentials',
-    details: checks,
+    status: 'healthy',
+    message: 'Google Workspace fully operational',
+    details: configChecks,
+    layers,
     requiredFor: ['Reviews Sheet', 'Gmail automation', 'Drive integration', 'Apps Script deployment'],
   };
 }
 
 /**
  * Audit Google Sheets integration
+ * 
+ * Layered approach:
+ * - Configuration: Check sheet ID
+ * - Connectivity: Verify sheet exists and is accessible
+ * - Capability: Perform a read operation
+ * - Health: Check write operations over time
  */
 async function auditGoogleSheets(): Promise<AuditResult> {
+  const layers = {
+    configuration: 'pass' as 'pass' | 'fail',
+    connectivity: 'skipped' as 'pass' | 'fail' | 'skipped',
+    capability: 'skipped' as 'pass' | 'fail' | 'skipped',
+    health: 'skipped' as 'pass' | 'fail' | 'skipped',
+  };
+
+  // Layer 1: Configuration
   const sheetId = process.env.GOOGLE_REVIEWS_SHEET_ID;
-  
+  layers.configuration = sheetId ? 'pass' : 'fail';
+
   if (!sheetId) {
     return {
       component: 'Google Sheets',
       status: 'missing',
       message: 'Google Reviews Sheet ID not configured',
       details: { sheetId: false },
+      layers,
       requiredFor: ['Review persistence', 'Moderation pipeline'],
     };
   }
 
-  // In a real implementation, this would verify the sheet exists and is accessible
+  // Layer 2: Connectivity (verify sheet exists and is accessible)
+  try {
+    const { google } = await import('googleapis');
+    const oauth2 = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
+    oauth2.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
+    
+    const sheets = google.sheets({ version: 'v4', auth: oauth2 });
+    await sheets.spreadsheets.get({ spreadsheetId: sheetId });
+    layers.connectivity = 'pass';
+  } catch (error) {
+    layers.connectivity = 'fail';
+    return {
+      component: 'Google Sheets',
+      status: 'error',
+      message: `Sheet not accessible: ${error instanceof Error ? error.message : String(error)}`,
+      details: { sheetId },
+      layers,
+      requiredFor: ['Review persistence', 'Moderation pipeline'],
+    };
+  }
+
+  // Layer 3: Capability (perform a read operation)
+  try {
+    const { google } = await import('googleapis');
+    const oauth2 = new google.auth.OAuth2(
+      process.env.GOOGLE_CLIENT_ID,
+      process.env.GOOGLE_CLIENT_SECRET,
+      process.env.GOOGLE_REDIRECT_URI
+    );
+    oauth2.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
+    
+    const sheets = google.sheets({ version: 'v4', auth: oauth2 });
+    await sheets.spreadsheets.values.get({
+      spreadsheetId: sheetId,
+      range: 'Reviews!A1:Z1',
+    });
+    layers.capability = 'pass';
+  } catch (error) {
+    layers.capability = 'fail';
+    return {
+      component: 'Google Sheets',
+      status: 'degraded',
+      message: `Read operation failed: ${error instanceof Error ? error.message : String(error)}`,
+      details: { sheetId },
+      layers,
+      requiredFor: ['Review persistence', 'Moderation pipeline'],
+    };
+  }
+
+  // Layer 4: Health (ongoing health - would track write success rates)
+  layers.health = 'skipped';
+
   return {
     component: 'Google Sheets',
     status: 'healthy',
-    message: 'Google Sheets integration configured',
-    details: { sheetId: true },
+    message: 'Google Sheets fully operational',
+    details: { sheetId },
+    layers,
+    requiredFor: ['Review persistence', 'Moderation pipeline'],
   };
 }
 
@@ -262,6 +419,20 @@ export function printAuditReport(audit: InfrastructureAudit): void {
                  component.status === 'degraded' ? '⚠️' :
                  component.status === 'missing' ? '❌' : '🚨';
     console.log(`  ${icon} ${component.component}: ${component.message}`);
+    
+    // Show layered health if available
+    if (component.layers) {
+      const layerIcons = {
+        pass: '✅',
+        fail: '❌',
+        skipped: '⏭️',
+      };
+      console.log(`     Layers:`);
+      console.log(`       Configuration: ${layerIcons[component.layers.configuration]}`);
+      console.log(`       Connectivity: ${layerIcons[component.layers.connectivity]}`);
+      console.log(`       Capability: ${layerIcons[component.layers.capability]}`);
+      console.log(`       Health: ${layerIcons[component.layers.health]}`);
+    }
   });
 
   if (audit.recommendations.length > 0) {
