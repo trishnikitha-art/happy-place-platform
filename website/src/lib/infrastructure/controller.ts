@@ -276,16 +276,19 @@ export class InfrastructureController {
       );
       oauth2.setCredentials({ refresh_token: process.env.GOOGLE_REFRESH_TOKEN });
 
-      // Discover Sheets
+      // Discover Sheets (use Drive API to list spreadsheets)
       try {
-        const sheets = google.sheets({ version: 'v4', auth: oauth2 });
-        const response = await sheets.spreadsheets.list();
-        const reviewsSheet = response.data.files?.find(f => 
-          f.name?.toLowerCase().includes('review') || 
-          f.name?.toLowerCase().includes('happy place')
+        const drive = google.drive({ version: 'v3', auth: oauth2 });
+        const response = await drive.files.list({
+          q: "mimeType='application/vnd.google-apps.spreadsheet'",
+          fields: 'files(id, name)',
+        });
+        const reviewsSheet = response.data.files?.find(ff => 
+          ff.name?.toLowerCase().includes('review') || 
+          ff.name?.toLowerCase().includes('happy place')
         );
         if (reviewsSheet) {
-          found['sheets'] = reviewsSheet.spreadsheetId || '';
+          found['sheets'] = reviewsSheet.id || '';
         } else {
           missing.push('Reviews Sheet');
         }
