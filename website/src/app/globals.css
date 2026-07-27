@@ -142,25 +142,6 @@
   --shadow-float: 0 24px 60px -28px rgba(23, 50, 74, 0.55), 0 10px 30px -16px rgba(0, 0, 0, 0.25);
 }
 
-/* Dark mode — warm charcoal palette (Linear/Vercel-inspired) */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-background: #111315;
-    --color-surface-2: #181B1E;
-    --color-surface: #202428;
-    --color-surface-muted: #1A1D20;
-    --color-border: rgba(255, 255, 255, 0.08);
-    --color-border-soft: rgba(255, 255, 255, 0.06);
-    --color-deep: #1A1D20;
-    --color-deep-2: #202428;
-    --color-text: #F7F6F3;
-    --color-text-muted: #C7C5BF;
-    --color-text-subtle: #8B8983;
-    --color-primary: #1E3A52;
-    --color-primary-hover: #2A4A66;
-  }
-}
-
 .dark {
   --color-background: #111315;
   --color-surface-2: #181B1E;
@@ -415,14 +396,6 @@ body {
 /* Smooth link transitions */
 a {
   transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease;
-}
-
-/* Dark mode contrast improvements */
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-border: rgba(255, 255, 255, 0.12);
-    --color-border-soft: rgba(255, 255, 255, 0.08);
-  }
 }
 
 .dark {
