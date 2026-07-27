@@ -35,6 +35,9 @@ export const featureFlags = {
   reviewHighlights: false, // Auto-extracted review badges
   neighborhoodMap: false, // Clustered reviews by city
   projectExplorer: false, // Structured project case studies with filters
+
+  // Infrastructure - Performance
+  speculationNavigation: false, // Speculation Rules API for instant-feeling navigation
 } as const;
 
 export type FeatureFlag = keyof typeof featureFlags;
