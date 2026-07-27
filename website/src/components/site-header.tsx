@@ -12,6 +12,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { CedarCorner } from "@/components/cedar-corner";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HappyBrandSignature } from "@/components/happy-brand-signature";
+import { TapeMeasureNav } from "@/components/tape-measure-nav";
 
 function NavShimmer({ children, className }: { children: React.ReactNode; className?: string }) {
   const [isHovered, setIsHovered] = React.useState(false);
@@ -96,14 +97,15 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav className="hidden items-center md:flex" aria-label="Primary">
+        <nav className="hidden items-center md:flex relative" aria-label="Primary">
+          <TapeMeasureNav items={primary} activeHref={pathname} />
           {primary.map((item) => (
             <Link
               key={item.href}
               href={item.href}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "whitespace-nowrap px-3.5 py-2.5 text-[13px] font-medium tracking-wide transition-all duration-200",
+                "whitespace-nowrap px-3.5 py-2.5 text-[13px] font-medium tracking-wide transition-all duration-200 relative z-10",
                 isActive(item.href) ? "text-primary" : "text-text hover:text-text hover:bg-surface/50 rounded-md"
               )}
             >
