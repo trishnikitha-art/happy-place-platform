@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Container, Section, SectionHeading } from "@/components/section";
@@ -20,6 +21,24 @@ import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { getOwnerPortrait } from "@/lib/brand";
 import { getMediaById } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
+import { getHomepageHero } from "@/lib/brand";
+
+const siteUrl = "https://happyplacecarpentry.com";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const heroBrand = getHomepageHero();
+  const heroMedia = heroBrand?.mediaId ? getMediaById(heroBrand.mediaId) : null;
+  const ogImageUrl = heroMedia?.variants?.web || `${siteUrl}/brand/logo.png`;
+
+  return {
+    openGraph: {
+      images: [{ url: ogImageUrl.startsWith("http") ? ogImageUrl : `${siteUrl}${ogImageUrl}` }],
+    },
+    twitter: {
+      images: [ogImageUrl.startsWith("http") ? ogImageUrl : `${siteUrl}${ogImageUrl}`],
+    },
+  };
+}
 
 export default async function HomePage() {
   const company = getCompany();
@@ -47,7 +66,7 @@ export default async function HomePage() {
         <WorkshopAtmosphere particleCount={20} />
         <Image
           src="/images/hero-background-enhanced.jpg"
-          alt="Happy Place Carpentry"
+          alt="Photograph of a completed deck project showing quality carpentry work with warm wood tones and clean construction"
           fill
           priority
           sizes="100vw"
@@ -237,7 +256,7 @@ export default async function HomePage() {
             </div>
             <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
               {ownerSrc && (
-                <Image src={ownerSrc} alt={ownerBrand?.alt || "Taylor & Lanie of Happy Place Carpentry"} fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover photo-breathe" />
+                <Image src={ownerSrc} alt="Portrait of Taylor and Lanie, the owners of Happy Place Carpentry, standing together in front of a completed carpentry project" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover photo-breathe" />
               )}
               <CedarCorner className="absolute -left-2 -top-2 h-8 w-8 text-honey" />
             </div>

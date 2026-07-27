@@ -46,7 +46,7 @@ export default function AboutPage() {
           </div>
           <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
             {ownerSrc && (
-              <Image src={ownerSrc} alt={ownerBrand?.alt || "Taylor & Lanie of Happy Place Carpentry"} fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover" />
+              <Image src={ownerSrc} alt="Portrait of Taylor and Lanie, the owners of Happy Place Carpentry, standing together in front of a completed carpentry project" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover" />
             )}
           </div>
         </Container>

@@ -12,6 +12,15 @@ const nextConfig: NextConfig = {
   },
   // Allow browser preview for development
   allowedDevOrigins: ['127.0.0.1'],
+  async redirects() {
+    return [
+      {
+        source: '/services/built-ins',
+        destination: '/services/finish-carpentry',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

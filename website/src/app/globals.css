@@ -674,6 +674,59 @@ a {
   pointer-events: none;
 }
 
+/* Print stylesheet for estimate confirmation */
+@media print {
+  /* Hide navigation and footer */
+  .site-header,
+  .site-footer,
+  .scroll-to-top,
+  button:not([type="submit"]),
+  a[href^="/"],
+  .cta-signature {
+    display: none !important;
+  }
+
+  /* Clean layout for printing */
+  body {
+    background: white !important;
+    color: black !important;
+  }
+
+  /* Focus on estimate content */
+  main {
+    padding: 0 !important;
+  }
+
+  /* Ensure text is readable */
+  .text-primary,
+  .text-text,
+  .text-text-muted {
+    color: black !important;
+  }
+
+  /* Remove backgrounds and shadows */
+  .bg-deep,
+  .bg-surface,
+  .bg-surface-muted,
+  .CraftCard {
+    background: white !important;
+    box-shadow: none !important;
+    border: 1px solid #ccc !important;
+  }
+
+  /* Ensure images print properly */
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid;
+  }
+
+  /* Page breaks */
+  .CraftCard,
+  section {
+    page-break-inside: avoid;
+  }
+}
+
 /* Curved section transition */
 .section-curved-bottom {
   position: relative;

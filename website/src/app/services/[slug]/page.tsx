@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { ServiceCard } from "@/components/service-card";
@@ -10,6 +11,7 @@ import { getServiceGallery } from "@/lib/galleries";
 import { PlaceholderSection } from "@/components/placeholder-section";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { getProjectById } from "@/lib/projects";
+import { getMediaById } from "@/lib/media";
 
 interface ServicePageProps {
   params: Promise<{
@@ -117,19 +119,30 @@ export default async function ServicePage({ params }: ServicePageProps) {
           <div className="mt-8">
             {serviceGallery.projects.length > 0 ? (
               <div className="columns-1 gap-6 space-y-6 sm:columns-2 lg:columns-3">
-                {serviceGallery.projects.slice(0, 6).map((project) => (
-                  <Link key={project.id} href={`/projects/${project.slug || project.id}`} className="block break-inside-avoid mb-6">
-                    <div className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-surface">
-                      {project.media.hero && (
+                {serviceGallery.projects.slice(0, 6).map((project) => {
+                  const projectHeroMedia = project.media.hero ? getMediaById(project.media.hero) : null;
+                  const projectHeroSrc = projectHeroMedia?.variants?.web || projectHeroMedia?.variants?.original;
+                  return (
+                    <Link key={project.id} href={`/projects/${project.slug || project.id}`} className="block break-inside-avoid mb-6">
+                      <div className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-surface">
+                        {projectHeroSrc && (
+                          <Image
+                            src={projectHeroSrc}
+                            alt={`${project.title} - ${project.location.city}, ${project.location.county}`}
+                            fill
+                            className="object-cover transition-transform duration-300 group-hover:scale-105"
+                            loading="lazy"
+                          />
+                        )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                      )}
-                      <div className="absolute bottom-4 left-4 right-4">
-                        <h3 className="text-white font-semibold text-lg">{project.title}</h3>
-                        <p className="text-white/80 text-sm">{project.location.city}, {project.location.county}</p>
+                        <div className="absolute bottom-4 left-4 right-4">
+                          <h3 className="text-white font-semibold text-lg">{project.title}</h3>
+                          <p className="text-white/80 text-sm">{project.location.city}, {project.location.county}</p>
+                        </div>
                       </div>
-                    </div>
-                  </Link>
-                ))}
+                    </Link>
+                  );
+                })}
               </div>
             ) : (
               <PlaceholderSection

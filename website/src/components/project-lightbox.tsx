@@ -84,6 +84,36 @@ export function ProjectLightbox({
     };
   }, [isOpen]);
 
+  // Focus trap when lightbox is open
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const handleTab = (e: KeyboardEvent) => {
+      if (e.key !== "Tab") return;
+
+      const focusableElements = document.querySelectorAll(
+        '#lightbox-container button, #lightbox-container [tabindex]:not([tabindex="-1"])'
+      );
+      const firstElement = focusableElements[0] as HTMLElement;
+      const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+      if (e.shiftKey) {
+        if (document.activeElement === firstElement) {
+          lastElement.focus();
+          e.preventDefault();
+        }
+      } else {
+        if (document.activeElement === lastElement) {
+          firstElement.focus();
+          e.preventDefault();
+        }
+      }
+    };
+
+    document.addEventListener("keydown", handleTab);
+    return () => document.removeEventListener("keydown", handleTab);
+  }, [isOpen]);
+
   const goToNext = useCallback(() => {
     setCurrentIndex((prev) => (prev + 1) % images.length);
   }, [images.length]);
@@ -131,6 +161,7 @@ export function ProjectLightbox({
 
   return (
     <div
+      id="lightbox-container"
       className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm"
       onClick={onClose}
     >
