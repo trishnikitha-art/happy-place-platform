@@ -161,7 +161,7 @@ export default function ReviewPage() {
               )}
 
               <div>
-                <label htmlFor="name" className="block text-sm font-medium text-text mb-2">
+                <label htmlFor="name" className="block text-sm font-medium text-gray-900 mb-2">
                   Your name
                 </label>
                 <input
@@ -170,13 +170,13 @@ export default function ReviewPage() {
                   required
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="w-full rounded-lg border border-border px-4 py-3 text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="Jane Smith"
                 />
               </div>
 
               <div>
-                <label htmlFor="city" className="block text-sm font-medium text-text mb-2">
+                <label htmlFor="city" className="block text-sm font-medium text-gray-900 mb-2">
                   City (optional)
                 </label>
                 <input
@@ -184,13 +184,13 @@ export default function ReviewPage() {
                   id="city"
                   value={formData.city}
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-                  className="w-full rounded-lg border border-border px-4 py-3 text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                   placeholder="Corvallis"
                 />
               </div>
 
               <div>
-                <label htmlFor="service" className="block text-sm font-medium text-text mb-2">
+                <label htmlFor="service" className="block text-sm font-medium text-gray-900 mb-2">
                   What did we work on?
                 </label>
                 <select
@@ -198,7 +198,7 @@ export default function ReviewPage() {
                   required
                   value={formData.service}
                   onChange={(e) => setFormData({ ...formData, service: e.target.value })}
-                  className="w-full rounded-lg border border-border px-4 py-3 text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
                   <option value="">Select a service</option>
                   <option value="deck">Deck</option>
@@ -213,7 +213,7 @@ export default function ReviewPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-text mb-2">
+                <label className="block text-sm font-medium text-gray-900 mb-2">
                   How would you rate your experience?
                 </label>
                 <div className="flex gap-2">
@@ -233,7 +233,7 @@ export default function ReviewPage() {
               </div>
 
               <div>
-                <label htmlFor="body" className="block text-sm font-medium text-text mb-2">
+                <label htmlFor="body" className="block text-sm font-medium text-gray-900 mb-2">
                   Tell us about your experience
                 </label>
                 <textarea
@@ -242,7 +242,7 @@ export default function ReviewPage() {
                   rows={6}
                   value={formData.body}
                   onChange={(e) => setFormData({ ...formData, body: e.target.value })}
-                  className="w-full rounded-lg border border-border px-4 py-3 text-text focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
+                  className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
                   placeholder="Share what you loved about working with us..."
                 />
               </div>
@@ -253,9 +253,9 @@ export default function ReviewPage() {
                     type="checkbox"
                     checked={formData.allowFirstName}
                     onChange={(e) => setFormData({ ...formData, allowFirstName: e.target.checked })}
-                    className="mt-1 h-4 w-4 rounded border-border text-primary focus:border-primary focus:ring-primary"
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:border-primary focus:ring-primary"
                   />
-                  <span className="text-sm text-text-muted">
+                  <span className="text-sm text-gray-700">
                     I'm okay with you publishing my first name with this review
                   </span>
                 </label>
@@ -265,9 +265,9 @@ export default function ReviewPage() {
                     type="checkbox"
                     checked={formData.allowContact}
                     onChange={(e) => setFormData({ ...formData, allowContact: e.target.checked })}
-                    className="mt-1 h-4 w-4 rounded border-border text-primary focus:border-primary focus:ring-primary"
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:border-primary focus:ring-primary"
                   />
-                  <span className="text-sm text-text-muted">
+                  <span className="text-sm text-gray-700">
                     You can reach out if you need clarification about anything I mentioned
                   </span>
                 </label>
