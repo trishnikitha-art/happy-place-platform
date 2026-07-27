@@ -272,12 +272,34 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/reviews — Health check endpoint
+ * GET /api/reviews — Health check and configuration diagnostic endpoint
  */
 export async function GET() {
+  const config = {
+    googleSheetsConfigured: !!process.env.GOOGLE_REVIEWS_SHEET_ID,
+    googleSheetsId: process.env.GOOGLE_REVIEWS_SHEET_ID ? `${process.env.GOOGLE_REVIEWS_SHEET_ID.substring(0, 8)}...` : 'missing',
+    googleClientId: !!process.env.GOOGLE_CLIENT_ID,
+    googleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
+    googleRefreshToken: !!process.env.GOOGLE_REFRESH_TOKEN,
+    googleRedirectUri: process.env.GOOGLE_REDIRECT_URI || 'default (localhost)',
+    environment: process.env.NODE_ENV || 'unknown',
+    vercelEnv: process.env.VERCEL_ENV || 'not on Vercel',
+  };
+
+  // Test Google Sheets adapter initialization
+  let sheetsTest = { initialized: false, error: null };
+  try {
+    const source = createGoogleSheetsReviewSource();
+    sheetsTest = { initialized: !!source, error: null };
+  } catch (error: any) {
+    sheetsTest = { initialized: false, error: error.message };
+  }
+
   return NextResponse.json({
     ok: true,
     status: "operational",
-    message: "Review webhook endpoint is ready"
+    message: "Review webhook endpoint is ready",
+    config,
+    sheetsTest,
   });
 }
