@@ -161,8 +161,37 @@
   --color-primary-hover: #2A4A66;
 }
 
+/*
+==================================================
+SCROLL OWNERSHIP
+==================================================
+
+DO NOT enable
+
+scroll-behavior: smooth
+
+while LenisProvider is active.
+
+Lenis owns all scroll interpolation.
+
+Only one system may control page scroll:
+✅ Native browser scrolling OR
+✅ Lenis
+
+Never both.
+
+If Lenis is enabled:
+- scroll-behavior: auto; or remove the property entirely
+
+If Lenis is disabled:
+- Native smooth scrolling may be enabled
+
+See: SCROLL_LAG_FIX.md
+==================================================
+*/
+
 html {
-  /* scroll-behavior: smooth; */ /* Disabled to avoid conflict with Lenis smooth scroll */
+  /* scroll-behavior: smooth; */ /* DISABLED - Lenis owns scroll (see SCROLL OWNERSHIP above) */
 }
 
 body {
