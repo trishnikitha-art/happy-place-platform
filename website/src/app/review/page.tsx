@@ -51,7 +51,6 @@ export default function ReviewPage() {
                     marginHeight={0}
                     marginWidth={0}
                     title="Happy Place Carpentry Review Form"
-                    onLoad={handleFormSubmit}
                   >
                     Loading review form...
                   </iframe>
