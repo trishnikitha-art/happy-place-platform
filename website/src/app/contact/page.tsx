@@ -50,7 +50,7 @@ export default function ContactPage() {
           </div>
           <div className="rounded-2xl border border-border bg-surface-muted p-8">
             <h2 className="text-xl font-bold text-text-on-dark">Start your free estimate</h2>
-            <p className="mt-2 text-text-on-dark">
+            <p className="measure mt-2 text-text-on-dark">
               Pick a service, upload a photo if you have one, and tell us what you're planning. It takes about two minutes.
             </p>
             <a

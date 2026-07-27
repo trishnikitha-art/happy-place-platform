@@ -205,7 +205,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
                           <StarRating rating={review.rating} />
                           {review.title && <h3 className="text-lg font-bold text-text-on-dark">{review.title}</h3>}
                         </div>
-                        <blockquote className="text-base sm:text-lg text-text-on-dark/90 leading-relaxed">
+                        <blockquote className="measure text-base sm:text-lg text-text-on-dark/90 leading-relaxed">
                           &ldquo;{review.body}&rdquo;
                         </blockquote>
                         <figcaption className="mt-4 text-sm text-text-on-dark/70">

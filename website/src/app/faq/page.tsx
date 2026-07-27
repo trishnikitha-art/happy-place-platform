@@ -24,7 +24,7 @@ export default function FaqPage() {
                   {it.question}
                   <span className="text-accent transition-transform group-open:rotate-45">+</span>
                 </summary>
-                <p className="mt-3 text-text-muted">{it.answer}</p>
+                <p className="measure mt-3 text-text-muted">{it.answer}</p>
               </details>
             ))}
           </div>

@@ -89,7 +89,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
             <SectionHeading
               eyebrow={<span className="text-honey">Featured Project</span>}
               title={<span className="text-text-on-dark">{featuredProject.title}</span>}
-              description={<span className="text-text-on-dark/90">{isPergolas ? "A modern outdoor living space that combines the privacy of custom fencing with the open feel of a steel-framed pergola, creating a durable, comfortable area for relaxing and entertaining." : (featuredProject.story?.outcome || "See our latest work in this service area.")}</span>}
+              description={<span className="measure text-text-on-dark/90">{isPergolas ? "A modern outdoor living space that combines the privacy of custom fencing with the open feel of a steel-framed pergola, creating a durable, comfortable area for relaxing and entertaining." : (featuredProject.story?.outcome || "See our latest work in this service area.")}</span>}
             />
             <div className="mt-8">
               {featuredProject.media.before && featuredProject.media.after && (
