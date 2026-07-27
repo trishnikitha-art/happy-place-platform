@@ -38,7 +38,7 @@ export function ReviewsFilterClient() {
       />
       
       {filteredReviews.length > 0 ? (
-        <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div className="reviews-grid mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
           {filteredReviews.map((r, i) => (
             <figure
               key={r.id}

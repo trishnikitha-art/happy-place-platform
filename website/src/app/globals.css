@@ -760,6 +760,19 @@ a {
   z-index: 1;
 }
 
+/* Performance optimization: content-visibility for below-the-fold sections */
+/* Skips rendering work for offscreen content until needed */
+/* Browsers that don't support this simply ignore it */
+.below-fold {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 500px;
+}
 
-
-
+/* Apply to specific component types that are typically below the fold */
+.CraftCard-grid,
+.faq-list,
+.gallery-grid,
+.reviews-grid {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 600px;
+}

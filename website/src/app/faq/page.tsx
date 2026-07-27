@@ -17,7 +17,7 @@ export default function FaqPage() {
       <Section>
         <Container>
           <SectionHeading eyebrow="FAQ" title="Questions Homeowners Usually Ask" />
-          <div className="mt-8 divide-y divide-border border-y border-border">
+          <div className="faq-list mt-8 divide-y divide-border border-y border-border">
             {faqItems.map((it) => (
               <details key={it.id} className="group py-5">
                 <summary className="flex cursor-pointer list-none items-center justify-between font-semibold text-text">

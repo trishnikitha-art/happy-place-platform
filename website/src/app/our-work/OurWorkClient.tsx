@@ -136,7 +136,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
             title={<span className="text-text-on-dark">The complete archive</span>}
             description={<span className="text-text-on-dark/90">Every project, every detail. Future projects simply append here.</span>}
           />
-          <div className="mt-10 columns-2 gap-4 space-y-4 md:columns-3 lg:columns-4">
+          <div className="gallery-grid mt-10 columns-2 gap-4 space-y-4 md:columns-3 lg:columns-4">
             {allProjects.map((project, projectIndex) => {
               const galleryMediaIds = project.media?.gallery || [];
               const galleryPhotos = galleryMediaIds
