@@ -97,25 +97,48 @@ export function TapeMeasureNav({ items, activeHref, containerRef }: TapeMeasureN
         width: tapeWidth,
       }}
     >
-      {/* Tape body - warm ivory / aged steel */}
+      {/* Tape body - warm ivory / aged steel with subtle texture */}
       <div className="relative h-full w-full bg-[#E6DFD3] overflow-hidden shadow-sm">
-        {/* Measurement marks - Ripe Olive */}
+        {/* Subtle paper/steel texture overlay */}
+        <div className="absolute inset-0 opacity-[0.03]" style={{
+          backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 1px, rgba(0,0,0,0.05) 1px, rgba(0,0,0,0.05) 2px)',
+        }} />
+        
+        {/* Soft bevel/edge highlight - top edge */}
+        <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-b from-[#F8F5F0]/60 to-transparent" />
+        
+        {/* Soft bevel/edge highlight - bottom edge */}
+        <div className="absolute bottom-0 left-0 right-0 h-[1px] bg-gradient-to-t from-[#5E6259]/10 to-transparent" />
+        
+        {/* Measurement marks - Ripe Olive with authentic major/minor ticks */}
         <div className="absolute inset-0 flex items-center">
-          {Array.from({ length: 20 }).map((_, i) => (
-            <div
-              key={i}
-              className="absolute h-full w-[1px] bg-[#5E6259]/30"
-              style={{ left: `${(i / 20) * 100}%` }}
-            />
-          ))}
+          {Array.from({ length: 40 }).map((_, i) => {
+            // Every 12th increment is emphasized (like real tape measures)
+            const isMajor = i % 12 === 0;
+            const isMedium = i % 4 === 0 && !isMajor;
+            
+            return (
+              <div
+                key={i}
+                className="absolute bg-[#5E6259]"
+                style={{
+                  left: `${(i / 40) * 100}%`,
+                  height: isMajor ? '100%' : isMedium ? '60%' : '40%',
+                  width: isMajor ? '1.5px' : '1px',
+                  opacity: isMajor ? '0.4' : isMedium ? '0.25' : '0.15',
+                }}
+              />
+            );
+          })}
         </div>
         
-        {/* Numbered intervals every few divisions */}
+        {/* Engraved numbers - very subtle, only at major intervals */}
         <div className="absolute inset-0 flex items-center justify-between px-1">
-          {[0, 5, 10, 15].map((i) => (
+          {[0, 12, 24, 36].map((i) => (
             <span
               key={i}
-              className="text-[7px] font-medium text-[#5E6259]/40 leading-none"
+              className="text-[6px] font-medium text-[#5E6259]/25 leading-none tracking-wider"
+              style={{ fontFamily: 'Georgia, serif' }}
             >
               {i}
             </span>
@@ -124,14 +147,11 @@ export function TapeMeasureNav({ items, activeHref, containerRef }: TapeMeasureN
         
         {/* Active highlight - Cavern Clay */}
         <motion.div
-          className="absolute inset-0 bg-[#AC6B53]/20"
+          className="absolute inset-0 bg-[#AC6B53]/15"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.2 }}
         />
-        
-        {/* Tiny metallic highlight - warm paper white */}
-        <div className="absolute top-0 left-0 right-0 h-[1px] bg-[#F8F5F0]/40" />
       </div>
     </motion.div>
   );

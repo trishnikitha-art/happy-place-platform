@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { CardLightSweep } from "@/components/card-light-sweep";
 
 /**
  * CraftCard — premium card component using existing design language.
@@ -25,29 +26,31 @@ import { cn } from "@/lib/utils";
  */
 export function CraftCard({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
-    <div 
-      className={cn(
-        // Base structure - existing tokens only
-        "rounded-xl border",
-        "bg-surface",
-        "border-border/40",
-        
-        // Premium shadow stack - layered depth (from homepage cards)
-        "shadow-[--shadow-card]",
-        
-        // Smooth transition with gentle lift
-        "transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)]",
-        
-        // Hover state - slightly richer shadow, subtle lift
-        "hover:shadow-[--shadow-card-hover]",
-        "hover:-translate-y-0.5",
-        
-        // Only allow layout classes (padding, margin, flex, grid, etc.)
-        className
-      )}
-    >
-      {children}
-    </div>
+    <CardLightSweep className="block">
+      <div 
+        className={cn(
+          // Base structure - existing tokens only
+          "rounded-xl border",
+          "bg-surface",
+          "border-border/40",
+          
+          // Premium shadow stack - layered depth (from homepage cards)
+          "shadow-[--shadow-card]",
+          
+          // Smooth transition with gentle lift
+          "transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)]",
+          
+          // Hover state - slightly richer shadow, subtle lift
+          "hover:shadow-[--shadow-card-hover]",
+          "hover:-translate-y-0.5",
+          
+          // Only allow layout classes (padding, margin, flex, grid, etc.)
+          className
+        )}
+      >
+        {children}
+      </div>
+    </CardLightSweep>
   );
 }
 
