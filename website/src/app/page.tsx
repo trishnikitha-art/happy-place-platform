@@ -153,6 +153,7 @@ export default async function HomePage() {
               eyebrow={<span className="eyebrow-mark"><ToolMark /> What we do</span>}
               title={<span className="text-primary">A few ways we can help</span>}
               description="Pick a service to start a free estimate — we'll guide you through the rest."
+              descriptionColor="text-text"
             />
             <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
               {homepageServices.map((s, i) => (
@@ -191,6 +192,7 @@ export default async function HomePage() {
               eyebrow="Featured projects"
               title={<span className="text-primary">Recent Work</span>}
               description="A selection of our latest work across the Mid-Willamette Valley."
+              descriptionColor="text-text"
             />
             <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 auto-rows-[200px]">
               {featuredProjects.slice(0, 4).map((project, i) => {
@@ -276,7 +278,7 @@ export default async function HomePage() {
         <Section className="relative bg-[#F2EFE8]">
           <div className="absolute inset-0 bg-gradient-to-b from-[#F2EFE8] via-[#EFECE5] to-[#ECE9E2] opacity-100" aria-hidden="true" />
           <Container className="relative z-10">
-            <SectionHeading eyebrow="Reviews" title={<span className="text-primary">What people say once the work's done</span>} align="center" description={hasReviews ? "Real experiences from families throughout the Mid-Willamette Valley." : "We're building our public review portfolio. In the meantime, we're happy to provide references from homeowners throughout the Mid-Willamette Valley."} />
+            <SectionHeading eyebrow="Reviews" title={<span className="text-primary">What people say once the work's done</span>} align="center" description={hasReviews ? "Real experiences from families throughout the Mid-Willamette Valley." : "We're building our public review portfolio. In the meantime, we're happy to provide references from homeowners throughout the Mid-Willamette Valley."} descriptionColor="text-text" />
             {hasReviews ? (
               <>
                 <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
