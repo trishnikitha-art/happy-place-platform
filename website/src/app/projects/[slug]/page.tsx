@@ -65,6 +65,86 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
       {/* JOB TIMELINE — canonical project view (Project = aggregate root) */}
       <JobTimeline project={project} />
       
+      {/* PROJECT OVERVIEW — owned concerns hang off Project (object-first, no new systems) */}
+      <Section className="bg-linen">
+        <Container>
+          <SectionHeading
+            eyebrow={<span className="text-honey">Project Overview</span>}
+            title={<span className="text-evergreen">At a glance</span>}
+            description={<span className="text-evergreen/80">Everything attached to this project, in one place.</span>}
+          />
+          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Estimate — owned by Project */}
+            <CraftCard className="p-5 bg-surface border-evergreen/10">
+              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Estimate</p>
+              {project.estimate ? (
+                <div className="mt-2 space-y-1 text-sm text-evergreen">
+                  <p className="font-semibold">
+                    {project.estimate.acceptedDate
+                      ? "Accepted"
+                      : project.estimate.estimateDate
+                        ? "Sent"
+                        : "Draft"}
+                  </p>
+                  {project.estimate.finalCost != null && (
+                    <p>${project.estimate.finalCost.toLocaleString()}</p>
+                  )}
+                  {project.estimate.estimatedRange && (
+                    <p className="text-evergreen/60">
+                      ${project.estimate.estimatedRange.low.toLocaleString()}–
+                      ${project.estimate.estimatedRange.high.toLocaleString()}
+                    </p>
+                  )}
+                </div>
+              ) : (
+                <p className="mt-2 text-sm text-evergreen/50">No estimate on file</p>
+              )}
+            </CraftCard>
+
+            {/* Schedule — owned by Project */}
+            <CraftCard className="p-5 bg-surface border-evergreen/10">
+              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Schedule</p>
+              <div className="mt-2 space-y-1 text-sm text-evergreen">
+                <p className="font-semibold capitalize">{project.status.replace("-", " ")}</p>
+                {project.startDate && (
+                  <p>Start {new Date(project.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
+                )}
+                {project.completionDate && (
+                  <p className="text-evergreen/60">
+                    Done {new Date(project.completionDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  </p>
+                )}
+              </div>
+            </CraftCard>
+
+            {/* Crew — owned by Project */}
+            <CraftCard className="p-5 bg-surface border-evergreen/10">
+              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Crew</p>
+              <div className="mt-2 space-y-1 text-sm text-evergreen">
+                {project.team?.leadCarpenter && <p className="font-semibold">{project.team.leadCarpenter}</p>}
+                {project.team?.crew?.length ? (
+                  <p className="text-evergreen/60">{project.team.crew.length} on crew</p>
+                ) : (
+                  <p className="text-evergreen/50">Unassigned</p>
+                )}
+              </div>
+            </CraftCard>
+
+            {/* Customer — owned by Project */}
+            <CraftCard className="p-5 bg-surface border-evergreen/10">
+              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Customer</p>
+              <div className="mt-2 space-y-1 text-sm text-evergreen">
+                {project.client?.name && <p className="font-semibold">{project.client.name}</p>}
+                {project.client?.referralSource && (
+                  <p className="text-evergreen/60">Ref: {project.client.referralSource}</p>
+                )}
+                {!project.client?.name && <p className="text-evergreen/50">—</p>}
+              </div>
+            </CraftCard>
+          </div>
+        </Container>
+      </Section>
+      
       {/* MATERIALS USED SECTION */}
       {project.materials && (
         <ScrollReveal>
