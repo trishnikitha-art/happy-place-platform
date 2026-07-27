@@ -182,33 +182,61 @@ function validateSubmission(submission: unknown): submission is ReviewSubmission
 }
 
 export async function POST(request: NextRequest) {
+  console.log("=== POST /api/reviews: ENTRY ===");
+  
   try {
+    console.log("=== STAGE: PARSING REQUEST BODY ===");
     const body = await request.json();
+    console.log("Request body received:", JSON.stringify(body, null, 2));
 
     // Validate submission
+    console.log("=== STAGE: VALIDATION ===");
     if (!validateSubmission(body)) {
+      console.log("❌ VALIDATION FAILED");
+      console.log("Validation errors:");
+      console.log("  name present:", typeof body.name === 'string');
+      console.log("  city present:", typeof body.city === 'string');
+      console.log("  county present:", typeof body.county === 'string');
+      console.log("  service present:", typeof body.service === 'string');
+      console.log("  rating present:", typeof body.rating === 'number');
+      console.log("  rating valid:", body.rating >= 1 && body.rating <= 5);
+      console.log("  body present:", typeof body.body === 'string');
+      console.log("  body length:", body.body?.length || 0);
+      
       return NextResponse.json(
-        { ok: false, error: "invalid_submission" },
+        { ok: false, error: "invalid_submission", details: "Validation failed. Required fields: name, city, county, service, rating (1-5), body" },
         { status: 400 }
       );
     }
+    console.log("✅ VALIDATION PASSED");
 
     // Convert to canonical Review with full moderation pipeline
+    console.log("=== STAGE: MODERATION PIPELINE ===");
     const review = await submissionToReview(body);
+    console.log("✅ MODERATION PIPELINE COMPLETE");
+    console.log("Review ID:", review.id);
+    console.log("Review status:", review.status);
 
     // Validate canonical Review
+    console.log("=== STAGE: REVIEW VALIDATION ===");
     if (!validateReview(review)) {
+      console.log("❌ REVIEW VALIDATION FAILED");
       return NextResponse.json(
         { ok: false, error: "invalid_review" },
         { status: 400 }
       );
     }
+    console.log("✅ REVIEW VALIDATION PASSED");
 
     // Persist to Google Sheets operational store
+    console.log("=== STAGE: GOOGLE SHEETS PERSISTENCE ===");
     const sheetsSource = createGoogleSheetsReviewSource();
+    console.log("Google Sheets adapter created");
     await sheetsSource.addReview(review);
+    console.log("✅ GOOGLE SHEETS PERSISTENCE COMPLETE");
 
-    return NextResponse.json({
+    console.log("=== STAGE: RETURNING SUCCESS RESPONSE ===");
+    const response = NextResponse.json({
       ok: true,
       review,
       message: "Review received and processed through moderation pipeline",
@@ -221,11 +249,19 @@ export async function POST(request: NextRequest) {
       suggestedProject: review.suggestedProject,
       suggestedCounty: review.suggestedCounty,
     });
+    
+    console.log("=== POST /api/reviews: SUCCESS ===");
+    return response;
 
-  } catch (error) {
+  } catch (error: any) {
+    console.log("=== POST /api/reviews: ERROR ===");
     console.error("Review webhook failed", error);
+    console.log("Error type:", error.constructor.name);
+    console.log("Error message:", error.message);
+    console.log("Error stack:", error.stack);
+    
     return NextResponse.json(
-      { ok: false, error: "server_error", details: String(error) },
+      { ok: false, error: "server_error", details: String(error), stack: error.stack },
       { status: 500 }
     );
   }

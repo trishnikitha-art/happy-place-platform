@@ -74,16 +74,38 @@ export class GoogleSheetsReviewSource implements ReviewSource {
    * Add a review to Google Sheets
    */
   async addReview(review: Review): Promise<void> {
+    console.log("=== GOOGLE SHEETS WRITE PATH: START ===");
+    console.log("Review ID:", review.id);
+    
+    // Log runtime configuration
+    console.log("Runtime Configuration:");
+    console.log("  GOOGLE_REVIEWS_SHEET_ID present:", !!SHEET_ID);
+    console.log("  GOOGLE_REVIEWS_SHEET_ID value:", SHEET_ID);
+    console.log("  GOOGLE_REFRESH_TOKEN present:", !!process.env.GOOGLE_REFRESH_TOKEN);
+    console.log("  GOOGLE_CLIENT_ID present:", !!process.env.GOOGLE_CLIENT_ID);
+    console.log("  GOOGLE_CLIENT_SECRET present:", !!process.env.GOOGLE_CLIENT_SECRET);
+    console.log("  Expected spreadsheet ID: 1LBJBZTJDsq4ENECEWw6rkz67frg08gFZhqGs5e9xgMw");
+    console.log("  Spreadsheet ID match:", SHEET_ID === "1LBJBZTJDsq4ENECEWw6rkz67frg08gFZhqGs5e9xgMw");
+    console.log("  Target sheet name:", SHEET_NAME);
+    
     if (!SHEET_ID) {
       console.warn("Google Sheets not configured (GOOGLE_REVIEWS_SHEET_ID missing). Review will be accepted but not persisted to Google Sheets.");
+      console.log("=== GOOGLE SHEETS WRITE PATH: ABORTED (MISSING CONFIG) ===");
       // Don't throw - allow submission to succeed even without Sheets
       return;
     }
 
     try {
+      console.log("Converting review to row...");
       const row = this.reviewToRow(review);
+      console.log("Row converted, length:", row.length);
       
-      await this.sheets.spreadsheets.values.append({
+      console.log("Invoking Google Sheets API: spreadsheets.values.append");
+      console.log("  spreadsheetId:", SHEET_ID);
+      console.log("  range:", `${SHEET_NAME}!A:Z`);
+      console.log("  valueInputOption: USER_ENTERED");
+      
+      const response = await this.sheets.spreadsheets.values.append({
         spreadsheetId: SHEET_ID,
         range: `${SHEET_NAME}!A:Z`,
         valueInputOption: "USER_ENTERED",
@@ -92,11 +114,39 @@ export class GoogleSheetsReviewSource implements ReviewSource {
         },
       });
 
+      console.log("=== GOOGLE SHEETS WRITE PATH: SUCCESS ===");
+      console.log("Google API Response Status:", response.status);
       console.log("Review added to Google Sheets:", review.id);
-    } catch (error) {
+    } catch (error: any) {
+      console.log("=== GOOGLE SHEETS WRITE PATH: FAILURE ===");
+      console.log("Error caught in addReview");
+      console.log("Error type:", error.constructor.name);
+      console.log("Error message:", error.message);
+      console.log("Error code:", error.code);
+      console.log("Error status:", error.status);
+      
+      if (error.response) {
+        console.log("Google API Response Details:");
+        console.log("  Response status:", error.response.status);
+        console.log("  Response statusText:", error.response.statusText);
+        console.log("  Response headers:", JSON.stringify(error.response.headers, null, 2));
+        console.log("  Response data:", JSON.stringify(error.response.data, null, 2));
+      }
+      
+      if (error.errors) {
+        console.log("Google API Errors Array:");
+        error.errors.forEach((err: any, index: number) => {
+          console.log(`  Error ${index}:`);
+          console.log("    message:", err.message);
+          console.log("    domain:", err.domain);
+          console.log("    reason:", err.reason);
+          console.log("    extendedHelp:", err.extendedHelp);
+        });
+      }
+      
       console.error("Failed to add review to Google Sheets:", error);
-      // Don't throw - allow submission to succeed even if Sheets fails
       console.warn("Review submission accepted but not persisted to Google Sheets due to error");
+      console.log("=== GOOGLE SHEETS WRITE PATH: END (FAILURE) ===");
     }
   }
 
