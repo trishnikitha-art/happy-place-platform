@@ -39,21 +39,22 @@ export default function ReviewPage() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: formData.name,
-          city: formData.city,
-          county: '', // Will be inferred by pipeline
-          service: formData.service,
-          rating: formData.rating,
-          body: formData.body,
-          provider: 'form',
-        }),
+          body: JSON.stringify({
+            name: formData.name,
+            city: formData.city || 'Unknown',
+            county: 'Unknown', // Will be inferred by pipeline
+            service: formData.service,
+            rating: formData.rating,
+            body: formData.body,
+            provider: 'form',
+          }),
       });
 
       const result = await response.json();
 
       if (!response.ok) {
-        throw new Error(result.error || 'Failed to submit review');
+        console.error('Review submission failed:', result);
+        throw new Error(result.error || result.details || 'Failed to submit review');
       }
 
       setIsSubmitted(true);
