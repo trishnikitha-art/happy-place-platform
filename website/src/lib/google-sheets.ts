@@ -27,18 +27,26 @@ export class GoogleSheetsReviewSource implements ReviewSource {
   constructor() {
     if (!SHEET_ID) {
       console.warn("GOOGLE_REVIEWS_SHEET_ID not configured, Google Sheets provider will be disabled");
+      return;
     }
-    
-    this.auth = getGoogleAuth();
-    this.sheets = google.sheets({ version: "v4", auth: this.auth });
+
+    try {
+      this.auth = getGoogleAuth();
+      this.sheets = google.sheets({ version: "v4", auth: this.auth });
+    } catch (error) {
+      console.error("Failed to initialize Google Sheets provider:", error);
+      console.warn("Google Sheets provider will be disabled due to authentication error");
+      this.auth = null;
+      this.sheets = null;
+    }
   }
 
   /**
    * Pull published reviews from Google Sheets
    */
   async listPublished(): Promise<Review[]> {
-    if (!SHEET_ID) {
-      console.warn("Google Sheets not configured, returning empty reviews");
+    if (!SHEET_ID || !this.sheets) {
+      console.warn("Google Sheets not configured or not initialized, returning empty reviews");
       return [];
     }
 
@@ -87,10 +95,18 @@ export class GoogleSheetsReviewSource implements ReviewSource {
     console.log("  Expected spreadsheet ID: 1LBJBZTJDsq4ENECEWw6rkz67frg08gFZhqGs5e9xgMw");
     console.log("  Spreadsheet ID match:", SHEET_ID === "1LBJBZTJDsq4ENECEWw6rkz67frg08gFZhqGs5e9xgMw");
     console.log("  Target sheet name:", SHEET_NAME);
+    console.log("  Sheets client initialized:", !!this.sheets);
     
     if (!SHEET_ID) {
       console.warn("Google Sheets not configured (GOOGLE_REVIEWS_SHEET_ID missing). Review will be accepted but not persisted to Google Sheets.");
       console.log("=== GOOGLE SHEETS WRITE PATH: ABORTED (MISSING CONFIG) ===");
+      // Don't throw - allow submission to succeed even without Sheets
+      return;
+    }
+
+    if (!this.sheets) {
+      console.warn("Google Sheets client not initialized (authentication likely failed). Review will be accepted but not persisted to Google Sheets.");
+      console.log("=== GOOGLE SHEETS WRITE PATH: ABORTED (CLIENT NOT INITIALIZED) ===");
       // Don't throw - allow submission to succeed even without Sheets
       return;
     }
@@ -154,8 +170,8 @@ export class GoogleSheetsReviewSource implements ReviewSource {
    * Update a review in Google Sheets
    */
   async updateReview(reviewId: string, updates: Partial<Review>): Promise<void> {
-    if (!SHEET_ID) {
-      console.warn("Google Sheets not configured, cannot update review");
+    if (!SHEET_ID || !this.sheets) {
+      console.warn("Google Sheets not configured or not initialized, cannot update review");
       return;
     }
 
