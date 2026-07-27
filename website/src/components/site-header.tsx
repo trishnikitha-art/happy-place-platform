@@ -63,6 +63,7 @@ export function SiteHeader() {
   const navigation = getNavigation();
   const company = getCompany();
   const menuRef = React.useRef<HTMLDivElement>(null);
+  const navRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     setOpen(false);
@@ -97,8 +98,8 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav className="hidden items-center md:flex relative" aria-label="Primary">
-          <TapeMeasureNav items={primary} activeHref={pathname} />
+        <nav className="hidden items-center md:flex relative" aria-label="Primary" ref={navRef}>
+          <TapeMeasureNav items={primary} activeHref={pathname} containerRef={navRef} />
           {primary.map((item) => (
             <Link
               key={item.href}
