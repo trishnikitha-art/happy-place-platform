@@ -75,7 +75,8 @@ export class GoogleSheetsReviewSource implements ReviewSource {
    */
   async addReview(review: Review): Promise<void> {
     if (!SHEET_ID) {
-      console.warn("Google Sheets not configured, cannot add review");
+      console.warn("Google Sheets not configured (GOOGLE_REVIEWS_SHEET_ID missing). Review will be accepted but not persisted to Google Sheets.");
+      // Don't throw - allow submission to succeed even without Sheets
       return;
     }
 
@@ -94,7 +95,8 @@ export class GoogleSheetsReviewSource implements ReviewSource {
       console.log("Review added to Google Sheets:", review.id);
     } catch (error) {
       console.error("Failed to add review to Google Sheets:", error);
-      throw error;
+      // Don't throw - allow submission to succeed even if Sheets fails
+      console.warn("Review submission accepted but not persisted to Google Sheets due to error");
     }
   }
 

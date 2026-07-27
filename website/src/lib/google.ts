@@ -37,6 +37,7 @@ export const GOOGLE_SCOPES = [
   "https://www.googleapis.com/auth/gmail.send",
   "https://www.googleapis.com/auth/drive.file",
   "https://www.googleapis.com/auth/contacts",
+  "https://www.googleapis.com/auth/spreadsheets",
 ];
 
 /** The OAuth consent URL the owner visits once to grant + capture a refresh token. */
