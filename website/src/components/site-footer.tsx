@@ -6,6 +6,7 @@ import { getNavigation } from "@/lib/navigation";
 import { getAllServices } from "@/lib/registries";
 import { PhoneLink, EmailLink } from "@/components/tracked-contact";
 import { HappyBrandSignature } from "@/components/happy-brand-signature";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 export function SiteFooter() {
   const company = getCompany();
@@ -23,7 +24,9 @@ export function SiteFooter() {
             <span className="text-lg"><HappyBrandSignature /> Place</span>
           </Link>
           <p className="mt-3 text-sm text-text-on-dark">{company.description}</p>
-          <p className="mt-3 text-sm font-semibold text-honey">{company.ccbNumber}</p>
+          <ScrollReveal>
+            <p className="mt-3 text-sm font-semibold text-honey ccb-shimmer">{company.ccbNumber}</p>
+          </ScrollReveal>
           <p className="mt-1 text-xs text-text-on-dark">
             {company.proof.insured ? "Licensed · Insured" : "Licensed"} · {company.proof.yearsInBusiness} · {company.proof.projectsCompleted} projects
           </p>

@@ -47,11 +47,18 @@ export function ReviewsFilterClient() {
             >
               <div className="flex items-center justify-between">
                 <StarRating rating={r.rating} />
-                {r.verified && (
-                  <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
-                    ✓ Verified
-                  </span>
-                )}
+                <div className="flex items-center gap-2">
+                  {r.featured && (
+                    <span className="rounded-full bg-honey/10 px-2.5 py-1 text-xs font-semibold text-honey">
+                      Featured
+                    </span>
+                  )}
+                  {r.verified && (
+                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                      ✓ Verified
+                    </span>
+                  )}
+                </div>
               </div>
               {r.title && <h3 className="mt-4 font-display text-xl font-bold text-text">{r.title}</h3>}
               <blockquote className="mt-3 flex-1 text-text leading-relaxed">

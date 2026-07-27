@@ -614,9 +614,24 @@ a {
 @media (prefers-reduced-motion: reduce) {
   .animate-shimmer-slow,
   .animate-shimmer-fast,
-  .animate-happy-gold-idle {
+  .animate-happy-gold-idle,
+  .ccb-shimmer {
     animation: none;
   }
+}
+
+/* CCB License Shimmer - one-time subtle shimmer on first scroll */
+.ccb-shimmer {
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    rgba(217, 154, 78, 0.3) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  background-clip: text;
+  -webkit-background-clip: text;
+  animation: shimmer-fast 1.5s ease-in-out;
 }
 
 /* ============================================================================

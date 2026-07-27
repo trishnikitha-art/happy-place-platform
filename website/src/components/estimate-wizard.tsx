@@ -107,6 +107,7 @@ export function EstimateWizard() {
   const [submitted, setSubmitted] = React.useState(() => initialDraft?.submitted ?? false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showSuccessPulse, setShowSuccessPulse] = React.useState(false);
+  const [showProgressShimmer, setShowProgressShimmer] = React.useState(false);
   const tracked = React.useRef<Set<string>>(new Set());
   const wizardRef = React.useRef<HTMLDivElement>(null);
 
@@ -211,6 +212,13 @@ export function EstimateWizard() {
   React.useEffect(() => {
     autosave();
   }, [step, selected, projectType, otherNeed, answers, photos, property, customer, submitted]);
+
+  // Trigger progress bar shimmer on Thank You step (one-time)
+  React.useEffect(() => {
+    if (STEPS[step] === "Thank You" && !showProgressShimmer) {
+      setShowProgressShimmer(true);
+    }
+  }, [step, STEPS, showProgressShimmer]);
 
   const setAnswer = (id: string, val: string | boolean | number) =>
     setAnswers((prev) => ({ ...prev, [id]: val }));
@@ -322,7 +330,10 @@ export function EstimateWizard() {
           style={{ width: `${(step / (STEPS.length - 1)) * 100}%` }}
         />
         <div 
-          className="absolute top-1/2 left-0 h-0.5 bg-primary -translate-y-1/2 transition-all duration-500 ease-out"
+          className={cn(
+            "absolute top-1/2 left-0 h-0.5 bg-primary -translate-y-1/2 transition-all duration-500 ease-out",
+            showProgressShimmer && "animate-shimmer-fast"
+          )}
           style={{ width: `${(step / (STEPS.length - 1)) * 100}%` }}
         />
         
