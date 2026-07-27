@@ -16,12 +16,12 @@ import { ReviewStatus } from "@/types/reviews";
  */
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const body = await request.json();
     const { status, notes, verified, featured } = body;
-    const reviewId = params.id;
+    const { id: reviewId } = await params;
 
     // Load all reviews to find the target
     const reviews = await getAllReviews();
@@ -72,10 +72,10 @@ export async function PATCH(
  */
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const reviewId = params.id;
+    const { id: reviewId } = await params;
 
     // Load all reviews to find the target
     const reviews = await getAllReviews();
