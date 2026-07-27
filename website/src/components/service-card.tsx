@@ -63,8 +63,8 @@ export function ServiceCard({ service }: { service: Service }) {
           )}
         </PhotoMount>
         <div className="flex flex-1 flex-col p-4 sm:p-5 lg:p-6">
-          <h3 className={`font-display text-lg font-bold sm:text-xl lg:text-2xl ${headingColor}`}>{service.name}</h3>
-          <p className={`clamp-2 mt-2 flex-1 text-sm sm:text-base ${bodyColor}`}>{service.description}</p>
+          <h3 className={`font-display text-lg font-bold sm:text-xl lg:text-2xl ${headingColor}`} style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>{service.name}</h3>
+          <p className={`clamp-2 mt-2 flex-1 text-sm sm:text-base ${bodyColor}`} style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>{service.description}</p>
           <div className={`mt-4 inline-flex items-center gap-1 min-h-[44px] text-sm sm:text-base ${linkColor}`}>
             Start a quote →
           </div>

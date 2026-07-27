@@ -43,12 +43,12 @@ export function FeaturedReview({ review }: FeaturedReviewProps) {
         </div>
         
         {review.title && (
-          <h2 className="mt-4 font-display text-2xl font-bold text-text md:text-3xl">
+          <h2 className="mt-4 font-display text-2xl font-bold text-text md:text-3xl" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>
             {review.title}
           </h2>
         )}
-        
-        <blockquote className="mt-4 text-lg text-text-muted leading-relaxed md:text-xl">
+
+        <blockquote className="mt-4 text-lg text-text-muted md:text-xl" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
           &ldquo;{review.body}&rdquo;
         </blockquote>
         

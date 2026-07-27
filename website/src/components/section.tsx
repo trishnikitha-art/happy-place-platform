@@ -17,7 +17,7 @@ export function Section({
   children: React.ReactNode;
   size?: "major" | "minor";
 }) {
-  const pad = size === "minor" ? "py-14 sm:py-18" : "py-20 sm:py-28";
+  const pad = size === "minor" ? "py-16 sm:py-20" : "py-24 sm:py-32";
   return <section className={cn(pad, className)}>{children}</section>;
 }
 
@@ -43,9 +43,9 @@ export function SectionHeading({
 }) {
   return (
     <div className={cn("max-w-2xl", align === "center" && "mx-auto text-center")}>
-      {eyebrow && <p className="text-sm font-semibold uppercase tracking-[0.18em] text-accent">{eyebrow}</p>}
-      <h2 className="mt-5 font-display text-4xl font-bold leading-[1.08] tracking-tight text-primary sm:text-5xl">{typeof title === 'string' ? title : title}</h2>
-      {description && <p className="mt-6 text-lg text-text-muted sm:text-xl leading-relaxed">{typeof description === 'string' ? description : description}</p>}
+      {eyebrow && <p className="text-sm font-semibold uppercase tracking-[0.12em] text-accent" style={{ letterSpacing: '0.12em' }}>{eyebrow}</p>}
+      <h2 className="mt-4 font-display text-4xl font-bold text-primary sm:text-5xl" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>{typeof title === 'string' ? title : title}</h2>
+      {description && <p className="mt-5 text-lg text-text-muted sm:text-xl" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>{typeof description === 'string' ? description : description}</p>}
     </div>
   );
 }
