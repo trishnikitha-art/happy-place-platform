@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { ProjectSpotlight } from "@/components/project-spotlight";
 import { CTASection } from "@/components/cta-section";
 import { ProjectPhotos } from "@/components/project-photos";
+import { JobTimeline } from "@/components/job-timeline";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { BlueprintGrid } from "@/components/blueprint-grid";
@@ -60,6 +61,9 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
   return (
     <>
       <ProjectSpotlight project={project} variant="full" />
+      
+      {/* JOB TIMELINE — canonical project view (Project = aggregate root) */}
+      <JobTimeline project={project} />
       
       {/* MATERIALS USED SECTION */}
       {project.materials && (
