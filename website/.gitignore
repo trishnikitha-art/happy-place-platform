@@ -34,6 +34,17 @@ yarn-error.log*
 .env*
 !.env.example
 
+# Temporary OAuth and test scripts (contain credentials)
+exchange-code.js
+create-sheet.js
+setup-sheet.js
+generate-oauth-url.js
+decode-oauth-url.js
+test-scopes.js
+test-review-submission.js
+OAUTH_DIAGNOSTIC_REPORT.md
+test-review.json
+
 # vercel
 .vercel
 
