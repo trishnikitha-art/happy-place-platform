@@ -232,8 +232,9 @@ export async function POST(request: NextRequest) {
     console.log("=== STAGE: GOOGLE SHEETS PERSISTENCE ===");
     const sheetsSource = createGoogleSheetsReviewSource();
     console.log("Google Sheets adapter created");
-    await sheetsSource.addReview(review);
+    const sheetsResult = await sheetsSource.addReview(review);
     console.log("✅ GOOGLE SHEETS PERSISTENCE COMPLETE");
+    console.log("Sheets result:", JSON.stringify(sheetsResult, null, 2));
 
     console.log("=== STAGE: RETURNING SUCCESS RESPONSE ===");
     const response = NextResponse.json({
@@ -248,6 +249,9 @@ export async function POST(request: NextRequest) {
       suggestedService: review.suggestedService,
       suggestedProject: review.suggestedProject,
       suggestedCounty: review.suggestedCounty,
+      sheetsPersisted: sheetsResult.success,
+      sheetsError: sheetsResult.error,
+      sheetsDetails: sheetsResult.details,
     });
     
     console.log("=== POST /api/reviews: SUCCESS ===");

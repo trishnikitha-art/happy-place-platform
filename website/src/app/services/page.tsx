@@ -52,6 +52,7 @@ export default function ServicesPage() {
             eyebrow={<span className="text-honey">Services</span>}
             title={<span className="text-text-on-dark">Carpentry for your whole home</span>}
             description={<span className="text-text-on-dark/90">Every service has its own estimate questions, so your quote is built around exactly what you need.</span>}
+            descriptionColor="text-text-on-dark/90"
           />
           <div className="mt-10 space-y-14">
             {Object.entries(groupedServices).map(([category, categoryServices]) => (
@@ -60,9 +61,9 @@ export default function ServicesPage() {
                   <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-accent">
                     <Icon name="hammer" className="h-5 w-5" />
                   </span>
-                  <h2 className="text-2xl font-bold text-text-on-dark">{category}</h2>
+                  <h2 className="text-2xl font-bold text-text-on-dark" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>{category}</h2>
                 </div>
-                <p className="mb-6 mt-2 max-w-2xl text-text-on-dark/90">
+                <p className="mb-6 mt-2 max-w-2xl text-text-on-dark/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
                   {categoryServices[0]?.description || 'Professional carpentry services'}
                 </p>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
