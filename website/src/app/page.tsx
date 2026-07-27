@@ -80,10 +80,10 @@ export default async function HomePage() {
             <p className="font-signature text-xl sm:text-2xl text-text-on-dark tracking-wide">
               <HappyBrandSignature /> Place Carpentry
             </p>
-            <h1 className="mt-4 sm:mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold leading-[1.08] sm:leading-[1.05] tracking-tight tracking-display text-text-on-dark">
+            <h1 className="mt-4 sm:mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-text-on-dark" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>
               Your favorite part of coming home should be the home itself.
             </h1>
-            <p className="measure mt-5 sm:mt-7 max-w-xl text-base sm:text-lg leading-[1.7] text-text-on-dark/90">
+            <p className="measure mt-5 sm:mt-7 max-w-xl text-base sm:text-lg text-text-on-dark/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
               We repair, restore, and improve homes across the Mid-Willamette Valley. The work should look right the day we leave, and still look right years later.</p>
             <div className="mt-6 sm:mt-8 flex flex-wrap gap-3">
               <Link href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold">

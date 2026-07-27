@@ -28,6 +28,7 @@ export default function ContactPage() {
               eyebrow={<span className="text-honey">Contact</span>}
               title={<span className="text-text-on-dark">Let's talk about your project</span>}
               description={<span className="text-text-on-dark/90">The quickest way to get started is the Estimate Wizard. If you'd rather talk first, give us a call, send a text, or email us—whatever's easiest.</span>}
+              descriptionColor="text-text-on-dark/90"
             />
             <dl className="mt-8 space-y-4 text-text-on-dark">
               <div>
@@ -49,8 +50,8 @@ export default function ContactPage() {
             </dl>
           </div>
           <div className="rounded-2xl border border-border bg-surface-muted p-8">
-            <h2 className="text-xl font-bold text-text-on-dark">Start your free estimate</h2>
-            <p className="measure mt-2 text-text-on-dark">
+            <h2 className="text-xl font-bold text-text-on-dark" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>Start your free estimate</h2>
+            <p className="measure mt-2 text-text-on-dark" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
               Pick a service, upload a photo if you have one, and tell us what you're planning. It takes about two minutes.
             </p>
             <a
