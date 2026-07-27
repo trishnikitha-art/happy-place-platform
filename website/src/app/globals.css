@@ -162,7 +162,7 @@
 }
 
 html {
-  scroll-behavior: smooth;
+  /* scroll-behavior: smooth; */ /* Disabled to avoid conflict with Lenis smooth scroll */
 }
 
 body {
