@@ -54,12 +54,29 @@ function evaluateFlat(seed: ServiceSeed, service: ServiceSlug): StrategyResult {
 /**
  * Per-unit strategy — multiply rate by a measurement answer.
  * Falls back to flat range if measurement is missing or non-numeric.
+ * If scopeRanges exists and a scope answer is provided, uses scope-based pricing instead.
  */
 function evaluatePerUnit(
   seed: ServiceSeed,
   answers: Record<string, unknown>,
   service: ServiceSlug
 ): StrategyResult {
+  // Check scopeRanges first (for fences, decks, etc.)
+  if (seed.scopeRanges) {
+    const scopeAnswerId = getScopeAnswerId(service);
+    const scopeValue = String(answers[scopeAnswerId] ?? "");
+    const selectedRange = seed.scopeRanges[scopeValue];
+    if (selectedRange) {
+      return {
+        low: selectedRange[0],
+        high: selectedRange[1],
+        confidence: seed.baseConfidence ?? "high",
+        reasoning: [`Selected scope: ${scopeValue}`],
+        scopeUsed: scopeValue,
+      };
+    }
+  }
+
   // Find the measurement answer (e.g., fence_length, deck_size)
   const measurementAnswerId = getMeasurementAnswerId(service);
   const measurement = answers[measurementAnswerId];

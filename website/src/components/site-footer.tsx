@@ -45,9 +45,7 @@ export function SiteFooter() {
 
         <div>
           <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark">About</h3>
-          <p className="mt-3 text-sm text-text-on-dark">
-            Decks, fences, repairs, remodels, finish carpentry, painting, and outdoor structures throughout Oregon's Mid-Willamette Valley.
-          </p>
+          <p className="mt-3 text-sm text-text-on-dark">{company.description}</p>
         </div>
 
         <div>
