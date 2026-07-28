@@ -3,6 +3,7 @@ import type { Review } from "@/types/reviews";
 import { ReviewProvider, ReviewStatus } from "@/types/reviews";
 import { validateReview } from "@/lib/reviews";
 import { createGoogleSheetsReviewSource } from "@/lib/google-sheets";
+import { getGoogleConfigDiagnostic } from "@/lib/google-config-diagnostic";
 import { classifyReviewWithMetadata } from "@/lib/sentiment/classifier";
 import { normalizeText } from "@/lib/sentiment/normalizer";
 import { extractMetadata } from "@/lib/sentiment/metadata-extractor";
@@ -275,16 +276,7 @@ export async function POST(request: NextRequest) {
  * GET /api/reviews — Health check and configuration diagnostic endpoint
  */
 export async function GET() {
-  const config = {
-    googleSheetsConfigured: !!process.env.GOOGLE_REVIEWS_SHEET_ID,
-    googleSheetsId: process.env.GOOGLE_REVIEWS_SHEET_ID ? `${process.env.GOOGLE_REVIEWS_SHEET_ID.substring(0, 8)}...` : 'missing',
-    googleClientId: !!process.env.GOOGLE_CLIENT_ID,
-    googleClientSecret: !!process.env.GOOGLE_CLIENT_SECRET,
-    googleRefreshToken: !!process.env.GOOGLE_REFRESH_TOKEN,
-    googleRedirectUri: process.env.GOOGLE_REDIRECT_URI || 'default (localhost)',
-    environment: process.env.NODE_ENV || 'unknown',
-    vercelEnv: process.env.VERCEL_ENV || 'not on Vercel',
-  };
+  const diagnostic = getGoogleConfigDiagnostic();
 
   // Test Google Sheets adapter initialization
   let sheetsTest = { initialized: false, error: null };
@@ -299,7 +291,7 @@ export async function GET() {
     ok: true,
     status: "operational",
     message: "Review webhook endpoint is ready",
-    config,
+    diagnostic,
     sheetsTest,
   });
 }
