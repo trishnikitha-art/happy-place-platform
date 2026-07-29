@@ -38,7 +38,6 @@ interface ReviewCardProps {
  * Card text always uses light register tokens regardless of page background.
  */
 export function ReviewCard({ review }: ReviewCardProps) {
-  const [isResponseExpanded, setIsResponseExpanded] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -73,7 +72,7 @@ export function ReviewCard({ review }: ReviewCardProps) {
   const linkColor = "text-text hover:text-honey";
 
   return (
-    <CraftCard className="flex flex-col p-5 sm:p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
+    <CraftCard className="flex flex-col p-5 @[300px]:p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl" style={{ containerType: 'inline-size' }}>
       {/* Header: Rating + Status Badges */}
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
@@ -128,35 +127,25 @@ export function ReviewCard({ review }: ReviewCardProps) {
         {review.service && <span className={`mt-1 block text-xs ${mutedColor} capitalize`}>{review.service.replace('-', ' ')}</span>}
       </figcaption>
 
-      {/* Owner response slot */}
+      {/* Owner response slot - using :has() pattern for expansion */}
       {review.ownerResponse && (
         <div 
           className={`mt-4 rounded-lg ${responseBg} p-4 border-l-4 ${responseBorder} transition-all duration-300 ease-out overflow-hidden`}
         >
-          <button
-            onClick={() => setIsResponseExpanded(!isResponseExpanded)}
-            className="w-full text-left"
-          >
+          <label className="block cursor-pointer">
+            <input type="checkbox" className="peer hidden" />
             <p className={`text-xs font-semibold ${responseLabel} uppercase tracking-wide mb-1 flex items-center justify-between`}>
               {review.ownerResponse.author} replied
-              <span className={cn(
-                "transition-transform duration-300",
-                isResponseExpanded ? "rotate-180" : "rotate-0"
-              )}>
+              <span className="transition-transform duration-300 peer-checked:rotate-180">
                 ▼
               </span>
             </p>
-          </button>
-          <div 
-            className={cn(
-              "transition-all duration-300 ease-out",
-              isResponseExpanded ? "max-h-96 opacity-100 mt-2" : "max-h-0 opacity-0"
-            )}
-          >
-            <p className={`${bodyColor} leading-relaxed text-sm`}>
-              {review.ownerResponse.body}
-            </p>
-          </div>
+            <div className="max-h-0 opacity-0 transition-all duration-300 ease-out peer-checked:max-h-96 peer-checked:opacity-100 peer-checked:mt-2">
+              <p className={`${bodyColor} leading-relaxed text-sm`}>
+                {review.ownerResponse.body}
+              </p>
+            </div>
+          </label>
         </div>
       )}
 
