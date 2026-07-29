@@ -28,7 +28,9 @@ import { DriveImageSource } from "./image-source/drive-image-source.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
-const PHOTO_SOURCE_ROOT = process.env.PHOTO_SOURCE_ROOT || path.join(ROOT, "photo-intake");
+// Default to local Google Drive folder if available, otherwise photo-intake
+const PHOTO_SOURCE_ROOT = process.env.PHOTO_SOURCE_ROOT || 
+  (process.env.LOCAL_DRIVE_PATH || path.join(ROOT, "photo-intake"));
 const INTAKE = PHOTO_SOURCE_ROOT;
 const ARCHIVE = path.join(INTAKE, "_archive");
 const OUT = path.join(ROOT, "public", "images", "projects");
