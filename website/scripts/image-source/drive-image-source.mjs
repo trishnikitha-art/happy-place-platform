@@ -12,8 +12,13 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { ImageSource } from "./image-source.mjs";
+import { google } from "googleapis";
 
 const RASTER = /\.(jpe?g|png|webp|tiff?|heic?)$/i;
+
+function slugify(s) {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+}
 
 export class DriveImageSource extends ImageSource {
   /** @type {string} Google Drive folder ID */
@@ -22,7 +27,7 @@ export class DriveImageSource extends ImageSource {
   /** @type {string} local cache directory for downloaded files */
   #cacheDir;
   
-  /** @type {Object} Drive API client (stub) */
+  /** @type {Object} Drive API client */
   #drive;
 
   /**
@@ -33,7 +38,34 @@ export class DriveImageSource extends ImageSource {
     super();
     this.#folderId = folderId;
     this.#cacheDir = cacheDir;
-    this.#drive = null; // TODO: Initialize Google Drive client
+    this.#drive = null;
+  }
+
+  /**
+   * Initialize Drive API client with service account credentials
+   */
+  async #initializeDrive() {
+    if (this.#drive) return;
+
+    const serviceAccountKey = process.env.DRIVE_SERVICE_ACCOUNT_KEY;
+    if (!serviceAccountKey) {
+      throw new Error("DRIVE_SERVICE_ACCOUNT_KEY environment variable not set");
+    }
+
+    let credentials;
+    try {
+      credentials = JSON.parse(serviceAccountKey);
+    } catch (e) {
+      throw new Error("DRIVE_SERVICE_ACCOUNT_KEY must be valid JSON");
+    }
+
+    const auth = new google.auth.GoogleAuth({
+      credentials,
+      scopes: ["https://www.googleapis.com/auth/drive.readonly"],
+    });
+
+    this.#drive = google.drive({ version: "v3", auth });
+    console.log("Drive API client initialized");
   }
 
   /** @returns {string} the cache directory path */
@@ -43,61 +75,73 @@ export class DriveImageSource extends ImageSource {
 
   async listProjects() {
     console.log("Listing projects from Drive...");
-    
-    // TODO: Implement actual Drive API call
-    // const response = await this.#drive.files.list({
-    //   q: `'${this.#folderId}' in parents and mimeType = 'application/vnd.google-apps.folder'`,
-    //   fields: 'files(id,name)',
-    // });
-    
-    // Stub implementation - returns empty list
-    return [];
+    await this.#initializeDrive();
+
+    const response = await this.#drive.files.list({
+      q: `'${this.#folderId}' in parents and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+      fields: 'files(id,name)',
+    });
+
+    return response.data.files.map((folder) => ({
+      name: folder.name,
+      slug: slugify(folder.name),
+      driveId: folder.id,
+    }));
   }
 
   async listFiles(project) {
     console.log(`Listing files for project: ${project}`);
-    
-    // TODO: Implement actual Drive API call
-    // const response = await this.#drive.files.list({
-    //   q: `'${project}' in parents`,
-    //   fields: 'files(id,name,size,md5Checksum)',
-    // });
-    
-    // Stub implementation - returns empty list
-    return [];
+    await this.#initializeDrive();
+
+    const response = await this.#drive.files.list({
+      q: `'${project.driveId}' in parents and trashed = false`,
+      fields: 'files(id,name,size,md5Checksum,modifiedTime)',
+    });
+
+    return response.data.files
+      .filter((file) => RASTER.test(file.name))
+      .map((file) => ({
+        name: file.name,
+        path: file.name,
+        size: parseInt(file.size, 10),
+        driveId: file.id,
+        md5Checksum: file.md5Checksum,
+        modifiedTime: file.modifiedTime,
+      }));
   }
 
   async open(project, filePath) {
-    const cachePath = path.join(this.#cacheDir, project, filePath);
+    const cachePath = path.join(this.#cacheDir, project.slug, filePath);
     
     // Check if file is already cached
-    if (await this.exists(project, filePath)) {
+    if (await this.exists(project.slug, filePath)) {
       return fs.readFile(cachePath);
     }
     
-    // TODO: Download from Drive and cache
+    // Download from Drive and cache
     console.log(`Downloading ${filePath} from Drive...`);
-    
-    // const response = await this.#drive.files.get(
-    //   { fileId: fileId, alt: 'media' },
-    //   { responseType: 'arraybuffer' }
-    // );
-    
-    // await fs.mkdir(path.dirname(cachePath), { recursive: true });
-    // await fs.writeFile(cachePath, Buffer.from(response.data));
+    await this.#initializeDrive();
+
+    const file = await this.#drive.files.get(
+      { fileId: filePath.driveId, alt: 'media' },
+      { responseType: 'arraybuffer' }
+    );
+
+    await fs.mkdir(path.dirname(cachePath), { recursive: true });
+    await fs.writeFile(cachePath, Buffer.from(file.data));
     
     return fs.readFile(cachePath);
   }
 
   async stat(project, filePath) {
-    const cachePath = path.join(this.#cacheDir, project, filePath);
+    const cachePath = path.join(this.#cacheDir, project.slug, filePath);
     const s = await fs.stat(cachePath);
     return { size: s.size, mtime: s.mtime };
   }
 
   async exists(project, filePath) {
     try {
-      await fs.access(path.join(this.#cacheDir, project, filePath));
+      await fs.access(path.join(this.#cacheDir, project.slug, filePath));
       return true;
     } catch {
       return false;
