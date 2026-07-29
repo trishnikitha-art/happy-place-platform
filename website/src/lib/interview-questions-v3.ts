@@ -641,3 +641,15 @@ export const SERVICE_QUESTIONS_MAP: Record<string, EstimateQuestion[]> = {
 export function getQuestionsForService(serviceSlug: string): EstimateQuestion[] {
   return SERVICE_QUESTIONS_MAP[serviceSlug] || [];
 }
+
+/**
+ * Find a question by ID across all service question maps
+ * This enables cross-service question resolution (e.g., painting -> deck_finish_type)
+ */
+export function findQuestionById(questionId: string): EstimateQuestion | undefined {
+  for (const questions of Object.values(SERVICE_QUESTIONS_MAP)) {
+    const question = questions.find(q => q.id === questionId);
+    if (question) return question;
+  }
+  return undefined;
+}

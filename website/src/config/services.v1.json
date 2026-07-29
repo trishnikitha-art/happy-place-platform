@@ -19,12 +19,31 @@
       },
       "estimateQuestions": [
         {
-          "id": "deck_scope",
-          "label": "What type of deck work do you need?",
+          "id": "deck_intent",
+          "label": "What would you like done?",
           "type": "select",
-          "options": ["New build", "Repair / board replacement", "Resurface / re-stain only", "Not sure"],
-          "required": true
-        }
+          "category": "intent",
+          "isScopeQuestion": true,
+          "options": ["Build new deck", "Replace existing deck", "Repair existing deck", "Refinish or stain deck"],
+          "next": {
+            "Build new deck": "deck_new_size",
+            "Replace existing deck": "deck_replace_reason",
+            "Repair existing deck": "deck_repair_what",
+            "Refinish or stain deck": "deck_finish_type"
+          }
+        },
+        { "id": "deck_new_size", "label": "Approximately how large?", "type": "number", "category": "scope", "measurementType": "area", "measurementUnit": "square_feet", "next": { "*": "deck_new_material" } },
+        { "id": "deck_new_material", "label": "What material are you thinking?", "type": "select", "category": "material", "options": ["Cedar", "Pressure treated", "Composite", "Not sure"], "next": { "*": "deck_new_elevation" } },
+        { "id": "deck_new_elevation", "label": "What elevation?", "type": "select", "category": "intent", "options": ["Ground level", "Raised (2-4 feet)", "Second story", "Not sure"] },
+        { "id": "deck_replace_reason", "label": "Why are you replacing it?", "type": "select", "category": "condition", "options": ["Rot", "Structural issues", "Just old", "Different style", "Storm damage"], "next": { "*": "deck_replace_size" } },
+        { "id": "deck_replace_size", "label": "Approximately how large?", "type": "number", "category": "scope", "measurementType": "area", "measurementUnit": "square_feet", "next": { "*": "deck_replace_demo" } },
+        { "id": "deck_replace_demo", "label": "Will the old deck need to be removed and hauled away?", "type": "select", "category": "scope", "options": ["Yes", "No, it's already gone", "Not sure"] },
+        { "id": "deck_repair_what", "label": "What needs repair?", "type": "select", "category": "condition", "options": ["Rotting boards", "Structural issues", "Railings or stairs", "Multiple issues"], "next": { "*": "deck_repair_size" } },
+        { "id": "deck_repair_size", "label": "About how much is affected?", "type": "select", "category": "scope", "options": ["A small area", "About half the deck", "Most of the deck"] },
+        { "id": "deck_finish_type", "label": "What finish are you planning?", "type": "select", "category": "intent", "options": ["Transparent stain", "Semi-transparent stain", "Solid stain", "Paint", "Not sure"], "next": { "*": "deck_finish_condition" } },
+        { "id": "deck_finish_condition", "label": "What condition is the deck in?", "type": "select", "category": "condition", "options": ["Just needs a fresh coat", "Peeling or faded", "Cracking or weathered", "Has damaged boards"], "next": { "*": "deck_finish_size" } },
+        { "id": "deck_finish_size", "label": "Approximately how large?", "type": "number", "category": "scope", "measurementType": "area", "measurementUnit": "square_feet", "next": { "*": "deck_finish_history" } },
+        { "id": "deck_finish_history", "label": "Has it been stained or painted before?", "type": "select", "category": "condition", "options": ["Stained", "Painted", "Bare wood", "Not sure"] }
       ]
     },
     {
@@ -44,12 +63,33 @@
       },
       "estimateQuestions": [
         {
-          "id": "fence_scope",
-          "label": "What type of fence work do you need?",
+          "id": "fence_intent",
+          "label": "What would you like done?",
           "type": "select",
-          "options": ["New fence", "Repair (1-3 sections)", "Full replacement", "Not sure"],
-          "required": true
-        }
+          "category": "intent",
+          "isScopeQuestion": true,
+          "options": ["Build new fence", "Replace existing fence", "Repair existing fence", "Refinish or stain fence"],
+          "next": {
+            "Build new fence": "fence_new_length",
+            "Replace existing fence": "fence_replace_reason",
+            "Repair existing fence": "fence_repair_what",
+            "Refinish or stain fence": "fence_finish_type"
+          }
+        },
+        { "id": "fence_new_length", "label": "Approximately how much fencing?", "type": "number", "category": "scope", "measurementType": "length", "measurementUnit": "feet", "next": { "*": "fence_new_material" } },
+        { "id": "fence_new_material", "label": "What material are you thinking?", "type": "select", "category": "material", "options": ["Cedar", "Pressure treated", "Vinyl", "Metal", "Composite", "Not sure"], "next": { "*": "fence_new_purpose" } },
+        { "id": "fence_new_purpose", "label": "What's the fence mainly for?", "type": "select", "category": "intent", "options": ["Privacy", "Marking the property line", "Containing pets or livestock", "Security", "Decorative"] },
+        { "id": "fence_replace_reason", "label": "Why are you replacing it?", "type": "select", "category": "condition", "options": ["Storm damage", "Rot", "Leaning or heaving", "Just old", "Different style"], "next": { "*": "fence_replace_material" } },
+        { "id": "fence_replace_material", "label": "What material are you thinking?", "type": "select", "category": "material", "options": ["Cedar", "Pressure treated", "Vinyl", "Metal", "Composite", "Not sure"], "next": { "*": "fence_replace_length" } },
+        { "id": "fence_replace_length", "label": "Approximately how much fencing?", "type": "number", "category": "scope", "measurementType": "length", "measurementUnit": "feet", "next": { "*": "fence_replace_removal" } },
+        { "id": "fence_replace_removal", "label": "Will the old fence need to be removed and hauled away?", "type": "select", "category": "scope", "options": ["Yes", "No, it's already gone", "Not sure"] },
+        { "id": "fence_repair_what", "label": "What needs repair?", "type": "select", "category": "condition", "options": ["Broken or missing boards", "Leaning posts", "Gate not closing right", "Multiple issues"], "next": { "*": "fence_repair_material" } },
+        { "id": "fence_repair_material", "label": "What material are you thinking?", "type": "select", "category": "material", "options": ["Cedar", "Pressure treated", "Vinyl", "Metal", "Composite", "Not sure"], "next": { "*": "fence_repair_extent" } },
+        { "id": "fence_repair_extent", "label": "About how much is affected?", "type": "select", "category": "scope", "options": ["A single section", "A few sections", "Most of the fence"] },
+        { "id": "fence_finish_type", "label": "What finish are you planning?", "type": "select", "category": "intent", "options": ["Transparent stain", "Semi-transparent stain", "Solid stain", "Paint", "Not sure"], "next": { "*": "fence_finish_condition" } },
+        { "id": "fence_finish_condition", "label": "What condition is the fence in?", "type": "select", "category": "condition", "options": ["Just needs a fresh coat", "Peeling or faded", "Cracking or weathered", "Has damaged boards"], "next": { "*": "fence_finish_length" } },
+        { "id": "fence_finish_length", "label": "Approximately how much fencing?", "type": "number", "category": "scope", "measurementType": "length", "measurementUnit": "feet", "next": { "*": "fence_finish_history" } },
+        { "id": "fence_finish_history", "label": "Has it been stained or painted before?", "type": "select", "category": "condition", "options": ["Stained", "Painted", "Bare wood", "Not sure"] }
       ]
     },
     {
@@ -96,12 +136,27 @@
       "defaultProjectIntent": "Paint / Stain / Refinish existing",
       "estimateQuestions": [
         {
-          "id": "painting_goal",
-          "label": "What are you trying to accomplish?",
+          "id": "painting_target",
+          "label": "What are you painting?",
           "type": "select",
-          "options": ["Freshen existing paint", "Repair peeling paint", "Complete color change", "Preparing to sell", "Just moved in", "Not sure"],
-          "required": true
-        }
+          "category": "intent",
+          "isScopeQuestion": true,
+          "options": ["Exterior", "Interior", "Cabinets", "Deck", "Fence", "Other"],
+          "next": {
+            "Exterior": "painting_ext_surface",
+            "Interior": "painting_int_rooms",
+            "Cabinets": "painting_cab_count",
+            "Deck": "deck_finish_type",
+            "Fence": "fence_finish_type"
+          }
+        },
+        { "id": "painting_ext_surface", "label": "Which exterior surfaces?", "type": "select", "category": "intent", "options": ["Siding", "Trim", "Doors", "Garage", "Whole house"], "next": { "*": "painting_ext_condition" } },
+        { "id": "painting_ext_condition", "label": "Current condition?", "type": "select", "category": "condition", "options": ["Ready for paint", "Peeling paint", "Bare wood", "Water damage", "Chalky surface"], "next": { "*": "painting_ext_prep" } },
+        { "id": "painting_ext_prep", "label": "How much prep do you think it needs?", "type": "select", "category": "scope", "options": ["Just a light wash", "Scraping and sanding", "Wood repairs needed", "Not sure"] },
+        { "id": "painting_int_rooms", "label": "How many rooms, roughly?", "type": "number", "category": "scope", "measurementType": "count", "measurementUnit": "rooms", "next": { "*": "painting_int_condition" } },
+        { "id": "painting_int_condition", "label": "Current condition?", "type": "select", "category": "condition", "options": ["Ready for paint", "Needs patching or repair", "Has smoke or water stains", "Not sure"] },
+        { "id": "painting_cab_count", "label": "About how many cabinets or doors?", "type": "number", "category": "scope", "measurementType": "count", "measurementUnit": "doors", "next": { "*": "painting_cab_finish" } },
+        { "id": "painting_cab_finish", "label": "Current finish?", "type": "select", "category": "condition", "options": ["Painted", "Stained wood", "Laminate", "Not sure"] }
       ]
     },
     {
