@@ -24,6 +24,7 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { FilesystemImageSource } from "./image-source/filesystem-image-source.mjs";
+import { DriveImageSource } from "./image-source/drive-image-source.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
@@ -37,6 +38,7 @@ const PRESENTATION = path.join(ROOT, "src", "config", "presentation.v1.json");
 const GOLDEN = path.join(ROOT, "generated", "golden-manifest.json");
 const PIPELINE_MANIFEST = path.join(ROOT, "generated", "gallery.manifest.json");
 const CACHE = path.join(ROOT, "generated", "rebuild-cache.json");
+const DRIVE_CACHE = path.join(ROOT, "generated", "drive-cache");
 
 const PIPELINE_VERSION = "1.0.0";
 const WIDTHS = [480, 768, 1080, 1600, 2000];
@@ -362,7 +364,16 @@ async function main() {
   const cache = await loadCache();
 
   // ImageSource: the only coupling point to storage
-  const source = new FilesystemImageSource(INTAKE);
+  // Use Drive source if DRIVE_FOLDER_ID is set, otherwise use filesystem
+  let source;
+  if (process.env.DRIVE_FOLDER_ID) {
+    console.log("Using Google Drive as image source");
+    await fs.mkdir(DRIVE_CACHE, { recursive: true });
+    source = new DriveImageSource(process.env.DRIVE_FOLDER_ID, DRIVE_CACHE);
+  } else {
+    console.log("Using local filesystem as image source");
+    source = new FilesystemImageSource(INTAKE);
+  }
 
   // ── DAG: Discovery ──────────────────────────────────────────────────────────
   const projectList = await stageDiscover(source);
@@ -460,6 +471,9 @@ async function main() {
           sourceFile: `${folder}/${origName}`,
           importedAt: new Date().toISOString(),
           pipelineVersion: PIPELINE_VERSION,
+          driveId: file.driveId || undefined, // Drive File ID if using Drive source
+          driveFolder: file.driveFolder || undefined, // Drive folder path for validation
+          driveModifiedAt: file.driveModifiedAt || undefined, // Drive modification time
         },
       };
       images.push(rec);
