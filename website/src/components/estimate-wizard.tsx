@@ -128,6 +128,7 @@ export function EstimateWizard() {
   const [showSuccessPulse, setShowSuccessPulse] = React.useState(false);
   const [showProgressShimmer, setShowProgressShimmer] = React.useState(false);
   const [intakeRecord, setIntakeRecord] = React.useState<ProjectIntakeRecord | null>(null);
+  const [currentQuestionId, setCurrentQuestionId] = React.useState<string | null>(null);
   const tracked = React.useRef<Set<string>>(new Set());
   const wizardRef = React.useRef<HTMLDivElement>(null);
 
@@ -212,6 +213,13 @@ export function EstimateWizard() {
     return service?.estimateQuestions ?? [];
   }, [primarySlug, service]);
 
+  // Initialize currentQuestionId to root when service changes
+  React.useEffect(() => {
+    if (questions.length > 0) {
+      setCurrentQuestionId(questions[0].id);
+    }
+  }, [questions]);
+
   // Dynamic steps: skip intent step for services where intent is already clear
   const STEPS = React.useMemo(() => {
     if (service?.skipsIntentStep) {
@@ -270,8 +278,21 @@ export function EstimateWizard() {
     }
   }, [step, STEPS, showProgressShimmer]);
 
-  const setAnswer = (id: string, val: string | boolean | number) =>
+  const setAnswer = (id: string, val: string | boolean | number) => {
     setAnswers((prev) => ({ ...prev, [id]: val }));
+
+    // Branching logic: find next question based on answer
+    const currentQuestion = questions.find((q) => q.id === id);
+    if (currentQuestion?.next) {
+      const nextId = currentQuestion.next[String(val)] ?? currentQuestion.next["*"];
+      if (nextId) {
+        setCurrentQuestionId(nextId);
+      } else {
+        // Branch complete - no next question
+        setCurrentQuestionId(null);
+      }
+    }
+  };
 
   const canNext = React.useMemo(() => {
     if (STEPS[step] === "Service") return selected.length > 0 || otherNeed.trim().length > 0;
@@ -653,70 +674,76 @@ export function EstimateWizard() {
           <div>
             <h2 className="text-xl font-bold text-text">A couple quick questions</h2>
             <div className="mt-4 space-y-4">
-              {questions.map((q) => (
-                <div key={q.id}>
-                  <label className="block text-sm font-semibold text-text">
-                    {q.label}
-                    {q.required && <span className="text-red-500"> *</span>}
-                  </label>
-                  {q.help && <p className="mt-1 text-xs text-text-muted">{q.help}</p>}
-                  {q.type === "textarea" && (
-                    <textarea
-                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
-                      rows={3}
-                      placeholder={q.placeholder}
-                      value={(answers[q.id] as string) ?? ""}
-                      onChange={(e) => setAnswer(q.id, e.target.value)}
-                    />
-                  )}
-                  {q.type === "text" && (
-                    <input
-                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
-                      placeholder={q.placeholder}
-                      value={(answers[q.id] as string) ?? ""}
-                      onChange={(e) => setAnswer(q.id, e.target.value)}
-                    />
-                  )}
-                  {q.type === "number" && (
-                    <input
-                      type="number"
-                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
-                      placeholder={q.placeholder}
-                      value={(answers[q.id] as number) ?? ""}
-                      onChange={(e) => setAnswer(q.id, Number(e.target.value))}
-                    />
-                  )}
-                  {q.type === "select" && (
-                    <select
-                      className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
-                      value={(answers[q.id] as string) ?? ""}
-                      onChange={(e) => setAnswer(q.id, e.target.value)}
-                    >
-                      <option value="">Select…</option>
-                      {q.options?.map((o: string) => (
-                        <option key={o} value={o}>{o}</option>
-                      ))}
-                    </select>
-                  )}
-                  {q.type === "boolean" && (
-                    <div className="mt-1 flex gap-3">
-                      {[true, false].map((b) => (
-                        <button
-                          key={String(b)}
-                          type="button"
-                          onClick={() => setAnswer(q.id, b)}
-                          className={cn(
-                            "rounded-lg border px-4 py-2 text-sm",
-                            answers[q.id] === b ? "border-primary bg-primary/10" : "border-border"
-                          )}
+              {currentQuestionId ? (
+                questions
+                  .filter((q) => q.id === currentQuestionId)
+                  .map((q) => (
+                    <div key={q.id}>
+                      <label className="block text-sm font-semibold text-text">
+                        {q.label}
+                        {q.required && <span className="text-red-500"> *</span>}
+                      </label>
+                      {q.help && <p className="mt-1 text-xs text-text-muted">{q.help}</p>}
+                      {q.type === "textarea" && (
+                        <textarea
+                          className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                          rows={3}
+                          placeholder={q.placeholder}
+                          value={(answers[q.id] as string) ?? ""}
+                          onChange={(e) => setAnswer(q.id, e.target.value)}
+                        />
+                      )}
+                      {q.type === "text" && (
+                        <input
+                          className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                          placeholder={q.placeholder}
+                          value={(answers[q.id] as string) ?? ""}
+                          onChange={(e) => setAnswer(q.id, e.target.value)}
+                        />
+                      )}
+                      {q.type === "number" && (
+                        <input
+                          type="number"
+                          className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                          placeholder={q.placeholder}
+                          value={(answers[q.id] as number) ?? ""}
+                          onChange={(e) => setAnswer(q.id, Number(e.target.value))}
+                        />
+                      )}
+                      {q.type === "select" && (
+                        <select
+                          className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                          value={(answers[q.id] as string) ?? ""}
+                          onChange={(e) => setAnswer(q.id, e.target.value)}
                         >
-                          {b ? "Yes" : "No"}
-                        </button>
-                      ))}
+                          <option value="">Select…</option>
+                          {q.options?.map((o: string) => (
+                            <option key={o} value={o}>{o}</option>
+                          ))}
+                        </select>
+                      )}
+                      {q.type === "boolean" && (
+                        <div className="mt-1 flex gap-3">
+                          {[true, false].map((b) => (
+                            <button
+                              key={String(b)}
+                              type="button"
+                              onClick={() => setAnswer(q.id, b)}
+                              className={cn(
+                                "rounded-lg border px-4 py-2 text-sm",
+                                answers[q.id] === b ? "border-primary bg-primary/10" : "border-border"
+                              )}
+                            >
+                              {b ? "Yes" : "No"}
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-              ))}
+                  ))
+              ) : (
+                <p className="text-sm text-text-muted">All questions complete. Proceed to Photos.</p>
+              )}
             </div>
           </div>
         )}

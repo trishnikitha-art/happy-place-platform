@@ -36,14 +36,12 @@
         { "id": "deck_new_material", "label": "What material are you thinking?", "type": "select", "category": "material", "options": ["Cedar", "Pressure treated", "Composite", "Not sure"], "next": { "*": "deck_new_elevation" } },
         { "id": "deck_new_elevation", "label": "What elevation?", "type": "select", "category": "intent", "options": ["Ground level", "Raised (2-4 feet)", "Second story", "Not sure"] },
         { "id": "deck_replace_reason", "label": "Why are you replacing it?", "type": "select", "category": "condition", "options": ["Rot", "Structural issues", "Just old", "Different style", "Storm damage"], "next": { "*": "deck_replace_size" } },
-        { "id": "deck_replace_size", "label": "Approximately how large?", "type": "number", "category": "scope", "measurementType": "area", "measurementUnit": "square_feet", "next": { "*": "deck_replace_demo" } },
-        { "id": "deck_replace_demo", "label": "Will the old deck need to be removed and hauled away?", "type": "select", "category": "scope", "options": ["Yes", "No, it's already gone", "Not sure"] },
+        { "id": "deck_replace_size", "label": "Approximately how large?", "type": "number", "category": "scope", "measurementType": "area", "measurementUnit": "square_feet" },
         { "id": "deck_repair_what", "label": "What needs repair?", "type": "select", "category": "condition", "options": ["Rotting boards", "Structural issues", "Railings or stairs", "Multiple issues"], "next": { "*": "deck_repair_size" } },
         { "id": "deck_repair_size", "label": "About how much is affected?", "type": "select", "category": "scope", "options": ["A small area", "About half the deck", "Most of the deck"] },
         { "id": "deck_finish_type", "label": "What finish are you planning?", "type": "select", "category": "intent", "options": ["Transparent stain", "Semi-transparent stain", "Solid stain", "Paint", "Not sure"], "next": { "*": "deck_finish_condition" } },
         { "id": "deck_finish_condition", "label": "What condition is the deck in?", "type": "select", "category": "condition", "options": ["Just needs a fresh coat", "Peeling or faded", "Cracking or weathered", "Has damaged boards"], "next": { "*": "deck_finish_size" } },
-        { "id": "deck_finish_size", "label": "Approximately how large?", "type": "number", "category": "scope", "measurementType": "area", "measurementUnit": "square_feet", "next": { "*": "deck_finish_history" } },
-        { "id": "deck_finish_history", "label": "Has it been stained or painted before?", "type": "select", "category": "condition", "options": ["Stained", "Painted", "Bare wood", "Not sure"] }
+        { "id": "deck_finish_size", "label": "Approximately how large?", "type": "number", "category": "scope", "measurementType": "area", "measurementUnit": "square_feet" }
       ]
     },
     {
@@ -81,15 +79,13 @@
         { "id": "fence_new_purpose", "label": "What's the fence mainly for?", "type": "select", "category": "intent", "options": ["Privacy", "Marking the property line", "Containing pets or livestock", "Security", "Decorative"] },
         { "id": "fence_replace_reason", "label": "Why are you replacing it?", "type": "select", "category": "condition", "options": ["Storm damage", "Rot", "Leaning or heaving", "Just old", "Different style"], "next": { "*": "fence_replace_material" } },
         { "id": "fence_replace_material", "label": "What material are you thinking?", "type": "select", "category": "material", "options": ["Cedar", "Pressure treated", "Vinyl", "Metal", "Composite", "Not sure"], "next": { "*": "fence_replace_length" } },
-        { "id": "fence_replace_length", "label": "Approximately how much fencing?", "type": "number", "category": "scope", "measurementType": "length", "measurementUnit": "feet", "next": { "*": "fence_replace_removal" } },
-        { "id": "fence_replace_removal", "label": "Will the old fence need to be removed and hauled away?", "type": "select", "category": "scope", "options": ["Yes", "No, it's already gone", "Not sure"] },
+        { "id": "fence_replace_length", "label": "Approximately how much fencing?", "type": "number", "category": "scope", "measurementType": "length", "measurementUnit": "feet" },
         { "id": "fence_repair_what", "label": "What needs repair?", "type": "select", "category": "condition", "options": ["Broken or missing boards", "Leaning posts", "Gate not closing right", "Multiple issues"], "next": { "*": "fence_repair_material" } },
         { "id": "fence_repair_material", "label": "What material are you thinking?", "type": "select", "category": "material", "options": ["Cedar", "Pressure treated", "Vinyl", "Metal", "Composite", "Not sure"], "next": { "*": "fence_repair_extent" } },
         { "id": "fence_repair_extent", "label": "About how much is affected?", "type": "select", "category": "scope", "options": ["A single section", "A few sections", "Most of the fence"] },
         { "id": "fence_finish_type", "label": "What finish are you planning?", "type": "select", "category": "intent", "options": ["Transparent stain", "Semi-transparent stain", "Solid stain", "Paint", "Not sure"], "next": { "*": "fence_finish_condition" } },
         { "id": "fence_finish_condition", "label": "What condition is the fence in?", "type": "select", "category": "condition", "options": ["Just needs a fresh coat", "Peeling or faded", "Cracking or weathered", "Has damaged boards"], "next": { "*": "fence_finish_length" } },
-        { "id": "fence_finish_length", "label": "Approximately how much fencing?", "type": "number", "category": "scope", "measurementType": "length", "measurementUnit": "feet", "next": { "*": "fence_finish_history" } },
-        { "id": "fence_finish_history", "label": "Has it been stained or painted before?", "type": "select", "category": "condition", "options": ["Stained", "Painted", "Bare wood", "Not sure"] }
+        { "id": "fence_finish_length", "label": "Approximately how much fencing?", "type": "number", "category": "scope", "measurementType": "length", "measurementUnit": "feet" }
       ]
     },
     {
