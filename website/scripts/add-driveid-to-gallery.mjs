@@ -29,15 +29,15 @@ async function main() {
     for (const [role, image] of Object.entries(project.images)) {
       if (image && typeof image === "object" && image.provenance) {
         // Add driveId fields if they don't exist
-        if (!image.provenance.driveId) {
-          image.provenance.driveId = undefined;
+        if (!image.provenance.hasOwnProperty("driveId")) {
+          image.provenance.driveId = null;
           updatedCount++;
         }
-        if (!image.provenance.driveFolder) {
-          image.provenance.driveFolder = undefined;
+        if (!image.provenance.hasOwnProperty("driveFolder")) {
+          image.provenance.driveFolder = null;
         }
-        if (!image.provenance.driveModifiedAt) {
-          image.provenance.driveModifiedAt = undefined;
+        if (!image.provenance.hasOwnProperty("driveModifiedAt")) {
+          image.provenance.driveModifiedAt = null;
         }
       }
     }

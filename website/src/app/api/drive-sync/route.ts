@@ -85,10 +85,11 @@ export async function GET(request: Request) {
     if (diff.added.length > 0 || diff.changed.length > 0) {
       console.log('Changes detected, triggering image pipeline...');
       
-      // TODO: Trigger image-pipeline programmatically
-      // This will require refactoring image-pipeline.mjs to be importable
-      // For now, just log the intent
-      console.log('TODO: Run image-pipeline.mjs with Drive source');
+      // Import and run the image pipeline with Drive source
+      const { runPipeline } = await import('../../../scripts/image-pipeline.mjs');
+      const pipelineResult = await runPipeline({ useDrive: true });
+      
+      console.log(`Pipeline completed: ${pipelineResult.stats.rebuilt} rebuilt, ${pipelineResult.stats.skipped} skipped`);
     }
     
     // Update sync state

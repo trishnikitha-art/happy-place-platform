@@ -65,7 +65,10 @@
           "provenance": {
             "sourceFile": "Bathroom Remodeling/BATHROOM_WALL.png",
             "importedAt": "2026-07-21T18:37:26.150Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "cover": {
@@ -126,7 +129,10 @@
           "provenance": {
             "sourceFile": "Bathroom Remodeling/BATHROOM_WALL.png",
             "importedAt": "2026-07-21T18:37:26.150Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "thumbnail": {
@@ -187,7 +193,10 @@
           "provenance": {
             "sourceFile": "Bathroom Remodeling/BATHROOM_WALL.png",
             "importedAt": "2026-07-21T18:37:26.150Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "homeowner": null,
@@ -264,7 +273,10 @@
           "provenance": {
             "sourceFile": "Built-Ins/FINISHEDCARPENTRY.png",
             "importedAt": "2026-07-21T18:37:27.577Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "cover": {
@@ -325,7 +337,10 @@
           "provenance": {
             "sourceFile": "Built-Ins/FINISHEDCARPENTRY.png",
             "importedAt": "2026-07-21T18:37:27.577Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "thumbnail": {
@@ -386,7 +401,10 @@
           "provenance": {
             "sourceFile": "Built-Ins/FINISHEDCARPENTRY.png",
             "importedAt": "2026-07-21T18:37:27.577Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "homeowner": null,
@@ -506,7 +524,10 @@
           "provenance": {
             "sourceFile": "featured/featured.jpeg",
             "importedAt": "2026-07-21T18:37:27.728Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "cover": {
@@ -547,7 +568,10 @@
           "provenance": {
             "sourceFile": "featured/featured.jpeg",
             "importedAt": "2026-07-21T18:37:27.728Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "thumbnail": {
@@ -588,7 +612,10 @@
           "provenance": {
             "sourceFile": "featured/featured.jpeg",
             "importedAt": "2026-07-21T18:37:27.728Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "homeowner": null,
@@ -707,7 +734,10 @@
           "provenance": {
             "sourceFile": "Fences/FENCE BUILD.jpg",
             "importedAt": "2026-07-21T18:37:29.091Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "cover": {
@@ -768,7 +798,10 @@
           "provenance": {
             "sourceFile": "Fences/FENCE BUILD.jpg",
             "importedAt": "2026-07-21T18:37:29.091Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "thumbnail": {
@@ -829,7 +862,10 @@
           "provenance": {
             "sourceFile": "Fences/FENCE BUILD.jpg",
             "importedAt": "2026-07-21T18:37:29.091Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "homeowner": null,
@@ -1010,7 +1046,10 @@
           "provenance": {
             "sourceFile": "hero/hero.jpeg",
             "importedAt": "2026-07-21T18:37:30.134Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "cover": {
@@ -1051,7 +1090,10 @@
           "provenance": {
             "sourceFile": "hero/hero.jpeg",
             "importedAt": "2026-07-21T18:37:30.134Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "thumbnail": {
@@ -1092,7 +1134,10 @@
           "provenance": {
             "sourceFile": "hero/hero.jpeg",
             "importedAt": "2026-07-21T18:37:30.134Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "homeowner": null,
@@ -1191,7 +1236,10 @@
           "provenance": {
             "sourceFile": "Outdoor Living/IMG_0535.JPG",
             "importedAt": "2026-07-21T18:37:30.373Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "cover": {
@@ -1232,7 +1280,10 @@
           "provenance": {
             "sourceFile": "Outdoor Living/IMG_0535.JPG",
             "importedAt": "2026-07-21T18:37:30.373Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "thumbnail": {
@@ -1273,7 +1324,10 @@
           "provenance": {
             "sourceFile": "Outdoor Living/IMG_0535.JPG",
             "importedAt": "2026-07-21T18:37:30.373Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "homeowner": null,
@@ -1619,7 +1673,10 @@
           "provenance": {
             "sourceFile": "Pergolas/HOMESERVICEPROJECTPERGOLAS.jpg",
             "importedAt": "2026-07-23T03:17:20.317Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "cover": {
@@ -1697,7 +1754,10 @@
           "provenance": {
             "sourceFile": "Pergolas/HOMESERVICEPROJECTPERGOLAS.jpg",
             "importedAt": "2026-07-23T03:17:20.317Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "thumbnail": {
@@ -1775,7 +1835,10 @@
           "provenance": {
             "sourceFile": "Pergolas/HOMESERVICEPROJECTPERGOLAS.jpg",
             "importedAt": "2026-07-23T03:17:20.317Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "homeowner": null,
@@ -1911,7 +1974,10 @@
           "provenance": {
             "sourceFile": "portrait/portrait.jpeg",
             "importedAt": "2026-07-21T18:37:31.532Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "cover": {
@@ -1952,7 +2018,10 @@
           "provenance": {
             "sourceFile": "portrait/portrait.jpeg",
             "importedAt": "2026-07-21T18:37:31.532Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "thumbnail": {
@@ -1993,7 +2062,10 @@
           "provenance": {
             "sourceFile": "portrait/portrait.jpeg",
             "importedAt": "2026-07-21T18:37:31.532Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "homeowner": null,
@@ -2112,7 +2184,10 @@
           "provenance": {
             "sourceFile": "Repairs/TRIMREPAIR.png",
             "importedAt": "2026-07-21T18:37:36.812Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "cover": {
@@ -2173,7 +2248,10 @@
           "provenance": {
             "sourceFile": "Repairs/TRIMREPAIR.png",
             "importedAt": "2026-07-21T18:37:36.812Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "thumbnail": {
@@ -2234,7 +2312,10 @@
           "provenance": {
             "sourceFile": "Repairs/TRIMREPAIR.png",
             "importedAt": "2026-07-21T18:37:36.812Z",
-            "pipelineVersion": "1.0.0"
+            "pipelineVersion": "1.0.0",
+            "driveId": null,
+            "driveFolder": null,
+            "driveModifiedAt": null
           }
         },
         "homeowner": null,
