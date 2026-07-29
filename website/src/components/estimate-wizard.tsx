@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Upload, Send } from "lucide-react";
-import type { EstimateRequest, Service, EstimateQuestion } from "@/types";
+import type { EstimateRequest, Service, EstimateQuestion, ProjectIntakeRecord } from "@/types";
 import { getAllServices, getAllCities } from "@/lib/registries";
 import { getCompany } from "@/lib/company";
 import { estimateService } from "@/services/estimate";
@@ -20,6 +20,15 @@ import {
   type WizardState 
 } from "@/lib/wizard-persistence";
 import { preliminaryRange, formatRange } from "@/lib/planning-range";
+import {
+  buildProjectIntakeRecord,
+  generateInterviewSummary,
+  getPhotoPrompt,
+  getSchedulingQuestion,
+  shouldRequireSiteVisit,
+  shouldRequireEstimatorReview
+} from "@/lib/interview-engine-v3";
+import { getQuestionsForService } from "@/lib/interview-questions-v3";
 
 type PhotoMeta = { name: string; size: number; uploadedAt?: number; data?: string; file?: File };
 
@@ -101,13 +110,20 @@ export function EstimateWizard() {
   const [projectType, setProjectType] = React.useState(() => initialDraft?.projectType ?? "");
   const [otherNeed, setOtherNeed] = React.useState(() => initialDraft?.otherNeed ?? "");
   const [answers, setAnswers] = React.useState<Record<string, string | boolean | number>>(() => initialDraft?.answers ?? {});
-  const [photos, setPhotos] = React.useState<PhotoMeta[]>(() => initialDraft?.photos ?? []);
-  const [property, setProperty] = React.useState(() => initialDraft?.property ?? { address: "", city: "", county: "", details: "" });
+  const [photos, setPhotos] = React.useState<PhotoMeta[]>(() => initialDraft?.photos || []);
+  const [property, setProperty] = React.useState<{ address: string; city: string; county: string; details: string; schedulingAnswer: string }>(() => {
+    const draftProperty = initialDraft?.property;
+    if (draftProperty) {
+      return { ...draftProperty, schedulingAnswer: (draftProperty as any).schedulingAnswer || "" };
+    }
+    return { address: "", city: "", county: "", details: "", schedulingAnswer: "" };
+  });
   const [customer, setCustomer] = React.useState(() => initialDraft?.customer ?? { name: "", email: "", phone: "" });
   const [submitted, setSubmitted] = React.useState(() => initialDraft?.submitted ?? false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [showSuccessPulse, setShowSuccessPulse] = React.useState(false);
   const [showProgressShimmer, setShowProgressShimmer] = React.useState(false);
+  const [intakeRecord, setIntakeRecord] = React.useState<ProjectIntakeRecord | null>(null);
   const tracked = React.useRef<Set<string>>(new Set());
   const wizardRef = React.useRef<HTMLDivElement>(null);
 
@@ -147,7 +163,7 @@ export function EstimateWizard() {
     setOtherNeed("");
     setAnswers({});
     setPhotos([]);
-    setProperty({ address: "", city: "", county: "", details: "" });
+    setProperty({ address: "", city: "", county: "", details: "", schedulingAnswer: "" });
     setCustomer({ name: "", email: "", phone: "" });
     setSubmitted(false);
   };
@@ -184,7 +200,13 @@ export function EstimateWizard() {
   // Service questions are driven by the primary (first) selected service.
   const primarySlug = selected[0];
   const service = services.find((s) => s.slug === primarySlug);
-  const questions = service?.estimateQuestions ?? [];
+  // Use V3 question definitions
+  const questions = React.useMemo(() => {
+    if (primarySlug) {
+      return getQuestionsForService(primarySlug);
+    }
+    return service?.estimateQuestions ?? [];
+  }, [primarySlug, service]);
 
   // Dynamic steps: skip intent step for services where intent is already clear
   const STEPS = React.useMemo(() => {
@@ -212,6 +234,30 @@ export function EstimateWizard() {
   React.useEffect(() => {
     autosave();
   }, [step, selected, projectType, otherNeed, answers, photos, property, customer, submitted]);
+
+  // Build Project Intake Record when answers or service selection changes
+  React.useEffect(() => {
+    if (selected.length > 0 && Object.keys(answers).length > 0) {
+      const request: EstimateRequest = {
+        services: selected,
+        otherNeed: otherNeed.trim() || undefined,
+        customer: { name: customer.name, email: customer.email, phone: customer.phone },
+        property: {
+          address: property.address,
+          city: property.city,
+          county: property.county,
+          details: property.details,
+        },
+        answers,
+        projectIntent: projectType || undefined,
+        photos,
+        notes: "",
+        submittedAt: new Date().toISOString(),
+      };
+      const record = buildProjectIntakeRecord(request, questions);
+      setIntakeRecord(record);
+    }
+  }, [selected, answers, projectType, otherNeed, photos, property, customer, questions]);
 
   // Trigger progress bar shimmer on Thank You step (one-time)
   React.useEffect(() => {
@@ -477,6 +523,27 @@ export function EstimateWizard() {
             <p className="mt-1 text-text-muted">
               Optional, but helpful for understanding the space.
             </p>
+
+            {/* Interview Summary (1.8) */}
+            {intakeRecord && (
+              <div className="mt-6 rounded-lg bg-surface-muted p-4">
+                <h3 className="font-semibold text-primary">Here's what we heard:</h3>
+                <ul className="mt-3 space-y-1 text-sm text-text">
+                  {generateInterviewSummary(intakeRecord).map((line, i) => (
+                    <li key={i}>{line}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* Contextual Photo Prompt (1.9) */}
+            {intakeRecord && (
+              <div className="mt-4 rounded-lg bg-primary/5 p-4">
+                <p className="text-sm font-medium text-primary">
+                  {getPhotoPrompt(intakeRecord.service, intakeRecord.intent, intakeRecord.flags)}
+                </p>
+              </div>
+            )}
             
             {/* Desktop file upload */}
             <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-text hover:border-primary">
@@ -689,6 +756,29 @@ export function EstimateWizard() {
                   onChange={(e) => setProperty((p) => ({ ...p, details: e.target.value }))}
                 />
               </div>
+
+              {/* Dynamic Scheduling Question (1.10) */}
+              {intakeRecord && (() => {
+                const schedulingQ = getSchedulingQuestion(intakeRecord.service, intakeRecord.intent);
+                if (schedulingQ) {
+                  return (
+                    <div>
+                      <label className="block text-sm font-semibold text-text">{schedulingQ.label}</label>
+                      <select
+                        className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                        value={property.schedulingAnswer}
+                        onChange={(e) => setProperty((p) => ({ ...p, schedulingAnswer: e.target.value }))}
+                      >
+                        <option value="">Select…</option>
+                        {schedulingQ.options.map((opt) => (
+                          <option key={opt} value={opt}>{opt}</option>
+                        ))}
+                      </select>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
           </div>
         )}

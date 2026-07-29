@@ -17,7 +17,7 @@ export interface WizardState {
   otherNeed: string;
   answers: Record<string, string | boolean | number>;
   photos: PhotoMeta[];
-  property: { address: string; city: string; county: string; details: string };
+  property: { address: string; city: string; county: string; details: string; schedulingAnswer?: string };
   customer: { name: string; email: string; phone: string };
   submitted: boolean;
   updatedAt: number;

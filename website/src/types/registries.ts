@@ -26,6 +26,12 @@ export interface Service {
   defaultProjectIntent?: string;
 }
 
+export interface EstimatorFlag {
+  id: string;
+  label: string;
+  severity: "info" | "review" | "site_visit_required";
+}
+
 export interface EstimateQuestion {
   id: string;
   label: string;
@@ -34,6 +40,16 @@ export interface EstimateQuestion {
   required?: boolean;
   placeholder?: string;
   help?: string;
+  /** V3 — category classification: intent, condition, material, or scope */
+  category?: "intent" | "condition" | "material" | "scope";
+  /** V3 — measurement type for pricing engine dispatch */
+  measurementType?: "length" | "area" | "count" | "volume";
+  /** V3 — actual unit for display and future service compatibility */
+  measurementUnit?: "feet" | "square_feet" | "rooms" | "doors" | "posts" | "sections";
+  /** V3 — flags emitted by specific answers */
+  flags?: Record<string, { flagId: string; severity: EstimatorFlag["severity"] }>;
+  /** V3 — branching logic: answer value -> next question id */
+  next?: Record<string, string>;
 }
 
 export interface ServicesRegistry {

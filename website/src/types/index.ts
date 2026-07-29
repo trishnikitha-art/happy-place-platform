@@ -55,6 +55,12 @@ export interface ServiceCategory {
   order: number;
 }
 
+export interface EstimatorFlag {
+  id: string;
+  label: string;
+  severity: "info" | "review" | "site_visit_required";
+}
+
 export interface EstimateQuestion {
   /** stable key used by the estimate wizard */
   id: string;
@@ -66,6 +72,16 @@ export interface EstimateQuestion {
   help?: string;
   /** NEW — marks this question as the scope-determining question for pricing. */
   isScopeQuestion?: boolean;
+  /** V3 — category classification: intent, condition, material, or scope */
+  category?: "intent" | "condition" | "material" | "scope";
+  /** V3 — measurement type for pricing engine dispatch */
+  measurementType?: "length" | "area" | "count" | "volume";
+  /** V3 — actual unit for display and future service compatibility */
+  measurementUnit?: "feet" | "square_feet" | "rooms" | "doors" | "posts" | "sections";
+  /** V3 — flags emitted by specific answers */
+  flags?: Record<string, { flagId: string; severity: EstimatorFlag["severity"] }>;
+  /** V3 — branching logic: answer value -> next question id */
+  next?: Record<string, string>;
 }
 
 export interface Service {
@@ -148,6 +164,7 @@ export interface Property {
   city: string;
   county: string;
   details?: string;
+  schedulingAnswer?: string; // V3 - dynamic scheduling question answer
 }
 
 export interface EstimateRequest {
@@ -161,6 +178,37 @@ export interface EstimateRequest {
   photos: Array<{ name: string; size: number; data?: string; file?: File }>; // includes base64 data for API submission; name is always set when photo is added
   notes?: string;
   submittedAt: string; // ISO
+}
+
+/** ---- V3 Interview Engine: Project Intake Record ---- */
+
+export interface ProjectIntakeRecord {
+  service: string;
+  intent: string;
+  measurements: Record<string, number>;
+  condition: Record<string, string | boolean>;
+  materials: Record<string, string>;
+  flags: EstimatorFlag[];
+  complexity: number;
+  confidence: number;
+}
+
+/** ---- V3 Interview Engine: Question Definition ---- */
+
+export interface QuestionDefinition {
+  id: string;
+  label: string;
+  type: "select" | "number" | "boolean" | "text" | "textarea";
+  options?: string[];
+  category: "intent" | "condition" | "material" | "scope";
+  measurementType?: "length" | "area" | "count" | "volume";
+  measurementUnit?: "feet" | "square_feet" | "rooms" | "doors" | "posts" | "sections";
+  flags?: Record<string, { flagId: string; severity: EstimatorFlag["severity"] }>;
+}
+
+export interface QuestionEdge {
+  uses: string; // Reference to QuestionDefinition.id
+  next: Record<string, string>; // Answer value -> next question id
 }
 
 /** ---- Contact (simple) ---- */
