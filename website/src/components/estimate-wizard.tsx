@@ -29,6 +29,10 @@ import {
   shouldRequireEstimatorReview
 } from "@/lib/interview-engine-v3";
 import { getQuestionsForService } from "@/lib/interview-questions-v3";
+import { ConfidenceBadge } from "@/components/confidence-badge";
+import { FlagReveal } from "@/components/flag-reveal";
+import { PhotoPromptTransition } from "@/components/photo-prompt-transition";
+import { SchedulingQuestionReveal } from "@/components/scheduling-question-reveal";
 
 type PhotoMeta = { name: string; size: number; uploadedAt?: number; data?: string; file?: File };
 
@@ -527,21 +531,29 @@ export function EstimateWizard() {
             {/* Interview Summary (1.8) */}
             {intakeRecord && (
               <div className="mt-6 rounded-lg bg-surface-muted p-4">
+                <div className="mb-4">
+                  <ConfidenceBadge record={intakeRecord} />
+                </div>
                 <h3 className="font-semibold text-primary">Here's what we heard:</h3>
                 <ul className="mt-3 space-y-1 text-sm text-text">
                   {generateInterviewSummary(intakeRecord).map((line, i) => (
                     <li key={i}>{line}</li>
                   ))}
                 </ul>
+                {/* Flag Reveal */}
+                <div className="mt-4">
+                  <FlagReveal flags={intakeRecord.flags} />
+                </div>
               </div>
             )}
 
             {/* Contextual Photo Prompt (1.9) */}
             {intakeRecord && (
               <div className="mt-4 rounded-lg bg-primary/5 p-4">
-                <p className="text-sm font-medium text-primary">
-                  {getPhotoPrompt(intakeRecord.service, intakeRecord.intent, intakeRecord.flags)}
-                </p>
+                <PhotoPromptTransition 
+                  prompt={getPhotoPrompt(intakeRecord.service, intakeRecord.intent, intakeRecord.flags)}
+                  className="text-sm font-medium text-primary"
+                />
               </div>
             )}
             
@@ -760,24 +772,25 @@ export function EstimateWizard() {
               {/* Dynamic Scheduling Question (1.10) */}
               {intakeRecord && (() => {
                 const schedulingQ = getSchedulingQuestion(intakeRecord.service, intakeRecord.intent);
-                if (schedulingQ) {
-                  return (
-                    <div>
-                      <label className="block text-sm font-semibold text-text">{schedulingQ.label}</label>
-                      <select
-                        className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
-                        value={property.schedulingAnswer}
-                        onChange={(e) => setProperty((p) => ({ ...p, schedulingAnswer: e.target.value }))}
-                      >
-                        <option value="">Select…</option>
-                        {schedulingQ.options.map((opt) => (
-                          <option key={opt} value={opt}>{opt}</option>
-                        ))}
-                      </select>
-                    </div>
-                  );
-                }
-                return null;
+                return (
+                  <SchedulingQuestionReveal isVisible={!!schedulingQ}>
+                    {schedulingQ && (
+                      <div>
+                        <label className="block text-sm font-semibold text-text">{schedulingQ.label}</label>
+                        <select
+                          className="mt-1 w-full rounded-lg border border-border bg-white p-3 text-black"
+                          value={property.schedulingAnswer}
+                          onChange={(e) => setProperty((p) => ({ ...p, schedulingAnswer: e.target.value }))}
+                        >
+                          <option value="">Select…</option>
+                          {schedulingQ.options.map((opt) => (
+                            <option key={opt} value={opt}>{opt}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                  </SchedulingQuestionReveal>
+                );
               })()}
             </div>
           </div>
