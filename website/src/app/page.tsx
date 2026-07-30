@@ -18,6 +18,7 @@ import { getAllServices } from "@/lib/registries";
 import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
+import { NewsletterSignup } from "@/components/newsletter-signup";
 import { getOwnerPortrait } from "@/lib/brand";
 import { getMediaById } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
@@ -304,6 +305,16 @@ export default async function HomePage() {
                 </p>
               </div>
             )}
+          </Container>
+        </Section>
+      </ScrollReveal>
+
+      {/* NEWSLETTER SIGNUP — positioned 2/3 down after visitors see who we are, projects, testimonials, services */}
+      <ScrollReveal>
+        <Section className="relative bg-[#F1EDE6]">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#F1EDE6] via-[#EDE9E0] to-[#E9E5DC] opacity-100" aria-hidden="true" />
+          <Container className="relative z-10 max-w-2xl">
+            <NewsletterSignup />
           </Container>
         </Section>
       </ScrollReveal>

@@ -151,6 +151,52 @@
 
 ---
 
+## Completed Tasks (Round 3 - Production Replay Readiness)
+
+### ✅ 16. Add Transactional Semantics to EventRepository
+- Added `appendMany(events)` for atomic batch operations
+- Added `findById(id)` for direct event lookup
+- Added `findSince(cursor)` for replay systems (cursor-based iteration)
+- Updated `InMemoryEventRepository` to implement new methods
+- **Benefit:** PING can replay events via cursor instead of queries
+
+### ✅ 17. Make Event SchemaVersion Immutable
+- Changed `SCHEMA_VERSION` from string `"1"` to integer `1`
+- Added documentation that schema versions are immutable
+- When version 2 is introduced, keep both versions
+- **Benefit:** PING can migrate independently, no breaking changes
+
+### ✅ 18. Add Separate Timestamps
+- Added `receivedAt` field (when HPP received the event)
+- Added `persistedAt` field (when the event was stored)
+- Documented `timestamp` as `occurredAt` (business time)
+- Updated `logEvent()` to set both `timestamp` and `receivedAt`
+- **Benefit:** Critical for late-arriving webhooks, retries, queue processing
+
+### ✅ 19. Design SQLite Schema
+- Created `HPP_SQLITE_SCHEMA.md` with complete schema design
+- Append-only events table with no payload flattening
+- Sequence number for explicit ordering
+- Separate tables for provenance and aggregates
+- **Benefit:** Replay-ready schema designed before implementation
+
+### ✅ 20. Add Idempotency to Event Persistence
+- Created `EventProvenance` interface for tracking external sources
+- Added `exists(id)` method to repository interface
+- Added `existsByProvenance(provenance)` method for external idempotency
+- Updated `append()` to return boolean (false if duplicate)
+- Updated `appendMany()` to return count of appended events
+- Implemented idempotency checks in `InMemoryEventRepository`
+- **Benefit:** Handles Kit webhook retries, Google retries, browser retries safely
+
+### ✅ 21. Ensure Repository Owns Mutation
+- Repository now owns all mutation logic
+- Consumers never directly access storage arrays
+- Idempotency checks encapsulated in repository
+- **Benefit:** Clear separation of concerns, easier testing
+
+---
+
 ## Pending Tasks
 
 ### ⏸️ 1. Verify Kit V4 Documentation

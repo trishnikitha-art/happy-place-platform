@@ -46,6 +46,19 @@ export interface ReviewLocation {
   county: string;
 }
 
+export interface ReviewIntelligence {
+  // Project intelligence
+  projectCostRange?: '$1k-$5k' | '$5k-$10k' | '$10k-$25k' | '$25k-$50k' | '$50k+' | 'unknown';
+  completionDate?: string; // ISO date string
+  crew?: string; // Crew name or ID
+  referralSource?: 'google' | 'yelp' | 'referral' | 'repeat' | 'website' | 'other' | 'unknown';
+  wouldRecommend?: boolean; // NPS-style recommendation
+
+  // Platform intelligence
+  reviewPlatform?: 'google' | 'yelp' | 'houzz' | 'facebook' | 'angieslist' | 'manual' | 'form' | 'unknown';
+  reviewUrl?: string; // URL to external review platform
+}
+
 export interface OwnerResponse {
   author: string;
   body: string;
@@ -70,6 +83,9 @@ export interface Review {
 
   title?: string;
   body: string;
+
+  // Review intelligence for PING analysis
+  intelligence?: ReviewIntelligence;
 
   ownerResponse?: OwnerResponse;
 

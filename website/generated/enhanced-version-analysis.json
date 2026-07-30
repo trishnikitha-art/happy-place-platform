@@ -1,0 +1,142 @@
+{
+  "analysis": {
+    "methodology": "Analyzed file sizes, formats, and naming conventions to identify potential enhanced versions. Manual visual review recommended for final determination.",
+    "candidate_upgrades": [
+      {
+        "project": "001 - Johnson Cedar Fence",
+        "current_master": "FENCE BUILD.jpg",
+        "current_size": "679283 bytes",
+        "variants": [
+          {
+            "file": "FENCEREBUILDMATCHINGSTAIN.png",
+            "size": "2014324 bytes",
+            "analysis": "PNG file is 3x larger than JPG master, suggesting higher quality/less compression. May be better quality but larger file size.",
+            "recommendation": "REVIEW - Consider if PNG quality justifies larger file size for web use"
+          }
+        ]
+      },
+      {
+        "project": "002 - Smith Built-Ins",
+        "current_master": "FINISHEDCARPENTRY.png",
+        "current_size": "2563271 bytes",
+        "variants": [
+          {
+            "file": "FINISHEDCARPENTRY0.png",
+            "size": "170191 bytes",
+            "analysis": "Variant is 15x smaller than master, likely a thumbnail or heavily compressed version",
+            "recommendation": "KEEP_CURRENT - Master is clearly higher quality"
+          }
+        ]
+      },
+      {
+        "project": "003 - Wilson Home Repairs",
+        "current_master": "TRIMREPAIR.png",
+        "current_size": "3272275 bytes",
+        "variants": [
+          {
+            "file": "DRYWALL.png",
+            "size": "2817979 bytes",
+            "analysis": "Similar size to master, both PNG format. May be comparable quality",
+            "recommendation": "REVIEW - Visual comparison needed to determine if this is an enhanced version"
+          },
+          {
+            "file": "FLOOR.png",
+            "size": "1546375 bytes",
+            "analysis": "Smaller than master but still substantial PNG",
+            "recommendation": "REVIEW - May be different angle/lighting, visual comparison needed"
+          },
+          {
+            "file": "FLOOR0.jpg",
+            "size": "376870 bytes",
+            "analysis": "JPG variant is much smaller, likely compressed or different resolution",
+            "recommendation": "KEEP_CURRENT - Master PNG appears higher quality"
+          },
+          {
+            "file": "GUTTERCLEANING.jpg",
+            "size": "163066 bytes",
+            "analysis": "Small JPG, likely different subject (gutter cleaning vs trim repair)",
+            "recommendation": "NO_ACTION - Different subject matter"
+          },
+          {
+            "file": "IMG_0544.JPG",
+            "size": "114723 bytes",
+            "analysis": "Small JPG, phone photo format naming",
+            "recommendation": "REVIEW - May be original phone photo before editing"
+          },
+          {
+            "file": "IMG_0546.JPG",
+            "size": "224160 bytes",
+            "analysis": "Small JPG, phone photo format naming",
+            "recommendation": "REVIEW - May be original phone photo before editing"
+          }
+        ]
+      },
+      {
+        "project": "004 - Thompson Exterior Painting",
+        "current_master": "IMG_0535.JPG",
+        "current_size": "238435 bytes",
+        "variants": [
+          {
+            "file": "IMG_0555.JPG",
+            "size": "223975 bytes",
+            "analysis": "Similar size to master, same naming convention",
+            "recommendation": "REVIEW - May be different angle/stage of work, visual comparison needed"
+          },
+          {
+            "file": "IMG_0559.JPG",
+            "size": "181898 bytes",
+            "analysis": "Slightly smaller than master",
+            "recommendation": "REVIEW - May be different angle/stage of work"
+          },
+          {
+            "file": "IMG_0737.JPG",
+            "size": "220526 bytes",
+            "analysis": "Similar size to master",
+            "recommendation": "REVIEW - May be different angle/stage of work"
+          },
+          {
+            "file": "IMG_0805.JPG",
+            "size": "196839 bytes",
+            "analysis": "Slightly smaller than master",
+            "recommendation": "REVIEW - May be different angle/stage of work"
+          },
+          {
+            "file": "IMG_0841.JPG",
+            "size": "167472 bytes",
+            "analysis": "Smallest of the set",
+            "recommendation": "REVIEW - May be different angle/stage of work"
+          }
+        ],
+        "note": "All files appear to be from the same photo series (IMG_XXXX.JPG format). Master (IMG_0535) was chosen as hero, but visual review recommended to confirm best composition."
+      },
+      {
+        "project": "005 - Davis Bathroom Remodel",
+        "current_master": "BATHROOM_WALL.png",
+        "current_size": "1656260 bytes",
+        "variants": [],
+        "analysis": "No variants to compare",
+        "recommendation": "NO_ACTION - Single image for this project"
+      },
+      {
+        "project": "006 - Martinez Pergola",
+        "current_master": "HOMESERVICEPROJECTPERGOLAS.jpg",
+        "current_size": "2081361 bytes",
+        "variants": [
+          {
+            "file": "1.png",
+            "size": "2637377 bytes",
+            "analysis": "PNG variant is larger than JPG master, may be higher quality or different format",
+            "recommendation": "REVIEW - Visual comparison needed to determine if PNG is enhanced version or just different format"
+          }
+        ]
+      }
+    ],
+    "summary": {
+      "total_projects_analyzed": 6,
+      "projects_with_variants": 5,
+      "candidate_upgrades_identified": 12,
+      "high_priority_reviews": 3,
+      "notes": "Visual review recommended for all candidate upgrades. File size analysis is insufficient for quality determination."
+    }
+  }
+}

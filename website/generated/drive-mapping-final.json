@@ -1,0 +1,173 @@
+{
+  "mapping": {
+    "homepage_hero": {
+      "website": {
+        "mediaId": "homepage-hero",
+        "filename": "hero-background-enhanced.jpg",
+        "path": "/images/hero-background-enhanced.jpg",
+        "role": "hero"
+      },
+      "drive": {
+        "folder": "Hero/MASTER",
+        "master": "hero-background-enhanced.jpg",
+        "status": "COPIED",
+        "action": "COMPLETE"
+      }
+    },
+    "brand_hero": {
+      "website": {
+        "mediaId": "brand-hero",
+        "filename": "hero.jpeg",
+        "path": "/images/projects/hero/hero-480.webp",
+        "role": "brand-hero"
+      },
+      "drive": {
+        "folder": "Brand/MASTER",
+        "master": "hero.jpeg",
+        "status": "COPIED",
+        "action": "COMPLETE"
+      }
+    },
+    "brand_portrait": {
+      "website": {
+        "mediaId": "brand-portrait",
+        "filename": "portrait.jpeg",
+        "path": "/images/projects/portrait/portrait-480.webp",
+        "role": "portrait"
+      },
+      "drive": {
+        "folder": "Brand/MASTER",
+        "master": "portrait.jpeg",
+        "status": "COPIED",
+        "action": "COMPLETE"
+      }
+    },
+    "fences_001": {
+      "website": {
+        "projectId": "fences-001",
+        "title": "Fence Installation - Willamette Valley",
+        "media": {
+          "hero": "FENCE BUILD.jpg",
+          "before": "FENCE BEFORE.jpg (placeholder - same as hero)",
+          "after": "FENCE AFTER.jpg (placeholder - same as matching)",
+          "matching": "FENCEREBUILDMATCHINGSTAIN.png"
+        }
+      },
+      "drive": {
+        "folder": "Projects/001 - Johnson Cedar Fence",
+        "master": "FENCE BUILD.jpg",
+        "variants": ["FENCEREBUILDMATCHINGSTAIN.png"],
+        "status": "COPIED",
+        "action": "COMPLETE",
+        "notes": "Before/after entries are placeholders in media.v1.json - actual files don't exist"
+      }
+    },
+    "builtins_001": {
+      "website": {
+        "projectId": "builtins-001",
+        "title": "Custom Built-Ins - Corvallis",
+        "media": {
+          "hero": "FINISHEDCARPENTRY.png",
+          "secondary": "FINISHEDCARPENTRY0.png"
+        }
+      },
+      "drive": {
+        "folder": "Projects/002 - Smith Built-Ins",
+        "master": "FINISHEDCARPENTRY.png",
+        "variants": ["FINISHEDCARPENTRY0.png"],
+        "status": "COPIED",
+        "action": "COMPLETE"
+      }
+    },
+    "repairs_001": {
+      "website": {
+        "projectId": "repairs-001",
+        "title": "Home Repairs - Willamette Valley",
+        "media": {
+          "hero": "TRIMREPAIR.png",
+          "drywall": "DRYWALL.png",
+          "floor": "FLOOR.png",
+          "gutter": "GUTTERCLEANING.jpg",
+          "floor0": "FLOOR0.jpg",
+          "img0544": "IMG_0544.JPG",
+          "img0546": "IMG_0546.JPG"
+        }
+      },
+      "drive": {
+        "folder": "Projects/003 - Wilson Home Repairs",
+        "master": "TRIMREPAIR.png",
+        "variants": ["DRYWALL.png", "FLOOR.png", "GUTTERCLEANING.jpg", "FLOOR0.jpg", "IMG_0544.JPG", "IMG_0546.JPG"],
+        "status": "COPIED",
+        "action": "COMPLETE"
+      }
+    },
+    "exterior_painting_001": {
+      "website": {
+        "projectId": "exterior-painting-001",
+        "title": "Exterior Painting & Surface Restoration – Corvallis",
+        "media": {
+          "hero": "IMG_0535.JPG",
+          "img0555": "IMG_0555.JPG",
+          "img0559": "IMG_0559.JPG",
+          "img0737": "IMG_0737.JPG",
+          "img0805": "IMG_0805.JPG",
+          "img0841": "IMG_0841.JPG"
+        }
+      },
+      "drive": {
+        "folder": "Projects/004 - Thompson Exterior Painting",
+        "master": "IMG_0535.JPG",
+        "variants": ["IMG_0555.JPG", "IMG_0559.JPG", "IMG_0737.JPG", "IMG_0805.JPG", "IMG_0841.JPG"],
+        "status": "COPIED",
+        "action": "COMPLETE"
+      }
+    },
+    "bathroom_remodeling_001": {
+      "website": {
+        "projectId": "bathroom-remodeling-001",
+        "title": "Bathroom Remodeling - Corvallis",
+        "media": {
+          "hero": "BATHROOM_WALL.png"
+        }
+      },
+      "drive": {
+        "folder": "Projects/005 - Davis Bathroom Remodel",
+        "master": "BATHROOM_WALL.png",
+        "variants": [],
+        "status": "COPIED",
+        "action": "COMPLETE"
+      }
+    },
+    "pergolas_001": {
+      "website": {
+        "projectId": "pergolas-001",
+        "title": "Steel-Framed Covered Privacy Courtyard – Corvallis",
+        "media": {
+          "hero": "HOMESERVICEPROJECTPERGOLAS.jpg",
+          "before": "1.png",
+          "after": "HOMESERVICEPROJECTPERGOLAS.jpg (same as hero)"
+        }
+      },
+      "drive": {
+        "folder": "Projects/006 - Martinez Pergola",
+        "master": "HOMESERVICEPROJECTPERGOLAS.jpg",
+        "variants": ["1.png"],
+        "status": "COPIED",
+        "action": "COMPLETE",
+        "notes": "After entry references same file as hero"
+      }
+    }
+  },
+  "summary": {
+    "total_projects": 6,
+    "total_media_files": 23,
+    "brand_media": 2,
+    "homepage_hero": 1,
+    "files_copied": 23,
+    "files_not_found": 0,
+    "placeholder_entries": 2,
+    "completion_status": "100%",
+    "drive_structure": "COMPLETE",
+    "all_files_organized": true
+  }
+}

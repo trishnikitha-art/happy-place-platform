@@ -1,0 +1,86 @@
+{
+  "dry_run_system": {
+    "description": "Before Approve → Deploy, show exactly what will change. No surprises.",
+    "trigger": "User clicks 'Preview Changes' before approving",
+    "output_format": {
+      "summary": "Changes Preview",
+      "sections": [
+        {
+          "section": "Homepage Hero",
+          "changes": "No changes",
+          "detail": "Current: hero-background-enhanced.jpg (v1)"
+        },
+        {
+          "section": "Projects",
+          "subsections": [
+            {
+              "project": "Johnson Cedar Fence",
+              "changes": "+3 photos",
+              "detail": "Gallery: FENCE BUILD.jpg, FENCEREBUILDMATCHINGSTAIN.png, NEW_PHOTO.jpg"
+            },
+            {
+              "project": "Smith Built-Ins",
+              "changes": "No changes",
+              "detail": "Current: FINISHEDCARPENTRY.png (v1)"
+            }
+          ]
+        },
+        {
+          "section": "Gallery",
+          "changes": "Reordered",
+          "detail": "Johnson Fence moved to position 1, Smith Built-Ins moved to position 2",
+          "user_action_required": "Yes - Confirm reordering?"
+        },
+        {
+          "section": "Services",
+          "changes": "No changes",
+          "detail": "Painting: No new photos"
+        }
+      ],
+      "total_changes": "+3 photos, 1 reordering",
+      "deploy_button": "Deploy?"
+    }
+  },
+  "example_output": {
+    "title": "🔍 PREVIEW CHANGES",
+    "timestamp": "July 29, 2026 5:30 PM",
+    "changes": [
+      {
+        "slot": "Homepage Hero",
+        "current": "hero-background-enhanced.jpg (v1)",
+        "proposed": "hero-background-enhanced.jpg (v1)",
+        "status": "No changes"
+      },
+      {
+        "slot": "Johnson Cedar Fence - Gallery",
+        "current": "2 photos",
+        "proposed": "5 photos",
+        "status": "+3 photos",
+        "new_files": ["IMG_4839.JPG", "IMG_4840.JPG", "IMG_4841.JPG"]
+      },
+      {
+        "slot": "Gallery Order",
+        "current": "Johnson, Smith, Wilson",
+        "proposed": "Johnson, Wilson, Smith",
+        "status": "Reordered",
+        "user_action_required": true
+      }
+    ],
+    "summary": {
+      "total_photos_added": 3,
+      "total_photos_removed": 0,
+      "reorderings": 1,
+      "hero_changes": 0,
+      "user_actions_required": 1
+    },
+    "deploy_prompt": "Deploy these changes?",
+    "buttons": ["Deploy", "Cancel", "Adjust"]
+  },
+  "implementation_notes": {
+    "before_deploy": "Always show dry run output",
+    "user_confirmation": "Require explicit 'Deploy' click",
+    "cancel_option": "Always provide 'Cancel' button",
+    "adjust_option": "Allow adjustments before deploy",
+    "rollback_preview": "Show what rollback would restore"
+  }
+}

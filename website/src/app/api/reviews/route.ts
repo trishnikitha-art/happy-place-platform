@@ -15,6 +15,8 @@ import { suggestProject } from "@/lib/sentiment/project-suggester";
 import { suggestCounty } from "@/lib/sentiment/county-suggester";
 import { createInitialAuditTrail } from "@/lib/sentiment/audit-trail";
 import { getAllReviews } from "@/lib/reviews";
+import { logEvent } from "@/lib/events";
+import { applyReviewerTag, findSubscriberByEmail } from "@/lib/kit";
 
 /**
  * POST /api/reviews — Webhook endpoint for review submissions
@@ -238,6 +240,46 @@ export async function POST(request: NextRequest) {
     console.log("Sheets result:", JSON.stringify(sheetsResult, null, 2));
 
     console.log("=== STAGE: RETURNING SUCCESS RESPONSE ===");
+
+    // Log HPP event for review intelligence
+    const url = new URL(request.url);
+    logEvent("ReviewCompleted", {
+      email: body.email,
+      customerName: body.name,
+      rating: body.rating,
+      service: body.service,
+      location: {
+        city: body.city,
+        county: body.county,
+      },
+      title: body.title,
+      body: body.body,
+      sentiment: review.sentiment,
+      bucket: review.bucket,
+      qualityScore: review.qualityScore,
+    }, {
+      acquisitionSource: "review_submission",
+      landingPage: request.url,
+      referrer: request.headers.get("referer") || undefined,
+      utmSource: url.searchParams.get("utm_source") || undefined,
+      utmMedium: url.searchParams.get("utm_medium") || undefined,
+      utmCampaign: url.searchParams.get("utm_campaign") || undefined,
+      utmContent: url.searchParams.get("utm_content") || undefined,
+      utmTerm: url.searchParams.get("utm_term") || undefined,
+    });
+
+    // Apply Kit tag for reviewer (if email provided)
+    if (body.email) {
+      try {
+        const subscriber = await findSubscriberByEmail(body.email);
+        if (subscriber?.id) {
+          await applyReviewerTag(subscriber.id);
+        }
+      } catch (kitError) {
+        console.error("Kit tagging failed (non-critical):", kitError);
+      }
+    }
+
     const response = NextResponse.json({
       ok: true,
       review,
@@ -254,7 +296,7 @@ export async function POST(request: NextRequest) {
       sheetsError: sheetsResult.error,
       sheetsDetails: sheetsResult.details,
     });
-    
+
     console.log("=== POST /api/reviews: SUCCESS ===");
     return response;
 
