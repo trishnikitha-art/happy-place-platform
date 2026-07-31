@@ -1,0 +1,234 @@
+{
+  "mapping": {
+    "homepage_hero": {
+      "website": {
+        "mediaId": "homepage-hero",
+        "filename": "hero-background-enhanced.jpg",
+        "path": "/images/hero-background-enhanced.jpg",
+        "role": "hero"
+      },
+      "drive": {
+        "folder": "Happy Place Media/Website Library/Hero/📥 DROP HERO IMAGE HERE",
+        "current_location": "hero-background-enhanced.jpg",
+        "website_files_target": "Happy Place Media/Website Library/Hero/⚙️ WEBSITE FILES",
+        "archive_target": "Happy Place Media/Website Library/Hero/📦 PREVIOUS HEROES",
+        "status": "READY_FOR_PROCESSING",
+        "action": "AUTOMATION_NEEDED"
+      }
+    },
+    "brand_hero": {
+      "website": {
+        "mediaId": "brand-hero",
+        "filename": "hero.jpeg",
+        "path": "/images/projects/hero/hero-480.webp",
+        "role": "brand-hero"
+      },
+      "drive": {
+        "folder": "Happy Place Media/Website Library/Brand/📥 DROP BRAND PHOTOS HERE",
+        "current_location": "hero.jpeg",
+        "website_files_target": "Happy Place Media/Website Library/Brand/⚙️ WEBSITE FILES",
+        "archive_target": "Happy Place Media/Website Library/Brand/📦 OLD PHOTOS",
+        "status": "READY_FOR_PROCESSING",
+        "action": "AUTOMATION_NEEDED"
+      }
+    },
+    "brand_portrait": {
+      "website": {
+        "mediaId": "brand-portrait",
+        "filename": "portrait.jpeg",
+        "path": "/images/projects/portrait/portrait-480.webp",
+        "role": "portrait"
+      },
+      "drive": {
+        "folder": "Happy Place Media/Website Library/Brand/📥 DROP BRAND PHOTOS HERE",
+        "current_location": "portrait.jpeg",
+        "website_files_target": "Happy Place Media/Website Library/Brand/⚙️ WEBSITE FILES",
+        "archive_target": "Happy Place Media/Website Library/Brand/📦 OLD PHOTOS",
+        "status": "READY_FOR_PROCESSING",
+        "action": "AUTOMATION_NEEDED"
+      }
+    },
+    "johnson_cedar_fence": {
+      "website": {
+        "projectId": "fences-001",
+        "title": "Fence Installation - Willamette Valley",
+        "drive_project_name": "Johnson Cedar Fence",
+        "media": {
+          "hero": "FENCE BUILD.jpg",
+          "matching": "FENCEREBUILDMATCHINGSTAIN.png"
+        }
+      },
+      "drive": {
+        "folder": "Happy Place Media/Website Library/Projects/Johnson Cedar Fence",
+        "drop_zone": "📥 DROP NEW PHOTO HERE",
+        "website_files": "⚙️ WEBSITE FILES",
+        "archive": "📦 OLD PHOTOS",
+        "current_master": "FENCE BUILD.jpg",
+        "current_variants": ["FENCEREBUILDMATCHINGSTAIN.png"],
+        "status": "READY_FOR_PROCESSING",
+        "action": "AUTOMATION_NEEDED"
+      }
+    },
+    "smith_built_ins": {
+      "website": {
+        "projectId": "builtins-001",
+        "title": "Custom Built-Ins - Corvallis",
+        "drive_project_name": "Smith Built-Ins",
+        "media": {
+          "hero": "FINISHEDCARPENTRY.png",
+          "secondary": "FINISHEDCARPENTRY0.png"
+        }
+      },
+      "drive": {
+        "folder": "Happy Place Media/Website Library/Projects/Smith Built-Ins",
+        "drop_zone": "📥 DROP NEW PHOTO HERE",
+        "website_files": "⚙️ WEBSITE FILES",
+        "archive": "📦 OLD PHOTOS",
+        "current_master": "FINISHEDCARPENTRY.png",
+        "current_variants": ["FINISHEDCARPENTRY0.png"],
+        "status": "READY_FOR_PROCESSING",
+        "action": "AUTOMATION_NEEDED"
+      }
+    },
+    "wilson_home_repairs": {
+      "website": {
+        "projectId": "repairs-001",
+        "title": "Home Repairs - Willamette Valley",
+        "drive_project_name": "Wilson Home Repairs",
+        "media": {
+          "hero": "TRIMREPAIR.png",
+          "variants": ["DRYWALL.png", "FLOOR.png", "GUTTERCLEANING.jpg", "FLOOR0.jpg", "IMG_0544.JPG", "IMG_0546.JPG"]
+        }
+      },
+      "drive": {
+        "folder": "Happy Place Media/Website Library/Projects/Wilson Home Repairs",
+        "drop_zone": "📥 DROP NEW PHOTO HERE",
+        "website_files": "⚙️ WEBSITE FILES",
+        "archive": "📦 OLD PHOTOS",
+        "current_master": "TRIMREPAIR.png",
+        "current_variants": ["DRYWALL.png", "FLOOR.png", "GUTTERCLEANING.jpg", "FLOOR0.jpg", "IMG_0544.JPG", "IMG_0546.JPG"],
+        "status": "READY_FOR_PROCESSING",
+        "action": "AUTOMATION_NEEDED"
+      }
+    },
+    "thompson_exterior_painting": {
+      "website": {
+        "projectId": "exterior-painting-001",
+        "title": "Exterior Painting & Surface Restoration – Corvallis",
+        "drive_project_name": "Thompson Exterior Painting",
+        "media": {
+          "hero": "IMG_0535.JPG",
+          "variants": ["IMG_0555.JPG", "IMG_0559.JPG", "IMG_0737.JPG", "IMG_0805.JPG", "IMG_0841.JPG"]
+        }
+      },
+      "drive": {
+        "folder": "Happy Place Media/Website Library/Projects/Thompson Exterior Painting",
+        "drop_zone": "📥 DROP NEW PHOTO HERE",
+        "website_files": "⚙️ WEBSITE FILES",
+        "archive": "📦 OLD PHOTOS",
+        "current_master": "IMG_0535.JPG",
+        "current_variants": ["IMG_0555.JPG", "IMG_0559.JPG", "IMG_0737.JPG", "IMG_0805.JPG", "IMG_0841.JPG"],
+        "status": "READY_FOR_PROCESSING",
+        "action": "AUTOMATION_NEEDED"
+      }
+    },
+    "davis_bathroom_remodel": {
+      "website": {
+        "projectId": "bathroom-remodeling-001",
+        "title": "Bathroom Remodeling - Corvallis",
+        "drive_project_name": "Davis Bathroom Remodel",
+        "media": {
+          "hero": "BATHROOM_WALL.png"
+        }
+      },
+      "drive": {
+        "folder": "Happy Place Media/Website Library/Projects/Davis Bathroom Remodel",
+        "drop_zone": "📥 DROP NEW PHOTO HERE",
+        "website_files": "⚙️ WEBSITE FILES",
+        "archive": "📦 OLD PHOTOS",
+        "current_master": "BATHROOM_WALL.png",
+        "current_variants": [],
+        "status": "READY_FOR_PROCESSING",
+        "action": "AUTOMATION_NEEDED"
+      }
+    },
+    "martinez_pergola": {
+      "website": {
+        "projectId": "pergolas-001",
+        "title": "Steel-Framed Covered Privacy Courtyard – Corvallis",
+        "drive_project_name": "Martinez Pergola",
+        "media": {
+          "hero": "HOMESERVICEPROJECTPERGOLAS.jpg",
+          "variant": "1.png"
+        }
+      },
+      "drive": {
+        "folder": "Happy Place Media/Website Library/Projects/Martinez Pergola",
+        "drop_zone": "📥 DROP NEW PHOTO HERE",
+        "website_files": "⚙️ WEBSITE FILES",
+        "archive": "📦 OLD PHOTOS",
+        "current_master": "HOMESERVICEPROJECTPERGOLAS.jpg",
+        "current_variants": ["1.png"],
+        "status": "READY_FOR_PROCESSING",
+        "action": "AUTOMATION_NEEDED"
+      }
+    }
+  },
+  "automation_workflow": {
+    "incoming_uploads": "Happy Place Media/Incoming Uploads",
+    "processing_steps": [
+      "1. Monitor Incoming Uploads folder for new files",
+      "2. Detect project context (AI or manual mapping)",
+      "3. Enhance image quality (denoise, sharpen, exposure correction)",
+      "4. Create responsive website versions (AVIF, WebP, JPG)",
+      "5. Generate blurhash placeholder",
+      "6. Create metadata.json file",
+      "7. Move original to project's DROP zone",
+      "8. Generate website files in ⚙️ WEBSITE FILES folder",
+      "9. Archive previous original to 📦 OLD PHOTOS",
+      "10. Update media.v1.json with new driveId",
+      "11. Update STATUS.txt file",
+      "12. Send success notification email"
+    ],
+    "status_indicators": {
+      "✅": "Website Updated - All photos processed and live",
+      "⚠": "Needs Processing - New photos detected, automation running",
+      "❌": "Failed - Check logs in _System/Logs for details"
+    }
+  },
+  "human_interface": {
+    "taylor_workflow": [
+      "1. Take photos with phone/camera",
+      "2. Open Google Drive",
+      "3. Navigate to Happy Place Media/Incoming Uploads",
+      "4. Drag and drop photos",
+      "5. Close Google Drive",
+      "6. Done. Automation handles everything."
+    ],
+    "alternative_workflow": [
+      "1. Take photos with phone/camera",
+      "2. Open Google Drive",
+      "3. Navigate to specific project folder",
+      "4. Drop photos in 📥 DROP NEW PHOTO HERE",
+      "5. Close Google Drive",
+      "6. Done. Automation handles everything."
+    ],
+    "what_not_to_do": [
+      "Never edit files in ⚙️ WEBSITE FILES",
+      "Never manually move files between folders",
+      "Never delete files from DROP zones",
+      "Never edit STATUS.txt files",
+      "Never touch _System folder"
+    ]
+  },
+  "summary": {
+    "total_projects": 6,
+    "total_media_files": 23,
+    "brand_media": 2,
+    "homepage_hero": 1,
+    "structure_type": "HUMAN_CENTERED",
+    "automation_status": "READY_TO_IMPLEMENT",
+    "human_interface": "SIMPLIFIED",
+    "technical_complexity": "HIDDEN_FROM_USER"
+  }
+}

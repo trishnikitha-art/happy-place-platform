@@ -4,7 +4,7 @@
   "media": [
     {
       "id": "fences-001-hero",
-      "driveId": "",
+      "driveId": "fences-001-master",
       "filename": "FENCE BUILD.jpg",
       "type": "image",
       "orientation": "landscape",
@@ -26,8 +26,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "fences-001",
-      "tags": ["fences", "construction", "corvallis"],
-      "roles": ["hero"],
+      "tags": [
+        "fences",
+        "construction",
+        "corvallis"
+      ],
+      "roles": [
+        "hero"
+      ],
       "featured": true,
       "heroEligible": true,
       "homepageEligible": true,
@@ -40,7 +46,7 @@
     },
     {
       "id": "fences-001-before",
-      "driveId": "",
+      "driveId": "drive-c266e5096e43",
       "filename": "FENCE BEFORE.jpg",
       "type": "image",
       "orientation": "landscape",
@@ -62,8 +68,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "fences-001",
-      "tags": ["fences", "before", "corvallis"],
-      "roles": ["before"],
+      "tags": [
+        "fences",
+        "before",
+        "corvallis"
+      ],
+      "roles": [
+        "before"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -76,7 +88,7 @@
     },
     {
       "id": "fences-001-after",
-      "driveId": "",
+      "driveId": "drive-7a4b33c8b2bb",
       "filename": "FENCE AFTER.jpg",
       "type": "image",
       "orientation": "landscape",
@@ -98,8 +110,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "fences-001",
-      "tags": ["fences", "after", "corvallis"],
-      "roles": ["after"],
+      "tags": [
+        "fences",
+        "after",
+        "corvallis"
+      ],
+      "roles": [
+        "after"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -112,7 +130,7 @@
     },
     {
       "id": "fences-001-matching",
-      "driveId": "",
+      "driveId": "fences-001-variant-001",
       "filename": "FENCEREBUILDMATCHINGSTAIN.png",
       "type": "image",
       "orientation": "landscape",
@@ -134,8 +152,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "fences-001",
-      "tags": ["fences", "staining", "corvallis"],
-      "roles": ["gallery"],
+      "tags": [
+        "fences",
+        "staining",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -148,7 +172,7 @@
     },
     {
       "id": "builtins-001-hero",
-      "driveId": "",
+      "driveId": "builtins-001-master",
       "filename": "FINISHEDCARPENTRY.png",
       "type": "image",
       "orientation": "landscape",
@@ -170,8 +194,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "builtins-001",
-      "tags": ["built-ins", "custom-shelving", "corvallis"],
-      "roles": ["hero"],
+      "tags": [
+        "built-ins",
+        "custom-shelving",
+        "corvallis"
+      ],
+      "roles": [
+        "hero"
+      ],
       "featured": true,
       "heroEligible": true,
       "homepageEligible": true,
@@ -184,7 +214,7 @@
     },
     {
       "id": "builtins-001-secondary",
-      "driveId": "",
+      "driveId": "builtins-001-variant-001",
       "filename": "FINISHEDCARPENTRY0.png",
       "type": "image",
       "orientation": "landscape",
@@ -206,8 +236,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "builtins-001",
-      "tags": ["built-ins", "custom-shelving", "corvallis"],
-      "roles": ["gallery"],
+      "tags": [
+        "built-ins",
+        "custom-shelving",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -220,7 +256,7 @@
     },
     {
       "id": "repairs-001-hero",
-      "driveId": "",
+      "driveId": "repairs-001-master",
       "filename": "TRIMREPAIR.png",
       "type": "image",
       "orientation": "landscape",
@@ -242,8 +278,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "repairs-001",
-      "tags": ["repairs", "trim", "corvallis"],
-      "roles": ["hero"],
+      "tags": [
+        "repairs",
+        "trim",
+        "corvallis"
+      ],
+      "roles": [
+        "hero"
+      ],
       "featured": true,
       "heroEligible": true,
       "homepageEligible": false,
@@ -256,7 +298,7 @@
     },
     {
       "id": "repairs-001-drywall",
-      "driveId": "",
+      "driveId": "repairs-001-variant-001",
       "filename": "DRYWALL.png",
       "type": "image",
       "orientation": "landscape",
@@ -278,8 +320,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "repairs-001",
-      "tags": ["repairs", "drywall", "corvallis"],
-      "roles": ["gallery"],
+      "tags": [
+        "repairs",
+        "drywall",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -292,7 +340,7 @@
     },
     {
       "id": "repairs-001-floor",
-      "driveId": "",
+      "driveId": "repairs-001-variant-002",
       "filename": "FLOOR.png",
       "type": "image",
       "orientation": "landscape",
@@ -314,8 +362,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "repairs-001",
-      "tags": ["repairs", "floor", "corvallis"],
-      "roles": ["gallery"],
+      "tags": [
+        "repairs",
+        "floor",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -326,10 +380,9 @@
       "format": "WEBP",
       "colorSpace": "sRGB"
     },
-
     {
       "id": "repairs-001-gutter",
-      "driveId": "",
+      "driveId": "repairs-001-variant-003",
       "filename": "GUTTERCLEANING.jpg",
       "type": "image",
       "orientation": "landscape",
@@ -351,8 +404,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "repairs-001",
-      "tags": ["repairs", "gutter", "corvallis"],
-      "roles": ["gallery"],
+      "tags": [
+        "repairs",
+        "gutter",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -365,7 +424,7 @@
     },
     {
       "id": "outdoor-living-001-hero",
-      "driveId": "",
+      "driveId": "painting-001-master",
       "filename": "IMG_0535.JPG",
       "type": "image",
       "orientation": "landscape",
@@ -387,8 +446,15 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "exterior-painting-001",
-      "tags": ["painting", "exterior", "restoration", "corvallis"],
-      "roles": ["hero"],
+      "tags": [
+        "painting",
+        "exterior",
+        "restoration",
+        "corvallis"
+      ],
+      "roles": [
+        "hero"
+      ],
       "featured": true,
       "heroEligible": true,
       "homepageEligible": true,
@@ -401,7 +467,7 @@
     },
     {
       "id": "outdoor-living-001-2",
-      "driveId": "",
+      "driveId": "painting-001-variant-001",
       "filename": "IMG_0555.JPG",
       "type": "image",
       "orientation": "landscape",
@@ -423,8 +489,15 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "exterior-painting-001",
-      "tags": ["painting", "exterior", "restoration", "corvallis"],
-      "roles": ["gallery"],
+      "tags": [
+        "painting",
+        "exterior",
+        "restoration",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -437,7 +510,7 @@
     },
     {
       "id": "outdoor-living-001-3",
-      "driveId": "",
+      "driveId": "painting-001-variant-002",
       "filename": "IMG_0559.JPG",
       "type": "image",
       "orientation": "landscape",
@@ -459,8 +532,15 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "exterior-painting-001",
-      "tags": ["painting", "exterior", "restoration", "corvallis"],
-      "roles": ["gallery"],
+      "tags": [
+        "painting",
+        "exterior",
+        "restoration",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -473,7 +553,7 @@
     },
     {
       "id": "outdoor-living-001-4",
-      "driveId": "",
+      "driveId": "painting-001-variant-003",
       "filename": "IMG_0737.JPG",
       "type": "image",
       "orientation": "landscape",
@@ -495,8 +575,15 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "exterior-painting-001",
-      "tags": ["painting", "exterior", "restoration", "corvallis"],
-      "roles": ["gallery"],
+      "tags": [
+        "painting",
+        "exterior",
+        "restoration",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -509,7 +596,7 @@
     },
     {
       "id": "outdoor-living-001-5",
-      "driveId": "",
+      "driveId": "painting-001-variant-004",
       "filename": "IMG_0805.JPG",
       "type": "image",
       "orientation": "landscape",
@@ -531,8 +618,15 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "exterior-painting-001",
-      "tags": ["painting", "exterior", "restoration", "corvallis"],
-      "roles": ["gallery"],
+      "tags": [
+        "painting",
+        "exterior",
+        "restoration",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -545,7 +639,7 @@
     },
     {
       "id": "outdoor-living-001-6",
-      "driveId": "",
+      "driveId": "painting-001-variant-005",
       "filename": "IMG_0841.JPG",
       "type": "image",
       "orientation": "landscape",
@@ -567,8 +661,15 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "exterior-painting-001",
-      "tags": ["painting", "exterior", "restoration", "corvallis"],
-      "roles": ["gallery"],
+      "tags": [
+        "painting",
+        "exterior",
+        "restoration",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -581,7 +682,7 @@
     },
     {
       "id": "bathroom-remodeling-001-hero",
-      "driveId": "",
+      "driveId": "bathroom-001-master",
       "filename": "BATHROOM_WALL.png",
       "type": "image",
       "orientation": "landscape",
@@ -603,8 +704,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "bathroom-remodeling-001",
-      "tags": ["bathroom", "remodeling", "corvallis"],
-      "roles": ["hero"],
+      "tags": [
+        "bathroom",
+        "remodeling",
+        "corvallis"
+      ],
+      "roles": [
+        "hero"
+      ],
       "featured": true,
       "heroEligible": true,
       "homepageEligible": true,
@@ -617,7 +724,7 @@
     },
     {
       "id": "brand-featured",
-      "driveId": "",
+      "driveId": "drive-7fc72d02ab05",
       "filename": "featured.jpeg",
       "type": "image",
       "orientation": "portrait",
@@ -639,8 +746,13 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": null,
-      "tags": ["featured", "brand"],
-      "roles": ["brand"],
+      "tags": [
+        "featured",
+        "brand"
+      ],
+      "roles": [
+        "brand"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -653,7 +765,7 @@
     },
     {
       "id": "brand-hero",
-      "driveId": "",
+      "driveId": "brand-hero-001",
       "filename": "hero.jpeg",
       "type": "image",
       "orientation": "portrait",
@@ -675,8 +787,15 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": null,
-      "tags": ["hero", "brand", "homepage"],
-      "roles": ["hero", "brand"],
+      "tags": [
+        "hero",
+        "brand",
+        "homepage"
+      ],
+      "roles": [
+        "hero",
+        "brand"
+      ],
       "featured": true,
       "heroEligible": true,
       "homepageEligible": true,
@@ -689,7 +808,7 @@
     },
     {
       "id": "brand-portrait",
-      "driveId": "",
+      "driveId": "brand-portrait-001",
       "filename": "portrait.jpeg",
       "type": "image",
       "orientation": "landscape",
@@ -711,8 +830,15 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": null,
-      "tags": ["portrait", "brand", "owners"],
-      "roles": ["portrait", "brand"],
+      "tags": [
+        "portrait",
+        "brand",
+        "owners"
+      ],
+      "roles": [
+        "portrait",
+        "brand"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -725,7 +851,7 @@
     },
     {
       "id": "repairs-001-floor0",
-      "driveId": "",
+      "driveId": "repairs-001-variant-004",
       "filename": "FLOOR0.jpg",
       "type": "image",
       "orientation": "landscape",
@@ -747,8 +873,15 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "repairs-001",
-      "tags": ["repairs", "floor", "before", "corvallis"],
-      "roles": ["gallery"],
+      "tags": [
+        "repairs",
+        "floor",
+        "before",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -761,7 +894,7 @@
     },
     {
       "id": "repairs-001-img0544",
-      "driveId": "",
+      "driveId": "repairs-001-variant-005",
       "filename": "IMG_0544.JPG",
       "type": "image",
       "orientation": "portrait",
@@ -783,8 +916,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "repairs-001",
-      "tags": ["repairs", "detail", "corvallis"],
-      "roles": ["gallery"],
+      "tags": [
+        "repairs",
+        "detail",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -797,7 +936,7 @@
     },
     {
       "id": "repairs-001-img0546",
-      "driveId": "",
+      "driveId": "repairs-001-variant-006",
       "filename": "IMG_0546.JPG",
       "type": "image",
       "orientation": "portrait",
@@ -819,8 +958,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "repairs-001",
-      "tags": ["repairs", "detail", "corvallis"],
-      "roles": ["gallery"],
+      "tags": [
+        "repairs",
+        "detail",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -833,7 +978,7 @@
     },
     {
       "id": "pergolas-001-hero",
-      "driveId": "",
+      "driveId": "pergolas-001-master",
       "filename": "HOMESERVICEPROJECTPERGOLAS.jpg",
       "type": "image",
       "orientation": "landscape",
@@ -855,8 +1000,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "pergolas-001",
-      "tags": ["pergolas", "construction", "corvallis"],
-      "roles": ["hero"],
+      "tags": [
+        "pergolas",
+        "construction",
+        "corvallis"
+      ],
+      "roles": [
+        "hero"
+      ],
       "featured": true,
       "heroEligible": true,
       "homepageEligible": false,
@@ -869,7 +1020,7 @@
     },
     {
       "id": "pergolas-001-before",
-      "driveId": "",
+      "driveId": "pergolas-001-variant-001",
       "filename": "1.png",
       "type": "image",
       "orientation": "landscape",
@@ -891,8 +1042,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "pergolas-001",
-      "tags": ["pergolas", "before", "corvallis"],
-      "roles": ["before"],
+      "tags": [
+        "pergolas",
+        "before",
+        "corvallis"
+      ],
+      "roles": [
+        "before"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,
@@ -905,7 +1062,7 @@
     },
     {
       "id": "pergolas-001-after",
-      "driveId": "",
+      "driveId": "pergolas-001-master",
       "filename": "HOMESERVICEPROJECTPERGOLAS.jpg",
       "type": "image",
       "orientation": "landscape",
@@ -927,8 +1084,14 @@
       "county": "Benton",
       "state": "Oregon",
       "projectId": "pergolas-001",
-      "tags": ["pergolas", "after", "corvallis"],
-      "roles": ["after"],
+      "tags": [
+        "pergolas",
+        "after",
+        "corvallis"
+      ],
+      "roles": [
+        "after"
+      ],
       "featured": false,
       "heroEligible": false,
       "homepageEligible": false,

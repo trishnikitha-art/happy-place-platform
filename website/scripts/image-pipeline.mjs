@@ -24,10 +24,13 @@ import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
 import { FilesystemImageSource } from "./image-source/filesystem-image-source.mjs";
+import { DriveImageSource } from "./image-source/drive-image-source.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(__dirname, "..");
-const PHOTO_SOURCE_ROOT = process.env.PHOTO_SOURCE_ROOT || path.join(ROOT, "photo-intake");
+// Default to local Google Drive folder if available, otherwise photo-intake
+const PHOTO_SOURCE_ROOT = process.env.PHOTO_SOURCE_ROOT || 
+  (process.env.LOCAL_DRIVE_PATH || path.join(ROOT, "photo-intake"));
 const INTAKE = PHOTO_SOURCE_ROOT;
 const ARCHIVE = path.join(INTAKE, "_archive");
 const OUT = path.join(ROOT, "public", "images", "projects");
@@ -37,6 +40,7 @@ const PRESENTATION = path.join(ROOT, "src", "config", "presentation.v1.json");
 const GOLDEN = path.join(ROOT, "generated", "golden-manifest.json");
 const PIPELINE_MANIFEST = path.join(ROOT, "generated", "gallery.manifest.json");
 const CACHE = path.join(ROOT, "generated", "rebuild-cache.json");
+const DRIVE_CACHE = path.join(ROOT, "generated", "drive-cache");
 
 const PIPELINE_VERSION = "1.0.0";
 const WIDTHS = [480, 768, 1080, 1600, 2000];
@@ -342,6 +346,250 @@ async function stageEmit(projects, images, manifestAssets, stats) {
   console.log(`Wrote ${path.relative(ROOT, GOLDEN)} — golden regression manifest.`);
 }
 
+/**
+ * Main pipeline function - importable for programmatic use
+ * @param {Object} options - Pipeline options
+ * @param {string} options.sourceRoot - Override for PHOTO_SOURCE_ROOT
+ * @param {boolean} options.useDrive - Force Drive source regardless of env
+ * @returns {Promise<Object>} Pipeline result with stats
+ */
+export async function runPipeline(options = {}) {
+  const startTime = Date.now();
+  const sharp = await loadSharp();
+  const projects = [];
+  const images = [];
+  const manifestAssets = [];
+
+  // Override source root if provided
+  const sourceRoot = options.sourceRoot || PHOTO_SOURCE_ROOT;
+  const useDrive = options.useDrive || !!process.env.DRIVE_FOLDER_ID;
+
+  // Statistics tracking
+  const stats = {
+    heroGenerated: 0,
+    thumbnailGenerated: 0,
+    galleryGenerated: 0,
+    skipped: 0,
+    rebuilt: 0,
+  };
+
+  // Load rebuild cache for incremental builds
+  const cache = await loadCache();
+
+  // ImageSource: the only coupling point to storage
+  let source;
+  if (useDrive) {
+    console.log("Using Google Drive as image source");
+    await fs.mkdir(DRIVE_CACHE, { recursive: true });
+    source = new DriveImageSource(process.env.DRIVE_FOLDER_ID, DRIVE_CACHE);
+  } else {
+    console.log("Using local filesystem as image source");
+    source = new FilesystemImageSource(sourceRoot);
+  }
+
+  // ── DAG: Discovery ──────────────────────────────────────────────────────────
+  const projectList = await stageDiscover(source);
+  if (!projectList) return { projects: [], images: [], stats };
+
+  // ── DAG: Classification + Transformation + Manifest (per project) ───────────
+  for (const project of projectList) {
+    const folder = project.name;
+    const { category, location, slug } = parseFolder(folder);
+    const title = `${category} — ${location || "Willamette Valley"}`;
+    const files = (await source.listFiles(project))
+      .sort((a, b) => orderKey(a.name) - orderKey(b.name));
+    const img = { hero: null, cover: null, thumbnail: null, homeowner: null, before: [], after: [], details: [] };
+    const galleryOrder = [];
+
+    // Stable project UUID
+    const projectUuid = deterministicUUID("project", slug);
+
+    for (const file of files) {
+      const role = roleOf(file.name);
+      const buffer = await source.open(project, file);
+      const meta = await sharp(buffer).metadata();
+      const w = meta.width ?? 0, h = meta.height ?? 0;
+      const origName = file.name;
+      const ext = path.extname(origName);
+      const baseName = path.basename(origName, ext);
+      const id = `${slug}/${slugify(baseName)}`;
+      const destDir = path.join(OUT, slug);
+      await fs.mkdir(destDir, { recursive: true });
+      await fs.mkdir(path.join(ARCHIVE, slug), { recursive: true });
+      await fs.writeFile(path.join(ARCHIVE, slug, origName), buffer);
+
+      const contentHash = crypto.createHash("sha256").update(buffer).digest("hex");
+      const uuid = deterministicUUID(slug, origName);
+      const stableId = generateStableId(contentHash);
+      
+      // Incremental rebuild: skip if contentHash unchanged
+      const cacheKey = `${id}:${contentHash}`;
+      const cached = cache[cacheKey];
+      
+      if (cached && cached.contentHash === contentHash) {
+        stats.skipped++;
+        console.log(`  ⊘ ${folder}/${origName}  (skipped, content unchanged)`);
+        
+        // Use cached data
+        images.push(cached.rec);
+        galleryOrder.push(id);
+        manifestAssets.push(cached.manifestAsset);
+        
+        if (role === "hero") img.hero = cached.rec;
+        else if (role === "cover") img.cover = cached.rec;
+        else if (role === "thumbnail") img.thumbnail = cached.rec;
+        else if (role === "homeowner") img.homeowner = cached.rec;
+        else if (role === "before") img.before.push(cached.rec);
+        else if (role === "after") img.after.push(cached.rec);
+        else img.details.push(cached.rec);
+        
+        continue;
+      }
+
+      stats.rebuilt++;
+      
+      const widths = WIDTHS.filter((x) => x <= w); if (!widths.length) widths.push(w);
+      const variants = [];
+      for (const vw of widths) {
+        for (const fmt of ["avif", "webp"]) {
+          const outName = `${baseName}-${vw}.${fmt}`;
+          await sharp(buffer).resize({ width: vw, withoutEnlargement: true })
+            [fmt === "avif" ? "avif" : "webp"]({ quality: fmt === "avif" ? 55 : 72 })
+            .toFile(path.join(destDir, outName));
+          variants.push({ width: vw, format: fmt, src: `/images/projects/${slug}/${outName}` });
+        }
+      }
+      // thumbnail + blur
+      const thumbName = `${baseName}-thumb.webp`;
+      await sharp(buffer).resize(480).webp({ quality: 70 }).toFile(path.join(destDir, thumbName));
+      const blurBuf = await sharp(buffer).resize(16).webp({ quality: 40 }).toBuffer();
+      const blurDataURL = `data:image/webp;base64,${blurBuf.toString("base64")}`;
+      const src = variants.find((v) => v.format === "webp")?.src ?? null;
+
+      // Track statistics
+      if (role === "hero") stats.heroGenerated++;
+      stats.thumbnailGenerated++;
+      stats.galleryGenerated++;
+
+      const rec = {
+        uuid, contentHash, stableId,
+        id, title, project: slug, category, county: location,
+        // Identity only - presentation semantics moved to presentation.json
+        alt: `${title} — ${role} photo by Happy Place Carpentry`,
+        width: w, height: h, focal: { x: 0.5, y: 0.5 },
+        original: origName, src, thumbnail: `/images/projects/${slug}/${thumbName}`, blurDataURL, variants,
+        // Image provenance (P2)
+        provenance: {
+          sourceFile: `${folder}/${origName}`,
+          importedAt: new Date().toISOString(),
+          pipelineVersion: PIPELINE_VERSION,
+          driveId: file.driveId || undefined, // Drive File ID if using Drive source
+          driveFolder: file.driveFolder || undefined, // Drive folder path for validation
+          driveModifiedAt: file.driveModifiedAt || undefined, // Drive modification time
+        },
+      };
+      images.push(rec);
+      galleryOrder.push(id);
+      
+      const manifestAsset = {
+        uuid, contentHash, stableId,
+        id, project: slug, category, county: location,
+        originalFilename: origName,
+        sourcePath: `${folder}/${origName}`,
+        width: w, height: h,
+        role, priority: null,
+        variants: variants.map((v) => ({ width: v.width, format: v.format, path: v.src })),
+        thumbnailPath: `/images/projects/${slug}/${thumbName}`,
+        blurDataURL,
+        createdAt: new Date().toISOString(),
+      };
+      manifestAssets.push(manifestAsset);
+      
+      // Update cache
+      cache[cacheKey] = { contentHash, stableId, rec, manifestAsset };
+      
+      if (role === "hero") img.hero = rec;
+      else if (role === "cover") img.cover = rec;
+      else if (role === "thumbnail") img.thumbnail = rec;
+      else if (role === "homeowner") img.homeowner = rec;
+      else if (role === "before") img.before.push(rec);
+      else if (role === "after") img.after.push(rec);
+      else img.details.push(rec);
+      console.log(`  ✓ ${folder}/${origName}  (${w}×${h}, ${role})`);
+    }
+    if (!img.hero && img.details[0]) img.hero = img.details[0];
+    if (!img.cover && img.hero) img.cover = img.hero;
+    if (!img.thumbnail && img.cover) img.thumbnail = img.cover;
+    projects.push({ 
+      slug, 
+      uuid: projectUuid, // Stable project UUID (P1)
+      title, 
+      category, 
+      county: location, 
+      images: img, 
+      galleryOrder 
+    });
+    console.log(`→ project: ${title}  (${images.length} images so far)`);
+  }
+
+  // Save rebuild cache
+  await saveCache(cache);
+
+  // Detect duplicates (P1)
+  const duplicates = detectDuplicates(images);
+  if (duplicates.length > 0) {
+    console.warn("\n⚠ Duplicate hashes detected:");
+    for (const dup of duplicates) {
+      console.warn(`  Hash: ${dup.hash}`);
+      console.warn(`  Files: ${dup.files.join(", ")}`);
+      console.warn(`  Projects: ${dup.projects.join(", ")}`);
+    }
+  }
+
+  // Detect unused presentation entries (P1)
+  let presentation = null;
+  try {
+    const presentationData = await fs.readFile(PRESENTATION, "utf-8");
+    presentation = JSON.parse(presentationData);
+  } catch {
+    // Presentation may not exist yet
+  }
+  
+  if (presentation) {
+    const unused = await detectUnusedPresentation(presentation, images);
+    if (unused.missingFromGallery.length > 0) {
+      console.warn("\n⚠ Presentation entries missing from gallery:");
+      for (const id of unused.missingFromGallery) {
+        console.warn(`  ${id}`);
+      }
+    }
+    if (unused.missingFromPresentation.length > 0) {
+      console.warn("\n⚠ Gallery images not referenced in presentation:");
+      for (const id of unused.missingFromPresentation) {
+        console.warn(`  ${id}`);
+      }
+    }
+  }
+
+  // Calculate elapsed time
+  const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
+  stats.time = elapsed;
+
+  // Print pipeline statistics (P2)
+  console.log("\nPipeline Statistics:");
+  console.log(`  Projects: ${projects.length}`);
+  console.log(`  Images: ${images.length}`);
+  console.log(`  Generated: Hero: ${stats.heroGenerated}, Thumbnail: ${stats.thumbnailGenerated}, Gallery: ${stats.galleryGenerated}`);
+  console.log(`  Skipped: ${stats.skipped}`);
+  console.log(`  Rebuilt: ${stats.rebuilt}`);
+  console.log(`  Time: ${stats.time}s`);
+
+  // ── DAG: Emit ───────────────────────────────────────────────────────────────
+  await stageEmit(projects, images, manifestAssets, stats);
+
+  return { projects, images, stats };
+}
+
 async function main() {
   const startTime = Date.now();
   const sharp = await loadSharp();
@@ -362,7 +610,16 @@ async function main() {
   const cache = await loadCache();
 
   // ImageSource: the only coupling point to storage
-  const source = new FilesystemImageSource(INTAKE);
+  // Use Drive source if DRIVE_FOLDER_ID is set, otherwise use filesystem
+  let source;
+  if (process.env.DRIVE_FOLDER_ID) {
+    console.log("Using Google Drive as image source");
+    await fs.mkdir(DRIVE_CACHE, { recursive: true });
+    source = new DriveImageSource(process.env.DRIVE_FOLDER_ID, DRIVE_CACHE);
+  } else {
+    console.log("Using local filesystem as image source");
+    source = new FilesystemImageSource(INTAKE);
+  }
 
   // ── DAG: Discovery ──────────────────────────────────────────────────────────
   const projectList = await stageDiscover(source);
@@ -460,6 +717,9 @@ async function main() {
           sourceFile: `${folder}/${origName}`,
           importedAt: new Date().toISOString(),
           pipelineVersion: PIPELINE_VERSION,
+          driveId: file.driveId || undefined, // Drive File ID if using Drive source
+          driveFolder: file.driveFolder || undefined, // Drive folder path for validation
+          driveModifiedAt: file.driveModifiedAt || undefined, // Drive modification time
         },
       };
       images.push(rec);

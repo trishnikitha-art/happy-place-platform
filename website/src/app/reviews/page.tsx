@@ -32,6 +32,7 @@ export default async function ReviewsPage() {
             title={<span className="text-text-on-dark">Helping neighbors find their happy place</span>}
             align="center"
             description={<span className="text-text-on-dark/90">{hasReviews ? `${stats.average} / 5 across ${stats.count} featured reviews from homeowners across the Willamette Valley.` : "Google reviews coming soon. Ask us for references in your neighborhood."}</span>}
+            descriptionColor="text-text-on-dark/90"
           />
 
           {/* Leave a Review CTA */}

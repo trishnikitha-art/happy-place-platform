@@ -1,0 +1,104 @@
+{
+  "review_required_policy": {
+    "principle": "Never let AI publish silently. Even at 99% confidence. Always Review → Approve → Publish until system earns trust.",
+    "workflow_enforcement": {
+      "current_policy": "REVIEW_REQUIRED_ALWAYS",
+      "future_policy": "REVIEW_REQUIRED_UNTIL_TRUST_EARNED",
+      "trust_threshold": "After 50 successful deployments with 0 user corrections",
+      "current_trust_level": 0,
+      "successful_deployments": 0,
+      "user_corrections": 0
+    },
+    "mandatory_steps": [
+      {
+        "step": 1,
+        "name": "Upload",
+        "description": "User uploads photos to Incoming Uploads",
+        "automated": false,
+        "human_required": true
+      },
+      {
+        "step": 2,
+        "name": "Processing",
+        "description": "AI enhances and generates assets",
+        "automated": true,
+        "human_required": false
+      },
+      {
+        "step": 3,
+        "name": "Needs Review",
+        "description": "System presents results with confidence scores",
+        "automated": false,
+        "human_required": true
+      },
+      {
+        "step": 4,
+        "name": "Dry Run",
+        "description": "System shows exactly what will change",
+        "automated": true,
+        "human_required": false
+      },
+      {
+        "step": 5,
+        "name": "Approve",
+        "description": "Human explicitly approves changes",
+        "automated": false,
+        "human_required": true
+      },
+      {
+        "step": 6,
+        "name": "Publish",
+        "description": "System deploys to live website",
+        "automated": true,
+        "human_required": false
+      }
+    ],
+    "prevention_of_silent_publishing": {
+      "no_auto_publish": "System never auto-publishes, regardless of confidence",
+      "no_skip_review": "Review step cannot be skipped, even at 100% confidence",
+      "explicit_approval": "User must click 'Approve' button",
+      "confirmation_dialog": "Final confirmation dialog before deploy",
+      "cancel_available": "Cancel option always available until final deploy"
+    },
+    "trust_building": {
+      "how_trust_is_earned": {
+        "metric": "Successful deployments without user corrections",
+        "threshold": 50 deployments",
+        "reset_condition": "Any user correction resets counter to 0"
+      },
+      "what_happens_when_trust_earned": {
+        "policy_change": "Review → Approve → Publish becomes optional",
+        "user_choice": "User can enable 'Auto-publish high confidence (95%+)'",
+        "default_remains_safe": "Default remains review-required",
+        "can_revoke_trust": "User can disable auto-publish at any time"
+      },
+      "current_status": {
+        "trust_earned": false,
+        "review_required": "ALWAYS",
+        "auto_publish_available": false
+      }
+    },
+    "ui_implementation": {
+      "review_screen": {
+        "title": "Review Changes Before Publishing",
+        "confidence_display": "Always show confidence scores",
+        "dry_run_output": "Always show preview of changes",
+        "approve_button": "Approve & Publish",
+        "reject_button": "Reject",
+        "adjust_button": "Adjust Changes"
+      },
+      "confirmation_dialog": {
+        "title": "Confirm Publish",
+        "message": "This will update the live website. Continue?",
+        "confirm_button": "Yes, Publish",
+        "cancel_button": "Cancel"
+      }
+    },
+    "safety_guarantees": {
+      "no_surprises": "User always sees exactly what will change before it changes",
+      "no_silent_updates": "Website never updates without explicit human approval",
+      "instant_rollback": "Rollback always available if something goes wrong",
+      "clear_audit_trail": "Every deployment logged with who approved and when"
+    }
+  }
+}

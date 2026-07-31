@@ -24,7 +24,7 @@ import { CardLightSweep } from "@/components/card-light-sweep";
  * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
  * Cards never inherit page background. A card on a dark page still uses light surface.
  */
-export function CraftCard({ className, children }: { className?: string; children: React.ReactNode }) {
+export function CraftCard({ className, children, style }: { className?: string; children: React.ReactNode; style?: React.CSSProperties }) {
   return (
     <CardLightSweep className="block">
       <div 
@@ -47,6 +47,7 @@ export function CraftCard({ className, children }: { className?: string; childre
           // Only allow layout classes (padding, margin, flex, grid, etc.)
           className
         )}
+        style={style}
       >
         {children}
       </div>
@@ -60,12 +61,4 @@ export function CraftCard({ className, children }: { className?: string; childre
  */
 export function Card({ className, children }: { className?: string; children: React.ReactNode }) {
   return <CraftCard className={className}>{children}</CraftCard>;
-}
-
-export function Badge({ className, children }: { className?: string; children: React.ReactNode }) {
-  return (
-    <span className={cn("inline-flex items-center rounded-full bg-primary/15 px-3 py-1 text-xs font-semibold text-accent", className)}>
-      {children}
-    </span>
-  );
 }

@@ -1,0 +1,58 @@
+{
+  "confidence_system": {
+    "description": "AI detection should be treated as a recommendation, not a decision. Project detection must have confidence scores shown to humans.",
+    "thresholds": {
+      "high_confidence": {
+        "min": 90,
+        "max": 100,
+        "action": "Auto-assign to detected project",
+        "ui_display": "✅ High Confidence - Auto-assigned to Johnson Fence (94%)"
+      },
+      "medium_confidence": {
+        "min": 70,
+        "max": 89,
+        "action": "Recommend assignment, require confirmation",
+        "ui_display": "⚠️ Medium Confidence - Recommend Johnson Fence (78%) - Confirm?"
+      },
+      "low_confidence": {
+        "min": 0,
+        "max": 69,
+        "action": "Require manual assignment",
+        "ui_display": "❌ Low Confidence (43%) - Needs manual assignment"
+      }
+    },
+    "display_format": {
+      "example_high": "Detected: Johnson Cedar Fence\nConfidence: 94%\nHero Candidate: No\nGallery: Yes\n\n✅ Auto-assigned",
+      "example_medium": "Detected: Smith Built-Ins\nConfidence: 78%\nHero Candidate: Maybe\nGallery: Yes\n\n⚠️ Confirm assignment?",
+      "example_low": "Detected: Unknown\nConfidence: 43%\nHero Candidate: Unknown\nGallery: Unknown\n\n❌ Needs manual assignment"
+    },
+    "detection_types": {
+      "project_detection": {
+        "description": "Which project this photo belongs to",
+        "confidence_required": true,
+        "manual_override": true
+      },
+      "hero_candidate": {
+        "description": "Whether this photo should be a hero image",
+        "confidence_required": true,
+        "manual_override": true
+      },
+      "gallery_suitability": {
+        "description": "Whether this photo is suitable for gallery",
+        "confidence_required": true,
+        "manual_override": true
+      },
+      "image_quality": {
+        "description": "Overall image quality score",
+        "confidence_required": true,
+        "manual_override": false
+      }
+    },
+    "ui_guidelines": {
+      "always_show_confidence": "Never hide confidence scores from users",
+      "color_coding": "Green (90%+), Yellow (70-89%), Red (<70%)",
+      "manual_override_always_available": "User can always override AI recommendation",
+      "explain_low_confidence": "Show why confidence is low (blurry, dark, etc.)"
+    }
+  }
+}

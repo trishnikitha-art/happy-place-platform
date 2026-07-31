@@ -3,6 +3,7 @@ import type { Review } from "@/types/reviews";
 import { ReviewProvider, ReviewStatus } from "@/types/reviews";
 import { validateReview } from "@/lib/reviews";
 import { createGoogleSheetsReviewSource } from "@/lib/google-sheets";
+import { getGoogleConfigDiagnostic } from "@/lib/google-config-diagnostic";
 import { classifyReviewWithMetadata } from "@/lib/sentiment/classifier";
 import { normalizeText } from "@/lib/sentiment/normalizer";
 import { extractMetadata } from "@/lib/sentiment/metadata-extractor";
@@ -14,6 +15,8 @@ import { suggestProject } from "@/lib/sentiment/project-suggester";
 import { suggestCounty } from "@/lib/sentiment/county-suggester";
 import { createInitialAuditTrail } from "@/lib/sentiment/audit-trail";
 import { getAllReviews } from "@/lib/reviews";
+import { logEvent } from "@/lib/events";
+import { applyReviewerTag, findSubscriberByEmail } from "@/lib/kit";
 
 /**
  * POST /api/reviews — Webhook endpoint for review submissions
@@ -232,10 +235,51 @@ export async function POST(request: NextRequest) {
     console.log("=== STAGE: GOOGLE SHEETS PERSISTENCE ===");
     const sheetsSource = createGoogleSheetsReviewSource();
     console.log("Google Sheets adapter created");
-    await sheetsSource.addReview(review);
+    const sheetsResult = await sheetsSource.addReview(review);
     console.log("✅ GOOGLE SHEETS PERSISTENCE COMPLETE");
+    console.log("Sheets result:", JSON.stringify(sheetsResult, null, 2));
 
     console.log("=== STAGE: RETURNING SUCCESS RESPONSE ===");
+
+    // Log HPP event for review intelligence
+    const url = new URL(request.url);
+    logEvent("ReviewCompleted", {
+      email: body.email,
+      customerName: body.name,
+      rating: body.rating,
+      service: body.service,
+      location: {
+        city: body.city,
+        county: body.county,
+      },
+      title: body.title,
+      body: body.body,
+      sentiment: review.sentiment,
+      bucket: review.bucket,
+      qualityScore: review.qualityScore,
+    }, {
+      acquisitionSource: "review_submission",
+      landingPage: request.url,
+      referrer: request.headers.get("referer") || undefined,
+      utmSource: url.searchParams.get("utm_source") || undefined,
+      utmMedium: url.searchParams.get("utm_medium") || undefined,
+      utmCampaign: url.searchParams.get("utm_campaign") || undefined,
+      utmContent: url.searchParams.get("utm_content") || undefined,
+      utmTerm: url.searchParams.get("utm_term") || undefined,
+    });
+
+    // Apply Kit tag for reviewer (if email provided)
+    if (body.email) {
+      try {
+        const subscriber = await findSubscriberByEmail(body.email);
+        if (subscriber?.id) {
+          await applyReviewerTag(subscriber.id);
+        }
+      } catch (kitError) {
+        console.error("Kit tagging failed (non-critical):", kitError);
+      }
+    }
+
     const response = NextResponse.json({
       ok: true,
       review,
@@ -248,8 +292,11 @@ export async function POST(request: NextRequest) {
       suggestedService: review.suggestedService,
       suggestedProject: review.suggestedProject,
       suggestedCounty: review.suggestedCounty,
+      sheetsPersisted: sheetsResult.success,
+      sheetsError: sheetsResult.error,
+      sheetsDetails: sheetsResult.details,
     });
-    
+
     console.log("=== POST /api/reviews: SUCCESS ===");
     return response;
 
@@ -268,12 +315,25 @@ export async function POST(request: NextRequest) {
 }
 
 /**
- * GET /api/reviews — Health check endpoint
+ * GET /api/reviews — Health check and configuration diagnostic endpoint
  */
 export async function GET() {
+  const diagnostic = getGoogleConfigDiagnostic();
+
+  // Test Google Sheets adapter initialization
+  let sheetsTest = { initialized: false, error: null };
+  try {
+    const source = createGoogleSheetsReviewSource();
+    sheetsTest = { initialized: !!source, error: null };
+  } catch (error: any) {
+    sheetsTest = { initialized: false, error: error.message };
+  }
+
   return NextResponse.json({
     ok: true,
     status: "operational",
-    message: "Review webhook endpoint is ready"
+    message: "Review webhook endpoint is ready",
+    diagnostic,
+    sheetsTest,
   });
 }

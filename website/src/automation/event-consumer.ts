@@ -19,8 +19,8 @@ NOTE: Event types are generated. Import from artifacts/events/*
 import { WorkflowEngine, WorkflowContext } from './workflow-engine';
 import { AutomationMetricEvent, AutomationMetricEventType } from './metric-events';
 import { AutomationMetricsReducer } from './metric-events';
-import type { EventEnvelope } from '../artifacts/events/EventEnvelope';
-import type { EventPayloadMap } from '../artifacts/events/EventRegistry';
+import type { EventEnvelope } from '../generated/events/EventEnvelope';
+import type { EventPayloadMap } from '../generated/events/EventRegistry';
 
 export type DomainEvent = EventEnvelope<keyof EventPayloadMap, unknown>;
 

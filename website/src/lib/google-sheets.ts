@@ -81,9 +81,11 @@ export class GoogleSheetsReviewSource implements ReviewSource {
   /**
    * Add a review to Google Sheets
    */
-  async addReview(review: Review): Promise<void> {
+  async addReview(review: Review): Promise<{ success: boolean; error?: string; details?: any }> {
+    const startTime = Date.now();
     console.log("=== GOOGLE SHEETS WRITE PATH: START ===");
     console.log("Review ID:", review.id);
+    console.log("Timestamp:", new Date().toISOString());
     
     // Log runtime configuration
     console.log("Runtime Configuration:");
@@ -96,31 +98,43 @@ export class GoogleSheetsReviewSource implements ReviewSource {
     console.log("  Spreadsheet ID match:", SHEET_ID === "1LBJBZTJDsq4ENECEWw6rkz67frg08gFZhqGs5e9xgMw");
     console.log("  Target sheet name:", SHEET_NAME);
     console.log("  Sheets client initialized:", !!this.sheets);
+    console.log("  Auth object present:", !!this.auth);
     
     if (!SHEET_ID) {
-      console.warn("Google Sheets not configured (GOOGLE_REVIEWS_SHEET_ID missing). Review will be accepted but not persisted to Google Sheets.");
+      const error = "GOOGLE_REVIEWS_SHEET_ID environment variable is missing";
+      console.error("❌ CONFIGURATION ERROR:", error);
       console.log("=== GOOGLE SHEETS WRITE PATH: ABORTED (MISSING CONFIG) ===");
-      // Don't throw - allow submission to succeed even without Sheets
-      return;
+      return { 
+        success: false, 
+        error: "Google Sheets not configured",
+        details: { missingEnvVar: "GOOGLE_REVIEWS_SHEET_ID" }
+      };
     }
 
     if (!this.sheets) {
-      console.warn("Google Sheets client not initialized (authentication likely failed). Review will be accepted but not persisted to Google Sheets.");
+      const error = "Google Sheets client not initialized (authentication likely failed)";
+      console.error("❌ AUTHENTICATION ERROR:", error);
       console.log("=== GOOGLE SHEETS WRITE PATH: ABORTED (CLIENT NOT INITIALIZED) ===");
-      // Don't throw - allow submission to succeed even without Sheets
-      return;
+      return { 
+        success: false, 
+        error: "Google Sheets authentication failed",
+        details: { authFailed: true }
+      };
     }
 
     try {
       console.log("Converting review to row...");
       const row = this.reviewToRow(review);
       console.log("Row converted, length:", row.length);
+      console.log("Row preview:", row.slice(0, 5).join(" | "), "...");
       
       console.log("Invoking Google Sheets API: spreadsheets.values.append");
       console.log("  spreadsheetId:", SHEET_ID);
       console.log("  range:", `${SHEET_NAME}!A:Z`);
       console.log("  valueInputOption: USER_ENTERED");
+      console.log("  API call timestamp:", new Date().toISOString());
       
+      const apiStartTime = Date.now();
       const response = await this.sheets.spreadsheets.values.append({
         spreadsheetId: SHEET_ID,
         range: `${SHEET_NAME}!A:Z`,
@@ -129,17 +143,34 @@ export class GoogleSheetsReviewSource implements ReviewSource {
           values: [row],
         },
       });
-
+      const apiDuration = Date.now() - apiStartTime;
+      
       console.log("=== GOOGLE SHEETS WRITE PATH: SUCCESS ===");
       console.log("Google API Response Status:", response.status);
+      console.log("Google API Response Data:", JSON.stringify(response.data, null, 2));
+      console.log("API call duration:", apiDuration, "ms");
+      console.log("Total operation duration:", Date.now() - startTime, "ms");
       console.log("Review added to Google Sheets:", review.id);
+      
+      return { success: true, details: { apiDuration, totalDuration: Date.now() - startTime } };
     } catch (error: any) {
+      const errorDetails: any = {
+        timestamp: new Date().toISOString(),
+        duration: Date.now() - startTime,
+        errorType: error.constructor.name,
+        errorMessage: error.message,
+        errorCode: error.code,
+        errorStatus: error.status,
+        stack: error.stack,
+      };
+      
       console.log("=== GOOGLE SHEETS WRITE PATH: FAILURE ===");
       console.log("Error caught in addReview");
       console.log("Error type:", error.constructor.name);
       console.log("Error message:", error.message);
       console.log("Error code:", error.code);
       console.log("Error status:", error.status);
+      console.log("Error stack:", error.stack);
       
       if (error.response) {
         console.log("Google API Response Details:");
@@ -147,6 +178,12 @@ export class GoogleSheetsReviewSource implements ReviewSource {
         console.log("  Response statusText:", error.response.statusText);
         console.log("  Response headers:", JSON.stringify(error.response.headers, null, 2));
         console.log("  Response data:", JSON.stringify(error.response.data, null, 2));
+        errorDetails.response = {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          headers: error.response.headers,
+          data: error.response.data,
+        };
       }
       
       if (error.errors) {
@@ -158,11 +195,18 @@ export class GoogleSheetsReviewSource implements ReviewSource {
           console.log("    reason:", err.reason);
           console.log("    extendedHelp:", err.extendedHelp);
         });
+        errorDetails.apiErrors = error.errors;
       }
       
       console.error("Failed to add review to Google Sheets:", error);
       console.warn("Review submission accepted but not persisted to Google Sheets due to error");
       console.log("=== GOOGLE SHEETS WRITE PATH: END (FAILURE) ===");
+      
+      return { 
+        success: false, 
+        error: error.message,
+        details: errorDetails
+      };
     }
   }
 

@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGoogleAuth, google } from "@/lib/google";
 import type { EstimateRequest } from "@/types";
+import { applyEstimateRequestTag, findSubscriberByEmail, createSubscriber } from "@/lib/kit";
+import { logEvent } from "@/lib/events";
 
 /**
  * POST /api/estimate  — SERVER-ONLY estimate intake (Directive 031).
@@ -143,6 +145,52 @@ export async function POST(request: NextRequest) {
     await gmail.users.messages.send({
       userId: "me",
       requestBody: { raw: encoded },
+    });
+
+    // Apply Kit tag for estimate request
+    try {
+      // Find existing subscriber or create new one
+      let subscriber = await findSubscriberByEmail(req.customer.email);
+
+      if (!subscriber) {
+        const result = await createSubscriber({
+          email_address: req.customer.email,
+          first_name: req.customer.name.split(" ")[0],
+          fields: {
+            acquisition_source: "estimate_wizard",
+            phone: req.customer.phone,
+          },
+        });
+        subscriber = result.subscriber;
+      }
+
+      // Apply tag if subscriber exists
+      if (subscriber?.id) {
+        await applyEstimateRequestTag(subscriber.id);
+      }
+    } catch (kitError) {
+      console.error("Kit tagging failed (non-critical):", kitError);
+      // Don't fail the estimate request if Kit tagging fails
+    }
+
+    // Log HPP event
+    const url = new URL(request.url);
+    logEvent("EstimateRequested", {
+      email: req.customer.email,
+      name: req.customer.name,
+      phone: req.customer.phone,
+      services: req.services,
+      property: req.property,
+      photosCount: photoIds.length,
+    }, {
+      acquisitionSource: "estimate_wizard",
+      landingPage: request.url,
+      referrer: request.headers.get("referer") || undefined,
+      utmSource: url.searchParams.get("utm_source") || undefined,
+      utmMedium: url.searchParams.get("utm_medium") || undefined,
+      utmCampaign: url.searchParams.get("utm_campaign") || undefined,
+      utmContent: url.searchParams.get("utm_content") || undefined,
+      utmTerm: url.searchParams.get("utm_term") || undefined,
     });
 
     // Drive storage + Contacts are wired here in the same server boundary.

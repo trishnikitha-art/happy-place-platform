@@ -1,0 +1,189 @@
+{
+  "production_identities": {
+    "homepage_hero": {
+      "stable_id": "homepage-hero-v1",
+      "current_original": "hero-background-enhanced.jpg",
+      "location": "_System/Originals/Hero",
+      "website_path": "/images/hero-background-enhanced.jpg",
+      "role": "Homepage Hero",
+      "description": "Main hero image displayed on homepage",
+      "version_history": [
+        {
+          "version": "v1",
+          "original": "hero-background-enhanced.jpg",
+          "deployed_at": "2026-07-29",
+          "status": "current"
+        }
+      ],
+      "rollback_available": true
+    },
+    "brand_hero": {
+      "stable_id": "brand-hero-v1",
+      "current_original": "hero.jpeg",
+      "location": "_System/Originals/Brand",
+      "website_path": "/images/projects/hero/hero-480.webp",
+      "role": "Brand Hero",
+      "description": "Brand hero image for marketing",
+      "version_history": [
+        {
+          "version": "v1",
+          "original": "hero.jpeg",
+          "deployed_at": "2026-07-29",
+          "status": "current"
+        }
+      ],
+      "rollback_available": true
+    },
+    "brand_portrait": {
+      "stable_id": "brand-portrait-v1",
+      "current_original": "portrait.jpeg",
+      "location": "_System/Originals/Brand",
+      "website_path": "/images/projects/portrait/portrait-480.webp",
+      "role": "Brand Portrait",
+      "description": "Owner portrait photograph",
+      "version_history": [
+        {
+          "version": "v1",
+          "original": "portrait.jpeg",
+          "deployed_at": "2026-07-29",
+          "status": "current"
+        }
+      ],
+      "rollback_available": true
+    },
+    "johnson_cedar_fence_hero": {
+      "stable_id": "fences-001-hero-v1",
+      "current_original": "FENCE BUILD.jpg",
+      "location": "_System/Originals/Johnson Cedar Fence",
+      "website_path": "/images/projects/fences/FENCE BUILD-1080.webp",
+      "role": "Project Hero",
+      "description": "Hero image for Johnson Cedar Fence project",
+      "version_history": [
+        {
+          "version": "v1",
+          "original": "FENCE BUILD.jpg",
+          "deployed_at": "2026-07-29",
+          "status": "current"
+        }
+      ],
+      "rollback_available": true
+    },
+    "smith_built_ins_hero": {
+      "stable_id": "builtins-001-hero-v1",
+      "current_original": "FINISHEDCARPENTRY.png",
+      "location": "_System/Originals/Smith Built-Ins",
+      "website_path": "/images/projects/built-ins/FINISHEDCARPENTRY-1080.webp",
+      "role": "Project Hero",
+      "description": "Hero image for Smith Built-Ins project",
+      "version_history": [
+        {
+          "version": "v1",
+          "original": "FINISHEDCARPENTRY.png",
+          "deployed_at": "2026-07-29",
+          "status": "current"
+        }
+      ],
+      "rollback_available": true
+    },
+    "wilson_home_repairs_hero": {
+      "stable_id": "repairs-001-hero-v1",
+      "current_original": "TRIMREPAIR.png",
+      "location": "_System/Originals/Wilson Home Repairs",
+      "website_path": "/images/projects/repairs/TRIMREPAIR-1080.webp",
+      "role": "Project Hero",
+      "description": "Hero image for Wilson Home Repairs project",
+      "version_history": [
+        {
+          "version": "v1",
+          "original": "TRIMREPAIR.png",
+          "deployed_at": "2026-07-29",
+          "status": "current"
+        }
+      ],
+      "rollback_available": true
+    },
+    "thompson_exterior_painting_hero": {
+      "stable_id": "painting-001-hero-v1",
+      "current_original": "IMG_0535.JPG",
+      "location": "_System/Originals/Thompson Exterior Painting",
+      "website_path": "/images/projects/outdoor-living/IMG_0535-480.webp",
+      "role": "Project Hero",
+      "description": "Hero image for Thompson Exterior Painting project",
+      "version_history": [
+        {
+          "version": "v1",
+          "original": "IMG_0535.JPG",
+          "deployed_at": "2026-07-29",
+          "status": "current"
+        }
+      ],
+      "rollback_available": true
+    },
+    "davis_bathroom_remodel_hero": {
+      "stable_id": "bathroom-001-hero-v1",
+      "current_original": "BATHROOM_WALL.png",
+      "location": "_System/Originals/Davis Bathroom Remodel",
+      "website_path": "/images/projects/bathroom-remodeling/BATHROOM_WALL-1080.webp",
+      "role": "Project Hero",
+      "description": "Hero image for Davis Bathroom Remodel project",
+      "version_history": [
+        {
+          "version": "v1",
+          "original": "BATHROOM_WALL.png",
+          "deployed_at": "2026-07-29",
+          "status": "current"
+        }
+      ],
+      "rollback_available": true
+    },
+    "martinez_pergola_hero": {
+      "stable_id": "pergolas-001-hero-v1",
+      "current_original": "HOMESERVICEPROJECTPERGOLAS.jpg",
+      "location": "_System/Originals/Martinez Pergola",
+      "website_path": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1080.webp",
+      "role": "Project Hero",
+      "description": "Hero image for Martinez Pergola project",
+      "version_history": [
+        {
+          "version": "v1",
+          "original": "HOMESERVICEPROJECTPERGOLAS.jpg",
+          "deployed_at": "2026-07-29",
+          "status": "current"
+        }
+      ],
+      "rollback_available": true
+    }
+  },
+  "replacement_workflow": {
+    "description": "When Taylor uploads a replacement photo",
+    "steps": [
+      "1. Taylor drops new photo in 📥 Incoming Uploads",
+      "2. AI detects which production image to replace (based on project context)",
+      "3. System moves new original to _System/Originals/[Project]/",
+      "4. System increments version: v1 → v2",
+      "5. System moves current production original to _System/History/Previous Versions/",
+      "6. System creates rollback entry in _System/History/Rollback/",
+      "7. System processes new original (enhance, responsive, metadata)",
+      "8. System moves to _System/Processing/Ready for Review/",
+      "9. Taylor reviews and approves",
+      "10. System deploys to website",
+      "11. System updates version history",
+      "12. System sends confirmation email"
+    ],
+    "rollback_workflow": [
+      "1. Taylor selects 'Restore Previous Version'",
+      "2. System retrieves previous original from _System/History/Rollback/",
+      "3. System restores to _System/Originals/[Project]/",
+      "4. System re-processes and deploys",
+      "5. System updates version history",
+      "6. System sends confirmation email"
+    ]
+  },
+  "identity_principles": {
+    "stable_ids": "Never change, even if image is replaced",
+    "version_tracking": "Each replacement increments version number",
+    "rollback": "Always preserve previous version for instant rollback",
+    "deterministic": "Replacement always targets specific stable_id, never arbitrary",
+    "website_specification": "Current website defines the initial stable_ids"
+  }
+}

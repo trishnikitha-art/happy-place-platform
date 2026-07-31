@@ -30,12 +30,12 @@ export function LenisProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // Initialize Lenis with wheel event throttling
+    // Initialize Lenis with conservative settings to prevent touchpad interference
     const lenisInstance = new Lenis({
       lerp: 0.25, // Higher lerp = snappier feel (default 0.1)
-      // wheelMultiplier: 0.8, // Removed - was causing touchpad to stop at card sections
-      // touchMultiplier: 0.8, // Removed - was causing touchpad to stop at card sections
-      duration: 1.2, // Add duration for smoother transitions
+      wheelMultiplier: 1.0, // Neutral multiplier to prevent touchpad stopping
+      touchMultiplier: 1.0, // Neutral multiplier to prevent touchpad stopping
+      duration: 0.8, // Reduced from 1.2 for snappier feel and less momentum interference
     });
 
     setLenis(lenisInstance);

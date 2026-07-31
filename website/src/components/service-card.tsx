@@ -31,7 +31,7 @@ export function ServiceCard({ service }: { service: Service }) {
 
   return (
     <Link href={`/estimate?service=${service.slug}`} className="block">
-      <CraftCard className="group flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
+      <CraftCard className="group flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl" style={{ containerType: 'inline-size' }}>
         <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
           {hasImage && imageSrc ? (
             <>
@@ -62,10 +62,10 @@ export function ServiceCard({ service }: { service: Service }) {
             </div>
           )}
         </PhotoMount>
-        <div className="flex flex-1 flex-col p-4 sm:p-5 lg:p-6">
-          <h3 className={`font-display text-lg font-bold sm:text-xl lg:text-2xl ${headingColor}`} style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>{service.name}</h3>
-          <p className={`clamp-2 mt-2 flex-1 text-sm sm:text-base ${bodyColor}`} style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>{service.description}</p>
-          <div className={`mt-4 inline-flex items-center gap-1 min-h-[44px] text-sm sm:text-base ${linkColor}`}>
+        <div className="flex flex-1 flex-col p-4 @[300px]:p-5 @[400px]:p-6">
+          <h3 className={`font-display text-lg font-bold @[300px]:text-xl @[400px]:text-2xl ${headingColor}`} style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>{service.name}</h3>
+          <p className={`clamp-2 mt-2 flex-1 text-sm @[300px]:text-base ${bodyColor}`} style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>{service.description}</p>
+          <div className={`mt-4 inline-flex items-center gap-1 min-h-[44px] text-sm @[300px]:text-base ${linkColor}`}>
             Start a quote →
           </div>
         </div>

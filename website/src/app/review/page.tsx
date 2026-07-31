@@ -34,23 +34,41 @@ export default function ReviewPage() {
     setError(null);
 
     try {
+      const submissionData = {
+        name: formData.name,
+        city: formData.city || 'Unknown',
+        county: 'Unknown', // Will be inferred by pipeline
+        service: formData.service,
+        rating: formData.rating,
+        body: formData.body,
+        provider: 'form',
+      };
+
+      console.log("=== FORM SUBMISSION DEBUG ===");
+      console.log("Form state:", formData);
+      console.log("Submission data:", submissionData);
+      console.log("Name length:", formData.name.length);
+      console.log("Body length:", formData.body.length);
+      console.log("Service:", formData.service);
+      console.log("Rating:", formData.rating);
+
       const response = await fetch('/api/reviews', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-          body: JSON.stringify({
-            name: formData.name,
-            city: formData.city || 'Unknown',
-            county: 'Unknown', // Will be inferred by pipeline
-            service: formData.service,
-            rating: formData.rating,
-            body: formData.body,
-            provider: 'form',
-          }),
+          body: JSON.stringify(submissionData),
       });
 
       const result = await response.json();
+
+      console.log("=== API RESPONSE DEBUG ===");
+      console.log("Response status:", response.status);
+      console.log("Response ok:", response.ok);
+      console.log("Response result:", result);
+      console.log("Sheets persisted:", result.sheetsPersisted);
+      console.log("Sheets error:", result.sheetsError);
+      console.log("Sheets details:", result.sheetsDetails);
 
       if (!response.ok) {
         console.error('Review submission failed:', result);
@@ -59,6 +77,8 @@ export default function ReviewPage() {
 
       setIsSubmitted(true);
     } catch (err) {
+      console.error("=== FORM SUBMISSION ERROR ===");
+      console.error("Error:", err);
       setError(err instanceof Error ? err.message : 'Something went wrong');
     } finally {
       setIsSubmitting(false);
