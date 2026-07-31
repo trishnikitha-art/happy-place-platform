@@ -9,7 +9,7 @@ import { ScrollReveal } from "@/components/scroll-reveal";
 import { CedarCorner } from "@/components/cedar-corner";
 import { ToolMark } from "@/components/tool-mark";
 import { HappyBrandSignature } from "@/components/happy-brand-signature";
-import { CraftCard } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { RouterLink } from "@/components/router-link";
 import { PencilLine } from "@/components/pencil-line";
 import { BlueprintGrid } from "@/components/blueprint-grid";
@@ -284,12 +284,12 @@ export default async function HomePage() {
                 <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
                   {topReviews.map((r, i) => (
                     <ScrollReveal key={r.id} delay={i * 100}>
-                      <CraftCard className="p-5 sm:p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
+                      <Card className="p-5 sm:p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
                         <StarRating rating={r.rating} />
                         {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
                         <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>
                         <figcaption className="mt-3 sm:mt-4 text-xs sm:text-sm text-text-muted">{r.reviewer.name} · {r.location ? `${r.location.city}, ${r.location.county}` : 'Willamette Valley'}</figcaption>
-                      </CraftCard>
+                      </Card>
                     </ScrollReveal>
                   ))}
                 </div>
