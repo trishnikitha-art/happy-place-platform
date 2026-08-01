@@ -1,7 +1,7 @@
 import type { EstimateRequest } from "@/types";
 import { getCompany } from "@/lib/company";
 import { getServiceBySlug } from "@/lib/registries";
-import { features } from "@/config/featureFlags";
+import { features } from "@/config/infrastructure-flags";
 
 /**
  * Estimate submission service — INTERFACE.
@@ -91,18 +91,14 @@ export const mockEstimateService: EstimateService = {
     if (prepared.kind === "api") {
       // Server-side Google Workspace flow (Horizon 2, gated by featureFlags).
       try {
-        console.log(`[Client] Submitting estimate via API with ${req.photos.length} photos`);
-        console.log(`[Client] Request payload size: ${JSON.stringify(req).length} bytes`);
         const res = await fetch("/api/estimate", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(req),
         });
-        console.log(`[Client] API response status: ${res.status}`);
         if (!res.ok) throw new Error(`api ${res.status}`);
         return { ok: true, transport: "api", message: "Request sent. We'll be in touch soon." };
       } catch (error) {
-        console.error(`[Client] API submission failed:`, error);
         // Fallback to mailto so the customer is never blocked.
         const mailto = this.prepare(req, true);
         if (mailto.kind === "mailto" && typeof window !== "undefined") {

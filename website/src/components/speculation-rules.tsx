@@ -19,7 +19,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { featureFlags } from "@/config/feature-flags";
+import { featureFlags } from "@/config/ui-flags";
 
 export function SpeculationRules() {
   useEffect(() => {
