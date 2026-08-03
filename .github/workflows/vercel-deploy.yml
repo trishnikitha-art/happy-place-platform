@@ -10,24 +10,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Test secret availability
+      - name: Deploy to Vercel Production
         run: |
-          echo "Testing secret availability..."
-          if [ -n "$VERCEL_TOKEN" ]; then
-            echo "✅ VERCEL_TOKEN is available"
-            echo "Token length: ${#VERCEL_TOKEN}"
-          else
-            echo "❌ VERCEL_TOKEN is not available"
-            exit 1
-          fi
-          
-          if [ -n "$VERCEL_PROJECT_ID" ]; then
-            echo "✅ VERCEL_PROJECT_ID is available"
-            echo "Project ID: $VERCEL_PROJECT_ID"
-          else
-            echo "❌ VERCEL_PROJECT_ID is not available"
-            exit 1
-          fi
+          echo "Deploying to Vercel Production..."
+          curl -X POST \
+            https://api.vercel.com/v13/deployments \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "name": "website",
+              "project": "prj_DAtFnvebjG7SvUMIe0dBjGEEGnqH",
+              "target": "production",
+              "gitSource": {
+                "type": "github",
+                "org": "trishnikitha-art",
+                "repo": "happy-place-platform",
+                "ref": "main"
+              }
+            }'
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
