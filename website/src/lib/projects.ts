@@ -87,7 +87,7 @@ export function getProjectsByTag(tag: string): Project[] {
  */
 export function getFeaturedProjects(): Project[] {
   const projects = getAllProjects();
-  return filterFeatured(projects);
+  return filterFeatured(projects).filter(p => !p.archived);
 }
 
 /**

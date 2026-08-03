@@ -82,6 +82,14 @@ export function getHomepageEligibleServices(): Service[] {
 }
 
 /**
+ * Get non-archived services
+ */
+export function getNonArchivedServices(): Service[] {
+  const services = getAllServices();
+  return filterNonArchived(services);
+}
+
+/**
  * Get all cities
  */
 export function getAllCities(): City[] {
