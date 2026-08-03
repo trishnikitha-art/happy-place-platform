@@ -1,21 +1,29 @@
-name: Vercel Production Deployment
+name: Test Secrets
 
 on:
   push:
     branches: [main]
 
 jobs:
-  deploy:
+  test:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      
-      - name: Test Vercel API connection
+      - name: Test if secrets are accessible
         run: |
-          echo "Testing Vercel API connection..."
-          RESPONSE=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID")
-          echo "Response: $RESPONSE"
+          echo "Testing secret access..."
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "✅ VERCEL_TOKEN is accessible"
+            echo "Token length: ${#VERCEL_TOKEN}"
+          else
+            echo "❌ VERCEL_TOKEN is not accessible"
+          fi
+          
+          if [ -n "$VERCEL_PROJECT_ID" ]; then
+            echo "✅ VERCEL_PROJECT_ID is accessible"
+            echo "Project ID: $VERCEL_PROJECT_ID"
+          else
+            echo "❌ VERCEL_PROJECT_ID is not accessible"
+          fi
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
