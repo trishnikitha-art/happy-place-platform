@@ -33,14 +33,17 @@ jobs:
             exit 1
           fi
           
+          echo "Attempting to trigger Vercel deployment..."
+          echo "Project ID: $VERCEL_PROJECT_ID"
+          
           # Trigger deployment via Vercel REST API
-          curl -X POST \
+          RESPONSE=$(curl -X POST \
             "https://api.vercel.com/v13/deployments" \
             -H "Authorization: Bearer $VERCEL_TOKEN" \
             -H "Content-Type: application/json" \
             -d "{
               \"name\": \"website\",
-              \"project\": \"$VERCEL_PROJECT_ID\",
+              \"projectId\": \"$VERCEL_PROJECT_ID\",
               \"target\": \"production\",
               \"gitSource\": {
                 \"type\": \"github\",
@@ -50,7 +53,20 @@ jobs:
                   \"repo\": \"happy-place-platform\"
                 }
               }
-            }"
+            }")
+          
+          echo "Response: $RESPONSE"
+          
+          # Check if deployment was created
+          if echo "$RESPONSE" | grep -q '"id"'; then
+            echo "✅ Deployment triggered successfully"
+            DEPLOYMENT_ID=$(echo "$RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+            echo "Deployment ID: $DEPLOYMENT_ID"
+          else
+            echo "❌ Failed to trigger deployment"
+            echo "Response: $RESPONSE"
+            exit 1
+          fi
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
