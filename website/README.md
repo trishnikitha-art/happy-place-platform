@@ -1,5 +1,5 @@
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).  
-HPP Simplification deployment test.
+HPP Simplification deployment test. Testing GitHub Actions Vercel deployment.
 
 ## Getting Started
 
