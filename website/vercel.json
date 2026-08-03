@@ -9,8 +9,5 @@
       "path": "/api/drive-sync",
       "schedule": "*/30 * * * *"
     }
-  ],
-  "git": {
-    "deploymentEnabled": true
-  }
+  ]
 }
