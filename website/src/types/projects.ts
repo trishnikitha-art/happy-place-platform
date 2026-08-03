@@ -179,6 +179,7 @@ export interface Project {
   featured?: boolean;
   heroEligible?: boolean;
   homepageEligible?: boolean;
+  archived?: boolean;
   
   // SEO
   seo?: ProjectSEO;
