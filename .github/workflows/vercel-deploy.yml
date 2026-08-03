@@ -1,0 +1,56 @@
+name: Vercel Production Deployment
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "website/**"
+      - ".github/workflows/vercel-deploy.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: website
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Deploy to Vercel Production
+        run: |
+          # This workflow triggers Vercel deployment via REST API
+          # Used as fallback when Git webhook integration fails
+          # Requires VERCEL_TOKEN and VERCEL_PROJECT_ID secrets
+          
+          if [ -z "$VERCEL_TOKEN" ] || [ -z "$VERCEL_PROJECT_ID" ]; then
+            echo "ERROR: VERCEL_TOKEN and VERCEL_PROJECT_ID secrets must be set"
+            echo "To enable this deployment method:"
+            echo "1. Go to Vercel dashboard → Settings → Tokens"
+            echo "2. Create a token with 'Full Access' scope"
+            echo "3. Add VERCEL_TOKEN to GitHub repository secrets"
+            echo "4. Add VERCEL_PROJECT_ID to GitHub repository secrets"
+            echo "5. Project ID: prj_DAtFnvebjG7SvUMIe0dBjGEEGnqH"
+            exit 1
+          fi
+          
+          # Trigger deployment via Vercel REST API
+          curl -X POST \
+            "https://api.vercel.com/v13/deployments" \
+            -H "Authorization: Bearer $VERCEL_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "{
+              \"name\": \"website\",
+              \"project\": \"$VERCEL_PROJECT_ID\",
+              \"target\": \"production\",
+              \"gitSource\": {
+                \"type\": \"github\",
+                \"ref\": \"main\",
+                \"repo\": {
+                  \"owner\": \"trishnikitha-art\",
+                  \"repo\": \"happy-place-platform\"
+                }
+              }
+            }"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
