@@ -6,7 +6,7 @@ import { Container, Section, SectionHeading } from "@/components/section";
 import { ServiceCard } from "@/components/service-card";
 import { CTASection } from "@/components/cta-section";
 import { Icon } from "@/components/icon";
-import { getServiceBySlug, getNonArchivedServices } from "@/lib/registries";
+import { getServiceBySlug, getNonArchivedServices } from "@/lib/registries"; // use filtered services
 import { getServiceGallery } from "@/lib/galleries";
 import { PlaceholderSection } from "@/components/placeholder-section";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
