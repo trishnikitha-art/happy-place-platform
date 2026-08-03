@@ -3,9 +3,6 @@ name: Vercel Production Deployment
 on:
   push:
     branches: [main]
-    paths:
-      - "website/**"
-      - ".github/workflows/vercel-deploy.yml"
 
 jobs:
   deploy:
