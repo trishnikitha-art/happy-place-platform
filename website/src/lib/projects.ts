@@ -107,6 +107,14 @@ export function getHomepageEligibleProjects(): Project[] {
 }
 
 /**
+ * Get non-archived projects
+ */
+export function getNonArchivedProjects(): Project[] {
+  const projects = getAllProjects();
+  return filterNonArchived(projects);
+}
+
+/**
  * Get latest projects (sorted by completion date, most recent first)
  */
 export function getLatestProjects(limit?: number): Project[] {
@@ -173,6 +181,7 @@ export function getProjectStats() {
     pergolas: projects.filter(p => p.service === "pergolas").length,
     adus: projects.filter(p => p.service === "adus").length,
     "pole-barns": projects.filter(p => p.service === "pole-barns").length,
+    drywall: projects.filter(p => p.service === "drywall").length,
     other: projects.filter(p => p.service === "other").length,
   };
   

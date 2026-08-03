@@ -37,6 +37,7 @@ import { SchedulingQuestionReveal } from "@/components/scheduling-question-revea
 type PhotoMeta = { name: string; size: number; uploadedAt?: number; data?: string; file?: File };
 
 const ALL_STEPS = ["Service", "Tell us about your project", "Photos", "Project Details", "Property", "Contact", "Thank You"] as const;
+const SOMETHING_ELSE_SLUG = "something-else";
 const MAX_SERVICES = 3;
 const PROJECT_TYPES = ["Build something new", "Restore / Repair existing", "Paint / Stain / Refinish existing", "I'm not sure yet"] as const;
 
@@ -47,7 +48,7 @@ export function EstimateWizard() {
   const stepParam = searchParams.get("step");
 
   // Load services and cities from adapters
-  const services = getAllServices();
+  const services = getNonArchivedServices();
   const cities = getAllCities();
   // Derive counties from cities (group by county)
   const counties = React.useMemo(() => {
@@ -222,11 +223,15 @@ export function EstimateWizard() {
 
   // Dynamic steps: skip intent step for services where intent is already clear
   const STEPS = React.useMemo(() => {
+    // If "Something Else" is selected, skip all interview steps and add description step
+    if (selected.includes(SOMETHING_ELSE_SLUG)) {
+      return ["Service", "Tell us what you're looking for", "Photos", "Property", "Contact", "Thank You"] as const;
+    }
     if (service?.skipsIntentStep) {
       return ALL_STEPS.filter((s) => s !== "Tell us about your project");
     }
     return ALL_STEPS;
-  }, [service]);
+  }, [service, selected]);
 
   // Adjust step when STEPS array changes (e.g., when skipping intent step)
   React.useEffect(() => {
@@ -297,6 +302,9 @@ export function EstimateWizard() {
   const canNext = React.useMemo(() => {
     if (STEPS[step] === "Service") return selected.length > 0 || otherNeed.trim().length > 0;
     if (STEPS[step] === "Tell us about your project") return projectType.trim().length > 0;
+    if (STEPS[step] === "Tell us what you're looking for") return otherNeed.trim().length > 0;
+    // Skip all interview steps if "Something Else" is selected
+    if (selected.includes(SOMETHING_ELSE_SLUG)) return true;
     if (STEPS[step] === "Contact")
       return customer.name.trim() && customer.email.trim() && customer.phone.trim();
     if (STEPS[step] === "Property") return property.city.trim() && property.county;
@@ -324,6 +332,21 @@ export function EstimateWizard() {
 
   function toggleService(slug: string) {
     setSelected((prev) => {
+      // Handle "Something Else" as exclusive selection
+      if (slug === SOMETHING_ELSE_SLUG) {
+        if (prev.includes(SOMETHING_ELSE_SLUG)) {
+          return []; // deselect it
+        }
+        return [SOMETHING_ELSE_SLUG]; // select it exclusively
+      }
+      // If selecting a real service, remove "Something Else" if present
+      if (prev.includes(SOMETHING_ELSE_SLUG)) {
+        if (prev.includes(slug)) {
+          return prev.filter((s) => s !== slug);
+        }
+        return [slug];
+      }
+      // Normal multi-select behavior for real services
       if (prev.includes(slug)) {
         return prev.filter((s) => s !== slug);
       }
@@ -476,9 +499,38 @@ export function EstimateWizard() {
                   </button>
                 );
               })}
+              <button
+                key={SOMETHING_ELSE_SLUG}
+                type="button"
+                aria-pressed={selected.includes(SOMETHING_ELSE_SLUG)}
+                onClick={() => {
+                  setSelected([SOMETHING_ELSE_SLUG]);
+                  setOtherNeed("");
+                }}
+                className={cn(
+                  "relative rounded-xl border p-4 text-left transition-all",
+                  selected.includes(SOMETHING_ELSE_SLUG)
+                    ? "border-primary bg-primary/10 shadow-sm ring-2 ring-primary/50 ring-offset-2"
+                    : "border-border bg-surface hover:border-primary/60"
+                )}
+              >
+                {selected.includes(SOMETHING_ELSE_SLUG) && (
+                  <span className="absolute inset-0 rounded-xl animate-shimmer-fast" style={{
+                    background: 'linear-gradient(90deg, transparent 0%, rgba(231,173,99,0.3) 50%, transparent 100%)',
+                    backgroundSize: '200% 100%',
+                    mixBlendMode: 'overlay',
+                  }} />
+                )}
+                <span className="relative z-10 flex items-center justify-between">
+                  <span className="font-semibold text-text">Something Else</span>
+                  {selected.includes(SOMETHING_ELSE_SLUG) && <Check className="h-4 w-4 text-primary" />}
+                </span>
+                <span className="relative z-10 block text-sm text-text-subtle">Tell us about your project and we'll see if we can help</span>
+              </button>
             </div>
 
-            <div className="mt-6 rounded-xl border border-dashed border-border bg-surface-muted/40 p-4">
+            {!selected.includes(SOMETHING_ELSE_SLUG) && (
+              <div className="mt-6 rounded-xl border border-dashed border-border bg-surface-muted/40 p-4">
               <label htmlFor="otherNeed" className="block text-sm font-semibold text-text">
                 Don&rsquo;t see what you need?
               </label>
@@ -494,6 +546,7 @@ export function EstimateWizard() {
                 onChange={(e) => setOtherNeed(e.target.value)}
               />
             </div>
+            )}
           </div>
         )}
 
@@ -538,6 +591,23 @@ export function EstimateWizard() {
                 </button>
               ))}
             </div>
+          </div>
+        )}
+
+        {/* STEP 2: Tell us what you're looking for (Something Else) */}
+        {STEPS[step] === "Tell us what you're looking for" && (
+          <div>
+            <h2 className="text-xl font-bold text-text">Tell us what you're looking for</h2>
+            <p className="mt-1 text-sm text-text-muted">
+              Describe your project and we'll let you know if we can help.
+            </p>
+            <textarea
+              rows={5}
+              className="mt-4 w-full rounded-lg border border-border bg-white p-4 text-sm text-black"
+              placeholder="Describe your project here..."
+              value={otherNeed}
+              onChange={(e) => setOtherNeed(e.target.value)}
+            />
           </div>
         )}
 

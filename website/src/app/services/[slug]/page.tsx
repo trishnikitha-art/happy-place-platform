@@ -20,7 +20,7 @@ interface ServicePageProps {
 }
 
 export async function generateStaticParams() {
-  const services = getAllServices();
+  const services = getNonArchivedServices();
   return services.map((service) => ({
     slug: service.slug,
   }));
@@ -52,16 +52,13 @@ export default async function ServicePage({ params }: ServicePageProps) {
   }
 
   const serviceGallery = getServiceGallery(service.id);
-  const allServices = getAllServices();
+  const allServices = getNonArchivedServices();
   const relatedServices = allServices
     .filter(s => s.id !== service.id)
     .slice(0, 3);
 
   // Get featured project for this service
   const featuredProject = serviceGallery.projects[0] || null;
-
-  // Special messaging for pergolas service
-  const isPergolas = slug === 'pergolas';
 
   return (
     <>
@@ -70,7 +67,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
         <Container>
           <SectionHeading
             eyebrow={<span className="text-honey">{service.name}</span>}
-            title={<span className="text-text-on-dark">{isPergolas ? "Steel-Framed Covered Privacy Courtyards" : service.name}</span>}
+            title={<span className="text-text-on-dark">{service.name}</span>}
             description={<span className="text-text-on-dark/90">{service.description}</span>}
           />
           <div className="mt-8">
@@ -91,7 +88,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
             <SectionHeading
               eyebrow={<span className="text-honey">Featured Project</span>}
               title={<span className="text-text-on-dark">{featuredProject.title}</span>}
-              description={<span className="measure text-text-on-dark/90">{isPergolas ? "A modern outdoor living space that combines the privacy of custom fencing with the open feel of a steel-framed pergola, creating a durable, comfortable area for relaxing and entertaining." : (featuredProject.story?.outcome || "See our latest work in this service area.")}</span>}
+              description={<span className="measure text-text-on-dark/90">{featuredProject.story?.outcome || "See our latest work in this service area."}</span>}
             />
             <div className="mt-8">
               {featuredProject.media.before && featuredProject.media.after && (
@@ -113,8 +110,8 @@ export default async function ServicePage({ params }: ServicePageProps) {
         <Container>
           <SectionHeading
             eyebrow={<span className="text-honey">Our Work</span>}
-            title={<span className="text-text-on-dark">{isPergolas ? "Steel-Framed Covered Privacy Courtyard Projects" : `${service.name} Projects`}</span>}
-            description={<span className="text-text-on-dark/90">{isPergolas ? "Browse our completed steel-framed covered privacy courtyard projects across the Mid-Willamette Valley." : `Browse our completed ${service.name.toLowerCase()} projects across the Mid-Willamette Valley.`}</span>}
+            title={<span className="text-text-on-dark">{`${service.name} Projects`}</span>}
+            description={<span className="text-text-on-dark/90">{`Browse our completed ${service.name.toLowerCase()} projects across the Mid-Willamette Valley.`}</span>}
           />
           <div className="mt-8">
             {serviceGallery.projects.length > 0 ? (

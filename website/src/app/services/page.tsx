@@ -9,34 +9,28 @@ import { getAllServices } from "@/lib/registries";
 export const metadata: Metadata = {
   title: "Services",
   description:
-    "Decks, fences, pergolas, bathroom remodels, custom built-ins, and repairs by Happy Place Carpentry.",
+    "Painting, repairs, restoration, fences, and drywall by Happy Place Carpentry.",
   alternates: { canonical: "/services" },
 };
 
 export default function ServicesPage() {
-  const services = getAllServices();
+  const services = getNonArchivedServices();
   
   // Group services by category using a simple categorization
   const groupedServices = services.reduce((acc, service) => {
     let category = 'Other';
     
     // Simple categorization based on service name/description
-    if (service.slug === 'pergolas') {
-      category = 'Steel-Framed Covered Privacy Courtyards';
-    } else if (service.slug === 'decks' || service.slug === 'fences' || service.slug === 'outdoor-living') {
+    if (service.slug === 'fences') {
       category = 'Outdoor Structures';
-    } else if (service.slug === 'bathrooms') {
-      category = 'Bathroom Remodeling';
     } else if (service.slug === 'painting') {
       category = 'Painting';
-    } else if (service.slug === 'finish-carpentry' || service.slug === 'built-ins') {
-      category = 'Finish Carpentry';
     } else if (service.slug === 'restoration') {
       category = 'Restoration';
     } else if (service.slug === 'repairs') {
       category = 'Repairs';
-    } else if (service.slug === 'adus' || service.slug === 'pole-barns') {
-      category = 'Structures';
+    } else if (service.slug === 'drywall') {
+      category = 'Interior Services';
     }
     
     if (!acc[category]) acc[category] = [];
@@ -75,6 +69,29 @@ export default function ServicesPage() {
                 </div>
               </div>
             ))}
+          </div>
+          <div className="mt-16 rounded-2xl border border-border-soft bg-surface p-8">
+            <h3 className="text-xl font-bold text-primary" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>Not seeing what you're looking for?</h3>
+            <p className="mt-3 text-base text-primary/80" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
+              We handle many other residential repair and improvement projects. If it isn't listed above, reach out — we'll let you know if it's a good fit or recommend someone who is.
+            </p>
+            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm text-primary/70">
+              <span>Trim & finish carpentry</span>
+              <span className="text-primary/30">·</span>
+              <span>Deck repairs</span>
+              <span className="text-primary/30">·</span>
+              <span>Doors</span>
+              <span className="text-primary/30">·</span>
+              <span>Windows</span>
+              <span className="text-primary/30">·</span>
+              <span>Siding repairs</span>
+              <span className="text-primary/30">·</span>
+              <span>Small remodels</span>
+              <span className="text-primary/30">·</span>
+              <span>Hardware installation</span>
+              <span className="text-primary/30">·</span>
+              <span>General maintenance</span>
+            </div>
           </div>
           <div className="mt-12">
             <Link

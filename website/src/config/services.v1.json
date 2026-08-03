@@ -52,7 +52,8 @@
       "icon": "fence",
       "featured": true,
       "homepageEligible": true,
-      "order": 8,
+      "order": 5,
+      "archived": false,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
@@ -97,6 +98,7 @@
       "featured": true,
       "homepageEligible": true,
       "order": 3,
+      "archived": true,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "interior",
@@ -122,6 +124,7 @@
       "featured": true,
       "homepageEligible": true,
       "order": 1,
+      "archived": false,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "general",
@@ -164,6 +167,7 @@
       "featured": true,
       "homepageEligible": true,
       "order": 5,
+      "archived": true,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
@@ -189,6 +193,7 @@
       "featured": false,
       "homepageEligible": false,
       "order": 9,
+      "archived": true,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "mixed",
@@ -207,13 +212,14 @@
     },
     {
       "id": "repairs",
-      "name": "Repairs & Restoration",
+      "name": "Repairs",
       "slug": "repairs",
       "description": "Small problems usually tell you about a bigger one. Fix them early and they're repairs. Wait too long and they become replacements.",
       "icon": "repair",
       "featured": true,
       "homepageEligible": true,
       "order": 2,
+      "archived": false,
       "capabilities": {
         "paintableSurface": false,
         "estimationAuthority": "building"
@@ -246,6 +252,7 @@
       "featured": true,
       "homepageEligible": true,
       "order": 7,
+      "archived": true,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
@@ -271,6 +278,7 @@
       "featured": false,
       "homepageEligible": false,
       "order": 10,
+      "archived": true,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "mixed",
@@ -296,6 +304,7 @@
       "featured": false,
       "homepageEligible": false,
       "order": 11,
+      "archived": true,
       "capabilities": {
         "paintableSurface": true,
         "surfaceType": "wood",
@@ -321,6 +330,7 @@
       "featured": true,
       "homepageEligible": true,
       "order": 4,
+      "archived": true,
       "capabilities": {
         "paintableSurface": false,
         "estimationAuthority": "building"
@@ -332,6 +342,99 @@
           "type": "select",
           "options": ["Hardwood", "Laminate / LVP", "Tile", "Not sure"],
           "required": true
+        }
+      ]
+    },
+    {
+      "id": "restoration",
+      "name": "Restoration",
+      "slug": "restoration",
+      "description": "Bring worn surfaces back to life. We refinish fences, decks, and other woodwork to protect your investment and make your home look like new again.",
+      "icon": "restoration",
+      "featured": true,
+      "homepageEligible": true,
+      "order": 3,
+      "archived": false,
+      "capabilities": {
+        "paintableSurface": true,
+        "surfaceType": "wood",
+        "paintingType": "fence_stain",
+        "estimationAuthority": "building"
+      },
+      "skipsIntentStep": true,
+      "defaultProjectIntent": "Paint / Stain / Refinish existing",
+      "estimateQuestions": [
+        {
+          "id": "restoration_target",
+          "label": "What would you like restored or refinished?",
+          "type": "select",
+          "category": "intent",
+          "isScopeQuestion": true,
+          "options": ["Fence", "Deck", "Other"],
+          "next": {
+            "Fence": "fence_finish_type",
+            "Deck": "deck_finish_type"
+          }
+        }
+      ]
+    },
+    {
+      "id": "drywall",
+      "name": "Drywall",
+      "slug": "drywall",
+      "description": "From small hole repairs to full installations, we handle drywall work that's smooth, seamless, and ready for paint.",
+      "icon": "wall",
+      "featured": true,
+      "homepageEligible": true,
+      "order": 4,
+      "archived": false,
+      "capabilities": {
+        "paintableSurface": false,
+        "estimationAuthority": "building"
+      },
+      "estimateQuestions": [
+        {
+          "id": "drywall_scope",
+          "label": "What's going on with the drywall?",
+          "type": "select",
+          "category": "intent",
+          "isScopeQuestion": true,
+          "options": ["New installation", "Repair", "Water damage", "Texture matching"],
+          "next": {
+            "New installation": "drywall_area",
+            "Repair": "drywall_repair_size",
+            "Water damage": "drywall_damage_extent",
+            "Texture matching": "drywall_texture_type"
+          }
+        },
+        {
+          "id": "drywall_area",
+          "label": "Approximately how large?",
+          "type": "number",
+          "category": "scope",
+          "measurementType": "area",
+          "measurementUnit": "square_feet"
+        },
+        {
+          "id": "drywall_repair_size",
+          "label": "About how large is the repair area?",
+          "type": "select",
+          "category": "scope",
+          "options": ["Small hole or patch", "Several holes", "Large section", "Multiple rooms"]
+        },
+        {
+          "id": "drywall_damage_extent",
+          "label": "How extensive is the water damage?",
+          "type": "select",
+          "category": "condition",
+          "options": ["Small spot", "One wall section", "Multiple walls", "Entire room"]
+        },
+        {
+          "id": "drywall_texture_type",
+          "label": "What texture needs matching?",
+          "type": "select",
+          "category": "material",
+          "options": ["Smooth", "Orange peel", "Knockdown", "Popcorn", "Not sure"]
         }
       ]
     }

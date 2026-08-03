@@ -50,7 +50,7 @@ export default async function HomePage() {
   const ownerBrand = getOwnerPortrait();    // owner portrait from Brand Authority
   const ownerMedia = ownerBrand?.mediaId ? getMediaById(ownerBrand.mediaId) : null;
   const ownerSrc = ownerMedia?.variants?.web || ownerMedia?.variants?.original;
-  const allServices = getAllServices();      // data-driven services from registry
+  const allServices = getNonArchivedServices();      // data-driven services from registry
   const featuredProjects = getFeaturedProjects(); // featured projects from Projects Authority
   
   // Get exterior painting project for featured transformation (has before/after media)
@@ -58,7 +58,6 @@ export default async function HomePage() {
   
   // Group services for homepage display (show homepageEligible services first)
   const homepageServices = allServices.filter(s => s.homepageEligible);
-  const otherServices = allServices.filter(s => !s.homepageEligible);
 
   return (
     <>
@@ -163,18 +162,6 @@ export default async function HomePage() {
                 </ScrollReveal>
               ))}
             </div>
-            {otherServices.length > 0 && (
-              <div className="mt-8 sm:mt-10">
-                <h3 className="font-display text-xl sm:text-2xl font-bold text-primary mb-4 sm:mb-6">Anything else on your list?</h3>
-                <div className="grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
-                  {otherServices.map((s, i) => (
-                    <ScrollReveal key={s.id} delay={i * 100}>
-                      <ServiceCard service={s} />
-                    </ScrollReveal>
-                  ))}
-                </div>
-              </div>
-            )}
           </Container>
         </Section>
       </ScrollReveal>

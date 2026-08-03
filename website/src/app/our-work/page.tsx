@@ -12,7 +12,7 @@ export const metadata: Metadata = {
 
 export default function OurWorkPage() {
   const company = getCompany();
-  const allProjects = getAllProjects();
+  const allProjects = getAllProjects().filter(p => !p.archived);
   const featuredProjects = getFeaturedProjects();
 
   return <OurWorkClient company={company} allProjects={allProjects} featuredProjects={featuredProjects} />;
