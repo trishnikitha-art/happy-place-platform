@@ -24,6 +24,8 @@ export interface Service {
   skipsIntentStep?: boolean;
   /** Default project intent for services that skip the intent step */
   defaultProjectIntent?: string;
+  /** If true, this service is archived and should not appear publicly */
+  archived?: boolean;
 }
 
 export interface EstimatorFlag {

@@ -8,7 +8,7 @@
  */
 
 import { Project, ProjectsManifest, ProjectService, ProjectStatus } from "@/types/projects";
-import { loadAuthority, clearAuthorityCache, queryProjects, findById, findBySlug, filterFeatured, filterHomepageEligible, filterHeroEligible } from "./authority-loader";
+import { loadAuthority, clearAuthorityCache, queryProjects, findById, findBySlug, filterFeatured, filterHomepageEligible, filterHeroEligible, filterNonArchived } from "./authority-loader";
 
 // Load the canonical projects manifest using shared AuthorityLoader
 export function loadProjectsManifest(): ProjectsManifest {

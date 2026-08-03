@@ -6,7 +6,7 @@
  */
 
 import type { Service, ServicesRegistry, City, CitiesRegistry, Material, MaterialsRegistry, GalleryPreset, GalleryPresetsRegistry } from "@/types/registries";
-import { loadAuthority, clearAuthorityCache, sortByOrder, findById, findBySlug, filterFeatured, filterHomepageEligible } from "./authority-loader";
+import { loadAuthority, clearAuthorityCache, sortByOrder, findById, findBySlug, filterFeatured, filterHomepageEligible, filterNonArchived } from "./authority-loader";
 
 // Load registries using shared AuthorityLoader
 export function loadServicesRegistry(): ServicesRegistry {

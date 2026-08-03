@@ -162,6 +162,17 @@ export function filterHeroEligible<T extends HeroEligible>(items: T[]): T[] {
   return items.filter(item => item.heroEligible);
 }
 
+export interface Archived {
+  archived?: boolean;
+}
+
+/**
+ * Filter non-archived items
+ */
+export function filterNonArchived<T extends Archived>(items: T[]): T[] {
+  return items.filter(item => !item.archived);
+}
+
 // ============================================================================
 // P1.6: Shared Lookup Primitives
 // ============================================================================
