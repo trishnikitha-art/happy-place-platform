@@ -3,7 +3,6 @@ import { notFound } from "next/navigation";
 import { ProjectSpotlight } from "@/components/project-spotlight";
 import { CTASection } from "@/components/cta-section";
 import { ProjectPhotos } from "@/components/project-photos";
-import { JobTimeline } from "@/components/job-timeline";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { BlueprintGrid } from "@/components/blueprint-grid";
@@ -62,9 +61,6 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
     <>
       <ProjectSpotlight project={project} variant="full" />
       
-      {/* JOB TIMELINE — canonical project view (Project = aggregate root) */}
-      <JobTimeline project={project} />
-      
       {/* PROJECT OVERVIEW — owned concerns hang off Project (object-first, no new systems) */}
       <Section className="bg-linen">
         <Container>
@@ -74,71 +70,53 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
             description={<span className="text-evergreen/80">Everything attached to this project, in one place.</span>}
           />
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Estimate — owned by Project */}
+            {/* Services — owned by Project */}
             <CraftCard className="p-5 bg-surface border-evergreen/10">
-              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Estimate</p>
-              {project.estimate ? (
-                <div className="mt-2 space-y-1 text-sm text-evergreen">
-                  <p className="font-semibold">
-                    {project.estimate.acceptedDate
-                      ? "Accepted"
-                      : project.estimate.estimateDate
-                        ? "Sent"
-                        : "Draft"}
-                  </p>
-                  {project.estimate.finalCost != null && (
-                    <p>${project.estimate.finalCost.toLocaleString()}</p>
-                  )}
-                  {project.estimate.estimatedRange && (
-                    <p className="text-evergreen/60">
-                      ${project.estimate.estimatedRange.low.toLocaleString()}–
-                      ${project.estimate.estimatedRange.high.toLocaleString()}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <p className="mt-2 text-sm text-evergreen/50">No estimate on file</p>
-              )}
+              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Services</p>
+              <div className="mt-2 space-y-1 text-sm text-evergreen">
+                {project.services?.primary && <p className="font-semibold capitalize">{project.services.primary}</p>}
+                {project.services?.secondary?.map((service, i) => (
+                  <p key={i} className="text-evergreen/60 capitalize">{service}</p>
+                ))}
+                {project.services?.customServices?.map((service, i) => (
+                  <p key={i} className="text-evergreen/60 capitalize">{service}</p>
+                ))}
+              </div>
             </CraftCard>
 
-            {/* Schedule — owned by Project */}
+            {/* Completion Date — owned by Project */}
             <CraftCard className="p-5 bg-surface border-evergreen/10">
-              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Schedule</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Completed</p>
               <div className="mt-2 space-y-1 text-sm text-evergreen">
-                <p className="font-semibold capitalize">{project.status.replace("-", " ")}</p>
-                {project.startDate && (
-                  <p>Start {new Date(project.startDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}</p>
-                )}
                 {project.completionDate && (
-                  <p className="text-evergreen/60">
-                    Done {new Date(project.completionDate).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                  <p className="font-semibold">
+                    {new Date(project.completionDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
                   </p>
                 )}
+                {!project.completionDate && <p className="text-evergreen/50">—</p>}
               </div>
             </CraftCard>
 
-            {/* Crew — owned by Project */}
+            {/* Location — owned by Project */}
             <CraftCard className="p-5 bg-surface border-evergreen/10">
-              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Crew</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Location</p>
               <div className="mt-2 space-y-1 text-sm text-evergreen">
-                {project.team?.leadCarpenter && <p className="font-semibold">{project.team.leadCarpenter}</p>}
-                {project.team?.crew?.length ? (
-                  <p className="text-evergreen/60">{project.team.crew.length} on crew</p>
-                ) : (
-                  <p className="text-evergreen/50">Unassigned</p>
-                )}
+                {project.location?.city && <p className="font-semibold">{project.location.city}</p>}
+                {project.location?.county && <p className="text-evergreen/60">{project.location.county} County</p>}
+                {!project.location?.city && <p className="text-evergreen/50">—</p>}
               </div>
             </CraftCard>
 
-            {/* Customer — owned by Project */}
+            {/* Duration — owned by Project */}
             <CraftCard className="p-5 bg-surface border-evergreen/10">
-              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Customer</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Duration</p>
               <div className="mt-2 space-y-1 text-sm text-evergreen">
-                {project.client?.name && <p className="font-semibold">{project.client.name}</p>}
-                {project.client?.referralSource && (
-                  <p className="text-evergreen/60">Ref: {project.client.referralSource}</p>
+                {project.startDate && project.completionDate && (
+                  <p className="font-semibold">
+                    {Math.ceil((new Date(project.completionDate).getTime() - new Date(project.startDate).getTime()) / (1000 * 60 * 60 * 24))} days
+                  </p>
                 )}
-                {!project.client?.name && <p className="text-evergreen/50">—</p>}
+                {(!project.startDate || !project.completionDate) && <p className="text-evergreen/50">—</p>}
               </div>
             </CraftCard>
           </div>

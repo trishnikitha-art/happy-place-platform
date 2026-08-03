@@ -72,10 +72,10 @@ export default async function ServicePage({ params }: ServicePageProps) {
           />
           <div className="mt-8">
             <Link
-              href="/contact"
+              href="/estimate"
               className="inline-flex items-center gap-2 px-6 py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition-colors"
             >
-              Contact Us
+              Get a Free Estimate
             </Link>
           </div>
         </Container>
@@ -149,8 +149,8 @@ export default async function ServicePage({ params }: ServicePageProps) {
                 count={0}
                 darkMode={true}
                 action={{
-                  label: "Contact Us",
-                  href: "/contact",
+                  label: "Get a Free Estimate",
+                  href: "/estimate",
                 }}
               />
             )}

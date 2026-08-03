@@ -1,66 +1,103 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
-import { Phone, Mail } from "lucide-react";
-import Link from "next/link";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Check, ChevronLeft, ChevronRight, Upload, Send } from "lucide-react";
+import type { EstimateRequest, Service, EstimateQuestion, ProjectIntakeRecord } from "@/types";
+import { getNonArchivedServices, getAllCities } from "@/lib/registries";
+import { getCompany } from "@/lib/company";
+import { estimateService } from "@/services/estimate";
+import { analytics } from "@/services/analytics";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { 
+  saveWizardState, 
+  loadWizardState, 
+  clearWizardState, 
+  hasDraft, 
+  createAutosave,
+  validateSubmissionIntegrity,
+  type WizardState 
+} from "@/lib/wizard-persistence";
+import { preliminaryRange, formatRange } from "@/lib/planning-range";
+import {
+  buildProjectIntakeRecord,
+  generateInterviewSummary,
+  getPhotoPrompt,
+  getSchedulingQuestion,
+  shouldRequireSiteVisit,
+  shouldRequireEstimatorReview
+} from "@/lib/interview-engine-v3";
+import { getQuestionsForService } from "@/lib/interview-questions-v3";
+import { ConfidenceBadge } from "@/components/confidence-badge";
+import { FlagReveal } from "@/components/flag-reveal";
+import { PhotoPromptTransition } from "@/components/photo-prompt-transition";
+import { SchedulingQuestionReveal } from "@/components/scheduling-question-reveal";
 
-/**
- * Estimate Wizard - TEMPORARILY DISABLED
- * 
- * The public estimate wizard has been disabled. Estimates are now treated as
- * archived backend authority objects only, accessible through the authority editor.
- * 
- * This component shows a contact redirect instead of the full wizard.
- * The wizard logic is preserved for potential future use.
- */
+type PhotoMeta = { name: string; size: number; uploadedAt?: number; data?: string; file?: File };
+
+const ALL_STEPS = ["Service", "Tell us about your project", "Photos", "Project Details", "Property", "Contact", "Thank You"] as const;
+const SOMETHING_ELSE_SLUG = "something-else";
+const MAX_SERVICES = 3;
+const PROJECT_TYPES = ["Build something new", "Restore / Repair existing", "Paint / Stain / Refinish existing", "I'm not sure yet"] as const;
+
 export function EstimateWizard() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const prefillService = searchParams.get("service") ?? "";
+  const stepParam = searchParams.get("step");
 
-  return (
-    <div className="min-h-[60vh] flex items-center justify-center py-12">
-      <div className="max-w-2xl mx-auto text-center px-4">
-        <div className="mb-6">
-          <h2 className="text-3xl font-display font-bold text-primary mb-4">
-            Contact Us Directly
-          </h2>
-          <p className="text-lg text-text/80 mb-6">
-            We're currently updating our estimate process. For now, please contact us directly for a free estimate.
-          </p>
-        </div>
+  // Load services and cities from adapters
+  const services = getNonArchivedServices();
+  const cities = getAllCities();
+  // Derive counties from cities (group by county)
+  const counties = React.useMemo(() => {
+    const countyMap = new Map<string, Set<string>>();
+    cities.forEach(city => {
+      if (!countyMap.has(city.county)) {
+        countyMap.set(city.county, new Set());
+      }
+      countyMap.get(city.county)!.add(city.name);
+    });
+    return Array.from(countyMap.entries()).map(([name, cities]) => ({
+      slug: name.toLowerCase().replace(/\s+/g, '-'),
+      name,
+      cities: Array.from(cities)
+    }));
+  }, [cities]);
 
-        <div className="grid sm:grid-cols-2 gap-4 mb-8">
-          <Link
-            href="tel:+15412865190"
-            className="flex items-center justify-center gap-3 p-6 rounded-lg border border-border-soft bg-surface hover:bg-surface-hover transition-colors"
-          >
-            <Phone className="w-6 h-6 text-primary" />
-            <div className="text-left">
-              <p className="font-semibold text-primary">Call Us</p>
-              <p className="text-text/70">541-286-5190</p>
-            </div>
-          </Link>
+  // Check for existing draft immediately during initialization
+  // This ensures state is initialized with draft data if available
+  const initialDraft = React.useMemo(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = localStorage.getItem("estimate-wizard-draft");
+      if (!stored) return null;
+      const parsed = JSON.parse(stored);
+      const weekAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+      if (parsed.updatedAt > weekAgo && !parsed.submitted) {
+        return parsed as WizardState;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }, []);
 
-          <Link
-            href="mailto:taylor@happyplacecarpentry.com"
-            className="flex items-center justify-center gap-3 p-6 rounded-lg border border-border-soft bg-surface hover:bg-surface-hover transition-colors"
-          >
-            <Mail className="w-6 h-6 text-primary" />
-            <div className="text-left">
-              <p className="font-semibold text-primary">Email Us</p>
-              <p className="text-text/70">taylor@happyplacecarpentry.com</p>
-            </div>
-          </Link>
-        </div>
+  // Track if this is a restored session (page refresh or browser reopen)
+  // Only show recovery dialog after a refresh/reopen, not on initial navigation
+  const isRestoredSession = React.useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const hasVisited = sessionStorage.getItem("estimate-wizard-visited");
+    if (hasVisited) {
+      return true;
+    }
+    sessionStorage.setItem("estimate-wizard-visited", "true");
+    return false;
+  }, []);
 
-        <div className="text-sm text-text/60">
-          <p>Mon–Fri 8am–5pm · Sat by appointment</p>
-          <p className="mt-2">Serving Benton, Linn, Marion, and Polk Counties</p>
-        </div>
-      </div>
-    </div>
-  );
-}
+  const [showDraftRecovery, setShowDraftRecovery] = React.useState(false);
+  const [draftState, setDraftState] = React.useState<WizardState | null>(initialDraft);
 
   const [step, setStep] = React.useState(() => {
     // If draft exists, use its step
