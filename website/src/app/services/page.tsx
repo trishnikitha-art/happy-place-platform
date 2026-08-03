@@ -4,7 +4,7 @@ import { Container, Section, SectionHeading } from "@/components/section";
 import { ServiceCard } from "@/components/service-card";
 import { CTASection } from "@/components/cta-section";
 import { Icon } from "@/components/icon";
-import { getAllServices } from "@/lib/registries";
+import { getNonArchivedServices } from "@/lib/registries";
 
 export const metadata: Metadata = {
   title: "Services",

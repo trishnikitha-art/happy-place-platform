@@ -14,7 +14,7 @@ import { RouterLink } from "@/components/router-link";
 import { PencilLine } from "@/components/pencil-line";
 import { BlueprintGrid } from "@/components/blueprint-grid";
 import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
-import { getAllServices } from "@/lib/registries";
+import { getNonArchivedServices } from "@/lib/registries";
 import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
 import { BeforeAfterSlider } from "@/components/before-after-slider";

@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Upload, Send } from "lucide-react";
 import type { EstimateRequest, Service, EstimateQuestion, ProjectIntakeRecord } from "@/types";
-import { getAllServices, getAllCities } from "@/lib/registries";
+import { getNonArchivedServices, getAllCities } from "@/lib/registries";
 import { getCompany } from "@/lib/company";
 import { estimateService } from "@/services/estimate";
 import { analytics } from "@/services/analytics";
