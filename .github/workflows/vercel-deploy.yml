@@ -10,23 +10,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Deploy to Vercel Production
+      - name: TEMPORARILY DISABLED - Testing native Git deployment
         run: |
-          echo "Deploying to Vercel Production..."
-          curl -X POST \
-            https://api.vercel.com/v13/deployments \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d '{
-              "name": "website",
-              "project": "prj_DAtFnvebjG7SvUMIe0dBjGEEGnqH",
-              "target": "production",
-              "gitSource": {
-                "type": "github",
-                "org": "trishnikitha-art",
-                "repo": "happy-place-platform",
-                "ref": "main"
-              }
-            }'
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          echo "GitHub Actions deployment temporarily disabled to test native Git integration"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref }}"
+          exit 0
