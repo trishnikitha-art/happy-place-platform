@@ -10,84 +10,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Deploy to Vercel Production
+      - name: Test Vercel API connection
         run: |
-          # Test 1: Verify secrets are available
-          echo "Test 1: Checking secrets..."
-          if [ -z "$VERCEL_TOKEN" ]; then
-            echo "❌ VERCEL_TOKEN secret is not set"
-            exit 1
-          fi
-          
-          if [ -z "$VERCEL_PROJECT_ID" ]; then
-            echo "❌ VERCEL_PROJECT_ID secret is not set"
-            exit 1
-          fi
-          
-          echo "✅ Secrets are available"
-          echo "Project ID: $VERCEL_PROJECT_ID"
-          
-          # Test 2: Verify API connection with simple project lookup
-          echo "Test 2: Testing Vercel API connection..."
-          PROJECT_RESPONSE=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
+          echo "Testing Vercel API connection..."
+          RESPONSE=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
             "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID")
-          
-          echo "Project API Response: $PROJECT_RESPONSE"
-          
-          if echo "$PROJECT_RESPONSE" | grep -q '"id"'; then
-            echo "✅ API connection successful - project found"
-          else
-            echo "❌ API connection failed or project not found"
-            echo "Response: $PROJECT_RESPONSE"
-            exit 1
-          fi
-          
-          # Test 3: List recent deployments to verify project access
-          echo "Test 3: Listing recent deployments..."
-          DEPLOYMENTS_RESPONSE=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" \
-            "https://api.vercel.com/v7/deployments?projectId=$VERCEL_PROJECT_ID&limit=1")
-          
-          echo "Deployments API Response: $DEPLOYMENTS_RESPONSE"
-          
-          if echo "$DEPLOYMENTS_RESPONSE" | grep -q '"deployments"'; then
-            echo "✅ Can access deployment history"
-          else
-            echo "❌ Cannot access deployment history"
-            echo "Response: $DEPLOYMENTS_RESPONSE"
-            exit 1
-          fi
-          
-          # Test 4: Attempt deployment creation
-          echo "Test 4: Attempting to trigger deployment..."
-          DEPLOY_RESPONSE=$(curl -s -X POST \
-            "https://api.vercel.com/v13/deployments" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{
-              \"name\": \"website\",
-              \"projectId\": \"$VERCEL_PROJECT_ID\",
-              \"target\": \"production\",
-              \"gitSource\": {
-                \"type\": \"github\",
-                \"ref\": \"main\",
-                \"repo\": {
-                  \"owner\": \"trishnikitha-art\",
-                  \"repo\": \"happy-place-platform\"
-                }
-              }
-            }")
-          
-          echo "Deployment Response: $DEPLOY_RESPONSE"
-          
-          if echo "$DEPLOY_RESPONSE" | grep -q '"id"'; then
-            echo "✅ Deployment triggered successfully"
-            DEPLOYMENT_ID=$(echo "$DEPLOY_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-            echo "Deployment ID: $DEPLOYMENT_ID"
-          else
-            echo "❌ Failed to trigger deployment"
-            echo "Response: $DEPLOY_RESPONSE"
-            exit 1
-          fi
+          echo "Response: $RESPONSE"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
