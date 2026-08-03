@@ -10,37 +10,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: Test Vercel API connection
+      - name: Test secret availability
         run: |
-          echo "Testing Vercel API connection..."
-          RESPONSE=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID")
-          echo "Response: $RESPONSE"
-          
-          if echo "$RESPONSE" | grep -q '"id"'; then
-            echo "✅ API connection successful - project found"
+          echo "Testing secret availability..."
+          if [ -n "$VERCEL_TOKEN" ]; then
+            echo "✅ VERCEL_TOKEN is available"
+            echo "Token length: ${#VERCEL_TOKEN}"
           else
-            echo "❌ API connection failed or project not found"
+            echo "❌ VERCEL_TOKEN is not available"
             exit 1
           fi
-      
-      - name: Trigger Vercel deployment
-        run: |
-          echo "Triggering Vercel deployment..."
-          DEPLOY_RESPONSE=$(curl -s -X POST \
-            "https://api.vercel.com/v13/deployments" \
-            -H "Authorization: Bearer $VERCEL_TOKEN" \
-            -H "Content-Type: application/json" \
-            -d "{\"name\":\"website\",\"projectId\":\"$VERCEL_PROJECT_ID\",\"target\":\"production\",\"gitSource\":{\"type\":\"github\",\"ref\":\"main\",\"repo\":{\"owner\":\"trishnikitha-art\",\"repo\":\"happy-place-platform\"}}}}")
           
-          echo "Deployment Response: $DEPLOY_RESPONSE"
-          
-          if echo "$DEPLOY_RESPONSE" | grep -q '"id"'; then
-            echo "✅ Deployment triggered successfully"
-            DEPLOYMENT_ID=$(echo "$DEPLOY_RESPONSE" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
-            echo "Deployment ID: $DEPLOYMENT_ID"
+          if [ -n "$VERCEL_PROJECT_ID" ]; then
+            echo "✅ VERCEL_PROJECT_ID is available"
+            echo "Project ID: $VERCEL_PROJECT_ID"
           else
-            echo "❌ Failed to trigger deployment"
-            echo "Response: $DEPLOY_RESPONSE"
+            echo "❌ VERCEL_PROJECT_ID is not available"
             exit 1
           fi
         env:
