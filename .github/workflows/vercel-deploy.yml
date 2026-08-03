@@ -1,0 +1,21 @@
+name: Vercel Production Deployment
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Test Vercel API connection
+        run: |
+          echo "Testing Vercel API connection..."
+          RESPONSE=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" `
+            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID")
+          echo "Response: $RESPONSE"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
