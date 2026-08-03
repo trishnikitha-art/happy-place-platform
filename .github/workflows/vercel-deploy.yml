@@ -13,8 +13,7 @@ jobs:
       - name: Test Vercel API connection
         run: |
           echo "Testing Vercel API connection..."
-          RESPONSE=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" `
-            "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID")
+          RESPONSE=$(curl -s -H "Authorization: Bearer $VERCEL_TOKEN" "https://api.vercel.com/v9/projects/$VERCEL_PROJECT_ID")
           echo "Response: $RESPONSE"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
