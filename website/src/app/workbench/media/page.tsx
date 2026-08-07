@@ -18,23 +18,12 @@ import {
   Image as ImageIcon,
   Settings,
   Eye,
-  RefreshCw,
-  Database,
-  CheckCircle,
-  AlertCircle,
-  Shield,
-  HardDrive,
-  Globe,
-  Network,
-  Crown,
-  Star,
-  Images,
-  Split,
-  Edit,
-  Play,
-  GitBranch,
-  Rocket
+  RefreshCw
 } from 'lucide-react';
+import { slotRegistry, SlotRegistration } from '@/lib/editor/slot-registry';
+import { placementGraph } from '@/lib/editor/placement-graph';
+import { CommandBuilder, commandExecutor } from '@/lib/editor/command-pattern';
+import { EventBuilder, eventSystem } from '@/lib/editor/event-system';
 
 // Dynamically import the actual homepage to avoid server component issues
 const HomePage = dynamic(() => import('@/app/page'), { 
@@ -342,7 +331,7 @@ function HomePageWrapper({ editorMode }: { editorMode: boolean }) {
   );
 }
 
-// Editor Overlay - discovers and highlights editable slots
+// Editor Overlay - discovers and highlights editable slots using constitutional registration
 function EditorOverlay({ 
   selectedSlot, 
   onSelectSlot 
@@ -350,12 +339,11 @@ function EditorOverlay({
   selectedSlot: PlacementSlot | null; 
   onSelectSlot: (slot: PlacementSlot) => void;
 }) {
-  const [registeredSlots, setRegisteredSlots] = useState<PlacementSlot[]>([]);
+  const [registeredSlots, setRegisteredSlots] = useState<any[]>([]);
 
   useEffect(() => {
-    // Discover registered slots from components
-    // This will be populated by the slot registration system
-    const slots = discoverEditableSlots();
+    // Discover registered slots from components using constitutional law 3
+    const slots = slotRegistry.getAllSlots();
     setRegisteredSlots(slots);
   }, []);
 
@@ -364,25 +352,48 @@ function EditorOverlay({
     e.dataTransfer.dropEffect = 'copy';
   };
 
-  const handleDrop = (e: React.DragEvent, slot: PlacementSlot) => {
+  const handleDrop = async (e: React.DragEvent, slot: SlotRegistration) => {
     e.preventDefault();
     try {
       const assetData = e.dataTransfer.getData('application/json');
       if (assetData) {
         const asset: MediaAsset = JSON.parse(assetData);
-        console.log('Placement created:', {
-          assetId: asset.mediaId,
-          slotId: slot.id,
-          pageId: slot.page,
-          componentId: slot.component,
-          constraints: slot.constraints
-        });
         
-        // Update placement graph here
+        // Constitutional Law 5: Placement Graph Owns Layout
+        // Constitutional Law 9: Every Edit Is A Command
+        const existingPlacement = placementGraph.getPlacementForSlot(slot.slotId);
+        
+        // Create command for asset replacement
+        const command = CommandBuilder.replaceAsset({
+          slotId: slot.slotId,
+          oldAssetId: existingPlacement?.assetId || null,
+          newAssetId: asset.mediaId
+        });
+
+        // Execute command (this will produce event)
+        await commandExecutor.execute(command);
+
+        // Update placement graph directly for now (event system will handle this in future)
+        if (existingPlacement) {
+          placementGraph.replaceAsset(existingPlacement.placementId, asset.mediaId);
+        } else {
+          placementGraph.createPlacement({
+            assetId: asset.mediaId,
+            slotId: slot.slotId,
+            pageId: slot.page,
+            componentId: slot.component
+          });
+        }
+
+        // Update UI selection
         onSelectSlot({
-          ...slot,
+          id: slot.slotId,
+          page: slot.page,
+          component: slot.component,
+          slotName: slot.slotName,
           currentAsset: asset,
-          status: 'staged'
+          status: 'staged',
+          constraints: slot.constraints
         });
       }
     } catch (error) {
@@ -394,12 +405,20 @@ function EditorOverlay({
     <div className="absolute inset-0 pointer-events-none">
       {registeredSlots.map((slot) => (
         <div
-          key={slot.id}
+          key={slot.slotId}
           className={`absolute border-2 border-dashed border-primary/50 hover:border-primary bg-primary/5 cursor-pointer transition-all pointer-events-auto ${
-            selectedSlot?.id === slot.id ? 'border-primary ring-2 ring-primary/20' : ''
+            selectedSlot?.id === slot.slotId ? 'border-primary ring-2 ring-primary/20' : ''
           }`}
-          style={getSlotPosition(slot.id)}
-          onClick={() => onSelectSlot(slot)}
+          style={getSlotPosition(slot.slotId)}
+          onClick={() => onSelectSlot({
+            id: slot.slotId,
+            page: slot.page,
+            component: slot.component,
+            slotName: slot.slotName,
+            currentAsset: null,
+            status: 'empty',
+            constraints: slot.constraints
+          })}
           onDragOver={handleDragOver}
           onDrop={(e) => handleDrop(e, slot)}
         >
@@ -416,42 +435,26 @@ function EditorOverlay({
   );
 }
 
-// Discover editable slots from actual website components
-function discoverEditableSlots(): PlacementSlot[] {
-  // This will be implemented via slot registration system
-  // For now, return known slots based on component structure
-  return [
-    {
-      id: 'hero-background',
-      page: 'Home',
-      component: 'HeroSection',
-      slotName: 'hero-background',
-      currentAsset: null,
-      status: 'empty',
-      constraints: {
-        aspectRatio: '16:9',
-        responsive: true,
-        focalPointEnabled: true,
-        minWidth: 1200,
-        compressionPreset: 'high-quality'
-      }
-    }
-  ];
-}
-
-// Get position for slot overlay (will be computed from actual DOM elements)
+// Get position for slot overlay using DOM (Constitutional Law 4: DOM is ephemeral)
 function getSlotPosition(slotId: string): React.CSSProperties {
-  // This will use DOM queries to find actual element positions
-  // For now, return placeholder positions
-  const positions: Record<string, React.CSSProperties> = {
-    'hero-background': {
-      top: '0',
-      left: '0',
-      right: '0',
-      height: '400px'
-    }
+  // Use DOM queries to find actual element positions
+  // DOM exists only for positioning overlays, not for truth
+  if (typeof window === 'undefined') {
+    return { display: 'none' };
+  }
+
+  const element = document.querySelector(`[data-slot-id="${slotId}"]`);
+  if (!element) {
+    return { display: 'none' };
+  }
+
+  const rect = element.getBoundingClientRect();
+  return {
+    top: rect.top,
+    left: rect.left,
+    width: rect.width,
+    height: rect.height
   };
-  return positions[slotId] || { display: 'none' };
 }
 
 // Media Library Grid Component
@@ -601,484 +604,6 @@ function PlacementInspector({ slot, onAssetChange }: {
         >
           Clear Placement
         </button>
-      </div>
-    </div>
-  );
-}
-
-// Media Runtime Dashboard - Shows Drive ↔ Canonical ↔ Website reconciliation
-function MediaRuntimeDashboard({ reconciliationState, assets, isAuthenticated, onOAuthClick, driveStructure, driveFiles, onFolderClick }: any) {
-  return (
-    <div className="bg-card border border-border rounded-lg p-6">
-      <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-        <Database size={20} />
-        Media Runtime
-      </h2>
-
-      {/* OAuth Connection */}
-      <div className="mb-6">
-        <h3 className="font-medium text-foreground mb-3">Google Drive Connection</h3>
-        {isAuthenticated ? (
-          <div className="flex items-center gap-2 text-green-600">
-            <CheckCircle size={20} />
-            <span className="font-medium">Connected to Google Drive</span>
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 text-orange-600">
-              <AlertCircle size={20} />
-              <span className="font-medium">Not connected to Google Drive</span>
-            </div>
-            <button
-              onClick={onOAuthClick}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors flex items-center gap-2"
-            >
-              <Shield size={16} className="text-primary-foreground" />
-              Connect Google Account
-            </button>
-            <p className="text-xs text-muted-foreground">
-              Authenticates with PING90 Google Cloud project for persistent Drive session
-            </p>
-          </div>
-        )}
-      </div>
-
-      {/* Drive Browser - only show when authenticated */}
-      {isAuthenticated && driveStructure && (
-        <div className="mb-6">
-          <h3 className="font-medium text-foreground mb-3">Drive Browser</h3>
-          
-          {/* Quick access to discovered folders */}
-          <div className="mb-4">
-            <p className="text-sm text-muted-foreground mb-2">Quick Access</p>
-            <div className="flex flex-wrap gap-2">
-              {driveStructure.hppFolders.map((folder: any) => (
-                <button
-                  key={folder.id}
-                  onClick={() => onFolderClick(folder.id)}
-                  className="px-3 py-1.5 bg-surface border border-border rounded hover:bg-muted transition-colors text-sm"
-                >
-                  {folder.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Current folder contents */}
-          {driveFiles.length > 0 && (
-            <div className="bg-surface border border-border rounded-lg p-4 max-h-64 overflow-y-auto">
-              <table className="w-full text-sm">
-                <thead className="bg-muted">
-                  <tr>
-                    <th className="px-4 py-2 text-left">Name</th>
-                    <th className="px-4 py-2 text-left">Type</th>
-                    <th className="px-4 py-2 text-left">Size</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {driveFiles.map((file: any) => (
-                    <tr key={file.id} className="border-t border-border hover:bg-muted cursor-pointer">
-                      <td className="px-4 py-2">{file.name}</td>
-                      <td className="px-4 py-2 capitalize">{file.mimeType?.split('/')[1] || 'File'}</td>
-                      <td className="px-4 py-2">{file.size ? `${(file.size / 1024).toFixed(1)} KB` : '-'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Reconciliation State */}
-      {isAuthenticated && reconciliationState && (
-        <div className="mb-6">
-          <h3 className="font-medium text-foreground mb-3">System Reconciliation</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Drive */}
-            <div className="bg-surface border border-border rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <HardDrive size={16} className="text-blue-500" />
-                <p className="text-sm font-medium text-foreground">Google Drive</p>
-              </div>
-              <p className="text-2xl font-bold text-foreground">{reconciliationState.drive.totalPhotos}</p>
-              <p className="text-xs text-muted-foreground">photos</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {reconciliationState.drive.folders} folders
-              </p>
-            </div>
-
-            {/* Canonical */}
-            <div className="bg-surface border border-border rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Database size={16} className="text-green-500" />
-                <p className="text-sm font-medium text-foreground">Canonical Graph</p>
-              </div>
-              <p className="text-2xl font-bold text-foreground">{reconciliationState.canonical.totalAssets}</p>
-              <p className="text-xs text-muted-foreground">assets</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {reconciliationState.canonical.imported} imported, {reconciliationState.canonical.new} new
-              </p>
-            </div>
-
-            {/* Website */}
-            <div className="bg-surface border border-border rounded-lg p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Globe size={16} className="text-purple-500" />
-                <p className="text-sm font-medium text-foreground">Website Runtime</p>
-              </div>
-              <p className="text-2xl font-bold text-foreground">{reconciliationState.website.published}</p>
-              <p className="text-xs text-muted-foreground">published</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                {reconciliationState.website.staged} staged
-              </p>
-            </div>
-          </div>
-
-          {/* Deltas */}
-          {reconciliationState.deltas.drift > 0 && (
-            <div className="mt-4 bg-orange-50 border border-orange-200 rounded-lg p-4">
-              <p className="text-sm font-medium text-orange-800 mb-2">Sync Required</p>
-              <div className="text-xs text-orange-700 space-y-1">
-                <p>• {reconciliationState.deltas.driveToCanonical} photos in Drive not in Canonical</p>
-                <p>• {reconciliationState.deltas.canonicalToWebsite} assets not published to Website</p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Visual Asset Explorer */}
-      <div>
-        <h3 className="font-medium text-foreground mb-3">Asset Explorer</h3>
-        <div className="bg-surface border border-border rounded-lg p-4 max-h-96 overflow-y-auto">
-          <div className="grid grid-cols-5 gap-4">
-            {assets.slice(0, 25).map((asset: any) => (
-              <div key={asset.id} className="relative group cursor-pointer">
-                <img
-                  src={`/images/projects/${asset.projectId || 'featured'}/${asset.variantManifest.original}`}
-                  alt={asset.contentHash}
-                  className="w-full h-24 object-cover rounded"
-                />
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity rounded flex flex-col items-center justify-center p-2">
-                  <p className="text-white text-xs text-center truncate w-full">{asset.status}</p>
-                  <p className="text-white text-xs text-center truncate w-full">{asset.placement.length} placements</p>
-                </div>
-              </div>
-            ))}
-          </div>
-          {assets.length > 25 && (
-            <p className="text-sm text-muted-foreground mt-4 text-center">
-              Showing 25 of {assets.length} assets
-            </p>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Graph Panel - Unmapped assets, coverage, relationships
-function GraphPanel({ graphData, imageNodes, projectNodes, serviceNodes, belongsToEdges, supportsEdges, unmappedAssets }: any) {
-  return (
-    <div className="bg-card border border-border rounded-lg p-6">
-      <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-        <Database size={20} />
-        Canonical Graph
-      </h2>
-      
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-        <div className="bg-surface border border-border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground mb-1">Total Nodes</p>
-          <p className="text-2xl font-bold text-foreground">{graphData?.nodes.length || 0}</p>
-        </div>
-        <div className="bg-surface border border-border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground mb-1">Images</p>
-          <p className="text-2xl font-bold text-foreground">{imageNodes.length}</p>
-        </div>
-        <div className="bg-surface border border-border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground mb-1">Projects</p>
-          <p className="text-2xl font-bold text-foreground">{projectNodes.length}</p>
-        </div>
-        <div className="bg-surface border border-border rounded-lg p-4">
-          <p className="text-sm text-muted-foreground mb-1">Services</p>
-          <p className="text-2xl font-bold text-foreground">{serviceNodes.length}</p>
-        </div>
-      </div>
-
-      <div className="space-y-4">
-        <div>
-          <h3 className="font-medium text-foreground mb-3">Edge Coverage</h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-surface border border-border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground mb-1">belongsTo Edges</p>
-              <p className="text-xl font-bold text-foreground">{belongsToEdges.length}</p>
-            </div>
-            <div className="bg-surface border border-border rounded-lg p-4">
-              <p className="text-sm text-muted-foreground mb-1">supports Edges</p>
-              <p className="text-xl font-bold text-foreground">{supportsEdges.length}</p>
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <h3 className="font-medium text-foreground mb-3">Unmapped Assets ({unmappedAssets.length})</h3>
-          {unmappedAssets.length > 0 ? (
-            <div className="bg-surface border border-border rounded-lg p-4 max-h-64 overflow-y-auto">
-              {unmappedAssets.map((node: any) => (
-                <div key={node.id} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <p className="text-sm text-foreground">{node.data.original_filename}</p>
-                  <AlertCircle className="text-orange-500" size={14} />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 flex items-center gap-2">
-              <CheckCircle className="text-green-500" size={20} />
-              <p className="text-sm text-green-800">All assets mapped to projects and services</p>
-            </div>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Projects Panel - Project membership, representative, gallery, hero, before/after
-function ProjectsPanel({ graphData, projectNodes, belongsToEdges }: any) {
-  return (
-    <div className="bg-card border border-border rounded-lg p-6">
-      <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-        <Network size={20} />
-        Projects
-      </h2>
-      <p className="text-muted-foreground mb-4">Project membership and media coverage</p>
-      
-      <div className="space-y-4">
-        {projectNodes.map((project: any) => {
-          const projectImages = belongsToEdges
-            .filter((e: any) => e.to === project.id)
-            .map((e: any) => graphData.nodes.find((n: any) => n.id === e.from));
-          
-          return (
-            <div key={project.id} className="bg-surface border border-border rounded-lg p-4">
-              <h3 className="font-medium text-foreground mb-2">{project.data.name}</h3>
-              <p className="text-sm text-muted-foreground mb-3">{projectImages.length} images</p>
-              <div className="grid grid-cols-4 gap-2">
-                {projectImages.slice(0, 8).map((img: any) => (
-                  <img
-                    key={img.id}
-                    src={`/images/projects/${img.data.category}/${img.data.original_filename}`}
-                    alt={img.data.original_filename}
-                    className="w-full h-16 object-cover rounded"
-                  />
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// Hero Panel - Current hero, candidates, scores
-function HeroPanel({ heroProjection, featuredCandidates }: any) {
-  return (
-    <div className="bg-card border border-border rounded-lg p-6">
-      <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-        <Crown size={20} />
-        Hero Projection
-      </h2>
-      
-      {heroProjection && (
-        <div className="mb-6 bg-surface border border-border rounded-lg p-4">
-          <div className="flex gap-6">
-            <img
-              src={`/images/projects/featured/${heroProjection.hero.filename}`}
-              alt="Current hero"
-              className="w-48 h-32 object-cover rounded"
-            />
-            <div className="flex-1 space-y-2">
-              <div><p className="text-sm text-muted-foreground">Filename</p><p className="font-medium text-foreground">{heroProjection.hero.filename}</p></div>
-              <div><p className="text-sm text-muted-foreground">Score</p><div className="flex items-center gap-2"><Star className="text-yellow-500" size={14} /><p className="font-medium">{heroProjection.hero.score.toFixed(2)}</p></div></div>
-              <div><p className="text-sm text-muted-foreground">Input Hash</p><p className="text-xs font-mono text-foreground">{heroProjection.inputHash}</p></div>
-              <div><p className="text-sm text-muted-foreground">Generated</p><p className="text-sm text-foreground">{new Date(heroProjection.generatedAt).toLocaleString()}</p></div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      <div>
-        <h3 className="font-medium text-foreground mb-3">Hero Candidates ({featuredCandidates.length})</h3>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {featuredCandidates.map((node: any) => (
-            <div key={node.id} className="bg-surface border border-border rounded-lg p-3">
-              <img
-                src={`/images/projects/${node.data.category}/${node.data.original_filename}`}
-                alt={node.data.original_filename}
-                className="w-full h-24 object-cover rounded mb-2"
-              />
-              <p className="text-sm text-foreground truncate">{node.data.original_filename}</p>
-              <div className="flex items-center gap-1">
-                <Star className="text-yellow-500" size={12} />
-                <p className="text-xs text-muted-foreground">{(node.data.overall_score || 0).toFixed(2)}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Gallery Panel - Approve, reject, order, coverage
-function GalleryPanel({ galleryProjection, galleryCandidates }: any) {
-  return (
-    <div className="bg-card border border-border rounded-lg p-6">
-      <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-        <Images size={20} />
-        Gallery Projection
-      </h2>
-      
-      {galleryProjection && (
-        <div className="space-y-4">
-          {galleryProjection.projects.map((project: any) => (
-            <div key={project.projectId} className="bg-surface border border-border rounded-lg p-4">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="font-medium text-foreground">{project.projectId}</h3>
-                <span className={`px-2 py-1 rounded text-xs ${
-                  project.coverage === 'COMPLETE' ? 'bg-green-100 text-green-800' :
-                  project.coverage === 'BEFORE_ONLY' ? 'bg-yellow-100 text-yellow-800' :
-                  'bg-red-100 text-red-800'
-                }`}>
-                  {project.coverage}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground mb-2">Evidence: {project.supportingGalleryEvidence.length} images</p>
-              <div className="grid grid-cols-4 gap-2">
-                {project.supportingGalleryEvidence.slice(0, 8).map((filename: string) => (
-                  <img
-                    key={filename}
-                    src={`/images/projects/${project.projectId}/${filename}`}
-                    alt={filename}
-                    className="w-full h-16 object-cover rounded"
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Before/After Panel - Pairing, repair, merge, split
-function BeforeAfterPanel({ graphData, beforeAfterPairs }: any) {
-  return (
-    <div className="bg-card border border-border rounded-lg p-6">
-      <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-        <Split size={20} />
-        Before/After Projection
-      </h2>
-      <p className="text-muted-foreground mb-4">Before/After pairing and coverage</p>
-      
-      <div className="space-y-4">
-        {beforeAfterPairs.map((node: any) => (
-          <div key={node.id} className="bg-surface border border-border rounded-lg p-4">
-            <p className="font-medium text-foreground mb-2">{node.data.original_filename}</p>
-            <p className="text-sm text-muted-foreground">Project: {node.data.project_id || 'Unassigned'}</p>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-// Metadata Panel - View canonical metadata
-function MetadataPanel({ graphData, imageNodes }: any) {
-  return (
-    <div className="bg-card border border-border rounded-lg p-6">
-      <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-        <Edit size={20} />
-        Metadata Viewer
-      </h2>
-      <p className="text-muted-foreground mb-4">View canonical graph metadata from constitutional runtime</p>
-      
-      <div className="bg-surface border border-border rounded-lg p-4 max-h-96 overflow-y-auto">
-        <table className="w-full text-sm">
-          <thead className="bg-muted">
-            <tr>
-              <th className="px-4 py-2 text-left">Filename</th>
-              <th className="px-4 py-2 text-left">Category</th>
-              <th className="px-4 py-2 text-left">Job</th>
-              <th className="px-4 py-2 text-left">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {imageNodes.map((node: any) => (
-              <tr key={node.id} className="border-t border-border">
-                <td className="px-4 py-2">{node.data.original_filename}</td>
-                <td className="px-4 py-2">{node.data.category || 'Uncategorized'}</td>
-                <td className="px-4 py-2">{node.data.job || 'Other'}</td>
-                <td className="px-4 py-2">{node.data.authority_status || 'Unknown'}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-// Publish Panel - Regenerate, validate, commit, deploy
-function PublishPanel({ graphData, heroProjection, galleryProjection, regenerating, handleRegenerate }: any) {
-  return (
-    <div className="bg-card border border-border rounded-lg p-6">
-      <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-        <Play size={20} />
-        Publish HPP
-      </h2>
-      
-      <div className="space-y-4">
-        <div className="bg-surface border border-border rounded-lg p-4">
-          <h3 className="font-medium text-foreground mb-3">Runtime Status</h3>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Graph</span>
-              <span className="text-green-500">{graphData ? 'Generated' : 'Not generated'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Hero Projection</span>
-              <span className="text-green-500">{heroProjection ? 'Generated' : 'Not generated'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-muted-foreground">Gallery Projection</span>
-              <span className="text-green-500">{galleryProjection ? 'Generated' : 'Not generated'}</span>
-            </div>
-          </div>
-        </div>
-
-        <button
-          onClick={handleRegenerate}
-          disabled={regenerating}
-          className="w-full px-4 py-3 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          <RefreshCw size={16} className={regenerating ? 'animate-spin' : ''} />
-          Regenerate Runtime
-        </button>
-
-        <div className="flex gap-2">
-          <button className="flex-1 px-4 py-3 bg-card border border-border rounded hover:bg-accent transition-colors flex items-center justify-center gap-2">
-            <GitBranch size={16} />
-            Commit
-          </button>
-          <button className="flex-1 px-4 py-3 bg-card border border-border rounded hover:bg-accent transition-colors flex items-center justify-center gap-2">
-            <Rocket size={16} />
-            Deploy
-          </button>
-        </div>
       </div>
     </div>
   );
