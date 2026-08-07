@@ -11,11 +11,14 @@ import { driveSession } from '@/lib/drive/drive-session';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
+  console.log('=== OAuth Callback Reached ===');
+  
   const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const error = searchParams.get('error');
 
-  console.log('OAuth callback reached');
+  console.log('Code:', code ? 'present' : 'missing');
+  console.log('Error:', error);
 
   if (error) {
     console.log('OAuth error:', error);
@@ -33,7 +36,12 @@ export async function GET(request: Request) {
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/api/drive/oauth/callback`;
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/drive/oauth/callback';
+
+  console.log('Environment check:');
+  console.log('- GOOGLE_CLIENT_ID:', clientId ? 'set' : 'not set');
+  console.log('- GOOGLE_CLIENT_SECRET:', clientSecret ? 'set' : 'not set');
+  console.log('- GOOGLE_REDIRECT_URI:', redirectUri);
 
   if (!clientId || !clientSecret) {
     return NextResponse.json({ error: 'OAuth credentials not configured' }, { status: 500 });
@@ -49,6 +57,8 @@ export async function GET(request: Request) {
       grant_type: 'authorization_code',
     });
 
+    console.log('Exchanging code for tokens...');
+
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -57,7 +67,12 @@ export async function GET(request: Request) {
 
     const tokenData = await tokenResponse.json();
 
-    console.log('Token exchange response:', tokenData);
+    console.log('Token exchange response:', {
+      hasAccessToken: !!tokenData.access_token,
+      hasRefreshToken: !!tokenData.refresh_token,
+      expiresIn: tokenData.expires_in,
+      scope: tokenData.scope,
+    });
 
     if (tokenData.error) {
       console.log('Token exchange error:', tokenData.error);

@@ -11,7 +11,12 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   const clientId = process.env.GOOGLE_CLIENT_ID;
-  const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/api/drive/oauth/callback`;
+  // Force the redirect URI to ensure it matches Google Cloud Console configuration
+  // Do NOT use NEXT_PUBLIC_URL fallback - it can cause incorrect redirects
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI || 'http://localhost:3000/api/drive/oauth/callback';
+  
+  console.log('OAuth authorize - redirectUri:', redirectUri);
+  console.log('OAuth authorize - clientId:', clientId ? 'set' : 'not set');
   
   if (!clientId) {
     return NextResponse.json({ error: 'GOOGLE_CLIENT_ID not configured' }, { status: 500 });
@@ -30,6 +35,8 @@ export async function GET(request: Request) {
   authUrl.searchParams.append('scope', scopes.join(' '));
   authUrl.searchParams.append('access_type', 'offline');
   authUrl.searchParams.append('prompt', 'consent');
+
+  console.log('OAuth authorize - full authUrl:', authUrl.toString());
 
   return NextResponse.redirect(authUrl.toString());
 }
