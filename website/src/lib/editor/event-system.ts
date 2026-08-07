@@ -362,8 +362,9 @@ class EventSystem {
       const slot1 = placement1.slotId;
       const slot2 = placement2.slotId;
       
-      placementGraph.movePlacement(event.data.placementId1, slot2);
-      placementGraph.movePlacement(event.data.placementId2, slot1);
+      // Pass event sequence to prevent allocation during replay
+      placementGraph.movePlacement(event.data.placementId1, slot2, event.sequence);
+      placementGraph.movePlacement(event.data.placementId2, slot1, event.sequence);
     }
   }
 
@@ -472,10 +473,11 @@ class EventBuilder {
 
   static assetReplaced(params: {
     commandId: string;
+    commandSequence: number;
     slotId: string;
     newAssetId: string;
   }): AssetReplacedEvent {
-    const sequence = eventSystem.nextSequence();
+    const sequence = params.commandSequence; // Use command sequence for causal ordering
     const eventId = EventBuilder.generateId(sequence);
     sequenceAuthority.recordEvent(eventId, sequence);
     
@@ -493,10 +495,11 @@ class EventBuilder {
 
   static placementMoved(params: {
     commandId: string;
+    commandSequence: number;
     placementId: string;
     newSlotId: string;
   }): PlacementMovedEvent {
-    const sequence = eventSystem.nextSequence();
+    const sequence = params.commandSequence; // Use command sequence for causal ordering
     const eventId = EventBuilder.generateId(sequence);
     sequenceAuthority.recordEvent(eventId, sequence);
     
@@ -514,9 +517,10 @@ class EventBuilder {
 
   static placementDeleted(params: {
     commandId: string;
+    commandSequence: number;
     placementId: string;
   }): PlacementDeletedEvent {
-    const sequence = eventSystem.nextSequence();
+    const sequence = params.commandSequence; // Use command sequence for causal ordering
     const eventId = EventBuilder.generateId(sequence);
     sequenceAuthority.recordEvent(eventId, sequence);
     
@@ -533,10 +537,11 @@ class EventBuilder {
 
   static placementSwapped(params: {
     commandId: string;
+    commandSequence: number;
     placementId1: string;
     placementId2: string;
   }): PlacementSwappedEvent {
-    const sequence = eventSystem.nextSequence();
+    const sequence = params.commandSequence; // Use command sequence for causal ordering
     const eventId = EventBuilder.generateId(sequence);
     sequenceAuthority.recordEvent(eventId, sequence);
     
@@ -554,11 +559,12 @@ class EventBuilder {
 
   static placementDuplicated(params: {
     commandId: string;
+    commandSequence: number;
     sourcePlacementId: string;
     newPlacementId: string;
     targetSlotId: string;
   }): PlacementDuplicatedEvent {
-    const sequence = eventSystem.nextSequence();
+    const sequence = params.commandSequence; // Use command sequence for causal ordering
     const eventId = EventBuilder.generateId(sequence);
     sequenceAuthority.recordEvent(eventId, sequence);
     
@@ -577,10 +583,11 @@ class EventBuilder {
 
   static assetCropped(params: {
     commandId: string;
+    commandSequence: number;
     assetId: string;
     newCrop: { x: number; y: number; width: number; height: number };
   }): AssetCroppedEvent {
-    const sequence = eventSystem.nextSequence();
+    const sequence = params.commandSequence; // Use command sequence for causal ordering
     const eventId = EventBuilder.generateId(sequence);
     sequenceAuthority.recordEvent(eventId, sequence);
     
@@ -598,10 +605,11 @@ class EventBuilder {
 
   static slotConstraintsUpdated(params: {
     commandId: string;
+    commandSequence: number;
     slotId: string;
     newConstraints: SlotConstraints;
   }): SlotConstraintsUpdatedEvent {
-    const sequence = eventSystem.nextSequence();
+    const sequence = params.commandSequence; // Use command sequence for causal ordering
     const eventId = EventBuilder.generateId(sequence);
     sequenceAuthority.recordEvent(eventId, sequence);
     
@@ -619,10 +627,11 @@ class EventBuilder {
 
   static focalPointAdjusted(params: {
     commandId: string;
+    commandSequence: number;
     assetId: string;
     newFocalPoint: { x: number; y: number };
   }): FocalPointAdjustedEvent {
-    const sequence = eventSystem.nextSequence();
+    const sequence = params.commandSequence; // Use command sequence for causal ordering
     const eventId = EventBuilder.generateId(sequence);
     sequenceAuthority.recordEvent(eventId, sequence);
     
@@ -640,9 +649,10 @@ class EventBuilder {
 
   static stagedPublished(params: {
     commandId: string;
+    commandSequence: number;
     placementIds: string[];
   }): StagedPublishedEvent {
-    const sequence = eventSystem.nextSequence();
+    const sequence = params.commandSequence; // Use command sequence for causal ordering
     const eventId = EventBuilder.generateId(sequence);
     sequenceAuthority.recordEvent(eventId, sequence);
     

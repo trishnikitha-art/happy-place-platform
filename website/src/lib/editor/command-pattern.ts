@@ -411,6 +411,7 @@ class CommandExecutor {
    * Convert command to event
    * Events contain only forward-looking state (no old* fields)
    * Constitutional Law: Every command has exactly one event mapping
+   * Constitutional Law: Command and event share same sequence for causal ordering
    */
   private async commandToEvent(command: AnyCommand): Promise<any> {
     // Lazy import to avoid circular dependency
@@ -420,29 +421,34 @@ class CommandExecutor {
       case 'ReplaceAsset':
         return eventBuilder.assetReplaced({
           commandId: command.id,
+          commandSequence: command.sequence,
           slotId: command.slotId,
           newAssetId: command.newAssetId
         });
       case 'MovePlacement':
         return eventBuilder.placementMoved({
           commandId: command.id,
+          commandSequence: command.sequence,
           placementId: command.placementId,
           newSlotId: command.newSlotId
         });
       case 'SwapPlacement':
         return eventBuilder.placementSwapped({
           commandId: command.id,
+          commandSequence: command.sequence,
           placementId1: command.placementId1,
           placementId2: command.placementId2
         });
       case 'DeletePlacement':
         return eventBuilder.placementDeleted({
           commandId: command.id,
+          commandSequence: command.sequence,
           placementId: command.placementId
         });
       case 'DuplicatePlacement':
         return eventBuilder.placementDuplicated({
           commandId: command.id,
+          commandSequence: command.sequence,
           sourcePlacementId: command.sourcePlacementId,
           newPlacementId: command.newPlacementId,
           targetSlotId: command.targetSlotId
@@ -450,18 +456,21 @@ class CommandExecutor {
       case 'CropAsset':
         return eventBuilder.assetCropped({
           commandId: command.id,
+          commandSequence: command.sequence,
           assetId: command.assetId,
           newCrop: command.newCrop
         });
       case 'AdjustFocalPoint':
         return eventBuilder.focalPointAdjusted({
           commandId: command.id,
+          commandSequence: command.sequence,
           assetId: command.assetId,
           newFocalPoint: command.newFocalPoint
         });
       case 'UpdateSlotConstraints':
         return eventBuilder.slotConstraintsUpdated({
           commandId: command.id,
+          commandSequence: command.sequence,
           slotId: command.slotId,
           newConstraints: command.newConstraints
         });
@@ -471,6 +480,7 @@ class CommandExecutor {
         const stagedPlacements = placementGraph.getStagedPlacements();
         return eventBuilder.stagedPublished({
           commandId: command.id,
+          commandSequence: command.sequence,
           placementIds: stagedPlacements.map(p => p.placementId)
         });
       case 'BatchOperation':

@@ -83,9 +83,12 @@ class DurableEventStore {
 
   /**
    * Validate complete candidate sequence list for batch operation
-   * Ensures e1.sequence < e2.sequence < ... < en.sequence
+   * Ensures e1.sequence <= e2.sequence <= ... <= en.sequence (allowing equality for command/event pairs)
+   * Also validates no duplicates within the same sequence
    */
   private validateCandidateSequence(events: Event[]): boolean {
+    const seenEventIds = new Set<string>();
+    
     for (let i = 0; i < events.length; i++) {
       const event = events[i];
       
@@ -94,15 +97,16 @@ class DurableEventStore {
         return false;
       }
 
-      // Validate monotonicity
-      if (i > 0 && event.sequence <= events[i - 1].sequence) {
+      // Validate monotonicity (non-decreasing, allowing equality for command/event pairs)
+      if (i > 0 && event.sequence < events[i - 1].sequence) {
         return false;
       }
 
-      // Validate no duplicates
-      if (events.slice(0, i).some(e => e.sequence === event.sequence)) {
+      // Validate no duplicate event IDs within the same sequence
+      if (seenEventIds.has(event.id)) {
         return false;
       }
+      seenEventIds.add(event.id);
     }
 
     return true;
