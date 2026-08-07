@@ -89,6 +89,9 @@ export default function MediaManagerPage() {
   const [reconciliationState, setReconciliationState] = useState<any>(null);
   const [assets, setAssets] = useState<any[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [driveStructure, setDriveStructure] = useState<any>(null);
+  const [currentFolderId, setCurrentFolderId] = useState<string>('root');
+  const [driveFiles, setDriveFiles] = useState<any[]>([]);
 
   useEffect(() => {
     loadRuntime();
@@ -103,6 +106,15 @@ export default function MediaManagerPage() {
       if (authResponse.ok) {
         const authData = await authResponse.json();
         setIsAuthenticated(authData.authenticated);
+
+        // If authenticated, load Drive structure
+        if (authData.authenticated) {
+          const discoveryResponse = await fetch('/api/drive/discovery');
+          if (discoveryResponse.ok) {
+            const discoveryData = await discoveryResponse.json();
+            setDriveStructure(discoveryData);
+          }
+        }
       }
 
       // Load reconciliation state
@@ -155,6 +167,19 @@ export default function MediaManagerPage() {
 
   const handleOAuthClick = () => {
     window.location.href = '/api/drive/oauth/authorize';
+  };
+
+  const handleFolderClick = async (folderId: string) => {
+    setCurrentFolderId(folderId);
+    try {
+      const response = await fetch(`/api/drive/files?folderId=${folderId}`);
+      if (response.ok) {
+        const data = await response.json();
+        setDriveFiles(data.files);
+      }
+    } catch (err) {
+      console.error('Failed to load Drive files:', err);
+    }
   };
 
   const handleRegenerateRuntime = async () => {
@@ -330,6 +355,9 @@ export default function MediaManagerPage() {
             assets={assets}
             isAuthenticated={isAuthenticated}
             onOAuthClick={handleOAuthClick}
+            driveStructure={driveStructure}
+            driveFiles={driveFiles}
+            onFolderClick={handleFolderClick}
           />
         )}
 
@@ -396,7 +424,7 @@ export default function MediaManagerPage() {
 }
 
 // Media Runtime Dashboard - Shows Drive ↔ Canonical ↔ Website reconciliation
-function MediaRuntimeDashboard({ reconciliationState, assets, isAuthenticated, onOAuthClick }: any) {
+function MediaRuntimeDashboard({ reconciliationState, assets, isAuthenticated, onOAuthClick, driveStructure, driveFiles, onFolderClick }: any) {
   return (
     <div className="bg-card border border-border rounded-lg p-6">
       <h2 className="font-semibold text-foreground mb-4 flex items-center gap-2">
@@ -431,6 +459,53 @@ function MediaRuntimeDashboard({ reconciliationState, assets, isAuthenticated, o
           </div>
         )}
       </div>
+
+      {/* Drive Browser - only show when authenticated */}
+      {isAuthenticated && driveStructure && (
+        <div className="mb-6">
+          <h3 className="font-medium text-foreground mb-3">Drive Browser</h3>
+          
+          {/* Quick access to discovered folders */}
+          <div className="mb-4">
+            <p className="text-sm text-muted-foreground mb-2">Quick Access</p>
+            <div className="flex flex-wrap gap-2">
+              {driveStructure.hppFolders.map((folder: any) => (
+                <button
+                  key={folder.id}
+                  onClick={() => onFolderClick(folder.id)}
+                  className="px-3 py-1.5 bg-surface border border-border rounded hover:bg-muted transition-colors text-sm"
+                >
+                  {folder.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Current folder contents */}
+          {driveFiles.length > 0 && (
+            <div className="bg-surface border border-border rounded-lg p-4 max-h-64 overflow-y-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-muted">
+                  <tr>
+                    <th className="px-4 py-2 text-left">Name</th>
+                    <th className="px-4 py-2 text-left">Type</th>
+                    <th className="px-4 py-2 text-left">Size</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {driveFiles.map((file: any) => (
+                    <tr key={file.id} className="border-t border-border hover:bg-muted cursor-pointer">
+                      <td className="px-4 py-2">{file.name}</td>
+                      <td className="px-4 py-2 capitalize">{file.mimeType?.split('/')[1] || 'File'}</td>
+                      <td className="px-4 py-2">{file.size ? `${(file.size / 1024).toFixed(1)} KB` : '-'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Reconciliation State */}
       {isAuthenticated && reconciliationState && (
