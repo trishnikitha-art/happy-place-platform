@@ -15,6 +15,8 @@
 
 import { slotRegistry } from './slot-registry';
 import { SlotConstraints } from './command-pattern';
+import { sequenceAuthority } from './sequence-authority';
+import { durableEventStore } from './durable-event-store';
 
 export interface Event {
   id: string;
@@ -136,11 +138,10 @@ type EventListener = (event: AnyEvent) => void | Promise<void>;
 
 /**
  * Event Store (for durability - separated from bus)
- * This will eventually be persisted to storage
+ * Uses durable storage for replay sovereignty
  */
 class EventStore {
   private static instance: EventStore;
-  private events: Event[] = [];
 
   private constructor() {}
 
@@ -152,23 +153,23 @@ class EventStore {
   }
 
   append(event: Event): void {
-    this.events.push(event);
+    durableEventStore.append(event);
   }
 
   appendAll(events: Event[]): void {
-    this.events.push(...events);
+    durableEventStore.appendAll(events);
   }
 
   getAll(): Event[] {
-    return [...this.events];
+    return durableEventStore.getAll();
   }
 
   getFromSequence(fromSequence: number): Event[] {
-    return this.events.filter(e => e.sequence >= fromSequence);
+    return durableEventStore.getFromSequence(fromSequence);
   }
 
   clear(): void {
-    this.events = [];
+    durableEventStore.clear();
   }
 }
 
@@ -230,7 +231,6 @@ export const eventBus = EventBus.getInstance();
  */
 class EventSystem {
   private static instance: EventSystem;
-  private sequence = 0;
 
   private constructor() {}
 
@@ -243,10 +243,10 @@ class EventSystem {
 
   /**
    * Generate next sequence number
-   * Exposed for EventBuilder to use for deterministic event IDs
+   * Delegates to canonical SequenceAuthority
    */
   nextSequence(): number {
-    return ++this.sequence;
+    return sequenceAuthority.nextSequence();
   }
 
   /**
@@ -364,7 +364,9 @@ class EventSystem {
     if (sourcePlacement) {
       const slot = slotRegistry.getSlot(event.data.targetSlotId);
       if (slot) {
-        placementGraph.createPlacement({
+        // Use the constitutional newPlacementId from the event
+        placementGraph.createPlacementWithId({
+          placementId: event.data.newPlacementId,
           assetId: sourcePlacement.assetId,
           slotId: event.data.targetSlotId,
           pageId: slot.page,
@@ -376,40 +378,53 @@ class EventSystem {
 
   private async applyAssetCropped(event: AssetCroppedEvent, placementGraph: any): Promise<void> {
     // Update crop metadata on placements using this asset
+    // Since getPlacementsForAsset returns deep copies, we need to update the actual placements
     const placements = placementGraph.getPlacementsForAsset(event.data.assetId);
     for (const placement of placements) {
-      if (placement.metadata) {
-        placement.metadata.crop = event.data.newCrop;
-      } else {
-        placement.metadata = { crop: event.data.newCrop };
-      }
+      placementGraph.updatePlacementMetadata(placement.placementId, {
+        ...placement.metadata,
+        crop: event.data.newCrop
+      });
     }
   }
 
   private async applyFocalPointAdjusted(event: FocalPointAdjustedEvent, placementGraph: any): Promise<void> {
     // Update focal point metadata on placements using this asset
+    // Since getPlacementsForAsset returns deep copies, we need to update the actual placements
     const placements = placementGraph.getPlacementsForAsset(event.data.assetId);
     for (const placement of placements) {
-      if (placement.metadata) {
-        placement.metadata.focalPoint = event.data.newFocalPoint;
-      } else {
-        placement.metadata = { focalPoint: event.data.newFocalPoint };
-      }
+      placementGraph.updatePlacementMetadata(placement.placementId, {
+        ...placement.metadata,
+        focalPoint: event.data.newFocalPoint
+      });
     }
   }
 
   private async applySlotConstraintsUpdated(event: SlotConstraintsUpdatedEvent, slotRegistry: any): Promise<void> {
     // Update slot constraints in registry
+    // Since slots are immutable once registered, this event triggers re-registration
+    // The updated constraints will be used for future placements
     const slot = slotRegistry.getSlot(event.data.slotId);
     if (slot) {
-      // Slot constraints are immutable once registered
-      // This event would need to trigger a component re-registration
-      // For now, this is a no-op in the registry
+      // Re-register the slot with new constraints
+      slotRegistry.register({
+        ...slot,
+        constraints: event.data.newConstraints
+      });
     }
   }
 
   private async applyStagedPublished(event: StagedPublishedEvent, placementGraph: any): Promise<void> {
-    placementGraph.publishStaged();
+    // Use the event payload to determine which placements to publish
+    const placementIds = event.data.placementIds;
+    
+    // Only publish the specific placements from the event
+    for (const placementId of placementIds) {
+      const placement = placementGraph.getPlacement(placementId);
+      if (placement && placement.status === 'staged') {
+        placementGraph.updatePlacementStatus(placementId, 'published');
+      }
+    }
   }
 
   /**
@@ -432,6 +447,7 @@ export const eventSystem = EventSystem.getInstance();
 /**
  * Event Builder
  * Type-safe event creation with deterministic IDs
+ * All sequences come from canonical SequenceAuthority
  */
 class EventBuilder {
   private static generateId(sequence: number): string {
@@ -444,8 +460,11 @@ class EventBuilder {
     newAssetId: string;
   }): AssetReplacedEvent {
     const sequence = eventSystem.nextSequence();
+    const eventId = EventBuilder.generateId(sequence);
+    sequenceAuthority.recordEvent(eventId, sequence);
+    
     return {
-      id: EventBuilder.generateId(sequence),
+      id: eventId,
       type: 'AssetReplaced',
       sequence,
       commandId: params.commandId,
@@ -462,8 +481,11 @@ class EventBuilder {
     newSlotId: string;
   }): PlacementMovedEvent {
     const sequence = eventSystem.nextSequence();
+    const eventId = EventBuilder.generateId(sequence);
+    sequenceAuthority.recordEvent(eventId, sequence);
+    
     return {
-      id: EventBuilder.generateId(sequence),
+      id: eventId,
       type: 'PlacementMoved',
       sequence,
       commandId: params.commandId,
@@ -479,8 +501,11 @@ class EventBuilder {
     placementId: string;
   }): PlacementDeletedEvent {
     const sequence = eventSystem.nextSequence();
+    const eventId = EventBuilder.generateId(sequence);
+    sequenceAuthority.recordEvent(eventId, sequence);
+    
     return {
-      id: EventBuilder.generateId(sequence),
+      id: eventId,
       type: 'PlacementDeleted',
       sequence,
       commandId: params.commandId,
@@ -496,8 +521,11 @@ class EventBuilder {
     placementId2: string;
   }): PlacementSwappedEvent {
     const sequence = eventSystem.nextSequence();
+    const eventId = EventBuilder.generateId(sequence);
+    sequenceAuthority.recordEvent(eventId, sequence);
+    
     return {
-      id: EventBuilder.generateId(sequence),
+      id: eventId,
       type: 'PlacementSwapped',
       sequence,
       commandId: params.commandId,
@@ -515,8 +543,11 @@ class EventBuilder {
     targetSlotId: string;
   }): PlacementDuplicatedEvent {
     const sequence = eventSystem.nextSequence();
+    const eventId = EventBuilder.generateId(sequence);
+    sequenceAuthority.recordEvent(eventId, sequence);
+    
     return {
-      id: EventBuilder.generateId(sequence),
+      id: eventId,
       type: 'PlacementDuplicated',
       sequence,
       commandId: params.commandId,
@@ -534,8 +565,11 @@ class EventBuilder {
     newCrop: { x: number; y: number; width: number; height: number };
   }): AssetCroppedEvent {
     const sequence = eventSystem.nextSequence();
+    const eventId = EventBuilder.generateId(sequence);
+    sequenceAuthority.recordEvent(eventId, sequence);
+    
     return {
-      id: EventBuilder.generateId(sequence),
+      id: eventId,
       type: 'AssetCropped',
       sequence,
       commandId: params.commandId,
@@ -552,8 +586,11 @@ class EventBuilder {
     newConstraints: SlotConstraints;
   }): SlotConstraintsUpdatedEvent {
     const sequence = eventSystem.nextSequence();
+    const eventId = EventBuilder.generateId(sequence);
+    sequenceAuthority.recordEvent(eventId, sequence);
+    
     return {
-      id: EventBuilder.generateId(sequence),
+      id: eventId,
       type: 'SlotConstraintsUpdated',
       sequence,
       commandId: params.commandId,
@@ -570,8 +607,11 @@ class EventBuilder {
     newFocalPoint: { x: number; y: number };
   }): FocalPointAdjustedEvent {
     const sequence = eventSystem.nextSequence();
+    const eventId = EventBuilder.generateId(sequence);
+    sequenceAuthority.recordEvent(eventId, sequence);
+    
     return {
-      id: EventBuilder.generateId(sequence),
+      id: eventId,
       type: 'FocalPointAdjusted',
       sequence,
       commandId: params.commandId,
@@ -587,8 +627,11 @@ class EventBuilder {
     placementIds: string[];
   }): StagedPublishedEvent {
     const sequence = eventSystem.nextSequence();
+    const eventId = EventBuilder.generateId(sequence);
+    sequenceAuthority.recordEvent(eventId, sequence);
+    
     return {
-      id: EventBuilder.generateId(sequence),
+      id: eventId,
       type: 'StagedPublished',
       sequence,
       commandId: params.commandId,

@@ -45,6 +45,7 @@ class SlotRegistry {
    * Register a slot from a component
    * Called by production components to declare their editable regions
    * Rejects duplicate registrations with different properties
+   * Allows re-registration with updated constraints (for SlotConstraintsUpdated event)
    */
   register(registration: SlotRegistration): void {
     const existing = this.registeredSlots.get(registration.slotId);
@@ -55,17 +56,17 @@ class SlotRegistry {
         existing.page === registration.page &&
         existing.component === registration.component &&
         existing.slotName === registration.slotName &&
-        JSON.stringify(existing.constraints) === JSON.stringify(registration.constraints) &&
         existing.elementType === registration.elementType;
       
       if (!isConsistent) {
         throw new Error(
-          `Slot ${registration.slotId} already registered with different properties. ` +
+          `Slot ${registration.slotId} registration is inconsistent. ` +
           `Existing: ${JSON.stringify(existing)}, New: ${JSON.stringify(registration)}`
         );
       }
       
-      // Consistent re-registration is allowed (Strict Mode double-mount)
+      // Allow constraints to be updated (for SlotConstraintsUpdated event)
+      this.registeredSlots.set(registration.slotId, registration);
       return;
     }
     

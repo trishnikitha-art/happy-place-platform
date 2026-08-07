@@ -11,7 +11,11 @@
  * 
  * Commands never mutate state directly - they produce events.
  * Command IDs are deterministic (sequence-based, not time-based).
+ * All sequences come from one canonical SequenceAuthority.
  */
+
+import { sequenceAuthority } from './sequence-authority';
+import { ValidationFailure, ValidationResult } from './validation-result';
 
 export interface Command {
   id: string;
@@ -127,13 +131,7 @@ export interface SlotConstraints {
  * Type-safe command creation with deterministic IDs
  */
 class CommandBuilder {
-  private static sequence = 0;
-
-  private static nextSequence(): number {
-    return ++CommandBuilder.sequence;
-  }
-
-  static generateId(sequence: number): string {
+  private static generateId(sequence: number): string {
     return `cmd_${sequence}`;
   }
 
@@ -141,9 +139,12 @@ class CommandBuilder {
     slotId: string;
     newAssetId: string;
   }): ReplaceAssetCommand {
-    const sequence = CommandBuilder.nextSequence();
+    const sequence = sequenceAuthority.nextSequence();
+    const commandId = CommandBuilder.generateId(sequence);
+    sequenceAuthority.recordCommand(commandId, sequence);
+    
     return {
-      id: CommandBuilder.generateId(sequence),
+      id: commandId,
       type: 'ReplaceAsset',
       sequence,
       ...params
@@ -154,9 +155,12 @@ class CommandBuilder {
     placementId: string;
     newSlotId: string;
   }): MovePlacementCommand {
-    const sequence = CommandBuilder.nextSequence();
+    const sequence = sequenceAuthority.nextSequence();
+    const commandId = CommandBuilder.generateId(sequence);
+    sequenceAuthority.recordCommand(commandId, sequence);
+    
     return {
-      id: CommandBuilder.generateId(sequence),
+      id: commandId,
       type: 'MovePlacement',
       sequence,
       ...params
@@ -167,9 +171,12 @@ class CommandBuilder {
     placementId1: string;
     placementId2: string;
   }): SwapPlacementCommand {
-    const sequence = CommandBuilder.nextSequence();
+    const sequence = sequenceAuthority.nextSequence();
+    const commandId = CommandBuilder.generateId(sequence);
+    sequenceAuthority.recordCommand(commandId, sequence);
+    
     return {
-      id: CommandBuilder.generateId(sequence),
+      id: commandId,
       type: 'SwapPlacement',
       sequence,
       ...params
@@ -179,9 +186,12 @@ class CommandBuilder {
   static deletePlacement(params: {
     placementId: string;
   }): DeletePlacementCommand {
-    const sequence = CommandBuilder.nextSequence();
+    const sequence = sequenceAuthority.nextSequence();
+    const commandId = CommandBuilder.generateId(sequence);
+    sequenceAuthority.recordCommand(commandId, sequence);
+    
     return {
-      id: CommandBuilder.generateId(sequence),
+      id: commandId,
       type: 'DeletePlacement',
       sequence,
       ...params
@@ -192,10 +202,13 @@ class CommandBuilder {
     sourcePlacementId: string;
     targetSlotId: string;
   }): DuplicatePlacementCommand {
-    const sequence = CommandBuilder.nextSequence();
-    const newPlacementId = CommandBuilder.generateId(sequence);
+    const sequence = sequenceAuthority.nextSequence();
+    const commandId = CommandBuilder.generateId(sequence);
+    const newPlacementId = `placement_${sequenceAuthority.nextSequence()}`;
+    sequenceAuthority.recordCommand(commandId, sequence);
+    
     return {
-      id: CommandBuilder.generateId(sequence),
+      id: commandId,
       type: 'DuplicatePlacement',
       sequence,
       sourcePlacementId: params.sourcePlacementId,
@@ -208,9 +221,12 @@ class CommandBuilder {
     assetId: string;
     newCrop: CropRegion;
   }): CropAssetCommand {
-    const sequence = CommandBuilder.nextSequence();
+    const sequence = sequenceAuthority.nextSequence();
+    const commandId = CommandBuilder.generateId(sequence);
+    sequenceAuthority.recordCommand(commandId, sequence);
+    
     return {
-      id: CommandBuilder.generateId(sequence),
+      id: commandId,
       type: 'CropAsset',
       sequence,
       ...params
@@ -221,9 +237,12 @@ class CommandBuilder {
     assetId: string;
     newFocalPoint: FocalPoint;
   }): AdjustFocalPointCommand {
-    const sequence = CommandBuilder.nextSequence();
+    const sequence = sequenceAuthority.nextSequence();
+    const commandId = CommandBuilder.generateId(sequence);
+    sequenceAuthority.recordCommand(commandId, sequence);
+    
     return {
-      id: CommandBuilder.generateId(sequence),
+      id: commandId,
       type: 'AdjustFocalPoint',
       sequence,
       ...params
@@ -234,9 +253,12 @@ class CommandBuilder {
     slotId: string;
     newConstraints: SlotConstraints;
   }): UpdateSlotConstraintsCommand {
-    const sequence = CommandBuilder.nextSequence();
+    const sequence = sequenceAuthority.nextSequence();
+    const commandId = CommandBuilder.generateId(sequence);
+    sequenceAuthority.recordCommand(commandId, sequence);
+    
     return {
-      id: CommandBuilder.generateId(sequence),
+      id: commandId,
       type: 'UpdateSlotConstraints',
       sequence,
       ...params
@@ -244,18 +266,24 @@ class CommandBuilder {
   }
 
   static publishStaged(): PublishStagedCommand {
-    const sequence = CommandBuilder.nextSequence();
+    const sequence = sequenceAuthority.nextSequence();
+    const commandId = CommandBuilder.generateId(sequence);
+    sequenceAuthority.recordCommand(commandId, sequence);
+    
     return {
-      id: CommandBuilder.generateId(sequence),
+      id: commandId,
       type: 'PublishStaged',
       sequence
     };
   }
 
   static batchOperation(commands: AnyCommand[]): BatchOperationCommand {
-    const sequence = CommandBuilder.nextSequence();
+    const sequence = sequenceAuthority.nextSequence();
+    const commandId = CommandBuilder.generateId(sequence);
+    sequenceAuthority.recordCommand(commandId, sequence);
+    
     return {
-      id: CommandBuilder.generateId(sequence),
+      id: commandId,
       type: 'BatchOperation',
       sequence,
       commands
@@ -285,8 +313,6 @@ class CommandExecutor {
    * Constitutional Law 10: Commands Produce Events
    */
   async execute(command: AnyCommand): Promise<void> {
-    console.log('Executing command:', command);
-    
     if (command.type === 'BatchOperation') {
       await this.executeBatch(command);
     } else {
@@ -301,8 +327,9 @@ class CommandExecutor {
 
   /**
    * Validate a command before execution
+   * Returns deterministic ValidationResult instead of throwing
    */
-  private async validateCommand(command: AnyCommand): Promise<void> {
+  private async validateCommand(command: AnyCommand): Promise<ValidationResult> {
     const { slotRegistry } = await import('./slot-registry');
     const { placementGraph } = await import('./placement-graph');
     
@@ -312,31 +339,33 @@ class CommandExecutor {
         // Validate asset exists, slot exists, etc.
         const slot = slotRegistry.getSlot(command.slotId);
         if (!slot) {
-          throw new Error(`Slot ${command.slotId} does not exist`);
+          return ValidationFailure.slotNotFound(command.slotId);
         }
         break;
       case 'MovePlacement':
         // Validate placement exists, target slot exists and is available
         const placement = placementGraph.getPlacement(command.placementId);
         if (!placement) {
-          throw new Error(`Placement ${command.placementId} does not exist`);
+          return ValidationFailure.placementNotFound(command.placementId);
         }
         const targetSlot = slotRegistry.getSlot(command.newSlotId);
         if (!targetSlot) {
-          throw new Error(`Target slot ${command.newSlotId} does not exist`);
+          return ValidationFailure.targetSlotNotFound(command.newSlotId);
         }
         break;
       case 'DeletePlacement':
         // Validate placement exists
         const deletePlacement = placementGraph.getPlacement(command.placementId);
         if (!deletePlacement) {
-          throw new Error(`Placement ${command.placementId} does not exist`);
+          return ValidationFailure.placementNotFound(command.placementId);
         }
         break;
       default:
         // Default validation - no-op for now
         break;
     }
+    
+    return ValidationFailure.success();
   }
 
   /**
@@ -347,7 +376,11 @@ class CommandExecutor {
   private async executeBatch(command: BatchOperationCommand): Promise<void> {
     // Validate all commands first
     for (const cmd of command.commands) {
-      await this.validateCommand(cmd);
+      const validationResult = await this.validateCommand(cmd);
+      if (!validationResult.success) {
+        // Validation failed - do not execute any commands
+        throw new Error(`Batch validation failed: ${validationResult.code} - ${validationResult.message}`);
+      }
     }
 
     // All validations passed - build all events
@@ -359,9 +392,7 @@ class CommandExecutor {
 
     // Append all events atomically to event store
     const { eventStore } = await import('./event-system');
-    for (const event of events) {
-      eventStore.append(event);
-    }
+    eventStore.appendAll(events);
 
     // Notify listeners for all events
     const { eventBus } = await import('./event-system');
