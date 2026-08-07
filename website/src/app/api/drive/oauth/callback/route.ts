@@ -15,14 +15,18 @@ export async function GET(request: Request) {
   const code = searchParams.get('code');
   const error = searchParams.get('error');
 
+  console.log('OAuth callback reached');
+
   if (error) {
-    const url = new URL('/workbench/media', request.url);
+    console.log('OAuth error:', error);
+    const url = new URL('/workbench/media', new URL(request.url).origin);
     url.searchParams.set('error', 'oauth_denied');
     return NextResponse.redirect(url);
   }
 
   if (!code) {
-    const url = new URL('/workbench/media', request.url);
+    console.log('No code in callback');
+    const url = new URL('/workbench/media', new URL(request.url).origin);
     url.searchParams.set('error', 'no_code');
     return NextResponse.redirect(url);
   }
@@ -53,8 +57,11 @@ export async function GET(request: Request) {
 
     const tokenData = await tokenResponse.json();
 
+    console.log('Token exchange response:', tokenData);
+
     if (tokenData.error) {
-      const url = new URL('/workbench/media', request.url);
+      console.log('Token exchange error:', tokenData.error);
+      const url = new URL('/workbench/media', new URL(request.url).origin);
       url.searchParams.set('error', 'token_exchange_failed');
       return NextResponse.redirect(url);
     }
@@ -63,21 +70,56 @@ export async function GET(request: Request) {
     const expiresIn = tokenData.expires_in || 3600;
     const expiryDate = Date.now() + (expiresIn * 1000);
 
-    // Persist credentials through DriveSession
-    await driveSession.setCredentials({
-      access_token: tokenData.access_token,
-      refresh_token: tokenData.refresh_token,
-      expiry_date: expiryDate,
-      scope: tokenData.scope,
+    console.log('Writing cookies...');
+
+    // Create redirect response first
+    const dashboardUrl = new URL('/workbench/media', new URL(request.url).origin);
+    dashboardUrl.searchParams.set('oauth', 'success');
+    const response = NextResponse.redirect(dashboardUrl);
+
+    // Set cookies directly on the response
+    response.cookies.set('drive_access_token', tokenData.access_token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 3600, // 1 hour
+      path: '/',
     });
 
-    // Redirect to workbench with success
-    const url = new URL('/workbench/media', request.url);
-    url.searchParams.set('oauth', 'success');
-    return NextResponse.redirect(url);
+    if (tokenData.refresh_token) {
+      response.cookies.set('drive_refresh_token', tokenData.refresh_token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+        path: '/',
+      });
+    }
+
+    response.cookies.set('drive_expiry_date', expiryDate.toString(), {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 30,
+      path: '/',
+    });
+
+    if (tokenData.scope) {
+      response.cookies.set('drive_scope', tokenData.scope, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        maxAge: 60 * 60 * 24 * 30,
+        path: '/',
+      });
+    }
+
+    console.log('Redirecting to:', dashboardUrl.toString());
+
+    return response;
   } catch (error) {
     console.error('OAuth token exchange error:', error);
-    const url = new URL('/workbench/media', request.url);
+    const url = new URL('/workbench/media', new URL(request.url).origin);
     url.searchParams.set('error', 'token_exchange_error');
     return NextResponse.redirect(url);
   }
