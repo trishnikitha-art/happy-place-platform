@@ -12,33 +12,35 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { 
-  HardDrive, 
-  Database, 
-  Network, 
-  CheckCircle, 
-  AlertCircle, 
-  Clock, 
-  Star, 
-  Crown, 
-  Images, 
-  Split, 
-  Edit, 
-  Play, 
-  RefreshCw,
-  Upload,
-  Download,
-  FileText,
-  GitBranch,
-  Rocket,
-  Lock,
-  Globe,
   Layout,
   Image as ImageIcon,
   Settings,
   Eye,
-  Layers
+  RefreshCw,
+  Database,
+  CheckCircle,
+  AlertCircle,
+  Shield,
+  HardDrive,
+  Globe,
+  Network,
+  Crown,
+  Star,
+  Images,
+  Split,
+  Edit,
+  Play,
+  GitBranch,
+  Rocket
 } from 'lucide-react';
+
+// Dynamically import the actual homepage to avoid server component issues
+const HomePage = dynamic(() => import('@/app/page'), { 
+  ssr: false,
+  loading: () => <div className="flex items-center justify-center h-screen">Loading website...</div>
+});
 
 interface GraphData {
   nodes: any[];
@@ -130,97 +132,30 @@ export default function VisualWebsiteEditor() {
 
   useEffect(() => {
     loadRuntime();
-    // Initialize sample media assets for demo
-    setMediaAssets([
-      {
-        mediaId: 'demo-1',
-        filename: 'deck-project-001.jpg',
-        mimeType: 'image/jpeg',
-        dimensions: '1920x1080',
-        thumbnail: '/images/hero-background-enhanced.jpg',
-        aiTags: ['deck', 'outdoor', 'woodwork'],
-        usageCount: 3,
-        status: 'published'
-      },
-      {
-        mediaId: 'demo-2',
-        filename: 'fence-repair-002.jpg',
-        mimeType: 'image/jpeg',
-        dimensions: '1200x800',
-        thumbnail: '/images/hero-background-enhanced.jpg',
-        aiTags: ['fence', 'repair', 'outdoor'],
-        usageCount: 1,
-        status: 'staged'
-      },
-      {
-        mediaId: 'demo-3',
-        filename: 'kitchen-remodel-003.jpg',
-        mimeType: 'image/jpeg',
-        dimensions: '1600x1200',
-        thumbnail: '/images/hero-background-enhanced.jpg',
-        aiTags: ['kitchen', 'remodel', 'interior'],
-        usageCount: 0,
-        status: 'published'
-      },
-      {
-        mediaId: 'demo-4',
-        filename: 'bathroom-update-004.jpg',
-        mimeType: 'image/jpeg',
-        dimensions: '800x600',
-        thumbnail: '/images/hero-background-enhanced.jpg',
-        aiTags: ['bathroom', 'update', 'interior'],
-        usageCount: 2,
-        status: 'staged'
-      }
-    ]);
   }, []);
 
   const loadRuntime = async () => {
     try {
       setLoading(true);
       
-      // Check authentication status
-      const authResponse = await fetch('/api/drive/auth/status');
-      if (authResponse.ok) {
-        const authData = await authResponse.json();
-        setIsAuthenticated(authData.authenticated);
-
-        // If authenticated, load Drive structure
-        if (authData.authenticated) {
-          const discoveryResponse = await fetch('/api/drive/discovery');
-          if (discoveryResponse.ok) {
-            const discoveryData = await discoveryResponse.json();
-            setDriveStructure(discoveryData);
-          }
-        }
-      }
-
-      // Load reconciliation state
-      const reconciliationResponse = await fetch('/api/media/reconciliation');
-      if (reconciliationResponse.ok) {
-        const reconciliationData = await reconciliationResponse.json();
-        setReconciliationState(reconciliationData);
-      }
-
-      // Load canonical graph assets
+      // Load canonical graph assets for media library
       const graphResponse = await fetch('/api/media/graph');
       if (graphResponse.ok) {
         const graphData = await graphResponse.json();
         setAssets(graphData.assets);
-      }
-
-      // Load hero projection
-      const heroResponse = await fetch('/api/runtime/projections/hero');
-      if (heroResponse.ok) {
-        const heroData = await heroResponse.json();
-        setHeroProjection(heroData);
-      }
-
-      // Load gallery projection
-      const galleryResponse = await fetch('/api/runtime/projections/gallery');
-      if (galleryResponse.ok) {
-        const galleryData = await galleryResponse.json();
-        setGalleryProjection(galleryData);
+        
+        // Transform canonical assets into media library format
+        const mediaAssets: MediaAsset[] = graphData.assets.map((asset: any) => ({
+          mediaId: asset.mediaId,
+          filename: asset.filename,
+          mimeType: asset.mimeType,
+          dimensions: asset.dimensions || 'unknown',
+          thumbnail: asset.variants?.web || asset.variants?.original || '/brand/logo.png',
+          aiTags: asset.aiTags || [],
+          usageCount: asset.usageCount || 0,
+          status: asset.status || 'published'
+        }));
+        setMediaAssets(mediaAssets);
       }
     } catch (err) {
       console.error('Failed to load runtime:', err);
@@ -357,15 +292,19 @@ export default function VisualWebsiteEditor() {
           </div>
         </div>
 
-        {/* Center - Website Canvas */}
-        <div className="flex-1 bg-surface overflow-auto">
-          <div className="max-w-7xl mx-auto p-8">
-            <WebsiteCanvas 
-              editorMode={editorMode}
-              selectedSlot={selectedSlot}
-              onSelectSlot={setSelectedSlot}
-              placementSlots={placementSlots}
-            />
+        {/* Center - Actual Website Runtime with Editor Overlay */}
+        <div className="flex-1 bg-surface overflow-auto relative">
+          <div className="max-w-full">
+            {/* Actual HPP Homepage */}
+            <HomePageWrapper editorMode={editorMode} />
+            
+            {/* Editor Overlay - only visible in editor mode */}
+            {editorMode && (
+              <EditorOverlay 
+                selectedSlot={selectedSlot}
+                onSelectSlot={setSelectedSlot}
+              />
+            )}
           </div>
         </div>
 
@@ -392,6 +331,127 @@ export default function VisualWebsiteEditor() {
       </div>
     </div>
   );
+}
+
+// Homepage Wrapper - renders actual HPP homepage
+function HomePageWrapper({ editorMode }: { editorMode: boolean }) {
+  return (
+    <div className={editorMode ? 'pointer-events-none' : ''}>
+      <HomePage />
+    </div>
+  );
+}
+
+// Editor Overlay - discovers and highlights editable slots
+function EditorOverlay({ 
+  selectedSlot, 
+  onSelectSlot 
+}: { 
+  selectedSlot: PlacementSlot | null; 
+  onSelectSlot: (slot: PlacementSlot) => void;
+}) {
+  const [registeredSlots, setRegisteredSlots] = useState<PlacementSlot[]>([]);
+
+  useEffect(() => {
+    // Discover registered slots from components
+    // This will be populated by the slot registration system
+    const slots = discoverEditableSlots();
+    setRegisteredSlots(slots);
+  }, []);
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = (e: React.DragEvent, slot: PlacementSlot) => {
+    e.preventDefault();
+    try {
+      const assetData = e.dataTransfer.getData('application/json');
+      if (assetData) {
+        const asset: MediaAsset = JSON.parse(assetData);
+        console.log('Placement created:', {
+          assetId: asset.mediaId,
+          slotId: slot.id,
+          pageId: slot.page,
+          componentId: slot.component,
+          constraints: slot.constraints
+        });
+        
+        // Update placement graph here
+        onSelectSlot({
+          ...slot,
+          currentAsset: asset,
+          status: 'staged'
+        });
+      }
+    } catch (error) {
+      console.error('Failed to parse dropped asset:', error);
+    }
+  };
+
+  return (
+    <div className="absolute inset-0 pointer-events-none">
+      {registeredSlots.map((slot) => (
+        <div
+          key={slot.id}
+          className={`absolute border-2 border-dashed border-primary/50 hover:border-primary bg-primary/5 cursor-pointer transition-all pointer-events-auto ${
+            selectedSlot?.id === slot.id ? 'border-primary ring-2 ring-primary/20' : ''
+          }`}
+          style={getSlotPosition(slot.id)}
+          onClick={() => onSelectSlot(slot)}
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleDrop(e, slot)}
+        >
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="text-center bg-white/90 p-2 rounded shadow">
+              <ImageIcon size={16} className="mx-auto text-primary/70 mb-1" />
+              <p className="text-xs text-primary/90">{slot.slotName}</p>
+              <p className="text-xs text-primary/50">{slot.constraints.aspectRatio}</p>
+            </div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Discover editable slots from actual website components
+function discoverEditableSlots(): PlacementSlot[] {
+  // This will be implemented via slot registration system
+  // For now, return known slots based on component structure
+  return [
+    {
+      id: 'hero-background',
+      page: 'Home',
+      component: 'HeroSection',
+      slotName: 'hero-background',
+      currentAsset: null,
+      status: 'empty',
+      constraints: {
+        aspectRatio: '16:9',
+        responsive: true,
+        focalPointEnabled: true,
+        minWidth: 1200,
+        compressionPreset: 'high-quality'
+      }
+    }
+  ];
+}
+
+// Get position for slot overlay (will be computed from actual DOM elements)
+function getSlotPosition(slotId: string): React.CSSProperties {
+  // This will use DOM queries to find actual element positions
+  // For now, return placeholder positions
+  const positions: Record<string, React.CSSProperties> = {
+    'hero-background': {
+      top: '0',
+      left: '0',
+      right: '0',
+      height: '400px'
+    }
+  };
+  return positions[slotId] || { display: 'none' };
 }
 
 // Media Library Grid Component
@@ -443,225 +503,6 @@ function MediaLibraryGrid({ assets, selectedAsset, onSelectAsset }: {
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-// Website Canvas Component
-function WebsiteCanvas({ 
-  editorMode, 
-  selectedSlot, 
-  onSelectSlot,
-  placementSlots 
-}: { 
-  editorMode: boolean; 
-  selectedSlot: PlacementSlot | null; 
-  onSelectSlot: (slot: PlacementSlot) => void;
-  placementSlots: PlacementSlot[];
-}) {
-  const handleDragOver = (e: React.DragEvent) => {
-    if (editorMode) {
-      e.preventDefault();
-      e.dataTransfer.dropEffect = 'copy';
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent, slot: PlacementSlot) => {
-    e.preventDefault();
-    if (!editorMode) return;
-
-    try {
-      const assetData = e.dataTransfer.getData('application/json');
-      if (assetData) {
-        const asset: MediaAsset = JSON.parse(assetData);
-        console.log('Dropped asset onto slot:', slot.id, asset);
-        
-        // Update the slot with the new asset
-        onSelectSlot({
-          ...slot,
-          currentAsset: asset,
-          status: 'staged'
-        });
-      }
-    } catch (error) {
-      console.error('Failed to parse dropped asset:', error);
-    }
-  };
-
-  return (
-    <div className="relative">
-      {/* Simulated Homepage Canvas */}
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden min-h-[800px]">
-        {/* Hero Section - Editable Slot */}
-        <div className="relative h-96 bg-gradient-to-br from-deep to-deep/80">
-          <div 
-            className={`absolute inset-4 border-2 border-dashed rounded-lg cursor-pointer transition-all ${
-              editorMode 
-                ? 'border-primary/50 hover:border-primary bg-primary/5' 
-                : 'border-transparent'
-            } ${selectedSlot?.slotName === 'hero-background' ? 'border-primary ring-2 ring-primary/20' : ''}`}
-            onClick={() => editorMode && onSelectSlot({
-              id: 'hero-background',
-              page: 'Home',
-              component: 'HeroSection',
-              slotName: 'hero-background',
-              currentAsset: null,
-              status: 'empty',
-              constraints: {
-                aspectRatio: '16:9',
-                responsive: true,
-                focalPointEnabled: true,
-                minWidth: 1200,
-                compressionPreset: 'high-quality'
-              }
-            })}
-            onDragOver={handleDragOver}
-            onDrop={(e) => handleDrop(e, {
-              id: 'hero-background',
-              page: 'Home',
-              component: 'HeroSection',
-              slotName: 'hero-background',
-              currentAsset: null,
-              status: 'empty',
-              constraints: {
-                aspectRatio: '16:9',
-                responsive: true,
-                focalPointEnabled: true,
-                minWidth: 1200,
-                compressionPreset: 'high-quality'
-              }
-            })}
-          >
-            {selectedSlot?.slotName === 'hero-background' && selectedSlot.currentAsset ? (
-              <img 
-                src={selectedSlot.currentAsset.thumbnail} 
-                alt={selectedSlot.currentAsset.filename}
-                className="w-full h-full object-cover"
-              />
-            ) : editorMode && (
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center">
-                  <ImageIcon size={32} className="mx-auto text-primary/50 mb-2" />
-                  <p className="text-sm text-primary/70">Hero Background</p>
-                  <p className="text-xs text-primary/50">16:9 • Responsive</p>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Service Cards - Editable Slots */}
-        <div className="p-8">
-          <h2 className="text-2xl font-bold mb-6">Our Services</h2>
-          <div className="grid grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => {
-              const slotId = `service-${i}`;
-              const defaultSlot: PlacementSlot = {
-                id: slotId,
-                page: 'Home',
-                component: 'ServiceCard',
-                slotName: `service-image-${i}`,
-                currentAsset: null,
-                status: 'empty',
-                constraints: {
-                  aspectRatio: '4:3',
-                  responsive: true,
-                  focalPointEnabled: false,
-                  minWidth: 400,
-                  compressionPreset: 'balanced'
-                }
-              };
-              const slot = selectedSlot?.id === slotId ? selectedSlot : defaultSlot;
-              
-              return (
-                <div
-                  key={i}
-                  className={`border-2 border-dashed rounded-lg p-4 cursor-pointer transition-all ${
-                    editorMode 
-                      ? 'border-primary/50 hover:border-primary bg-primary/5 min-h-[200px]' 
-                      : 'border-transparent'
-                  } ${selectedSlot?.id === slotId ? 'border-primary ring-2 ring-primary/20' : ''}`}
-                  onClick={() => editorMode && onSelectSlot(slot)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, slot)}
-                >
-                  {slot.currentAsset ? (
-                    <img 
-                      src={slot.currentAsset.thumbnail} 
-                      alt={slot.currentAsset.filename}
-                      className="w-full h-full object-cover rounded"
-                    />
-                  ) : editorMode && (
-                    <div className="h-full flex items-center justify-center">
-                      <div className="text-center">
-                        <ImageIcon size={24} className="mx-auto text-primary/50 mb-2" />
-                        <p className="text-sm text-primary/70">Service Image {i}</p>
-                        <p className="text-xs text-primary/50">4:3 • Fixed</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Gallery Section - Editable Slots */}
-        <div className="p-8 bg-surface">
-          <h2 className="text-2xl font-bold mb-6">Featured Projects</h2>
-          <div className="grid grid-cols-4 gap-4">
-            {[1, 2, 3, 4].map((i) => {
-              const slotId = `gallery-${i}`;
-              const defaultSlot: PlacementSlot = {
-                id: slotId,
-                page: 'Home',
-                component: 'GalleryCard',
-                slotName: `gallery-thumbnail-${i}`,
-                currentAsset: null,
-                status: 'empty',
-                constraints: {
-                  aspectRatio: '1:1',
-                  responsive: true,
-                  focalPointEnabled: true,
-                  minWidth: 300,
-                  compressionPreset: 'web-optimized'
-                }
-              };
-              const slot = selectedSlot?.id === slotId ? selectedSlot : defaultSlot;
-              
-              return (
-                <div
-                  key={i}
-                  className={`border-2 border-dashed rounded-lg p-4 cursor-pointer transition-all ${
-                    editorMode 
-                      ? 'border-primary/50 hover:border-primary bg-primary/5 min-h-[150px]' 
-                      : 'border-transparent'
-                  } ${selectedSlot?.id === slotId ? 'border-primary ring-2 ring-primary/20' : ''}`}
-                  onClick={() => editorMode && onSelectSlot(slot)}
-                  onDragOver={handleDragOver}
-                  onDrop={(e) => handleDrop(e, slot)}
-                >
-                  {slot.currentAsset ? (
-                    <img 
-                      src={slot.currentAsset.thumbnail} 
-                      alt={slot.currentAsset.filename}
-                      className="w-full h-full object-cover rounded"
-                    />
-                  ) : editorMode && (
-                    <div className="h-full flex items-center justify-center">
-                      <div className="text-center">
-                        <ImageIcon size={20} className="mx-auto text-primary/50 mb-2" />
-                        <p className="text-xs text-primary/70">Gallery {i}</p>
-                        <p className="text-xs text-primary/50">1:1 • Square</p>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -792,7 +633,7 @@ function MediaRuntimeDashboard({ reconciliationState, assets, isAuthenticated, o
               onClick={onOAuthClick}
               className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors flex items-center gap-2"
             >
-              <Lock size={16} />
+              <Shield size={16} className="text-primary-foreground" />
               Connect Google Account
             </button>
             <p className="text-xs text-muted-foreground">
