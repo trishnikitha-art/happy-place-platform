@@ -204,8 +204,10 @@ class CommandBuilder {
   }): DuplicatePlacementCommand {
     const sequence = sequenceAuthority.nextSequence();
     const commandId = CommandBuilder.generateId(sequence);
-    const newPlacementId = `placement_${sequenceAuthority.nextSequence()}`;
     sequenceAuthority.recordCommand(commandId, sequence);
+    
+    // Use same sequence for placement ID to establish causal relationship
+    const newPlacementId = `placement_${sequence}`;
     
     return {
       id: commandId,
@@ -392,7 +394,11 @@ class CommandExecutor {
 
     // Append all events atomically to event store
     const { eventStore } = await import('./event-system');
-    eventStore.appendAll(events);
+    const appendResult = eventStore.appendAll(events);
+    
+    if (!appendResult.success) {
+      throw new Error(`Batch append failed: ${appendResult.code} - ${appendResult.message}`);
+    }
 
     // Notify listeners for all events
     const { eventBus } = await import('./event-system');

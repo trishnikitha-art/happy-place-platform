@@ -17,6 +17,7 @@ import { slotRegistry } from './slot-registry';
 import { SlotConstraints } from './command-pattern';
 import { sequenceAuthority } from './sequence-authority';
 import { durableEventStore } from './durable-event-store';
+import { ValidationResult, ValidationFailure } from './validation-result';
 
 export interface Event {
   id: string;
@@ -152,12 +153,12 @@ class EventStore {
     return EventStore.instance;
   }
 
-  append(event: Event): void {
-    durableEventStore.append(event);
+  append(event: Event): ValidationResult {
+    return durableEventStore.append(event);
   }
 
-  appendAll(events: Event[]): void {
-    durableEventStore.appendAll(events);
+  appendAll(events: Event[]): ValidationResult {
+    return durableEventStore.appendAll(events);
   }
 
   getAll(): Event[] {
@@ -253,12 +254,18 @@ class EventSystem {
    * Emit and store event
    * This is the canonical event emission point
    */
-  async emit(event: AnyEvent): Promise<void> {
+  async emit(event: AnyEvent): Promise<ValidationResult> {
     // Store in event store for durability/replay
-    eventStore.append(event);
+    const validationResult = eventStore.append(event);
+    
+    if (!validationResult.success) {
+      return validationResult;
+    }
     
     // Notify listeners via event bus
     await eventBus.emit(event);
+    
+    return ValidationFailure.success();
   }
 
   /**
@@ -321,24 +328,29 @@ class EventSystem {
     const existingPlacement = placementGraph.getPlacementForSlot(event.data.slotId);
     
     if (existingPlacement) {
-      placementGraph.replaceAsset(existingPlacement.placementId, event.data.newAssetId);
+      // Pass event sequence to prevent allocation during replay
+      placementGraph.replaceAsset(existingPlacement.placementId, event.data.newAssetId, event.sequence);
     } else {
       // Need pageId and componentId for new placement
       // This should come from slot registration
       const slot = slotRegistry.getSlot(event.data.slotId);
       if (slot) {
-        placementGraph.createPlacement({
+        // Pass event sequence to prevent allocation during replay
+        placementGraph.createPlacementWithIdAndSequence({
+          placementId: `placement_${event.sequence}`,
           assetId: event.data.newAssetId,
           slotId: event.data.slotId,
           pageId: slot.page,
-          componentId: slot.component
+          componentId: slot.component,
+          sequence: event.sequence
         });
       }
     }
   }
 
   private async applyPlacementMoved(event: PlacementMovedEvent, placementGraph: any): Promise<void> {
-    placementGraph.movePlacement(event.data.placementId, event.data.newSlotId);
+    // Pass event sequence to prevent allocation during replay
+    placementGraph.movePlacement(event.data.placementId, event.data.newSlotId, event.sequence);
   }
 
   private async applyPlacementSwapped(event: PlacementSwappedEvent, placementGraph: any): Promise<void> {
@@ -365,12 +377,14 @@ class EventSystem {
       const slot = slotRegistry.getSlot(event.data.targetSlotId);
       if (slot) {
         // Use the constitutional newPlacementId from the event
-        placementGraph.createPlacementWithId({
+        // Pass event sequence to prevent allocation during replay
+        placementGraph.createPlacementWithIdAndSequence({
           placementId: event.data.newPlacementId,
           assetId: sourcePlacement.assetId,
           slotId: event.data.targetSlotId,
           pageId: slot.page,
-          componentId: slot.component
+          componentId: slot.component,
+          sequence: event.sequence
         });
       }
     }
@@ -381,10 +395,11 @@ class EventSystem {
     // Since getPlacementsForAsset returns deep copies, we need to update the actual placements
     const placements = placementGraph.getPlacementsForAsset(event.data.assetId);
     for (const placement of placements) {
+      // Pass event sequence to prevent allocation during replay
       placementGraph.updatePlacementMetadata(placement.placementId, {
         ...placement.metadata,
         crop: event.data.newCrop
-      });
+      }, event.sequence);
     }
   }
 
@@ -393,10 +408,11 @@ class EventSystem {
     // Since getPlacementsForAsset returns deep copies, we need to update the actual placements
     const placements = placementGraph.getPlacementsForAsset(event.data.assetId);
     for (const placement of placements) {
+      // Pass event sequence to prevent allocation during replay
       placementGraph.updatePlacementMetadata(placement.placementId, {
         ...placement.metadata,
         focalPoint: event.data.newFocalPoint
-      });
+      }, event.sequence);
     }
   }
 
@@ -422,7 +438,7 @@ class EventSystem {
     for (const placementId of placementIds) {
       const placement = placementGraph.getPlacement(placementId);
       if (placement && placement.status === 'staged') {
-        placementGraph.updatePlacementStatus(placementId, 'published');
+        placementGraph.updatePlacementStatus(placementId, 'published', event.sequence);
       }
     }
   }

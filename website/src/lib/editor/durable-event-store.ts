@@ -4,7 +4,7 @@
  * Constitutional Law: Event Store Must Be Durable
  * 
  * The event store must persist events to storage for replay sovereignty.
- * This implementation uses file-based persistence.
+ * This implementation uses in-memory storage for now (localStorage is not suitable as constitutional boundary).
  * 
  * Events are:
  * - Appended transactionally
@@ -15,6 +15,7 @@
 
 import { AnyEvent, Event } from './event-system';
 import { sequenceAuthority } from './sequence-authority';
+import { ValidationFailure, ValidationResult } from './validation-result';
 
 interface PersistedEventStore {
   events: Event[];
@@ -27,10 +28,10 @@ class DurableEventStore {
   private events: Event[] = [];
   private version = 0;
   private lastSequence = 0;
-  private storageKey = 'hpp_event_store';
 
   private constructor() {
-    this.loadFromStorage();
+    // No persistence loading - in-memory only for now
+    // localStorage is not suitable as constitutional durability boundary
   }
 
   static getInstance(): DurableEventStore {
@@ -38,51 +39,6 @@ class DurableEventStore {
       DurableEventStore.instance = new DurableEventStore();
     }
     return DurableEventStore.instance;
-  }
-
-  /**
-   * Load events from storage
-   */
-  private loadFromStorage(): void {
-    try {
-      const stored = localStorage.getItem(this.storageKey);
-      if (stored) {
-        const data: PersistedEventStore = JSON.parse(stored);
-        this.events = data.events;
-        this.version = data.version;
-        this.lastSequence = data.lastSequence;
-        
-        // Restore sequence authority state
-        sequenceAuthority.reset();
-        for (const event of this.events) {
-          // Ensure sequence authority is aware of existing sequences
-          // This is a simplification - in production, you'd reconstruct the full state
-        }
-      }
-    } catch (error) {
-      console.error('Failed to load event store from storage:', error);
-      // Start fresh on load failure
-      this.events = [];
-      this.version = 0;
-      this.lastSequence = 0;
-    }
-  }
-
-  /**
-   * Save events to storage
-   */
-  private saveToStorage(): void {
-    try {
-      const data: PersistedEventStore = {
-        events: this.events,
-        version: this.version,
-        lastSequence: this.lastSequence
-      };
-      localStorage.setItem(this.storageKey, JSON.stringify(data));
-    } catch (error) {
-      console.error('Failed to save event store to storage:', error);
-      throw new Error('Event store persistence failed');
-    }
   }
 
   /**
@@ -116,11 +72,6 @@ class DurableEventStore {
       return false;
     }
 
-    // Validate sequence monotonicity
-    if (event.sequence <= this.lastSequence) {
-      return false;
-    }
-
     // Validate event ID matches sequence
     const expectedId = `evt_${event.sequence}`;
     if (event.id !== expectedId) {
@@ -131,12 +82,45 @@ class DurableEventStore {
   }
 
   /**
+   * Validate complete candidate sequence list for batch operation
+   * Ensures e1.sequence < e2.sequence < ... < en.sequence
+   */
+  private validateCandidateSequence(events: Event[]): boolean {
+    for (let i = 0; i < events.length; i++) {
+      const event = events[i];
+      
+      // Validate individual event
+      if (!this.validateEvent(event)) {
+        return false;
+      }
+
+      // Validate monotonicity
+      if (i > 0 && event.sequence <= events[i - 1].sequence) {
+        return false;
+      }
+
+      // Validate no duplicates
+      if (events.slice(0, i).some(e => e.sequence === event.sequence)) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+
+  /**
    * Append a single event
    * Enforces canonical schema and sequence invariants
+   * Returns ValidationResult instead of throwing
    */
-  append(event: Event): void {
+  append(event: Event): ValidationResult {
+    // Validate sequence monotonicity against last sequence
+    if (event.sequence <= this.lastSequence) {
+      return ValidationFailure.sequenceViolation(event.sequence);
+    }
+
     if (!this.validateEvent(event)) {
-      throw new Error('Event validation failed');
+      return ValidationFailure.unknownError('Event validation failed');
     }
 
     // Deep freeze to prevent mutation
@@ -146,19 +130,19 @@ class DurableEventStore {
     this.lastSequence = event.sequence;
     this.version++;
     
-    this.saveToStorage();
+    return ValidationFailure.success();
   }
 
   /**
    * Append multiple events atomically
    * All events must validate before any are persisted
+   * Validates complete candidate sequence list
+   * Returns ValidationResult instead of throwing
    */
-  appendAll(events: Event[]): void {
-    // Validate all events first
-    for (const event of events) {
-      if (!this.validateEvent(event)) {
-        throw new Error('Event validation failed in batch');
-      }
+  appendAll(events: Event[]): ValidationResult {
+    // Validate the complete candidate sequence list
+    if (!this.validateCandidateSequence(events)) {
+      return ValidationFailure.unknownError('Candidate sequence validation failed');
     }
 
     // Deep freeze all events
@@ -172,7 +156,7 @@ class DurableEventStore {
     this.lastSequence = maxSequence;
     this.version++;
     
-    this.saveToStorage();
+    return ValidationFailure.success();
   }
 
   /**
@@ -200,7 +184,6 @@ class DurableEventStore {
     this.events = [];
     this.version = 0;
     this.lastSequence = 0;
-    this.saveToStorage();
   }
 
   /**

@@ -16,10 +16,12 @@
  * - Enforces slot cardinality constraints
  * - Uses proper canonical types (no 'any')
  * - All sequences come from canonical SequenceAuthority
+ * - Methods return ValidationResult instead of throwing
  */
 
 import { CropRegion, FocalPoint, SlotConstraints } from './command-pattern';
 import { sequenceAuthority } from './sequence-authority';
+import { ValidationResult, ValidationFailure } from './validation-result';
 
 export interface Placement {
   placementId: string;
@@ -92,6 +94,26 @@ class PlacementGraphManager {
     componentId: string;
     metadata?: Placement['metadata'];
   }): Placement {
+    return this.createPlacementWithIdAndSequence({
+      ...params,
+      sequence: this.nextSequence()
+    });
+  }
+
+  /**
+   * Create a new placement with specific ID and sequence (for replay)
+   * Enforces slot cardinality: one active placement per slot
+   * Used during replay - sequence is provided from event, not allocated
+   */
+  createPlacementWithIdAndSequence(params: {
+    placementId: string;
+    assetId: string;
+    slotId: string;
+    pageId: string;
+    componentId: string;
+    sequence: number;
+    metadata?: Placement['metadata'];
+  }): Placement {
     // Enforce slot cardinality constraint
     const existingPlacement = this.getPlacementForSlot(params.slotId);
     if (existingPlacement) {
@@ -105,7 +127,7 @@ class PlacementGraphManager {
       pageId: params.pageId,
       componentId: params.componentId,
       status: 'staged',
-      sequence: this.nextSequence(),
+      sequence: params.sequence,
       metadata: params.metadata
     };
 
@@ -132,7 +154,8 @@ class PlacementGraphManager {
   getPlacementForSlot(slotId: string): Placement | undefined {
     const placements = this.graph.placements.filter(p => p.slotId === slotId);
     if (placements.length > 1) {
-      console.warn(`Multiple placements found for slot ${slotId}, returning first`);
+      // Cardinality violation - this should never happen
+      return undefined;
     }
     return placements[0] ? JSON.parse(JSON.stringify(placements[0])) : undefined;
   }
@@ -182,8 +205,9 @@ class PlacementGraphManager {
 
   /**
    * Move placement to different slot (event-driven only)
+   * Accepts explicit sequence for replay
    */
-  movePlacement(placementId: string, newSlotId: string): Placement | undefined {
+  movePlacement(placementId: string, newSlotId: string, sequence?: number): Placement | undefined {
     const placement = this.getPlacement(placementId);
     if (!placement) return undefined;
 
@@ -196,7 +220,7 @@ class PlacementGraphManager {
     const updated: Placement = {
       ...placement,
       slotId: newSlotId,
-      sequence: this.nextSequence()
+      sequence: sequence ?? this.nextSequence()
     };
 
     const index = this.graph.placements.findIndex(p => p.placementId === placementId);
@@ -210,15 +234,16 @@ class PlacementGraphManager {
 
   /**
    * Replace asset in placement (event-driven only)
+   * Accepts explicit sequence for replay
    */
-  replaceAsset(placementId: string, newAssetId: string): Placement | undefined {
+  replaceAsset(placementId: string, newAssetId: string, sequence?: number): Placement | undefined {
     const placement = this.getPlacement(placementId);
     if (!placement) return undefined;
 
     const updated: Placement = {
       ...placement,
       assetId: newAssetId,
-      sequence: this.nextSequence()
+      sequence: sequence ?? this.nextSequence()
     };
 
     const index = this.graph.placements.findIndex(p => p.placementId === placementId);
@@ -273,15 +298,16 @@ class PlacementGraphManager {
   /**
    * Update placement status (event-driven only)
    * This is a more targeted operation than publishStaged
+   * Accepts explicit sequence for replay
    */
-  updatePlacementStatus(placementId: string, status: 'staged' | 'published'): Placement | undefined {
+  updatePlacementStatus(placementId: string, status: 'staged' | 'published', sequence?: number): Placement | undefined {
     const placement = this.getPlacement(placementId);
     if (!placement) return undefined;
 
     const updated: Placement = {
       ...placement,
       status,
-      sequence: this.nextSequence()
+      sequence: sequence ?? this.nextSequence()
     };
 
     const index = this.graph.placements.findIndex(p => p.placementId === placementId);
@@ -296,15 +322,16 @@ class PlacementGraphManager {
   /**
    * Update placement metadata (event-driven only)
    * This is used for crop and focal point adjustments
+   * Accepts explicit sequence for replay
    */
-  updatePlacementMetadata(placementId: string, metadata: Placement['metadata']): Placement | undefined {
+  updatePlacementMetadata(placementId: string, metadata: Placement['metadata'], sequence?: number): Placement | undefined {
     const placement = this.getPlacement(placementId);
     if (!placement) return undefined;
 
     const updated: Placement = {
       ...placement,
       metadata,
-      sequence: this.nextSequence()
+      sequence: sequence ?? this.nextSequence()
     };
 
     const index = this.graph.placements.findIndex(p => p.placementId === placementId);
