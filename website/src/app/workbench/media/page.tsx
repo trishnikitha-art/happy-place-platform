@@ -1,15 +1,12 @@
 /**
- * Media Manager - Constitutional Media Runtime Interface
+ * Visual Website Editor - Media Runtime Interface
  * 
- * Exposes the HPP media constitutional runtime:
- * - Harvest (sync status, drive connection)
- * - Canonical Graph (unmapped assets, coverage, relationships)
- * - Projects (membership, representative, gallery, hero, before/after)
- * - Hero (current, candidates, scores)
- * - Gallery (approve, reject, order, coverage)
- * - Before/After (pairing, repair, merge, split)
- * - Metadata (editable fields)
- * - Publish (regenerate, validate, commit, deploy)
+ * Phase 1: Transform from file manager to visual website editor
+ * - Left sidebar: Media library with thumbnail grid
+ * - Center: Website canvas rendering actual homepage
+ * - Right panel: Placement inspector for selected slots
+ * - Drag-and-drop placement from media library to canvas slots
+ * - Real-time preview updates without publish
  */
 
 'use client';
@@ -35,7 +32,12 @@ import {
   GitBranch,
   Rocket,
   Lock,
-  Globe
+  Globe,
+  Layout,
+  Image as ImageIcon,
+  Settings,
+  Eye,
+  Layers
 } from 'lucide-react';
 
 interface GraphData {
@@ -73,19 +75,52 @@ interface GalleryProjection {
   inputHash: string;
 }
 
-type RuntimePanel = 'harvest' | 'graph' | 'projects' | 'hero' | 'gallery' | 'before-after' | 'metadata' | 'publish';
+interface MediaAsset {
+  mediaId: string;
+  filename: string;
+  mimeType: string;
+  dimensions: string;
+  thumbnail: string;
+  aiTags: string[];
+  usageCount: number;
+  status: 'published' | 'staged';
+}
 
-export default function MediaManagerPage() {
-  const [activePanel, setActivePanel] = useState<RuntimePanel>('harvest');
+interface PlacementSlot {
+  id: string;
+  page: string;
+  component: string;
+  slotName: string;
+  currentAsset: MediaAsset | null;
+  status: 'empty' | 'staged' | 'published';
+  constraints: {
+    aspectRatio: string;
+    responsive: boolean;
+    focalPointEnabled: boolean;
+    minWidth: number;
+    compressionPreset: string;
+  };
+}
+
+type EditorView = 'canvas' | 'library' | 'inspector';
+
+export default function VisualWebsiteEditor() {
+  const [activePanel, setActivePanel] = useState<EditorView>('canvas');
   const [graphData, setGraphData] = useState<GraphData | null>(null);
   const [heroProjection, setHeroProjection] = useState<HeroProjection | null>(null);
   const [galleryProjection, setGalleryProjection] = useState<GalleryProjection | null>(null);
   const [regenerating, setRegenerating] = useState(false);
   const [loading, setLoading] = useState(true);
   
-  // New state for operational capabilities
+  // New state for visual editor
+  const [selectedAsset, setSelectedAsset] = useState<MediaAsset | null>(null);
+  const [selectedSlot, setSelectedSlot] = useState<PlacementSlot | null>(null);
+  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
+  const [placementSlots, setPlacementSlots] = useState<PlacementSlot[]>([]);
+  const [editorMode, setEditorMode] = useState(false);
+  
+  // Keep existing state for operational capabilities
   const [harvesting, setHarvesting] = useState(false);
-  const [selectedNode, setSelectedNode] = useState<any>(null);
   const [reconciliationState, setReconciliationState] = useState<any>(null);
   const [assets, setAssets] = useState<any[]>([]);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -95,6 +130,49 @@ export default function MediaManagerPage() {
 
   useEffect(() => {
     loadRuntime();
+    // Initialize sample media assets for demo
+    setMediaAssets([
+      {
+        mediaId: 'demo-1',
+        filename: 'deck-project-001.jpg',
+        mimeType: 'image/jpeg',
+        dimensions: '1920x1080',
+        thumbnail: '/images/hero-background-enhanced.jpg',
+        aiTags: ['deck', 'outdoor', 'woodwork'],
+        usageCount: 3,
+        status: 'published'
+      },
+      {
+        mediaId: 'demo-2',
+        filename: 'fence-repair-002.jpg',
+        mimeType: 'image/jpeg',
+        dimensions: '1200x800',
+        thumbnail: '/images/hero-background-enhanced.jpg',
+        aiTags: ['fence', 'repair', 'outdoor'],
+        usageCount: 1,
+        status: 'staged'
+      },
+      {
+        mediaId: 'demo-3',
+        filename: 'kitchen-remodel-003.jpg',
+        mimeType: 'image/jpeg',
+        dimensions: '1600x1200',
+        thumbnail: '/images/hero-background-enhanced.jpg',
+        aiTags: ['kitchen', 'remodel', 'interior'],
+        usageCount: 0,
+        status: 'published'
+      },
+      {
+        mediaId: 'demo-4',
+        filename: 'bathroom-update-004.jpg',
+        mimeType: 'image/jpeg',
+        dimensions: '800x600',
+        thumbnail: '/images/hero-background-enhanced.jpg',
+        aiTags: ['bathroom', 'update', 'interior'],
+        usageCount: 2,
+        status: 'staged'
+      }
+    ]);
   }, []);
 
   const loadRuntime = async () => {
@@ -216,208 +294,472 @@ export default function MediaManagerPage() {
   if (loading) {
     return (
       <div className="p-6">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Media Runtime</h1>
-        <p className="text-muted-foreground mb-6">Constitutional media runtime for HPP</p>
-        <div className="text-center py-12 text-muted-foreground">Loading media runtime...</div>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Visual Website Editor</h1>
+        <p className="text-muted-foreground mb-6">Drag-and-drop media placement for HPP</p>
+        <div className="text-center py-12 text-muted-foreground">Loading visual editor...</div>
       </div>
     );
   }
 
   return (
-    <div className="p-6 h-full flex flex-col">
+    <div className="h-screen flex flex-col bg-background">
       {/* Header */}
-      <div className="mb-6 flex justify-between items-start flex-shrink-0">
-        <div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Media Runtime</h1>
-          <p className="text-muted-foreground">Constitutional media runtime for HPP</p>
-        </div>
-        <button
-          onClick={handleRegenerateRuntime}
-          disabled={regenerating}
-          className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors flex items-center gap-2 disabled:opacity-50"
-        >
-          <RefreshCw size={16} className={regenerating ? 'animate-spin' : ''} />
-          Regenerate Runtime
-        </button>
-      </div>
-
-      {/* Runtime Pipeline */}
-      <div className="mb-6 bg-card border border-border rounded-lg p-4 flex-shrink-0">
-        <div className="flex items-center gap-4 text-sm">
-          <div className="flex items-center gap-2">
-            <HardDrive size={16} className="text-muted-foreground" />
-            <span className="text-muted-foreground">Harvest</span>
+      <div className="border-b border-border bg-card px-6 py-4 flex-shrink-0">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+              <Layout size={24} />
+              Visual Website Editor
+            </h1>
+            <p className="text-sm text-muted-foreground">Drag-and-drop media placement for HPP</p>
           </div>
-          <div className="text-muted-foreground">→</div>
-          <div className="flex items-center gap-2">
-            <Database size={16} className="text-muted-foreground" />
-            <span className="text-muted-foreground">Canonical Graph</span>
-          </div>
-          <div className="text-muted-foreground">→</div>
-          <div className="flex items-center gap-2">
-            <Network size={16} className="text-muted-foreground" />
-            <span className="text-muted-foreground">Evidence</span>
-          </div>
-          <div className="text-muted-foreground">→</div>
-          <div className="flex items-center gap-2">
-            <FileText size={16} className="text-muted-foreground" />
-            <span className="text-muted-foreground">Projections</span>
-          </div>
-          <div className="text-muted-foreground">→</div>
-          <div className="flex items-center gap-2">
-            <Rocket size={16} className="text-muted-foreground" />
-            <span className="text-muted-foreground">Publish</span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setEditorMode(!editorMode)}
+              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
+                editorMode 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'bg-surface border border-border hover:bg-muted'
+              }`}
+            >
+              <Eye size={16} />
+              {editorMode ? 'Editor Mode' : 'Preview Mode'}
+            </button>
+            <button
+              onClick={handleRegenerateRuntime}
+              disabled={regenerating}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 disabled:opacity-50"
+            >
+              <RefreshCw size={16} className={regenerating ? 'animate-spin' : ''} />
+              Publish
+            </button>
           </div>
         </div>
       </div>
 
-      {/* Runtime Panels */}
-      <div className="flex gap-2 mb-6 border-b border-border flex-shrink-0">
-        <button
-          onClick={() => setActivePanel('harvest')}
-          className={`px-4 py-2 border-b-2 transition-colors ${
-            activePanel === 'harvest' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
+      {/* Main Editor Layout */}
+      <div className="flex-1 flex overflow-hidden">
+        {/* Left Sidebar - Media Library */}
+        <div className="w-80 border-r border-border bg-card flex flex-col flex-shrink-0">
+          <div className="p-4 border-b border-border">
+            <h2 className="font-semibold text-foreground flex items-center gap-2">
+              <ImageIcon size={18} />
+              Media Library
+            </h2>
+            <p className="text-xs text-muted-foreground mt-1">Drag assets to canvas slots</p>
+          </div>
+          <div className="flex-1 overflow-y-auto p-4">
+            <MediaLibraryGrid 
+              assets={mediaAssets}
+              selectedAsset={selectedAsset}
+              onSelectAsset={setSelectedAsset}
+            />
+          </div>
+        </div>
+
+        {/* Center - Website Canvas */}
+        <div className="flex-1 bg-surface overflow-auto">
+          <div className="max-w-7xl mx-auto p-8">
+            <WebsiteCanvas 
+              editorMode={editorMode}
+              selectedSlot={selectedSlot}
+              onSelectSlot={setSelectedSlot}
+              placementSlots={placementSlots}
+            />
+          </div>
+        </div>
+
+        {/* Right Panel - Placement Inspector */}
+        {selectedSlot && (
+          <div className="w-80 border-l border-border bg-card flex flex-col flex-shrink-0">
+            <div className="p-4 border-b border-border">
+              <h2 className="font-semibold text-foreground flex items-center gap-2">
+                <Settings size={18} />
+                Placement Inspector
+              </h2>
+            </div>
+            <div className="flex-1 overflow-y-auto p-4">
+              <PlacementInspector 
+                slot={selectedSlot}
+                onAssetChange={(asset) => {
+                  // Handle asset change for this slot
+                  console.log('Asset changed for slot:', selectedSlot.id, 'to:', asset);
+                }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// Media Library Grid Component
+function MediaLibraryGrid({ assets, selectedAsset, onSelectAsset }: { 
+  assets: MediaAsset[]; 
+  selectedAsset: MediaAsset | null; 
+  onSelectAsset: (asset: MediaAsset) => void;
+}) {
+  const handleDragStart = (e: React.DragEvent, asset: MediaAsset) => {
+    e.dataTransfer.setData('application/json', JSON.stringify(asset));
+    e.dataTransfer.effectAllowed = 'copy';
+  };
+
+  return (
+    <div className="grid grid-cols-2 gap-3">
+      {assets.map((asset) => (
+        <div
+          key={asset.mediaId}
+          onClick={() => onSelectAsset(asset)}
+          draggable
+          onDragStart={(e) => handleDragStart(e, asset)}
+          className={`relative group cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
+            selectedAsset?.mediaId === asset.mediaId 
+              ? 'border-primary ring-2 ring-primary/20' 
+              : 'border-border hover:border-primary/50'
           }`}
         >
-          <HardDrive size={16} className="inline mr-2" />
-          Harvest
-        </button>
-        <button
-          onClick={() => setActivePanel('graph')}
-          className={`px-4 py-2 border-b-2 transition-colors ${
-            activePanel === 'graph' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Database size={16} className="inline mr-2" />
-          Canonical Graph
-        </button>
-        <button
-          onClick={() => setActivePanel('projects')}
-          className={`px-4 py-2 border-b-2 transition-colors ${
-            activePanel === 'projects' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Network size={16} className="inline mr-2" />
-          Projects
-        </button>
-        <button
-          onClick={() => setActivePanel('hero')}
-          className={`px-4 py-2 border-b-2 transition-colors ${
-            activePanel === 'hero' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Crown size={16} className="inline mr-2" />
-          Hero
-        </button>
-        <button
-          onClick={() => setActivePanel('gallery')}
-          className={`px-4 py-2 border-b-2 transition-colors ${
-            activePanel === 'gallery' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Images size={16} className="inline mr-2" />
-          Gallery
-        </button>
-        <button
-          onClick={() => setActivePanel('before-after')}
-          className={`px-4 py-2 border-b-2 transition-colors ${
-            activePanel === 'before-after' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Split size={16} className="inline mr-2" />
-          Before/After
-        </button>
-        <button
-          onClick={() => setActivePanel('metadata')}
-          className={`px-4 py-2 border-b-2 transition-colors ${
-            activePanel === 'metadata' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Edit size={16} className="inline mr-2" />
-          Metadata
-        </button>
-        <button
-          onClick={() => setActivePanel('publish')}
-          className={`px-4 py-2 border-b-2 transition-colors ${
-            activePanel === 'publish' ? 'border-primary text-primary' : 'border-transparent text-muted-foreground hover:text-foreground'
-          }`}
-        >
-          <Play size={16} className="inline mr-2" />
-          Publish
-        </button>
+          <div className="aspect-square bg-surface">
+            <img
+              src={asset.thumbnail}
+              alt={asset.filename}
+              className="w-full h-full object-cover pointer-events-none"
+            />
+          </div>
+          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="absolute bottom-0 left-0 right-0 p-2">
+              <p className="text-xs text-white font-medium truncate">{asset.filename}</p>
+              <p className="text-xs text-white/70">{asset.dimensions}</p>
+            </div>
+          </div>
+          <div className="absolute top-2 right-2">
+            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
+              asset.status === 'published' 
+                ? 'bg-green-500/20 text-green-600' 
+                : 'bg-yellow-500/20 text-yellow-600'
+            }`}>
+              {asset.status}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+// Website Canvas Component
+function WebsiteCanvas({ 
+  editorMode, 
+  selectedSlot, 
+  onSelectSlot,
+  placementSlots 
+}: { 
+  editorMode: boolean; 
+  selectedSlot: PlacementSlot | null; 
+  onSelectSlot: (slot: PlacementSlot) => void;
+  placementSlots: PlacementSlot[];
+}) {
+  const handleDragOver = (e: React.DragEvent) => {
+    if (editorMode) {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'copy';
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, slot: PlacementSlot) => {
+    e.preventDefault();
+    if (!editorMode) return;
+
+    try {
+      const assetData = e.dataTransfer.getData('application/json');
+      if (assetData) {
+        const asset: MediaAsset = JSON.parse(assetData);
+        console.log('Dropped asset onto slot:', slot.id, asset);
+        
+        // Update the slot with the new asset
+        onSelectSlot({
+          ...slot,
+          currentAsset: asset,
+          status: 'staged'
+        });
+      }
+    } catch (error) {
+      console.error('Failed to parse dropped asset:', error);
+    }
+  };
+
+  return (
+    <div className="relative">
+      {/* Simulated Homepage Canvas */}
+      <div className="bg-white rounded-lg shadow-lg overflow-hidden min-h-[800px]">
+        {/* Hero Section - Editable Slot */}
+        <div className="relative h-96 bg-gradient-to-br from-deep to-deep/80">
+          <div 
+            className={`absolute inset-4 border-2 border-dashed rounded-lg cursor-pointer transition-all ${
+              editorMode 
+                ? 'border-primary/50 hover:border-primary bg-primary/5' 
+                : 'border-transparent'
+            } ${selectedSlot?.slotName === 'hero-background' ? 'border-primary ring-2 ring-primary/20' : ''}`}
+            onClick={() => editorMode && onSelectSlot({
+              id: 'hero-background',
+              page: 'Home',
+              component: 'HeroSection',
+              slotName: 'hero-background',
+              currentAsset: null,
+              status: 'empty',
+              constraints: {
+                aspectRatio: '16:9',
+                responsive: true,
+                focalPointEnabled: true,
+                minWidth: 1200,
+                compressionPreset: 'high-quality'
+              }
+            })}
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, {
+              id: 'hero-background',
+              page: 'Home',
+              component: 'HeroSection',
+              slotName: 'hero-background',
+              currentAsset: null,
+              status: 'empty',
+              constraints: {
+                aspectRatio: '16:9',
+                responsive: true,
+                focalPointEnabled: true,
+                minWidth: 1200,
+                compressionPreset: 'high-quality'
+              }
+            })}
+          >
+            {selectedSlot?.slotName === 'hero-background' && selectedSlot.currentAsset ? (
+              <img 
+                src={selectedSlot.currentAsset.thumbnail} 
+                alt={selectedSlot.currentAsset.filename}
+                className="w-full h-full object-cover"
+              />
+            ) : editorMode && (
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center">
+                  <ImageIcon size={32} className="mx-auto text-primary/50 mb-2" />
+                  <p className="text-sm text-primary/70">Hero Background</p>
+                  <p className="text-xs text-primary/50">16:9 • Responsive</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Service Cards - Editable Slots */}
+        <div className="p-8">
+          <h2 className="text-2xl font-bold mb-6">Our Services</h2>
+          <div className="grid grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => {
+              const slotId = `service-${i}`;
+              const defaultSlot: PlacementSlot = {
+                id: slotId,
+                page: 'Home',
+                component: 'ServiceCard',
+                slotName: `service-image-${i}`,
+                currentAsset: null,
+                status: 'empty',
+                constraints: {
+                  aspectRatio: '4:3',
+                  responsive: true,
+                  focalPointEnabled: false,
+                  minWidth: 400,
+                  compressionPreset: 'balanced'
+                }
+              };
+              const slot = selectedSlot?.id === slotId ? selectedSlot : defaultSlot;
+              
+              return (
+                <div
+                  key={i}
+                  className={`border-2 border-dashed rounded-lg p-4 cursor-pointer transition-all ${
+                    editorMode 
+                      ? 'border-primary/50 hover:border-primary bg-primary/5 min-h-[200px]' 
+                      : 'border-transparent'
+                  } ${selectedSlot?.id === slotId ? 'border-primary ring-2 ring-primary/20' : ''}`}
+                  onClick={() => editorMode && onSelectSlot(slot)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, slot)}
+                >
+                  {slot.currentAsset ? (
+                    <img 
+                      src={slot.currentAsset.thumbnail} 
+                      alt={slot.currentAsset.filename}
+                      className="w-full h-full object-cover rounded"
+                    />
+                  ) : editorMode && (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center">
+                        <ImageIcon size={24} className="mx-auto text-primary/50 mb-2" />
+                        <p className="text-sm text-primary/70">Service Image {i}</p>
+                        <p className="text-xs text-primary/50">4:3 • Fixed</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Gallery Section - Editable Slots */}
+        <div className="p-8 bg-surface">
+          <h2 className="text-2xl font-bold mb-6">Featured Projects</h2>
+          <div className="grid grid-cols-4 gap-4">
+            {[1, 2, 3, 4].map((i) => {
+              const slotId = `gallery-${i}`;
+              const defaultSlot: PlacementSlot = {
+                id: slotId,
+                page: 'Home',
+                component: 'GalleryCard',
+                slotName: `gallery-thumbnail-${i}`,
+                currentAsset: null,
+                status: 'empty',
+                constraints: {
+                  aspectRatio: '1:1',
+                  responsive: true,
+                  focalPointEnabled: true,
+                  minWidth: 300,
+                  compressionPreset: 'web-optimized'
+                }
+              };
+              const slot = selectedSlot?.id === slotId ? selectedSlot : defaultSlot;
+              
+              return (
+                <div
+                  key={i}
+                  className={`border-2 border-dashed rounded-lg p-4 cursor-pointer transition-all ${
+                    editorMode 
+                      ? 'border-primary/50 hover:border-primary bg-primary/5 min-h-[150px]' 
+                      : 'border-transparent'
+                  } ${selectedSlot?.id === slotId ? 'border-primary ring-2 ring-primary/20' : ''}`}
+                  onClick={() => editorMode && onSelectSlot(slot)}
+                  onDragOver={handleDragOver}
+                  onDrop={(e) => handleDrop(e, slot)}
+                >
+                  {slot.currentAsset ? (
+                    <img 
+                      src={slot.currentAsset.thumbnail} 
+                      alt={slot.currentAsset.filename}
+                      className="w-full h-full object-cover rounded"
+                    />
+                  ) : editorMode && (
+                    <div className="h-full flex items-center justify-center">
+                      <div className="text-center">
+                        <ImageIcon size={20} className="mx-auto text-primary/50 mb-2" />
+                        <p className="text-xs text-primary/70">Gallery {i}</p>
+                        <p className="text-xs text-primary/50">1:1 • Square</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Placement Inspector Component
+function PlacementInspector({ slot, onAssetChange }: { 
+  slot: PlacementSlot; 
+  onAssetChange: (asset: MediaAsset) => void;
+}) {
+  return (
+    <div className="space-y-6">
+      {/* Slot Information */}
+      <div>
+        <h3 className="text-sm font-semibold text-foreground mb-3">Slot Information</h3>
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Page</span>
+            <span className="text-foreground">{slot.page}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Component</span>
+            <span className="text-foreground">{slot.component}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Slot</span>
+            <span className="text-foreground">{slot.slotName}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Status</span>
+            <span className={`font-medium ${
+              slot.status === 'published' ? 'text-green-600' : 
+              slot.status === 'staged' ? 'text-yellow-600' : 'text-muted-foreground'
+            }`}>
+              {slot.status}
+            </span>
+          </div>
+        </div>
       </div>
 
-      {/* Panel Content */}
-      <div className="flex-1 min-h-0">
-        {activePanel === 'harvest' && (
-          <MediaRuntimeDashboard
-            reconciliationState={reconciliationState}
-            assets={assets}
-            isAuthenticated={isAuthenticated}
-            onOAuthClick={handleOAuthClick}
-            driveStructure={driveStructure}
-            driveFiles={driveFiles}
-            onFolderClick={handleFolderClick}
-          />
+      {/* Current Asset */}
+      <div>
+        <h3 className="text-sm font-semibold text-foreground mb-3">Current Asset</h3>
+        {slot.currentAsset ? (
+          <div className="bg-surface rounded-lg p-3">
+            <img 
+              src={slot.currentAsset.thumbnail} 
+              alt={slot.currentAsset.filename}
+              className="w-full aspect-video object-cover rounded mb-2"
+            />
+            <p className="text-sm font-medium text-foreground">{slot.currentAsset.filename}</p>
+            <p className="text-xs text-muted-foreground">{slot.currentAsset.dimensions}</p>
+          </div>
+        ) : (
+          <div className="bg-surface rounded-lg p-6 text-center">
+            <ImageIcon size={32} className="mx-auto text-muted-foreground mb-2" />
+            <p className="text-sm text-muted-foreground">No asset placed</p>
+          </div>
         )}
+      </div>
 
-        {activePanel === 'graph' && (
-          <GraphPanel
-            graphData={graphData}
-            imageNodes={imageNodes}
-            projectNodes={projectNodes}
-            serviceNodes={serviceNodes}
-            belongsToEdges={belongsToEdges}
-            supportsEdges={supportsEdges}
-            unmappedAssets={unmappedAssets}
-          />
-        )}
+      {/* Slot Constraints */}
+      <div>
+        <h3 className="text-sm font-semibold text-foreground mb-3">Slot Constraints</h3>
+        <div className="space-y-2 text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Aspect Ratio</span>
+            <span className="text-foreground">{slot.constraints.aspectRatio}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Responsive</span>
+            <span className="text-foreground">{slot.constraints.responsive ? 'Yes' : 'No'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Focal Point</span>
+            <span className="text-foreground">{slot.constraints.focalPointEnabled ? 'Enabled' : 'Disabled'}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Min Width</span>
+            <span className="text-foreground">{slot.constraints.minWidth}px</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Compression</span>
+            <span className="text-foreground">{slot.constraints.compressionPreset}</span>
+          </div>
+        </div>
+      </div>
 
-        {activePanel === 'projects' && (
-          <ProjectsPanel
-            graphData={graphData}
-            projectNodes={projectNodes}
-            belongsToEdges={belongsToEdges}
-          />
-        )}
-
-        {activePanel === 'hero' && (
-          <HeroPanel
-            heroProjection={heroProjection}
-            featuredCandidates={featuredCandidates}
-          />
-        )}
-
-        {activePanel === 'gallery' && (
-          <GalleryPanel
-            galleryProjection={galleryProjection}
-            galleryCandidates={galleryCandidates}
-          />
-        )}
-
-        {activePanel === 'before-after' && (
-          <BeforeAfterPanel
-            graphData={graphData}
-            beforeAfterPairs={beforeAfterPairs}
-          />
-        )}
-
-        {activePanel === 'metadata' && (
-          <MetadataPanel
-            graphData={graphData}
-            imageNodes={imageNodes}
-          />
-        )}
-
-        {activePanel === 'publish' && (
-          <PublishPanel
-            graphData={graphData}
-            heroProjection={heroProjection}
-            galleryProjection={galleryProjection}
-            regenerating={regenerating}
-            handleRegenerate={handleRegenerateRuntime}
-          />
-        )}
+      {/* Actions */}
+      <div className="pt-4 border-t border-border">
+        <button
+          onClick={() => {
+            // Handle clear placement
+            console.log('Clear placement for slot:', slot.id);
+          }}
+          className="w-full px-4 py-2 bg-surface border border-border rounded-lg hover:bg-muted transition-colors text-sm"
+        >
+          Clear Placement
+        </button>
       </div>
     </div>
   );
