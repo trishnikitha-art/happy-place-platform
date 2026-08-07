@@ -5,6 +5,10 @@
  * 
  * Every production component registers its own editable regions.
  * The editor never knows component structure - components tell the editor.
+ * 
+ * Constitutional changes:
+ * - Rejects duplicate registrations (same slotId, different properties)
+ * - Validates lifecycle (mount/unmount/change)
  */
 
 export interface SlotConstraints {
@@ -40,8 +44,31 @@ class SlotRegistry {
   /**
    * Register a slot from a component
    * Called by production components to declare their editable regions
+   * Rejects duplicate registrations with different properties
    */
   register(registration: SlotRegistration): void {
+    const existing = this.registeredSlots.get(registration.slotId);
+    
+    if (existing) {
+      // Validate that registration is consistent
+      const isConsistent = 
+        existing.page === registration.page &&
+        existing.component === registration.component &&
+        existing.slotName === registration.slotName &&
+        JSON.stringify(existing.constraints) === JSON.stringify(registration.constraints) &&
+        existing.elementType === registration.elementType;
+      
+      if (!isConsistent) {
+        throw new Error(
+          `Slot ${registration.slotId} already registered with different properties. ` +
+          `Existing: ${JSON.stringify(existing)}, New: ${JSON.stringify(registration)}`
+        );
+      }
+      
+      // Consistent re-registration is allowed (Strict Mode double-mount)
+      return;
+    }
+    
     this.registeredSlots.set(registration.slotId, registration);
   }
 

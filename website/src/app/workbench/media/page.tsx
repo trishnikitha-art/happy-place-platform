@@ -22,8 +22,8 @@ import {
 } from 'lucide-react';
 import { slotRegistry, SlotRegistration } from '@/lib/editor/slot-registry';
 import { placementGraph } from '@/lib/editor/placement-graph';
-import { CommandBuilder, commandExecutor } from '@/lib/editor/command-pattern';
-import { EventBuilder, eventSystem } from '@/lib/editor/event-system';
+import { commandBuilder, commandExecutor } from '@/lib/editor/command-pattern';
+import { eventSystem } from '@/lib/editor/event-system';
 
 // Dynamically import the actual homepage to avoid server component issues
 const HomePage = dynamic(() => import('@/app/page'), { 
@@ -364,28 +364,15 @@ function EditorOverlay({
         const existingPlacement = placementGraph.getPlacementForSlot(slot.slotId);
         
         // Create command for asset replacement
-        const command = CommandBuilder.replaceAsset({
+        const command = commandBuilder.replaceAsset({
           slotId: slot.slotId,
-          oldAssetId: existingPlacement?.assetId || null,
           newAssetId: asset.mediaId
         });
 
-        // Execute command (this will produce event)
+        // Execute command (this will produce event and update placement graph)
         await commandExecutor.execute(command);
 
-        // Update placement graph directly for now (event system will handle this in future)
-        if (existingPlacement) {
-          placementGraph.replaceAsset(existingPlacement.placementId, asset.mediaId);
-        } else {
-          placementGraph.createPlacement({
-            assetId: asset.mediaId,
-            slotId: slot.slotId,
-            pageId: slot.page,
-            componentId: slot.component
-          });
-        }
-
-        // Update UI selection
+        // Update UI selection (this is UI-only state, not canonical)
         onSelectSlot({
           id: slot.slotId,
           page: slot.page,

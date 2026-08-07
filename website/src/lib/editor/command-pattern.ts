@@ -10,12 +10,13 @@
  * - auditable
  * 
  * Commands never mutate state directly - they produce events.
+ * Command IDs are deterministic (sequence-based, not time-based).
  */
 
 export interface Command {
   id: string;
   type: CommandType;
-  timestamp: number;
+  sequence: number;
   userId?: string;
 }
 
@@ -28,19 +29,17 @@ export type CommandType =
   | 'CropAsset'
   | 'AdjustFocalPoint'
   | 'UpdateSlotConstraints'
-  | 'BatchOperation';
+  | 'PublishStaged';
 
 export interface ReplaceAssetCommand extends Command {
   type: 'ReplaceAsset';
   slotId: string;
-  oldAssetId: string | null;
   newAssetId: string;
 }
 
 export interface MovePlacementCommand extends Command {
   type: 'MovePlacement';
   placementId: string;
-  oldSlotId: string;
   newSlotId: string;
 }
 
@@ -53,40 +52,34 @@ export interface SwapPlacementCommand extends Command {
 export interface DeletePlacementCommand extends Command {
   type: 'DeletePlacement';
   placementId: string;
-  deletedPlacement: any; // Store for undo
 }
 
 export interface DuplicatePlacementCommand extends Command {
   type: 'DuplicatePlacement';
   sourcePlacementId: string;
-  newPlacementId: string;
   targetSlotId: string;
 }
 
 export interface CropAssetCommand extends Command {
   type: 'CropAsset';
   assetId: string;
-  oldCrop: any;
-  newCrop: any;
+  newCrop: CropRegion;
 }
 
 export interface AdjustFocalPointCommand extends Command {
   type: 'AdjustFocalPoint';
   assetId: string;
-  oldFocalPoint: { x: number; y: number } | null;
-  newFocalPoint: { x: number; y: number };
+  newFocalPoint: FocalPoint;
 }
 
 export interface UpdateSlotConstraintsCommand extends Command {
   type: 'UpdateSlotConstraints';
   slotId: string;
-  oldConstraints: any;
-  newConstraints: any;
+  newConstraints: SlotConstraints;
 }
 
-export interface BatchOperationCommand extends Command {
-  type: 'BatchOperation';
-  commands: Command[];
+export interface PublishStagedCommand extends Command {
+  type: 'PublishStaged';
 }
 
 export type AnyCommand = 
@@ -98,39 +91,66 @@ export type AnyCommand =
   | CropAssetCommand
   | AdjustFocalPointCommand
   | UpdateSlotConstraintsCommand
-  | BatchOperationCommand;
+  | PublishStagedCommand;
+
+// Canonical value objects
+export interface CropRegion {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+export interface FocalPoint {
+  x: number;
+  y: number;
+}
+
+export interface SlotConstraints {
+  aspectRatio: string;
+  responsive: boolean;
+  focalPointEnabled: boolean;
+  minWidth: number;
+  compressionPreset: string;
+}
 
 /**
  * Command Builder
- * Type-safe command creation
+ * Type-safe command creation with deterministic IDs
  */
-export class CommandBuilder {
-  private static generateId(): string {
-    return `cmd_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+class CommandBuilder {
+  private static sequence = 0;
+
+  private static nextSequence(): number {
+    return ++CommandBuilder.sequence;
+  }
+
+  static generateId(sequence: number): string {
+    return `cmd_${sequence}`;
   }
 
   static replaceAsset(params: {
     slotId: string;
-    oldAssetId: string | null;
     newAssetId: string;
   }): ReplaceAssetCommand {
+    const sequence = CommandBuilder.nextSequence();
     return {
-      id: this.generateId(),
+      id: CommandBuilder.generateId(sequence),
       type: 'ReplaceAsset',
-      timestamp: Date.now(),
+      sequence,
       ...params
     };
   }
 
   static movePlacement(params: {
     placementId: string;
-    oldSlotId: string;
     newSlotId: string;
   }): MovePlacementCommand {
+    const sequence = CommandBuilder.nextSequence();
     return {
-      id: this.generateId(),
+      id: CommandBuilder.generateId(sequence),
       type: 'MovePlacement',
-      timestamp: Date.now(),
+      sequence,
       ...params
     };
   }
@@ -139,84 +159,85 @@ export class CommandBuilder {
     placementId1: string;
     placementId2: string;
   }): SwapPlacementCommand {
+    const sequence = CommandBuilder.nextSequence();
     return {
-      id: this.generateId(),
+      id: CommandBuilder.generateId(sequence),
       type: 'SwapPlacement',
-      timestamp: Date.now(),
+      sequence,
       ...params
     };
   }
 
   static deletePlacement(params: {
     placementId: string;
-    deletedPlacement: any;
   }): DeletePlacementCommand {
+    const sequence = CommandBuilder.nextSequence();
     return {
-      id: this.generateId(),
+      id: CommandBuilder.generateId(sequence),
       type: 'DeletePlacement',
-      timestamp: Date.now(),
+      sequence,
       ...params
     };
   }
 
   static duplicatePlacement(params: {
     sourcePlacementId: string;
-    newPlacementId: string;
     targetSlotId: string;
   }): DuplicatePlacementCommand {
+    const sequence = CommandBuilder.nextSequence();
     return {
-      id: this.generateId(),
+      id: CommandBuilder.generateId(sequence),
       type: 'DuplicatePlacement',
-      timestamp: Date.now(),
+      sequence,
       ...params
     };
   }
 
   static cropAsset(params: {
     assetId: string;
-    oldCrop: any;
-    newCrop: any;
+    newCrop: CropRegion;
   }): CropAssetCommand {
+    const sequence = CommandBuilder.nextSequence();
     return {
-      id: this.generateId(),
+      id: CommandBuilder.generateId(sequence),
       type: 'CropAsset',
-      timestamp: Date.now(),
+      sequence,
       ...params
     };
   }
 
   static adjustFocalPoint(params: {
     assetId: string;
-    oldFocalPoint: { x: number; y: number } | null;
-    newFocalPoint: { x: number; y: number };
+    newFocalPoint: FocalPoint;
   }): AdjustFocalPointCommand {
+    const sequence = CommandBuilder.nextSequence();
     return {
-      id: this.generateId(),
+      id: CommandBuilder.generateId(sequence),
       type: 'AdjustFocalPoint',
-      timestamp: Date.now(),
+      sequence,
       ...params
     };
   }
 
   static updateSlotConstraints(params: {
     slotId: string;
-    oldConstraints: any;
-    newConstraints: any;
+    newConstraints: SlotConstraints;
   }): UpdateSlotConstraintsCommand {
+    const sequence = CommandBuilder.nextSequence();
     return {
-      id: this.generateId(),
+      id: CommandBuilder.generateId(sequence),
       type: 'UpdateSlotConstraints',
-      timestamp: Date.now(),
+      sequence,
       ...params
     };
   }
 
-  static batchOperation(commands: Command[]): BatchOperationCommand {
+  static publishStaged(): PublishStagedCommand {
+    const sequence = CommandBuilder.nextSequence();
     return {
-      id: this.generateId(),
-      type: 'BatchOperation',
-      timestamp: Date.now(),
-      commands
+      id: CommandBuilder.generateId(sequence),
+      type: 'PublishStaged',
+      sequence
     };
   }
 }
@@ -224,8 +245,9 @@ export class CommandBuilder {
 /**
  * Command Executor
  * Executes commands and produces events
+ * Never mutates state directly - only produces events
  */
-export class CommandExecutor {
+class CommandExecutor {
   private static instance: CommandExecutor;
 
   private constructor() {}
@@ -238,33 +260,74 @@ export class CommandExecutor {
   }
 
   /**
-   * Execute a command and produce an event
+   * Execute a command and produce events
    * Constitutional Law 10: Commands Produce Events
    */
   async execute(command: AnyCommand): Promise<void> {
-    // This will emit an event that updates the placement graph
-    // The placement graph projection then refreshes the runtime
     console.log('Executing command:', command);
     
-    // TODO: Emit event to event system
-    // await eventSystem.emit('command.executed', command);
+    // Produce corresponding event
+    const event = this.commandToEvent(command);
+    
+    // Emit event to event system
+    const { eventSystem } = await import('./event-system');
+    await eventSystem.emit(event);
   }
 
   /**
-   * Undo a command
+   * Convert command to event
+   * Events contain only forward-looking state (no old* fields)
+   */
+  private commandToEvent(command: AnyCommand): any {
+    // Lazy import to avoid circular dependency
+    const { eventBuilder } = require('./event-system');
+    
+    switch (command.type) {
+      case 'ReplaceAsset':
+        return eventBuilder.assetReplaced({
+          commandId: command.id,
+          slotId: command.slotId,
+          newAssetId: command.newAssetId
+        });
+      case 'MovePlacement':
+        return eventBuilder.placementMoved({
+          commandId: command.id,
+          placementId: command.placementId,
+          newSlotId: command.newSlotId
+        });
+      case 'DeletePlacement':
+        return eventBuilder.placementDeleted({
+          commandId: command.id,
+          placementId: command.placementId
+        });
+      case 'AdjustFocalPoint':
+        return eventBuilder.focalPointAdjusted({
+          commandId: command.id,
+          assetId: command.assetId,
+          newFocalPoint: command.newFocalPoint
+        });
+      default:
+        throw new Error(`Unsupported command type: ${command.type}`);
+    }
+  }
+
+  /**
+   * Undo is a new command, not magical mutation
+   * For event sourcing, undo creates new events
    */
   async undo(command: AnyCommand): Promise<void> {
-    console.log('Undoing command:', command);
-    // TODO: Implement undo logic
+    console.log('Undo via new command (not implemented yet)');
+    // TODO: Implement undo as new command producing events
   }
 
   /**
-   * Redo a command
+   * Redo is a new command, not magical mutation
    */
   async redo(command: AnyCommand): Promise<void> {
-    console.log('Redoing command:', command);
-    // TODO: Implement redo logic
+    console.log('Redo via new command (not implemented yet)');
+    // TODO: Implement redo as new command producing events
   }
 }
 
 export const commandExecutor = CommandExecutor.getInstance();
+export { CommandBuilder as commandBuilder };

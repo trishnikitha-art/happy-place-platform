@@ -8,7 +8,16 @@
  * 
  * Graph structure:
  * Asset → Placement → Page → Component → Slot
+ * 
+ * Constitutional changes:
+ * - Uses array instead of Map for canonical state (deterministic ordering)
+ * - No arbitrary mutation methods (only event-driven updates)
+ * - No wall-clock in canonical state (sequence-based ordering)
+ * - Enforces slot cardinality constraints
+ * - Uses proper canonical types (no 'any')
  */
+
+import { CropRegion, FocalPoint, SlotConstraints } from './command-pattern';
 
 export interface Placement {
   placementId: string;
@@ -17,29 +26,27 @@ export interface Placement {
   pageId: string;
   componentId: string;
   status: 'staged' | 'published';
-  createdAt: number;
-  updatedAt: number;
+  sequence: number;
   metadata?: {
-    crop?: any;
-    focalPoint?: { x: number; y: number };
+    crop?: CropRegion;
+    focalPoint?: FocalPoint;
     altText?: string;
     seoPriority?: number;
   };
 }
 
 export interface PlacementGraph {
-  placements: Map<string, Placement>;
+  placements: Placement[];
   version: number;
-  lastModified: number;
 }
 
 class PlacementGraphManager {
   private static instance: PlacementGraphManager;
   private graph: PlacementGraph = {
-    placements: new Map(),
-    version: 0,
-    lastModified: Date.now()
+    placements: [],
+    version: 0
   };
+  private sequence = 0;
 
   private constructor() {}
 
@@ -50,8 +57,13 @@ class PlacementGraphManager {
     return PlacementGraphManager.instance;
   }
 
+  private nextSequence(): number {
+    return ++this.sequence;
+  }
+
   /**
-   * Create a new placement
+   * Create a new placement (event-driven only)
+   * Enforces slot cardinality: one active placement per slot
    */
   createPlacement(params: {
     assetId: string;
@@ -60,8 +72,14 @@ class PlacementGraphManager {
     componentId: string;
     metadata?: Placement['metadata'];
   }): Placement {
-    const placementId = `placement_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    const now = Date.now();
+    // Enforce slot cardinality constraint
+    const existingPlacement = this.getPlacementForSlot(params.slotId);
+    if (existingPlacement) {
+      throw new Error(`Slot ${params.slotId} already has an active placement. Delete or move existing placement first.`);
+    }
+
+    const placementId = `placement_${this.nextSequence()}`;
+    const sequence = this.sequence;
 
     const placement: Placement = {
       placementId,
@@ -70,14 +88,12 @@ class PlacementGraphManager {
       pageId: params.pageId,
       componentId: params.componentId,
       status: 'staged',
-      createdAt: now,
-      updatedAt: now,
+      sequence,
       metadata: params.metadata
     };
 
-    this.graph.placements.set(placementId, placement);
+    this.graph.placements.push(placement);
     this.graph.version++;
-    this.graph.lastModified = now;
 
     return placement;
   }
@@ -86,133 +102,140 @@ class PlacementGraphManager {
    * Get placement by ID
    */
   getPlacement(placementId: string): Placement | undefined {
-    return this.graph.placements.get(placementId);
+    return this.graph.placements.find(p => p.placementId === placementId);
   }
 
   /**
    * Get placement for a specific slot
+   * Enforces cardinality-one constraint
    */
   getPlacementForSlot(slotId: string): Placement | undefined {
-    return Array.from(this.graph.placements.values()).find(
-      p => p.slotId === slotId
-    );
+    const placements = this.graph.placements.filter(p => p.slotId === slotId);
+    if (placements.length > 1) {
+      console.warn(`Multiple placements found for slot ${slotId}, returning first`);
+    }
+    return placements[0];
   }
 
   /**
    * Get all placements for a page
    */
   getPlacementsForPage(pageId: string): Placement[] {
-    return Array.from(this.graph.placements.values()).filter(
-      p => p.pageId === pageId
-    );
+    return this.graph.placements.filter(p => p.pageId === pageId);
   }
 
   /**
    * Get all placements for a component
    */
   getPlacementsForComponent(componentId: string): Placement[] {
-    return Array.from(this.graph.placements.values()).filter(
-      p => p.componentId === componentId
-    );
+    return this.graph.placements.filter(p => p.componentId === componentId);
   }
 
   /**
    * Get all placements for an asset
    */
   getPlacementsForAsset(assetId: string): Placement[] {
-    return Array.from(this.graph.placements.values()).filter(
-      p => p.assetId === assetId
-    );
+    return this.graph.placements.filter(p => p.assetId === assetId);
   }
 
   /**
-   * Update placement
+   * Delete placement (event-driven only)
    */
-  updatePlacement(placementId: string, updates: Partial<Placement>): Placement | undefined {
-    const placement = this.graph.placements.get(placementId);
+  deletePlacement(placementId: string): boolean {
+    const index = this.graph.placements.findIndex(p => p.placementId === placementId);
+    if (index === -1) return false;
+
+    this.graph.placements.splice(index, 1);
+    this.graph.version++;
+
+    return true;
+  }
+
+  /**
+   * Move placement to different slot (event-driven only)
+   */
+  movePlacement(placementId: string, newSlotId: string): Placement | undefined {
+    const placement = this.getPlacement(placementId);
     if (!placement) return undefined;
 
-    const updated = {
+    // Enforce slot cardinality constraint
+    const existingPlacement = this.getPlacementForSlot(newSlotId);
+    if (existingPlacement && existingPlacement.placementId !== placementId) {
+      throw new Error(`Target slot ${newSlotId} already has an active placement`);
+    }
+
+    const updated: Placement = {
       ...placement,
-      ...updates,
-      updatedAt: Date.now()
+      slotId: newSlotId,
+      sequence: this.nextSequence()
     };
 
-    this.graph.placements.set(placementId, updated);
-    this.graph.version++;
-    this.graph.lastModified = Date.now();
+    const index = this.graph.placements.findIndex(p => p.placementId === placementId);
+    if (index !== -1) {
+      this.graph.placements[index] = updated;
+      this.graph.version++;
+    }
 
     return updated;
   }
 
   /**
-   * Delete placement
-   */
-  deletePlacement(placementId: string): boolean {
-    const deleted = this.graph.placements.delete(placementId);
-    if (deleted) {
-      this.graph.version++;
-      this.graph.lastModified = Date.now();
-    }
-    return deleted;
-  }
-
-  /**
-   * Move placement to different slot
-   */
-  movePlacement(placementId: string, newSlotId: string): Placement | undefined {
-    const placement = this.graph.placements.get(placementId);
-    if (!placement) return undefined;
-
-    return this.updatePlacement(placementId, {
-      slotId: newSlotId
-    });
-  }
-
-  /**
-   * Replace asset in placement
+   * Replace asset in placement (event-driven only)
    */
   replaceAsset(placementId: string, newAssetId: string): Placement | undefined {
-    const placement = this.graph.placements.get(placementId);
+    const placement = this.getPlacement(placementId);
     if (!placement) return undefined;
 
-    return this.updatePlacement(placementId, {
-      assetId: newAssetId
-    });
+    const updated: Placement = {
+      ...placement,
+      assetId: newAssetId,
+      sequence: this.nextSequence()
+    };
+
+    const index = this.graph.placements.findIndex(p => p.placementId === placementId);
+    if (index !== -1) {
+      this.graph.placements[index] = updated;
+      this.graph.version++;
+    }
+
+    return updated;
   }
 
   /**
    * Get all staged placements
    */
   getStagedPlacements(): Placement[] {
-    return Array.from(this.graph.placements.values()).filter(
-      p => p.status === 'staged'
-    );
+    return this.graph.placements.filter(p => p.status === 'staged');
   }
 
   /**
    * Get all published placements
    */
   getPublishedPlacements(): Placement[] {
-    return Array.from(this.graph.placements.values()).filter(
-      p => p.status === 'published'
-    );
+    return this.graph.placements.filter(p => p.status === 'published');
   }
 
   /**
-   * Publish all staged placements
+   * Publish all staged placements (event-driven only)
+   * This should be called by PublishStaged event handler
    */
   publishStaged(): Placement[] {
-    const staged = this.getStagedPlacements();
     const published: Placement[] = [];
 
-    for (const placement of staged) {
-      const updated = this.updatePlacement(placement.placementId, {
-        status: 'published'
-      });
-      if (updated) {
-        published.push(updated);
+    for (let i = 0; i < this.graph.placements.length; i++) {
+      const placement = this.graph.placements[i];
+      if (placement.status === 'staged') {
+        this.graph.placements[i] = {
+          ...placement,
+          status: 'published',
+          sequence: this.nextSequence()
+        };
+        published.push(this.graph.placements[i]);
       }
+    }
+
+    if (published.length > 0) {
+      this.graph.version++;
     }
 
     return published;
@@ -223,20 +246,18 @@ class PlacementGraphManager {
    */
   getGraph(): PlacementGraph {
     return {
-      placements: new Map(this.graph.placements),
-      version: this.graph.version,
-      lastModified: this.graph.lastModified
+      placements: [...this.graph.placements],
+      version: this.graph.version
     };
   }
 
   /**
-   * Load graph state (for persistence)
+   * Load graph state (for persistence/replay)
    */
   loadGraph(graph: PlacementGraph): void {
     this.graph = {
-      placements: new Map(graph.placements),
-      version: graph.version,
-      lastModified: graph.lastModified
+      placements: [...graph.placements],
+      version: graph.version
     };
   }
 
@@ -244,9 +265,8 @@ class PlacementGraphManager {
    * Clear all placements
    */
   clear(): void {
-    this.graph.placements.clear();
+    this.graph.placements = [];
     this.graph.version++;
-    this.graph.lastModified = Date.now();
   }
 }
 

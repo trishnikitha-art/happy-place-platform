@@ -9,7 +9,7 @@
 
 'use client';
 
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, cloneElement } from 'react';
 import { slotRegistry, SlotRegistration, SlotConstraints } from '@/lib/editor/slot-registry';
 
 interface EditableSlotProps {
@@ -61,6 +61,17 @@ export function EditableSlot({
     }
   }, [slotId]);
 
+  // Clone child to attach ref and data attribute while preserving structure
+  if (React.isValidElement(children)) {
+    const child = children as React.ReactElement<any>;
+    return cloneElement(child, {
+      ref: elementRef,
+      'data-slot-id': slotId,
+      className: `${child.props.className || ''} editable-slot`
+    } as any);
+  }
+
+  // Fallback to wrapper if child is not a valid element
   return (
     <div ref={elementRef} data-slot-id={slotId} className="editable-slot">
       {children}
