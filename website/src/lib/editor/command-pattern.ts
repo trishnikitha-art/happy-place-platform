@@ -58,6 +58,7 @@ export interface DeletePlacementCommand extends Command {
 export interface DuplicatePlacementCommand extends Command {
   type: 'DuplicatePlacement';
   sourcePlacementId: string;
+  newPlacementId: string;
   targetSlotId: string;
 }
 
@@ -192,11 +193,14 @@ class CommandBuilder {
     targetSlotId: string;
   }): DuplicatePlacementCommand {
     const sequence = CommandBuilder.nextSequence();
+    const newPlacementId = CommandBuilder.generateId(sequence);
     return {
       id: CommandBuilder.generateId(sequence),
       type: 'DuplicatePlacement',
       sequence,
-      ...params
+      sourcePlacementId: params.sourcePlacementId,
+      newPlacementId,
+      targetSlotId: params.targetSlotId
     };
   }
 
@@ -287,7 +291,7 @@ class CommandExecutor {
       await this.executeBatch(command);
     } else {
       // Produce corresponding event
-      const event = this.commandToEvent(command);
+      const event = await this.commandToEvent(command);
       
       // Emit event to event system
       const { eventSystem } = await import('./event-system');
@@ -296,8 +300,49 @@ class CommandExecutor {
   }
 
   /**
+   * Validate a command before execution
+   */
+  private async validateCommand(command: AnyCommand): Promise<void> {
+    const { slotRegistry } = await import('./slot-registry');
+    const { placementGraph } = await import('./placement-graph');
+    
+    // Add validation logic based on command type
+    switch (command.type) {
+      case 'ReplaceAsset':
+        // Validate asset exists, slot exists, etc.
+        const slot = slotRegistry.getSlot(command.slotId);
+        if (!slot) {
+          throw new Error(`Slot ${command.slotId} does not exist`);
+        }
+        break;
+      case 'MovePlacement':
+        // Validate placement exists, target slot exists and is available
+        const placement = placementGraph.getPlacement(command.placementId);
+        if (!placement) {
+          throw new Error(`Placement ${command.placementId} does not exist`);
+        }
+        const targetSlot = slotRegistry.getSlot(command.newSlotId);
+        if (!targetSlot) {
+          throw new Error(`Target slot ${command.newSlotId} does not exist`);
+        }
+        break;
+      case 'DeletePlacement':
+        // Validate placement exists
+        const deletePlacement = placementGraph.getPlacement(command.placementId);
+        if (!deletePlacement) {
+          throw new Error(`Placement ${command.placementId} does not exist`);
+        }
+        break;
+      default:
+        // Default validation - no-op for now
+        break;
+    }
+  }
+
+  /**
    * Execute batch operation with atomicity
    * Validates ALL commands before producing ANY events
+   * Events are produced transactionally - all succeed or none succeed
    */
   private async executeBatch(command: BatchOperationCommand): Promise<void> {
     // Validate all commands first
@@ -305,40 +350,34 @@ class CommandExecutor {
       await this.validateCommand(cmd);
     }
 
-    // All validations passed - produce events atomically
-    const { eventSystem } = await import('./event-system');
-    
+    // All validations passed - build all events
+    const events: any[] = [];
     for (const cmd of command.commands) {
-      const event = this.commandToEvent(cmd);
-      await eventSystem.emit(event);
+      const event = await this.commandToEvent(cmd);
+      events.push(event);
     }
-  }
 
-  /**
-   * Validate a command before execution
-   */
-  private async validateCommand(command: AnyCommand): Promise<void> {
-    // Add validation logic based on command type
-    switch (command.type) {
-      case 'ReplaceAsset':
-        // Validate asset exists, slot exists, etc.
-        break;
-      case 'MovePlacement':
-        // Validate placement exists, target slot exists and is available
-        break;
-      default:
-        // Default validation
-        break;
+    // Append all events atomically to event store
+    const { eventStore } = await import('./event-system');
+    for (const event of events) {
+      eventStore.append(event);
+    }
+
+    // Notify listeners for all events
+    const { eventBus } = await import('./event-system');
+    for (const event of events) {
+      await eventBus.emit(event);
     }
   }
 
   /**
    * Convert command to event
    * Events contain only forward-looking state (no old* fields)
+   * Constitutional Law: Every command has exactly one event mapping
    */
-  private commandToEvent(command: AnyCommand): any {
+  private async commandToEvent(command: AnyCommand): Promise<any> {
     // Lazy import to avoid circular dependency
-    const { eventBuilder } = require('./event-system');
+    const { eventBuilder } = await import('./event-system');
     
     switch (command.type) {
       case 'ReplaceAsset':
@@ -353,10 +392,29 @@ class CommandExecutor {
           placementId: command.placementId,
           newSlotId: command.newSlotId
         });
+      case 'SwapPlacement':
+        return eventBuilder.placementSwapped({
+          commandId: command.id,
+          placementId1: command.placementId1,
+          placementId2: command.placementId2
+        });
       case 'DeletePlacement':
         return eventBuilder.placementDeleted({
           commandId: command.id,
           placementId: command.placementId
+        });
+      case 'DuplicatePlacement':
+        return eventBuilder.placementDuplicated({
+          commandId: command.id,
+          sourcePlacementId: command.sourcePlacementId,
+          newPlacementId: command.newPlacementId,
+          targetSlotId: command.targetSlotId
+        });
+      case 'CropAsset':
+        return eventBuilder.assetCropped({
+          commandId: command.id,
+          assetId: command.assetId,
+          newCrop: command.newCrop
         });
       case 'AdjustFocalPoint':
         return eventBuilder.focalPointAdjusted({
@@ -364,57 +422,88 @@ class CommandExecutor {
           assetId: command.assetId,
           newFocalPoint: command.newFocalPoint
         });
+      case 'UpdateSlotConstraints':
+        return eventBuilder.slotConstraintsUpdated({
+          commandId: command.id,
+          slotId: command.slotId,
+          newConstraints: command.newConstraints
+        });
       case 'PublishStaged':
+        // Get current staged placements for proper event data
+        const { placementGraph } = await import('./placement-graph');
+        const stagedPlacements = placementGraph.getStagedPlacements();
         return eventBuilder.stagedPublished({
           commandId: command.id,
-          placementIds: []
+          placementIds: stagedPlacements.map(p => p.placementId)
         });
+      case 'BatchOperation':
+        // Batch commands don't directly produce events
+        // They are validated and then each sub-command produces its own event
+        throw new Error('BatchOperation must be executed via executeBatch, not commandToEvent');
       default:
-        throw new Error(`Unsupported command type: ${command.type}`);
+        const _exhaustiveCheck: never = command;
+        return _exhaustiveCheck;
     }
   }
 
   /**
    * Undo is a new command, not magical mutation
    * For event sourcing, undo creates new events
+   * Returns false if undo cannot be safely performed
    */
-  async undo(command: AnyCommand): Promise<void> {
-    // Generate inverse command based on command type
-    const inverseCommand = this.createInverseCommand(command);
-    
-    // Execute the inverse command (produces new events)
-    await this.execute(inverseCommand);
+  async undo(command: AnyCommand): Promise<boolean> {
+    try {
+      // Generate inverse command based on command type
+      const inverseCommand = this.createInverseCommand(command);
+      
+      if (!inverseCommand) {
+        return false;
+      }
+      
+      // Execute the inverse command (produces new events)
+      await this.execute(inverseCommand);
+      return true;
+    } catch (error) {
+      console.error('Undo failed:', error);
+      return false;
+    }
   }
 
   /**
    * Redo is a new command, not magical mutation
+   * Returns false if redo cannot be safely performed
    */
-  async redo(command: AnyCommand): Promise<void> {
-    // Redo is just re-executing the original command
-    await this.execute(command);
+  async redo(command: AnyCommand): Promise<boolean> {
+    try {
+      // Redo is just re-executing the original command
+      await this.execute(command);
+      return true;
+    } catch (error) {
+      console.error('Redo failed:', error);
+      return false;
+    }
   }
 
   /**
    * Create inverse command for undo
    * This creates a new command that reverses the original
+   * Returns null if inverse cannot be safely constructed
    */
-  private createInverseCommand(command: AnyCommand): AnyCommand {
+  private createInverseCommand(command: AnyCommand): AnyCommand | null {
     switch (command.type) {
       case 'ReplaceAsset':
         // Need current asset ID from placement graph
         // This is a simplification - in production, we'd query the graph
-        throw new Error('Undo for ReplaceAsset requires current state query');
+        return null; // Cannot safely undo without current state
       case 'MovePlacement':
         // Move back to original slot
-        return CommandBuilder.movePlacement({
-          placementId: command.placementId,
-          newSlotId: command.newSlotId // This would need original slot
-        });
+        // Would need to store original slot in command metadata
+        return null; // Cannot safely undo without original slot
       case 'DeletePlacement':
         // Recreate placement (would need original placement data)
-        throw new Error('Undo for DeletePlacement requires original placement data');
+        return null; // Cannot safely undo without original placement data
       default:
-        throw new Error(`Undo not implemented for command type: ${command.type}`);
+        return null; // Undo not implemented for this command type
     }
   }
 }
