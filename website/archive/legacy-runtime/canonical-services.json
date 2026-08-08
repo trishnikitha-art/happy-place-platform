@@ -1,0 +1,83 @@
+[
+  {
+    "service_id": "982f5335",
+    "service_name": "Featured",
+    "slug": "featured",
+    "projects": [
+      "Featured Projects"
+    ],
+    "total_images": 1,
+    "hero_candidates": [
+      "d9cd3d37-eea1-54a9-92f6-abd1e1f71c58"
+    ],
+    "featured_candidates": [
+      "d9cd3d37-eea1-54a9-92f6-abd1e1f71c58"
+    ]
+  },
+  {
+    "service_id": "a7cc265f",
+    "service_name": "Painting",
+    "slug": "painting",
+    "projects": [
+      "Painting Before & Afters"
+    ],
+    "total_images": 10,
+    "hero_candidates": [
+      "1ebc9012-b788-5045-809c-9013d31f42be",
+      "0b47b6c5-d836-53d3-abec-b5e0f7ccd958",
+      "f711baca-4ff4-5da9-b5ed-81e4cfaa4abf",
+      "9c1d7116-28c2-5b8e-bdfc-bd21c5d1a639",
+      "895898ac-088e-5700-8b2b-30b8176c5c91"
+    ],
+    "featured_candidates": []
+  },
+  {
+    "service_id": "ed81348e",
+    "service_name": "Fencing",
+    "slug": "fencing",
+    "projects": [
+      "Fencing Before & Afters"
+    ],
+    "total_images": 8,
+    "hero_candidates": [
+      "8e0070ae-d7a0-59e7-b7ee-cef08b5cc2f6",
+      "35435dc5-6f4e-5c6d-aaf9-aa7318bc014c",
+      "0727b3c3-a214-51c4-a73b-da9be87c30a6",
+      "bb1e13ad-a8ec-55ac-aeb3-6380fcab75b3"
+    ],
+    "featured_candidates": []
+  },
+  {
+    "service_id": "f7332551",
+    "service_name": "Drywall",
+    "slug": "drywall",
+    "projects": [
+      "Drywall Before & Afters"
+    ],
+    "total_images": 6,
+    "hero_candidates": [],
+    "featured_candidates": []
+  },
+  {
+    "service_id": "43c3f65f",
+    "service_name": "Other",
+    "slug": "other",
+    "projects": [
+      "Other Before & Afters"
+    ],
+    "total_images": 16,
+    "hero_candidates": [],
+    "featured_candidates": []
+  },
+  {
+    "service_id": "3c0475e7",
+    "service_name": "Finish-carpentry",
+    "slug": "finish-carpentry",
+    "projects": [
+      "Finish Carpentry Before & Afters"
+    ],
+    "total_images": 2,
+    "hero_candidates": [],
+    "featured_candidates": []
+  }
+]

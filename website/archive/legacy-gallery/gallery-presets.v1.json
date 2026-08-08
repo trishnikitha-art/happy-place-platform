@@ -1,0 +1,111 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-07-22T00:00:00.000Z",
+  "presets": [
+    {
+      "id": "before-after",
+      "name": "Before / After",
+      "description": "Projects with before and after photos",
+      "filter": {
+        "hasBefore": true,
+        "hasAfter": true
+      },
+      "featured": true,
+      "order": 1
+    },
+    {
+      "id": "featured",
+      "name": "Featured",
+      "description": "Featured projects",
+      "filter": {
+        "featured": true
+      },
+      "featured": true,
+      "order": 2
+    },
+    {
+      "id": "outdoor-living",
+      "name": "Outdoor Living",
+      "description": "Outdoor living spaces and structures",
+      "filter": {
+        "services": ["decks", "fences", "pergolas", "outdoor-living"]
+      },
+      "featured": true,
+      "order": 3
+    },
+    {
+      "id": "accessibility",
+      "name": "Accessibility",
+      "description": "Accessibility and universal design projects",
+      "filter": {
+        "tags": ["accessibility", "universal-design", "ada"]
+      },
+      "featured": false,
+      "order": 4
+    },
+    {
+      "id": "custom-builds",
+      "name": "Custom Builds",
+      "description": "Custom and unique builds",
+      "filter": {
+        "tags": ["custom", "unique", "bespoke"]
+      },
+      "featured": false,
+      "order": 5
+    },
+    {
+      "id": "recent",
+      "name": "Recent Projects",
+      "description": "Recently completed projects",
+      "filter": {
+        "status": "completed",
+        "sortBy": "completionDate",
+        "sortOrder": "desc",
+        "limit": 12
+      },
+      "featured": true,
+      "order": 6
+    },
+    {
+      "id": "kitchens-bathrooms",
+      "name": "Kitchens & Bathrooms",
+      "description": "Kitchen and bathroom remodeling",
+      "filter": {
+        "services": ["kitchens", "bathrooms"]
+      },
+      "featured": true,
+      "order": 7
+    },
+    {
+      "id": "exterior",
+      "name": "Exterior",
+      "description": "Exterior projects and improvements",
+      "filter": {
+        "services": ["decks", "fences", "pergolas", "outdoor-living", "painting", "repairs"]
+      },
+      "featured": false,
+      "order": 8
+    },
+    {
+      "id": "interior",
+      "name": "Interior",
+      "description": "Interior remodeling and carpentry",
+      "filter": {
+        "services": ["kitchens", "bathrooms", "finish-carpentry", "built-ins", "restoration"]
+      },
+      "featured": false,
+      "order": 9
+    },
+    {
+      "id": "historic",
+      "name": "Historic",
+      "description": "Historic home restoration",
+      "filter": {
+        "services": ["restoration"],
+        "tags": ["historic", "vintage", "heritage"]
+      },
+      "featured": false,
+      "order": 10
+    }
+  ]
+}

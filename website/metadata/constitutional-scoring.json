@@ -1,0 +1,31 @@
+{
+  "version": "1.0.0",
+  "description": "Constitutional Scoring Artifact for Image Ranking",
+  "factors": {
+    "composition": {
+      "weight": 0.3,
+      "description": "Image composition quality"
+    },
+    "sharpness": {
+      "weight": 0.2,
+      "description": "Image sharpness and clarity"
+    },
+    "brightness": {
+      "weight": 0.2,
+      "description": "Proper lighting and exposure"
+    },
+    "resolution": {
+      "weight": 0.2,
+      "description": "Image resolution quality"
+    },
+    "visibility": {
+      "weight": 0.1,
+      "description": "Subject visibility and clarity"
+    }
+  },
+  "thresholds": {
+    "minimumScore": 0.5,
+    "heroMinimumScore": 0.7,
+    "galleryMinimumScore": 0.6
+  }
+}

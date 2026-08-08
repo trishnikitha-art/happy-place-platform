@@ -1,0 +1,48 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2026-08-06T00:00:00Z",
+  "authorities": [
+    {
+      "id": "ProjectionManager",
+      "canonicalPath": "scripts/ProjectionManager.js",
+      "description": "Orchestrates projection operations (ensure, regenerate)",
+      "category": "projection",
+      "immutable": true
+    },
+    {
+      "id": "ProjectionGenerator",
+      "canonicalPath": "scripts/projection-generator/index.js",
+      "description": "Generates projection artifacts from canonical evidence",
+      "category": "projection",
+      "immutable": true
+    },
+    {
+      "id": "ProjectionAdapter",
+      "canonicalPath": "src/lib/projection-adapter.js",
+      "description": "Adapts projection artifacts to runtime format",
+      "category": "projection",
+      "immutable": true
+    },
+    {
+      "id": "ConstitutionalVerification",
+      "canonicalPath": "scripts/constitutional-verification.js",
+      "description": "Verifies constitutional invariants",
+      "category": "verification",
+      "immutable": true
+    },
+    {
+      "id": "ConstitutionalAuthorityScanner",
+      "canonicalPath": "scripts/ConstitutionalAuthorityScanner.js",
+      "description": "Scans for duplicate authorities",
+      "category": "verification",
+      "immutable": true
+    },
+    {
+      "id": "ConstitutionalBuildManager",
+      "canonicalPath": "scripts/ConstitutionalBuildManager.js",
+      "description": "Orchestrates constitutional build pipeline",
+      "category": "build",
+      "immutable": true
+    }
+  ]
+}

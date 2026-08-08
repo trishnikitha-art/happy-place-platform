@@ -1,0 +1,17 @@
+{
+  "projectionId": "hero-v1",
+  "schemaVersion": "1.0.0",
+  "projectionVersion": "1.0.0",
+  "scoringVersion": "1.0.0",
+  "canonicalGraphVersion": "1.0.0",
+  "generatorVersion": "1.0.0",
+  "inputHash": "sha256:6000fe4d9e60c769d022aa80b95f85d15eca90197a431ccf76b7807fd2eaec96",
+  "generatedAt": "2026-08-07T01:08:04.992Z",
+  "hero": {
+    "heroMediaId": "d9cd3d37-eea1-54a9-92f6-abd1e1f71c58",
+    "filename": "Feature-Fence-Photo.jpg",
+    "dimensions": "4367x3275",
+    "score": 0.62
+  },
+  "generatedHash": "sha256:7d2c75ff40b64f68a7231d1bc2d2fb72b369f2e2367dcaa338732ebff63574f8"
+}

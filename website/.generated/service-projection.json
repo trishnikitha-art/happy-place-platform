@@ -1,0 +1,96 @@
+{
+  "projectionId": "service-v1",
+  "schemaVersion": "1.0.0",
+  "projectionVersion": "1.0.0",
+  "scoringVersion": "1.0.0",
+  "canonicalGraphVersion": "1.0.0",
+  "generatorVersion": "1.0.0",
+  "inputHash": "sha256:6000fe4d9e60c769d022aa80b95f85d15eca90197a431ccf76b7807fd2eaec96",
+  "generatedAt": "2026-08-07T01:08:04.999Z",
+  "services": [
+    {
+      "serviceName": "fencing",
+      "serviceRepresentative": "Feature-Fence-Photo.jpg",
+      "supportingServiceEvidence": [
+        "HP0018_FenceInstallation_Exterior_SideStained_After.jpg",
+        "HP0018_FenceInstallation_Exterior_Side_After.jpg",
+        "HP0018_FenceInstallation_Interior_WalkwayStained_After.jpg",
+        "HP0020_FenceInstallation_After.jpg",
+        "HP012_FenceRebuild_After.jpg",
+        "HP012_FenceRebuild_Before.jpg",
+        "HP019_FenceRebuild_After (1).jpg",
+        "HP019_FenceRebuild_Before.jpg"
+      ]
+    },
+    {
+      "serviceName": "painting",
+      "serviceRepresentative": "HP0017_ExteriorPainting_After.jpg",
+      "supportingServiceEvidence": [
+        "HP0017_ExteriorPainting_Before.jpg",
+        "HP002_ExteriorPainting_House_After.jpg",
+        "HP002_ExteriorPainting_House_Before.jpg",
+        "HP006_ExteriorPainting_House_After.jpg",
+        "HP006_ExteriorPainting_House_Before.jpg",
+        "HP010_ExteriorPainting_House_After.jpg",
+        "HP010_ExteriorPainting_House_Before.jpg",
+        "HP016_ExteriorPainting_HouseRefresh_After.jpg",
+        "HP016_ExteriorPainting_HouseRefresh_Before.jpg"
+      ]
+    },
+    {
+      "serviceName": "drywall repair",
+      "serviceRepresentative": "HP001_DrywallRepair_WallDamage_After.jpg",
+      "supportingServiceEvidence": [
+        "HP001_DrywallRepair_WallDamage_Before.jpeg",
+        "HP009_DrywallRepair_After_Primed.jpg",
+        "HP009_DrywallRepair_Before.jpg",
+        "HP016_BathroomDrywallRepair_After.jpg",
+        "HP016_BathroomDrywallRepair_Before.jpg"
+      ]
+    },
+    {
+      "serviceName": "shed construction",
+      "serviceRepresentative": "HP003_ShedConstruction_After.jpg",
+      "supportingServiceEvidence": [
+        "HP003_ShedConstruction_Before.jpg"
+      ]
+    },
+    {
+      "serviceName": "siding repair",
+      "serviceRepresentative": "HP004_SidingRepair_After.jpeg",
+      "supportingServiceEvidence": [
+        "HP004_SidingRepair_Before.jpeg",
+        "HP007_SidingRotRepair_After.jpeg",
+        "HP007_SidingRotRepair_Before.jpeg"
+      ]
+    },
+    {
+      "serviceName": "door replacement",
+      "serviceRepresentative": "HP005_DoorReplacement_After.jpeg",
+      "supportingServiceEvidence": [
+        "HP005_DoorReplacement_Before.jpeg",
+        "HP008_AtticAccessDoorInstallation_After_Closed.jpg",
+        "HP008_AtticAccessDoorInstallation_After_Open.jpg"
+      ]
+    },
+    {
+      "serviceName": "flooring",
+      "serviceRepresentative": "HP011_SubfloorReplacement_After.jpg",
+      "supportingServiceEvidence": [
+        "HP011_SubfloorReplacement_Before.jpg",
+        "HP014_VinylFlooring_After.jpg",
+        "HP014_VinylFlooring_Before.jpg",
+        "HP015_VinylFlooring_After.jpg",
+        "HP015_VinylFlooring_Before.jpg"
+      ]
+    },
+    {
+      "serviceName": "window refinishing",
+      "serviceRepresentative": "HP013_WindowFrameRefinish_After.jpg",
+      "supportingServiceEvidence": [
+        "HP013_WindowFrameRefinish_Before.jpg"
+      ]
+    }
+  ],
+  "generatedHash": "sha256:f41561a7cee6a4717f8d3e1649687580687012a2f69f62dd9bd620ecac103377"
+}

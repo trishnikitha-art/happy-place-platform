@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="900" viewBox="0 0 1200 900" role="img" aria-label="Cedar Deck">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="0.6" y2="1"><stop offset="0" stop-color="#EDEAE0"/><stop offset="1" stop-color="#E9DBC9"/></linearGradient></defs>
+  <rect width="1200" height="900" fill="url(#g)"/>
+  <circle cx="960" cy="180" r="306" fill="#d99a4e" opacity="0.22"/>
+  
+        <rect x="0" y="558" width="1200" height="342" fill="#caa97e"/>
+        <rect x="72" y="522" width="1056" height="54" fill="#9c7a52"/>
+        <rect x="120" y="306" width="30" height="234" fill="#7c5a3a"/>
+        <rect x="1056" y="306" width="30" height="234" fill="#7c5a3a"/>
+        <rect x="120" y="306" width="960" height="27" fill="#9c7a52"/>
+        <rect x="360" y="360" width="480" height="162" fill="#e9d8bf"/>
+  <text x="72" y="774" font-family="Georgia, serif" font-size="65" font-weight="700" fill="#2b2620">Cedar Deck</text>
+  <text x="72" y="839" font-family="Arial, sans-serif" font-size="27" fill="rgba(43,38,32,0.62)">Corvallis, OR</text>
+</svg>

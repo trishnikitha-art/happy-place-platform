@@ -1,0 +1,163 @@
+[
+  {
+    "project_id": "6a374d35",
+    "project_name": "Featured Projects",
+    "service": "featured",
+    "hero_image_id": "d9cd3d37-eea1-54a9-92f6-abd1e1f71c58",
+    "gallery_image_ids": [],
+    "before_after_pairs": [],
+    "total_images": 1
+  },
+  {
+    "project_id": "67356532",
+    "project_name": "Painting Before & Afters",
+    "service": "painting",
+    "hero_image_id": "1ebc9012-b788-5045-809c-9013d31f42be",
+    "gallery_image_ids": [
+      "0b47b6c5-d836-53d3-abec-b5e0f7ccd958",
+      "2fd40c23-1596-558b-836f-6b36ed7b8bf3",
+      "3b15c0e4-88d4-5914-a752-d2f898811e6f",
+      "e56b3693-3dc1-5e7c-bf5b-a40aed63eb63",
+      "c07709c2-cfdd-54be-897a-a810a9c983a4",
+      "f711baca-4ff4-5da9-b5ed-81e4cfaa4abf",
+      "9c1d7116-28c2-5b8e-bdfc-bd21c5d1a639",
+      "895898ac-088e-5700-8b2b-30b8176c5c91",
+      "a9713bf9-8d68-5f89-976d-a0569c472731"
+    ],
+    "before_after_pairs": [
+      {
+        "before_id": "0b47b6c5-d836-53d3-abec-b5e0f7ccd958",
+        "after_id": "1ebc9012-b788-5045-809c-9013d31f42be"
+      },
+      {
+        "before_id": "3b15c0e4-88d4-5914-a752-d2f898811e6f",
+        "after_id": "2fd40c23-1596-558b-836f-6b36ed7b8bf3"
+      },
+      {
+        "before_id": "c07709c2-cfdd-54be-897a-a810a9c983a4",
+        "after_id": "e56b3693-3dc1-5e7c-bf5b-a40aed63eb63"
+      },
+      {
+        "before_id": "9c1d7116-28c2-5b8e-bdfc-bd21c5d1a639",
+        "after_id": "f711baca-4ff4-5da9-b5ed-81e4cfaa4abf"
+      },
+      {
+        "before_id": "a9713bf9-8d68-5f89-976d-a0569c472731",
+        "after_id": "895898ac-088e-5700-8b2b-30b8176c5c91"
+      }
+    ],
+    "total_images": 10
+  },
+  {
+    "project_id": "6b756232",
+    "project_name": "Fencing Before & Afters",
+    "service": "fencing",
+    "hero_image_id": "8e0070ae-d7a0-59e7-b7ee-cef08b5cc2f6",
+    "gallery_image_ids": [
+      "e5d3a7d1-6ce6-5e36-a8be-32276899587c",
+      "a0f67c79-dbd0-514b-ac3b-b487c9b36950",
+      "35435dc5-6f4e-5c6d-aaf9-aa7318bc014c",
+      "d973e1f4-e619-5df0-920e-f0cb6d0f8356",
+      "3defabc0-1e59-57b0-951d-485429509cde",
+      "0727b3c3-a214-51c4-a73b-da9be87c30a6",
+      "bb1e13ad-a8ec-55ac-aeb3-6380fcab75b3"
+    ],
+    "before_after_pairs": [
+      {
+        "before_id": "3defabc0-1e59-57b0-951d-485429509cde",
+        "after_id": "d973e1f4-e619-5df0-920e-f0cb6d0f8356"
+      }
+    ],
+    "total_images": 8
+  },
+  {
+    "project_id": "b76651c3",
+    "project_name": "Drywall Before & Afters",
+    "service": "drywall",
+    "hero_image_id": "082b5f24-c8da-5e42-be9a-5860a49768dd",
+    "gallery_image_ids": [
+      "f69faf20-5d2f-57bb-9bd9-5affc4d057ee",
+      "dc11421e-33cd-5e60-869e-de8033c3a787",
+      "6473adba-5db4-57b5-8ab7-b8bc1e6d9461",
+      "23510a5b-d7aa-5095-b082-e109af2b4708",
+      "1ad70ce2-73e3-50b2-a6eb-b72544d9a8f6"
+    ],
+    "before_after_pairs": [
+      {
+        "before_id": "1ad70ce2-73e3-50b2-a6eb-b72544d9a8f6",
+        "after_id": "23510a5b-d7aa-5095-b082-e109af2b4708"
+      }
+    ],
+    "total_images": 6
+  },
+  {
+    "project_id": "75ad1a12",
+    "project_name": "Other Before & Afters",
+    "service": "other",
+    "hero_image_id": "0033172f-c9c0-5a0b-a6bf-a88b95003334",
+    "gallery_image_ids": [
+      "a425b78f-36be-5691-bf46-3f818ee8ad01",
+      "8bc19c81-9dfd-550c-b542-d502cda1825c",
+      "5323c031-130c-5b50-95c8-488b52abe22c",
+      "e7d6e6c3-db90-53b9-8b94-edc62e08c062",
+      "1c7f264d-629c-5786-b421-2ed91e3870c4",
+      "d31fca5f-9de0-5b82-b3ab-9e3428a196b3",
+      "09cd1f72-0427-57fc-95e3-18a891826bff",
+      "a3c88dac-68bc-5154-9aa7-ad7a2e9d40d1",
+      "e53e11a6-8eeb-53d7-b37f-dd8c56ddf425",
+      "b36f35ad-b06a-50df-aeab-07eff3d380c2",
+      "26dd1ffb-90d5-56d4-ae30-0da6a13f93a7",
+      "a72ff3a9-600d-51db-b7f9-3ef041c0b23a",
+      "a8ce8ccd-df6f-5d73-bbfd-1e41a601918b",
+      "a6065490-3098-5d5d-8b83-42eae8ccb127",
+      "3e924c96-7f0f-5b80-8cf7-4f2ece90574c"
+    ],
+    "before_after_pairs": [
+      {
+        "before_id": "a425b78f-36be-5691-bf46-3f818ee8ad01",
+        "after_id": "0033172f-c9c0-5a0b-a6bf-a88b95003334"
+      },
+      {
+        "before_id": "5323c031-130c-5b50-95c8-488b52abe22c",
+        "after_id": "8bc19c81-9dfd-550c-b542-d502cda1825c"
+      },
+      {
+        "before_id": "1c7f264d-629c-5786-b421-2ed91e3870c4",
+        "after_id": "e7d6e6c3-db90-53b9-8b94-edc62e08c062"
+      },
+      {
+        "before_id": "09cd1f72-0427-57fc-95e3-18a891826bff",
+        "after_id": "d31fca5f-9de0-5b82-b3ab-9e3428a196b3"
+      },
+      {
+        "before_id": "26dd1ffb-90d5-56d4-ae30-0da6a13f93a7",
+        "after_id": "b36f35ad-b06a-50df-aeab-07eff3d380c2"
+      },
+      {
+        "before_id": "a8ce8ccd-df6f-5d73-bbfd-1e41a601918b",
+        "after_id": "a72ff3a9-600d-51db-b7f9-3ef041c0b23a"
+      },
+      {
+        "before_id": "3e924c96-7f0f-5b80-8cf7-4f2ece90574c",
+        "after_id": "a6065490-3098-5d5d-8b83-42eae8ccb127"
+      }
+    ],
+    "total_images": 16
+  },
+  {
+    "project_id": "11fe5948",
+    "project_name": "Finish Carpentry Before & Afters",
+    "service": "finish-carpentry",
+    "hero_image_id": "b26a7cea-52f1-588d-bd52-53557ada1f1d",
+    "gallery_image_ids": [
+      "078acad7-e057-5705-afe4-6a40ac2ad105"
+    ],
+    "before_after_pairs": [
+      {
+        "before_id": "078acad7-e057-5705-afe4-6a40ac2ad105",
+        "after_id": "b26a7cea-52f1-588d-bd52-53557ada1f1d"
+      }
+    ],
+    "total_images": 2
+  }
+]
