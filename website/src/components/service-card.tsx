@@ -4,7 +4,7 @@ import type { Service } from "@/types/registries";
 import { Icon } from "@/components/icon";
 import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
-import { getFeaturedServiceMedia } from "@/lib/media";
+import { getServicePreviewMedia } from "@/lib/media";
 
 /**
  * ServiceCard — photo-led and dense (CEO review): one iconic image, title,
@@ -12,15 +12,15 @@ import { getFeaturedServiceMedia } from "@/lib/media";
  * 
  * Updated to use new Service type from registries (data-driven configuration).
  * 
- * Service cards use intent-based media lookups from Media Authority.
- * Displays the hero image of the highest-ranked project for that service.
+ * Constitutional: Service cards use projection-based media lookups.
+ * Reads from serviceProjection.json (no selection logic in frontend).
  * Falls back to intentional empty state when no images exist for that service.
  * 
  * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
  * Card text always uses light register tokens regardless of page background.
  */
 export function ServiceCard({ service }: { service: Service }) {
-  const featuredMedia = getFeaturedServiceMedia(service.slug);
+  const featuredMedia = getServicePreviewMedia(service.slug);
   const hasImage = featuredMedia !== null;
   const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.original) : null;
 

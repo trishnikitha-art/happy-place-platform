@@ -39,6 +39,10 @@ export class DriveSession {
   async isAuthenticated(): Promise<boolean> {
     const accessToken = await this.getCookie('drive_access_token');
     const refreshToken = await this.getCookie('drive_refresh_token');
+    console.log('DriveSession.isAuthenticated():', {
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshToken,
+    });
     return !!(accessToken && refreshToken);
   }
 

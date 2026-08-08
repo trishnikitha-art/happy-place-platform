@@ -44,8 +44,8 @@ export function BeforeAfterSlider({
   project: Project;
   className?: string;
 }) {
-  // Check if project has both before and after media
-  if (!project.media.before || !project.media.after) {
+  // Check if project has media structure and both before and after media
+  if (!project.media || !project.media.before || !project.media.after) {
     return null; // Hide gracefully if missing before/after
   }
 

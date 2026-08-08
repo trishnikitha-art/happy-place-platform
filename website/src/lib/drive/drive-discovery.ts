@@ -47,8 +47,14 @@ export class DriveDiscovery {
     hppFolders: DriveFolder[];
     recentFolders: DriveFolder[];
   }> {
+    console.log('=== Drive Discovery Started ===');
+    
     // Check if authenticated first
-    if (!(await driveOAuthManager.isAuthenticated())) {
+    const isAuthenticated = await driveOAuthManager.isAuthenticated();
+    console.log('Authenticated:', isAuthenticated);
+    
+    if (!isAuthenticated) {
+      console.log('Not authenticated, returning empty structure');
       return {
         myDrive: null,
         sharedDrives: [],
@@ -58,18 +64,64 @@ export class DriveDiscovery {
     }
 
     const drive = await driveOAuthManager.getDriveClient();
+    console.log('Drive client obtained');
+
+    // Verify authenticated account
+    try {
+      const about = await drive.about.get({
+        fields: 'user(emailAddress,displayName,permissionId),storageQuota,rootFolderId',
+      });
+      console.log('Authenticated account:', {
+        email: about.data.user?.emailAddress,
+        displayName: about.data.user?.displayName,
+        permissionId: about.data.user?.permissionId,
+        rootFolderId: about.data.rootFolderId,
+      });
+    } catch (error) {
+      console.error('Failed to get about info:', error);
+    }
+
+    // Verify Drive API itself
+    try {
+      const filesTest = await drive.files.list({
+        pageSize: 10,
+        fields: 'files(id,name,mimeType)',
+      });
+      console.log('Drive API test - total files:', filesTest.data.files?.length || 0);
+      if (filesTest.data.files?.length > 0) {
+        console.log('Sample files:', filesTest.data.files.slice(0, 3).map((f: any) => ({
+          id: f.id,
+          name: f.name,
+          mimeType: f.mimeType,
+        })));
+      }
+    } catch (error) {
+      console.error('Drive API test failed:', error);
+    }
 
     // Get My Drive info
+    console.log('Getting My Drive info...');
     const myDrive = await this.getMyDrive(drive);
+    console.log('My Drive:', myDrive);
 
     // Get Shared Drives
+    console.log('Getting Shared Drives...');
     const sharedDrives = await this.getSharedDrives(drive);
+    console.log('Shared Drives count:', sharedDrives.length);
 
     // Search for known HPP folders
+    console.log('Searching HPP folders...');
     const hppFolders = await this.searchHPPFolders(drive);
+    console.log('HPP folders count:', hppFolders.length);
+    console.log('HPP folders:', hppFolders.map(f => ({ id: f.id, name: f.name })));
 
     // Get recently modified folders
+    console.log('Getting recent folders...');
     const recentFolders = await this.getRecentFolders(drive);
+    console.log('Recent folders count:', recentFolders.length);
+    console.log('Recent folders:', recentFolders.map(f => ({ id: f.id, name: f.name })));
+
+    console.log('=== Drive Discovery Complete ===');
 
     return {
       myDrive,

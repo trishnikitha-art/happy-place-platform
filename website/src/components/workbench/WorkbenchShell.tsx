@@ -32,10 +32,12 @@ import {
   Network,
   Settings,
   Menu,
-  X
+  X,
+  Images
 } from 'lucide-react';
 
 const plugins = [
+  { id: 'media', name: 'Media', icon: Images, path: '/workbench/media' },
   { id: 'explorer', name: 'Explorer', icon: LayoutDashboard, path: '/workbench/explorer' },
   { id: 'timeline', name: 'Timeline', icon: Clock, path: '/workbench/timeline' },
   { id: 'evidence', name: 'Evidence', icon: Search, path: '/workbench/evidence' },

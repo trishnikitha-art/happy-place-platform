@@ -18,7 +18,7 @@ import { loadAuthority, clearAuthorityCache, findById, filterFeatured, filterByF
 export type { ReviewService };
 
 // Check if Google Sheets is configured
-const useGoogleSheets = !!process.env.GOOGLE_REVIEWS_SHEET_ID && !!process.env.GOOGLE_REFRESH_TOKEN;
+const useGoogleSheets = false; // Disabled for constitutional deployment
 
 // Google Sheets source instance (lazy loaded, server-only)
 let googleSheetsSource: any = null;

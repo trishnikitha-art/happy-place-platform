@@ -1,9 +1,9 @@
 /**
- * Workbench Home - Redirect to default view
+ * Workbench Home - Redirect to media manager
  */
 
 import { redirect } from 'next/navigation';
 
 export default function WorkbenchPage() {
-  redirect('/workbench/explorer');
+  redirect('/workbench/media');
 }

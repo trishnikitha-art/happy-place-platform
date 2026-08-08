@@ -1,8 +1,20 @@
 /**
- * Shared Authority Infrastructure
+ * Constitutional Authority Infrastructure
  * 
  * Generic primitives for authority loading, caching, validation, and querying.
- * All authority adapters delegate to these shared utilities.
+ * 
+ * Constitutional Rule: Frontend performs no selection, ranking, or sorting.
+ * These utilities are for:
+ * - Admin tools (authority-editor, workbench)
+ * - Projection generation (backend build process)
+ * 
+ * Frontend presentation components should read from projection artifacts, not use these utilities.
+ * 
+ * Reference: CONSTITUTIONAL_GALLERY_RECONCILIATION_REPORT.md
+ * - Section: Projection Invariants
+ * 
+ * Updated: Projections are now build-time generated artifacts that React consumes as static JSON.
+ * No runtime filesystem access.
  */
 
 // ============================================================================

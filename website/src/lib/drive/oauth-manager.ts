@@ -25,7 +25,16 @@ export class DriveOAuthManager {
    * Initialize OAuth2 client with credentials from DriveSession
    */
   async initialize(): Promise<void> {
+    console.log('=== OAuth Manager Initialize ===');
+    
     const credentials = await driveSession.getCredentials();
+    
+    console.log('Credentials from DriveSession:', {
+      hasAccessToken: !!credentials?.access_token,
+      hasRefreshToken: !!credentials?.refresh_token,
+      expiryDate: credentials?.expiry_date,
+      scope: credentials?.scope,
+    });
     
     if (!credentials) {
       throw new Error('No valid credentials found. Please authenticate with Google Drive.');
@@ -52,8 +61,15 @@ export class DriveOAuthManager {
       scope: credentials.scope,
     });
 
+    console.log('OAuth2Client created and credentials set');
+
     // Set up automatic token refresh
     this.oauth2Client.on('tokens', async (tokens: any) => {
+      console.log('Token refresh event:', {
+        hasAccessToken: !!tokens.access_token,
+        hasRefreshToken: !!tokens.refresh_token,
+        expiryDate: tokens.expiry_date,
+      });
       // Update DriveSession with refreshed tokens
       await driveSession.setCredentials({
         access_token: tokens.access_token,

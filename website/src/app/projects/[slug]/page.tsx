@@ -74,7 +74,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
             <CraftCard className="p-5 bg-surface border-evergreen/10">
               <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Services</p>
               <div className="mt-2 space-y-1 text-sm text-evergreen">
-                {project.services?.primary && <p className="font-semibold capitalize">{project.services.primary}</p>}
+                {project.services?.primary && <p className="font-semibold capitalize">{project.services?.primary}</p>}
                 {project.services?.secondary?.map((service, i) => (
                   <p key={i} className="text-evergreen/60 capitalize">{service}</p>
                 ))}
