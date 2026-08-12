@@ -2,14 +2,15 @@
  * Media Workbench - Semantic Website Workbench
  *
  * Purpose: Map actual website visuals to canonical media assets
- * - LEFT: Actual website components rendered in inspection mode
+ * - LEFT: Live website preview (iframe with actual rendered pages)
  * - RIGHT: Media asset management
  * - Mapping: Website element → semantic slot → canonical media ID → physical/Drive evidence
  *
- * Architecture (Shared-Component Inspection):
- * - Renders actual website components in workbench inspection mode
+ * Architecture (iframe with postMessage):
+ * - Renders actual website pages in iframe
  * - VisualSlot components register themselves to slotRegistry
- * - Workbench consumes registry to get actual slot positions and mappings
+ * - postMessage communication between iframe and workbench for slot registration
+ * - Workbench receives slot data and renders overlays positioned by rect coordinates
  * - Single source of truth: website components declare their own slots
  *
  * Organization follows website navigation:
