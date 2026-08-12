@@ -327,10 +327,11 @@ export default function MediaWorkbench() {
                   {/* Compact info */}
                   <div className="p-2">
                     <h3 className="font-semibold text-foreground mb-1 text-xs truncate" title={asset.filename}>{asset.filename}</h3>
-                    
+
                     {/* Compact badges */}
                     <div className="flex flex-wrap gap-1 mb-1">
                       {getClassificationBadge(asset.classification)}
+                      {getPhysicalStatusBadge(asset.physicalStatus)}
                     </div>
 
                     {/* Project/service indicators */}
