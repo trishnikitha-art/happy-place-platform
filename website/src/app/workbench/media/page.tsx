@@ -298,6 +298,26 @@ export default function MediaWorkbench() {
               Showing {filteredAssets.length} of {assets.length} media assets
             </div>
 
+            {/* Summary statistics */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+              <div className="bg-card border border-border rounded-lg p-3">
+                <div className="text-2xl font-bold text-foreground">{assets.filter(a => a.classification === 'PRESENT_MAPPED').length}</div>
+                <div className="text-xs text-muted-foreground">Present + Mapped</div>
+              </div>
+              <div className="bg-card border border-border rounded-lg p-3">
+                <div className="text-2xl font-bold text-foreground">{augustAssets.length}</div>
+                <div className="text-xs text-muted-foreground">August Recoverable</div>
+              </div>
+              <div className="bg-card border border-border rounded-lg p-3">
+                <div className="text-2xl font-bold text-foreground">{driveOnlyAssets.length}</div>
+                <div className="text-xs text-muted-foreground">Drive Only</div>
+              </div>
+              <div className="bg-card border border-border rounded-lg p-3">
+                <div className="text-2xl font-bold text-foreground">{emptySlots.length}</div>
+                <div className="text-xs text-muted-foreground">Empty Slots</div>
+              </div>
+            </div>
+
             {/* Compact grid for desktop efficiency */}
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
               {filteredAssets.map((asset) => (
