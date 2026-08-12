@@ -73,6 +73,11 @@ export interface Media {
     august3_driveId?: string;
     match_type?: string;
     confidence?: string;
+    drive_canonical?: boolean;
+    physical_deployment?: boolean;
+    status?: string;
+    current_authority?: boolean;
+    preserved_at?: string;
   };
 }
 

@@ -26,7 +26,7 @@ export interface VisualSlot {
   section: string;
   slotName: string;
   currentMediaId: string | null;
-  physicalStatus: 'PRESENT' | 'MISSING' | 'RECOVERABLE';
+  physicalStatus: 'PRESENT' | 'MISSING' | 'RECOVERABLE' | 'DRIVE_ONLY';
   augustDriveId?: string;
 }
 
@@ -303,7 +303,7 @@ export function getVisualSlotsByRoute(route: string): VisualSlot[] {
  * Get empty/broken slots
  */
 export function getEmptySlots(): VisualSlot[] {
-  return WEBSITE_VISUAL_SLOTS.filter(s => s.physicalStatus === 'MISSING' || s.physicalStatus === 'RECOVERABLE' || s.physicalStatus === 'DRIVE_ONLY');
+  return WEBSITE_VISUAL_SLOTS.filter(s => s.physicalStatus === 'MISSING' || s.physicalStatus === 'RECOVERABLE');
 }
 
 /**
