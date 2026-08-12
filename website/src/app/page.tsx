@@ -23,6 +23,7 @@ import { getOwnerPortrait } from "@/lib/brand";
 import { getMediaById } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 import { getHomepageHero } from "@/lib/brand";
+import { getHomepageHeroMedia } from "@/lib/media";
 
 const siteUrl = "https://happyplacecarpentry.com";
 
@@ -59,20 +60,27 @@ export default async function HomePage() {
   // Group services for homepage display (show homepageEligible services first)
   const homepageServices = allServices.filter(s => s.homepageEligible);
 
+  // Get homepage hero from constitutional projection
+  const heroMedia = getHomepageHeroMedia();
+  const heroSrc = heroMedia?.variants?.webp || heroMedia?.variants?.original;
+  const heroAlt = heroMedia?.alt || "Photograph of a completed deck project showing quality carpentry work with warm wood tones and clean construction";
+
   return (
     <>
       {/* HERO — full-width photograph with text overlay */}
       <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
         <WorkshopAtmosphere particleCount={20} />
-        <Image
-          src="/images/hero-background-enhanced.jpg"
-          alt="Photograph of a completed deck project showing quality carpentry work with warm wood tones and clean construction"
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
-          style={{ filter: "brightness(0.7)" }}
-        />
+        {heroSrc && (
+          <Image
+            src={heroSrc}
+            alt={heroAlt}
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+            style={{ filter: "brightness(0.7)" }}
+          />
+        )}
         <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/40 via-black/20 to-black/60" aria-hidden="true" />
 
         <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20">
