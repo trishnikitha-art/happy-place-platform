@@ -32,14 +32,14 @@ export interface VisualSlot {
 
 // Enhanced asset with full provenance
 export interface VisualAsset extends Media {
-  classification: 'PRESENT_MAPPED' | 'PRESENT_UNMAPPED' | 'REFERENCED_MISSING' | 'AUGUST_RECOVERABLE' | 'ORPHANED_VARIANT' | 'UNKNOWN';
+  classification: 'PRESENT_MAPPED' | 'PRESENT_UNMAPPED' | 'REFERENCED_MISSING' | 'AUGUST_RECOVERABLE' | 'ORPHANED_VARIANT' | 'DRIVE_ONLY' | 'UNKNOWN';
   usageSlots: VisualSlot[];
   physicalPath: string;
   augustDriveId?: string;
   augustProject?: string | null;
   augustService?: string | null;
   augustRoles?: string[];
-  physicalStatus: 'PRESENT' | 'MISSING' | 'RECOVERABLE';
+  physicalStatus: 'PRESENT' | 'MISSING' | 'RECOVERABLE' | 'DRIVE_ONLY';
 }
 
 // August 3 baseline assets (from archive/legacy-runtime/media.v1.json)
@@ -170,30 +170,35 @@ export function loadVisualAssetRegistry(): VisualAsset[] {
  * Classify asset based on semantic analysis
  */
 function classifyAsset(media: Media, augustData?: any): VisualAsset['classification'] {
+  // DRIVE_ONLY: exists in canonical Drive graph but not in physical filesystem
+  if (media.provenance?.drive_canonical && !media.variants?.original) {
+    return 'DRIVE_ONLY';
+  }
+
   if (media.filename === 'hero-background-enhanced.jpg' || media.filename === 'logo.png') {
     return 'PRESENT_MAPPED';
   }
-  
+
   if (media.projectId && ['FENCE BUILD.jpg', 'FENCEREBUILDMATCHINGSTAIN.png', 'FINISHEDCARPENTRY.png', 'FINISHEDCARPENTRY0.png', 'TRIMREPAIR.png', 'DRYWALL.png', 'FLOOR.png', 'GUTTERCLEANING.jpg'].includes(media.filename)) {
     return 'PRESENT_UNMAPPED';
   }
-  
+
   if (['Feature-Fence-Photo.jpg', 'HP0017_ExteriorPainting_After.jpg', 'HP0017_ExteriorPainting_Before.jpg', 'HP0018_FenceInstallation_Exterior_SideStained_After.jpg'].includes(media.filename)) {
     return 'REFERENCED_MISSING';
   }
-  
+
   if ((media as VisualAsset).provenance?.august3_driveId && !media.variants?.original) {
     return 'AUGUST_RECOVERABLE';
   }
-  
+
   if (media.filename.includes('-480.') || media.filename.includes('-thumb.')) {
     return 'ORPHANED_VARIANT';
   }
-  
+
   if (media.variants?.original) {
     return 'PRESENT_MAPPED';
   }
-  
+
   return 'UNKNOWN';
 }
 
@@ -264,15 +269,19 @@ function getUsageSlotsForAugustAsset(august: any): VisualSlot[] {
 /**
  * Determine physical status
  */
-function determinePhysicalStatus(media: Media, augustData?: any): 'PRESENT' | 'MISSING' | 'RECOVERABLE' {
+function determinePhysicalStatus(media: Media, augustData?: any): 'PRESENT' | 'MISSING' | 'RECOVERABLE' | 'DRIVE_ONLY' {
+  if (media.provenance?.drive_canonical && !media.variants?.original) {
+    return 'DRIVE_ONLY';
+  }
+
   if (media.variants?.original) {
     return 'PRESENT';
   }
-  
+
   if (augustData?.driveId) {
     return 'RECOVERABLE';
   }
-  
+
   return 'MISSING';
 }
 
@@ -294,7 +303,7 @@ export function getVisualSlotsByRoute(route: string): VisualSlot[] {
  * Get empty/broken slots
  */
 export function getEmptySlots(): VisualSlot[] {
-  return WEBSITE_VISUAL_SLOTS.filter(s => s.physicalStatus === 'MISSING' || s.physicalStatus === 'RECOVERABLE');
+  return WEBSITE_VISUAL_SLOTS.filter(s => s.physicalStatus === 'MISSING' || s.physicalStatus === 'RECOVERABLE' || s.physicalStatus === 'DRIVE_ONLY');
 }
 
 /**
@@ -303,4 +312,12 @@ export function getEmptySlots(): VisualSlot[] {
 export function getAugust3RecoverableAssets(): VisualAsset[] {
   const registry = loadVisualAssetRegistry();
   return registry.filter(a => a.classification === 'AUGUST_RECOVERABLE' || a.augustDriveId);
+}
+
+/**
+ * Get DRIVE_ONLY assets (exist in canonical Drive graph but not in physical filesystem)
+ */
+export function getDriveOnlyAssets(): VisualAsset[] {
+  const registry = loadVisualAssetRegistry();
+  return registry.filter(a => a.classification === 'DRIVE_ONLY');
 }

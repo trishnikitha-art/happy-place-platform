@@ -21,7 +21,7 @@
 
 import { useState, useEffect } from 'react';
 import { Layout, Image as ImageIcon, RefreshCw, Search, ChevronDown, ChevronUp, ExternalLink, Globe, Layers, AlertTriangle, CheckCircle, XCircle, HelpCircle, FileQuestion, MapPin, Folder, Box } from 'lucide-react';
-import { loadVisualAssetRegistry, getWebsiteVisualSlots, getEmptySlots, getAugust3RecoverableAssets, type VisualAsset } from '@/lib/visual-asset-registry';
+import { loadVisualAssetRegistry, getWebsiteVisualSlots, getEmptySlots, getAugust3RecoverableAssets, getDriveOnlyAssets, type VisualAsset } from '@/lib/visual-asset-registry';
 import { getWebsiteStructure, getPageByRoute, getAllEmptySlots, type WebsitePage, type VisualSlotRef } from '@/lib/website-structure';
 
 export default function MediaWorkbench() {
@@ -56,6 +56,7 @@ export default function MediaWorkbench() {
   const currentPage = getPageByRoute(selectedRoute);
   const emptySlots = getAllEmptySlots();
   const augustAssets = getAugust3RecoverableAssets();
+  const driveOnlyAssets = getDriveOnlyAssets();
 
   const filteredAssets = assets.filter((asset) => {
     const matchesSearch = 
@@ -65,12 +66,13 @@ export default function MediaWorkbench() {
       (asset.service && asset.service.toLowerCase().includes(searchQuery.toLowerCase())) ||
       asset.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
 
-    const matchesFilter = selectedFilter === 'All' || 
+    const matchesFilter = selectedFilter === 'All' ||
       (selectedFilter === 'Present+Mapped' && asset.classification === 'PRESENT_MAPPED') ||
       (selectedFilter === 'Present+Unmapped' && asset.classification === 'PRESENT_UNMAPPED') ||
       (selectedFilter === 'ReferencedMissing' && asset.classification === 'REFERENCED_MISSING') ||
       (selectedFilter === 'AugustRecoverable' && asset.classification === 'AUGUST_RECOVERABLE') ||
-      (selectedFilter === 'OrphanedVariant' && asset.classification === 'ORPHANED_VARIANT');
+      (selectedFilter === 'OrphanedVariant' && asset.classification === 'ORPHANED_VARIANT') ||
+      (selectedFilter === 'DriveOnly' && asset.classification === 'DRIVE_ONLY');
 
     return matchesSearch && matchesFilter;
   });
@@ -107,6 +109,7 @@ export default function MediaWorkbench() {
       'PRESENT_UNMAPPED': { label: 'Present + Unmapped', color: 'bg-blue-500/10 text-blue-500', icon: HelpCircle },
       'REFERENCED_MISSING': { label: 'Referenced Missing', color: 'bg-red-500/10 text-red-500', icon: XCircle },
       'AUGUST_RECOVERABLE': { label: 'August Recoverable', color: 'bg-amber-500/10 text-amber-500', icon: AlertTriangle },
+      'DRIVE_ONLY': { label: 'Drive Only', color: 'bg-cyan-500/10 text-cyan-500', icon: ExternalLink },
       'ORPHANED_VARIANT': { label: 'Orphaned Variant', color: 'bg-purple-500/10 text-purple-500', icon: Layers },
       'UNKNOWN': { label: 'Unknown', color: 'bg-gray-500/10 text-gray-500', icon: HelpCircle },
     };
@@ -125,6 +128,7 @@ export default function MediaWorkbench() {
       'PRESENT': { label: 'Present', color: 'bg-green-500/10 text-green-500', icon: CheckCircle },
       'MISSING': { label: 'Missing', color: 'bg-red-500/10 text-red-500', icon: XCircle },
       'RECOVERABLE': { label: 'Recoverable', color: 'bg-amber-500/10 text-amber-500', icon: AlertTriangle },
+      'DRIVE_ONLY': { label: 'Drive Only', color: 'bg-cyan-500/10 text-cyan-500', icon: ExternalLink },
     };
     const badge = badges[status];
     const Icon = badge.icon;
@@ -157,7 +161,7 @@ export default function MediaWorkbench() {
               Media Workbench
             </h1>
             <p className="text-sm text-muted-foreground">
-              {assets.length} visual assets · {augustAssets.length} August recoverable · {emptySlots.length} empty slots
+              {assets.length} visual assets · {augustAssets.length} August recoverable · {driveOnlyAssets.length} Drive only · {emptySlots.length} empty slots
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -202,6 +206,7 @@ export default function MediaWorkbench() {
             <option value="Present+Unmapped">Present + Unmapped</option>
             <option value="ReferencedMissing">Referenced Missing</option>
             <option value="AugustRecoverable">August Recoverable ({augustAssets.length})</option>
+            <option value="DriveOnly">Drive Only ({driveOnlyAssets.length})</option>
             <option value="OrphanedVariant">Orphaned Variant</option>
           </select>
         </div>
