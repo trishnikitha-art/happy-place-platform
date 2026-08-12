@@ -147,9 +147,9 @@ export default function MediaWorkbench() {
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="min-h-screen flex flex-col bg-background">
       {/* Toolbar - Fixed height, no scroll */}
-      <div className="border-b border-border bg-card px-6 py-4 flex-shrink-0">
+      <div className="border-b border-border bg-card px-6 py-4 flex-shrink-0 sticky top-0 z-10">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
@@ -207,19 +207,19 @@ export default function MediaWorkbench() {
         </div>
       </div>
 
-      {/* Three-Panel Layout - Independent scroll zones */}
-      <div className="flex flex-1 overflow-hidden">
-        {/* Left Panel: Media Metadata - Independent scroll */}
+      {/* Three-Panel Layout - Natural scroll */}
+      <div className="flex flex-1">
+        {/* Left Panel: Media Metadata - Natural scroll */}
         {sidebarOpen && (
-          <div className="w-80 flex-shrink-0 border-r border-border bg-surface overflow-y-auto overscroll-behavior-contain">
+          <div className="w-80 flex-shrink-0 border-r border-border bg-surface overflow-y-auto">
             <div className="p-4">
               <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Asset Details</h2>
               {selectedAsset ? (
                 <div className="space-y-4">
                   <div className="aspect-video bg-muted rounded-lg overflow-hidden">
-                    {selectedAsset.variants?.original || selectedAsset.variants?.web ? (
+                    {selectedAsset.variants?.original || selectedAsset.variants?.webp ? (
                       <img
-                        src={selectedAsset.variants?.original || selectedAsset.variants?.web}
+                        src={selectedAsset.variants?.original || selectedAsset.variants?.webp}
                         alt={selectedAsset.alt || selectedAsset.filename}
                         className="w-full h-full object-cover"
                       />
@@ -306,9 +306,9 @@ export default function MediaWorkbench() {
                 >
                   {/* Compact thumbnail */}
                   <div className="aspect-video bg-muted relative">
-                    {asset.variants?.original || asset.variants?.web ? (
+                    {asset.variants?.original || asset.variants?.webp ? (
                       <img
-                        src={asset.variants?.original || asset.variants?.web}
+                        src={asset.variants?.original || asset.variants?.webp}
                         alt={asset.alt || asset.filename}
                         className="w-full h-full object-cover"
                       />
@@ -350,8 +350,8 @@ export default function MediaWorkbench() {
           </div>
         </div>
 
-        {/* Right Panel: Website Preview with Real Structure - Independent scroll */}
-        <div className="w-96 flex-shrink-0 border-l border-border bg-surface overflow-y-auto overscroll-behavior-contain">
+        {/* Right Panel: Website Preview with Real Structure - Natural scroll */}
+        <div className="w-96 flex-shrink-0 border-l border-border bg-surface overflow-y-auto">
           <div className="p-4">
             <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
               <Globe size={16} />
