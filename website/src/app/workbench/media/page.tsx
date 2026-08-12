@@ -6,14 +6,14 @@
  * - RIGHT: Media asset management
  * - Mapping: Website element → semantic slot → canonical media ID → physical/Drive evidence
  *
- * Architecture (Option A - Shared-Component Inspection):
+ * Architecture (Shared-Component Inspection):
  * - Renders actual website components in workbench inspection mode
  * - VisualSlot components register themselves to slotRegistry
  * - Workbench consumes registry to get actual slot positions and mappings
  * - Single source of truth: website components declare their own slots
  *
  * Organization follows website navigation:
- * Home (/) → Services (/services) → Our Work (/our-work) → About (/about) → Reviews (/reviews) → Estimate (/estimate)
+ * Home (/) → Services (/services) → Our Work (/our-work) → About (/about)
  */
 
 'use client';
@@ -24,7 +24,7 @@ import { loadVisualAssetRegistry, getDriveOnlyAssets, type VisualAsset } from '@
 import { getMediaById } from '@/lib/media';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 
-type PageRoute = '/' | '/services' | '/our-work' | '/about' | '/reviews' | '/estimate';
+type PageRoute = '/' | '/services' | '/our-work' | '/about';
 
 interface MediaWorkbenchState {
   loading: boolean;
@@ -42,8 +42,6 @@ const PAGE_LABELS: Record<PageRoute, string> = {
   '/services': 'Services',
   '/our-work': 'Our Work',
   '/about': 'About',
-  '/reviews': 'Reviews',
-  '/estimate': 'Estimate',
 };
 
 export default function MediaWorkbench() {
@@ -112,7 +110,7 @@ export default function MediaWorkbench() {
     return getMediaById(slot.currentMediaId);
   };
 
-  const assignAssetToSlot = (asset: VisualAsset, slot: RegisteredSlot) => {
+  const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot) => {
     // TODO: Implement assignment logic to update brand.v1.json or projects.v1.json
     console.log('Assign asset to slot:', asset.id, slot.id);
     
@@ -241,8 +239,11 @@ export default function MediaWorkbench() {
                 const isSelected = state.selectedSlot?.id === slot.id;
                 const hasAsset = state.selectedAsset?.id === media?.id;
                 
-                // Use rect from registry if available, otherwise fallback
+                // Use rect from registry if available
                 const rect = slot.rect;
+                
+                // Don't render if no rect available yet (iframe not loaded or scrolled)
+                if (!rect) return null;
                 
                 return (
                   <div
@@ -259,10 +260,10 @@ export default function MediaWorkbench() {
                     }`}
                     style={{
                       // Position based on rect from registry
-                      top: rect ? `${rect.top}px` : '10%',
-                      left: rect ? `${rect.left}px` : '5%',
-                      width: rect ? `${rect.width}px` : '90%',
-                      height: rect ? `${rect.height}px` : '80%',
+                      top: `${rect.top}px`,
+                      left: `${rect.left}px`,
+                      width: `${rect.width}px`,
+                      height: `${rect.height}px`,
                       pointerEvents: 'auto',
                     }}
                   >
