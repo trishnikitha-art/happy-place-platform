@@ -67,6 +67,13 @@ export interface Media {
   fileSize?: number;
   format?: string;
   colorSpace?: string;
+
+  // Provenance (for reconciliation tracking)
+  provenance?: {
+    august3_driveId?: string;
+    match_type?: string;
+    confidence?: string;
+  };
 }
 
 export interface MediaManifest {

@@ -144,10 +144,10 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
               const galleryMediaIds = project.media?.gallery || [];
               const galleryPhotos = galleryMediaIds
                 .map(id => getMediaById(id))
-                .filter(m => m !== null && (m.variants?.web || m.variants?.original));
-              
+                .filter(m => m !== null && (m.variants?.webp || m.variants?.original));
+
               return galleryPhotos.map((photo, photoIndex) => {
-                const src = photo!.variants.web || photo!.variants.original || photo!.variants.thumbnail;
+                const src = photo!.variants.webp || photo!.variants.original || photo!.variants.thumbnail;
                 if (!src) return null;
                 
                 return (
@@ -159,9 +159,9 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                         const pGalleryIds = p.media?.gallery || [];
                         return pGalleryIds
                           .map(id => getMediaById(id))
-                          .filter(m => m !== null && (m.variants?.web || m.variants?.original))
+                          .filter(m => m !== null && (m.variants?.webp || m.variants?.original))
                           .map(m => ({
-                            src: m!.variants.web || m!.variants.original || m!.variants.thumbnail!,
+                            src: m!.variants.webp || m!.variants.original || m!.variants.thumbnail!,
                             alt: m!.alt,
                             blurDataURL: m!.variants?.blur
                           }));

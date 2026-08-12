@@ -1,596 +1,459 @@
 /**
- * Visual Website Editor - Media Runtime Interface
+ * Media Workbench - Read-Only Semantic Media Dashboard v2
  * 
- * Phase 1: Transform from file manager to visual website editor
- * - Left sidebar: Media library with thumbnail grid
- * - Center: Website canvas rendering actual homepage
- * - Right panel: Placement inspector for selected slots
- * - Drag-and-drop placement from media library to canvas slots
- * - Real-time preview updates without publish
+ * Purpose: Visual asset administration with semantic bridge to actual website
+ * - Shows ALL visual assets (35 total, not just 16 reconciled)
+ * - Three-panel layout: Metadata | Library | Website Preview
+ * - Independent scroll zones for desktop touchpad workflow
+ * - Semantic slot ↔ canonical media asset mapping
+ * - Real website structure visualization
+ * - Drag-and-drop slot targeting foundation
+ * - Optimized desktop density for media review
+ * 
+ * Architecture:
+ * - Uses visual-asset-registry.ts for complete asset inventory
+ * - Uses website-structure.ts for route/section/slot hierarchy
+ * - Reuses existing authorities (no duplication)
+ * - Read-only projection of real website
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import dynamic from 'next/dynamic';
-import { 
-  Layout,
-  Image as ImageIcon,
-  Settings,
-  Eye,
-  RefreshCw
-} from 'lucide-react';
-import { slotRegistry, SlotRegistration } from '@/lib/editor/slot-registry';
-import { placementGraph } from '@/lib/editor/placement-graph';
-import { commandBuilder, commandExecutor } from '@/lib/editor/command-pattern';
-import { eventSystem } from '@/lib/editor/event-system';
+import { Layout, Image as ImageIcon, RefreshCw, Search, ChevronDown, ChevronUp, ExternalLink, Globe, Layers, AlertTriangle, CheckCircle, XCircle, HelpCircle, FileQuestion, MapPin, Folder, Box } from 'lucide-react';
+import { loadVisualAssetRegistry, getWebsiteVisualSlots, getEmptySlots, getAugust3RecoverableAssets, type VisualAsset } from '@/lib/visual-asset-registry';
+import { getWebsiteStructure, getPageByRoute, getAllEmptySlots, type WebsitePage, type VisualSlotRef } from '@/lib/website-structure';
 
-// Dynamically import the actual homepage to avoid server component issues
-const HomePage = dynamic(() => import('@/app/page'), { 
-  ssr: false,
-  loading: () => <div className="flex items-center justify-center h-screen">Loading website...</div>
-});
-
-interface GraphData {
-  nodes: any[];
-  edges: any[];
-  version: string;
-  generatedAt: string;
-  generatedHash: string;
-}
-
-interface HeroProjection {
-  projectionId: string;
-  hero: {
-    heroMediaId: string;
-    filename: string;
-    dimensions: string;
-    score: number;
-  };
-  generatedAt: string;
-  generatedHash: string;
-  inputHash: string;
-}
-
-interface GalleryProjection {
-  projectionId: string;
-  projects: Array<{
-    projectId: string;
-    galleryRepresentative: string;
-    supportingGalleryEvidence: string[];
-    galleryOrder: number;
-    coverage: string;
-  }>;
-  generatedAt: string;
-  generatedHash: string;
-  inputHash: string;
-}
-
-interface MediaAsset {
-  mediaId: string;
-  filename: string;
-  mimeType: string;
-  dimensions: string;
-  thumbnail: string;
-  aiTags: string[];
-  usageCount: number;
-  status: 'published' | 'staged';
-}
-
-interface PlacementSlot {
-  id: string;
-  page: string;
-  component: string;
-  slotName: string;
-  currentAsset: MediaAsset | null;
-  status: 'empty' | 'staged' | 'published';
-  constraints: {
-    aspectRatio: string;
-    responsive: boolean;
-    focalPointEnabled: boolean;
-    minWidth: number;
-    compressionPreset: string;
-  };
-}
-
-type EditorView = 'canvas' | 'library' | 'inspector';
-
-export default function VisualWebsiteEditor() {
-  const [activePanel, setActivePanel] = useState<EditorView>('canvas');
-  const [graphData, setGraphData] = useState<GraphData | null>(null);
-  const [heroProjection, setHeroProjection] = useState<HeroProjection | null>(null);
-  const [galleryProjection, setGalleryProjection] = useState<GalleryProjection | null>(null);
-  const [regenerating, setRegenerating] = useState(false);
+export default function MediaWorkbench() {
   const [loading, setLoading] = useState(true);
-  
-  // New state for visual editor
-  const [selectedAsset, setSelectedAsset] = useState<MediaAsset | null>(null);
-  const [selectedSlot, setSelectedSlot] = useState<PlacementSlot | null>(null);
-  const [mediaAssets, setMediaAssets] = useState<MediaAsset[]>([]);
-  const [placementSlots, setPlacementSlots] = useState<PlacementSlot[]>([]);
-  const [editorMode, setEditorMode] = useState(false);
-  
-  // Keep existing state for operational capabilities
-  const [harvesting, setHarvesting] = useState(false);
-  const [reconciliationState, setReconciliationState] = useState<any>(null);
-  const [assets, setAssets] = useState<any[]>([]);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [driveStructure, setDriveStructure] = useState<any>(null);
-  const [currentFolderId, setCurrentFolderId] = useState<string>('root');
-  const [driveFiles, setDriveFiles] = useState<any[]>([]);
+  const [assets, setAssets] = useState<VisualAsset[]>([]);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedFilter, setSelectedFilter] = useState('All');
+  const [expandedDetails, setExpandedDetails] = useState<string | null>(null);
+  const [selectedAsset, setSelectedAsset] = useState<VisualAsset | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [selectedRoute, setSelectedRoute] = useState('/');
+  const [selectedSlot, setSelectedSlot] = useState<VisualSlotRef | null>(null);
+  const [draggedAsset, setDraggedAsset] = useState<VisualAsset | null>(null);
 
   useEffect(() => {
-    loadRuntime();
+    loadCanonicalData();
   }, []);
 
-  const loadRuntime = async () => {
+  const loadCanonicalData = () => {
     try {
       setLoading(true);
-      
-      // Load canonical graph assets for media library
-      const graphResponse = await fetch('/api/media/graph');
-      if (graphResponse.ok) {
-        const graphData = await graphResponse.json();
-        setAssets(graphData.assets);
-        
-        // Transform canonical assets into media library format
-        const mediaAssets: MediaAsset[] = graphData.assets.map((asset: any) => ({
-          mediaId: asset.mediaId,
-          filename: asset.filename,
-          mimeType: asset.mimeType,
-          dimensions: asset.dimensions || 'unknown',
-          thumbnail: asset.variants?.web || asset.variants?.original || '/brand/logo.png',
-          aiTags: asset.aiTags || [],
-          usageCount: asset.usageCount || 0,
-          status: asset.status || 'published'
-        }));
-        setMediaAssets(mediaAssets);
-      }
+      const registry = loadVisualAssetRegistry();
+      setAssets(registry);
     } catch (err) {
-      console.error('Failed to load runtime:', err);
+      console.error('Failed to load canonical data:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleHarvest = async () => {
-    try {
-      setHarvesting(true);
-      const response = await fetch('/api/drive-sync', { method: 'GET' });
-      if (response.ok) {
-        await loadRuntime();
-      }
-    } catch (err) {
-      console.error('Failed to harvest:', err);
-    } finally {
-      setHarvesting(false);
-    }
-  };
+  const websiteStructure = getWebsiteStructure();
+  const currentPage = getPageByRoute(selectedRoute);
+  const emptySlots = getAllEmptySlots();
+  const augustAssets = getAugust3RecoverableAssets();
 
-  const handleOAuthClick = () => {
-    window.location.href = '/api/drive/oauth/authorize';
-  };
+  const filteredAssets = assets.filter((asset) => {
+    const matchesSearch = 
+      asset.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      asset.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (asset.projectId && asset.projectId.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      (asset.service && asset.service.toLowerCase().includes(searchQuery.toLowerCase())) ||
+      asset.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  const handleFolderClick = async (folderId: string) => {
-    setCurrentFolderId(folderId);
-    try {
-      const response = await fetch(`/api/drive/files?folderId=${folderId}`);
-      if (response.ok) {
-        const data = await response.json();
-        setDriveFiles(data.files);
-      }
-    } catch (err) {
-      console.error('Failed to load Drive files:', err);
-    }
-  };
+    const matchesFilter = selectedFilter === 'All' || 
+      (selectedFilter === 'Present+Mapped' && asset.classification === 'PRESENT_MAPPED') ||
+      (selectedFilter === 'Present+Unmapped' && asset.classification === 'PRESENT_UNMAPPED') ||
+      (selectedFilter === 'ReferencedMissing' && asset.classification === 'REFERENCED_MISSING') ||
+      (selectedFilter === 'AugustRecoverable' && asset.classification === 'AUGUST_RECOVERABLE') ||
+      (selectedFilter === 'OrphanedVariant' && asset.classification === 'ORPHANED_VARIANT');
 
-  const handleRegenerateRuntime = async () => {
-    try {
-      setRegenerating(true);
-      const response = await fetch('/api/runtime/regenerate', { method: 'POST' });
-      if (response.ok) {
-        await loadRuntime();
-      }
-    } catch (err) {
-      console.error('Failed to regenerate runtime:', err);
-    } finally {
-      setRegenerating(false);
-    }
-  };
-
-  // Calculate runtime metrics from new assets structure
-  const imageNodes = assets || [];
-  const projectNodes: any[] = []; // TODO: Load from projects.v1.json
-  const serviceNodes: any[] = []; // TODO: Load from services.v1.json
-  const belongsToEdges: any[] = []; // TODO: Calculate from asset relationships
-  const supportsEdges: any[] = []; // TODO: Calculate from asset relationships
-
-  const unmappedAssets = imageNodes.filter((n: any) => {
-    const hasProject = !!n.projectId;
-    const hasService = !!n.serviceId;
-    return !hasProject || !hasService;
+    return matchesSearch && matchesFilter;
   });
 
-  const featuredCandidates = imageNodes.filter((n: any) => n.placement.includes('homepage-hero'));
-  const galleryCandidates = imageNodes.filter((n: any) => n.placement.includes('homepage-gallery'));
-  const beforeAfterPairs = imageNodes.filter((n: any) => n.placement.includes('before-after'));
+  const toggleDetails = (mediaId: string) => {
+    setExpandedDetails(expandedDetails === mediaId ? null : mediaId);
+  };
+
+  const selectAsset = (asset: VisualAsset) => {
+    setSelectedAsset(asset);
+  };
+
+  const handleDragStart = (asset: VisualAsset) => {
+    setDraggedAsset(asset);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedAsset(null);
+  };
+
+  const handleDragOverSlot = (slot: VisualSlotRef) => {
+    if (draggedAsset && slot.acceptDrop) {
+      setSelectedSlot(slot);
+    }
+  };
+
+  const handleDragLeaveSlot = () => {
+    setSelectedSlot(null);
+  };
+
+  const getClassificationBadge = (classification: VisualAsset['classification']) => {
+    const badges = {
+      'PRESENT_MAPPED': { label: 'Present + Mapped', color: 'bg-green-500/10 text-green-500', icon: CheckCircle },
+      'PRESENT_UNMAPPED': { label: 'Present + Unmapped', color: 'bg-blue-500/10 text-blue-500', icon: HelpCircle },
+      'REFERENCED_MISSING': { label: 'Referenced Missing', color: 'bg-red-500/10 text-red-500', icon: XCircle },
+      'AUGUST_RECOVERABLE': { label: 'August Recoverable', color: 'bg-amber-500/10 text-amber-500', icon: AlertTriangle },
+      'ORPHANED_VARIANT': { label: 'Orphaned Variant', color: 'bg-purple-500/10 text-purple-500', icon: Layers },
+      'UNKNOWN': { label: 'Unknown', color: 'bg-gray-500/10 text-gray-500', icon: HelpCircle },
+    };
+    const badge = badges[classification];
+    const Icon = badge.icon;
+    return (
+      <span className={`text-xs ${badge.color} px-2 py-1 rounded flex items-center gap-1`}>
+        <Icon size={12} />
+        {badge.label}
+      </span>
+    );
+  };
+
+  const getPhysicalStatusBadge = (status: VisualAsset['physicalStatus']) => {
+    const badges = {
+      'PRESENT': { label: 'Present', color: 'bg-green-500/10 text-green-500', icon: CheckCircle },
+      'MISSING': { label: 'Missing', color: 'bg-red-500/10 text-red-500', icon: XCircle },
+      'RECOVERABLE': { label: 'Recoverable', color: 'bg-amber-500/10 text-amber-500', icon: AlertTriangle },
+    };
+    const badge = badges[status];
+    const Icon = badge.icon;
+    return (
+      <span className={`text-xs ${badge.color} px-2 py-1 rounded flex items-center gap-1`}>
+        <Icon size={12} />
+        {badge.label}
+      </span>
+    );
+  };
 
   if (loading) {
     return (
       <div className="p-6">
-        <h1 className="text-3xl font-bold text-foreground mb-2">Visual Website Editor</h1>
-        <p className="text-muted-foreground mb-6">Drag-and-drop media placement for HPP</p>
-        <div className="text-center py-12 text-muted-foreground">Loading visual editor...</div>
+        <h1 className="text-3xl font-bold text-foreground mb-2">Media Workbench</h1>
+        <p className="text-muted-foreground mb-6">Semantic media library for HPP</p>
+        <div className="text-center py-12 text-muted-foreground">Loading media...</div>
       </div>
     );
   }
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      {/* Header */}
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
+      {/* Toolbar - Fixed height, no scroll */}
       <div className="border-b border-border bg-card px-6 py-4 flex-shrink-0">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
               <Layout size={24} />
-              Visual Website Editor
+              Media Workbench
             </h1>
-            <p className="text-sm text-muted-foreground">Drag-and-drop media placement for HPP</p>
+            <p className="text-sm text-muted-foreground">
+              {assets.length} visual assets · {augustAssets.length} August recoverable · {emptySlots.length} empty slots
+            </p>
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setEditorMode(!editorMode)}
-              className={`px-4 py-2 rounded-lg transition-colors flex items-center gap-2 ${
-                editorMode 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'bg-surface border border-border hover:bg-muted'
-              }`}
+              onClick={() => setSidebarOpen(!sidebarOpen)}
+              className="px-4 py-2 bg-surface border border-border rounded-lg hover:bg-surface/80 transition-colors flex items-center gap-2"
             >
-              <Eye size={16} />
-              {editorMode ? 'Editor Mode' : 'Preview Mode'}
+              <Layers size={16} />
+              {sidebarOpen ? 'Hide Sidebar' : 'Show Sidebar'}
             </button>
             <button
-              onClick={handleRegenerateRuntime}
-              disabled={regenerating}
-              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2 disabled:opacity-50"
+              onClick={loadCanonicalData}
+              className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors flex items-center gap-2"
             >
-              <RefreshCw size={16} className={regenerating ? 'animate-spin' : ''} />
-              Publish
+              <RefreshCw size={16} />
+              Reload
             </button>
           </div>
         </div>
       </div>
 
-      {/* Main Editor Layout */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - Media Library */}
-        <div className="w-80 border-r border-border bg-card flex flex-col flex-shrink-0">
-          <div className="p-4 border-b border-border">
-            <h2 className="font-semibold text-foreground flex items-center gap-2">
-              <ImageIcon size={18} />
-              Media Library
-            </h2>
-            <p className="text-xs text-muted-foreground mt-1">Drag assets to canvas slots</p>
-          </div>
-          <div className="flex-1 overflow-y-auto p-4">
-            <MediaLibraryGrid 
-              assets={mediaAssets}
-              selectedAsset={selectedAsset}
-              onSelectAsset={setSelectedAsset}
+      {/* Search and Filters - Fixed height, no scroll */}
+      <div className="border-b border-border bg-surface px-6 py-4 flex-shrink-0">
+        <div className="flex gap-4 items-center">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={18} />
+            <input
+              type="text"
+              placeholder="Search by filename, project, service, tags..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
             />
           </div>
+          <select
+            value={selectedFilter}
+            onChange={(e) => setSelectedFilter(e.target.value)}
+            className="px-4 py-2 bg-background border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+          >
+            <option value="All">All ({assets.length})</option>
+            <option value="Present+Mapped">Present + Mapped</option>
+            <option value="Present+Unmapped">Present + Unmapped</option>
+            <option value="ReferencedMissing">Referenced Missing</option>
+            <option value="AugustRecoverable">August Recoverable ({augustAssets.length})</option>
+            <option value="OrphanedVariant">Orphaned Variant</option>
+          </select>
         </div>
+      </div>
 
-        {/* Center - Actual Website Runtime with Editor Overlay */}
-        <div className="flex-1 bg-surface overflow-auto relative">
-          <div className="max-w-full">
-            {/* Actual HPP Homepage */}
-            <HomePageWrapper editorMode={editorMode} />
-            
-            {/* Editor Overlay - only visible in editor mode */}
-            {editorMode && (
-              <EditorOverlay 
-                selectedSlot={selectedSlot}
-                onSelectSlot={setSelectedSlot}
-              />
+      {/* Three-Panel Layout - Independent scroll zones */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Panel: Media Metadata - Independent scroll */}
+        {sidebarOpen && (
+          <div className="w-80 flex-shrink-0 border-r border-border bg-surface overflow-y-auto overscroll-behavior-contain">
+            <div className="p-4">
+              <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4">Asset Details</h2>
+              {selectedAsset ? (
+                <div className="space-y-4">
+                  <div className="aspect-video bg-muted rounded-lg overflow-hidden">
+                    {selectedAsset.variants?.original || selectedAsset.variants?.web ? (
+                      <img
+                        src={selectedAsset.variants?.original || selectedAsset.variants?.web}
+                        alt={selectedAsset.alt || selectedAsset.filename}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        <ImageIcon size={32} />
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-foreground text-sm">{selectedAsset.filename}</h3>
+                    <p className="text-xs text-muted-foreground font-mono mt-1">{selectedAsset.id}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {getClassificationBadge(selectedAsset.classification)}
+                    {getPhysicalStatusBadge(selectedAsset.physicalStatus)}
+                  </div>
+                  <div className="space-y-2 text-xs">
+                    {selectedAsset.projectId && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Project:</span>
+                        <span className="text-foreground">{selectedAsset.projectId}</span>
+                      </div>
+                    )}
+                    {selectedAsset.service && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Service:</span>
+                        <span className="text-foreground">{selectedAsset.service}</span>
+                      </div>
+                    )}
+                    {selectedAsset.augustDriveId && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">August Drive ID:</span>
+                        <span className="text-foreground font-mono">{selectedAsset.augustDriveId}</span>
+                      </div>
+                    )}
+                    {selectedAsset.id && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">Canonical ID:</span>
+                        <span className="text-foreground font-mono">{selectedAsset.id.slice(0, 8)}...</span>
+                      </div>
+                    )}
+                  </div>
+                  {selectedAsset.usageSlots.length > 0 && (
+                    <div>
+                      <span className="text-muted-foreground block mb-2 text-xs">Semantic Slots:</span>
+                      <div className="space-y-1">
+                        {selectedAsset.usageSlots.map(slot => (
+                          <div key={slot.id} className="bg-background rounded p-2 border border-border">
+                            <div className="text-xs font-mono text-primary mb-1">{slot.slotName}</div>
+                            <div className="text-xs text-muted-foreground">{slot.route} → {slot.page}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="text-center py-12 text-muted-foreground text-sm">
+                  Select an asset to view details
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Center Panel: Media + Semantic Usage Library - Independent scroll, optimized density */}
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="max-w-6xl mx-auto">
+            <div className="mb-3 text-sm text-muted-foreground">
+              Showing {filteredAssets.length} of {assets.length} media assets
+            </div>
+
+            {/* Compact grid for desktop efficiency */}
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+              {filteredAssets.map((asset) => (
+                <div 
+                  key={asset.id} 
+                  draggable
+                  onDragStart={() => handleDragStart(asset)}
+                  onDragEnd={handleDragEnd}
+                  className={`border rounded-lg bg-card overflow-hidden cursor-pointer transition-all hover:shadow-lg ${selectedAsset?.id === asset.id ? 'ring-2 ring-primary' : 'border-border'} ${draggedAsset?.id === asset.id ? 'opacity-50' : ''}`}
+                  onClick={() => selectAsset(asset)}
+                >
+                  {/* Compact thumbnail */}
+                  <div className="aspect-video bg-muted relative">
+                    {asset.variants?.original || asset.variants?.web ? (
+                      <img
+                        src={asset.variants?.original || asset.variants?.web}
+                        alt={asset.alt || asset.filename}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                        <ImageIcon size={24} />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Compact info */}
+                  <div className="p-2">
+                    <h3 className="font-semibold text-foreground mb-1 text-xs truncate" title={asset.filename}>{asset.filename}</h3>
+                    
+                    {/* Compact badges */}
+                    <div className="flex flex-wrap gap-1 mb-1">
+                      {getClassificationBadge(asset.classification)}
+                    </div>
+
+                    {/* Project/service indicators */}
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      {asset.projectId && (
+                        <span className="truncate" title={asset.projectId}>
+                          <Folder size={10} className="inline mr-1" />
+                          {asset.projectId.slice(0, 8)}...
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {filteredAssets.length === 0 && (
+              <div className="text-center py-12 text-muted-foreground">
+                No media assets found matching your search
+              </div>
             )}
           </div>
         </div>
 
-        {/* Right Panel - Placement Inspector */}
-        {selectedSlot && (
-          <div className="w-80 border-l border-border bg-card flex flex-col flex-shrink-0">
-            <div className="p-4 border-b border-border">
-              <h2 className="font-semibold text-foreground flex items-center gap-2">
-                <Settings size={18} />
-                Placement Inspector
-              </h2>
+        {/* Right Panel: Website Preview with Real Structure - Independent scroll */}
+        <div className="w-96 flex-shrink-0 border-l border-border bg-surface overflow-y-auto overscroll-behavior-contain">
+          <div className="p-4">
+            <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide mb-4 flex items-center gap-2">
+              <Globe size={16} />
+              Website Structure
+            </h2>
+
+            {/* Route selector */}
+            <div className="mb-4">
+              <label className="text-xs text-muted-foreground block mb-2">Select Page:</label>
+              <select
+                value={selectedRoute}
+                onChange={(e) => setSelectedRoute(e.target.value)}
+                className="w-full px-3 py-2 bg-background border border-border rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                {websiteStructure.map(page => (
+                  <option key={page.route} value={page.route}>{page.title}</option>
+                ))}
+              </select>
             </div>
-            <div className="flex-1 overflow-y-auto p-4">
-              <PlacementInspector 
-                slot={selectedSlot}
-                onAssetChange={(asset) => {
-                  // Handle asset change for this slot
-                  console.log('Asset changed for slot:', selectedSlot.id, 'to:', asset);
-                }}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
 
-// Homepage Wrapper - renders actual HPP homepage
-function HomePageWrapper({ editorMode }: { editorMode: boolean }) {
-  return (
-    <div className={editorMode ? 'pointer-events-none' : ''}>
-      <HomePage />
-    </div>
-  );
-}
+            {/* Page structure visualization */}
+            {currentPage && (
+              <div className="space-y-4">
+                {currentPage.sections.map(section => (
+                  <div key={section.id} className="bg-background rounded-lg border border-border overflow-hidden">
+                    <div className="px-3 py-2 border-b border-border bg-surface-muted">
+                      <div className="text-xs font-semibold text-foreground flex items-center gap-2">
+                        <MapPin size={12} />
+                        {section.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{section.component}</div>
+                    </div>
+                    
+                    {section.visualSlots.length > 0 ? (
+                      <div className="p-2 space-y-2">
+                        {section.visualSlots.map(slot => (
+                          <div
+                            key={slot.id}
+                            onDragOver={() => handleDragOverSlot(slot)}
+                            onDragLeave={handleDragLeaveSlot}
+                            className={`rounded p-2 border-2 transition-all ${
+                              selectedSlot?.id === slot.id 
+                                ? 'border-primary bg-primary/5' 
+                                : slot.status === 'EMPTY' || slot.status === 'BROKEN' || slot.status === 'RECOVERABLE'
+                                  ? 'border-amber-500/30 bg-amber-500/5 hover:border-amber-500/50'
+                                  : 'border-border'
+                            } ${draggedAsset && slot.acceptDrop ? 'cursor-move' : ''}`}
+                          >
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs font-semibold text-foreground">{slot.name}</span>
+                              <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                slot.status === 'OCCUPIED' ? 'bg-green-500/10 text-green-500' :
+                                slot.status === 'EMPTY' ? 'bg-gray-500/10 text-gray-500' :
+                                slot.status === 'BROKEN' ? 'bg-red-500/10 text-red-500' :
+                                'bg-amber-500/10 text-amber-500'
+                              }`}>
+                                {slot.status}
+                              </span>
+                            </div>
+                            <div className="text-xs text-muted-foreground mb-1">
+                              {slot.currentMediaFilename || 'No media assigned'}
+                            </div>
+                            {draggedAsset && selectedSlot?.id === slot.id && (
+                              <div className="text-xs text-primary font-semibold mt-2">
+                                Drop "{draggedAsset.filename}" here
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="p-4 text-center text-xs text-muted-foreground">
+                        No visual slots in this section
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
-// Editor Overlay - discovers and highlights editable slots using constitutional registration
-function EditorOverlay({ 
-  selectedSlot, 
-  onSelectSlot 
-}: { 
-  selectedSlot: PlacementSlot | null; 
-  onSelectSlot: (slot: PlacementSlot) => void;
-}) {
-  const [registeredSlots, setRegisteredSlots] = useState<any[]>([]);
-
-  useEffect(() => {
-    // Discover registered slots from components using constitutional law 3
-    const slots = slotRegistry.getAllSlots();
-    setRegisteredSlots(slots);
-  }, []);
-
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-  };
-
-  const handleDrop = async (e: React.DragEvent, slot: SlotRegistration) => {
-    e.preventDefault();
-    try {
-      const assetData = e.dataTransfer.getData('application/json');
-      if (assetData) {
-        const asset: MediaAsset = JSON.parse(assetData);
-        
-        // Constitutional Law 5: Placement Graph Owns Layout
-        // Constitutional Law 9: Every Edit Is A Command
-        const existingPlacement = placementGraph.getPlacementForSlot(slot.slotId);
-        
-        // Create command for asset replacement
-        const command = commandBuilder.replaceAsset({
-          slotId: slot.slotId,
-          newAssetId: asset.mediaId
-        });
-
-        // Execute command (this will produce event and update placement graph)
-        await commandExecutor.execute(command);
-
-        // Update UI selection (this is UI-only state, not canonical)
-        onSelectSlot({
-          id: slot.slotId,
-          page: slot.page,
-          component: slot.component,
-          slotName: slot.slotName,
-          currentAsset: asset,
-          status: 'staged',
-          constraints: slot.constraints
-        });
-      }
-    } catch (error) {
-      console.error('Failed to parse dropped asset:', error);
-    }
-  };
-
-  return (
-    <div className="absolute inset-0 pointer-events-none">
-      {registeredSlots.map((slot) => (
-        <div
-          key={slot.slotId}
-          className={`absolute border-2 border-dashed border-primary/50 hover:border-primary bg-primary/5 cursor-pointer transition-all pointer-events-auto ${
-            selectedSlot?.id === slot.slotId ? 'border-primary ring-2 ring-primary/20' : ''
-          }`}
-          style={getSlotPosition(slot.slotId)}
-          onClick={() => onSelectSlot({
-            id: slot.slotId,
-            page: slot.page,
-            component: slot.component,
-            slotName: slot.slotName,
-            currentAsset: null,
-            status: 'empty',
-            constraints: slot.constraints
-          })}
-          onDragOver={handleDragOver}
-          onDrop={(e) => handleDrop(e, slot)}
-        >
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div className="text-center bg-white/90 p-2 rounded shadow">
-              <ImageIcon size={16} className="mx-auto text-primary/70 mb-1" />
-              <p className="text-xs text-primary/90">{slot.slotName}</p>
-              <p className="text-xs text-primary/50">{slot.constraints.aspectRatio}</p>
+            {/* Empty slots summary */}
+            <div className="mt-6 pt-4 border-t border-border">
+              <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                <FileQuestion size={14} />
+                Empty/Recoverable Slots ({emptySlots.length})
+              </h3>
+              <div className="space-y-2">
+                {emptySlots.slice(0, 5).map(slot => (
+                  <div key={slot.id} className="bg-background rounded p-2 border border-border">
+                    <div className="text-xs font-semibold text-foreground">{slot.name}</div>
+                    <div className="text-xs text-muted-foreground">{slot.status}</div>
+                  </div>
+                ))}
+                {emptySlots.length > 5 && (
+                  <div className="text-xs text-muted-foreground text-center pt-2">
+                    +{emptySlots.length - 5} more
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
-      ))}
-    </div>
-  );
-}
-
-// Get position for slot overlay using DOM (Constitutional Law 4: DOM is ephemeral)
-function getSlotPosition(slotId: string): React.CSSProperties {
-  // Use DOM queries to find actual element positions
-  // DOM exists only for positioning overlays, not for truth
-  if (typeof window === 'undefined') {
-    return { display: 'none' };
-  }
-
-  const element = document.querySelector(`[data-slot-id="${slotId}"]`);
-  if (!element) {
-    return { display: 'none' };
-  }
-
-  const rect = element.getBoundingClientRect();
-  return {
-    top: rect.top,
-    left: rect.left,
-    width: rect.width,
-    height: rect.height
-  };
-}
-
-// Media Library Grid Component
-function MediaLibraryGrid({ assets, selectedAsset, onSelectAsset }: { 
-  assets: MediaAsset[]; 
-  selectedAsset: MediaAsset | null; 
-  onSelectAsset: (asset: MediaAsset) => void;
-}) {
-  const handleDragStart = (e: React.DragEvent, asset: MediaAsset) => {
-    e.dataTransfer.setData('application/json', JSON.stringify(asset));
-    e.dataTransfer.effectAllowed = 'copy';
-  };
-
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {assets.map((asset) => (
-        <div
-          key={asset.mediaId}
-          onClick={() => onSelectAsset(asset)}
-          draggable
-          onDragStart={(e) => handleDragStart(e, asset)}
-          className={`relative group cursor-pointer rounded-lg overflow-hidden border-2 transition-all ${
-            selectedAsset?.mediaId === asset.mediaId 
-              ? 'border-primary ring-2 ring-primary/20' 
-              : 'border-border hover:border-primary/50'
-          }`}
-        >
-          <div className="aspect-square bg-surface">
-            <img
-              src={asset.thumbnail}
-              alt={asset.filename}
-              className="w-full h-full object-cover pointer-events-none"
-            />
-          </div>
-          <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
-            <div className="absolute bottom-0 left-0 right-0 p-2">
-              <p className="text-xs text-white font-medium truncate">{asset.filename}</p>
-              <p className="text-xs text-white/70">{asset.dimensions}</p>
-            </div>
-          </div>
-          <div className="absolute top-2 right-2">
-            <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-              asset.status === 'published' 
-                ? 'bg-green-500/20 text-green-600' 
-                : 'bg-yellow-500/20 text-yellow-600'
-            }`}>
-              {asset.status}
-            </span>
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-// Placement Inspector Component
-function PlacementInspector({ slot, onAssetChange }: { 
-  slot: PlacementSlot; 
-  onAssetChange: (asset: MediaAsset) => void;
-}) {
-  return (
-    <div className="space-y-6">
-      {/* Slot Information */}
-      <div>
-        <h3 className="text-sm font-semibold text-foreground mb-3">Slot Information</h3>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Page</span>
-            <span className="text-foreground">{slot.page}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Component</span>
-            <span className="text-foreground">{slot.component}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Slot</span>
-            <span className="text-foreground">{slot.slotName}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Status</span>
-            <span className={`font-medium ${
-              slot.status === 'published' ? 'text-green-600' : 
-              slot.status === 'staged' ? 'text-yellow-600' : 'text-muted-foreground'
-            }`}>
-              {slot.status}
-            </span>
-          </div>
-        </div>
-      </div>
-
-      {/* Current Asset */}
-      <div>
-        <h3 className="text-sm font-semibold text-foreground mb-3">Current Asset</h3>
-        {slot.currentAsset ? (
-          <div className="bg-surface rounded-lg p-3">
-            <img 
-              src={slot.currentAsset.thumbnail} 
-              alt={slot.currentAsset.filename}
-              className="w-full aspect-video object-cover rounded mb-2"
-            />
-            <p className="text-sm font-medium text-foreground">{slot.currentAsset.filename}</p>
-            <p className="text-xs text-muted-foreground">{slot.currentAsset.dimensions}</p>
-          </div>
-        ) : (
-          <div className="bg-surface rounded-lg p-6 text-center">
-            <ImageIcon size={32} className="mx-auto text-muted-foreground mb-2" />
-            <p className="text-sm text-muted-foreground">No asset placed</p>
-          </div>
-        )}
-      </div>
-
-      {/* Slot Constraints */}
-      <div>
-        <h3 className="text-sm font-semibold text-foreground mb-3">Slot Constraints</h3>
-        <div className="space-y-2 text-sm">
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Aspect Ratio</span>
-            <span className="text-foreground">{slot.constraints.aspectRatio}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Responsive</span>
-            <span className="text-foreground">{slot.constraints.responsive ? 'Yes' : 'No'}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Focal Point</span>
-            <span className="text-foreground">{slot.constraints.focalPointEnabled ? 'Enabled' : 'Disabled'}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Min Width</span>
-            <span className="text-foreground">{slot.constraints.minWidth}px</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-muted-foreground">Compression</span>
-            <span className="text-foreground">{slot.constraints.compressionPreset}</span>
-          </div>
-        </div>
-      </div>
-
-      {/* Actions */}
-      <div className="pt-4 border-t border-border">
-        <button
-          onClick={() => {
-            // Handle clear placement
-            console.log('Clear placement for slot:', slot.id);
-          }}
-          className="w-full px-4 py-2 bg-surface border border-border rounded-lg hover:bg-muted transition-colors text-sm"
-        >
-          Clear Placement
-        </button>
       </div>
     </div>
   );
