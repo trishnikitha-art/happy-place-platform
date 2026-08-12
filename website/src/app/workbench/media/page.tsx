@@ -112,11 +112,48 @@ export default function MediaWorkbench() {
   };
 
   const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot) => {
-    // TODO: Implement assignment logic to update brand.v1.json or projects.v1.json
-    console.log('Assign asset to slot:', asset.id, slot.id);
+    // Determine which authority to update based on slot ID pattern
+    const slotId = slot.id;
     
-    // For now, just update local state to show selection
-    setState(prev => ({ ...prev, selectedSlot: slot, selectedAsset: asset }));
+    try {
+      // Brand slots: homepage-hero-slot, homepage-owner-portrait-slot
+      if (slotId === 'homepage-hero-slot') {
+        await fetch('/api/admin/brand/hero', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mediaId: asset.id }),
+        });
+      } else if (slotId === 'homepage-owner-portrait-slot') {
+        await fetch('/api/admin/brand/portrait', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ mediaId: asset.id }),
+        });
+      } else if (slotId.startsWith('service-card-slot-')) {
+        // Service card slots - update service projection directly
+        const serviceSlug = slotId.replace('service-card-slot-', '');
+        await fetch('/api/admin/service/preview', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ serviceSlug, mediaId: asset.id }),
+        });
+      } else if (slotId.includes('before') || slotId.includes('after')) {
+        // Before/after slots - update project media in projects.v1.json
+        console.log('Before/after assignment: Please update projects.v1.json directly for slot:', slotId);
+        alert(`Before/after assignment requires manual edit of projects.v1.json\n\nSlot: ${slotId}\nMedia ID: ${asset.id}`);
+      } else {
+        console.log('Unknown slot type:', slotId);
+      }
+      
+      // Update local state to show selection
+      setState(prev => ({ ...prev, selectedSlot: slot, selectedAsset: asset }));
+      
+      // Reload canonical data to reflect changes
+      loadCanonicalData();
+    } catch (error) {
+      console.error('Failed to assign asset to slot:', error);
+      alert('Failed to assign asset. Check console for details.');
+    }
   };
 
   const handleSlotClick = (slot: RegisteredSlot) => {
