@@ -1,97 +1,102 @@
 /**
- * Media Workbench - Live Website Mapping Surface
+ * Media Workbench - Semantic Website Workbench
  *
  * Purpose: Map actual website visuals to canonical media assets
- * - LEFT: Live website preview (iframe with actual rendered pages)
+ * - LEFT: Actual website components rendered in inspection mode
  * - RIGHT: Media asset management
  * - Mapping: Website element → semantic slot → canonical media ID → physical/Drive evidence
  *
- * Organization follows website scrolling order:
- * Home → Services → Our Work → About → Reviews → Estimate
+ * Architecture (Option A - Shared-Component Inspection):
+ * - Renders actual website components in workbench inspection mode
+ * - VisualSlot components register themselves to slotRegistry
+ * - Workbench consumes registry to get actual slot positions and mappings
+ * - Single source of truth: website components declare their own slots
+ *
+ * Organization follows website navigation:
+ * Home (/) → Services (/services) → Our Work (/our-work) → About (/about) → Reviews (/reviews) → Estimate (/estimate)
  */
 
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { RefreshCw, Search, ExternalLink, Layers, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon } from 'lucide-react';
+import { RefreshCw, Search, ExternalLink, Layers, CheckCircle, XCircle, AlertTriangle, Image as ImageIcon, Download } from 'lucide-react';
 import { loadVisualAssetRegistry, getDriveOnlyAssets, type VisualAsset } from '@/lib/visual-asset-registry';
 import { getMediaById } from '@/lib/media';
+import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 
-type PageRoute = '/' | '/services' | '/our-work' | '/about';
+type PageRoute = '/' | '/services' | '/our-work' | '/about' | '/reviews' | '/estimate';
 
-interface WebsiteSlot {
-  id: string;
-  page: PageRoute;
-  section: string;
-  element: string;
-  description: string;
-  currentMediaId: string | null;
-  visualElement?: string; // CSS selector or component identifier
+interface MediaWorkbenchState {
+  loading: boolean;
+  assets: VisualAsset[];
+  selectedPage: PageRoute;
+  selectedSlot: RegisteredSlot | null;
+  selectedAsset: VisualAsset | null;
+  searchQuery: string;
+  websitePanelCollapsed: boolean;
+  registeredSlots: RegisteredSlot[];
 }
 
-// Actual website slots derived from real component structure
-const WEBSITE_SLOTS: WebsiteSlot[] = [
-  // Homepage
-  { id: 'home-hero', page: '/', section: 'Hero', element: 'hero-background', description: 'Hero background image', currentMediaId: null },
-  { id: 'home-owner-portrait', page: '/', section: 'Hero', element: 'owner-portrait', description: 'Owner portrait in hero', currentMediaId: null },
-  { id: 'home-fences-card', page: '/', section: 'Services', element: 'fences-service-card', description: 'Fences service card image', currentMediaId: null },
-  { id: 'home-painting-card', page: '/', section: 'Services', element: 'painting-service-card', description: 'Painting service card image', currentMediaId: null },
-  { id: 'home-featured-before', page: '/', section: 'Featured Transformation', element: 'before-after-before', description: 'Featured transformation before image', currentMediaId: null },
-  { id: 'home-featured-after', page: '/', section: 'Featured Transformation', element: 'before-after-after', description: 'Featured transformation after image', currentMediaId: null },
-  
-  // Services page
-  { id: 'services-fences-card', page: '/services', section: 'Outdoor Structures', element: 'fences-service-card', description: 'Fences service card image', currentMediaId: null },
-  { id: 'services-painting-card', page: '/services', section: 'Painting', element: 'painting-service-card', description: 'Painting service card image', currentMediaId: null },
-  
-  // Our Work page
-  { id: 'our-work-featured-before', page: '/our-work', section: 'Featured Transformations', element: 'before-after-before', description: 'Featured transformation before image', currentMediaId: null },
-  { id: 'our-work-featured-after', page: '/our-work', section: 'Featured Transformations', element: 'before-after-after', description: 'Featured transformation after image', currentMediaId: null },
-  
-  // About page
-  { id: 'about-owner-portrait', page: '/about', section: 'Hero', element: 'owner-portrait', description: 'Owner portrait', currentMediaId: null },
-];
+const PAGE_LABELS: Record<PageRoute, string> = {
+  '/': 'Home',
+  '/services': 'Services',
+  '/our-work': 'Our Work',
+  '/about': 'About',
+  '/reviews': 'Reviews',
+  '/estimate': 'Estimate',
+};
 
 export default function MediaWorkbench() {
-  const [loading, setLoading] = useState(true);
-  const [assets, setAssets] = useState<VisualAsset[]>([]);
-  const [selectedPage, setSelectedPage] = useState<PageRoute>('/');
-  const [selectedSlot, setSelectedSlot] = useState<WebsiteSlot | null>(null);
-  const [selectedAsset, setSelectedAsset] = useState<VisualAsset | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [websitePanelCollapsed, setWebsitePanelCollapsed] = useState(false);
-  
+  const [state, setState] = useState<MediaWorkbenchState>({
+    loading: true,
+    assets: [],
+    selectedPage: '/',
+    selectedSlot: null,
+    selectedAsset: null,
+    searchQuery: '',
+    websitePanelCollapsed: false,
+    registeredSlots: [],
+  });
+
   const websitePanelRef = useRef<HTMLDivElement>(null);
   const mediaPanelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadCanonicalData();
+    
+    // Subscribe to slot registry changes
+    const unsubscribe = slotRegistry.subscribe(() => {
+      setState(prev => ({ ...prev, registeredSlots: slotRegistry.getAll() }));
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const loadCanonicalData = () => {
     try {
-      setLoading(true);
+      setState(prev => ({ ...prev, loading: true }));
       const registry = loadVisualAssetRegistry();
-      setAssets(registry);
+      setState(prev => ({ ...prev, assets: registry, registeredSlots: slotRegistry.getAll() }));
     } catch (err) {
       console.error('Failed to load canonical data:', err);
     } finally {
-      setLoading(false);
+      setState(prev => ({ ...prev, loading: false }));
     }
   };
 
-  const filteredAssets = assets.filter((asset) => {
+  const filteredAssets = state.assets.filter((asset) => {
     const matchesSearch = 
-      asset.filename.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      asset.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (asset.projectId && asset.projectId.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (asset.service && asset.service.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      asset.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+      asset.filename.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
+      asset.id.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
+      (asset.projectId && asset.projectId.toLowerCase().includes(state.searchQuery.toLowerCase())) ||
+      (asset.service && asset.service.toLowerCase().includes(state.searchQuery.toLowerCase())) ||
+      asset.tags.some(tag => tag.toLowerCase().includes(state.searchQuery.toLowerCase()));
     return matchesSearch;
   });
 
   const renderWebsitePage = () => {
-    // Use iframe to render actual website pages
-    const url = `${window.location.origin}${selectedPage}`;
+    // Use iframe to render actual website pages with VisualSlot registration
+    const url = `${window.location.origin}${state.selectedPage}`;
     return (
       <iframe
         src={url}
@@ -102,17 +107,59 @@ export default function MediaWorkbench() {
     );
   };
 
-  const getSlotMedia = (slot: WebsiteSlot) => {
+  const getSlotMedia = (slot: RegisteredSlot) => {
     if (!slot.currentMediaId) return null;
     return getMediaById(slot.currentMediaId);
   };
 
-  const assignAssetToSlot = (asset: VisualAsset, slot: WebsiteSlot) => {
-    // TODO: Implement assignment logic
+  const assignAssetToSlot = (asset: VisualAsset, slot: RegisteredSlot) => {
+    // TODO: Implement assignment logic to update brand.v1.json or projects.v1.json
     console.log('Assign asset to slot:', asset.id, slot.id);
+    
+    // For now, just update local state to show selection
+    setState(prev => ({ ...prev, selectedSlot: slot, selectedAsset: asset }));
   };
 
-  if (loading) {
+  const handleSlotClick = (slot: RegisteredSlot) => {
+    setState(prev => ({ ...prev, selectedSlot: slot }));
+    const media = getSlotMedia(slot);
+    if (media) {
+      const asset = state.assets.find(a => a.id === media.id);
+      if (asset) {
+        setState(prev => ({ ...prev, selectedAsset: asset }));
+      }
+    }
+  };
+
+  const handleAssetClick = (asset: VisualAsset) => {
+    setState(prev => ({ ...prev, selectedAsset: asset }));
+    // Find slots that use this asset
+    const usingSlots = state.registeredSlots.filter(s => s.currentMediaId === asset.id);
+    if (usingSlots.length > 0) {
+      setState(prev => ({ ...prev, selectedSlot: usingSlots[0] }));
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent, slot: RegisteredSlot) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleDrop = (e: React.DragEvent, slot: RegisteredSlot) => {
+    e.preventDefault();
+    const assetId = e.dataTransfer.getData('text/plain');
+    const asset = state.assets.find(a => a.id === assetId);
+    if (asset) {
+      assignAssetToSlot(asset, slot);
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, asset: VisualAsset) => {
+    e.dataTransfer.setData('text/plain', asset.id);
+    setState(prev => ({ ...prev, selectedAsset: asset }));
+  };
+
+  if (state.loading) {
     return (
       <div className="p-6">
         <h1 className="text-3xl font-bold text-foreground mb-2">Media Workbench</h1>
@@ -121,6 +168,8 @@ export default function MediaWorkbench() {
       </div>
     );
   }
+
+  const currentSlots = state.registeredSlots.filter(s => s.route === state.selectedPage);
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
@@ -138,11 +187,11 @@ export default function MediaWorkbench() {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => setWebsitePanelCollapsed(!websitePanelCollapsed)}
+              onClick={() => setState(prev => ({ ...prev, websitePanelCollapsed: !prev.websitePanelCollapsed }))}
               className="px-3 py-1.5 bg-surface border border-border rounded hover:bg-surface/80 transition-colors flex items-center gap-2 text-sm"
             >
               <ExternalLink size={14} />
-              {websitePanelCollapsed ? 'Show Website' : 'Hide Website'}
+              {state.websitePanelCollapsed ? 'Show Website' : 'Hide Website'}
             </button>
             <button
               onClick={loadCanonicalData}
@@ -158,17 +207,17 @@ export default function MediaWorkbench() {
       {/* Page Navigation */}
       <div className="border-b border-border bg-surface px-6 py-2 flex-shrink-0">
         <div className="flex gap-2">
-          {(['/home', '/services', '/our-work', '/about'] as const).map((route) => (
+          {(Object.keys(PAGE_LABELS) as PageRoute[]).map((route) => (
             <button
               key={route}
-              onClick={() => setSelectedPage(route as PageRoute)}
+              onClick={() => setState(prev => ({ ...prev, selectedPage: route }))}
               className={`px-3 py-1.5 rounded text-sm transition-colors ${
-                selectedPage === route
+                state.selectedPage === route
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-background hover:bg-surface'
               }`}
             >
-              {route === '/home' ? 'Home' : route.slice(1).charAt(0).toUpperCase() + route.slice(2)}
+              {PAGE_LABELS[route]}
             </button>
           ))}
         </div>
@@ -177,43 +226,59 @@ export default function MediaWorkbench() {
       {/* Main Content - Two Panel Layout */}
       <div className="flex flex-1 overflow-hidden">
         {/* LEFT: Website Preview */}
-        {!websitePanelCollapsed && (
+        {!state.websitePanelCollapsed && (
           <div 
             ref={websitePanelRef}
-            className="w-1/2 border-r border-border bg-white overflow-y-auto"
-            style={{ minHeight: 0 }}
+            className="w-1/2 border-r border-border bg-white relative"
+            style={{ minHeight: 0, overflow: 'hidden' }}
           >
-            <div className="relative">
-              {/* Page overlay with slot indicators */}
-              <div className="relative">
-                {renderWebsitePage()}
+            {/* Iframe handles its own scrolling */}
+            {renderWebsitePage()}
+              
+              {/* Slot highlights overlay - positioned absolutely over iframe */}
+              {currentSlots.map((slot) => {
+                const media = getSlotMedia(slot);
+                const isSelected = state.selectedSlot?.id === slot.id;
+                const hasAsset = state.selectedAsset?.id === media?.id;
                 
-                {/* Slot highlights overlay */}
-                {WEBSITE_SLOTS.filter(s => s.page === selectedPage).map((slot) => (
+                // Use rect from registry if available, otherwise fallback
+                const rect = slot.rect;
+                
+                return (
                   <div
                     key={slot.id}
-                    onClick={() => setSelectedSlot(slot)}
+                    onClick={() => handleSlotClick(slot)}
+                    onDragOver={(e) => handleDragOver(e, slot)}
+                    onDrop={(e) => handleDrop(e, slot)}
                     className={`absolute border-2 cursor-pointer transition-all ${
-                      selectedSlot?.id === slot.id
-                        ? 'border-primary bg-primary/10'
-                        : 'border-primary/30 hover:border-primary/60 bg-primary/5'
+                      isSelected
+                        ? 'border-primary bg-primary/20 z-20'
+                        : hasAsset
+                        ? 'border-honey bg-honey/10 z-10'
+                        : 'border-primary/30 hover:border-primary/60 bg-primary/5 z-10'
                     }`}
                     style={{
-                      // TODO: Map actual DOM positions to these overlays
-                      top: '10%',
-                      left: '5%',
-                      width: '90%',
-                      height: '80%',
+                      // Position based on rect from registry
+                      top: rect ? `${rect.top}px` : '10%',
+                      left: rect ? `${rect.left}px` : '5%',
+                      width: rect ? `${rect.width}px` : '90%',
+                      height: rect ? `${rect.height}px` : '80%',
                       pointerEvents: 'auto',
                     }}
                   >
-                    <div className="absolute -top-6 left-0 bg-primary text-primary-foreground text-xs px-2 py-1 rounded">
-                      {slot.section}: {slot.description}
+                    <div className={`absolute -top-6 left-0 px-2 py-1 rounded text-xs ${
+                      isSelected ? 'bg-primary text-primary-foreground' : 'bg-surface text-foreground'
+                    }`}>
+                      {slot.section}: {slot.slotName}
                     </div>
+                    {media && (
+                      <div className="absolute bottom-0 right-0 p-1">
+                        <CheckCircle size={16} className="text-green-500" />
+                      </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            </div>
+                );
+              })}
           </div>
         )}
 
@@ -230,25 +295,25 @@ export default function MediaWorkbench() {
               <input
                 type="text"
                 placeholder="Search media assets..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={state.searchQuery}
+                onChange={(e) => setState(prev => ({ ...prev, searchQuery: e.target.value }))}
                 className="w-full pl-10 pr-4 py-2 bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               />
             </div>
 
             {/* Selected Slot Info */}
-            {selectedSlot && (
+            {state.selectedSlot && (
               <div className="mb-4 bg-card border border-border rounded-lg p-4">
                 <div className="flex items-center justify-between mb-2">
-                  <h3 className="font-semibold text-foreground text-sm">{selectedSlot.section}</h3>
-                  <span className="text-xs text-muted-foreground">{selectedSlot.page}</span>
+                  <h3 className="font-semibold text-foreground text-sm">{state.selectedSlot.section}</h3>
+                  <span className="text-xs text-muted-foreground">{state.selectedSlot.route}</span>
                 </div>
-                <p className="text-sm text-muted-foreground mb-3">{selectedSlot.description}</p>
+                <p className="text-sm text-muted-foreground mb-3">{state.selectedSlot.slotName}</p>
                 <div className="flex items-center gap-2 text-xs">
-                  {selectedSlot.currentMediaId ? (
+                  {state.selectedSlot.currentMediaId ? (
                     <>
                       <CheckCircle size={14} className="text-green-500" />
-                      <span className="text-foreground">Assigned: {selectedSlot.currentMediaId.slice(0, 8)}...</span>
+                      <span className="text-foreground">Assigned</span>
                     </>
                   ) : (
                     <>
@@ -262,54 +327,74 @@ export default function MediaWorkbench() {
 
             {/* Media Grid */}
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {filteredAssets.map((asset) => (
-                <div
-                  key={asset.id}
-                  draggable
-                  onDragStart={() => setSelectedAsset(asset)}
-                  onClick={() => setSelectedAsset(asset)}
-                  className={`border rounded-lg bg-card overflow-hidden cursor-pointer transition-all hover:shadow-md ${
-                    selectedAsset?.id === asset.id ? 'ring-2 ring-primary' : 'border-border'
-                  }`}
-                >
-                  {/* Thumbnail */}
-                  <div className="aspect-video bg-muted relative">
-                    {asset.variants?.original || asset.variants?.webp ? (
-                      <img
-                        src={asset.variants?.original || asset.variants?.webp}
-                        alt={asset.alt || asset.filename}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                        <ImageIcon size={24} />
-                      </div>
-                    )}
-                  </div>
+              {filteredAssets.map((asset) => {
+                const isSelected = state.selectedAsset?.id === asset.id;
+                const isUsedInSelectedSlot = state.selectedSlot?.currentMediaId === asset.id;
+                
+                return (
+                  <div
+                    key={asset.id}
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, asset)}
+                    onClick={() => handleAssetClick(asset)}
+                    className={`border rounded-lg bg-card overflow-hidden cursor-pointer transition-all hover:shadow-md ${
+                      isSelected ? 'ring-2 ring-primary' : 
+                      isUsedInSelectedSlot ? 'ring-2 ring-honey' : 
+                      'border-border'
+                    }`}
+                  >
+                    {/* Thumbnail */}
+                    <div className="aspect-video bg-muted relative">
+                      {asset.variants?.original || asset.variants?.webp ? (
+                        <img
+                          src={asset.variants?.original || asset.variants?.webp}
+                          alt={asset.alt || asset.filename}
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-muted-foreground">
+                          <ImageIcon size={24} />
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Info */}
-                  <div className="p-2">
-                    <h4 className="font-medium text-foreground text-xs truncate" title={asset.filename}>
-                      {asset.filename}
-                    </h4>
-                    <div className="flex items-center gap-1 mt-1">
-                      {asset.physicalStatus === 'PRESENT' && (
-                        <CheckCircle size={12} className="text-green-500" />
-                      )}
-                      {asset.physicalStatus === 'MISSING' && (
-                        <XCircle size={12} className="text-red-500" />
-                      )}
+                    {/* Info */}
+                    <div className="p-2">
+                      <h4 className="font-medium text-foreground text-xs truncate" title={asset.filename}>
+                        {asset.filename}
+                      </h4>
+                      <div className="flex items-center gap-1 mt-1">
+                        {asset.physicalStatus === 'PRESENT' && (
+                          <CheckCircle size={12} className="text-green-500" />
+                        )}
+                        {asset.physicalStatus === 'MISSING' && (
+                          <XCircle size={12} className="text-red-500" />
+                        )}
+                        {asset.physicalStatus === 'RECOVERABLE' && (
+                          <AlertTriangle size={12} className="text-amber-500" />
+                        )}
+                        {asset.physicalStatus === 'DRIVE_ONLY' && (
+                          <ExternalLink size={12} className="text-cyan-500" />
+                        )}
+                        <span className="text-xs text-muted-foreground">{asset.physicalStatus}</span>
+                      </div>
                       {asset.physicalStatus === 'RECOVERABLE' && (
-                        <AlertTriangle size={12} className="text-amber-500" />
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            // TODO: Implement recovery from Drive
+                            console.log('Recover from Drive:', asset.augustDriveId);
+                          }}
+                          className="mt-2 w-full flex items-center justify-center gap-1 px-2 py-1 bg-honey/10 text-honey text-xs rounded hover:bg-honey/20 transition-colors"
+                        >
+                          <Download size={10} />
+                          Recover
+                        </button>
                       )}
-                      {asset.physicalStatus === 'DRIVE_ONLY' && (
-                        <ExternalLink size={12} className="text-cyan-500" />
-                      )}
-                      <span className="text-xs text-muted-foreground">{asset.physicalStatus}</span>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             {filteredAssets.length === 0 && (

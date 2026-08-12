@@ -24,6 +24,7 @@ import { getMediaById } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 import { getHomepageHero } from "@/lib/brand";
 import { getHomepageHeroMedia } from "@/lib/media";
+import { VisualSlot } from "@/components/visual-slot";
 
 const siteUrl = "https://happyplacecarpentry.com";
 
@@ -71,15 +72,26 @@ export default async function HomePage() {
       <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
         <WorkshopAtmosphere particleCount={20} />
         {heroSrc && (
-          <Image
-            src={heroSrc}
-            alt={heroAlt}
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover"
-            style={{ filter: "brightness(0.7)" }}
-          />
+          <VisualSlot
+            id="homepage-hero-slot"
+            route="/"
+            page="Homepage"
+            section="Hero"
+            slotName="Hero Background"
+            currentMediaId={heroMedia?.id || null}
+            component="HeroSection"
+            className="absolute inset-0"
+          >
+            <Image
+              src={heroSrc}
+              alt={heroAlt}
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+              style={{ filter: "brightness(0.7)" }}
+            />
+          </VisualSlot>
         )}
         <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/40 via-black/20 to-black/60" aria-hidden="true" />
 
@@ -166,7 +178,7 @@ export default async function HomePage() {
             <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
               {homepageServices.map((s, i) => (
                 <ScrollReveal key={s.id} delay={i * 100}>
-                  <ServiceCard service={s} />
+                  <ServiceCard service={s} route="/" />
                 </ScrollReveal>
               ))}
             </div>
@@ -254,7 +266,18 @@ export default async function HomePage() {
             </div>
             <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
               {ownerSrc && (
-                <Image src={ownerSrc} alt="Portrait of Taylor and Lanie, the owners of Happy Place Carpentry, standing together in front of a completed carpentry project" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover photo-breathe" />
+                <VisualSlot
+                  id="homepage-owner-portrait-slot"
+                  route="/"
+                  page="Homepage"
+                  section="The Family"
+                  slotName="Owner Portrait"
+                  currentMediaId={ownerMedia?.id || null}
+                  component="FamilySection"
+                  className="absolute inset-0"
+                >
+                  <Image src={ownerSrc} alt="Portrait of Taylor and Lanie, the owners of Happy Place Carpentry, standing together in front of a completed carpentry project" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover photo-breathe" />
+                </VisualSlot>
               )}
               <CedarCorner className="absolute -left-2 -top-2 h-8 w-8 text-honey" />
             </div>

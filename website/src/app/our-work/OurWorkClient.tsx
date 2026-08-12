@@ -66,7 +66,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
           <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
             {featuredProjects.slice(0, 4).map((project, i) => (
               <ScrollReveal key={project.id} delay={i * 60}>
-                <BeforeAfterSlider project={project} />
+                <BeforeAfterSlider project={project} route="/our-work" />
               </ScrollReveal>
             ))}
           </div>

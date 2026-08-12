@@ -7,6 +7,7 @@ import { getCompany } from "@/lib/company";
 import { getOwnerPortrait } from "@/lib/brand";
 import { getMediaById } from "@/lib/media";
 import { getAllCities } from "@/lib/registries";
+import { VisualSlot } from "@/components/visual-slot";
 
 export const metadata: Metadata = {
   title: "About",
@@ -46,7 +47,18 @@ export default function AboutPage() {
           </div>
           <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
             {ownerSrc && (
-              <Image src={ownerSrc} alt="Portrait of Taylor and Lanie, the owners of Happy Place Carpentry, standing together in front of a completed carpentry project" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover" />
+              <VisualSlot
+                id="about-owner-portrait-slot"
+                route="/about"
+                page="About"
+                section="Hero"
+                slotName="Owner Portrait"
+                currentMediaId={ownerMedia?.id || null}
+                component="AboutHero"
+                className="absolute inset-0"
+              >
+                <Image src={ownerSrc} alt="Portrait of Taylor and Lanie, the owners of Happy Place Carpentry, standing together in front of a completed carpentry project" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover" />
+              </VisualSlot>
             )}
           </div>
         </Container>

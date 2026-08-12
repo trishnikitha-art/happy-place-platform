@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { getMediaById } from "@/lib/media";
 import type { Project } from "@/types/projects";
 import { CraftCard } from "@/components/ui/card";
+import { VisualSlot } from "@/components/visual-slot";
 
 export interface BeforeAfterPair {
   id: string;
@@ -40,9 +41,11 @@ export interface BeforeAfterPair {
 export function BeforeAfterSlider({
   project,
   className,
+  route = '/',
 }: {
   project: Project;
   className?: string;
+  route?: string;
 }) {
   // Check if project has media structure and both before and after media
   if (!project.media || !project.media.before || !project.media.after) {
@@ -107,26 +110,48 @@ export function BeforeAfterSlider({
         <div className="absolute inset-0 pointer-events-none rounded-xl bg-gradient-to-tr from-black/3 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
         {/* AFTER (base) */}
         {afterSrc && (
-          <Image 
-            src={afterSrc} 
-            alt={afterMedia.alt || project.title} 
-            fill 
-            sizes="(max-width: 768px) 100vw, 50vw" 
-            className="absolute inset-0 h-full w-full object-cover" 
-            draggable={false} 
-          />
+          <VisualSlot
+            id={`${project.id}-after-slot`}
+            route={route}
+            page={route === '/' ? 'Homepage' : 'Our Work'}
+            section="Featured Transformation"
+            slotName="After Image"
+            currentMediaId={afterMedia?.id || null}
+            component="BeforeAfterSlider"
+            className="absolute inset-0"
+          >
+            <Image
+              src={afterSrc}
+              alt={afterMedia.alt || project.title}
+              fill
+              sizes="(max-width: 768px) 100vw, 50vw"
+              className="absolute inset-0 h-full w-full object-cover"
+              draggable={false}
+            />
+          </VisualSlot>
         )}
         {/* BEFORE (clipped) */}
         {beforeSrc && (
           <div className="absolute inset-0 overflow-hidden" style={{ width: `${pos}%` }}>
-            <Image 
-              src={beforeSrc} 
-              alt={beforeMedia.alt || `${project.title} - Before`} 
-              fill 
-              sizes="(max-width: 768px) 100vw, 50vw" 
-              className="absolute inset-0 h-full object-cover [filter:grayscale(0.6)_brightness(0.85)_sepia(0.15)]" 
-              draggable={false} 
-            />
+            <VisualSlot
+              id={`${project.id}-before-slot`}
+              route={route}
+              page={route === '/' ? 'Homepage' : 'Our Work'}
+              section="Featured Transformation"
+              slotName="Before Image"
+              currentMediaId={beforeMedia?.id || null}
+              component="BeforeAfterSlider"
+              className="absolute inset-0"
+            >
+              <Image
+                src={beforeSrc}
+                alt={beforeMedia.alt || `${project.title} - Before`}
+                fill
+                sizes="(max-width: 768px) 100vw, 50vw"
+                className="absolute inset-0 h-full object-cover [filter:grayscale(0.6)_brightness(0.85)_sepia(0.15)]"
+                draggable={false}
+              />
+            </VisualSlot>
           </div>
         )}
         {/* Handle */}

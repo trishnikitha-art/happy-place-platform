@@ -4,8 +4,8 @@
   "projects": [
     {
       "id": "project-featured",
-      "title": "Featured Projects",
-      "slug": "featured",
+      "title": "Cedar Fence Rebuild",
+      "slug": "cedar-fence-rebuild",
       "service": "fencing",
       "status": "completed",
       "location": {
@@ -16,10 +16,10 @@
       "completionDate": "2026-01-01",
       "startDate": "2025-12-15",
       "media": {
-        "hero": "Feature-Fence-Photo.jpg",
+        "hero": "b8adf93d-6a2e-5738-9dbf-aa2350f01d55",
         "before": null,
         "after": null,
-        "gallery": []
+        "gallery": ["f01c063d-80e9-54e5-8150-d481cd27eac6"]
       },
       "tags": ["featured", "fencing"],
       "reviews": [],
@@ -46,12 +46,12 @@
       "completionDate": "2026-03-01",
       "startDate": "2026-02-15",
       "media": {
-        "hero": "HP0017_ExteriorPainting_After.jpg",
-        "before": "2ebc9012-b788-5045-809c-9013d31f42be",
-        "after": "1ebc9012-b788-5045-809c-9013d31f42be",
+        "hero": null,
+        "before": null,
+        "after": null,
         "gallery": []
       },
-      "tags": ["painting", "exterior"],
+      "tags": ["painting", "exterior", "recoverable"],
       "reviews": [],
       "services": {
         "primary": "painting"
@@ -60,13 +60,14 @@
         "primary": "Paint",
         "secondary": ["Primer"],
         "customMaterials": []
-      }
+      },
+      "notes": "August 3 assets recoverable from Drive: IMG_0535.JPG (hero), IMG_0555.JPG-IMG_0841.JPG (gallery)"
     },
     {
       "id": "project-hp0018",
-      "title": "Fence Installation",
-      "slug": "fence-installation",
-      "service": "fencing",
+      "title": "Built-ins Installation",
+      "slug": "built-ins-installation",
+      "service": "built-ins",
       "status": "completed",
       "location": {
         "city": "Philomath",
@@ -76,19 +77,19 @@
       "completionDate": "2026-03-15",
       "startDate": "2026-03-01",
       "media": {
-        "hero": "HP0018_FenceInstallation_Exterior_SideStained_After.jpg",
+        "hero": "0a70fd32-d9f2-5aea-bd86-25437d39a7ad",
         "before": null,
         "after": null,
-        "gallery": []
+        "gallery": ["43cee174-ed0f-5190-b393-52ac748d1993"]
       },
-      "tags": ["fencing", "installation"],
+      "tags": ["built-ins", "installation"],
       "reviews": [],
       "services": {
-        "primary": "fencing"
+        "primary": "built-ins"
       },
       "materials": {
         "primary": "Cedar",
-        "secondary": ["Stain"],
+        "secondary": ["Paint"],
         "customMaterials": []
       }
     }

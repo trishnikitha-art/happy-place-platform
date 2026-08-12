@@ -5,6 +5,7 @@ import { Icon } from "@/components/icon";
 import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
 import { getServicePreviewMedia } from "@/lib/media";
+import { VisualSlot } from "@/components/visual-slot";
 
 /**
  * ServiceCard — photo-led and dense (CEO review): one iconic image, title,
@@ -19,7 +20,7 @@ import { getServicePreviewMedia } from "@/lib/media";
  * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
  * Card text always uses light register tokens regardless of page background.
  */
-export function ServiceCard({ service }: { service: Service }) {
+export function ServiceCard({ service, route = '/' }: { service: Service; route?: string }) {
   const featuredMedia = getServicePreviewMedia(service.slug);
   const hasImage = featuredMedia !== null;
   const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.original) : null;
@@ -34,7 +35,16 @@ export function ServiceCard({ service }: { service: Service }) {
       <CraftCard className="group flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl" style={{ containerType: 'inline-size' }}>
         <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
           {hasImage && imageSrc ? (
-            <>
+            <VisualSlot
+              id={`service-card-slot-${service.slug}`}
+              route={route}
+              page={route === '/' ? 'Homepage' : 'Services'}
+              section="Services"
+              slotName={`${service.name} Service Card`}
+              currentMediaId={featuredMedia?.id || null}
+              component="ServiceCard"
+              className="absolute inset-0"
+            >
               <Image
                 src={imageSrc}
                 alt={featuredMedia.alt || service.name}
@@ -43,7 +53,7 @@ export function ServiceCard({ service }: { service: Service }) {
                 className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
               />
               <div className="absolute inset-0 pointer-events-none rounded-t-xl bg-gradient-to-tr from-black/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
-            </>
+            </VisualSlot>
           ) : (
             <div className="flex h-full w-full items-center justify-center">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-deep/80 text-honey">
