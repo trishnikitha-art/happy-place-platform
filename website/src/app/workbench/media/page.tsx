@@ -19,7 +19,7 @@
 
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Search, Layers } from 'lucide-react';
 import { loadVisualAssetRegistry, type VisualAsset } from '@/lib/visual-asset-registry';
 import { getMediaById } from '@/lib/media';
@@ -59,6 +59,8 @@ export default function MediaWorkbench() {
     registeredSlots: [],
   });
 
+  const mediaPanelRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     loadCanonicalData();
     
@@ -77,6 +79,22 @@ export default function MediaWorkbench() {
     };
 
     window.addEventListener('slot-click', handleSlotClickEvent as EventListener);
+
+    // DIAGNOSTIC: Log scroll metrics for media panel
+    setTimeout(() => {
+      const mediaPanel = document.querySelector('section.overflow-y-auto') as HTMLElement;
+      if (mediaPanel) {
+        console.log('=== MEDIA PANEL SCROLL DIAGNOSTIC ===');
+        console.log('scrollHeight:', mediaPanel.scrollHeight);
+        console.log('clientHeight:', mediaPanel.clientHeight);
+        console.log('scrollTop:', mediaPanel.scrollTop);
+        console.log('computed height:', window.getComputedStyle(mediaPanel).height);
+        console.log('computed overflow:', window.getComputedStyle(mediaPanel).overflow);
+        console.log('computed overflow-y:', window.getComputedStyle(mediaPanel).overflowY);
+        console.log('offsetHeight:', mediaPanel.offsetHeight);
+        console.log('Can scroll:', mediaPanel.scrollHeight > mediaPanel.clientHeight);
+      }
+    }, 1000);
 
     return () => {
       unsubscribe();
@@ -248,7 +266,20 @@ export default function MediaWorkbench() {
         </section>
 
         {/* RIGHT: Media Asset Management */}
-        <section className="min-h-0 min-w-0 overflow-y-auto bg-background h-full">
+        <section 
+          ref={mediaPanelRef}
+          className="min-h-0 min-w-0 overflow-y-auto bg-background h-full"
+          onWheel={(e) => {
+            const target = e.currentTarget as HTMLElement;
+            console.log('=== WHEEL EVENT ON MEDIA PANEL ===');
+            console.log('deltaY:', e.deltaY);
+            console.log('target:', e.target);
+            console.log('currentTarget:', e.currentTarget);
+            console.log('scrollTop:', target.scrollTop);
+            console.log('scrollHeight:', target.scrollHeight);
+            console.log('clientHeight:', target.clientHeight);
+          }}
+        >
           <div className="p-4">
             {/* Search */}
             <div className="relative mb-3">
