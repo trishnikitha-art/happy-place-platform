@@ -4,13 +4,13 @@
  * Purpose: Allow actual website components to register their image slots
  * - Components wrap images with VisualSlot
  * - VisualSlot registers itself to this registry
- * - Workbench consumes registry to get actual slot positions and mappings
+ * - Workbench consumes registry to get slot mappings
  * - Single source of truth: website components declare their own slots
  * 
  * Architecture:
  * - VisualSlot component registers on mount, unregisters on unmount
- * - Registry stores slot metadata (id, route, section, currentMediaId, DOM element ref)
- * - Workbench reads registry to render slot highlights and enable drag/drop
+ * - Registry stores slot metadata (id, route, section, currentMediaId)
+ * - Workbench reads registry to enable click selection and drag/drop
  * - Uses postMessage for iframe cross-frame communication
  */
 
@@ -23,7 +23,6 @@ export interface RegisteredSlot {
   currentMediaId: string | null;
   element: HTMLElement | null;
   component: string;
-  rect?: { top: number; left: number; width: number; height: number };
 }
 
 class SlotRegistry {
@@ -32,11 +31,9 @@ class SlotRegistry {
   private isWorkbenchMode = false;
 
   constructor() {
-    // Check if we're in workbench mode
     if (typeof window !== 'undefined') {
       this.isWorkbenchMode = window.location.pathname.startsWith('/workbench');
       
-      // If in workbench mode, listen for slot registrations from iframe
       if (this.isWorkbenchMode) {
         window.addEventListener('message', this.handleMessage);
       }
@@ -45,11 +42,13 @@ class SlotRegistry {
 
   private handleMessage = (event: MessageEvent) => {
     if (event.data.type === 'SLOT_REGISTER') {
-      this.register(event.data.slot);
+      // Reconstruct slot with element as null (cannot send HTMLElement across iframe)
+      this.register({ ...event.data.slot, element: null });
     } else if (event.data.type === 'SLOT_UNREGISTER') {
       this.unregister(event.data.slotId);
-    } else if (event.data.type === 'SLOT_UPDATE_RECT') {
-      this.updateRect(event.data.slotId, event.data.rect);
+    } else if (event.data.type === 'SLOT_CLICK') {
+      // Forward slot click events to window for workbench to handle
+      window.dispatchEvent(new CustomEvent('slot-click', { detail: event.data.slot }));
     }
   };
 
@@ -58,9 +57,11 @@ class SlotRegistry {
     
     // If in regular page mode and workbench is open, notify parent
     if (!this.isWorkbenchMode && typeof window !== 'undefined' && window.parent !== window) {
+      // Remove element before sending (cannot clone HTMLElement)
+      const { element, ...slotWithoutElement } = slot;
       window.parent.postMessage({
         type: 'SLOT_REGISTER',
-        slot,
+        slot: slotWithoutElement,
       }, '*');
     }
     
@@ -79,14 +80,6 @@ class SlotRegistry {
     }
     
     this.notify();
-  }
-
-  updateRect(slotId: string, rect: { top: number; left: number; width: number; height: number }) {
-    const slot = this.slots.get(slotId);
-    if (slot) {
-      slot.rect = rect;
-      this.notify();
-    }
   }
 
   get(slotId: string): RegisteredSlot | undefined {

@@ -4,9 +4,9 @@
  * Purpose: Wrap actual website images to register them as visual slots
  * - Registers slot metadata to slotRegistry on mount
  * - Unregisters on unmount
- * - Provides workbench mode with slot highlighting
  * - Maintains visual fidelity to production (invisible in normal mode)
- * - Updates rect on scroll/resize for workbench overlay positioning
+ * - In workbench mode, adds click handler and visual highlighting
+ * - Uses postMessage for iframe communication
  * 
  * Usage:
  * <VisualSlot
@@ -24,7 +24,7 @@
 
 'use client';
 
-import { useEffect, useRef, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 
 interface VisualSlotProps {
@@ -52,18 +52,6 @@ export function VisualSlot({
 }: VisualSlotProps) {
   const elementRef = useRef<HTMLDivElement>(null);
 
-  const updateRect = useCallback(() => {
-    if (elementRef.current) {
-      const rect = elementRef.current.getBoundingClientRect();
-      slotRegistry.updateRect(id, {
-        top: rect.top,
-        left: rect.left,
-        width: rect.width,
-        height: rect.height,
-      });
-    }
-  }, [id]);
-
   useEffect(() => {
     // Register slot on mount
     const slot: RegisteredSlot = {
@@ -78,39 +66,47 @@ export function VisualSlot({
     };
 
     slotRegistry.register(slot);
-    updateRect();
-
-    // Update rect on scroll and resize
-    window.addEventListener('scroll', updateRect, true);
-    window.addEventListener('resize', updateRect);
 
     // Unregister on unmount
     return () => {
       slotRegistry.unregister(id);
-      window.removeEventListener('scroll', updateRect, true);
-      window.removeEventListener('resize', updateRect);
     };
-  }, [id, route, page, section, slotName, currentMediaId, component, updateRect]);
+  }, [id, route, page, section, slotName, currentMediaId, component]);
 
-  // Check if we're in workbench mode (via URL or environment)
+  // Check if we're in workbench mode
   const isWorkbenchMode = typeof window !== 'undefined' && window.location.pathname.startsWith('/workbench');
 
-  return (
-    <div
-      ref={elementRef}
-      className={`visual-slot ${className}`}
-      data-slot-id={id}
-      data-slot-route={route}
-      data-slot-section={section}
-      style={{
-        // In workbench mode, show subtle highlight
-        ...(isWorkbenchMode && {
+  // If in workbench mode, make it clickable and add visual feedback
+  if (isWorkbenchMode) {
+    return (
+      <div
+        ref={elementRef}
+        className={`visual-slot ${className} cursor-pointer hover:ring-2 hover:ring-primary hover:ring-offset-2 transition-all`}
+        data-slot-id={id}
+        data-slot-route={route}
+        data-slot-section={section}
+        onClick={() => {
+          // If in iframe, use postMessage to communicate with parent
+          if (window.parent !== window) {
+            window.parent.postMessage({
+              type: 'SLOT_CLICK',
+              slot: { id, route, page, section, slotName, currentMediaId },
+            }, '*');
+          } else {
+            // Direct dispatch if not in iframe
+            window.dispatchEvent(new CustomEvent('slot-click', { detail: { id, route, page, section, slotName, currentMediaId } }));
+          }
+        }}
+        style={{
           outline: '2px dashed rgba(22, 43, 41, 0.3)',
           outlineOffset: '2px',
-        }),
-      }}
-    >
-      {children}
-    </div>
-  );
+        }}
+      >
+        {children}
+      </div>
+    );
+  }
+
+  // Normal mode: just render children without any overhead
+  return <div ref={elementRef} className={`visual-slot ${className}`}>{children}</div>;
 }
