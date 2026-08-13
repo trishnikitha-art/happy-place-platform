@@ -194,36 +194,36 @@ export default function MediaWorkbench() {
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
-      {/* Toolbar */}
-      <div className="shrink-0 border-b border-border bg-card px-6 py-3">
+      {/* Minimal Toolbar */}
+      <div className="shrink-0 border-b border-border bg-card px-4 py-2">
         <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-foreground flex items-center gap-2">
-              <Layers size={20} />
+          <div className="flex items-center gap-3">
+            <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
+              <Layers size={18} />
               Media Workbench
             </h1>
-            <p className="text-xs text-muted-foreground">
+            <span className="text-xs text-muted-foreground">
               Map website visuals to media
-            </p>
+            </span>
           </div>
           <button
             onClick={loadCanonicalData}
-            className="px-3 py-1.5 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors flex items-center gap-2 text-sm"
+            className="px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors flex items-center gap-2 text-xs"
           >
-            <RefreshCw size={14} />
+            <RefreshCw size={12} />
             Reload
           </button>
         </div>
       </div>
 
-      {/* Page Navigation */}
-      <div className="shrink-0 border-b border-border bg-surface px-6 py-2">
-        <div className="flex gap-2">
+      {/* Page Navigation - Compact */}
+      <div className="shrink-0 border-b border-border bg-surface px-4 py-1">
+        <div className="flex gap-1">
           {(Object.keys(PAGE_LABELS) as PageRoute[]).map((route) => (
             <button
               key={route}
               onClick={() => setState(prev => ({ ...prev, selectedPage: route }))}
-              className={`px-3 py-1.5 rounded text-sm transition-colors ${
+              className={`px-2 py-1 rounded text-xs transition-colors ${
                 state.selectedPage === route
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-background hover:bg-surface'
@@ -249,26 +249,26 @@ export default function MediaWorkbench() {
 
         {/* RIGHT: Media Asset Management */}
         <section className="min-h-0 min-w-0 overflow-y-auto bg-background overscroll-behavior-contain">
-          <div className="p-6">
+          <div className="p-4">
             {/* Search */}
-            <div className="relative mb-4">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={16} />
+            <div className="relative mb-3">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
               <input
                 type="text"
                 placeholder="Search photos..."
                 value={state.searchQuery}
                 onChange={(e) => setState(prev => ({ ...prev, searchQuery: e.target.value }))}
-                className="w-full pl-10 pr-4 py-2 bg-surface border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary text-sm"
+                className="w-full pl-9 pr-3 py-1.5 bg-surface border border-border rounded focus:outline-none focus:ring-2 focus:ring-primary text-sm"
               />
             </div>
 
             {/* Filters */}
-            <div className="flex gap-2 mb-6">
+            <div className="flex gap-1 mb-4">
               {(['all', 'used', 'unused', 'drive'] as const).map((filter) => (
                 <button
                   key={filter}
                   onClick={() => setState(prev => ({ ...prev, filter }))}
-                  className={`px-3 py-1.5 rounded text-sm capitalize transition-colors ${
+                  className={`px-2 py-1 rounded text-xs capitalize transition-colors ${
                     state.filter === filter
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-surface hover:bg-surface/80'
@@ -281,11 +281,11 @@ export default function MediaWorkbench() {
 
             {/* Selected Slot Info */}
             {state.selectedSlot && (
-              <div className="mb-6 p-4 bg-surface rounded-lg border border-border">
-                <h3 className="font-semibold text-foreground mb-2">
+              <div className="mb-4 p-3 bg-surface rounded border border-border">
+                <h3 className="font-semibold text-foreground mb-1 text-sm">
                   {state.selectedSlot.page}: {state.selectedSlot.section} - {state.selectedSlot.slotName}
                 </h3>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-xs text-muted-foreground">
                   Drag a photo here to assign
                 </p>
               </div>
@@ -293,9 +293,9 @@ export default function MediaWorkbench() {
 
             {/* Slots for current page */}
             {currentSlots.length > 0 && (
-              <div className="mb-6">
-                <h3 className="font-semibold text-foreground mb-3">Website slots on this page</h3>
-                <div className="space-y-2">
+              <div className="mb-4">
+                <h3 className="font-semibold text-foreground mb-2 text-sm">Website slots on this page</h3>
+                <div className="space-y-1">
                   {currentSlots.map((slot) => {
                     const media = getSlotMedia(slot);
                     const isSelected = state.selectedSlot?.id === slot.id;
@@ -312,7 +312,7 @@ export default function MediaWorkbench() {
                           const asset = state.assets.find(a => a.id === assetId);
                           if (asset) assignAssetToSlot(asset, slot);
                         }}
-                        className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                        className={`p-2 rounded border cursor-pointer transition-all ${
                           isSelected
                             ? 'border-primary bg-primary/10'
                             : hasAsset
@@ -322,7 +322,7 @@ export default function MediaWorkbench() {
                       >
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="font-medium text-foreground">{slot.slotName}</p>
+                            <p className="font-medium text-foreground text-sm">{slot.slotName}</p>
                             <p className="text-xs text-muted-foreground">{slot.section}</p>
                           </div>
                           {media && (
@@ -337,7 +337,7 @@ export default function MediaWorkbench() {
             )}
 
             {/* Media Grid */}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-3">
               {filteredAssets.map((asset) => {
                 const isSelected = state.selectedAsset?.id === asset.id;
                 const isUsed = state.registeredSlots.some(s => s.currentMediaId === asset.id);
@@ -349,7 +349,7 @@ export default function MediaWorkbench() {
                     draggable
                     onDragStart={(e) => handleDragStart(e, asset)}
                     onClick={() => handleAssetClick(asset)}
-                    className={`relative aspect-square rounded-lg overflow-hidden cursor-pointer transition-all ${
+                    className={`relative aspect-[4/3] rounded-lg overflow-hidden cursor-pointer transition-all ${
                       isSelected
                         ? 'ring-2 ring-primary ring-offset-2'
                         : 'hover:ring-2 hover:ring-primary/50 hover:ring-offset-2'
