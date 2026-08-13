@@ -236,9 +236,9 @@ export default function MediaWorkbench() {
       </div>
 
       {/* Main Content - Two Panel Layout */}
-      <div className="min-h-0 flex-1 grid grid-cols-2">
+      <div className="flex-1 grid grid-cols-2 min-h-0">
         {/* LEFT: Website Preview */}
-        <section className="min-h-0 min-w-0 bg-white">
+        <section className="min-h-0 min-w-0 bg-white h-full">
           <iframe
             src={`${window.location.origin}${state.selectedPage}`}
             className="w-full h-full border-0"
@@ -248,7 +248,7 @@ export default function MediaWorkbench() {
         </section>
 
         {/* RIGHT: Media Asset Management */}
-        <section className="min-h-0 min-w-0 overflow-y-auto bg-background overscroll-behavior-contain">
+        <section className="min-h-0 min-w-0 overflow-y-auto bg-background h-full">
           <div className="p-4">
             {/* Search */}
             <div className="relative mb-3">
