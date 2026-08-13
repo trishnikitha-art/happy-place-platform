@@ -2,15 +2,15 @@
  * Media Workbench - Semantic Website Workbench
  *
  * Purpose: Map actual website visuals to canonical media assets
- * - LEFT: Live website preview (iframe with actual rendered pages)
+ * - LEFT: Live website preview (iframe for server components)
  * - RIGHT: Media asset management
  * - Mapping: Website element → semantic slot → canonical media ID → physical/Drive evidence
  *
- * Architecture (iframe with postMessage):
+ * Architecture (iframe for preview, simple slot registry):
  * - Renders actual website pages in iframe (necessary for server components)
- * - VisualSlot components register themselves to slotRegistry
- * - postMessage communication between iframe and workbench for slot registration
- * - Workbench receives slot data and enables selection
+ * - VisualSlot components register themselves to slotRegistry via postMessage
+ * - Workbench receives slot identity (no coordinates, no overlays)
+ * - Interaction: click slot → select media, click media → show slot usage
  * - Single source of truth: website components declare their own slots
  *
  * Organization follows website navigation:
@@ -19,7 +19,7 @@
 
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { RefreshCw, Search, Layers } from 'lucide-react';
 import { loadVisualAssetRegistry, type VisualAsset } from '@/lib/visual-asset-registry';
 import { getMediaById } from '@/lib/media';
@@ -59,9 +59,6 @@ export default function MediaWorkbench() {
     registeredSlots: [],
   });
 
-  const websitePanelRef = useRef<HTMLDivElement>(null);
-  const mediaPanelRef = useRef<HTMLDivElement>(null);
-
   useEffect(() => {
     loadCanonicalData();
     
@@ -70,7 +67,7 @@ export default function MediaWorkbench() {
       setState(prev => ({ ...prev, registeredSlots: slotRegistry.getAll() }));
     });
 
-    // Listen for slot click events from VisualSlot components
+    // Listen for slot click events from iframe
     const handleSlotClickEvent = (event: CustomEvent) => {
       const { id } = event.detail;
       const slot = slotRegistry.get(id);
@@ -107,7 +104,6 @@ export default function MediaWorkbench() {
     
     if (!matchesSearch) return false;
 
-    // Apply filter
     const usedSlots = state.registeredSlots.filter(s => s.currentMediaId === asset.id);
     const isUsed = usedSlots.length > 0;
     const isDriveOnly = asset.driveId && !asset.physicalPath;
@@ -129,7 +125,6 @@ export default function MediaWorkbench() {
     const slotId = slot.id;
     
     try {
-      // Brand slots: homepage-hero-slot, homepage-owner-portrait-slot, about-owner-portrait-slot
       if (slotId === 'homepage-hero-slot' || slotId === 'about-owner-portrait-slot') {
         await fetch('/api/admin/brand/hero', {
           method: 'POST',
@@ -143,15 +138,12 @@ export default function MediaWorkbench() {
           body: JSON.stringify({ mediaId: asset.id }),
         });
       } else if (slotId.startsWith('service-card-slot-')) {
-        // Service card slots - TODO: Implement authority write boundary
         alert('Service card assignment not yet implemented. Needs authority write boundary in services.v1.json');
         return;
       } else if (slotId.includes('before') || slotId.includes('after')) {
-        // Before/after slots - update project media in projects.v1.json
         alert('Before/after assignment not yet implemented. Needs projects.v1.json write endpoint');
         return;
       } else {
-        console.log('Unknown slot type:', slotId);
         return;
       }
       
@@ -182,35 +174,9 @@ export default function MediaWorkbench() {
     }
   };
 
-  const handleDragOver = (e: React.DragEvent, slot: RegisteredSlot) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'copy';
-  };
-
-  const handleDrop = (e: React.DragEvent, slot: RegisteredSlot) => {
-    e.preventDefault();
-    const assetId = e.dataTransfer.getData('text/plain');
-    const asset = state.assets.find(a => a.id === assetId);
-    if (asset) {
-      assignAssetToSlot(asset, slot);
-    }
-  };
-
   const handleDragStart = (e: React.DragEvent, asset: VisualAsset) => {
     e.dataTransfer.setData('text/plain', asset.id);
     setState(prev => ({ ...prev, selectedAsset: asset }));
-  };
-
-  const renderWebsitePage = () => {
-    const url = `${window.location.origin}${state.selectedPage}`;
-    return (
-      <iframe
-        src={url}
-        className="w-full h-full border-0"
-        title="Website Preview"
-        sandbox="allow-same-origin allow-scripts"
-      />
-    );
   };
 
   if (state.loading) {
@@ -227,7 +193,7 @@ export default function MediaWorkbench() {
   const currentSlots = state.registeredSlots.filter(s => s.route === state.selectedPage);
 
   return (
-    <div className="h-dvh overflow-hidden flex flex-col bg-background">
+    <div className="h-screen flex flex-col bg-background overflow-hidden">
       {/* Toolbar */}
       <div className="shrink-0 border-b border-border bg-card px-6 py-3">
         <div className="flex items-center justify-between">
@@ -272,14 +238,17 @@ export default function MediaWorkbench() {
       {/* Main Content - Two Panel Layout */}
       <div className="min-h-0 flex-1 grid grid-cols-2">
         {/* LEFT: Website Preview */}
-        <section ref={websitePanelRef} className="min-h-0 min-w-0 overflow-y-auto bg-white">
-          <div className="max-w-full">
-            {renderWebsitePage()}
-          </div>
+        <section className="min-h-0 min-w-0 bg-white">
+          <iframe
+            src={`${window.location.origin}${state.selectedPage}`}
+            className="w-full h-full border-0"
+            title="Website Preview"
+            sandbox="allow-same-origin allow-scripts"
+          />
         </section>
 
         {/* RIGHT: Media Asset Management */}
-        <section ref={mediaPanelRef} className="min-h-0 min-w-0 overflow-y-auto bg-background">
+        <section className="min-h-0 min-w-0 overflow-y-auto bg-background overscroll-behavior-contain">
           <div className="p-6">
             {/* Search */}
             <div className="relative mb-4">
@@ -322,6 +291,51 @@ export default function MediaWorkbench() {
               </div>
             )}
 
+            {/* Slots for current page */}
+            {currentSlots.length > 0 && (
+              <div className="mb-6">
+                <h3 className="font-semibold text-foreground mb-3">Website slots on this page</h3>
+                <div className="space-y-2">
+                  {currentSlots.map((slot) => {
+                    const media = getSlotMedia(slot);
+                    const isSelected = state.selectedSlot?.id === slot.id;
+                    const hasAsset = state.selectedAsset?.id === media?.id;
+                    
+                    return (
+                      <div
+                        key={slot.id}
+                        onClick={() => handleSlotClick(slot)}
+                        onDragOver={(e) => e.preventDefault()}
+                        onDrop={(e) => {
+                          e.preventDefault();
+                          const assetId = e.dataTransfer.getData('text/plain');
+                          const asset = state.assets.find(a => a.id === assetId);
+                          if (asset) assignAssetToSlot(asset, slot);
+                        }}
+                        className={`p-3 rounded-lg border cursor-pointer transition-all ${
+                          isSelected
+                            ? 'border-primary bg-primary/10'
+                            : hasAsset
+                            ? 'border-honey bg-honey/5'
+                            : 'border-border bg-surface hover:border-border-hover'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="font-medium text-foreground">{slot.slotName}</p>
+                            <p className="text-xs text-muted-foreground">{slot.section}</p>
+                          </div>
+                          {media && (
+                            <span className="text-xs text-green-600">Assigned</span>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Media Grid */}
             <div className="grid grid-cols-2 gap-4">
               {filteredAssets.map((asset) => {
@@ -359,14 +373,12 @@ export default function MediaWorkbench() {
                       </div>
                     )}
                     
-                    {/* Filename overlay */}
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
                       <p className="text-xs text-white font-medium truncate">
                         {asset.filename}
                       </p>
                     </div>
 
-                    {/* Status badges */}
                     {isDriveOnly && (
                       <div className="absolute top-2 right-2 px-2 py-1 bg-blue-500 text-white text-xs rounded">
                         Drive

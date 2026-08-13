@@ -20,18 +20,21 @@ import { VisualSlot } from "@/components/visual-slot";
  * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
  * Card text always uses light register tokens regardless of page background.
  */
-export function ServiceCard({ service, route = '/' }: { service: Service; route?: string }) {
+export function ServiceCard({ service, route = '/', href }: { service: Service; route?: string; href?: string }) {
   const featuredMedia = getServicePreviewMedia(service.slug);
-  const hasImage = featuredMedia !== null;
-  const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.original) : null;
+  const hasImage = featuredMedia !== null && featuredMedia.variants && (featuredMedia.variants.web || featuredMedia.variants.webp || featuredMedia.variants.original);
+  const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.webp || featuredMedia.variants?.original) : null;
 
   // Card text colors - always light register (cards are always light surfaces)
   const headingColor = "text-text";
   const bodyColor = "text-text-muted";
   const linkColor = "text-text hover:text-honey";
 
+  // Use provided href or default to estimate
+  const cardHref = href || `/estimate?service=${service.slug}`;
+
   return (
-    <Link href={`/estimate?service=${service.slug}`} className="block">
+    <Link href={cardHref} className="block">
       <CraftCard className="group flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl" style={{ containerType: 'inline-size' }}>
         <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
           {hasImage && imageSrc ? (
