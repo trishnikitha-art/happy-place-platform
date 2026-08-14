@@ -1,8 +1,8 @@
-name: Vercel Production Deployment
+name: Vercel DEPLOY Branch Deployment
 
 on:
   push:
-    branches: [main]
+    branches: [DEPLOY]
 
 jobs:
   deploy:
@@ -10,9 +10,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       
-      - name: TEMPORARILY DISABLED - Testing native Git deployment
-        run: |
-          echo "GitHub Actions deployment temporarily disabled to test native Git integration"
-          echo "Commit: ${{ github.sha }}"
-          echo "Branch: ${{ github.ref }}"
-          exit 0
+      - name: Deploy to Vercel (DEPLOY Branch)
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--prod'
