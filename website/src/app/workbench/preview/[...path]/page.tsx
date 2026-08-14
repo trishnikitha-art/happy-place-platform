@@ -2,7 +2,7 @@
  * Workbench Preview Route
  * 
  * This route renders the main website with a preview mode indicator.
- * The preview mode is detected via URL parameter in the client-side code.
+ * The preview mode is detected via the fact that we're on this route.
  * 
  * Route: /workbench/preview/[...path]
  * Purpose: Display main@5ba201cd website in Workbench iframe
@@ -16,23 +16,14 @@ interface PreviewPageProps {
   params: Promise<{
     path: string[];
   }>;
-  searchParams: Promise<{
-    preview?: string;
-  }>;
 }
 
-export default async function PreviewPage({ params, searchParams }: PreviewPageProps) {
+export default async function PreviewPage({ params }: PreviewPageProps) {
   const { path } = await params;
-  const { preview } = await searchParams;
   const route = '/' + path.join('/');
 
-  // Only allow preview mode from this route
-  if (preview !== 'true') {
-    return notFound();
-  }
-
   // Render the actual page component with preview mode enabled
-  // The page will detect preview mode via URL parameter in client-side code
+  // The page will detect preview mode via the route being /workbench/preview/*
   switch (route) {
     case '/':
       const HomePage = (await import('@/app/page')).default;

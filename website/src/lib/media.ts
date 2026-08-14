@@ -25,16 +25,15 @@ import { loadServiceProjection, loadHeroProjection, loadGalleryProjection } from
 
 /**
  * Check if running in Workbench preview mode
- * Uses URL query parameter instead of cookies to avoid server component dependency
+ * Uses URL path instead of query parameter to avoid 404 issues
  */
 export function isWorkbenchPreviewMode(): boolean {
   if (typeof window === 'undefined') {
     // Server-side: check if we're in the preview route
     return false;
   }
-  // Client-side: check URL parameter
-  const urlParams = new URLSearchParams(window.location.search);
-  return urlParams.get('preview') === 'true';
+  // Client-side: check if we're on the preview route
+  return window.location.pathname.startsWith('/workbench/preview/');
 }
 
 // Load media manifest using shared AuthorityLoader
