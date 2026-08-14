@@ -23,8 +23,35 @@ import type { Media, MediaManifest } from "@/types/media";
 import { loadAuthority, clearAuthorityCache } from "./authority-loader";
 import { loadServiceProjection, loadHeroProjection, loadGalleryProjection } from "./projection-loader";
 
+/**
+ * Check if running in Workbench preview mode
+ * Uses URL query parameter instead of cookies to avoid server component dependency
+ */
+export function isWorkbenchPreviewMode(): boolean {
+  if (typeof window === 'undefined') {
+    // Server-side: check if we're in the preview route
+    return false;
+  }
+  // Client-side: check URL parameter
+  const urlParams = new URLSearchParams(window.location.search);
+  return urlParams.get('preview') === 'true';
+}
+
 // Load media manifest using shared AuthorityLoader
 export function loadMediaManifest(): MediaManifest {
+  const previewMode = isWorkbenchPreviewMode();
+  
+  if (previewMode) {
+    // Use main authority for Workbench preview
+    try {
+      const { loadMainMediaManifest } = require('./main-authority-loader');
+      return loadMainMediaManifest();
+    } catch (error) {
+      console.error('Failed to load main media manifest:', error);
+      return { version: "1.0.0", generatedAt: new Date().toISOString(), media: [] };
+    }
+  }
+  
   return loadAuthority<MediaManifest>({
     path: "@/config/media.v1.json",
     fallback: { version: "1.0.0", generatedAt: new Date().toISOString(), media: [] },
@@ -86,6 +113,19 @@ export function clearMediaCache(): void {
  * This shim maintains the Aug 3 interface while using the current architecture.
  */
 export function getFeaturedServiceMedia(serviceSlug: string): Media | null {
+  const previewMode = isWorkbenchPreviewMode();
+  
+  if (previewMode) {
+    // Use main authority for Workbench preview
+    try {
+      const { getMainFeaturedServiceMedia } = require('./main-authority-loader');
+      return getMainFeaturedServiceMedia(serviceSlug);
+    } catch (error) {
+      console.error('Failed to load main featured service media:', error);
+      return null;
+    }
+  }
+  
   return getServicePreviewMedia(serviceSlug);
 }
 
@@ -102,6 +142,19 @@ export function getFeaturedServiceMedia(serviceSlug: string): Media | null {
  * Constitutional: Reads from projection artifact, no selection logic, no filesystem access
  */
 export function getServicePreviewMedia(serviceSlug: string): Media | null {
+  const previewMode = isWorkbenchPreviewMode();
+  
+  if (previewMode) {
+    // Use main authority for Workbench preview
+    try {
+      const { getMainFeaturedServiceMedia } = require('./main-authority-loader');
+      return getMainFeaturedServiceMedia(serviceSlug);
+    } catch (error) {
+      console.error('Failed to load main featured service media:', error);
+      return null;
+    }
+  }
+  
   const projection = loadServiceProjection();
   const service = projection.services.find((s: any) => s.serviceName === serviceSlug);
   
@@ -117,6 +170,23 @@ export function getServicePreviewMedia(serviceSlug: string): Media | null {
  * Constitutional: Reads from projection artifact, no selection logic, no filesystem access
  */
 export function getHomepageHeroMedia(): Media | null {
+  const previewMode = isWorkbenchPreviewMode();
+  
+  if (previewMode) {
+    // Use main authority for Workbench preview
+    try {
+      const { loadMainBrandAuthority, getMainMediaById } = require('./main-authority-loader');
+      const mainBrand = loadMainBrandAuthority();
+      if (mainBrand.homepageHero?.mediaId) {
+        return getMainMediaById(mainBrand.homepageHero.mediaId);
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to load main homepage hero media:', error);
+      return null;
+    }
+  }
+  
   const projection = loadHeroProjection();
   
   // Look up media by filename from media manifest
@@ -129,6 +199,26 @@ export function getHomepageHeroMedia(): Media | null {
  * Constitutional: Reads from projection artifact, no selection logic, no filesystem access
  */
 export function getGalleryMediaForProject(projectId: string): { representative: Media | null; supporting: Media[] } {
+  const previewMode = isWorkbenchPreviewMode();
+  
+  if (previewMode) {
+    // Use main authority for Workbench preview
+    try {
+      const { getMainProjectMedia } = require('./main-authority-loader');
+      const projectMedia = getMainProjectMedia(projectId);
+      if (projectMedia && projectMedia.then) {
+        return projectMedia.then((pm: Media[]) => ({ 
+          representative: pm.find((m: Media) => m.roles && m.roles.includes('gallery')) || null, 
+          supporting: [] 
+        }));
+      }
+      return { representative: projectMedia.find((m: Media) => m.roles && m.roles.includes('gallery')) || null, supporting: [] };
+    } catch (error) {
+      console.error('Failed to load main gallery media:', error);
+      return { representative: null, supporting: [] };
+    }
+  }
+  
   const projection = loadGalleryProjection();
   const project = projection.projects.find((p: any) => p.projectId === projectId);
   

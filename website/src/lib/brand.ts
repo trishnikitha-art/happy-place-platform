@@ -14,8 +14,49 @@
 import type { BrandManifest, BrandHero, BrandOwnerPortrait } from "@/types/brand";
 import { loadAuthority, clearAuthorityCache } from "./authority-loader";
 import { getHomepageHeroMedia } from "./media";
+import { isWorkbenchPreviewMode } from "./media";
 
 export function loadBrandManifest(): BrandManifest {
+  const previewMode = isWorkbenchPreviewMode();
+  
+  if (previewMode) {
+    // Use main authority for Workbench preview
+    try {
+      const { loadMainBrandAuthority } = require('./main-authority-loader');
+      return loadMainBrandAuthority();
+    } catch (error) {
+      console.error('Failed to load main brand authority:', error);
+      return {
+        version: "1.0.0",
+        generatedAt: new Date().toISOString(),
+        homepageHero: {
+          id: "fallback-hero",
+          mediaId: null,
+          alt: "Fallback hero",
+          fallback: { gradient: true, overlay: true },
+        },
+        ownerPortrait: {
+          id: "fallback-owner",
+          mediaId: null,
+          alt: "Fallback owner portrait",
+          names: [],
+        },
+        logo: {
+          id: "fallback-logo",
+          mediaId: null,
+          alt: "Fallback logo",
+        },
+        team: [],
+        office: {
+          id: "fallback-office",
+          mediaId: null,
+          alt: "Fallback office",
+        },
+        marketingAssets: [],
+      };
+    }
+  }
+  
   return loadAuthority<BrandManifest>({
     path: "@/config/brand.v1.json",
     fallback: {
