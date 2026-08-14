@@ -62,7 +62,9 @@ export default function ServicesPage() {
                 </p>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   {categoryServices.map((s) => (
-                    <ServiceCard key={s.id} service={s} route="/services" href={`/services/${s.slug}`} />
+                    <Link key={s.id} href={`/services/${s.slug}`}>
+                      <ServiceCard service={s} />
+                    </Link>
                   ))}
                 </div>
               </div>

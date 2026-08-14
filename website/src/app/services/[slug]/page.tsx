@@ -92,7 +92,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
             />
             <div className="mt-8">
               {featuredProject.media.before && featuredProject.media.after && (
-                <BeforeAfterSlider project={featuredProject} route="/services" />
+                <BeforeAfterSlider project={featuredProject} />
               )}
               <Link
                 href={`/projects/${featuredProject.slug || featuredProject.id}`}
@@ -179,7 +179,9 @@ export default async function ServicePage({ params }: ServicePageProps) {
             />
             <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {relatedServices.map((s) => (
-                <ServiceCard key={s.id} service={s} route="/services" href={`/services/${s.slug}`} />
+                <Link key={s.id} href={`/services/${s.slug}`}>
+                  <ServiceCard service={s} />
+                </Link>
               ))}
             </div>
           </Container>

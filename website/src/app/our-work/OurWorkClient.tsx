@@ -66,7 +66,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
           <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
             {featuredProjects.slice(0, 4).map((project, i) => (
               <ScrollReveal key={project.id} delay={i * 60}>
-                <BeforeAfterSlider project={project} route="/our-work" />
+                <BeforeAfterSlider project={project} />
               </ScrollReveal>
             ))}
           </div>
@@ -144,10 +144,10 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
               const galleryMediaIds = project.media?.gallery || [];
               const galleryPhotos = galleryMediaIds
                 .map(id => getMediaById(id))
-                .filter(m => m !== null && (m.variants?.webp || m.variants?.original));
-
+                .filter(m => m !== null && (m.variants?.web || m.variants?.original));
+              
               return galleryPhotos.map((photo, photoIndex) => {
-                const src = photo!.variants.webp || photo!.variants.original || photo!.variants.thumbnail;
+                const src = photo!.variants.web || photo!.variants.original || photo!.variants.thumbnail;
                 if (!src) return null;
                 
                 return (
@@ -159,9 +159,9 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                         const pGalleryIds = p.media?.gallery || [];
                         return pGalleryIds
                           .map(id => getMediaById(id))
-                          .filter(m => m !== null && (m.variants?.webp || m.variants?.original))
+                          .filter(m => m !== null && (m.variants?.web || m.variants?.original))
                           .map(m => ({
-                            src: m!.variants.webp || m!.variants.original || m!.variants.thumbnail!,
+                            src: m!.variants.web || m!.variants.original || m!.variants.thumbnail!,
                             alt: m!.alt,
                             blurDataURL: m!.variants?.blur
                           }));

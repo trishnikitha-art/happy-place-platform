@@ -4,8 +4,7 @@ import type { Service } from "@/types/registries";
 import { Icon } from "@/components/icon";
 import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
-import { getServicePreviewMedia } from "@/lib/media";
-import { VisualSlot } from "@/components/visual-slot";
+import { getFeaturedServiceMedia } from "@/lib/media";
 
 /**
  * ServiceCard — photo-led and dense (CEO review): one iconic image, title,
@@ -13,41 +12,29 @@ import { VisualSlot } from "@/components/visual-slot";
  * 
  * Updated to use new Service type from registries (data-driven configuration).
  * 
- * Constitutional: Service cards use projection-based media lookups.
- * Reads from serviceProjection.json (no selection logic in frontend).
+ * Service cards use intent-based media lookups from Media Authority.
+ * Displays the hero image of the highest-ranked project for that service.
  * Falls back to intentional empty state when no images exist for that service.
  * 
  * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
  * Card text always uses light register tokens regardless of page background.
  */
-export function ServiceCard({ service, route = '/', href }: { service: Service; route?: string; href?: string }) {
-  const featuredMedia = getServicePreviewMedia(service.slug);
-  const hasImage = featuredMedia !== null && featuredMedia.variants && (featuredMedia.variants.web || featuredMedia.variants.webp || featuredMedia.variants.original);
-  const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.webp || featuredMedia.variants?.original) : null;
+export function ServiceCard({ service }: { service: Service }) {
+  const featuredMedia = getFeaturedServiceMedia(service.slug);
+  const hasImage = featuredMedia !== null;
+  const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.original) : null;
 
   // Card text colors - always light register (cards are always light surfaces)
   const headingColor = "text-text";
   const bodyColor = "text-text-muted";
   const linkColor = "text-text hover:text-honey";
 
-  // Use provided href or default to estimate
-  const cardHref = href || `/estimate?service=${service.slug}`;
-
   return (
-    <Link href={cardHref} className="block">
+    <Link href={`/estimate?service=${service.slug}`} className="block">
       <CraftCard className="group flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl" style={{ containerType: 'inline-size' }}>
         <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
           {hasImage && imageSrc ? (
-            <VisualSlot
-              id={`service-card-slot-${service.slug}`}
-              route={route}
-              page={route === '/' ? 'Homepage' : 'Services'}
-              section="Services"
-              slotName={`${service.name} Service Card`}
-              currentMediaId={featuredMedia?.id || null}
-              component="ServiceCard"
-              className="absolute inset-0"
-            >
+            <>
               <Image
                 src={imageSrc}
                 alt={featuredMedia.alt || service.name}
@@ -56,7 +43,7 @@ export function ServiceCard({ service, route = '/', href }: { service: Service; 
                 className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
               />
               <div className="absolute inset-0 pointer-events-none rounded-t-xl bg-gradient-to-tr from-black/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
-            </VisualSlot>
+            </>
           ) : (
             <div className="flex h-full w-full items-center justify-center">
               <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-deep/80 text-honey">
