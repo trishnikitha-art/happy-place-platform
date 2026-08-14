@@ -258,7 +258,7 @@ export default function MediaWorkbench() {
         {/* LEFT: Website Preview */}
         <section className="min-h-0 min-w-0 overflow-y-auto bg-white h-full">
           <iframe
-            src={`https://happyplacecarpentry.com${state.selectedPage}`}
+            src={`https://happy-place-platform.vercel.app${state.selectedPage}`}
             className="w-full h-full border-0"
             title="Website Preview"
             sandbox="allow-same-origin allow-scripts"
