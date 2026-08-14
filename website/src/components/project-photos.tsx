@@ -12,7 +12,7 @@ import Image from "next/image";
  * The parent component is responsible for loading the data from the authority.
  * 
  * Vertical slice validation:
- * projects.v1.json → gallery array → getMediaById() → ProjectPhotos → img
+ * projects.v1.json ΓåÆ gallery array ΓåÆ getMediaById() ΓåÆ ProjectPhotos ΓåÆ img
  * 
  * Now includes premium lightbox for full-screen image viewing.
  */
@@ -29,12 +29,12 @@ export function ProjectPhotos({ photos, limit }: ProjectPhotosProps) {
   const displayPhotos = limit ? photos.slice(0, limit) : photos;
 
   // Filter photos with valid src and prepare lightbox images
-  const validPhotos = displayPhotos.filter(photo =>
-    photo.variants.webp || photo.variants.original || photo.variants.thumbnail
+  const validPhotos = displayPhotos.filter(photo => 
+    photo.variants.web || photo.variants.original || photo.variants.thumbnail
   );
-
+  
   const lightboxImages = validPhotos.map(m => ({
-    src: m.variants.webp || m.variants.original || m.variants.thumbnail!,
+    src: m.variants.web || m.variants.original || m.variants.thumbnail!,
     alt: m.alt,
     blurDataURL: m.variants?.blur
   }));
@@ -51,7 +51,7 @@ export function ProjectPhotos({ photos, limit }: ProjectPhotosProps) {
     <>
       <div className="grid grid-cols-2 gap-4">
         {validPhotos.map((photo, index) => {
-          const src = photo.variants.webp || photo.variants.original || photo.variants.thumbnail;
+          const src = photo.variants.web || photo.variants.original || photo.variants.thumbnail;
           if (!src) return null;
 
           return (
