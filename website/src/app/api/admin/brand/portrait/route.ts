@@ -5,13 +5,25 @@
  * 
  * POST /api/admin/brand/portrait
  * Body: { mediaId: string }
+ * 
+ * Requires Workbench authentication.
  */
 
 import { NextResponse } from "next/server";
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
+import { workbenchSession } from "@/lib/workbench-session";
 
 export async function POST(request: Request) {
+  // Check Workbench authentication
+  const isAuthenticated = await workbenchSession.isAuthenticated();
+  if (!isAuthenticated) {
+    return NextResponse.json(
+      { error: "Unauthorized", message: "Workbench authentication required" },
+      { status: 401 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { mediaId } = body;

@@ -12,6 +12,8 @@
  * - Returns Metrics as JSON
  * 
  * No calculations in the dashboard - everything happens here.
+ * 
+ * Requires Workbench authentication.
  */
 
 import { NextResponse } from "next/server";
@@ -23,8 +25,18 @@ import { loadServicesRegistry } from "@/lib/registries";
 import { validateAllAuthorities } from "@/lib/validation-engine";
 import { analyzeAll } from "@/lib/analysis";
 import { generateMetrics } from "@/lib/metrics";
+import { workbenchSession } from "@/lib/workbench-session";
 
 export async function GET() {
+  // Check Workbench authentication
+  const isAuthenticated = await workbenchSession.isAuthenticated();
+  if (!isAuthenticated) {
+    return NextResponse.json(
+      { error: "Unauthorized", message: "Workbench authentication required" },
+      { status: 401 }
+    );
+  }
+
   try {
     // Load all authorities
     const media = loadMediaManifest();

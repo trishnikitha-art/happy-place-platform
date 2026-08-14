@@ -3,14 +3,26 @@
  * 
  * Lists files in a Drive folder for browsing.
  * Automatically handles folder navigation without manual path entry.
+ * 
+ * Requires Workbench authentication.
  */
 
 import { NextResponse } from 'next/server';
 import { driveDiscovery } from '@/lib/drive/drive-discovery';
+import { workbenchSession } from '@/lib/workbench-session';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
+  // Check Workbench authentication
+  const isAuthenticated = await workbenchSession.isAuthenticated();
+  if (!isAuthenticated) {
+    return NextResponse.json(
+      { error: 'Unauthorized', message: 'Workbench authentication required' },
+      { status: 401 }
+    );
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const folderId = searchParams.get('folderId') || 'root';

@@ -3,14 +3,26 @@
  * 
  * Exposes automatic Drive discovery to the Media Runtime.
  * Returns My Drive, Shared Drives, HPP folders, and recent folders.
+ * 
+ * Requires Workbench authentication.
  */
 
 import { NextResponse } from 'next/server';
 import { driveDiscovery } from '@/lib/drive/drive-discovery';
+import { workbenchSession } from '@/lib/workbench-session';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
+  // Check Workbench authentication
+  const isAuthenticated = await workbenchSession.isAuthenticated();
+  if (!isAuthenticated) {
+    return NextResponse.json(
+      { error: 'Unauthorized', message: 'Workbench authentication required' },
+      { status: 401 }
+    );
+  }
+
   try {
     const structure = await driveDiscovery.discoverStructure();
     return NextResponse.json(structure);
