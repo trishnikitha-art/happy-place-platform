@@ -77,6 +77,19 @@ export function clearMediaCache(): void {
  */
 
 /**
+ * COMPATIBILITY SHIM FOR AUG 3 UI
+ * 
+ * getFeaturedServiceMedia is provided for compatibility with Aug 3 UI components.
+ * This function delegates to the current projection-based system (getServicePreviewMedia).
+ * 
+ * Aug 3 UI components were written before the constitutional projection system.
+ * This shim maintains the Aug 3 interface while using the current architecture.
+ */
+export function getFeaturedServiceMedia(serviceSlug: string): Media | null {
+  return getServicePreviewMedia(serviceSlug);
+}
+
+/**
  * PROJECTION-BASED MEDIA ADAPTER
  * 
  * These functions read from projection artifacts via ProjectionLoader.
