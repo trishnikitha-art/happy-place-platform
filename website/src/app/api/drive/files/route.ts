@@ -14,13 +14,18 @@ import { workbenchSession } from '@/lib/workbench-session';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
-  // Check Workbench authentication
-  const isAuthenticated = await workbenchSession.isAuthenticated();
-  if (!isAuthenticated) {
-    return NextResponse.json(
-      { error: 'Unauthorized', message: 'Workbench authentication required' },
-      { status: 401 }
-    );
+  // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
+  if (process.env.NODE_ENV === 'development') {
+    // Proceed without authentication
+  } else {
+    // Check Workbench authentication
+    const isAuthenticated = await workbenchSession.isAuthenticated();
+    if (!isAuthenticated) {
+      return NextResponse.json(
+        { error: 'Unauthorized', message: 'Workbench authentication required' },
+        { status: 401 }
+      );
+    }
   }
 
   try {

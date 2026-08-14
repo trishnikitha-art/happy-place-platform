@@ -7,6 +7,11 @@ export async function middleware(request: NextRequest) {
 
   // Protect Workbench routes except login page
   if (pathname.startsWith('/workbench') && pathname !== '/workbench/login') {
+    // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
+    if (process.env.NODE_ENV === 'development') {
+      return NextResponse.next();
+    }
+
     const isAuthenticated = await workbenchSession.isAuthenticated();
     
     if (!isAuthenticated) {
