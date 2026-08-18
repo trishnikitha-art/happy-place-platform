@@ -209,12 +209,22 @@ export default async function HomePage() {
                     href={`/projects/${project.slug || project.id}`}
                     className={`group relative overflow-hidden rounded-lg ${isFeatured ? 'sm:col-span-2 sm:row-span-2' : ''}`}
                   >
-                    <img
-                      src={heroSrc}
-                      alt={heroMedia?.alt || project.title}
-                      className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      loading={i === 0 ? "eager" : "lazy"}
-                    />
+                    <VisualSlot
+                      id={`homepage-featured-project-${project.id}`}
+                      route="/"
+                      page="Homepage"
+                      section="Featured Projects"
+                      slotName={`${project.title} Featured Project`}
+                      currentMediaId={heroMediaId || null}
+                      component="ProjectCard"
+                    >
+                      <img
+                        src={heroSrc}
+                        alt={heroMedia?.alt || project.title}
+                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        loading={i === 0 ? "eager" : "lazy"}
+                      />
+                    </VisualSlot>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
                     <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
                       <span className="inline-block px-2 py-1 mb-2 text-xs font-semibold bg-honey/90 text-white rounded">

@@ -350,6 +350,16 @@ export default function MediaWorkbench() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
+      } else if (slotId.startsWith('homepage-featured-project-')) {
+        // Extract project ID from slot ID (e.g., homepage-featured-project-fences-001 -> fences-001)
+        const projectId = slotId.replace('homepage-featured-project-', '');
+        endpoint = '/api/admin/projects/card';
+        requestBody = { projectId, mediaId: asset.id };
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
       } else if (slotId.includes('before') || slotId.includes('after')) {
         alert('Before/after assignment not yet implemented. Needs projects.v1.json write endpoint');
         return;
