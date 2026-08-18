@@ -189,6 +189,18 @@ export default function MediaWorkbench() {
               assetId,
               currentMediaId: slot.currentMediaId,
             });
+            
+            // GALLERY DUPLICATE PREVENTION: Check if this mediaId is already assigned to another gallery slot
+            if (slot.section === 'Gallery') {
+              const existingGalleryAssignment = Array.from(state.pendingAssignments.values()).find(
+                p => p.slot.section === 'Gallery' && p.asset.id === assetId && p.slot.id !== slot.id
+              );
+              if (existingGalleryAssignment) {
+                alert(`This media is already assigned to ${existingGalleryAssignment.slot.slotName}. A media asset can only appear in one gallery slot.`);
+                return;
+              }
+            }
+            
             // STAGE the assignment (upsert by slot ID - latest wins for same slot)
             setState(prev => {
               const newPendingAssignments = new Map(prev.pendingAssignments);
@@ -293,6 +305,44 @@ export default function MediaWorkbench() {
       newPendingAssignments.delete(slotId);
       return { ...prev, pendingAssignments: newPendingAssignments };
     });
+  };
+
+  const deleteGalleryAssignment = async (slotId: string) => {
+    if (!confirm('Are you sure you want to delete this gallery image? This will remove the media assignment from the gallery slot.')) {
+      return;
+    }
+
+    try {
+      const slot = state.registeredSlots.find(s => s.id === slotId);
+      if (!slot || slot.section !== 'Gallery') {
+        alert('This delete action is only available for gallery slots.');
+        return;
+      }
+
+      // Parse slot ID to get project ID and gallery index
+      // Format: our-work-gallery-{projectId}-{index}
+      const parts = slotId.replace('our-work-gallery-', '').split('-');
+      const lastHyphenIndex = parts.length - 1;
+      const projectId = parts.slice(0, lastHyphenIndex).join('-');
+      const galleryIndex = parseInt(parts[lastHyphenIndex], 10);
+
+      const response = await fetch('/api/admin/projects/gallery', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, galleryIndex }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete gallery assignment');
+      }
+
+      // Reload canonical data after successful deletion
+      loadCanonicalData();
+    } catch (error) {
+      console.error('[DELETE GALLERY] ERROR', error);
+      alert(`Failed to delete gallery assignment: ${error instanceof Error ? error.message : String(error)}`);
+    }
   };
 
   const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot) => {
@@ -643,9 +693,19 @@ export default function MediaWorkbench() {
                 <span className="text-muted-foreground">{assignment.slot.slotName}</span>
                 <span className="text-primary">→</span>
                 <span className="text-foreground">{assignment.asset.filename}</span>
+                {assignment.slot.section === 'Gallery' && (
+                  <button
+                    onClick={() => deleteGalleryAssignment(assignment.slot.id)}
+                    className="text-red-500 hover:text-red-600 transition-colors"
+                    title="Delete from gallery"
+                  >
+                    🗑
+                  </button>
+                )}
                 <button
                   onClick={() => removePendingAssignment(assignment.slot.id)}
                   className="text-muted-foreground hover:text-foreground transition-colors"
+                  title="Remove from pending"
                 >
                   ×
                 </button>
