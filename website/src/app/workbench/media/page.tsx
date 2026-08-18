@@ -301,6 +301,22 @@ export default function MediaWorkbench() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
+      } else if (slotId === 'homepage-owner-portrait-slot' || slotId === 'about-owner-portrait-slot') {
+        endpoint = '/api/admin/brand/portrait';
+        requestBody = { mediaId: asset.id };
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
+      } else if (slotId === 'homepage-owner-portrait-slot' || slotId === 'about-owner-portrait-slot') {
+        endpoint = '/api/admin/brand/portrait';
+        requestBody = { mediaId: asset.id };
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
       } else if (slotId.startsWith('our-work-project-card-')) {
         // Extract project ID from slot ID (e.g., our-work-project-card-exterior-painting-001 -> exterior-painting-001)
         const projectId = slotId.replace('our-work-project-card-', '');
@@ -325,6 +341,7 @@ export default function MediaWorkbench() {
         alert('Before/after assignment not yet implemented. Needs projects.v1.json write endpoint');
         return;
       } else {
+        console.log('[DND 8] UNSUPPORTED_SLOT_TYPE', { slotId });
         return;
       }
 
