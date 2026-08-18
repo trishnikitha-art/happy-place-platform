@@ -1,9 +1,9 @@
 /**
  * Drive Files API Route
- * 
- * Lists files in a Drive folder for browsing.
- * Automatically handles folder navigation without manual path entry.
- * 
+ *
+ * Lists immediate children (folders and files) of a Drive folder.
+ * Lazy loading with pagination support.
+ *
  * Requires Workbench authentication.
  */
 
@@ -31,9 +31,15 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const folderId = searchParams.get('folderId') || 'root';
+    const pageToken = searchParams.get('pageToken') || undefined;
+    const driveId = searchParams.get('driveId') || undefined;
 
-    const files = await driveDiscovery.listFiles(folderId);
-    return NextResponse.json({ files });
+    const result = await driveDiscovery.listChildren(
+      { parentId: folderId, driveId },
+      pageToken
+    );
+
+    return NextResponse.json(result);
   } catch (error) {
     console.error('Drive files error:', error);
     return NextResponse.json(

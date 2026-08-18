@@ -72,25 +72,26 @@ export async function POST(request: Request) {
     const mediaPath = join(process.cwd(), 'src/config/media.v1.json');
     const mediaData = JSON.parse(readFileSync(mediaPath, 'utf-8'));
 
-    // 3. Check for existing record with matching driveId
-    const existingIndex = mediaData.media.findIndex((m: Media) => m.driveId === driveId);
+    // 3. Check for existing record with matching drive.fileId
+    const existingIndex = mediaData.media.findIndex((m: Media) => m.drive?.fileId === driveId);
 
     const mediaRecord: Media = {
       id: existingIndex >= 0 ? mediaData.media[existingIndex].id : generateMediaId(driveFile.name),
-      source: 'google-drive' as any, // New field for Drive-referenced assets
-      driveId,
-      driveMimeType: driveFile.mimeType,
-      driveName: driveFile.name,
-      driveThumbnailUrl: driveFile.thumbnailLink,
-      driveWebViewUrl: driveFile.webViewLink,
-      driveModifiedTime: driveFile.modifiedTime,
+      source: 'google-drive',
+      drive: {
+        fileId: driveId,
+        name: driveFile.name,
+        mimeType: driveFile.mimeType,
+        webViewUrl: driveFile.webViewLink,
+        modifiedTime: driveFile.modifiedTime,
+      },
       filename: driveFile.name,
       type: driveFile.mimeType?.startsWith('image/') ? 'image' : 'document',
       orientation: determineOrientation(driveFile.mimeType),
       dimensions: { width: 0, height: 0 },
       variants: {
-        // Use Drive thumbnail as the web variant for now
-        web: driveFile.thumbnailLink || '',
+        // Thumbnail URL is derived at runtime via proxy
+        web: `/api/drive/files/${driveId}/thumbnail`,
       },
       alt: driveFile.name,
       description: driveFile.description,

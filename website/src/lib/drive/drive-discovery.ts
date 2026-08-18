@@ -13,8 +13,16 @@ export interface DriveFolder {
   type: 'my_drive' | 'shared_drive' | 'folder';
   parent?: string;
   modifiedTime?: string;
-  children?: DriveFolder[];
-  files?: DriveFile[];
+}
+
+export interface DriveListContext {
+  parentId: string;
+  driveId?: string;
+}
+
+export interface DriveListResult {
+  items: (DriveFolder | DriveFile)[];
+  nextPageToken?: string;
 }
 
 export interface DriveFile {
@@ -48,8 +56,6 @@ export class DriveDiscovery {
   async discoverStructure(): Promise<{
     myDrive: DriveFolder | null;
     sharedDrives: DriveFolder[];
-    hppFolders: DriveFolder[];
-    recentFolders: DriveFolder[];
   }> {
     console.log('=== Drive Discovery Started ===');
     
@@ -62,8 +68,6 @@ export class DriveDiscovery {
       return {
         myDrive: null,
         sharedDrives: [],
-        hppFolders: [],
-        recentFolders: [],
       };
     }
 
@@ -113,25 +117,11 @@ export class DriveDiscovery {
     const sharedDrives = await this.getSharedDrives(drive);
     console.log('Shared Drives count:', sharedDrives.length);
 
-    // Search for known HPP folders
-    console.log('Searching HPP folders...');
-    const hppFolders = await this.searchHPPFolders(drive);
-    console.log('HPP folders count:', hppFolders.length);
-    console.log('HPP folders:', hppFolders.map(f => ({ id: f.id, name: f.name })));
-
-    // Get recently modified folders
-    console.log('Getting recent folders...');
-    const recentFolders = await this.getRecentFolders(drive);
-    console.log('Recent folders count:', recentFolders.length);
-    console.log('Recent folders:', recentFolders.map(f => ({ id: f.id, name: f.name })));
-
     console.log('=== Drive Discovery Complete ===');
 
     return {
       myDrive,
       sharedDrives,
-      hppFolders,
-      recentFolders,
     };
   }
 
@@ -181,181 +171,82 @@ export class DriveDiscovery {
     return [];
   }
 
-  /**
-   * Search for known HPP folder patterns
-   */
-  private async searchHPPFolders(drive: any): Promise<DriveFolder[]> {
-    const hppPatterns = [
-      'Happy Place',
-      'Happy Place Carpentry',
-      'HPP',
-      'Projects',
-      'Photos',
-      'Gallery',
-      'Uploads',
-      'Archive',
-    ];
 
-    const folders: DriveFolder[] = [];
-
-    try {
-      // Search in My Drive
-      for (const pattern of hppPatterns) {
-        const response = await drive.files.list({
-          q: `name contains '${pattern}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
-          fields: 'files(id,name,parents,modifiedTime)',
-          pageSize: 50,
-        });
-
-        if (response.data.files) {
-          response.data.files.forEach((folder: any) => {
-            folders.push({
-              id: folder.id,
-              name: folder.name,
-              type: 'folder',
-              parent: folder.parents?.[0],
-              modifiedTime: folder.modifiedTime,
-            });
-          });
-        }
-      }
-    } catch (error) {
-      console.error('Failed to search HPP folders:', error);
-    }
-
-    return folders;
-  }
 
   /**
-   * Get recently modified folders
+   * List immediate children of a folder (folders and files)
+   * Lazy loading - no recursion, no depth limit
+   * Supports pagination via nextPageToken
    */
-  private async getRecentFolders(drive: any): Promise<DriveFolder[]> {
-    try {
-      const response = await drive.files.list({
-        q: "mimeType = 'application/vnd.google-apps.folder' and trashed = false",
-        fields: 'files(id,name,parents,modifiedTime)',
-        orderBy: 'modifiedTime desc',
-        pageSize: 20,
-      });
-
-      if (response.data.files) {
-        return response.data.files.map((folder: any) => ({
-          id: folder.id,
-          name: folder.name,
-          type: 'folder',
-          parent: folder.parents?.[0],
-          modifiedTime: folder.modifiedTime,
-        }));
-      }
-    } catch (error) {
-      console.error('Failed to get recent folders:', error);
-    }
-
-    return [];
-  }
-
-  /**
-   * List files in a folder
-   */
-  async listFiles(folderId: string): Promise<DriveFile[]> {
-    if (!(await driveOAuthManager.isAuthenticated())) {
-      return [];
-    }
-
-    const drive = await driveOAuthManager.getDriveClient();
-
-    try {
-      const response = await drive.files.list({
-        q: `'${folderId}' in parents and trashed = false`,
-        fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,parents)',
-        pageSize: 1000,
-        orderBy: 'name',
-      });
-
-      if (response.data.files) {
-        return response.data.files.map((file: any) => ({
-          id: file.id,
-          name: file.name,
-          mimeType: file.mimeType,
-          size: file.size ? parseInt(file.size, 10) : undefined,
-          createdTime: file.createdTime,
-          modifiedTime: file.modifiedTime,
-          thumbnailLink: file.thumbnailLink,
-          webViewLink: file.webViewLink,
-          description: file.description,
-          parent: file.parents?.[0],
-        }));
-      }
-    } catch (error) {
-      console.error(`Failed to list files in folder ${folderId}:`, error);
-    }
-
-    return [];
-  }
-
-  /**
-   * Get folder tree with files and subfolders
-   * Used by Drive Explorer for hierarchical navigation
-   */
-  async getFolderTree(folderId: string, depth: number = 3): Promise<DriveFolder> {
+  async listChildren(context: DriveListContext, pageToken?: string): Promise<DriveListResult> {
     if (!(await driveOAuthManager.isAuthenticated())) {
       throw new Error('Not authenticated with Drive');
     }
 
     const drive = await driveOAuthManager.getDriveClient();
 
-    // Get folder metadata
-    const folderMeta = await drive.files.get({
-      fileId: folderId,
-      fields: 'id,name,mimeType,modifiedTime',
-    });
-
-    const folder: DriveFolder = {
-      id: folderMeta.data.id,
-      name: folderMeta.data.name,
-      type: 'folder',
-      modifiedTime: folderMeta.data.modifiedTime,
-      children: [],
-      files: [],
+    const params: any = {
+      q: `'${context.parentId}' in parents and trashed = false`,
+      fields: 'nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,parents)',
+      pageSize: 100,
+      orderBy: 'folder,name_natural',
+      supportsAllDrives: true,
+      includeItemsFromAllDrives: true,
     };
 
-    if (depth <= 0) {
-      return folder;
+    // Add shared drive support
+    if (context.driveId) {
+      params.corpora = 'drive';
+      params.driveId = context.driveId;
+    } else {
+      params.corpora = 'user';
     }
 
-    // List children (folders and files)
-    const response = await drive.files.list({
-      q: `'${folderId}' in parents and trashed = false`,
-      fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,parents)',
-      pageSize: 1000,
-      orderBy: 'folder,name',
-    });
+    // Add pagination
+    if (pageToken) {
+      params.pageToken = pageToken;
+    }
 
-    if (response.data.files) {
-      for (const item of response.data.files) {
-        if (item.mimeType === 'application/vnd.google-apps.folder') {
-          // Recursively get subfolder
-          const subfolder = await this.getFolderTree(item.id, depth - 1);
-          folder.children!.push(subfolder);
-        } else {
-          // Add file
-          folder.files!.push({
-            id: item.id,
-            name: item.name,
-            mimeType: item.mimeType,
-            size: item.size ? parseInt(item.size, 10) : undefined,
-            createdTime: item.createdTime,
-            modifiedTime: item.modifiedTime,
-            thumbnailLink: item.thumbnailLink,
-            webViewLink: item.webViewLink,
-            description: item.description,
-            parent: item.parents?.[0],
-          });
+    try {
+      const response = await drive.files.list(params);
+
+      const items: (DriveFolder | DriveFile)[] = [];
+
+      if (response.data.files) {
+        for (const item of response.data.files) {
+          if (item.mimeType === 'application/vnd.google-apps.folder') {
+            items.push({
+              id: item.id,
+              name: item.name,
+              type: 'folder',
+              parent: item.parents?.[0],
+              modifiedTime: item.modifiedTime,
+            });
+          } else {
+            items.push({
+              id: item.id,
+              name: item.name,
+              mimeType: item.mimeType,
+              size: item.size ? parseInt(item.size, 10) : undefined,
+              createdTime: item.createdTime,
+              modifiedTime: item.modifiedTime,
+              thumbnailLink: item.thumbnailLink,
+              webViewLink: item.webViewLink,
+              description: item.description,
+              parent: item.parents?.[0],
+            });
+          }
         }
       }
-    }
 
-    return folder;
+      return {
+        items,
+        nextPageToken: response.data.nextPageToken,
+      };
+    } catch (error) {
+      console.error(`Failed to list children for ${context.parentId}:`, error);
+      throw error;
+    }
   }
 
   /**

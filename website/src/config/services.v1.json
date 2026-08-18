@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-18T14:34:34.785Z",
+  "generatedAt": "2026-08-18T15:41:41.600Z",
   "services": [
     {
       "id": "decks",
@@ -533,7 +533,7 @@
           ]
         }
       ],
-      "cardMediaId": "outdoor-living-001-5"
+      "cardMediaId": "outdoor-living-001-6"
     },
     {
       "id": "finish-carpentry",
@@ -713,7 +713,7 @@
       "id": "pole-barns",
       "name": "Pole Barns",
       "slug": "pole-barns",
-      "description": "Equipment, a workshop, livestock, storage â€” every pole barn starts with how you're actually going to use it.",
+      "description": "Equipment, a workshop, livestock, storage — every pole barn starts with how you're actually going to use it.",
       "icon": "barn",
       "featured": false,
       "homepageEligible": false,
@@ -805,7 +805,8 @@
             "Deck": "deck_finish_type"
           }
         }
-      ]
+      ],
+      "cardMediaId": "builtins-001-secondary"
     },
     {
       "id": "drywall",
@@ -886,7 +887,8 @@
             "Not sure"
           ]
         }
-      ]
+      ],
+      "cardMediaId": "repairs-001-drywall"
     }
   ]
 }

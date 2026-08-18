@@ -98,16 +98,16 @@ export class ReconciliationService {
   }> {
     try {
       const structure = await driveDiscovery.discoverStructure();
-      
+
       let totalPhotos = 0;
       let folders = 0;
 
-      // Count photos in HPP folders
-      for (const folder of structure.hppFolders) {
-        const files = await driveDiscovery.listFiles(folder.id);
-        const photos = files.filter(f => 
-          f.mimeType.startsWith('image/') || 
-          /\.(jpg|jpeg|png|webp|avif|heic)$/i.test(f.name)
+      // Count photos in shared drives (simple scan)
+      for (const drive of structure.sharedDrives) {
+        const result = await driveDiscovery.listChildren({ parentId: drive.id, driveId: drive.id });
+        const photos = result.items.filter((item: any) =>
+          item.mimeType?.startsWith('image/') ||
+          /\.(jpg|jpeg|png|webp|avif|heic)$/i.test(item.name)
         );
         totalPhotos += photos.length;
         folders++;

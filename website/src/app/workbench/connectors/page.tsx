@@ -14,17 +14,16 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plug, Activity, Database, CheckCircle, XCircle, Clock, RefreshCw, Cloud } from 'lucide-react';
+import { Plug, CheckCircle, RefreshCw, Cloud, Database } from 'lucide-react';
 
 interface ConnectorData {
   id: string;
   name: string;
   type: string;
   status: 'active' | 'inactive' | 'error';
-  health: 'healthy' | 'degraded' | 'unhealthy';
-  lastSync: string;
+  connectedAs?: string;
+  lastChecked: string;
   capabilities: string[];
-  resources: number;
 }
 
 export default function ConnectorsPage() {
@@ -43,27 +42,26 @@ export default function ConnectorsPage() {
     try {
       setLoading(true);
       setError(null);
-      
-      // Use Drive discovery API instead of connector API
+
+      // Use Drive discovery API
       const response = await fetch('/api/drive/discovery');
       if (!response.ok) {
         throw new Error('Drive discovery failed');
       }
-      
+
       const structure = await response.json();
-      
+
       // Map Drive structure to ConnectorData format
       const driveConnector: ConnectorData = {
         id: 'google-drive',
         name: 'Google Drive',
         type: 'google-drive',
         status: structure.myDrive ? 'active' : 'inactive',
-        health: structure.myDrive ? 'healthy' : 'unhealthy',
-        lastSync: new Date().toISOString(),
-        capabilities: ['readable', 'discoverable', 'downloadable'],
-        resources: (structure.sharedDrives?.length || 0) + (structure.hppFolders?.length || 0) + (structure.recentFolders?.length || 0),
+        connectedAs: structure.myDrive?.name || 'Not connected',
+        lastChecked: new Date().toISOString(),
+        capabilities: ['read files', 'browse folders', 'view thumbnails'],
       };
-      
+
       setConnectors([driveConnector]);
     } catch (err) {
       console.error('Failed to load connectors:', err);
@@ -75,10 +73,8 @@ export default function ConnectorsPage() {
           name: 'Google Drive',
           type: 'google-drive',
           status: 'inactive',
-          health: 'unhealthy',
-          lastSync: new Date().toISOString(),
-          capabilities: ['readable', 'discoverable', 'downloadable'],
-          resources: 0,
+          lastChecked: new Date().toISOString(),
+          capabilities: ['read files', 'browse folders', 'view thumbnails'],
         },
       ]);
     } finally {
@@ -99,12 +95,8 @@ export default function ConnectorsPage() {
   };
 
   const handleSync = async (id: string) => {
-    try {
-      // For Google Drive, trigger discovery refresh
-      await loadConnectors();
-    } catch (err) {
-      console.error('Failed to sync connector:', err);
-    }
+    // No-op - Drive is source of truth, no sync needed
+    await loadConnectors();
   };
 
   const handleConnectDrive = async () => {
@@ -127,28 +119,6 @@ export default function ConnectorsPage() {
       'error': 'bg-red-100 text-red-800',
     };
     return colors[status] || 'bg-gray-100 text-gray-800';
-  };
-
-  const getHealthColor = (health: string) => {
-    const colors: Record<string, string> = {
-      'healthy': 'text-green-500',
-      'degraded': 'text-yellow-500',
-      'unhealthy': 'text-red-500',
-    };
-    return colors[health] || 'text-gray-500';
-  };
-
-  const getHealthIcon = (health: string) => {
-    switch (health) {
-      case 'healthy':
-        return <CheckCircle size={16} className="text-green-500" />;
-      case 'degraded':
-        return <Clock size={16} className="text-yellow-500" />;
-      case 'unhealthy':
-        return <XCircle size={16} className="text-red-500" />;
-      default:
-        return <Clock size={16} className="text-gray-500" />;
-    }
   };
 
   const formatDate = (dateString: string) => {
@@ -189,55 +159,35 @@ export default function ConnectorsPage() {
                       </span>
                     </div>
                   </div>
-                  <div className={getHealthColor(connector.health)}>
-                    {getHealthIcon(connector.health)}
-                  </div>
                 </div>
               </div>
 
               {/* Details */}
               <div className="p-4 space-y-3">
+                {connector.connectedAs && (
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Connected as</span>
+                    <span className="font-medium text-foreground">{connector.connectedAs}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Health</span>
-                  <span className={`font-medium ${getHealthColor(connector.health)}`}>
-                    {connector.health}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Resources</span>
-                  <span className="font-medium text-foreground">{connector.resources}</span>
-                </div>
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-muted-foreground">Last Sync</span>
+                  <span className="text-muted-foreground">Last checked</span>
                   <span className="font-medium text-foreground">
-                    {formatDate(connector.lastSync)}
+                    {formatDate(connector.lastChecked)}
                   </span>
                 </div>
               </div>
 
               {/* Capabilities */}
               <div className="p-4 border-t border-border bg-muted/30">
-                <div className="text-xs text-muted-foreground mb-2">Capabilities</div>
-                <div className="flex flex-wrap gap-1">
+                <div className="text-xs text-muted-foreground mb-2">Drive access</div>
+                <div className="space-y-1">
                   {connector.capabilities.map((capability: string) => (
-                    <span
-                      key={capability}
-                      className="px-2 py-1 bg-background border border-border rounded text-xs"
-                    >
-                      {capability}
-                    </span>
+                    <div key={capability} className="flex items-center gap-2 text-sm">
+                      <CheckCircle size={14} className="text-green-500" />
+                      <span>{capability}</span>
+                    </div>
                   ))}
-                </div>
-              </div>
-
-              {/* Activity */}
-              <div className="p-4 border-t border-border">
-                <div className="flex items-center justify-between mb-2">
-                  <div className="text-xs text-muted-foreground">Recent Activity</div>
-                  <Activity size={14} className="text-muted-foreground" />
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Activity tracking available when backend is connected
                 </div>
               </div>
 
@@ -253,31 +203,23 @@ export default function ConnectorsPage() {
                   </button>
                 ) : (
                   <>
-                    <button
-                      onClick={() => handleSync(connector.id)}
-                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                    >
-                      <RefreshCw size={16} />
-                      Sync
-                    </button>
                     {connector.id === 'google-drive' && driveAuthStatus && (
                       <button
                         onClick={handleOpenDrive}
-                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/90 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                       >
                         <Database size={16} />
                         Open Drive
                       </button>
                     )}
+                    <button
+                      onClick={() => handleSync(connector.id)}
+                      className="px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/90 transition-colors"
+                    >
+                      <RefreshCw size={16} />
+                    </button>
                   </>
                 )}
-                <button
-                  onClick={() => setSelectedConnector(connector.id)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/90 transition-colors"
-                >
-                  <Database size={16} />
-                  Details
-                </button>
               </div>
             </div>
           ))}

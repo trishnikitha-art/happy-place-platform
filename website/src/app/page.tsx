@@ -78,6 +78,7 @@ export default async function HomePage() {
           slotName="Hero Background"
           currentMediaId={homepageHero?.mediaId || null}
           component="HomepageHero"
+          className="absolute inset-0 z-0"
         >
           {heroMedia ? (
             <Image
@@ -101,10 +102,10 @@ export default async function HomePage() {
             />
           )}
         </VisualSlot>
-        <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/40 via-black/20 to-black/60" aria-hidden="true" />
+        <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/40 via-black/20 to-black/60 pointer-events-none" aria-hidden="true" />
 
-        <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20">
-          <div className="max-w-3xl">
+        <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20 pointer-events-none">
+          <div className="max-w-3xl pointer-events-auto">
             <p className="font-signature text-xl sm:text-2xl text-text-on-dark tracking-wide">
               <HappyBrandSignature /> Place Carpentry
             </p>

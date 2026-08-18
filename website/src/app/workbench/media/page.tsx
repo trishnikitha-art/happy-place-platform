@@ -305,7 +305,7 @@ export default function MediaWorkbench() {
 
     const usedSlots = state.registeredSlots.filter(s => s.currentMediaId === asset.id);
     const isUsed = usedSlots.length > 0;
-    const isDriveOnly = asset.driveId && !asset.physicalPath;
+    const isDriveOnly = asset.drive?.fileId && !asset.physicalPath;
 
     switch (state.filter) {
       case 'used': return isUsed;
@@ -779,7 +779,7 @@ export default function MediaWorkbench() {
               {filteredAssets.map((asset) => {
                 const isSelected = state.selectedAsset?.id === asset.id;
                 const isUsed = state.registeredSlots.some(s => s.currentMediaId === asset.id);
-                const isDriveOnly = asset.driveId && !asset.physicalPath;
+                const isDriveOnly = asset.drive?.fileId && !asset.physicalPath;
                 
                 return (
                   <div

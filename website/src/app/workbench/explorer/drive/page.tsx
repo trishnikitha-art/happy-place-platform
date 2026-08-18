@@ -3,33 +3,40 @@
  *
  * Treats Google Drive as the source-of-truth file browser.
  * Shows folder hierarchy, thumbnails, and allows selecting assets.
+ * Uses lazy loading with pagination (no recursive tree).
  */
 
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronRight, ChevronLeft, Folder, FileImage, Search, Grid, List, ExternalLink } from 'lucide-react';
+import { ChevronRight, Folder, FileImage, Search, Grid, List, ExternalLink, Loader2 } from 'lucide-react';
 import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
 
 interface DriveExplorerState {
   loading: boolean;
   error: string | null;
-  currentFolder: DriveFolder | null;
-  breadcrumb: DriveFolder[];
+  currentFolderId: string;
+  breadcrumb: { id: string; name: string }[];
+  items: (DriveFolder | DriveFile)[];
   viewMode: 'grid' | 'list';
   searchQuery: string;
   selectedFile: DriveFile | null;
+  nextPageToken?: string;
+  loadingMore: boolean;
 }
 
 export default function DriveExplorerPage() {
   const [state, setState] = useState<DriveExplorerState>({
     loading: true,
     error: null,
-    currentFolder: null,
-    breadcrumb: [],
+    currentFolderId: 'root',
+    breadcrumb: [{ id: 'root', name: 'My Drive' }],
+    items: [],
     viewMode: 'grid',
     searchQuery: '',
     selectedFile: null,
+    nextPageToken: undefined,
+    loadingMore: false,
   });
 
   useEffect(() => {
@@ -49,13 +56,12 @@ export default function DriveExplorerPage() {
 
       // Start at My Drive root
       if (structure.myDrive) {
-        const folderTree = await fetchFolderTree(structure.myDrive.id);
         setState(prev => ({
           ...prev,
-          currentFolder: folderTree,
-          breadcrumb: [folderTree],
-          loading: false,
+          currentFolderId: structure.myDrive.id,
+          breadcrumb: [{ id: structure.myDrive.id, name: structure.myDrive.name }],
         }));
+        await loadChildren(structure.myDrive.id);
       } else {
         setState(prev => ({
           ...prev,
@@ -73,31 +79,67 @@ export default function DriveExplorerPage() {
     }
   };
 
-  const fetchFolderTree = async (folderId: string): Promise<DriveFolder> => {
-    const response = await fetch(`/api/drive/folder/${folderId}`);
-    if (!response.ok) {
-      throw new Error('Failed to load folder');
+  const loadChildren = async (folderId: string, pageToken?: string) => {
+    try {
+      const params = new URLSearchParams({ folderId });
+      if (pageToken) params.set('pageToken', pageToken);
+
+      const response = await fetch(`/api/drive/files?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to load folder children');
+      }
+
+      const result = await response.json();
+
+      setState(prev => ({
+        ...prev,
+        items: pageToken ? [...prev.items, ...result.items] : result.items,
+        nextPageToken: result.nextPageToken,
+        loading: false,
+        loadingMore: false,
+      }));
+    } catch (err) {
+      console.error('Failed to load children:', err);
+      setState(prev => ({
+        ...prev,
+        error: 'Failed to load folder children',
+        loading: false,
+        loadingMore: false,
+      }));
     }
-    return await response.json();
   };
 
   const navigateToFolder = async (folder: DriveFolder) => {
-    const folderTree = await fetchFolderTree(folder.id);
     setState(prev => ({
       ...prev,
-      currentFolder: folderTree,
-      breadcrumb: [...prev.breadcrumb, folderTree],
+      currentFolderId: folder.id,
+      breadcrumb: [...prev.breadcrumb, { id: folder.id, name: folder.name }],
+      items: [],
+      nextPageToken: undefined,
+      loading: true,
     }));
+    await loadChildren(folder.id);
   };
 
   const navigateUp = (index: number) => {
     const newBreadcrumb = state.breadcrumb.slice(0, index + 1);
-    const targetFolder = newBreadcrumb[newBreadcrumb.length - 1];
+    const target = newBreadcrumb[newBreadcrumb.length - 1];
     setState(prev => ({
       ...prev,
-      currentFolder: targetFolder,
+      currentFolderId: target.id,
       breadcrumb: newBreadcrumb,
+      items: [],
+      nextPageToken: undefined,
+      loading: true,
     }));
+    loadChildren(target.id);
+  };
+
+  const loadMore = () => {
+    if (state.nextPageToken && !state.loadingMore) {
+      setState(prev => ({ ...prev, loadingMore: true }));
+      loadChildren(state.currentFolderId, state.nextPageToken);
+    }
   };
 
   const selectFile = (file: DriveFile) => {
@@ -128,13 +170,12 @@ export default function DriveExplorerPage() {
     }
   };
 
-  const filteredFiles = state.currentFolder?.files?.filter(file =>
-    file.name.toLowerCase().includes(state.searchQuery.toLowerCase())
-  ) || [];
+  const filteredItems = state.items.filter((item: any) =>
+    item.name.toLowerCase().includes(state.searchQuery.toLowerCase())
+  );
 
-  const filteredFolders = state.currentFolder?.children?.filter(folder =>
-    folder.name.toLowerCase().includes(state.searchQuery.toLowerCase())
-  ) || [];
+  const folders = filteredItems.filter((item: any) => item.type === 'folder');
+  const files = filteredItems.filter((item: any) => item.type !== 'folder');
 
   return (
     <div className="p-6 h-screen flex flex-col">
@@ -171,14 +212,14 @@ export default function DriveExplorerPage() {
 
       {/* Breadcrumbs */}
       <div className="flex items-center gap-2 mb-4 text-sm overflow-x-auto pb-2">
-        {state.breadcrumb.map((folder, index) => (
-          <div key={folder.id} className="flex items-center gap-2">
+        {state.breadcrumb.map((crumb, index) => (
+          <div key={crumb.id} className="flex items-center gap-2">
             {index > 0 && <ChevronRight size={16} className="text-muted-foreground" />}
             <button
               onClick={() => navigateUp(index)}
               className="text-primary hover:underline whitespace-nowrap"
             >
-              {folder.name}
+              {crumb.name}
             </button>
           </div>
         ))}
@@ -196,11 +237,11 @@ export default function DriveExplorerPage() {
       ) : (
         <div className="flex-1 overflow-y-auto">
           {/* Folders */}
-          {filteredFolders.length > 0 && (
+          {folders.length > 0 && (
             <div className="mb-6">
               <h2 className="text-sm font-semibold text-muted-foreground mb-3">Folders</h2>
               <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                {filteredFolders.map(folder => (
+                {folders.map((folder: any) => (
                   <button
                     key={folder.id}
                     onClick={() => navigateToFolder(folder)}
@@ -208,9 +249,6 @@ export default function DriveExplorerPage() {
                   >
                     <Folder size={32} className="text-primary mb-2" />
                     <div className="text-sm font-medium text-foreground truncate">{folder.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {folder.children?.length || 0} folders, {folder.files?.length || 0} files
-                    </div>
                   </button>
                 ))}
               </div>
@@ -218,12 +256,12 @@ export default function DriveExplorerPage() {
           )}
 
           {/* Files */}
-          {filteredFiles.length > 0 && (
+          {files.length > 0 && (
             <div>
               <h2 className="text-sm font-semibold text-muted-foreground mb-3">Files</h2>
               {state.viewMode === 'grid' ? (
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-                  {filteredFiles.map(file => (
+                  {files.map((file: any) => (
                     <button
                       key={file.id}
                       onClick={() => selectFile(file)}
@@ -235,7 +273,7 @@ export default function DriveExplorerPage() {
                     >
                       {file.thumbnailLink ? (
                         <img
-                          src={file.thumbnailLink}
+                          src={`/api/drive/files/${file.id}/thumbnail`}
                           alt={file.name}
                           className="w-full aspect-square object-cover rounded mb-2"
                         />
@@ -253,7 +291,7 @@ export default function DriveExplorerPage() {
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {filteredFiles.map(file => (
+                  {files.map((file: any) => (
                     <button
                       key={file.id}
                       onClick={() => selectFile(file)}
@@ -265,7 +303,7 @@ export default function DriveExplorerPage() {
                     >
                       {file.thumbnailLink ? (
                         <img
-                          src={file.thumbnailLink}
+                          src={`/api/drive/files/${file.id}/thumbnail`}
                           alt={file.name}
                           className="w-16 h-16 object-cover rounded"
                         />
@@ -295,10 +333,21 @@ export default function DriveExplorerPage() {
                   ))}
                 </div>
               )}
+
+              {/* Load more button */}
+              {state.nextPageToken && (
+                <button
+                  onClick={loadMore}
+                  disabled={state.loadingMore}
+                  className="mt-4 w-full py-2 bg-muted rounded-lg hover:bg-muted/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {state.loadingMore ? <Loader2 size={16} className="animate-spin" /> : 'Load more'}
+                </button>
+              )}
             </div>
           )}
 
-          {filteredFolders.length === 0 && filteredFiles.length === 0 && (
+          {folders.length === 0 && files.length === 0 && (
             <div className="text-center py-12 text-muted-foreground">
               No files or folders found
             </div>

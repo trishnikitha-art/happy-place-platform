@@ -1,8 +1,8 @@
 /**
- * Drive Folder Tree API Route
+ * Drive Children API Route
  *
- * Returns the folder tree structure with files and subfolders.
- * Used by Drive Explorer for hierarchical navigation.
+ * Returns immediate children (folders and files) of a Drive folder.
+ * Lazy loading with pagination support.
  */
 
 import { NextResponse } from 'next/server';
@@ -31,16 +31,21 @@ export async function GET(
 
   try {
     const { folderId } = await params;
+    const { searchParams } = new URL(request.url);
+    const pageToken = searchParams.get('pageToken') || undefined;
+    const driveId = searchParams.get('driveId') || undefined;
 
-    // Get folder tree with limited depth (3 levels)
-    const folderTree = await driveDiscovery.getFolderTree(folderId, 3);
+    const result = await driveDiscovery.listChildren(
+      { parentId: folderId, driveId },
+      pageToken
+    );
 
-    return NextResponse.json(folderTree);
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('Drive folder tree error:', error);
+    console.error('Drive children error:', error);
     return NextResponse.json(
       {
-        error: 'Failed to load folder tree',
+        error: 'Failed to load folder children',
         message: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }

@@ -29,12 +29,13 @@ export interface MediaVariants {
 export interface Media {
   id: string;
   source?: 'google-drive' | 'local'; // Source of the asset
-  driveId?: string; // Google Drive ID
-  driveMimeType?: string; // Drive MIME type
-  driveName?: string; // Drive file name
-  driveThumbnailUrl?: string; // Drive thumbnail URL
-  driveWebViewUrl?: string; // Drive web view URL
-  driveModifiedTime?: string; // Drive modified time
+  drive?: {
+    fileId: string;
+    name: string;
+    mimeType: string;
+    webViewUrl?: string;
+    modifiedTime?: string;
+  };
   filename: string;
   type: MediaType;
   orientation: MediaOrientation;
