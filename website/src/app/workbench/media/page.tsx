@@ -191,7 +191,6 @@ export default function MediaWorkbench() {
             });
             // STAGE the assignment instead of immediately writing
             setState(prev => ({ ...prev, pendingAssignment: { slot, asset } }));
-          }
           } else {
             console.log('[DND 7] SLOT_ASSIGNMENT_ATTEMPT - ASSET NOT FOUND', {
               slotId,
