@@ -184,6 +184,19 @@ export default function MediaWorkbench() {
           });
           const asset = assetsRef.current.find(a => a.id === assetId);
           if (asset) {
+            // Gallery duplicate prevention: check if mediaId is already in another gallery slot
+            if (slotId.startsWith('our-work-gallery-') || slotId.startsWith('project-gallery-')) {
+              const existingGallerySlot = state.registeredSlots.find(s => 
+                s.section === 'Gallery' && 
+                s.currentMediaId === assetId && 
+                s.id !== slotId
+              );
+              if (existingGallerySlot) {
+                alert(`This media is already assigned to ${existingGallerySlot.slotName}. Each gallery image can only be used once.`);
+                return;
+              }
+            }
+
             console.log('[DND 7] STAGE_ASSIGNMENT', {
               slotId,
               assetId,
@@ -365,7 +378,7 @@ export default function MediaWorkbench() {
       let endpoint: string;
       let requestBody: any;
 
-      if (slotId === 'homepage-hero-slot') {
+      if (slotId === 'homepage-hero-slot' || slotId === 'hero-background') {
         endpoint = '/api/admin/brand/hero';
         requestBody = { mediaId: asset.id };
         response = await fetch(endpoint, {
@@ -376,6 +389,16 @@ export default function MediaWorkbench() {
       } else if (slotId === 'homepage-owner-portrait-slot' || slotId === 'about-owner-portrait-slot') {
         endpoint = '/api/admin/brand/portrait';
         requestBody = { mediaId: asset.id };
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
+      } else if (slotId.startsWith('homepage-featured-project-')) {
+        // Extract project ID from slot ID (e.g., homepage-featured-project-exterior-painting-001 -> exterior-painting-001)
+        const projectId = slotId.replace('homepage-featured-project-', '');
+        endpoint = '/api/admin/projects/card';
+        requestBody = { projectId, mediaId: asset.id };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -484,14 +507,6 @@ export default function MediaWorkbench() {
         const projectId = slotId.replace('slider-right-', '');
         endpoint = '/api/admin/projects/before-after';
         requestBody = { projectId, side: 'after', mediaId: asset.id };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId === 'hero-background') {
-        endpoint = '/api/admin/brand/hero';
-        requestBody = { mediaId: asset.id };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -698,15 +713,6 @@ export default function MediaWorkbench() {
                 <span className="text-muted-foreground">{assignment.slot.slotName}</span>
                 <span className="text-primary">→</span>
                 <span className="text-foreground">{assignment.asset.filename}</span>
-                {assignment.slot.section === 'Gallery' && (
-                  <button
-                    onClick={() => deleteGalleryAssignment(assignment.slot.id)}
-                    className="text-red-500 hover:text-red-600 transition-colors"
-                    title="Delete from gallery"
-                  >
-                    🗑
-                  </button>
-                )}
                 <button
                   onClick={() => removePendingAssignment(assignment.slot.id)}
                   className="text-muted-foreground hover:text-foreground transition-colors"
