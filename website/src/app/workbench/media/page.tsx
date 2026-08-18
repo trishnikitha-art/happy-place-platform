@@ -267,7 +267,7 @@ export default function MediaWorkbench() {
       let endpoint: string;
       let requestBody: any;
 
-      if (slotId === 'homepage-hero-slot' || slotId === 'about-owner-portrait-slot') {
+      if (slotId === 'homepage-hero-slot') {
         endpoint = '/api/admin/brand/hero';
         requestBody = { mediaId: asset.id };
         response = await fetch(endpoint, {
@@ -275,7 +275,7 @@ export default function MediaWorkbench() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
-      } else if (slotId === 'homepage-owner-portrait-slot') {
+      } else if (slotId === 'homepage-owner-portrait-slot' || slotId === 'about-owner-portrait-slot') {
         endpoint = '/api/admin/brand/portrait';
         requestBody = { mediaId: asset.id };
         response = await fetch(endpoint, {
@@ -288,30 +288,6 @@ export default function MediaWorkbench() {
         const serviceSlug = slotId.replace('homepage-service-card-slot-', '');
         endpoint = '/api/admin/services/card';
         requestBody = { serviceSlug, mediaId: asset.id };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId === 'homepage-owner-portrait-slot' || slotId === 'about-owner-portrait-slot') {
-        endpoint = '/api/admin/brand/portrait';
-        requestBody = { mediaId: asset.id };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId === 'homepage-owner-portrait-slot' || slotId === 'about-owner-portrait-slot') {
-        endpoint = '/api/admin/brand/portrait';
-        requestBody = { mediaId: asset.id };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId === 'homepage-owner-portrait-slot' || slotId === 'about-owner-portrait-slot') {
-        endpoint = '/api/admin/brand/portrait';
-        requestBody = { mediaId: asset.id };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
