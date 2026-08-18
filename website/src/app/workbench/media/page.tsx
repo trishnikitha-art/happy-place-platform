@@ -378,11 +378,25 @@ export default function MediaWorkbench() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
-      } else if (slotId.startsWith('homepage-featured-project-')) {
-        // Extract project ID from slot ID (e.g., homepage-featured-project-fences-001 -> fences-001)
-        const projectId = slotId.replace('homepage-featured-project-', '');
+      } else if (slotId.startsWith('project-hero-')) {
+        // Extract project ID from slot ID (e.g., project-hero-fences-001 -> fences-001)
+        const projectId = slotId.replace('project-hero-', '');
         endpoint = '/api/admin/projects/card';
         requestBody = { projectId, mediaId: asset.id };
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
+      } else if (slotId.startsWith('project-gallery-')) {
+        // Extract project ID and gallery index from slot ID (e.g., project-gallery-fences-001-0 -> fences-001, 0)
+        const idPart = slotId.replace('project-gallery-', '');
+        const lastHyphenIndex = idPart.lastIndexOf('-');
+        const projectId = idPart.substring(0, lastHyphenIndex);
+        const galleryIndex = parseInt(idPart.substring(lastHyphenIndex + 1), 10);
+        console.log('[DND 8] PROJECT_GALLERY_SLOT_PARSED', { slotId, projectId, galleryIndex });
+        endpoint = '/api/admin/projects/gallery';
+        requestBody = { projectId, galleryIndex, mediaId: asset.id };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

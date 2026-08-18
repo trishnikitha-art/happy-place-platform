@@ -10,6 +10,7 @@ import { CraftCard } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { buttonVariants } from "@/components/ui/button";
 import { ProjectLightbox } from "@/components/project-lightbox";
+import { VisualSlot } from "@/components/visual-slot";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 
@@ -70,15 +71,25 @@ export function ProjectSpotlight({
       <Section className="bg-surface-muted">
         <Container className="grid items-center gap-10 lg:grid-cols-2">
           <CraftCard className="group relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
-            <Image
-              src={heroSrc}
-              alt={heroAlt}
-              fill
-              placeholder="blur"
-              blurDataURL={heroMedia?.variants?.blur}
-              className="h-full w-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
-              sizes="(max-width: 1024px) 100vw, 50vw"
-            />
+            <VisualSlot
+              id={`project-hero-${project.id}`}
+              route={`/projects/${project.slug || project.id}`}
+              page="ProjectDetail"
+              section="Hero"
+              slotName={`${project.title} Hero`}
+              currentMediaId={heroMediaId || null}
+              component="ProjectSpotlight"
+            >
+              <Image
+                src={heroSrc}
+                alt={heroAlt}
+                fill
+                placeholder="blur"
+                blurDataURL={heroMedia?.variants?.blur}
+                className="h-full w-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
+                sizes="(max-width: 1024px) 100vw, 50vw"
+              />
+            </VisualSlot>
             <div className="absolute inset-0 pointer-events-none rounded-xl bg-gradient-to-tr from-black/3 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
           </CraftCard>
           <div>
@@ -155,15 +166,25 @@ export function ProjectSpotlight({
     <article>
       {/* Hero */}
       <div className="relative bg-secondary text-secondary-foreground">
-        <Image
-          src={heroSrc}
-          alt={heroAlt}
-          fill
-          priority
-          placeholder="blur"
-          blurDataURL={heroMedia?.variants?.blur}
-          className="absolute inset-0 h-full w-full object-cover opacity-30"
-        />
+        <VisualSlot
+          id={`project-hero-${project.id}`}
+          route={`/projects/${project.slug || project.id}`}
+          page="ProjectDetail"
+          section="Hero"
+          slotName={`${project.title} Hero`}
+          currentMediaId={heroMediaId || null}
+          component="ProjectSpotlight"
+        >
+          <Image
+            src={heroSrc}
+            alt={heroAlt}
+            fill
+            priority
+            placeholder="blur"
+            blurDataURL={heroMedia?.variants?.blur}
+            className="absolute inset-0 h-full w-full object-cover opacity-30"
+          />
+        </VisualSlot>
         <Container className="relative py-20">
           <Badge>{project.location.county ? `${project.location.county} county` : "Project"}</Badge>
           <h1 className="mt-3 max-w-3xl text-4xl font-bold sm:text-5xl">{project.title}</h1>
@@ -216,16 +237,26 @@ export function ProjectSpotlight({
                   }}
                 >
                   <div className="relative aspect-[4/3]">
-                    <Image
-                      src={media!.variants!.web || media!.variants!.original!}
-                      alt={media!.alt}
-                      fill
-                      loading="lazy"
-                      placeholder="blur"
-                      blurDataURL={media!.variants?.blur}
-                      className="object-cover transition-all duration-200 ease-out group-hover:scale-[1.05] group-hover:brightness-110"
-                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    />
+                    <VisualSlot
+                      id={`project-gallery-${project.id}-${i}`}
+                      route={`/projects/${project.slug || project.id}`}
+                      page="ProjectDetail"
+                      section="Gallery"
+                      slotName={`${project.title} Gallery Photo ${i + 1}`}
+                      currentMediaId={media!.id || null}
+                      component="ProjectSpotlight"
+                    >
+                      <Image
+                        src={media!.variants!.web || media!.variants!.original!
+                        alt={media!.alt}
+                        fill
+                        loading="lazy"
+                        placeholder="blur"
+                        blurDataURL={media!.variants?.blur}
+                        className="object-cover transition-all duration-200 ease-out group-hover:scale-[1.05] group-hover:brightness-110"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      />
+                    </VisualSlot>
                     <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-200" />
                   </div>
                 </figure>
