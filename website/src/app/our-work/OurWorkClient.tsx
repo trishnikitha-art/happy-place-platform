@@ -11,6 +11,7 @@ import { getMediaById } from "@/lib/media";
 import { getServiceBySlug } from "@/lib/registries";
 import { ProjectLightbox } from "@/components/project-lightbox";
 import { BlueprintGrid } from "@/components/blueprint-grid";
+import { VisualSlot } from "@/components/visual-slot";
 import { useState } from "react";
 import type { Project } from "@/types/projects";
 
@@ -98,13 +99,23 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                       <div className="relative z-10">
                         <CraftCard className="overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
                           <div className="relative aspect-[16/9] overflow-hidden">
-                            <Image
-                              src={heroSrc}
-                              alt={heroMedia?.alt || project.title}
-                              fill
-                              className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                              sizes="(max-width: 768px) 100vw, 50vw"
-                            />
+                            <VisualSlot
+                              id={`our-work-project-card-${project.id}`}
+                              route="/our-work"
+                              page="OurWork"
+                              section="Recent Projects"
+                              slotName={`${project.title} Project Card`}
+                              currentMediaId={heroMediaId || null}
+                              component="ProjectCard"
+                            >
+                              <Image
+                                src={heroSrc}
+                                alt={heroMedia?.alt || project.title}
+                                fill
+                                className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                                sizes="(max-width: 768px) 100vw, 50vw"
+                              />
+                            </VisualSlot>
                           </div>
                           <div className="p-6 transition-transform duration-300 group-hover:translate-y-[-4px]">
                             <div className="flex items-center gap-2 mb-2">

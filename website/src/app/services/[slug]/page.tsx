@@ -124,13 +124,23 @@ export default async function ServicePage({ params }: ServicePageProps) {
                     <Link key={project.id} href={`/projects/${project.slug || project.id}`} className="block break-inside-avoid mb-6">
                       <div className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-surface">
                         {projectHeroSrc && (
-                          <Image
-                            src={projectHeroSrc}
-                            alt={`${project.title} - ${project.location.city}, ${project.location.county}`}
-                            fill
-                            className="object-cover transition-transform duration-300 group-hover:scale-105"
-                            loading="lazy"
-                          />
+                          <VisualSlot
+                            id={`services-${slug}-project-card-${project.id}`}
+                            route={`/services/${slug}`}
+                            page="ServiceDetail"
+                            section="Project Gallery"
+                            slotName={`${project.title} Project Card`}
+                            currentMediaId={project.media.hero || null}
+                            component="ProjectCard"
+                          >
+                            <Image
+                              src={projectHeroSrc}
+                              alt={`${project.title} - ${project.location.city}, ${project.location.county}`}
+                              fill
+                              className="object-cover transition-transform duration-300 group-hover:scale-105"
+                              loading="lazy"
+                            />
+                          </VisualSlot>
                         )}
                         <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
                         <div className="absolute bottom-4 left-4 right-4">
