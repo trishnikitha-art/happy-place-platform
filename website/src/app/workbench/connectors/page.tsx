@@ -14,49 +14,71 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plug, Activity, Database, CheckCircle, XCircle, Clock, RefreshCw } from 'lucide-react';
-import { connectorApi, type ConnectorData } from '@/lib/api/client';
+import { Plug, Activity, Database, CheckCircle, XCircle, Clock, RefreshCw, Cloud } from 'lucide-react';
+
+interface ConnectorData {
+  id: string;
+  name: string;
+  type: string;
+  status: 'active' | 'inactive' | 'error';
+  health: 'healthy' | 'degraded' | 'unhealthy';
+  lastSync: string;
+  capabilities: string[];
+  resources: number;
+}
 
 export default function ConnectorsPage() {
   const [connectors, setConnectors] = useState<ConnectorData[]>([]);
   const [selectedConnector, setSelectedConnector] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [driveAuthStatus, setDriveAuthStatus] = useState<boolean>(false);
 
   useEffect(() => {
     loadConnectors();
+    checkDriveAuth();
   }, []);
 
   const loadConnectors = async () => {
     try {
       setLoading(true);
       setError(null);
-      const data = await connectorApi.getAll();
-      setConnectors(data);
+      
+      // Use Drive discovery API instead of connector API
+      const response = await fetch('/api/drive/discovery');
+      if (!response.ok) {
+        throw new Error('Drive discovery failed');
+      }
+      
+      const structure = await response.json();
+      
+      // Map Drive structure to ConnectorData format
+      const driveConnector: ConnectorData = {
+        id: 'google-drive',
+        name: 'Google Drive',
+        type: 'google-drive',
+        status: structure.myDrive ? 'active' : 'inactive',
+        health: structure.myDrive ? 'healthy' : 'unhealthy',
+        lastSync: new Date().toISOString(),
+        capabilities: ['readable', 'discoverable', 'downloadable'],
+        resources: (structure.sharedDrives?.length || 0) + (structure.hppFolders?.length || 0) + (structure.recentFolders?.length || 0),
+      };
+      
+      setConnectors([driveConnector]);
     } catch (err) {
       console.error('Failed to load connectors:', err);
       setError('Failed to load connectors');
-      // Fallback to mock data for development
+      // Fallback to placeholder
       setConnectors([
         {
-          id: 'github',
-          name: 'GitHub',
-          type: 'github',
-          status: 'active',
-          health: 'healthy',
+          id: 'google-drive',
+          name: 'Google Drive',
+          type: 'google-drive',
+          status: 'inactive',
+          health: 'unhealthy',
           lastSync: new Date().toISOString(),
-          capabilities: ['readable', 'queryable', 'discoverable', 'webhookable'],
-          resources: 12,
-        },
-        {
-          id: 'google-sheets',
-          name: 'Google Sheets',
-          type: 'google-sheets',
-          status: 'active',
-          health: 'healthy',
-          lastSync: new Date().toISOString(),
-          capabilities: ['readable', 'queryable', 'discoverable'],
-          resources: 8,
+          capabilities: ['readable', 'discoverable', 'downloadable'],
+          resources: 0,
         },
       ]);
     } finally {
@@ -64,13 +86,38 @@ export default function ConnectorsPage() {
     }
   };
 
+  const checkDriveAuth = async () => {
+    try {
+      const response = await fetch('/api/drive/auth/status');
+      if (response.ok) {
+        const data = await response.json();
+        setDriveAuthStatus(data.authenticated || false);
+      }
+    } catch (err) {
+      console.error('Failed to check Drive auth status:', err);
+    }
+  };
+
   const handleSync = async (id: string) => {
     try {
-      await connectorApi.sync(id);
+      // For Google Drive, trigger discovery refresh
       await loadConnectors();
     } catch (err) {
       console.error('Failed to sync connector:', err);
     }
+  };
+
+  const handleConnectDrive = async () => {
+    try {
+      window.location.href = '/api/drive/oauth/authorize';
+    } catch (err) {
+      console.error('Failed to initiate OAuth:', err);
+    }
+  };
+
+  const handleOpenDrive = () => {
+    // Navigate to Drive Explorer
+    window.location.href = '/workbench/explorer/drive';
   };
 
   const getStatusColor = (status: string) => {
@@ -196,13 +243,34 @@ export default function ConnectorsPage() {
 
               {/* Actions */}
               <div className="p-4 border-t border-border flex gap-2">
-                <button
-                  onClick={() => handleSync(connector.id)}
-                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                >
-                  <RefreshCw size={16} />
-                  Sync
-                </button>
+                {connector.id === 'google-drive' && !driveAuthStatus ? (
+                  <button
+                    onClick={handleConnectDrive}
+                    className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                  >
+                    <Cloud size={16} />
+                    Connect Drive
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      onClick={() => handleSync(connector.id)}
+                      className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                      <RefreshCw size={16} />
+                      Sync
+                    </button>
+                    {connector.id === 'google-drive' && driveAuthStatus && (
+                      <button
+                        onClick={handleOpenDrive}
+                        className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/90 transition-colors"
+                      >
+                        <Database size={16} />
+                        Open Drive
+                      </button>
+                    )}
+                  </>
+                )}
                 <button
                   onClick={() => setSelectedConnector(connector.id)}
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-muted text-foreground rounded-lg hover:bg-muted/90 transition-colors"

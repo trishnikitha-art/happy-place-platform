@@ -28,17 +28,23 @@ export interface MediaVariants {
 
 export interface Media {
   id: string;
+  source?: 'google-drive' | 'local'; // Source of the asset
   driveId?: string; // Google Drive ID
+  driveMimeType?: string; // Drive MIME type
+  driveName?: string; // Drive file name
+  driveThumbnailUrl?: string; // Drive thumbnail URL
+  driveWebViewUrl?: string; // Drive web view URL
+  driveModifiedTime?: string; // Drive modified time
   filename: string;
   type: MediaType;
   orientation: MediaOrientation;
-  
+
   dimensions: MediaDimensions;
   variants: MediaVariants;
-  
+
   alt: string;
   description?: string;
-  
+
   // Classification
   service?: string;
   city?: string;
@@ -46,23 +52,23 @@ export interface Media {
   state?: string;
   projectId?: string;
   tags: string[];
-  
+
   // Roles
   roles: MediaRole[];
-  
+
   // Ordering
   order?: number; // Display order within project
-  
+
   // Editorial
   featured?: boolean;
   heroEligible?: boolean;
   homepageEligible?: boolean;
-  
+
   // Metadata
   createdAt?: string; // ISO date string
   updatedAt?: string; // ISO date string
   uploadedAt?: string; // ISO date string
-  
+
   // Technical
   fileSize?: number;
   format?: string;

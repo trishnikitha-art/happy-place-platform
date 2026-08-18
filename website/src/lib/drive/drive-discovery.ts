@@ -13,6 +13,8 @@ export interface DriveFolder {
   type: 'my_drive' | 'shared_drive' | 'folder';
   parent?: string;
   modifiedTime?: string;
+  children?: DriveFolder[];
+  files?: DriveFile[];
 }
 
 export interface DriveFile {
@@ -20,9 +22,11 @@ export interface DriveFile {
   name: string;
   mimeType: string;
   size?: number;
+  createdTime?: string;
   modifiedTime?: string;
   thumbnailLink?: string;
   webViewLink?: string;
+  description?: string;
   parent?: string;
 }
 
@@ -263,7 +267,7 @@ export class DriveDiscovery {
     try {
       const response = await drive.files.list({
         q: `'${folderId}' in parents and trashed = false`,
-        fields: 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,parents)',
+        fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,parents)',
         pageSize: 1000,
         orderBy: 'name',
       });
@@ -274,9 +278,11 @@ export class DriveDiscovery {
           name: file.name,
           mimeType: file.mimeType,
           size: file.size ? parseInt(file.size, 10) : undefined,
+          createdTime: file.createdTime,
           modifiedTime: file.modifiedTime,
           thumbnailLink: file.thumbnailLink,
           webViewLink: file.webViewLink,
+          description: file.description,
           parent: file.parents?.[0],
         }));
       }
@@ -285,6 +291,71 @@ export class DriveDiscovery {
     }
 
     return [];
+  }
+
+  /**
+   * Get folder tree with files and subfolders
+   * Used by Drive Explorer for hierarchical navigation
+   */
+  async getFolderTree(folderId: string, depth: number = 3): Promise<DriveFolder> {
+    if (!(await driveOAuthManager.isAuthenticated())) {
+      throw new Error('Not authenticated with Drive');
+    }
+
+    const drive = await driveOAuthManager.getDriveClient();
+
+    // Get folder metadata
+    const folderMeta = await drive.files.get({
+      fileId: folderId,
+      fields: 'id,name,mimeType,modifiedTime',
+    });
+
+    const folder: DriveFolder = {
+      id: folderMeta.data.id,
+      name: folderMeta.data.name,
+      type: 'folder',
+      modifiedTime: folderMeta.data.modifiedTime,
+      children: [],
+      files: [],
+    };
+
+    if (depth <= 0) {
+      return folder;
+    }
+
+    // List children (folders and files)
+    const response = await drive.files.list({
+      q: `'${folderId}' in parents and trashed = false`,
+      fields: 'files(id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,parents)',
+      pageSize: 1000,
+      orderBy: 'folder,name',
+    });
+
+    if (response.data.files) {
+      for (const item of response.data.files) {
+        if (item.mimeType === 'application/vnd.google-apps.folder') {
+          // Recursively get subfolder
+          const subfolder = await this.getFolderTree(item.id, depth - 1);
+          folder.children!.push(subfolder);
+        } else {
+          // Add file
+          folder.files!.push({
+            id: item.id,
+            name: item.name,
+            mimeType: item.mimeType,
+            size: item.size ? parseInt(item.size, 10) : undefined,
+            createdTime: item.createdTime,
+            modifiedTime: item.modifiedTime,
+            thumbnailLink: item.thumbnailLink,
+            webViewLink: item.webViewLink,
+            description: item.description,
+            parent: item.parents?.[0],
+          });
+        }
+      }
+    }
+
+    return folder;
   }
 
   /**
@@ -300,7 +371,7 @@ export class DriveDiscovery {
     try {
       const response = await drive.files.get({
         fileId,
-        fields: 'id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,parents',
+        fields: 'id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,parents',
       });
 
       if (response.data) {
@@ -309,9 +380,11 @@ export class DriveDiscovery {
           name: response.data.name,
           mimeType: response.data.mimeType,
           size: response.data.size ? parseInt(response.data.size, 10) : undefined,
+          createdTime: response.data.createdTime,
           modifiedTime: response.data.modifiedTime,
           thumbnailLink: response.data.thumbnailLink,
           webViewLink: response.data.webViewLink,
+          description: response.data.description,
           parent: response.data.parents?.[0],
         };
       }
