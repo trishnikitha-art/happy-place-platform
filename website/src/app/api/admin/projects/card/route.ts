@@ -47,10 +47,10 @@ export async function POST(request: Request) {
     const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
     const projectsData = JSON.parse(readFileSync(projectsPath, "utf-8"));
 
-    console.log('[DND SERVER 3] AUTHORITY_BEFORE', { projectId, currentMediaId: projectsData.projects.find(p => p.id === projectId)?.media?.hero });
+    console.log('[DND SERVER 3] AUTHORITY_BEFORE', { projectId, currentMediaId: projectsData.projects.find((p: any) => p.id === projectId)?.media?.hero });
 
     // Find project and update hero mediaId
-    const projectIndex = projectsData.projects.findIndex(p => p.id === projectId);
+    const projectIndex = projectsData.projects.findIndex((p: any) => p.id === projectId);
     if (projectIndex === -1) {
       return NextResponse.json(
         { error: "Project not found" },
@@ -71,7 +71,7 @@ export async function POST(request: Request) {
 
     // Read-back verification
     const readBackData = JSON.parse(readFileSync(projectsPath, "utf-8"));
-    const readBackMediaId = readBackData.projects.find(p => p.id === projectId)?.media?.hero;
+    const readBackMediaId = readBackData.projects.find((p: any) => p.id === projectId)?.media?.hero;
     const matchesExpected = readBackMediaId === newMediaId;
 
     console.log('[DND SERVER 6] READ_BACK_VERIFICATION', { projectId, projectMediaId: readBackMediaId, matchesExpected });
