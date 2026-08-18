@@ -42,7 +42,8 @@ export class DriveOAuthManager {
 
     const clientId = process.env.GOOGLE_CLIENT_ID;
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
-    const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/api/drive/oauth/callback`;
+    const redirectUri = process.env.GOOGLE_REDIRECT_URI || 
+      `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/drive/oauth/callback`;
 
     if (!clientId || !clientSecret) {
       throw new Error('Google OAuth credentials not configured');

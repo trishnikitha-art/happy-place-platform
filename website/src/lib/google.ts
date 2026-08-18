@@ -22,10 +22,12 @@ function required(name: string): string {
 
 /** Build an authenticated OAuth2 client from server env (secret never leaves server). */
 export function getGoogleAuth(): OAuth2Client {
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI ?? 
+    `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/auth/google/callback`;
   const oauth2 = new google.auth.OAuth2(
     required("GOOGLE_CLIENT_ID"),
     required("GOOGLE_CLIENT_SECRET"),
-    process.env.GOOGLE_REDIRECT_URI ?? "http://localhost:3000/api/auth/google/callback",
+    redirectUri,
   );
   const refresh = process.env.GOOGLE_REFRESH_TOKEN;
   if (refresh) oauth2.setCredentials({ refresh_token: refresh });
@@ -42,10 +44,12 @@ export const GOOGLE_SCOPES = [
 
 /** The OAuth consent URL the owner visits once to grant + capture a refresh token. */
 export function getAuthUrl(): string {
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI ?? 
+    `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/auth/google/callback`;
   const oauth2 = new google.auth.OAuth2(
     required("GOOGLE_CLIENT_ID"),
     required("GOOGLE_CLIENT_SECRET"),
-    process.env.GOOGLE_REDIRECT_URI ?? "http://localhost:3000/api/auth/google/callback",
+    redirectUri,
   );
   return oauth2.generateAuthUrl({
     access_type: "offline",
