@@ -18,9 +18,6 @@ import type { Project } from "@/types/projects";
 // Only enable workbench features in development or when explicitly enabled
 const ENABLE_WORKBENCH = process.env.NODE_ENV === 'development' || typeof window !== 'undefined' && window.location.search.includes('workbench=true');
 
-// Only enable workbench features in development or when explicitly enabled
-const ENABLE_WORKBENCH = process.env.NODE_ENV === 'development' || typeof window !== 'undefined' && window.location.search.includes('workbench=true');
-
 interface OurWorkClientProps {
   company: {
     proof: {
