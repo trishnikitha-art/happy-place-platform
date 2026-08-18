@@ -36,6 +36,7 @@ interface MediaWorkbenchState {
   searchQuery: string;
   filter: 'all' | 'used' | 'unused' | 'drive';
   registeredSlots: RegisteredSlot[];
+  pendingAssignment: { slot: RegisteredSlot; asset: VisualAsset } | null;
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -57,6 +58,7 @@ export default function MediaWorkbench() {
     searchQuery: '',
     filter: 'all',
     registeredSlots: [],
+    pendingAssignment: null,
   });
 
   const mediaPanelRef = useRef<HTMLDivElement>(null);
@@ -182,19 +184,14 @@ export default function MediaWorkbench() {
           });
           const asset = assetsRef.current.find(a => a.id === assetId);
           if (asset) {
-            console.log('[DND 7] SLOT_ASSIGNMENT_ATTEMPT', {
+            console.log('[DND 7] STAGE_ASSIGNMENT', {
               slotId,
               assetId,
+              currentMediaId: slot.currentMediaId,
             });
-            try {
-              await assignAssetToSlot(asset, slot);
-            } catch (error) {
-              console.log('[DND 8] SLOT_ASSIGNMENT_FAILURE', {
-                slotId,
-                assetId,
-                error: error instanceof Error ? error.message : String(error),
-              });
-            }
+            // STAGE the assignment instead of immediately writing
+            setState(prev => ({ ...prev, pendingAssignment: { slot, asset } }));
+          }
           } else {
             console.log('[DND 7] SLOT_ASSIGNMENT_ATTEMPT - ASSET NOT FOUND', {
               slotId,
@@ -250,6 +247,27 @@ export default function MediaWorkbench() {
   const getSlotMedia = (slot: RegisteredSlot) => {
     if (!slot.currentMediaId) return null;
     return getMediaById(slot.currentMediaId);
+  };
+
+  const confirmAssignment = async () => {
+    if (!state.pendingAssignment) return;
+
+    const { slot, asset } = state.pendingAssignment;
+    console.log('[DND CONFIRM] CONFIRMING_ASSIGNMENT', {
+      slotId: slot.id,
+      assetId: asset.id,
+      currentMediaId: slot.currentMediaId,
+    });
+
+    await assignAssetToSlot(asset, slot);
+
+    // Clear pending assignment after successful write
+    setState(prev => ({ ...prev, pendingAssignment: null }));
+  };
+
+  const cancelAssignment = () => {
+    console.log('[DND CONFIRM] CANCEL_ASSIGNMENT');
+    setState(prev => ({ ...prev, pendingAssignment: null }));
   };
 
   const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot) => {
@@ -475,13 +493,34 @@ export default function MediaWorkbench() {
               Map website visuals to media
             </span>
           </div>
-          <button
-            onClick={loadCanonicalData}
-            className="px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors flex items-center gap-2 text-xs"
-          >
-            <RefreshCw size={12} />
-            Reload
-          </button>
+          <div className="flex items-center gap-2">
+            {state.pendingAssignment && (
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground">
+                  Replace {state.pendingAssignment.slot.slotName} with {state.pendingAssignment.asset.filename}
+                </span>
+                <button
+                  onClick={cancelAssignment}
+                  className="px-2 py-1 bg-surface text-foreground rounded hover:bg-surface/80 transition-colors text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmAssignment}
+                  className="px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors flex items-center gap-2 text-xs"
+                >
+                  CONFIRM
+                </button>
+              </div>
+            )}
+            <button
+              onClick={loadCanonicalData}
+              className="px-3 py-1 bg-surface text-foreground rounded hover:bg-surface/80 transition-colors flex items-center gap-2 text-xs"
+            >
+              <RefreshCw size={12} />
+              Reload
+            </button>
+          </div>
         </div>
       </div>
 
