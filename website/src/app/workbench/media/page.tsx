@@ -36,7 +36,7 @@ interface MediaWorkbenchState {
   searchQuery: string;
   filter: 'all' | 'used' | 'unused' | 'drive';
   registeredSlots: RegisteredSlot[];
-  pendingAssignments: Array<{ slot: RegisteredSlot; asset: VisualAsset }>;
+  pendingAssignments: Map<string, { slot: RegisteredSlot; asset: VisualAsset }>;
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -58,7 +58,7 @@ export default function MediaWorkbench() {
     searchQuery: '',
     filter: 'all',
     registeredSlots: [],
-    pendingAssignments: [],
+    pendingAssignments: new Map(),
   });
 
   const mediaPanelRef = useRef<HTMLDivElement>(null);
@@ -189,11 +189,12 @@ export default function MediaWorkbench() {
               assetId,
               currentMediaId: slot.currentMediaId,
             });
-            // STAGE the assignment (add to pending assignments list)
-            setState(prev => ({ 
-              ...prev, 
-              pendingAssignments: [...prev.pendingAssignments, { slot, asset }] 
-            }));
+            // STAGE the assignment (upsert by slot ID - latest wins for same slot)
+            setState(prev => {
+              const newPendingAssignments = new Map(prev.pendingAssignments);
+              newPendingAssignments.set(slot.id, { slot, asset });
+              return { ...prev, pendingAssignments: newPendingAssignments };
+            });
           } else {
             console.log('[DND 7] SLOT_ASSIGNMENT_ATTEMPT - ASSET NOT FOUND', {
               slotId,
@@ -252,11 +253,11 @@ export default function MediaWorkbench() {
   };
 
   const confirmAssignment = async () => {
-    if (state.pendingAssignments.length === 0) return;
+    if (state.pendingAssignments.size === 0) return;
 
     console.log('[DND CONFIRM] CONFIRMING_ASSIGNMENTS', {
-      count: state.pendingAssignments.length,
-      assignments: state.pendingAssignments.map(a => ({
+      count: state.pendingAssignments.size,
+      assignments: Array.from(state.pendingAssignments.values()).map(a => ({
         slotId: a.slot.id,
         assetId: a.asset.id,
         currentMediaId: a.slot.currentMediaId,
@@ -264,7 +265,7 @@ export default function MediaWorkbench() {
     });
 
     // Process all pending assignments
-    for (const { slot, asset } of state.pendingAssignments) {
+    for (const { slot, asset } of state.pendingAssignments.values()) {
       try {
         await assignAssetToSlot(asset, slot);
       } catch (error) {
@@ -278,19 +279,20 @@ export default function MediaWorkbench() {
     }
 
     // Clear all pending assignments after processing
-    setState(prev => ({ ...prev, pendingAssignments: [] }));
+    setState(prev => ({ ...prev, pendingAssignments: new Map() }));
   };
 
   const cancelAssignment = () => {
     console.log('[DND CONFIRM] CANCEL_ASSIGNMENTS');
-    setState(prev => ({ ...prev, pendingAssignments: [] }));
+    setState(prev => ({ ...prev, pendingAssignments: new Map() }));
   };
 
-  const removePendingAssignment = (index: number) => {
-    setState(prev => ({
-      ...prev,
-      pendingAssignments: prev.pendingAssignments.filter((_, i) => i !== index),
-    }));
+  const removePendingAssignment = (slotId: string) => {
+    setState(prev => {
+      const newPendingAssignments = new Map(prev.pendingAssignments);
+      newPendingAssignments.delete(slotId);
+      return { ...prev, pendingAssignments: newPendingAssignments };
+    });
   };
 
   const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot) => {
@@ -541,10 +543,10 @@ export default function MediaWorkbench() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {state.pendingAssignments.length > 0 && (
+            {state.pendingAssignments.size > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">
-                  {state.pendingAssignments.length} pending change{state.pendingAssignments.length > 1 ? 's' : ''}
+                  {state.pendingAssignments.size} pending change{state.pendingAssignments.size > 1 ? 's' : ''}
                 </span>
                 <button
                   onClick={cancelAssignment}
@@ -591,11 +593,11 @@ export default function MediaWorkbench() {
       </div>
 
       {/* Pending Assignments Bar */}
-      {state.pendingAssignments.length > 0 && (
+      {state.pendingAssignments.size > 0 && (
         <div className="shrink-0 border-b border-border bg-card px-4 py-2">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-foreground">
-              Pending Changes ({state.pendingAssignments.length})
+              Pending Changes ({state.pendingAssignments.size})
             </span>
             <button
               onClick={cancelAssignment}
@@ -605,16 +607,16 @@ export default function MediaWorkbench() {
             </button>
           </div>
           <div className="flex flex-wrap gap-2">
-            {state.pendingAssignments.map((assignment, index) => (
+            {Array.from(state.pendingAssignments.values()).map((assignment) => (
               <div
-                key={`${assignment.slot.id}-${assignment.asset.id}`}
+                key={assignment.slot.id}
                 className="flex items-center gap-2 px-2 py-1 bg-surface rounded text-xs"
               >
                 <span className="text-muted-foreground">{assignment.slot.slotName}</span>
                 <span className="text-primary">→</span>
                 <span className="text-foreground">{assignment.asset.filename}</span>
                 <button
-                  onClick={() => removePendingAssignment(index)}
+                  onClick={() => removePendingAssignment(assignment.slot.id)}
                   className="text-muted-foreground hover:text-foreground transition-colors"
                 >
                   ×
