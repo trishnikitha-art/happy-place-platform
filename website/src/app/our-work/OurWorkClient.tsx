@@ -160,6 +160,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
               return galleryPhotos.map((photo, photoIndex) => {
                 const src = photo!.variants.web || photo!.variants.original || photo!.variants.thumbnail;
                 if (!src) return null;
+                const mediaId = photo!.id;
                 
                 return (
                   <button
@@ -183,12 +184,22 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                     aria-label={`View ${photo!.alt} in full screen`}
                   >
                     <CraftCard className="overflow-hidden">
-                      <img
-                        src={src}
-                        alt={photo!.alt || `${project.title} photo ${photoIndex + 1}`}
-                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
-                        loading="lazy"
-                      />
+                      <VisualSlot
+                        id={`our-work-gallery-${project.id}-${photoIndex}`}
+                        route="/our-work"
+                        page="OurWork"
+                        section="Gallery"
+                        slotName={`${project.title} Gallery Photo ${photoIndex + 1}`}
+                        currentMediaId={mediaId || null}
+                        component="GalleryPhoto"
+                      >
+                        <img
+                          src={src}
+                          alt={photo!.alt || `${project.title} photo ${photoIndex + 1}`}
+                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                      </VisualSlot>
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
                       <span className="absolute bottom-2 left-2 text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100">
                         {project.title}

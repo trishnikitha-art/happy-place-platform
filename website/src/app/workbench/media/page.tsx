@@ -337,6 +337,19 @@ export default function MediaWorkbench() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
+      } else if (slotId.startsWith('our-work-gallery-')) {
+        // Extract project ID and gallery index from slot ID (e.g., our-work-gallery-exterior-painting-001-0 -> exterior-painting-001, 0)
+        const idPart = slotId.replace('our-work-gallery-', '');
+        const lastHyphenIndex = idPart.lastIndexOf('-');
+        const projectId = idPart.substring(0, lastHyphenIndex);
+        const galleryIndex = parseInt(idPart.substring(lastHyphenIndex + 1));
+        endpoint = '/api/admin/projects/gallery';
+        requestBody = { projectId, galleryIndex, mediaId: asset.id };
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
       } else if (slotId.includes('before') || slotId.includes('after')) {
         alert('Before/after assignment not yet implemented. Needs projects.v1.json write endpoint');
         return;
