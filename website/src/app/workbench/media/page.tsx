@@ -321,10 +321,12 @@ export default function MediaWorkbench() {
 
       // Parse slot ID to get project ID and gallery index
       // Format: our-work-gallery-{projectId}-{index}
-      const parts = slotId.replace('our-work-gallery-', '').split('-');
-      const lastHyphenIndex = parts.length - 1;
-      const projectId = parts.slice(0, lastHyphenIndex).join('-');
-      const galleryIndex = parseInt(parts[lastHyphenIndex], 10);
+      const idPart = slotId.replace('our-work-gallery-', '');
+      const lastHyphenIndex = idPart.lastIndexOf('-');
+      const projectId = idPart.substring(0, lastHyphenIndex);
+      const galleryIndex = parseInt(idPart.substring(lastHyphenIndex + 1), 10);
+
+      console.log('[DELETE GALLERY] PARSED_SLOT', { slotId, projectId, galleryIndex });
 
       const response = await fetch('/api/admin/projects/gallery', {
         method: 'DELETE',
