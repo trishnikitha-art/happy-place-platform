@@ -34,7 +34,7 @@ export function LenisProvider({ children }: { children: ReactNode }) {
     const lenisInstance = new Lenis({
       lerp: 0.25, // Higher lerp = snappier feel (default 0.1)
       wheelMultiplier: 1.0, // Neutral multiplier to prevent touchpad stopping
-      touch: false, // Disable Lenis touch handling to prevent touchpad scroll conflicts
+      touchMultiplier: 1.0, // Neutral multiplier to prevent touchpad stopping
       duration: 0.8, // Reduced from 1.2 for snappier feel and less momentum interference
     });
 
