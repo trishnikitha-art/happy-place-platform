@@ -3,6 +3,7 @@
  *
  * Fetches Drive thumbnails using server-side authentication.
  * Avoids CORS issues and short-lived URL problems.
+ * Supports both My Drive and Shared Drive files.
  *
  * GET /api/drive/files/:fileId/thumbnail
  */
@@ -18,22 +19,36 @@ export async function GET(
 ) {
   try {
     const { fileId } = await params;
+    const { searchParams } = new URL(request.url);
+    const driveId = searchParams.get('driveId') || undefined;
+
+    console.log('[Drive Thumbnail] Request:', { fileId, driveId });
 
     // Get Drive client with authentication
     const drive = await driveOAuthManager.getDriveClient();
 
     // Get file metadata including thumbnailLink
-    const file = await drive.files.get({
+    const getFileParams: any = {
       fileId,
       fields: 'thumbnailLink',
-    });
+    };
+
+    // Add Shared Drive support if driveId is provided
+    if (driveId) {
+      getFileParams.supportsAllDrives = true;
+    }
+
+    const file = await drive.files.get(getFileParams);
 
     if (!file.data.thumbnailLink) {
+      console.log('[Drive Thumbnail] No thumbnail available for file:', fileId);
       return NextResponse.json(
         { error: 'No thumbnail available' },
         { status: 404 }
       );
     }
+
+    console.log('[Drive Thumbnail] Fetching thumbnail from:', file.data.thumbnailLink);
 
     // Fetch thumbnail with authentication
     const thumbnailResponse = await fetch(file.data.thumbnailLink, {
@@ -43,6 +58,7 @@ export async function GET(
     });
 
     if (!thumbnailResponse.ok) {
+      console.error('[Drive Thumbnail] Failed to fetch thumbnail:', thumbnailResponse.status, thumbnailResponse.statusText);
       return NextResponse.json(
         { error: 'Failed to fetch thumbnail' },
         { status: thumbnailResponse.status }
@@ -52,6 +68,12 @@ export async function GET(
     // Return the image
     const imageBuffer = await thumbnailResponse.arrayBuffer();
 
+    console.log('[Drive Thumbnail] Successfully fetched thumbnail:', {
+      fileId,
+      contentType: thumbnailResponse.headers.get('Content-Type'),
+      size: imageBuffer.byteLength,
+    });
+
     return new NextResponse(imageBuffer, {
       headers: {
         'Content-Type': thumbnailResponse.headers.get('Content-Type') || 'image/jpeg',
@@ -59,7 +81,7 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('Drive thumbnail error:', error);
+    console.error('[Drive Thumbnail] Error:', error);
     return NextResponse.json(
       {
         error: 'Failed to fetch thumbnail',

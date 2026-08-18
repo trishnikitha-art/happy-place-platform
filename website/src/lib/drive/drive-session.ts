@@ -42,6 +42,8 @@ export class DriveSession {
     console.log('DriveSession.isAuthenticated():', {
       hasAccessToken: !!accessToken,
       hasRefreshToken: !!refreshToken,
+      drive_access_token_cookie: !!accessToken ? 'PRESENT' : 'ABSENT',
+      drive_refresh_token_cookie: !!refreshToken ? 'PRESENT' : 'ABSENT',
     });
     return !!(accessToken && refreshToken);
   }
@@ -71,50 +73,73 @@ export class DriveSession {
    * Store credentials in cookies
    */
   async setCredentials(credentials: DriveCredentials): Promise<void> {
+    console.log('[DRIVE SESSION FORENSIC] SETTING CREDENTIAL COOKIES');
     const cookieStore = await cookies();
 
     // Calculate expiry if not provided
     const expiryDate = credentials.expiry_date || (Date.now() + 3600 * 1000);
 
+    const secureFlag = process.env.NODE_ENV === 'production';
+
+    console.log('[DRIVE SESSION FORENSIC] Cookie configuration:', {
+      secure: secureFlag,
+      sameSite: 'lax',
+      path: '/',
+      hasAccessToken: !!credentials.access_token,
+      hasRefreshToken: !!credentials.refresh_token,
+      hasExpiry: !!credentials.expiry_date,
+      hasScope: !!credentials.scope,
+    });
+
     // Set access token (short-lived, 1 hour)
     cookieStore.set('drive_access_token', credentials.access_token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: secureFlag,
       sameSite: 'lax',
       maxAge: 3600, // 1 hour
       path: '/',
     });
+    console.log('[DRIVE SESSION FORENSIC] access_token cookie: SET');
 
     // Set refresh token (long-lived, 30 days)
     if (credentials.refresh_token) {
       cookieStore.set('drive_refresh_token', credentials.refresh_token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: secureFlag,
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 30, // 30 days
         path: '/',
       });
+      console.log('[DRIVE SESSION FORENSIC] refresh_token cookie: SET');
+    } else {
+      console.log('[DRIVE SESSION FORENSIC] refresh_token cookie: NOT SET (no refresh token provided)');
     }
 
     // Set expiry date
     cookieStore.set('drive_expiry_date', expiryDate.toString(), {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: secureFlag,
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 30,
       path: '/',
     });
+    console.log('[DRIVE SESSION FORENSIC] expiry_date cookie: SET');
 
     // Set scope
     if (credentials.scope) {
       cookieStore.set('drive_scope', credentials.scope, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: secureFlag,
         sameSite: 'lax',
         maxAge: 60 * 60 * 24 * 30,
         path: '/',
       });
+      console.log('[DRIVE SESSION FORENSIC] scope cookie: SET');
+    } else {
+      console.log('[DRIVE SESSION FORENSIC] scope cookie: NOT SET (no scope provided)');
     }
+
+    console.log('[DRIVE SESSION FORENSIC] CREDENTIAL COOKIES SET COMPLETE');
   }
 
   /**
@@ -154,8 +179,14 @@ export class DriveSession {
     try {
       const cookieStore = await cookies();
       const cookie = cookieStore.get(name);
+      if (cookie) {
+        console.log(`DriveSession.getCookie(${name}): cookie exists`);
+      } else {
+        console.log(`DriveSession.getCookie(${name}): cookie NOT found`);
+      }
       return cookie?.value || null;
-    } catch {
+    } catch (error) {
+      console.log(`DriveSession.getCookie(${name}): cookies() failed`, error);
       // Cookies might not be available in all contexts
       return null;
     }

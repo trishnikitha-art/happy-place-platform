@@ -10,9 +10,16 @@ import { NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
+  console.log('=== DRIVE OAUTH AUTHORIZE REACHED ===');
+
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const redirectUri = process.env.GOOGLE_REDIRECT_URI || `${process.env.NEXT_PUBLIC_URL || 'http://localhost:3000'}/api/drive/oauth/callback`;
-  
+
+  console.log('[DRIVE OAUTH FORENSIC] Authorize configuration:', {
+    hasClientId: !!clientId,
+    redirectUri: redirectUri,
+  });
+
   if (!clientId) {
     return NextResponse.json({ error: 'GOOGLE_CLIENT_ID not configured' }, { status: 500 });
   }
@@ -30,6 +37,8 @@ export async function GET(request: Request) {
   authUrl.searchParams.append('scope', scopes.join(' '));
   authUrl.searchParams.append('access_type', 'offline');
   authUrl.searchParams.append('prompt', 'consent');
+
+  console.log('[DRIVE OAUTH FORENSIC] Redirecting to Google OAuth:', authUrl.toString());
 
   return NextResponse.redirect(authUrl.toString());
 }

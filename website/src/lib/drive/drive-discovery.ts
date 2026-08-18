@@ -74,16 +74,15 @@ export class DriveDiscovery {
     const drive = await driveOAuthManager.getDriveClient();
     console.log('Drive client obtained');
 
-    // Verify authenticated account
+    // Verify authenticated account (Drive API v3)
     try {
       const about = await drive.about.get({
-        fields: 'user(emailAddress,displayName,permissionId),storageQuota,rootFolderId',
+        fields: 'user(emailAddress,displayName,permissionId)',
       });
       console.log('Authenticated account:', {
         email: about.data.user?.emailAddress,
         displayName: about.data.user?.displayName,
         permissionId: about.data.user?.permissionId,
-        rootFolderId: about.data.rootFolderId,
       });
     } catch (error) {
       console.error('Failed to get about info:', error);
@@ -126,17 +125,18 @@ export class DriveDiscovery {
   }
 
   /**
-   * Get My Drive information
+   * Get My Drive information (Drive API v3: use files.get with fileId='root')
    */
   private async getMyDrive(drive: any): Promise<DriveFolder | null> {
     try {
-      const response = await drive.about.get({
-        fields: 'driveId,name',
+      const response = await drive.files.get({
+        fileId: 'root',
+        fields: 'id,name,mimeType',
       });
 
       if (response.data) {
         return {
-          id: response.data.driveId,
+          id: response.data.id,
           name: response.data.name || 'My Drive',
           type: 'my_drive',
         };
@@ -186,7 +186,6 @@ export class DriveDiscovery {
     const drive = await driveOAuthManager.getDriveClient();
 
     const params: any = {
-      q: `'${context.parentId}' in parents and trashed = false`,
       fields: 'nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,parents)',
       pageSize: 100,
       orderBy: 'folder,name_natural',
@@ -196,16 +195,35 @@ export class DriveDiscovery {
 
     // Add shared drive support
     if (context.driveId) {
+      // Shared Drive query
       params.corpora = 'drive';
       params.driveId = context.driveId;
+      // For Shared Drive root, use the driveId as the folderId
+      // Otherwise use the specific folder ID
+      if (context.parentId === context.driveId) {
+        // Shared Drive root - query without parent filter
+        params.q = `trashed = false`;
+      } else {
+        // Shared Drive folder
+        params.q = `'${context.parentId}' in parents and trashed = false`;
+      }
     } else {
+      // My Drive query
       params.corpora = 'user';
+      params.q = `'${context.parentId}' in parents and trashed = false`;
     }
 
     // Add pagination
     if (pageToken) {
       params.pageToken = pageToken;
     }
+
+    console.log('[Drive Discovery] listChildren params:', {
+      parentId: context.parentId,
+      driveId: context.driveId,
+      corpora: params.corpora,
+      q: params.q,
+    });
 
     try {
       const response = await drive.files.list(params);
@@ -238,6 +256,13 @@ export class DriveDiscovery {
           }
         }
       }
+
+      console.log('[Drive Discovery] listChildren result:', {
+        itemCount: items.length,
+        folderCount: items.filter(i => (i as any).type === 'folder').length,
+        fileCount: items.filter(i => (i as any).type !== 'folder').length,
+        nextPageToken: response.data.nextPageToken,
+      });
 
       return {
         items,

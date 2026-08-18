@@ -34,14 +34,23 @@ export async function GET(request: Request) {
     const pageToken = searchParams.get('pageToken') || undefined;
     const driveId = searchParams.get('driveId') || undefined;
 
+    console.log('[Drive Files API] Request:', { folderId, driveId, pageToken });
+
     const result = await driveDiscovery.listChildren(
       { parentId: folderId, driveId },
       pageToken
     );
 
+    console.log('[Drive Files API] Result:', {
+      itemCount: result.items.length,
+      folderCount: result.items.filter((i: any) => i.type === 'folder').length,
+      fileCount: result.items.filter((i: any) => i.type !== 'folder').length,
+      nextPageToken: result.nextPageToken,
+    });
+
     return NextResponse.json(result);
   } catch (error) {
-    console.error('Drive files error:', error);
+    console.error('[Drive Files API] Error:', error);
     return NextResponse.json(
       { error: 'Failed to list Drive files', message: error instanceof Error ? error.message : 'Unknown error' },
       { status: 500 }

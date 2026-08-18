@@ -2,6 +2,7 @@
 
 import { useEffect, createContext, useContext, ReactNode, useState } from "react";
 import Lenis from "@studio-freight/lenis";
+import { usePathname } from "next/navigation";
 
 interface LenisContextValue {
   lenis: Lenis | null;
@@ -14,12 +15,19 @@ const LenisContext = createContext<LenisContextValue>({ lenis: null });
  * 
  * Provides premium smooth scroll experience across the site.
  * Respects prefers-reduced-motion for accessibility.
+ * Excludes workbench routes from smooth scrolling.
  * Exposes Lenis instance for Framer Motion scroll synchronization.
  */
 export function LenisProvider({ children }: { children: ReactNode }) {
   const [lenis, setLenis] = useState<Lenis | null>(null);
+  const pathname = usePathname();
 
   useEffect(() => {
+    // Disable Lenis for workbench routes
+    if (pathname.startsWith('/workbench')) {
+      return;
+    }
+
     // Check if user prefers reduced motion
     const prefersReducedMotion = window.matchMedia(
       "(prefers-reduced-motion: reduce)"
@@ -54,7 +62,7 @@ export function LenisProvider({ children }: { children: ReactNode }) {
       cancelAnimationFrame(frameId);
       lenisInstance.destroy();
     };
-  }, []);
+  }, [pathname]);
 
   return (
     <LenisContext.Provider value={{ lenis }}>

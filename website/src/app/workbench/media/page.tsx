@@ -20,10 +20,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { RefreshCw, Search, Layers } from 'lucide-react';
+import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, ChevronRight, Loader2, List } from 'lucide-react';
 import { loadVisualAssetRegistry, type VisualAsset } from '@/lib/visual-asset-registry';
 import { getMediaById } from '@/lib/media';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
+import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
 
 type PageRoute = '/' | '/services' | '/our-work' | '/about' | '/reviews' | '/estimate';
 
@@ -37,6 +38,18 @@ interface MediaWorkbenchState {
   filter: 'all' | 'used' | 'unused' | 'drive';
   registeredSlots: RegisteredSlot[];
   pendingAssignments: Map<string, { slot: RegisteredSlot; asset: VisualAsset }>;
+  driveBrowsing: boolean;
+  driveStructure: { myDrive: any; sharedDrives: any[] } | null;
+  driveFiles: (DriveFolder | DriveFile)[];
+  driveLoading: boolean;
+  driveError: string | null;
+  driveCurrentFolderId: string;
+  driveCurrentDriveId: string | null;
+  driveBreadcrumb: { id: string; name: string }[];
+  driveSelectedFile: DriveFile | null;
+  driveViewMode: 'grid' | 'list';
+  driveNextPageToken?: string;
+  driveLoadingMore: boolean;
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -59,6 +72,18 @@ export default function MediaWorkbench() {
     filter: 'all',
     registeredSlots: [],
     pendingAssignments: new Map(),
+    driveBrowsing: false,
+    driveStructure: null,
+    driveFiles: [],
+    driveLoading: false,
+    driveError: null,
+    driveCurrentFolderId: 'root',
+    driveCurrentDriveId: null,
+    driveBreadcrumb: [{ id: 'root', name: 'My Drive' }],
+    driveSelectedFile: null,
+    driveViewMode: 'grid',
+    driveNextPageToken: undefined,
+    driveLoadingMore: false,
   });
 
   const mediaPanelRef = useRef<HTMLDivElement>(null);
@@ -292,6 +317,112 @@ export default function MediaWorkbench() {
       console.error('Failed to load canonical data:', err);
     } finally {
       setState(prev => ({ ...prev, loading: false }));
+    }
+  };
+
+  const loadDriveStructure = async () => {
+    try {
+      setState(prev => ({ ...prev, driveLoading: true, driveError: null }));
+      const response = await fetch('/api/drive/discovery');
+      if (!response.ok) {
+        throw new Error('Failed to load Drive structure');
+      }
+      const structure = await response.json();
+      setState(prev => ({ ...prev, driveStructure: structure }));
+    } catch (error) {
+      console.error('Failed to load Drive structure:', error);
+      setState(prev => ({ ...prev, driveError: error instanceof Error ? error.message : 'Unknown error' }));
+    } finally {
+      setState(prev => ({ ...prev, driveLoading: false }));
+    }
+  };
+
+  const loadDriveFiles = async (folderId: string = 'root', pageToken?: string, driveId?: string | null) => {
+    try {
+      setState(prev => ({ ...prev, driveLoading: true, driveError: null }));
+      const params = new URLSearchParams({ folderId });
+      if (pageToken) params.set('pageToken', pageToken);
+      if (driveId) params.set('driveId', driveId);
+
+      const response = await fetch(`/api/drive/files?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to load Drive files');
+      }
+      const result = await response.json();
+
+      setState(prev => ({
+        ...prev,
+        driveFiles: pageToken ? [...prev.driveFiles, ...result.items] : result.items,
+        driveNextPageToken: result.nextPageToken,
+        driveLoading: false,
+        driveLoadingMore: false,
+      }));
+    } catch (error) {
+      console.error('Failed to load Drive files:', error);
+      setState(prev => ({ ...prev, driveError: error instanceof Error ? error.message : 'Unknown error', driveLoading: false, driveLoadingMore: false }));
+    }
+  };
+
+  const navigateToFolder = async (folder: DriveFolder) => {
+    setState(prev => ({
+      ...prev,
+      driveCurrentFolderId: folder.id,
+      driveBreadcrumb: [...prev.driveBreadcrumb, { id: folder.id, name: folder.name }],
+      driveFiles: [],
+      driveNextPageToken: undefined,
+      driveSelectedFile: null,
+      driveLoading: true,
+    }));
+    await loadDriveFiles(folder.id, undefined, state.driveCurrentDriveId);
+  };
+
+  const navigateUp = (index: number) => {
+    const newBreadcrumb = state.driveBreadcrumb.slice(0, index + 1);
+    const target = newBreadcrumb[newBreadcrumb.length - 1];
+    
+    setState(prev => ({
+      ...prev,
+      driveCurrentFolderId: target.id,
+      driveBreadcrumb: newBreadcrumb,
+      driveFiles: [],
+      driveNextPageToken: undefined,
+      driveSelectedFile: null,
+      driveLoading: true,
+    }));
+    
+    // Preserve the current driveId throughout breadcrumb navigation
+    loadDriveFiles(target.id, undefined, state.driveCurrentDriveId);
+  };
+
+  const loadMoreDriveFiles = () => {
+    if (state.driveNextPageToken && !state.driveLoadingMore) {
+      setState(prev => ({ ...prev, driveLoadingMore: true }));
+      loadDriveFiles(state.driveCurrentFolderId, state.driveNextPageToken, state.driveCurrentDriveId);
+    }
+  };
+
+  const selectDriveFile = (file: DriveFile) => {
+    setState(prev => ({ ...prev, driveSelectedFile: file }));
+  };
+
+  const useDriveFile = async (file: DriveFile) => {
+    try {
+      const response = await fetch('/api/drive/reference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ driveId: file.id }),
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert(`Drive asset added: ${data.media.id}`);
+        loadCanonicalData(); // Reload to show new asset
+        setState(prev => ({ ...prev, driveBrowsing: false, driveSelectedFile: null }));
+      } else {
+        alert(`Error: ${data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('Failed to use Drive file:', error);
+      alert('Error: Failed to use Drive asset');
     }
   };
 
@@ -772,7 +903,247 @@ export default function MediaWorkbench() {
                   {filter}
                 </button>
               ))}
+              <button
+                onClick={() => {
+                  setState(prev => ({ ...prev, driveBrowsing: !prev.driveBrowsing }));
+                  if (!state.driveBrowsing) {
+                    loadDriveStructure();
+                  }
+                }}
+                className={`px-2 py-1 rounded text-xs capitalize transition-colors ${
+                  state.driveBrowsing
+                    ? 'bg-blue-500 text-white'
+                    : 'bg-surface hover:bg-surface/80'
+                }`}
+              >
+                {state.driveBrowsing ? 'Close Drive' : 'Browse Drive'}
+              </button>
             </div>
+
+            {/* Drive Browser */}
+            {state.driveBrowsing && (
+              <div className="mb-4 p-4 bg-surface rounded-lg">
+                {state.driveError && (
+                  <div className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded">
+                    {state.driveError}
+                  </div>
+                )}
+                
+                {!state.driveStructure && !state.driveLoading && (
+                  <button
+                    onClick={loadDriveStructure}
+                    className="w-full py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                  >
+                    <Database className="inline mr-2" size={16} />
+                    Load Drive Structure
+                  </button>
+                )}
+
+                {state.driveStructure && (
+                  <div className="space-y-3">
+                    {/* Drive selection */}
+                    <div className="flex gap-2">
+                      {state.driveStructure!.myDrive && (
+                        <button
+                          onClick={() => {
+                            setState(prev => ({
+                              ...prev,
+                              driveCurrentFolderId: state.driveStructure!.myDrive.id || 'root',
+                              driveCurrentDriveId: null,
+                              driveBreadcrumb: [{ id: state.driveStructure!.myDrive.id || 'root', name: state.driveStructure!.myDrive.name || 'My Drive' }],
+                              driveFiles: [],
+                              driveNextPageToken: undefined,
+                              driveSelectedFile: null,
+                            }));
+                            loadDriveFiles(state.driveStructure!.myDrive.id || 'root', undefined, null);
+                          }}
+                          className="flex-1 px-3 py-2 bg-background border border-border rounded-lg hover:border-primary transition-colors text-left"
+                        >
+                          <FolderOpen className="inline mr-2" size={16} />
+                          {state.driveStructure!.myDrive.name}
+                        </button>
+                      )}
+                      {state.driveStructure!.sharedDrives?.map((drive: any) => (
+                        <button
+                          key={drive.id}
+                          onClick={() => {
+                            setState(prev => ({
+                              ...prev,
+                              driveCurrentFolderId: drive.id,
+                              driveCurrentDriveId: drive.id,
+                              driveBreadcrumb: [{ id: drive.id, name: drive.name }],
+                              driveFiles: [],
+                              driveNextPageToken: undefined,
+                              driveSelectedFile: null,
+                            }));
+                            loadDriveFiles(drive.id, undefined, drive.id);
+                          }}
+                          className="flex-1 px-3 py-2 bg-background border border-border rounded-lg hover:border-primary transition-colors text-left"
+                        >
+                          <Database className="inline mr-2" size={16} />
+                          {drive.name}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Breadcrumbs */}
+                    <div className="flex items-center gap-2 text-sm overflow-x-auto pb-2">
+                      {state.driveBreadcrumb.map((crumb, index) => (
+                        <div key={crumb.id} className="flex items-center gap-2">
+                          {index > 0 && <ChevronRight size={16} className="text-muted-foreground" />}
+                          <button
+                            onClick={() => navigateUp(index)}
+                            className="text-primary hover:underline whitespace-nowrap"
+                          >
+                            {crumb.name}
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* View toggle */}
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => setState(prev => ({ ...prev, driveViewMode: prev.driveViewMode === 'grid' ? 'list' : 'grid' }))}
+                        className="p-2 bg-background border border-border rounded hover:border-primary transition-colors"
+                      >
+                        {state.driveViewMode === 'grid' ? <List size={20} /> : <FileImage size={20} />}
+                      </button>
+                    </div>
+
+                    {state.driveLoading && (
+                      <div className="text-center py-4 text-muted-foreground text-sm">
+                        Loading Drive files...
+                      </div>
+                    )}
+
+                    {/* Folders */}
+                    {state.driveFiles.filter((item: any) => item.type === 'folder').length > 0 && (
+                      <div className="mb-4">
+                        <h3 className="text-xs font-semibold text-muted-foreground mb-2">Folders</h3>
+                        <div className="grid grid-cols-3 gap-2">
+                          {state.driveFiles.filter((item: any) => item.type === 'folder').map((folder: any) => (
+                            <button
+                              key={folder.id}
+                              onClick={() => navigateToFolder(folder)}
+                              className="p-3 bg-background border border-border rounded-lg hover:border-primary transition-colors text-left"
+                            >
+                              <Folder className="inline mr-2" size={20} />
+                              <div className="text-sm font-medium text-foreground truncate">{folder.name}</div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Files */}
+                    {state.driveFiles.filter((item: any) => item.type !== 'folder').length > 0 && (
+                      <div>
+                        <h3 className="text-xs font-semibold text-muted-foreground mb-2">Files</h3>
+                        {state.driveViewMode === 'grid' ? (
+                          <div className="grid grid-cols-3 gap-2">
+                            {state.driveFiles.filter((item: any) => item.type !== 'folder').map((file: any) => (
+                              <button
+                                key={file.id}
+                                onClick={() => selectDriveFile(file)}
+                                className={`p-3 bg-background border rounded-lg transition-colors text-left ${
+                                  state.driveSelectedFile?.id === file.id
+                                    ? 'border-primary ring-2 ring-primary'
+                                    : 'border-border hover:border-primary'
+                                }`}
+                              >
+                                {file.thumbnailLink ? (
+                                  <img
+                                    src={`/api/drive/files/${file.id}/thumbnail${state.driveCurrentDriveId ? `?driveId=${state.driveCurrentDriveId}` : ''}`}
+                                    alt={file.name}
+                                    className="w-full aspect-square object-cover rounded mb-2"
+                                  />
+                                ) : (
+                                  <div className="w-full aspect-square bg-muted rounded mb-2 flex items-center justify-center">
+                                    <FileImage size={24} className="text-muted-foreground" />
+                                  </div>
+                                )}
+                                <div className="text-sm font-medium text-foreground truncate">{file.name}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {file.modifiedTime ? new Date(file.modifiedTime).toLocaleDateString() : 'Unknown date'}
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            {state.driveFiles.filter((item: any) => item.type !== 'folder').map((file: any) => (
+                              <button
+                                key={file.id}
+                                onClick={() => selectDriveFile(file)}
+                                className={`w-full p-3 bg-background border rounded-lg transition-colors text-left flex items-center gap-3 ${
+                                  state.driveSelectedFile?.id === file.id
+                                    ? 'border-primary ring-2 ring-primary'
+                                    : 'border-border hover:border-primary'
+                                }`}
+                              >
+                                {file.thumbnailLink ? (
+                                  <img
+                                    src={`/api/drive/files/${file.id}/thumbnail${state.driveCurrentDriveId ? `?driveId=${state.driveCurrentDriveId}` : ''}`}
+                                    alt={file.name}
+                                    className="w-12 h-12 object-cover rounded"
+                                  />
+                                ) : (
+                                  <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                                    <FileImage size={18} className="text-muted-foreground" />
+                                  </div>
+                                )}
+                                <div className="flex-1">
+                                  <div className="text-sm font-medium text-foreground">{file.name}</div>
+                                  <div className="text-xs text-muted-foreground">
+                                    {file.modifiedTime ? new Date(file.modifiedTime).toLocaleDateString() : 'Unknown date'}
+                                  </div>
+                                </div>
+                              </button>
+                            ))}
+                          </div>
+                        )}
+
+                        {/* Load more */}
+                        {state.driveNextPageToken && (
+                          <button
+                            onClick={loadMoreDriveFiles}
+                            disabled={state.driveLoadingMore}
+                            className="mt-3 w-full py-2 bg-background border border-border rounded-lg hover:border-primary transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                          >
+                            {state.driveLoadingMore ? <Loader2 size={16} className="animate-spin" /> : 'Load more'}
+                          </button>
+                        )}
+                      </div>
+                    )}
+
+                    {state.driveFiles.length === 0 && !state.driveLoading && (
+                      <div className="text-center py-4 text-muted-foreground text-sm">
+                        No files in this folder
+                      </div>
+                    )}
+
+                    {/* Selected file actions */}
+                    {state.driveSelectedFile && (
+                      <div className="mt-4 p-3 bg-background border border-border rounded-lg flex items-center justify-between">
+                        <div>
+                          <div className="text-sm font-medium text-foreground">{state.driveSelectedFile.name}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {state.driveSelectedFile.mimeType} • {state.driveSelectedFile.size ? `${(state.driveSelectedFile.size / 1024).toFixed(1)} KB` : 'Unknown size'}
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => state.driveSelectedFile && useDriveFile(state.driveSelectedFile)}
+                          className="px-3 py-1.5 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 transition-colors"
+                        >
+                          Use This Asset
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Media Grid */}
             <div className="grid grid-cols-3 gap-3">
