@@ -414,6 +414,34 @@ export default function MediaWorkbench() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
+      } else if (slotId.startsWith('slider-left-')) {
+        // Extract project ID from slot ID (e.g., slider-left-fences-001 -> fences-001)
+        const projectId = slotId.replace('slider-left-', '');
+        endpoint = '/api/admin/projects/before-after';
+        requestBody = { projectId, side: 'before', mediaId: asset.id };
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
+      } else if (slotId.startsWith('slider-right-')) {
+        // Extract project ID from slot ID (e.g., slider-right-fences-001 -> fences-001)
+        const projectId = slotId.replace('slider-right-', '');
+        endpoint = '/api/admin/projects/before-after';
+        requestBody = { projectId, side: 'after', mediaId: asset.id };
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
+      } else if (slotId === 'hero-background') {
+        endpoint = '/api/admin/brand/hero';
+        requestBody = { mediaId: asset.id };
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
       } else if (slotId.includes('before') || slotId.includes('after')) {
         alert('Before/after assignment not yet implemented. Needs projects.v1.json write endpoint');
         return;

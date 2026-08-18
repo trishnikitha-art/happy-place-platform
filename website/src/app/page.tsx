@@ -65,15 +65,25 @@ export default async function HomePage() {
       {/* HERO — full-width photograph with text overlay */}
       <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
         <WorkshopAtmosphere particleCount={20} />
-        <Image
-          src="/images/hero-background-enhanced.jpg"
-          alt="Photograph of a completed deck project showing quality carpentry work with warm wood tones and clean construction"
-          fill
-          priority
-          sizes="100vw"
-          className="object-cover"
-          style={{ filter: "brightness(0.7)" }}
-        />
+        <VisualSlot
+          id="hero-background"
+          route="/"
+          page="Homepage"
+          section="Hero"
+          slotName="Hero Background"
+          currentMediaId={null}
+          component="HomepageHero"
+        >
+          <Image
+            src="/images/hero-background-enhanced.jpg"
+            alt="Photograph of a completed deck project showing quality carpentry work with warm wood tones and clean construction"
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
+            style={{ filter: "brightness(0.7)" }}
+          />
+        </VisualSlot>
         <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/40 via-black/20 to-black/60" aria-hidden="true" />
 
         <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20">
