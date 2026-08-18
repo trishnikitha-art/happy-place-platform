@@ -216,6 +216,49 @@ export default function MediaWorkbench() {
         } else {
           console.log('[FORENSIC] parent NO ASSET_ID in drop message', { slotId });
         }
+      } else if (event.data.type === 'delete-gallery') {
+        // Handle delete request from Our Work page
+        const { slotId } = event.data;
+        console.log('[DELETE GALLERY] MESSAGE_RECEIVED', { slotId });
+        
+        // Directly execute the delete logic
+        if (!confirm('Are you sure you want to delete this gallery image? This will remove the media assignment from the gallery slot.')) {
+          return;
+        }
+
+        try {
+          const slot = state.registeredSlots.find(s => s.id === slotId);
+          if (!slot || slot.section !== 'Gallery') {
+            alert('This delete action is only available for gallery slots.');
+            return;
+          }
+
+          // Parse slot ID to get project ID and gallery index
+          // Format: our-work-gallery-{projectId}-{index}
+          const idPart = slotId.replace('our-work-gallery-', '');
+          const lastHyphenIndex = idPart.lastIndexOf('-');
+          const projectId = idPart.substring(0, lastHyphenIndex);
+          const galleryIndex = parseInt(idPart.substring(lastHyphenIndex + 1), 10);
+
+          console.log('[DELETE GALLERY] PARSED_SLOT', { slotId, projectId, galleryIndex });
+
+          const response = await fetch('/api/admin/projects/gallery', {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId, galleryIndex }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to delete gallery assignment');
+          }
+
+          // Reload canonical data after successful deletion
+          loadCanonicalData();
+        } catch (error) {
+          console.error('[DELETE GALLERY] ERROR', error);
+          alert(`Failed to delete gallery assignment: ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
     };
     window.addEventListener('message', handleMessage);
@@ -305,46 +348,6 @@ export default function MediaWorkbench() {
       newPendingAssignments.delete(slotId);
       return { ...prev, pendingAssignments: newPendingAssignments };
     });
-  };
-
-  const deleteGalleryAssignment = async (slotId: string) => {
-    if (!confirm('Are you sure you want to delete this gallery image? This will remove the media assignment from the gallery slot.')) {
-      return;
-    }
-
-    try {
-      const slot = state.registeredSlots.find(s => s.id === slotId);
-      if (!slot || slot.section !== 'Gallery') {
-        alert('This delete action is only available for gallery slots.');
-        return;
-      }
-
-      // Parse slot ID to get project ID and gallery index
-      // Format: our-work-gallery-{projectId}-{index}
-      const idPart = slotId.replace('our-work-gallery-', '');
-      const lastHyphenIndex = idPart.lastIndexOf('-');
-      const projectId = idPart.substring(0, lastHyphenIndex);
-      const galleryIndex = parseInt(idPart.substring(lastHyphenIndex + 1), 10);
-
-      console.log('[DELETE GALLERY] PARSED_SLOT', { slotId, projectId, galleryIndex });
-
-      const response = await fetch('/api/admin/projects/gallery', {
-        method: 'DELETE',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ projectId, galleryIndex }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to delete gallery assignment');
-      }
-
-      // Reload canonical data after successful deletion
-      loadCanonicalData();
-    } catch (error) {
-      console.error('[DELETE GALLERY] ERROR', error);
-      alert(`Failed to delete gallery assignment: ${error instanceof Error ? error.message : String(error)}`);
-    }
   };
 
   const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot) => {
