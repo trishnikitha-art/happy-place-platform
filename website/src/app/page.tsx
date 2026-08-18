@@ -54,6 +54,11 @@ export default async function HomePage() {
   const allServices = getNonArchivedServices();      // data-driven services from registry
   const featuredProjects = getFeaturedProjects(); // featured projects from Projects Authority
   
+  // Get hero from Brand Authority
+  const homepageHero = getHomepageHero();
+  const heroMedia = homepageHero?.mediaId ? getMediaById(homepageHero.mediaId) : null;
+  const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original;
+  
   // Get exterior painting project for featured transformation (has before/after media)
   const paintingProject = featuredProjects.find(p => p.id === 'exterior-painting-001');
   
@@ -71,18 +76,32 @@ export default async function HomePage() {
           page="Homepage"
           section="Hero"
           slotName="Hero Background"
-          currentMediaId={null}
+          currentMediaId={homepageHero?.mediaId || null}
           component="HomepageHero"
         >
-          <Image
-            src="/images/hero-background-enhanced.jpg"
-            alt="Photograph of a completed deck project showing quality carpentry work with warm wood tones and clean construction"
-            fill
-            priority
-            sizes="100vw"
-            className="object-cover"
-            style={{ filter: "brightness(0.7)" }}
-          />
+          {heroMedia ? (
+            <Image
+              src={heroSrc}
+              alt={heroMedia.alt || "Happy Place Carpentry - Professional carpentry services"}
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+              style={{ filter: "brightness(0.7)" }}
+              placeholder="blur"
+              blurDataURL={heroMedia.variants?.blur}
+            />
+          ) : (
+            <Image
+              src="/images/hero-background-enhanced.jpg"
+              alt="Photograph of a completed deck project showing quality carpentry work with warm wood tones and clean construction"
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover"
+              style={{ filter: "brightness(0.7)" }}
+            />
+          )}
         </VisualSlot>
         <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/40 via-black/20 to-black/60" aria-hidden="true" />
 
