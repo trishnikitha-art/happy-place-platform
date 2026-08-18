@@ -341,7 +341,9 @@ export default function MediaWorkbench() {
           assetId: asset.id,
         });
         // Send refresh message to iframe for immediate slot update
-        iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, '*');
+        if (iframeRef.current.contentWindow) {
+          iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, '*');
+        }
         // Also trigger reload as fallback
         iframeRef.current.src = iframeRef.current.src;
       }
