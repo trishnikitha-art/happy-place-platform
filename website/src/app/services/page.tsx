@@ -4,6 +4,7 @@ import { Container, Section, SectionHeading } from "@/components/section";
 import { ServiceCard } from "@/components/service-card";
 import { CTASection } from "@/components/cta-section";
 import { Icon } from "@/components/icon";
+import { VisualSlot } from "@/components/visual-slot";
 import { getNonArchivedServices } from "@/lib/registries";
 
 export const metadata: Metadata = {
@@ -63,7 +64,17 @@ export default function ServicesPage() {
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   {categoryServices.map((s) => (
                     <Link key={s.id} href={`/services/${s.slug}`}>
-                      <ServiceCard service={s} />
+                      <VisualSlot
+                        id={`services-page-service-card-${s.slug}`}
+                        route="/services"
+                        page="Services"
+                        section={category}
+                        slotName={`${s.name} Service Card`}
+                        currentMediaId={null}
+                        component="ServiceCard"
+                      >
+                        <ServiceCard service={s} />
+                      </VisualSlot>
                     </Link>
                   ))}
                 </div>
