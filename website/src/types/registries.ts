@@ -26,6 +26,8 @@ export interface Service {
   defaultProjectIntent?: string;
   /** If true, this service is archived and should not appear publicly */
   archived?: boolean;
+  /** Workbench-assigned media ID for service card display */
+  cardMediaId?: string | null;
 }
 
 export interface EstimatorFlag {

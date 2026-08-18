@@ -60,45 +60,158 @@ export default function MediaWorkbench() {
   });
 
   const mediaPanelRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const assetsRef = useRef<VisualAsset[]>([]);
+
+  // Keep assetsRef in sync with state.assets (avoids stale closure in message listener)
+  useEffect(() => {
+    assetsRef.current = state.assets;
+  }, [state.assets]);
 
   useEffect(() => {
     loadCanonicalData();
-    
+
     // Subscribe to slot registry changes
     const unsubscribe = slotRegistry.subscribe(() => {
-      setState(prev => ({ ...prev, registeredSlots: slotRegistry.getAll() }));
+      const allSlots = slotRegistry.getAll();
+      console.log('[FORENSIC] WORKBENCH REGISTRY UPDATE', {
+        slotCount: allSlots.length,
+        slotIds: allSlots.map(s => ({ id: s.id, currentMediaId: s.currentMediaId })),
+      });
+      setState(prev => ({ ...prev, registeredSlots: allSlots }));
     });
 
     // Listen for slot click events from iframe
     const handleSlotClickEvent = (event: CustomEvent) => {
       const { id } = event.detail;
+      console.log('[FORENSIC] WORKBENCH SLOT CLICK EVENT', { slotId: id });
       const slot = slotRegistry.get(id);
       if (slot) {
+        console.log('[FORENSIC] WORKBENCH SLOT CLICK RESOLVED', {
+          slotId: slot.id,
+          currentMediaId: slot.currentMediaId,
+        });
         handleSlotClick(slot);
+      } else {
+        console.log('[FORENSIC] WORKBENCH SLOT CLICK NOT FOUND', { slotId: id });
       }
     };
 
     window.addEventListener('slot-click', handleSlotClickEvent as EventListener);
 
-    // DIAGNOSTIC: Log scroll metrics for media panel
-    setTimeout(() => {
-      const mediaPanel = document.querySelector('section.overflow-y-auto') as HTMLElement;
-      if (mediaPanel) {
-        console.log('=== MEDIA PANEL SCROLL DIAGNOSTIC ===');
-        console.log('scrollHeight:', mediaPanel.scrollHeight);
-        console.log('clientHeight:', mediaPanel.clientHeight);
-        console.log('scrollTop:', mediaPanel.scrollTop);
-        console.log('computed height:', window.getComputedStyle(mediaPanel).height);
-        console.log('computed overflow:', window.getComputedStyle(mediaPanel).overflow);
-        console.log('computed overflow-y:', window.getComputedStyle(mediaPanel).overflowY);
-        console.log('offsetHeight:', mediaPanel.offsetHeight);
-        console.log('Can scroll:', mediaPanel.scrollHeight > mediaPanel.clientHeight);
+    // Listen for iframe messages (SLOT_REGISTER and SLOT_CLICK)
+    const handleMessage = async (event: MessageEvent) => {
+      // Filter: Only process Workbench protocol messages
+      if (!event.data || typeof event.data.type !== 'string') {
+        return;
       }
-    }, 1000);
+
+      const messageType = event.data.type;
+
+      if (messageType === 'SLOT_REGISTER') {
+        console.log('[FORENSIC] WORKBENCH MESSAGE RECEIVED', {
+          type: messageType,
+          origin: event.origin,
+          slotId: event.data.slot?.id,
+        });
+        // Store iframe slot directly from payload (iframe and parent have separate JS contexts)
+        const iframeSlot: RegisteredSlot = {
+          id: event.data.slot.id,
+          route: event.data.slot.route,
+          page: event.data.slot.page,
+          section: event.data.slot.section,
+          slotName: event.data.slot.slotName,
+          currentMediaId: event.data.slot.currentMediaId,
+          element: null, // iframe element not accessible from parent
+          component: event.data.slot.component,
+        };
+        slotRegistry.register(iframeSlot);
+      } else if (messageType === 'SLOT_CLICK') {
+        console.log('[FORENSIC] WORKBENCH MESSAGE RECEIVED', {
+          type: messageType,
+          origin: event.origin,
+          slotId: event.data.slot?.id,
+        });
+        // Use payload directly instead of slotRegistry.get (separate JS contexts)
+        const slot: RegisteredSlot = {
+          id: event.data.slot.id,
+          route: event.data.slot.route,
+          page: event.data.slot.page,
+          section: event.data.slot.section,
+          slotName: event.data.slot.slotName,
+          currentMediaId: event.data.slot.currentMediaId,
+          element: null,
+          component: event.data.slot.component,
+        };
+        console.log('[FORENSIC] parent selected slot', {
+          id: slot.id,
+          page: slot.page,
+          section: slot.section,
+          slotName: slot.slotName,
+          currentMediaId: slot.currentMediaId,
+        });
+        handleSlotClick(slot);
+      } else if (messageType === 'SLOT_DROP') {
+        const slotId = event.data.slot?.id;
+        const assetId = event.data.assetId;
+
+        console.log('[DND 6] SLOT_DROP_MESSAGE_RECEIVED', {
+          slotId,
+          assetId,
+        });
+
+        // Use payload directly instead of slotRegistry.get (separate JS contexts)
+        const slot: RegisteredSlot = {
+          id: event.data.slot.id,
+          route: event.data.slot.route,
+          page: event.data.slot.page,
+          section: event.data.slot.section,
+          slotName: event.data.slot.slotName,
+          currentMediaId: event.data.slot.currentMediaId,
+          element: null,
+          component: event.data.slot.component,
+        };
+
+        // Use assetId from the message (not from local state)
+        if (assetId) {
+          console.log('[DND 7] ASSET_LOOKUP', {
+            assetId,
+            assetCount: assetsRef.current.length,
+            found: !!assetsRef.current.find(a => a.id === assetId),
+            sampleIds: assetsRef.current.slice(0, 10).map(a => a.id),
+          });
+          const asset = assetsRef.current.find(a => a.id === assetId);
+          if (asset) {
+            console.log('[DND 7] SLOT_ASSIGNMENT_ATTEMPT', {
+              slotId,
+              assetId,
+            });
+            try {
+              await assignAssetToSlot(asset, slot);
+            } catch (error) {
+              console.log('[DND 8] SLOT_ASSIGNMENT_FAILURE', {
+                slotId,
+                assetId,
+                error: error instanceof Error ? error.message : String(error),
+              });
+            }
+          } else {
+            console.log('[DND 7] SLOT_ASSIGNMENT_ATTEMPT - ASSET NOT FOUND', {
+              slotId,
+              assetId,
+            });
+          }
+        } else {
+          console.log('[FORENSIC] parent NO ASSET_ID in drop message', { slotId });
+        }
+      }
+    };
+    window.addEventListener('message', handleMessage);
 
     return () => {
       unsubscribe();
       window.removeEventListener('slot-click', handleSlotClickEvent as EventListener);
+      window.removeEventListener('message', handleMessage);
     };
   }, []);
 
@@ -141,33 +254,103 @@ export default function MediaWorkbench() {
 
   const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot) => {
     const slotId = slot.id;
-    
+
+    console.log('[DND 8] API_REQUEST', {
+      slotId,
+      assetId: asset.id,
+      mediaId: asset.id, // Actual identifier being sent to API
+      assetFilename: asset.filename,
+    });
+
     try {
+      let response: Response;
+      let endpoint: string;
+      let requestBody: any;
+
       if (slotId === 'homepage-hero-slot' || slotId === 'about-owner-portrait-slot') {
-        await fetch('/api/admin/brand/hero', {
+        endpoint = '/api/admin/brand/hero';
+        requestBody = { mediaId: asset.id };
+        response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mediaId: asset.id }),
+          body: JSON.stringify(requestBody),
         });
       } else if (slotId === 'homepage-owner-portrait-slot') {
-        await fetch('/api/admin/brand/portrait', {
+        endpoint = '/api/admin/brand/portrait';
+        requestBody = { mediaId: asset.id };
+        response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mediaId: asset.id }),
+          body: JSON.stringify(requestBody),
         });
-      } else if (slotId.startsWith('service-card-slot-')) {
-        alert('Service card assignment not yet implemented. Needs authority write boundary in services.v1.json');
-        return;
+      } else if (slotId.startsWith('homepage-service-card-slot-')) {
+        // Extract service slug from slot ID (e.g., homepage-service-card-slot-painting -> painting)
+        const serviceSlug = slotId.replace('homepage-service-card-slot-', '');
+        endpoint = '/api/admin/services/card';
+        requestBody = { serviceSlug, mediaId: asset.id };
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
       } else if (slotId.includes('before') || slotId.includes('after')) {
         alert('Before/after assignment not yet implemented. Needs projects.v1.json write endpoint');
         return;
       } else {
         return;
       }
-      
+
+      console.log('[DND 8] API_RESPONSE', {
+        endpoint,
+        status: response.status,
+        ok: response.ok,
+        requestBody,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.log('[DND 8] SLOT_ASSIGNMENT_FAILURE', {
+          slotId,
+          assetId: asset.id,
+          status: response.status,
+          error: errorText,
+        });
+        alert(`Assignment failed: ${response.status} - ${errorText}`);
+        return;
+      }
+
+      const responseBody = await response.json();
+      console.log('[DND 8] API_RESPONSE_BODY', {
+        slotId,
+        assetId: asset.id,
+        responseBody,
+      });
+
+      console.log('[DND 8] SLOT_ASSIGNMENT_SUCCESS', {
+        slotId,
+        assetId: asset.id,
+      });
+
       setState(prev => ({ ...prev, selectedSlot: slot, selectedAsset: asset }));
       loadCanonicalData();
+
+      // Force iframe reload to pick up authority changes
+      if (iframeRef.current) {
+        console.log('[DND 9] IFRAME_RELOAD_TRIGGERED', {
+          slotId,
+          assetId: asset.id,
+        });
+        // Send refresh message to iframe for immediate slot update
+        iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, '*');
+        // Also trigger reload as fallback
+        iframeRef.current.src = iframeRef.current.src;
+      }
     } catch (error) {
+      console.log('[DND 8] SLOT_ASSIGNMENT_FAILURE', {
+        slotId,
+        assetId: asset.id,
+        error: error instanceof Error ? error.message : String(error),
+      });
       console.error('Failed to assign asset to slot:', error);
       alert('Failed to assign asset. Check console for details.');
     }
@@ -193,7 +376,18 @@ export default function MediaWorkbench() {
   };
 
   const handleDragStart = (e: React.DragEvent, asset: VisualAsset) => {
+    console.log('[DND 1] DRAG_START', {
+      assetId: asset.id,
+      filename: asset.filename,
+      projectId: asset.projectId,
+      variants: Object.keys(asset.variants),
+    });
     e.dataTransfer.setData('text/plain', asset.id);
+    console.log('[DND 2] DATA_TRANSFER_SET', {
+      types: e.dataTransfer.types,
+      payload: asset.id,
+    });
+    e.dataTransfer.effectAllowed = 'copy';
     setState(prev => ({ ...prev, selectedAsset: asset }));
   };
 
@@ -258,7 +452,8 @@ export default function MediaWorkbench() {
         {/* LEFT: Website Preview */}
         <section className="min-h-0 min-w-0 overflow-y-auto bg-white h-full">
           <iframe
-            src={`https://happy-place-platform.vercel.app${state.selectedPage}`}
+            ref={iframeRef}
+            src={`${window.location.origin}${state.selectedPage}?workbench=true`}
             className="w-full h-full border-0"
             title="Website Preview"
             sandbox="allow-same-origin allow-scripts"
@@ -299,63 +494,6 @@ export default function MediaWorkbench() {
                 </button>
               ))}
             </div>
-
-            {/* Selected Slot Info */}
-            {state.selectedSlot && (
-              <div className="mb-4 p-3 bg-surface rounded border border-border">
-                <h3 className="font-semibold text-foreground mb-1 text-sm">
-                  {state.selectedSlot.page}: {state.selectedSlot.section} - {state.selectedSlot.slotName}
-                </h3>
-                <p className="text-xs text-muted-foreground">
-                  Drag a photo here to assign
-                </p>
-              </div>
-            )}
-
-            {/* Slots for current page */}
-            {currentSlots.length > 0 && (
-              <div className="mb-4">
-                <h3 className="font-semibold text-foreground mb-2 text-sm">Website slots on this page</h3>
-                <div className="space-y-1">
-                  {currentSlots.map((slot) => {
-                    const media = getSlotMedia(slot);
-                    const isSelected = state.selectedSlot?.id === slot.id;
-                    const hasAsset = state.selectedAsset?.id === media?.id;
-                    
-                    return (
-                      <div
-                        key={slot.id}
-                        onClick={() => handleSlotClick(slot)}
-                        onDragOver={(e) => e.preventDefault()}
-                        onDrop={(e) => {
-                          e.preventDefault();
-                          const assetId = e.dataTransfer.getData('text/plain');
-                          const asset = state.assets.find(a => a.id === assetId);
-                          if (asset) assignAssetToSlot(asset, slot);
-                        }}
-                        className={`p-2 rounded border cursor-pointer transition-all ${
-                          isSelected
-                            ? 'border-primary bg-primary/10'
-                            : hasAsset
-                            ? 'border-honey bg-honey/5'
-                            : 'border-border bg-surface hover:border-border-hover'
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <p className="font-medium text-foreground text-sm">{slot.slotName}</p>
-                            <p className="text-xs text-muted-foreground">{slot.section}</p>
-                          </div>
-                          {media && (
-                            <span className="text-xs text-green-600">Assigned</span>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
             {/* Media Grid */}
             <div className="grid grid-cols-3 gap-3">

@@ -41,30 +41,63 @@ class SlotRegistry {
   }
 
   private handleMessage = (event: MessageEvent) => {
-    if (event.data.type === 'SLOT_REGISTER') {
+    // Filter: Only process Workbench protocol messages
+    if (!event.data || typeof event.data.type !== 'string') {
+      return;
+    }
+
+    const messageType = event.data.type;
+
+    if (messageType === 'SLOT_REGISTER') {
+      console.log('[FORENSIC] SLOT REGISTRY MESSAGE RECEIVED', {
+        type: messageType,
+        origin: event.origin,
+        slotId: event.data.slot?.id,
+      });
       // Reconstruct slot with element as null (cannot send HTMLElement across iframe)
       this.register({ ...event.data.slot, element: null });
-    } else if (event.data.type === 'SLOT_UNREGISTER') {
+    } else if (messageType === 'SLOT_UNREGISTER') {
+      console.log('[FORENSIC] SLOT REGISTRY MESSAGE RECEIVED', {
+        type: messageType,
+        origin: event.origin,
+        slotId: event.data.slotId,
+      });
       this.unregister(event.data.slotId);
-    } else if (event.data.type === 'SLOT_CLICK') {
+    } else if (messageType === 'SLOT_CLICK') {
+      console.log('[FORENSIC] SLOT REGISTRY MESSAGE RECEIVED', {
+        type: messageType,
+        origin: event.origin,
+        slotId: event.data.slot?.id,
+      });
       // Forward slot click events to window for workbench to handle
       window.dispatchEvent(new CustomEvent('slot-click', { detail: event.data.slot }));
     }
+    // Ignore all other message types (Next.js HMR, devtools, etc.)
   };
 
   register(slot: RegisteredSlot) {
+    console.log('[FORENSIC] SLOT REGISTRY REGISTER', {
+      slotId: slot.id,
+      currentMediaId: slot.currentMediaId,
+      isWorkbenchMode: this.isWorkbenchMode,
+      parentWindow: typeof window !== 'undefined' ? window.parent !== window : 'N/A',
+    });
     this.slots.set(slot.id, slot);
-    
+
     // If in regular page mode and workbench is open, notify parent
     if (!this.isWorkbenchMode && typeof window !== 'undefined' && window.parent !== window) {
       // Remove element before sending (cannot clone HTMLElement)
       const { element, ...slotWithoutElement } = slot;
+      console.log('[FORENSIC] SLOT REGISTRY POSTMESSAGE SLOT_REGISTER', {
+        slotId: slot.id,
+        targetOrigin: '*',
+      });
       window.parent.postMessage({
         type: 'SLOT_REGISTER',
         slot: slotWithoutElement,
       }, '*');
     }
-    
+
     this.notify();
   }
 

@@ -50,11 +50,21 @@ export function loadAuthority<T>({
 }: AuthorityLoaderOptions<T>): T {
   const cacheKey = path;
   const cached = authorityCaches.get(cacheKey);
-  
+
   if (cached) {
+    console.log('[AUTHORITY CACHE HIT]', {
+      name,
+      path,
+      cachedAt: new Date(cached.loadedAt).toISOString(),
+    });
     return cached.data as T;
   }
-  
+
+  console.log('[AUTHORITY CACHE MISS]', {
+    name,
+    path,
+  });
+
   try {
     // Map path aliases to actual file paths for static imports
     const pathMap: Record<string, any> = {
@@ -72,26 +82,32 @@ export function loadAuthority<T>({
       "@/config/gallery-presets.v1.json": require("../config/gallery-presets.v1.json"),
       "@/config/manifest.v1.json": require("../config/manifest.v1.json"),
     };
-    
+
     const data = pathMap[path];
-    
+
     if (!data) {
       console.error(`Authority path not found in path map: ${path}`);
       return fallback;
     }
-    
+
     // Validate if validator provided
     if (validator && !validator(data)) {
       console.error(`Authority validation failed for ${name}:`, data);
       return fallback;
     }
-    
+
     const result = data as T;
     authorityCaches.set(cacheKey, {
       data: result,
       loadedAt: Date.now(),
     });
-    
+
+    console.log('[AUTHORITY LOADED]', {
+      name,
+      path,
+      loadedAt: new Date().toISOString(),
+    });
+
     return result;
   } catch (error) {
     console.error(`Failed to load authority ${name}:`, error);
@@ -103,6 +119,9 @@ export function loadAuthority<T>({
  * Clear cache for a specific authority
  */
 export function clearAuthorityCache(path: string): void {
+  console.log('[AUTHORITY CACHE CLEAR]', {
+    path,
+  });
   authorityCaches.delete(path);
 }
 

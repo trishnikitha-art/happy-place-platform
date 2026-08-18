@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+﻿import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { Container, Section, SectionHeading } from "@/components/section";
@@ -23,6 +23,7 @@ import { getOwnerPortrait } from "@/lib/brand";
 import { getMediaById } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 import { getHomepageHero } from "@/lib/brand";
+import { VisualSlot } from "@/components/visual-slot";
 
 const siteUrl = "https://happyplacecarpentry.com";
 
@@ -158,7 +159,21 @@ export default async function HomePage() {
             <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
               {homepageServices.map((s, i) => (
                 <ScrollReveal key={s.id} delay={i * 100}>
-                  <ServiceCard service={s} />
+                  {s.slug === 'painting' ? (
+                    <VisualSlot
+                      id="homepage-service-card-slot-painting"
+                      route="/"
+                      page="Homepage"
+                      section="Services"
+                      slotName="Painting Service Card"
+                      currentMediaId={null}
+                      component="ServiceCard"
+                    >
+                      <ServiceCard service={s} />
+                    </VisualSlot>
+                  ) : (
+                    <ServiceCard service={s} />
+                  )}
                 </ScrollReveal>
               ))}
             </div>
@@ -246,7 +261,17 @@ export default async function HomePage() {
             </div>
             <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
               {ownerSrc && (
-                <Image src={ownerSrc} alt="Portrait of Taylor and Lanie, the owners of Happy Place Carpentry, standing together in front of a completed carpentry project" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover photo-breathe" />
+                <VisualSlot
+                  id="homepage-owner-portrait-slot"
+                  route="/"
+                  page="Homepage"
+                  section="Hero"
+                  slotName="Owner Portrait"
+                  currentMediaId={ownerBrand?.mediaId || null}
+                  component="HeroSection"
+                >
+                  <Image src={ownerSrc} alt="Portrait of Taylor and Lanie, the owners of Happy Place Carpentry, standing together in front of a completed carpentry project" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover photo-breathe" />
+                </VisualSlot>
               )}
               <CedarCorner className="absolute -left-2 -top-2 h-8 w-8 text-honey" />
             </div>

@@ -5,6 +5,7 @@ import { Icon } from "@/components/icon";
 import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
 import { getFeaturedServiceMedia } from "@/lib/media";
+import { getMediaById } from "@/lib/media";
 
 /**
  * ServiceCard — photo-led and dense (CEO review): one iconic image, title,
@@ -13,16 +14,36 @@ import { getFeaturedServiceMedia } from "@/lib/media";
  * Updated to use new Service type from registries (data-driven configuration).
  * 
  * Service cards use intent-based media lookups from Media Authority.
- * Displays the hero image of the highest-ranked project for that service.
+ * First checks for assigned cardMediaId from services.v1.json (Workbench assignment).
+ * Falls back to hero image of the highest-ranked project for that service.
  * Falls back to intentional empty state when no images exist for that service.
  * 
  * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
  * Card text always uses light register tokens regardless of page background.
  */
 export function ServiceCard({ service }: { service: Service }) {
-  const featuredMedia = getFeaturedServiceMedia(service.slug);
+  // First check for Workbench-assigned card media
+  const cardMedia = service.cardMediaId ? getMediaById(service.cardMediaId) : null;
+
+  console.log('[FORENSIC] SERVICE_CARD_MEDIA_RESOLUTION', {
+    serviceSlug: service.slug,
+    cardMediaId: service.cardMediaId,
+    cardMediaFound: !!cardMedia,
+    cardMediaIdResolved: cardMedia?.id,
+    fallbackToFeatured: !cardMedia,
+  });
+
+  // Fall back to featured project media
+  const featuredMedia = cardMedia || getFeaturedServiceMedia(service.slug);
   const hasImage = featuredMedia !== null;
   const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.original) : null;
+
+  console.log('[FORENSIC] SERVICE_CARD_FINAL_IMAGE', {
+    serviceSlug: service.slug,
+    hasImage,
+    imageSrc,
+    mediaId: featuredMedia?.id,
+  });
 
   // Card text colors - always light register (cards are always light surfaces)
   const headingColor = "text-text";

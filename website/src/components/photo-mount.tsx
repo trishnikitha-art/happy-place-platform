@@ -18,7 +18,7 @@ import { cn } from "@/lib/utils";
  */
 export function PhotoMount({ className, children }: { className?: string; children: React.ReactNode }) {
   return (
-    <div className={cn("photo-mounted", className)}>
+    <div className={cn("photo-mounted", className)} style={{ position: 'relative', width: '100%', height: '100%' }}>
       {children}
     </div>
   );

@@ -46,6 +46,13 @@ export function loadGalleryPresetsRegistry(): GalleryPresetsRegistry {
  */
 export function getAllServices(): Service[] {
   const registry = loadServicesRegistry();
+  console.log('[FORENSIC] SERVER SERVICES AUTHORITY READ', {
+    serviceCount: registry.services.length,
+    services: registry.services.map(s => ({
+      slug: s.slug,
+      cardMediaId: s.cardMediaId,
+    })),
+  });
   return sortByOrder(registry.services);
 }
 
@@ -86,7 +93,16 @@ export function getHomepageEligibleServices(): Service[] {
  */
 export function getNonArchivedServices(): Service[] {
   const services = getAllServices();
-  return filterNonArchived(services);
+  const nonArchived = filterNonArchived(services);
+  console.log('[FORENSIC] SERVER NON_ARCHIVED SERVICES', {
+    total: services.length,
+    nonArchived: nonArchived.length,
+    services: nonArchived.map(s => ({
+      slug: s.slug,
+      cardMediaId: s.cardMediaId,
+    })),
+  });
+  return nonArchived;
 }
 
 /**
