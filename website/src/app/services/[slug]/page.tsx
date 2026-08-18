@@ -12,6 +12,7 @@ import { PlaceholderSection } from "@/components/placeholder-section";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { getProjectById } from "@/lib/projects";
 import { getMediaById } from "@/lib/media";
+import { VisualSlot } from "@/components/visual-slot";
 
 interface ServicePageProps {
   params: Promise<{
@@ -180,7 +181,17 @@ export default async function ServicePage({ params }: ServicePageProps) {
             <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {relatedServices.map((s) => (
                 <Link key={s.id} href={`/services/${s.slug}`}>
-                  <ServiceCard service={s} />
+                  <VisualSlot
+                    id={`services-${slug}-related-card-${s.slug}`}
+                    route={`/services/${slug}`}
+                    page="ServiceDetail"
+                    section="Related Services"
+                    slotName={`${s.name} Service Card`}
+                    currentMediaId={null}
+                    component="ServiceCard"
+                  >
+                    <ServiceCard service={s} />
+                  </VisualSlot>
                 </Link>
               ))}
             </div>

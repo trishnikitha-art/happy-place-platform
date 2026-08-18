@@ -159,21 +159,17 @@ export default async function HomePage() {
             <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
               {homepageServices.map((s, i) => (
                 <ScrollReveal key={s.id} delay={i * 100}>
-                  {s.slug === 'painting' ? (
-                    <VisualSlot
-                      id="homepage-service-card-slot-painting"
-                      route="/"
-                      page="Homepage"
-                      section="Services"
-                      slotName="Painting Service Card"
-                      currentMediaId={null}
-                      component="ServiceCard"
-                    >
-                      <ServiceCard service={s} />
-                    </VisualSlot>
-                  ) : (
+                  <VisualSlot
+                    id={`homepage-service-card-slot-${s.slug}`}
+                    route="/"
+                    page="Homepage"
+                    section="Services"
+                    slotName={`${s.name} Service Card`}
+                    currentMediaId={null}
+                    component="ServiceCard"
+                  >
                     <ServiceCard service={s} />
-                  )}
+                  </VisualSlot>
                 </ScrollReveal>
               ))}
             </div>
@@ -265,7 +261,7 @@ export default async function HomePage() {
                   id="homepage-owner-portrait-slot"
                   route="/"
                   page="Homepage"
-                  section="Hero"
+                  section="The Family"
                   slotName="Owner Portrait"
                   currentMediaId={ownerBrand?.mediaId || null}
                   component="HeroSection"
