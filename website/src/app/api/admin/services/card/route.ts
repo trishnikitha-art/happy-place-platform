@@ -109,8 +109,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, serviceSlug, mediaId });
   } catch (error) {
     console.error("Error updating service card:", error);
+    console.error("Error details:", {
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
     return NextResponse.json(
-      { error: "Failed to update service card" },
+      { 
+        error: "Failed to update service card",
+        details: error instanceof Error ? error.message : String(error)
+      },
       { status: 500 }
     );
   }

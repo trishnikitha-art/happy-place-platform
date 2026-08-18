@@ -36,7 +36,7 @@ interface MediaWorkbenchState {
   searchQuery: string;
   filter: 'all' | 'used' | 'unused' | 'drive';
   registeredSlots: RegisteredSlot[];
-  pendingAssignment: { slot: RegisteredSlot; asset: VisualAsset } | null;
+  pendingAssignments: Array<{ slot: RegisteredSlot; asset: VisualAsset }>;
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -58,7 +58,7 @@ export default function MediaWorkbench() {
     searchQuery: '',
     filter: 'all',
     registeredSlots: [],
-    pendingAssignment: null,
+    pendingAssignments: [],
   });
 
   const mediaPanelRef = useRef<HTMLDivElement>(null);
@@ -189,8 +189,11 @@ export default function MediaWorkbench() {
               assetId,
               currentMediaId: slot.currentMediaId,
             });
-            // STAGE the assignment instead of immediately writing
-            setState(prev => ({ ...prev, pendingAssignment: { slot, asset } }));
+            // STAGE the assignment (add to pending assignments list)
+            setState(prev => ({ 
+              ...prev, 
+              pendingAssignments: [...prev.pendingAssignments, { slot, asset }] 
+            }));
           } else {
             console.log('[DND 7] SLOT_ASSIGNMENT_ATTEMPT - ASSET NOT FOUND', {
               slotId,
@@ -249,24 +252,45 @@ export default function MediaWorkbench() {
   };
 
   const confirmAssignment = async () => {
-    if (!state.pendingAssignment) return;
+    if (state.pendingAssignments.length === 0) return;
 
-    const { slot, asset } = state.pendingAssignment;
-    console.log('[DND CONFIRM] CONFIRMING_ASSIGNMENT', {
-      slotId: slot.id,
-      assetId: asset.id,
-      currentMediaId: slot.currentMediaId,
+    console.log('[DND CONFIRM] CONFIRMING_ASSIGNMENTS', {
+      count: state.pendingAssignments.length,
+      assignments: state.pendingAssignments.map(a => ({
+        slotId: a.slot.id,
+        assetId: a.asset.id,
+        currentMediaId: a.slot.currentMediaId,
+      })),
     });
 
-    await assignAssetToSlot(asset, slot);
+    // Process all pending assignments
+    for (const { slot, asset } of state.pendingAssignments) {
+      try {
+        await assignAssetToSlot(asset, slot);
+      } catch (error) {
+        console.error('[DND CONFIRM] ASSIGNMENT_FAILED', {
+          slotId: slot.id,
+          assetId: asset.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        alert(`Failed to assign ${asset.filename} to ${slot.slotName}: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    }
 
-    // Clear pending assignment after successful write
-    setState(prev => ({ ...prev, pendingAssignment: null }));
+    // Clear all pending assignments after processing
+    setState(prev => ({ ...prev, pendingAssignments: [] }));
   };
 
   const cancelAssignment = () => {
-    console.log('[DND CONFIRM] CANCEL_ASSIGNMENT');
-    setState(prev => ({ ...prev, pendingAssignment: null }));
+    console.log('[DND CONFIRM] CANCEL_ASSIGNMENTS');
+    setState(prev => ({ ...prev, pendingAssignments: [] }));
+  };
+
+  const removePendingAssignment = (index: number) => {
+    setState(prev => ({
+      ...prev,
+      pendingAssignments: prev.pendingAssignments.filter((_, i) => i !== index),
+    }));
   };
 
   const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot) => {
@@ -493,22 +517,22 @@ export default function MediaWorkbench() {
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {state.pendingAssignment && (
+            {state.pendingAssignments.length > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">
-                  Replace {state.pendingAssignment.slot.slotName} with {state.pendingAssignment.asset.filename}
+                  {state.pendingAssignments.length} pending change{state.pendingAssignments.length > 1 ? 's' : ''}
                 </span>
                 <button
                   onClick={cancelAssignment}
                   className="px-2 py-1 bg-surface text-foreground rounded hover:bg-surface/80 transition-colors text-xs"
                 >
-                  Cancel
+                  Clear All
                 </button>
                 <button
                   onClick={confirmAssignment}
                   className="px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors flex items-center gap-2 text-xs"
                 >
-                  CONFIRM
+                  CONFIRM ALL
                 </button>
               </div>
             )}
@@ -541,6 +565,41 @@ export default function MediaWorkbench() {
           ))}
         </div>
       </div>
+
+      {/* Pending Assignments Bar */}
+      {state.pendingAssignments.length > 0 && (
+        <div className="shrink-0 border-b border-border bg-card px-4 py-2">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-foreground">
+              Pending Changes ({state.pendingAssignments.length})
+            </span>
+            <button
+              onClick={cancelAssignment}
+              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Clear All
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {state.pendingAssignments.map((assignment, index) => (
+              <div
+                key={`${assignment.slot.id}-${assignment.asset.id}`}
+                className="flex items-center gap-2 px-2 py-1 bg-surface rounded text-xs"
+              >
+                <span className="text-muted-foreground">{assignment.slot.slotName}</span>
+                <span className="text-primary">→</span>
+                <span className="text-foreground">{assignment.asset.filename}</span>
+                <button
+                  onClick={() => removePendingAssignment(index)}
+                  className="text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  ×
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Main Content - Two Panel Layout */}
       <div className="flex-1 grid grid-cols-2 min-h-0">
