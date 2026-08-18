@@ -63,7 +63,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
   };
 
   // Close context menu on click outside
-  React.useEffect(() => {
+  useEffect(() => {
     const handleClickOutside = () => {
       if (contextMenu) {
         closeContextMenu();
