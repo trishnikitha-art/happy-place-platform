@@ -31,7 +31,8 @@ export default function WorkbenchLogin() {
       const data = await response.json();
 
       if (response.ok && data.success) {
-        router.push('/workbench/media');
+        // Force page reload to ensure cookies are properly available
+        window.location.href = '/workbench/media';
       } else {
         setError(data.error || 'Login failed');
       }
