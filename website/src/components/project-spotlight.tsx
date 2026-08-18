@@ -247,7 +247,7 @@ export function ProjectSpotlight({
                       component="ProjectSpotlight"
                     >
                       <Image
-                        src={media!.variants!.web || media!.variants!.original!
+                        src={media!.variants!.web || media!.variants!.original!}
                         alt={media!.alt}
                         fill
                         loading="lazy"
