@@ -57,7 +57,7 @@ export default async function HomePage() {
   // Get hero from Brand Authority
   const homepageHero = getHomepageHero();
   const heroMedia = homepageHero?.mediaId ? getMediaById(homepageHero.mediaId) : null;
-  const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original;
+  const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original || '/images/hero-background-enhanced.jpg';
   
   // Get exterior painting project for featured transformation (has before/after media)
   const paintingProject = featuredProjects.find(p => p.id === 'exterior-painting-001');
