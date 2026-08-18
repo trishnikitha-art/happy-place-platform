@@ -304,13 +304,23 @@ export default function MediaWorkbench() {
       } else if (slotId.startsWith('our-work-project-card-')) {
         // Extract project ID from slot ID (e.g., our-work-project-card-exterior-painting-001 -> exterior-painting-001)
         const projectId = slotId.replace('our-work-project-card-', '');
-        alert('Project card assignment not yet implemented. Needs projects.v1.json write endpoint');
-        return;
+        endpoint = '/api/admin/projects/card';
+        requestBody = { projectId, mediaId: asset.id };
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
       } else if (slotId.startsWith('services-') && slotId.includes('-project-card-')) {
         // Extract project ID from service project card slot
         const projectId = slotId.split('-project-card-')[1];
-        alert('Service project card assignment not yet implemented. Needs projects.v1.json write endpoint');
-        return;
+        endpoint = '/api/admin/projects/card';
+        requestBody = { projectId, mediaId: asset.id };
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
       } else if (slotId.includes('before') || slotId.includes('after')) {
         alert('Before/after assignment not yet implemented. Needs projects.v1.json write endpoint');
         return;

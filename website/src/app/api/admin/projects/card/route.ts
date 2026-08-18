@@ -74,7 +74,7 @@ export async function POST(request: Request) {
     const readBackMediaId = readBackData.projects.find(p => p.id === projectId)?.media?.hero;
     const matchesExpected = readBackMediaId === newMediaId;
 
-    console.log('[DND SERVER 6] READ_BACK_VERIFICATION', { projectId, cardMediaId: readBackMediaId, matchesExpected });
+    console.log('[DND SERVER 6] READ_BACK_VERIFICATION', { projectId, projectMediaId: readBackMediaId, matchesExpected });
 
     console.log('[DND SERVER 7] RESPONSE', { success: true, projectId, mediaId });
 
