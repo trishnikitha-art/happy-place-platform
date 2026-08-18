@@ -352,7 +352,8 @@ export default function MediaWorkbench() {
         const idPart = slotId.replace('our-work-gallery-', '');
         const lastHyphenIndex = idPart.lastIndexOf('-');
         const projectId = idPart.substring(0, lastHyphenIndex);
-        const galleryIndex = parseInt(idPart.substring(lastHyphenIndex + 1));
+        const galleryIndex = parseInt(idPart.substring(lastHyphenIndex + 1), 10);
+        console.log('[DND 8] GALLERY_SLOT_PARSED', { slotId, projectId, galleryIndex });
         endpoint = '/api/admin/projects/gallery';
         requestBody = { projectId, galleryIndex, mediaId: asset.id };
         response = await fetch(endpoint, {
