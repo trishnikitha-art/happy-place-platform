@@ -192,7 +192,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
               {relatedServices.map((s) => (
                 <Link key={s.id} href={`/services/${s.slug}`}>
                   <VisualSlot
-                    id={`services-${slug}-related-card-${s.slug}`}
+                    id={`services-${slug}-related-service-card-${s.slug}`}
                     route={`/services/${slug}`}
                     page="ServiceDetail"
                     section="Related Services"

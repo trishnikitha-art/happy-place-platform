@@ -337,6 +337,16 @@ export default function MediaWorkbench() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
+      } else if (slotId.startsWith('services-') && slotId.includes('-related-service-card-')) {
+        // Extract service slug from slot ID (e.g., services-painting-related-service-card-fences -> fences)
+        const serviceSlug = slotId.split('-related-service-card-')[1];
+        endpoint = '/api/admin/services/card';
+        requestBody = { serviceSlug, mediaId: asset.id };
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
       } else if (slotId.startsWith('our-work-gallery-')) {
         // Extract project ID and gallery index from slot ID (e.g., our-work-gallery-exterior-painting-001-0 -> exterior-painting-001, 0)
         const idPart = slotId.replace('our-work-gallery-', '');
