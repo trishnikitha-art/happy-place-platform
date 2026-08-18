@@ -88,8 +88,6 @@ export default async function HomePage() {
               sizes="100vw"
               className="object-cover"
               style={{ filter: "brightness(0.7)" }}
-              placeholder="blur"
-              blurDataURL={heroMedia.variants?.blur}
             />
           ) : (
             <Image

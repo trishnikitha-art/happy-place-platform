@@ -13,7 +13,6 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { LenisProvider } from "@/components/lenis-provider";
 import { MotionProvider } from "@/components/motion-provider";
 import { SpeculationRules } from "@/components/speculation-rules";
-import { JsonLdScript } from "@/components/json-ld-script";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -91,7 +90,10 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             `,
           }}
         />
-        <JsonLdScript data={orgJsonLd} />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+        />
       </head>
       <body className="min-h-full flex flex-col bg-background">
         <ThemeProvider defaultTheme="system" storageKey="hpp-theme">
