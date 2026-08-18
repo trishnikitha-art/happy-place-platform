@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Playfair_Display, Playball } from "next/font/google";
-import { Script } from "next/script";
 import "./globals.css";
 import { getCompany } from "@/lib/company";
 import { seo } from "@/config/seo";
@@ -14,6 +13,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { LenisProvider } from "@/components/lenis-provider";
 import { MotionProvider } from "@/components/motion-provider";
 import { SpeculationRules } from "@/components/speculation-rules";
+import { JsonLdScript } from "@/components/json-ld-script";
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -77,9 +77,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${playball.variable} h-full antialiased`} style={{ colorScheme: 'dark light' }}>
       <head>
-        <Script
-          id="theme-init"
-          strategy="beforeInteractive"
+        <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
@@ -93,11 +91,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
             `,
           }}
         />
-        <Script
-          id="json-ld"
-          type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
-        />
+        <JsonLdScript data={orgJsonLd} />
       </head>
       <body className="min-h-full flex flex-col bg-background">
         <ThemeProvider defaultTheme="system" storageKey="hpp-theme">
