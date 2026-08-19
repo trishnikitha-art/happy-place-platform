@@ -61,28 +61,26 @@ export function VisualSlot({
   }, [id, route, page, section, slotName, currentMediaId]);
 
   useEffect(() => {
-    console.log('[SLOT] COMPONENT_MOUNTING', { id, route, page, section, slotName, currentMediaId, windowIsIframe: window.parent !== window });
-
-    // Check workbench mode only on client
-    const isWorkbench = typeof window !== 'undefined' &&
-      new URLSearchParams(window.location.search).has('workbench');
-    setIsWorkbenchMode(isWorkbench);
-    
-    console.log('[SLOT] WORKBENCH_MODE_CHECK', { isWorkbench, searchParams: typeof window !== 'undefined' ? window.location.search : 'SSR' });
-  }, [id, route, page, section, slotName, currentMediaId]);
-
-  useEffect(() => {
-    console.log('[SLOT] COMPONENT_MOUNTING', { 
-      id, 
-      route, 
-      page, 
-      section, 
-      slotName, 
-      currentMediaId, 
-      windowIsIframe: window.parent !== window,
+    console.log('[SLOT] COMPONENT_MOUNTING', {
+      id,
+      section,
+      slotName,
       pathname: window.location.pathname,
       search: window.location.search,
-      hasWorkbenchParam: window.location.search.includes('workbench=true'),
+    });
+
+    // Workbench mode check
+    const workbenchParam = new URLSearchParams(window.location.search).get('workbench');
+    const isWorkbenchMode = workbenchParam === 'true';
+    const windowIsIframe = window.parent !== window;
+
+    console.log('[SLOT] WORKBENCH_MODE_CHECK', {
+      slotId: id,
+      pathname: window.location.pathname,
+      search: window.location.search,
+      workbenchParam,
+      isWorkbenchMode,
+      windowIsIframe,
     });
 
     // Register slot on mount
@@ -97,9 +95,19 @@ export function VisualSlot({
       component,
     };
 
-    console.log('[SLOT] REGISTER_ATTEMPT', { slot });
+    console.log('[SLOT] REGISTER_ATTEMPT', {
+      slotId: id,
+      isWorkbenchMode,
+      windowIsIframe,
+      registryInstanceId: (slotRegistry as any).instanceId,
+      registryImplementation: 'SlotRegistry class',
+    });
     slotRegistry.register(slot);
-    console.log('[SLOT] REGISTER_COMPLETE', { id, route });
+    console.log('[SLOT] REGISTER_COMPLETE', {
+      slotId: id,
+      registryInstanceId: (slotRegistry as any).instanceId,
+      registeredCount: slotRegistry.getAll().length,
+    });
 
     // If in iframe, send SLOT_REGISTER to parent
     if (window.parent !== window) {
@@ -107,10 +115,20 @@ export function VisualSlot({
         type: 'SLOT_REGISTER',
         slot: { id, route, page, section, slotName, currentMediaId, component },
       };
-      console.log('[SLOT] REGISTER_SENT', registerMessage);
+      console.log('[SLOT] REGISTER_SENT', {
+        slotId: id,
+        messageType: registerMessage.type,
+        targetOrigin: '*',
+        windowIsIframe,
+        parentExists: !!window.parent,
+        parentWindowExists: window.parent !== window,
+      });
       window.parent.postMessage(registerMessage, '*');
     } else {
-      console.log('[SLOT] NOT_IN_IFRAME - No parent postMessage needed');
+      console.log('[SLOT] REGISTRATION_SKIPPED', {
+        slotId: id,
+        reason: 'NOT_IN_IFRAME',
+      });
     }
 
     // Listen for REFRESH_SLOTS message from parent

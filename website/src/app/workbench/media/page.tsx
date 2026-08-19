@@ -96,6 +96,8 @@ export default function MediaWorkbench() {
   }, [state.assets]);
 
   useEffect(() => {
+    console.log('[WORKBENCH] MESSAGE_LISTENER_ATTACHING');
+
     loadCanonicalData();
 
     // Subscribe to slot registry changes
@@ -128,6 +130,14 @@ export default function MediaWorkbench() {
 
     // Listen for iframe messages (SLOT_REGISTER and SLOT_CLICK)
     const handleMessage = async (event: MessageEvent) => {
+      console.log('[WORKBENCH] MESSAGE_RECEIVED', {
+        eventType: event.type,
+        origin: event.origin,
+        sourceMatchesIframe: iframeRef.current?.contentWindow === event.source,
+        messageType: event.data?.type,
+        slotId: event.data?.slot?.id,
+      });
+
       // Filter: Only process Workbench protocol messages
       if (!event.data || typeof event.data.type !== 'string') {
         return;
@@ -136,6 +146,12 @@ export default function MediaWorkbench() {
       const messageType = event.data.type;
 
       if (messageType === 'SLOT_REGISTER') {
+        console.log('[WORKBENCH] REGISTER_RECEIVED', {
+          slotId: event.data.slot?.id,
+        });
+
+        console.log('[WORKBENCH] REGISTER_TO_PARENT_REGISTRY');
+
         console.log('[SLOT] REGISTER_RECEIVED_IN_PARENT', {
           slotId: event.data.slot?.id,
           route: event.data.slot?.route,
@@ -154,12 +170,21 @@ export default function MediaWorkbench() {
           element: null, // iframe element not accessible from parent
           component: event.data.slot.component,
         };
-        
+
         slotRegistry.register(iframeSlot);
-        
+
+        console.log('[WORKBENCH] PARENT_REGISTRY_REGISTERED', {
+          registeredCount: slotRegistry.getAll().length,
+          slotIds: slotRegistry.getAll().map(s => s.id),
+        });
+
         // Update React state to reflect new registration
         setState(prev => {
           const newRegisteredSlots = [...prev.registeredSlots, iframeSlot];
+          console.log('[WORKBENCH] REGISTERED_SLOTS_STATE', {
+            count: newRegisteredSlots.length,
+            slotIds: newRegisteredSlots.map(s => s.id),
+          });
           console.log('[SLOT] REGISTRY_STATE', {
             slotId: event.data.slot?.id,
             previousCount: prev.registeredSlots.length,
@@ -406,6 +431,8 @@ export default function MediaWorkbench() {
       }
     };
     window.addEventListener('message', handleMessage);
+
+    console.log('[WORKBENCH] MESSAGE_LISTENER_ATTACHED');
 
     return () => {
       unsubscribe();
@@ -1292,7 +1319,10 @@ Check browser console for detailed logs.`);
             className="w-full h-full border-0"
             title="Website Preview"
             sandbox="allow-same-origin allow-scripts allow-popups"
-            onLoad={() => console.log('[SLOT] IFRAME_LOADED', { src: `${window.location.origin}${state.selectedPage}?workbench=true` })}
+            onLoad={() => console.log('[SLOT] IFRAME_LOADED', {
+              iframeSrc: `${window.location.origin}${state.selectedPage}?workbench=true`,
+              contentWindowExists: !!iframeRef.current?.contentWindow,
+            })}
           />
         </section>
 
