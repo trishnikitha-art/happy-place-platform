@@ -23,6 +23,7 @@ import { getOwnerPortrait } from "@/lib/brand";
 import { getMediaById } from "@/app/workbench/preview/main-media";
 import { getFeaturedProjects } from "@/lib/projects";
 import { getHomepageHero } from "@/lib/brand";
+import { getServiceCardAssignment } from "@/lib/assignment-store";
 
 const siteUrl = "https://happyplacecarpentry.com";
 
@@ -47,7 +48,7 @@ export default async function HomePage() {
   const stats = await getReviewStats();
   const hasReviews = stats.count > 0;
   const [taylor, lanie] = company.owners;
-  const ownerBrand = getOwnerPortrait();    // owner portrait from Brand Authority
+  const ownerBrand = await getOwnerPortrait();    // owner portrait from Brand Authority (now async for runtime assignment)
   const ownerMedia = ownerBrand?.mediaId ? getMediaById(ownerBrand.mediaId) : null;
   const ownerSrc = ownerMedia?.variants?.web || ownerMedia?.variants?.original;
   const allServices = getNonArchivedServices();      // data-driven services from registry
@@ -63,6 +64,19 @@ export default async function HomePage() {
   
   // Group services for homepage display (show homepageEligible services first)
   const homepageServices = allServices.filter(s => s.homepageEligible);
+  
+  // Load runtime assignments for service cards on server side (avoids client-side Redis access)
+  const serviceCardAssignments = new Map<string, string>();
+  for (const service of homepageServices) {
+    try {
+      const assignment = await getServiceCardAssignment(service.slug);
+      if (assignment?.mediaId) {
+        serviceCardAssignments.set(service.slug, assignment.mediaId);
+      }
+    } catch (error) {
+      console.error('[WORKBENCH_PREVIEW] Failed to load service card assignment:', service.slug, error);
+    }
+  }
 
   return (
     <>
@@ -163,7 +177,7 @@ export default async function HomePage() {
             <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
               {homepageServices.map((s, i) => (
                 <ScrollReveal key={s.id} delay={i * 100}>
-                  <ServiceCard service={s} />
+                  <ServiceCard service={s} runtimeCardMediaId={serviceCardAssignments.get(s.slug) || null} />
                 </ScrollReveal>
               ))}
             </div>

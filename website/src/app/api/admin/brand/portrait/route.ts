@@ -1,7 +1,7 @@
 /**
  * Admin Brand Portrait API Endpoint
  * 
- * Updates the owner portrait mediaId in brand.v1.json
+ * Updates the owner portrait mediaId using persistent assignment store
  * 
  * POST /api/admin/brand/portrait
  * Body: { mediaId: string }
@@ -10,13 +10,14 @@
  */
 
 import { NextResponse } from "next/server";
-import { readFileSync, writeFileSync } from "fs";
-import { join } from "path";
 import { workbenchSession } from "@/lib/workbench-session";
-
-export const runtime = 'nodejs';
+import { storeServiceCardAssignment, getServiceCardAssignment } from "@/lib/assignment-store";
 
 export async function POST(request: Request) {
+  const requestId = `portrait-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  console.log('[BRAND PORTRAIT] REQUEST_RECEIVED', { requestId });
+
   // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
   if (process.env.NODE_ENV === 'development') {
     // Proceed without authentication
@@ -35,6 +36,11 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { mediaId } = body;
 
+    console.log('[BRAND PORTRAIT] IDENTIFIER_VALIDATION', {
+      requestId,
+      mediaId,
+    });
+
     if (!mediaId) {
       return NextResponse.json(
         { error: "mediaId is required" },
@@ -42,22 +48,54 @@ export async function POST(request: Request) {
       );
     }
 
-    // Read brand.v1.json
-    const brandPath = join(process.cwd(), "src/config/brand.v1.json");
-    const brandData = JSON.parse(readFileSync(brandPath, "utf-8"));
+    // Store assignment in persistent store using brand-portrait as serviceSlug
+    const assignment = {
+      serviceSlug: 'brand-portrait',
+      mediaId,
+      updatedAt: new Date().toISOString(),
+      source: 'workbench' as const,
+    };
 
-    // Update ownerPortrait mediaId
-    brandData.ownerPortrait.mediaId = mediaId;
-    brandData.generatedAt = new Date().toISOString();
+    await storeServiceCardAssignment(assignment, requestId);
 
-    // Write back
-    writeFileSync(brandPath, JSON.stringify(brandData, null, 2));
+    console.log('[BRAND PORTRAIT] ASSIGNMENT_STORED', {
+      requestId,
+      mediaId,
+    });
 
-    return NextResponse.json({ success: true, mediaId });
+    // Read back to verify
+    const storedAssignment = await getServiceCardAssignment('brand-portrait', requestId);
+    console.log('[BRAND PORTRAIT] ASSIGNMENT_VERIFICATION', {
+      requestId,
+      storedMediaId: storedAssignment?.mediaId,
+      matchesExpected: storedAssignment?.mediaId === mediaId,
+    });
+
+    console.log('[BRAND PORTRAIT] RESPONSE', {
+      requestId,
+      success: true,
+      mediaId,
+    });
+
+    return NextResponse.json({ 
+      success: true, 
+      mediaId,
+      assignment,
+      requestId,
+      operationId: requestId 
+    });
   } catch (error) {
-    console.error("Error updating brand portrait:", error);
+    console.error('[BRAND PORTRAIT ERROR]', {
+      requestId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
     return NextResponse.json(
-      { error: "Failed to update brand portrait" },
+      { 
+        error: "Failed to update brand portrait", 
+        details: error instanceof Error ? error.message : 'Unknown error',
+        requestId,
+        operationId: requestId 
+      },
       { status: 500 }
     );
   }

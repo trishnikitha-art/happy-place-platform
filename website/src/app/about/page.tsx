@@ -15,10 +15,10 @@ export const metadata: Metadata = {
   alternates: { canonical: "/about" },
 };
 
-export default function AboutPage() {
+export default async function AboutPage() {
   const company = getCompany();
   const cities = getAllCities();
-  const ownerBrand = getOwnerPortrait();
+  const ownerBrand = await getOwnerPortrait();
   const ownerMedia = ownerBrand?.mediaId ? getMediaById(ownerBrand.mediaId) : null;
   const ownerSrc = ownerMedia?.variants?.web || ownerMedia?.variants?.original;
   

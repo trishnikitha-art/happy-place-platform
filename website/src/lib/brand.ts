@@ -84,9 +84,32 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
 /**
  * Get owner portrait
  * Returns owner portrait or null if not set
+ * Applies runtime assignment from persistent store if available
  */
-export function getOwnerPortrait(): BrandOwnerPortrait | null {
+export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
+  const requestId = `portrait-get-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const manifest = loadBrandManifest();
+  
+  console.log('[BRAND] OWNER_PORTRAIT_REQUEST', { requestId });
+  
+  // Try to load runtime assignment for brand-portrait
+  try {
+    const { getServiceCardAssignment } = await import('@/lib/assignment-store');
+    const assignment = await getServiceCardAssignment('brand-portrait', requestId);
+    
+    if (assignment && assignment.mediaId) {
+      console.log('[BRAND] Runtime assignment loaded for portrait:', { requestId, mediaId: assignment.mediaId });
+      // Return portrait with runtime mediaId
+      return {
+        ...manifest.ownerPortrait,
+        mediaId: assignment.mediaId,
+      };
+    }
+  } catch (error) {
+    console.error('[BRAND] Failed to load runtime assignment for portrait:', { requestId, error });
+  }
+  
+  console.log('[BRAND] Falling back to static configuration', { requestId });
   return manifest.ownerPortrait;
 }
 

@@ -49,7 +49,7 @@ export default async function HomePage() {
   const stats = await getReviewStats();
   const hasReviews = stats.count > 0;
   const [taylor, lanie] = company.owners;
-  const ownerBrand = getOwnerPortrait();    // owner portrait from Brand Authority
+  const ownerBrand = await getOwnerPortrait();    // owner portrait from Brand Authority (now async for runtime assignment)
   const ownerMedia = ownerBrand?.mediaId ? getMediaById(ownerBrand.mediaId) : null;
   const ownerSrc = ownerMedia?.variants?.web || ownerMedia?.variants?.original;
   const allServices = getNonArchivedServices();      // data-driven services from registry
