@@ -6,6 +6,7 @@ import { CTASection } from "@/components/cta-section";
 import { Icon } from "@/components/icon";
 import { VisualSlot } from "@/components/visual-slot";
 import { getNonArchivedServices } from "@/lib/registries";
+import { getServiceCardAssignment } from "@/lib/assignment-store";
 
 export const metadata: Metadata = {
   title: "Services",
@@ -14,8 +15,21 @@ export const metadata: Metadata = {
   alternates: { canonical: "/services" },
 };
 
-export default function ServicesPage() {
+export default async function ServicesPage() {
   const services = getNonArchivedServices();
+  
+  // Load runtime assignments for service cards on server side (avoids client-side Redis access)
+  const serviceCardAssignments = new Map<string, string>();
+  for (const service of services) {
+    try {
+      const assignment = await getServiceCardAssignment(service.slug);
+      if (assignment?.mediaId) {
+        serviceCardAssignments.set(service.slug, assignment.mediaId);
+      }
+    } catch (error) {
+      console.error('[SERVICES_PAGE] Failed to load service card assignment:', service.slug, error);
+    }
+  }
   
   // Group services by category using a simple categorization
   const groupedServices = services.reduce((acc, service) => {
@@ -70,10 +84,10 @@ export default function ServicesPage() {
                         page="Services"
                         section={category}
                         slotName={`${s.name} Service Card`}
-                        currentMediaId={null}
+                        currentMediaId={serviceCardAssignments.get(s.slug) || null}
                         component="ServiceCard"
                       >
-                        <ServiceCard service={s} />
+                        <ServiceCard service={s} runtimeCardMediaId={serviceCardAssignments.get(s.slug) || null} />
                       </VisualSlot>
                     </Link>
                   ))}

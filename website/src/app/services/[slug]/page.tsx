@@ -13,6 +13,7 @@ import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { getProjectById } from "@/lib/projects";
 import { getMediaById } from "@/lib/media";
 import { VisualSlot } from "@/components/visual-slot";
+import { getServiceCardAssignment } from "@/lib/assignment-store";
 
 interface ServicePageProps {
   params: Promise<{
@@ -57,6 +58,19 @@ export default async function ServicePage({ params }: ServicePageProps) {
   const relatedServices = allServices
     .filter(s => s.id !== service.id)
     .slice(0, 3);
+
+  // Load runtime assignments for related service cards on server side (avoids client-side Redis access)
+  const serviceCardAssignments = new Map<string, string>();
+  for (const relatedService of relatedServices) {
+    try {
+      const assignment = await getServiceCardAssignment(relatedService.slug);
+      if (assignment?.mediaId) {
+        serviceCardAssignments.set(relatedService.slug, assignment.mediaId);
+      }
+    } catch (error) {
+      console.error('[SERVICE_DETAIL] Failed to load service card assignment:', relatedService.slug, error);
+    }
+  }
 
   // Get featured project for this service
   const featuredProject = serviceGallery.projects[0] || null;
@@ -197,10 +211,10 @@ export default async function ServicePage({ params }: ServicePageProps) {
                     page="ServiceDetail"
                     section="Related Services"
                     slotName={`${s.name} Service Card`}
-                    currentMediaId={null}
+                    currentMediaId={serviceCardAssignments.get(s.slug) || null}
                     component="ServiceCard"
                   >
-                    <ServiceCard service={s} />
+                    <ServiceCard service={s} runtimeCardMediaId={serviceCardAssignments.get(s.slug) || null} />
                   </VisualSlot>
                 </Link>
               ))}

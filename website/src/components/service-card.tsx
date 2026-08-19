@@ -8,7 +8,7 @@ import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
 import { getFeaturedServiceMedia } from "@/lib/media";
 import { getMediaById } from "@/lib/media";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 /**
  * ServiceCard — photo-led and dense (CEO review): one iconic image, title,
@@ -17,7 +17,7 @@ import { useEffect, useState } from "react";
  * Updated to use new Service type from registries (data-driven configuration).
  * 
  * Service cards use intent-based media lookups from Media Authority.
- * First checks for assigned cardMediaId from runtime assignment store (Workbench assignment).
+ * Receives runtimeCardMediaId as prop from server component to avoid client-side Redis access.
  * Falls back to static cardMediaId from services.v1.json configuration.
  * Falls back to hero image of the highest-ranked project for that service.
  * Falls back to intentional empty state when no images exist for that service.
@@ -25,27 +25,8 @@ import { useEffect, useState } from "react";
  * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
  * Card text always uses light register tokens regardless of page background.
  */
-export function ServiceCard({ service }: { service: Service }) {
-  const [runtimeCardMediaId, setRuntimeCardMediaId] = useState<string | null>(null);
+export function ServiceCard({ service, runtimeCardMediaId }: { service: Service; runtimeCardMediaId?: string | null }) {
   const [renderRequestId] = useState(() => `render-${service.slug}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
-
-  // Load runtime assignment on mount
-  useEffect(() => {
-    async function loadRuntimeAssignment() {
-      const requestId = `service-card-${service.slug}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      try {
-        const { getServiceCardAssignment } = await import('@/lib/assignment-store');
-        const assignment = await getServiceCardAssignment(service.slug, requestId);
-        if (assignment) {
-          setRuntimeCardMediaId(assignment.mediaId);
-          console.log('[SERVICE-CARD] Runtime assignment loaded:', { requestId, serviceSlug: service.slug, mediaId: assignment.mediaId });
-        }
-      } catch (error) {
-        console.error('[SERVICE-CARD] Failed to load runtime assignment:', { requestId, serviceSlug: service.slug, error });
-      }
-    }
-    loadRuntimeAssignment();
-  }, [service.slug]);
 
   // Use runtime assignment if available, otherwise use static configuration
   const effectiveCardMediaId = runtimeCardMediaId || service.cardMediaId;

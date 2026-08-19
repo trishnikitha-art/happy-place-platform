@@ -24,6 +24,7 @@ import { getOwnerPortrait } from "@/lib/brand";
 import { getMediaById } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 import { VisualSlot } from "@/components/visual-slot";
+import { getServiceCardAssignment } from "@/lib/assignment-store";
 
 const siteUrl = "https://happyplacecarpentry.com";
 
@@ -64,6 +65,19 @@ export default async function HomePage() {
   
   // Group services for homepage display (show homepageEligible services first)
   const homepageServices = allServices.filter(s => s.homepageEligible);
+  
+  // Load runtime assignments for service cards on server side (avoids client-side Redis access)
+  const serviceCardAssignments = new Map<string, string>();
+  for (const service of homepageServices) {
+    try {
+      const assignment = await getServiceCardAssignment(service.slug);
+      if (assignment?.mediaId) {
+        serviceCardAssignments.set(service.slug, assignment.mediaId);
+      }
+    } catch (error) {
+      console.error('[HOMEPAGE] Failed to load service card assignment:', service.slug, error);
+    }
+  }
 
   return (
     <>
@@ -193,10 +207,10 @@ export default async function HomePage() {
                     page="Homepage"
                     section="Services"
                     slotName={`${s.name} Service Card`}
-                    currentMediaId={null}
+                    currentMediaId={serviceCardAssignments.get(s.slug) || null}
                     component="ServiceCard"
                   >
-                    <ServiceCard service={s} />
+                    <ServiceCard service={s} runtimeCardMediaId={serviceCardAssignments.get(s.slug) || null} />
                   </VisualSlot>
                 </ScrollReveal>
               ))}
