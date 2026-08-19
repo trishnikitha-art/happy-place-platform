@@ -9,10 +9,21 @@ import { put } from '@vercel/blob';
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 
-const redis = new Redis({
-  url: process.env.KV_REST_API_URL || '',
-  token: process.env.KV_REST_API_TOKEN || '',
-});
+let redis: Redis | null = null;
+
+function getRedisClient(): Redis {
+  if (!redis) {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    
+    if (!url || !token) {
+      throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
+    }
+    
+    redis = new Redis({ url, token });
+  }
+  return redis;
+}
 
 export interface BlobUploadResult {
   url: string;
@@ -52,7 +63,8 @@ export async function uploadToBlob(
     });
     
     // Store content hash mapping for idempotency
-    await redis.set(`blob_hash:${contentHash}`, filename);
+    const client = getRedisClient();
+    await client.set(`blob_hash:${contentHash}`, filename);
     
     return {
       url: blob.url,
@@ -87,7 +99,8 @@ export async function uploadToBlob(
 
 async function getBlobKeyByContentHash(contentHash: string): Promise<string | null> {
   try {
-    const key = await redis.get(`blob_hash:${contentHash}`);
+    const client = getRedisClient();
+    const key = await client.get(`blob_hash:${contentHash}`);
     return key as string | null;
   } catch (e) {
     return null;

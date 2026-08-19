@@ -8,10 +8,21 @@
 import { Redis } from '@upstash/redis';
 import type { Media } from '@/types/media';
 
-const redis = new Redis({
-  url: process.env.KV_REST_API_URL || '',
-  token: process.env.KV_REST_API_TOKEN || '',
-});
+let redis: Redis | null = null;
+
+function getRedisClient(): Redis {
+  if (!redis) {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    
+    if (!url || !token) {
+      throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
+    }
+    
+    redis = new Redis({ url, token });
+  }
+  return redis;
+}
 
 const MEDIA_PREFIX = 'media:';
 const CONTENT_HASH_PREFIX = 'content_hash:';
@@ -22,11 +33,12 @@ const CONTENT_HASH_PREFIX = 'content_hash:';
  */
 export async function storeMedia(media: Media): Promise<void> {
   try {
-    await redis.set(`${MEDIA_PREFIX}${media.id}`, JSON.stringify(media));
+    const client = getRedisClient();
+    await client.set(`${MEDIA_PREFIX}${media.id}`, JSON.stringify(media));
 
     // Index by content hash for deduplication
     if (media.contentHash) {
-      await redis.set(`${CONTENT_HASH_PREFIX}${media.contentHash}`, media.id);
+      await client.set(`${CONTENT_HASH_PREFIX}${media.contentHash}`, media.id);
     }
   } catch (error) {
     // Check if this is a KV configuration error
@@ -47,7 +59,8 @@ export async function storeMedia(media: Media): Promise<void> {
  */
 export async function getMedia(id: string): Promise<Media | null> {
   try {
-    const value = await redis.get(`${MEDIA_PREFIX}${id}`);
+    const client = getRedisClient();
+    const value = await client.get(`${MEDIA_PREFIX}${id}`);
     if (!value) return null;
 
     // Upstash Redis returns strings; parse JSON
@@ -75,7 +88,8 @@ export async function getMedia(id: string): Promise<Media | null> {
  */
 export async function findMediaByContentHash(contentHash: string): Promise<string | null> {
   try {
-    const value = await redis.get(`${CONTENT_HASH_PREFIX}${contentHash}`);
+    const client = getRedisClient();
+    const value = await client.get(`${CONTENT_HASH_PREFIX}${contentHash}`);
     return value as string | null;
   } catch (error) {
     // Check if this is a KV configuration error
@@ -109,11 +123,12 @@ export async function listMediaIds(): Promise<string[]> {
  */
 export async function deleteMedia(id: string): Promise<void> {
   try {
+    const client = getRedisClient();
     const media = await getMedia(id);
     if (media && media.contentHash) {
-      await redis.del(`${CONTENT_HASH_PREFIX}${media.contentHash}`);
+      await client.del(`${CONTENT_HASH_PREFIX}${media.contentHash}`);
     }
-    await redis.del(`${MEDIA_PREFIX}${id}`);
+    await client.del(`${MEDIA_PREFIX}${id}`);
   } catch (error) {
     console.error('[MEDIA_KV] Delete failed:', error);
     throw new Error(`Failed to delete media ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);

@@ -8,10 +8,21 @@
 
 import { Redis } from '@upstash/redis';
 
-const redis = new Redis({
-  url: process.env.KV_REST_API_URL || '',
-  token: process.env.KV_REST_API_TOKEN || '',
-});
+let redis: Redis | null = null;
+
+function getRedisClient(): Redis {
+  if (!redis) {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    
+    if (!url || !token) {
+      throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
+    }
+    
+    redis = new Redis({ url, token });
+  }
+  return redis;
+}
 
 const ASSIGNMENT_PREFIX = 'service-card-assignment:';
 
@@ -28,8 +39,9 @@ export interface ServiceCardAssignment {
  */
 export async function storeServiceCardAssignment(assignment: ServiceCardAssignment): Promise<void> {
   try {
+    const client = getRedisClient();
     const key = `${ASSIGNMENT_PREFIX}${assignment.serviceSlug}`;
-    await redis.set(key, JSON.stringify(assignment));
+    await client.set(key, JSON.stringify(assignment));
     console.log('[ASSIGNMENT_STORE] Stored assignment:', assignment.serviceSlug, assignment.mediaId);
   } catch (error) {
     // Check if this is a KV configuration error
@@ -50,8 +62,9 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
  */
 export async function getServiceCardAssignment(serviceSlug: string): Promise<ServiceCardAssignment | null> {
   try {
+    const client = getRedisClient();
     const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
-    const value = await redis.get(key);
+    const value = await client.get(key);
     if (!value) return null;
 
     // Upstash Redis returns strings; parse JSON
@@ -78,8 +91,9 @@ export async function getServiceCardAssignment(serviceSlug: string): Promise<Ser
  */
 export async function deleteServiceCardAssignment(serviceSlug: string): Promise<void> {
   try {
+    const client = getRedisClient();
     const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
-    await redis.del(key);
+    await client.del(key);
     console.log('[ASSIGNMENT_STORE] Deleted assignment:', serviceSlug);
   } catch (error) {
     // Check if this is a KV configuration error
@@ -98,11 +112,12 @@ export async function deleteServiceCardAssignment(serviceSlug: string): Promise<
  */
 export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignment[]> {
   try {
+    const client = getRedisClient();
     // Use scan to find all keys with the assignment prefix
     const keys: string[] = [];
     let cursor = '0';
     do {
-      const result = await redis.scan(cursor, { match: `${ASSIGNMENT_PREFIX}*`, count: 100 });
+      const result = await client.scan(cursor, { match: `${ASSIGNMENT_PREFIX}*`, count: 100 });
       cursor = result[0];
       keys.push(...result[1]);
     } while (cursor !== '0');
@@ -111,7 +126,7 @@ export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignm
 
     for (const key of keys) {
       try {
-        const value = await redis.get(key);
+        const value = await client.get(key);
         if (value && typeof value === 'string') {
           const assignment = JSON.parse(value) as ServiceCardAssignment;
           assignments.push(assignment);
