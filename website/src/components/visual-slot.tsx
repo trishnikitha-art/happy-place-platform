@@ -61,7 +61,7 @@ export function VisualSlot({
   }, []);
 
   useEffect(() => {
-    console.log('[FORENSIC] iframe VisualSlot mounted', { id, route, page, section, slotName, currentMediaId });
+    console.log('[SLOT] IFRAME_READY', { id, route, page, section, slotName, currentMediaId, windowIsIframe: window.parent !== window });
 
     // Register slot on mount
     const slot: RegisteredSlot = {
@@ -75,7 +75,9 @@ export function VisualSlot({
       component,
     };
 
+    console.log('[SLOT] REGISTER_RECEIVED', { slot });
     slotRegistry.register(slot);
+    console.log('[SLOT] REGISTERED', { id, route });
 
     // If in iframe, send SLOT_REGISTER to parent
     if (window.parent !== window) {
@@ -83,7 +85,7 @@ export function VisualSlot({
         type: 'SLOT_REGISTER',
         slot: { id, route, page, section, slotName, currentMediaId, component },
       };
-      console.log('[FORENSIC] iframe SLOT_REGISTER sent', registerMessage);
+      console.log('[SLOT] REGISTER_SENT', registerMessage);
       window.parent.postMessage(registerMessage, '*');
     }
 

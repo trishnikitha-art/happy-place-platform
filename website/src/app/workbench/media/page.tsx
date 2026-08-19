@@ -136,11 +136,12 @@ export default function MediaWorkbench() {
       const messageType = event.data.type;
 
       if (messageType === 'SLOT_REGISTER') {
-        console.log('[FORENSIC] WORKBENCH MESSAGE RECEIVED', {
-          type: messageType,
-          origin: event.origin,
+        console.log('[SLOT] REGISTER_RECEIVED_IN_PARENT', {
           slotId: event.data.slot?.id,
+          route: event.data.slot?.route,
+          currentRegisteredSlots: state.registeredSlots.length,
         });
+        
         // Store iframe slot directly from payload (iframe and parent have separate JS contexts)
         const iframeSlot: RegisteredSlot = {
           id: event.data.slot.id,
@@ -152,7 +153,23 @@ export default function MediaWorkbench() {
           element: null, // iframe element not accessible from parent
           component: event.data.slot.component,
         };
+        
         slotRegistry.register(iframeSlot);
+        
+        // Update React state to reflect new registration
+        setState(prev => {
+          const newRegisteredSlots = [...prev.registeredSlots, iframeSlot];
+          console.log('[SLOT] REGISTRY_STATE', {
+            slotId: event.data.slot?.id,
+            previousCount: prev.registeredSlots.length,
+            newCount: newRegisteredSlots.length,
+            allSlots: newRegisteredSlots.map(s => ({ id: s.id, route: s.route })),
+          });
+          return {
+            ...prev,
+            registeredSlots: newRegisteredSlots,
+          };
+        });
       } else if (messageType === 'SLOT_CLICK') {
         console.log('[FORENSIC] WORKBENCH MESSAGE RECEIVED', {
           type: messageType,
@@ -187,7 +204,22 @@ export default function MediaWorkbench() {
           slotId,
           assetId,
           applicationData,
+          registeredSlotsCount: state.registeredSlots.length,
+          registeredSlots: state.registeredSlots.map(s => ({ id: s.id, route: s.route })),
         });
+
+        console.log('[DND] DROP_WAITING_FOR_REGISTRATION', {
+          slotId,
+          registeredSlotsCount: state.registeredSlots.length,
+          targetSlotExists: state.registeredSlots.some(s => s.id === slotId),
+        });
+
+        // If no slots registered, reject gracefully
+        if (state.registeredSlots.length === 0) {
+          console.log('[DND] NO_SLOTS_REGISTERED - Cannot perform assignment');
+          alert('Slot registration not ready. Please try again in a moment.');
+          return;
+        }
 
         // Use payload directly instead of slotRegistry.get (separate JS contexts)
         const slot: RegisteredSlot = {
@@ -200,6 +232,14 @@ export default function MediaWorkbench() {
           element: null,
           component: event.data.slot.component,
         };
+
+        console.log('[DND] TARGET_SLOT_RESOLVED', {
+          slotId: slot.id,
+          slotName: slot.slotName,
+          route: slot.route,
+          currentMediaId: slot.currentMediaId,
+          slotResolved: !!slot,
+        });
 
         // Handle Drive reference (direct drag from Drive without ingestion)
         if (applicationData?.source === 'google-drive' && applicationData?.fileId) {
@@ -783,7 +823,12 @@ Check browser console for detailed logs.`);
         });
 
         // Reload dynamic media from KV to pick up new Drive record
-        await loadDynamicMedia();
+        // This is optional - if KV fails, we still have the Drive reference
+        try {
+          await loadDynamicMedia();
+        } catch (e) {
+          console.log('[DND] KV preload failed (non-blocking):', e);
+        }
 
         // Route through existing replacement confirmation
         handleDriveDropToSlot(slot, result.media, slot.currentMediaId);

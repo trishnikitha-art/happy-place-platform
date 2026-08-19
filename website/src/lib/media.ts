@@ -117,8 +117,9 @@ export async function loadDynamicMedia(): Promise<void> {
     
     console.log('[MEDIA] Preloaded dynamic media from KV:', dynamicMediaCache.length);
   } catch (error) {
-    console.log('[MEDIA] Failed to preload dynamic media:', error);
-    // KV might not be configured in all environments
+    console.log('[MEDIA] Failed to preload dynamic media (KV unavailable or misconfigured):', error);
+    // KV might not be configured in all environments - fail gracefully
+    // This should NOT prevent slot registration or assignment
     dynamicMediaCache = [];
   }
 }
