@@ -12,7 +12,8 @@
     "images": "node scripts/image-pipeline.mjs",
     "qa:images": "node scripts/image-qa.mjs",
     "projections": "node scripts/constitutional-projection-generator.js",
-    "graph-edges": "node scripts/graph-edge-generator.js"
+    "graph-edges": "node scripts/graph-edge-generator.js",
+    "postinstall": "npx sharp install"
   },
   "dependencies": {
     "@studio-freight/lenis": "^1.0.42",
