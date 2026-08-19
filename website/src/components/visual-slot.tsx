@@ -53,7 +53,9 @@ export function VisualSlot({
   const elementRef = useRef<HTMLDivElement>(null);
   const [isWorkbenchMode, setIsWorkbenchMode] = useState(false);
 
-  console.log('[SLOT] RENDER', { id, route, page, section, slotName, currentMediaId, windowIsIframe: window.parent !== window });
+  useEffect(() => {
+    console.log('[SLOT] RENDER', { id, route, page, section, slotName, currentMediaId, windowIsIframe: window.parent !== window });
+  }, [id, route, page, section, slotName, currentMediaId]);
 
   useEffect(() => {
     console.log('[SLOT] COMPONENT_MOUNTING', { id, route, page, section, slotName, currentMediaId, windowIsIframe: window.parent !== window });
