@@ -41,18 +41,47 @@ export function getMediaManifest(): MediaManifest {
  * Get media by ID from media.v1.json (static) or KV (dynamic Drive records)
  */
 export function getMediaById(id: string): Media | null {
+  const mediaIdPrefix = id.startsWith('drive-') ? 'drive-' : 'static';
+  
+  console.log('[MEDIA_RESOLUTION_FORENSICS]', {
+    id,
+    mediaIdPrefix,
+    authoritySource: 'static-kv-cache',
+    lookupAttempted: true,
+  });
+  
   // First check static media.v1.json (existing HP images)
   const manifest = loadMediaManifest();
   const staticMedia = findById(manifest.media, id);
   if (staticMedia) {
+    console.log('[MEDIA_RESOLUTION_FORENSICS]', {
+      id,
+      found: true,
+      resolvedType: 'static-manifest',
+      resolvedId: staticMedia.id,
+    });
     return staticMedia;
   }
 
   // Check dynamic KV cache (Drive records preloaded via loadDynamicMedia)
   const dynamicMedia = findById(dynamicMediaCache, id);
   if (dynamicMedia) {
+    console.log('[MEDIA_RESOLUTION_FORENSICS]', {
+      id,
+      found: true,
+      resolvedType: 'kv-cache',
+      resolvedId: dynamicMedia.id,
+    });
     return dynamicMedia;
   }
+
+  console.log('[MEDIA_RESOLUTION_FORENSICS]', {
+    id,
+    found: false,
+    resolvedId: null,
+    resolvedType: null,
+    cacheSize: dynamicMediaCache.length,
+  });
 
   return null;
 }

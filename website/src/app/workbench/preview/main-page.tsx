@@ -24,6 +24,7 @@ import { getMediaById } from "@/app/workbench/preview/main-media";
 import { getFeaturedProjects } from "@/lib/projects";
 import { getHomepageHero } from "@/lib/brand";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
+import { getMediaByIdAsync } from "@/lib/media";
 
 const siteUrl = "https://happyplacecarpentry.com";
 
@@ -66,12 +67,31 @@ export default async function HomePage() {
   const homepageServices = allServices.filter(s => s.homepageEligible);
   
   // Load runtime assignments for service cards on server side (avoids client-side Redis access)
-  const serviceCardAssignments = new Map<string, string>();
+  // For drive-prefixed IDs, resolve via async KV lookup
+  const serviceCardAssignments = new Map<string, { mediaId: string; mediaObject: any }>();
   for (const service of homepageServices) {
     try {
       const assignment = await getServiceCardAssignment(service.slug);
       if (assignment?.mediaId) {
-        serviceCardAssignments.set(service.slug, assignment.mediaId);
+        // Resolve media object - use async KV lookup for drive-prefixed IDs
+        let mediaObject = null;
+        if (assignment.mediaId.startsWith('drive-')) {
+          mediaObject = await getMediaByIdAsync(assignment.mediaId);
+        } else {
+          mediaObject = getMediaById(assignment.mediaId);
+        }
+        
+        console.log('[WORKBENCH_PREVIEW] Service card assignment resolved:', {
+          serviceSlug: service.slug,
+          mediaId: assignment.mediaId,
+          mediaResolved: mediaObject !== null,
+          mediaType: mediaObject?.type,
+        });
+        
+        serviceCardAssignments.set(service.slug, {
+          mediaId: assignment.mediaId,
+          mediaObject,
+        });
       }
     } catch (error) {
       console.error('[WORKBENCH_PREVIEW] Failed to load service card assignment:', service.slug, error);
@@ -177,7 +197,7 @@ export default async function HomePage() {
             <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
               {homepageServices.map((s, i) => (
                 <ScrollReveal key={s.id} delay={i * 100}>
-                  <ServiceCard service={s} runtimeCardMediaId={serviceCardAssignments.get(s.slug) || null} />
+                  <ServiceCard service={s} runtimeCardMediaObject={serviceCardAssignments.get(s.slug)?.mediaObject || null} />
                 </ScrollReveal>
               ))}
             </div>
