@@ -24,6 +24,8 @@ import { getMediaById } from "@/lib/media";
  * Card text always uses light register tokens regardless of page background.
  */
 export function ServiceCard({ service }: { service: Service }) {
+  // UNCONDITIONAL LOG - will appear in iframe console if component renders
+  console.log('[SERVICE-CARD-RENDER]', service.slug);
   // First check for Workbench-assigned card media
   const cardMedia = service.cardMediaId ? getMediaById(service.cardMediaId) : null;
 

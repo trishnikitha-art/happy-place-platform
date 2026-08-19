@@ -53,6 +53,9 @@ export function VisualSlot({
   const elementRef = useRef<HTMLDivElement>(null);
   const [isWorkbenchMode, setIsWorkbenchMode] = useState(false);
 
+  // UNCONDITIONAL LOG - will appear in iframe console if component renders
+  console.log('[SLOT-RENDER]', id);
+
   useEffect(() => {
     console.log('[SLOT] RENDER', { id, route, page, section, slotName, currentMediaId, windowIsIframe: window.parent !== window });
   }, [id, route, page, section, slotName, currentMediaId]);
