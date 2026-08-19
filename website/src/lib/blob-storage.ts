@@ -28,7 +28,7 @@ export async function uploadToBlob(
     const blob = await put(filename, buffer, {
       access: 'public',
       contentType,
-      allowOverwrite: true, // Allow overwriting same content (deduplication handles this)
+      // Do NOT use allowOverwrite - implement proper idempotency based on content hash
     });
     
     return {

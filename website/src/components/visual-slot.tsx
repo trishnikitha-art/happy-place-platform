@@ -168,15 +168,13 @@ export function VisualSlot({
       const dropMessage = {
         type: 'SLOT_DROP',
         slot: { id, route, page, section, slotName, currentMediaId },
-        assetId, // Include the dropped asset ID
-        source: applicationData?.source,
-        driveFileId: applicationData?.driveFileId,
-        sharedDriveId: applicationData?.sharedDriveId,
+        assetId,
+        applicationData, // Pass full application data for Drive references
       };
       console.log('[DND] SLOT_DROP_POSTMESSAGE', {
         slotId: id,
         assetId,
-        source: applicationData?.source,
+        hasApplicationData: !!applicationData,
       });
       window.parent.postMessage(dropMessage, '*');
     }

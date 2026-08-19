@@ -1,30 +1,76 @@
 /**
  * Drive Reference API Route
  *
- * Creates a media record that references a Drive object directly.
+ * Creates a lightweight media record that references a Drive object directly.
  * Does not download the file; uses Drive's thumbnail and view URLs.
+ * Uses KV store for persistence and proper idempotency based on Drive identity.
  *
  * POST /api/drive/reference
- * Body: { driveId: string, projectId?: string, roles?: MediaRole[] }
+ * Body: { driveId: string, driveIdParameter?: string, projectId?: string, roles?: MediaRole[] }
  */
 
 import { NextResponse } from 'next/server';
 import { driveDiscovery } from '@/lib/drive/drive-discovery';
 import { driveSession } from '@/lib/drive/drive-session';
 import { workbenchSession } from '@/lib/workbench-session';
-import { readFileSync, writeFileSync } from 'fs';
-import { join } from 'path';
 import type { Media, MediaRole } from '@/types/media';
+import crypto from 'crypto';
+
+// Dynamic imports for storage modules (ES modules need dynamic import)
+let storeMedia: any = null;
+let getMedia: any = null;
+let findMediaByContentHash: any = null;
+let uploadToBlob: any = null;
+let generateBlobFilename: any = null;
+
+async function loadStorageModules() {
+  try {
+    const mediaKvStore = await import('@/lib/media-kv-store');
+    storeMedia = mediaKvStore.storeMedia;
+    getMedia = mediaKvStore.getMedia;
+    findMediaByContentHash = mediaKvStore.findMediaByContentHash;
+    console.log('[DRIVE_REFERENCE] KV module loaded successfully');
+  } catch (e) {
+    console.error('[DRIVE_REFERENCE] KV module load failed:', e);
+  }
+
+  try {
+    const blobStorage = await import('@/lib/blob-storage');
+    uploadToBlob = blobStorage.uploadToBlob;
+    generateBlobFilename = blobStorage.generateBlobFilename;
+    console.log('[DRIVE_REFERENCE] Blob module loaded successfully');
+  } catch (e) {
+    console.error('[DRIVE_REFERENCE] Blob module load failed:', e);
+  }
+}
 
 export const dynamic = 'force-dynamic';
 
 interface ReferenceRequest {
   driveId: string;
+  driveIdParameter?: string;
   projectId?: string;
   roles?: MediaRole[];
 }
 
 export async function POST(request: Request) {
+  // Load storage modules dynamically
+  await loadStorageModules();
+
+  // Check if storage modules loaded successfully
+  if (!storeMedia || !getMedia) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'KV_MODULE_NOT_AVAILABLE',
+        stage: 'initialization',
+        message: 'KV storage module failed to load.',
+        details: 'This may be due to module loading errors.',
+      },
+      { status: 500 }
+    );
+  }
+
   // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
   if (process.env.NODE_ENV === 'development') {
     // Proceed without authentication
@@ -50,7 +96,7 @@ export async function POST(request: Request) {
 
   try {
     const body: ReferenceRequest = await request.json();
-    const { driveId, projectId, roles = ['gallery'] } = body;
+    const { driveId, driveIdParameter, projectId, roles = ['gallery'] } = body;
 
     if (!driveId) {
       return NextResponse.json(
@@ -60,7 +106,7 @@ export async function POST(request: Request) {
     }
 
     // 1. Get Drive file metadata
-    const driveFile = await driveDiscovery.getFile(driveId);
+    const driveFile = await driveDiscovery.getFile(driveId, driveIdParameter);
     if (!driveFile) {
       return NextResponse.json(
         { error: 'File not found in Drive' },
@@ -68,18 +114,43 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Load media.v1.json
-    const mediaPath = join(process.cwd(), 'src/config/media.v1.json');
-    const mediaData = JSON.parse(readFileSync(mediaPath, 'utf-8'));
+    // 2. Check for existing record with matching Drive identity (idempotency)
+    // Use (source, driveId, fileId) as the canonical Drive identity
+    const existingAssets = await Promise.all([
+      getMedia(`drive-${driveId}`),
+      getMedia(`drive-${driveId}-${driveIdParameter}`),
+    ]);
+    
+    const existingAsset = existingAssets.find(a => a !== null);
 
-    // 3. Check for existing record with matching drive.fileId
-    const existingIndex = mediaData.media.findIndex((m: Media) => m.drive?.fileId === driveId);
+    if (existingAsset) {
+      console.log('[DRIVE_REFERENCE] Existing asset found', {
+        mediaId: existingAsset.id,
+        driveFileId: driveId,
+        driveIdParameter,
+      });
+      
+      return NextResponse.json({
+        success: true,
+        media: existingAsset,
+        action: 'existing',
+      });
+    }
 
+    // 3. Generate stable media ID from Drive identity
+    const baseName = driveFile.name.replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const identityString = `${driveId}${driveIdParameter || ''}`;
+    const identityHash = crypto.createHash('sha256').update(identityString).digest('hex').substring(0, 16);
+    const mediaId = `drive-${baseName}-${identityHash}`;
+
+    // 4. Create lightweight Drive reference
     const mediaRecord: Media = {
-      id: existingIndex >= 0 ? mediaData.media[existingIndex].id : generateMediaId(driveFile.name),
+      id: mediaId,
+      contentHash: identityHash, // Use Drive identity hash as content hash for now
       source: 'google-drive',
       drive: {
         fileId: driveId,
+        driveId: driveIdParameter,
         name: driveFile.name,
         mimeType: driveFile.mimeType,
         webViewUrl: driveFile.webViewLink,
@@ -87,22 +158,24 @@ export async function POST(request: Request) {
       },
       filename: driveFile.name,
       type: driveFile.mimeType?.startsWith('image/') ? 'image' : 'document',
-      orientation: determineOrientation(driveFile.mimeType),
-      dimensions: { width: 0, height: 0 },
+      orientation: 'landscape', // Will be determined on materialization
+      dimensions: { width: 0, height: 0 }, // Will be determined on materialization
       variants: {
         // Thumbnail URL is derived at runtime via proxy
-        web: `/api/drive/files/${driveId}/thumbnail`,
+        web: `/api/drive/files/${driveId}/thumbnail${driveIdParameter ? `?driveId=${driveIdParameter}` : ''}`,
       },
       alt: driveFile.name,
       description: driveFile.description,
       projectId,
       tags: [],
       roles,
-      order: mediaData.media.length,
+      order: 0,
       createdAt: driveFile.createdTime,
       updatedAt: driveFile.modifiedTime,
       uploadedAt: new Date().toISOString(),
-      fileSize: driveFile.size,
+      fileSize: driveFile.size || 0,
+      format: driveFile.mimeType?.split('/')[1] || 'unknown',
+      colorSpace: 'sRGB',
       provenance: {
         drive_canonical: true,
         current_authority: true,
@@ -111,24 +184,19 @@ export async function POST(request: Request) {
       },
     };
 
-    // 4. Update or insert record
-    if (existingIndex >= 0) {
-      // Update existing record (preserve id)
-      mediaData.media[existingIndex] = { ...mediaData.media[existingIndex], ...mediaRecord, id: mediaData.media[existingIndex].id };
-    } else {
-      // Insert new record
-      mediaData.media.push(mediaRecord);
-    }
+    // 5. Store in KV
+    await storeMedia(mediaRecord);
 
-    mediaData.generatedAt = new Date().toISOString();
-
-    // 5. Write back to media.v1.json
-    writeFileSync(mediaPath, JSON.stringify(mediaData, null, 2));
+    console.log('[DRIVE_REFERENCE] Created new reference', {
+      mediaId,
+      driveFileId: driveId,
+      driveIdParameter,
+    });
 
     return NextResponse.json({
       success: true,
       media: mediaRecord,
-      action: existingIndex >= 0 ? 'updated' : 'created',
+      action: 'created',
     });
   } catch (error) {
     console.error('Drive reference error:', error);
@@ -140,23 +208,4 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
-
-/**
- * Generate a stable media ID from filename
- */
-function generateMediaId(filename: string): string {
-  const base = filename
-    .replace(/\.[^/.]+$/, '') // Remove extension
-    .toLowerCase()
-    .replace(/[^a-z0-9]/g, '-');
-  return `${base}-${Date.now()}`;
-}
-
-/**
- * Determine orientation from mime type
- */
-function determineOrientation(mimeType?: string): 'landscape' | 'portrait' | 'square' {
-  // TODO: Parse actual image dimensions for accurate orientation
-  return 'landscape';
 }

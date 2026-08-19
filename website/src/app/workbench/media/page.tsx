@@ -181,13 +181,12 @@ export default function MediaWorkbench() {
       } else if (messageType === 'SLOT_DROP') {
         const slotId = event.data.slot?.id;
         const assetId = event.data.assetId;
+        const applicationData = event.data.applicationData;
 
         console.log('[DND] SLOT_DROP_MESSAGE_RECEIVED', {
           slotId,
           assetId,
-          source: event.data.source,
-          driveFileId: event.data.driveFileId,
-          sharedDriveId: event.data.sharedDriveId,
+          applicationData,
         });
 
         // Use payload directly instead of slotRegistry.get (separate JS contexts)
@@ -202,7 +201,35 @@ export default function MediaWorkbench() {
           component: event.data.slot.component,
         };
 
-        // Use assetId from the message (not from local state)
+        // Handle Drive reference (direct drag from Drive without ingestion)
+        if (applicationData?.source === 'google-drive' && applicationData?.fileId) {
+          console.log('[DND] DRIVE_REFERENCE_DETECTED', {
+            fileId: applicationData.fileId,
+            driveId: applicationData.driveId,
+          });
+          
+          // Check if Drive file already exists in local assets
+          const existingAsset = assetsRef.current.find(a => 
+            a.drive?.fileId === applicationData.fileId && 
+            a.drive?.driveId === applicationData.driveId
+          );
+          
+          if (existingAsset) {
+            console.log('[DND] DRIVE_REFERENCE_EXISTS', { assetId: existingAsset.id });
+            // Use existing asset
+            handleSlotAssignment(slotId, existingAsset.id);
+          } else {
+            console.log('[DND] DRIVE_REFERENCE_CREATE', {
+              fileId: applicationData.fileId,
+              driveId: applicationData.driveId,
+            });
+            // Create Drive reference via API
+            createDriveReference(applicationData, slotId);
+          }
+          return;
+        }
+
+        // Use assetId from the message (for regular assets)
         if (assetId) {
           console.log('[DND] ASSET_LOOKUP', {
             requestedAssetId: assetId,
@@ -281,11 +308,7 @@ export default function MediaWorkbench() {
             }
             
             // STAGE the assignment (upsert by slot ID - latest wins for same slot)
-            setState(prev => {
-              const newPendingAssignments = new Map(prev.pendingAssignments);
-              newPendingAssignments.set(slot.id, { slot, asset });
-              return { ...prev, pendingAssignments: newPendingAssignments };
-            });
+            handleSlotAssignment(slot.id, canonicalAssetId);
           } else {
             console.log('[DND 7] SLOT_ASSIGNMENT_ATTEMPT - ASSET NOT FOUND', {
               slotId,
@@ -662,12 +685,83 @@ Check browser console for detailed logs.`);
     setState(prev => ({ ...prev, pendingAssignments: new Map() }));
   };
 
+  const handleSlotAssignment = (slotId: string, assetId: string) => {
+    const slot = state.registeredSlots.find(s => s.id === slotId);
+    const asset = assetsRef.current.find(a => a.id === assetId);
+    
+    if (slot && asset) {
+      console.log('[DND] SLOT_ASSIGNMENT', {
+        slotId,
+        assetId,
+        slotName: slot.slotName,
+        assetFilename: asset.filename,
+      });
+      
+      // Stage the assignment
+      setState(prev => {
+        const newPendingAssignments = new Map(prev.pendingAssignments);
+        newPendingAssignments.set(slotId, { slot, asset });
+        return { ...prev, pendingAssignments: newPendingAssignments };
+      });
+    } else {
+      console.error('[DND] SLOT_ASSIGNMENT_FAILED', {
+        slotId,
+        assetId,
+        slotFound: !!slot,
+        assetFound: !!asset,
+      });
+    }
+  };
+
   const removePendingAssignment = (slotId: string) => {
     setState(prev => {
       const newPendingAssignments = new Map(prev.pendingAssignments);
       newPendingAssignments.delete(slotId);
       return { ...prev, pendingAssignments: newPendingAssignments };
     });
+  };
+
+  const createDriveReference = async (driveReference: any, slotId: string) => {
+    console.log('[DND] CREATE_DRIVE_REFERENCE', {
+      fileId: driveReference.fileId,
+      driveId: driveReference.driveId,
+      slotId,
+    });
+
+    try {
+      const response = await fetch('/api/drive/reference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          driveId: driveReference.fileId,
+          driveIdParameter: driveReference.driveId,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success && result.media) {
+        console.log('[DND] DRIVE_REFERENCE_SUCCESS', {
+          mediaId: result.media.id,
+          slotId,
+        });
+
+        // Add to local assets
+        setState(prev => ({
+          ...prev,
+          assets: [...prev.assets, result.media],
+        }));
+
+        // Assign to slot
+        handleSlotAssignment(slotId, result.media.id);
+      } else {
+        console.error('[DND] DRIVE_REFERENCE_FAILED', result);
+        alert(`Failed to create Drive reference: ${result.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error('[DND] DRIVE_REFERENCE_ERROR', error);
+      alert(`Failed to create Drive reference: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot) => {
@@ -904,43 +998,65 @@ Check browser console for detailed logs.`);
     }
   };
 
-  const handleDragStart = (e: React.DragEvent, asset: VisualAsset | any) => {
-    const assetId = asset.id;
-    
+  const handleDragStart = (e: React.DragEvent, asset: VisualAsset | any, driveFile?: any) => {
     console.log('[DND] DRAG_START', {
-      assetId,
-      filename: asset.filename,
-      source: asset.source,
-      driveFileId: asset.drive?.fileId,
-      sharedDriveId: asset.drive?.driveId,
-      thumbnail: asset.variants?.thumbnail,
+      isDriveFile: !!driveFile,
+      assetId: asset?.id,
+      driveFileId: driveFile?.id,
+      filename: driveFile?.name || asset?.filename,
+      source: driveFile ? 'google-drive' : asset?.source,
     });
     
-    e.dataTransfer.setData(
-      'application/x-workbench-asset',
-      JSON.stringify({
+    // If this is a Drive file that's not yet ingested, emit Drive identity
+    if (driveFile && driveFile.mimeType) {
+      const driveReference = {
+        source: 'google-drive' as const,
+        fileId: driveFile.id,
+        driveId: state.driveCurrentDriveId || undefined,
+        name: driveFile.name,
+        mimeType: driveFile.mimeType,
+        modifiedTime: driveFile.modifiedTime,
+        webViewUrl: driveFile.webViewLink,
+      };
+      
+      e.dataTransfer.setData(
+        'application/x-workbench-asset',
+        JSON.stringify(driveReference)
+      );
+      
+      e.dataTransfer.setData('text/plain', `drive:${driveFile.id}`);
+      
+      console.log('[DND] DATA_TRANSFER_SET', {
+        type: 'drive-reference',
+        driveReference,
+      });
+    } else if (asset) {
+      // Existing asset - use asset ID
+      const assetId = asset.id;
+      
+      e.dataTransfer.setData(
+        'application/x-workbench-asset',
+        JSON.stringify({
+          assetId,
+          source: asset.source,
+          driveFileId: asset.drive?.fileId ?? null,
+          sharedDriveId: asset.drive?.driveId ?? null,
+        })
+      );
+      
+      e.dataTransfer.setData('text/plain', assetId);
+      
+      console.log('[DND] DATA_TRANSFER_SET', {
+        type: 'asset-reference',
         assetId,
         source: asset.source,
-        driveFileId: asset.drive?.fileId ?? null,
-        sharedDriveId: asset.drive?.driveId ?? null,
-      })
-    );
-    
-    e.dataTransfer.setData('text/plain', assetId);
-    
-    console.log('[DND] DATA_TRANSFER_SET', {
-      types: e.dataTransfer.types,
-      assetId,
-      applicationData: {
-        assetId,
-        source: asset.source,
-        driveFileId: asset.drive?.fileId ?? null,
-        sharedDriveId: asset.drive?.driveId ?? null,
-      },
-    });
+      });
+    }
     
     e.dataTransfer.effectAllowed = 'copy';
-    setState(prev => ({ ...prev, selectedAsset: asset }));
+    if (asset) {
+      setState(prev => ({ ...prev, selectedAsset: asset }));
+    }
   };
 
   if (state.loading) {
@@ -1249,15 +1365,15 @@ Check browser console for detailed logs.`);
                               return (
                                 <button
                                   key={file.id}
-                                  draggable={isIngested}
-                                  data-asset-id={isIngested ? existingAsset.id : undefined}
-                                  onDragStart={isIngested ? (e) => handleDragStart(e, existingAsset) : undefined}
+                                  draggable={true}
+                                  data-asset-id={file.id}
+                                  onDragStart={(e) => handleDragStart(e, existingAsset, file)}
                                   onClick={() => selectDriveFile(file)}
                                   className={`p-3 bg-background border rounded-lg transition-colors text-left ${
                                     state.driveSelectedFile?.id === file.id
                                       ? 'border-primary ring-2 ring-primary'
                                       : 'border-border hover:border-primary'
-                                  } ${isIngested ? 'cursor-grab' : 'cursor-pointer'}`}
+                                  } cursor-grab`}
                                 >
                                   {file.thumbnailLink ? (
                                     <img
@@ -1292,15 +1408,15 @@ Check browser console for detailed logs.`);
                               return (
                                 <button
                                   key={file.id}
-                                  draggable={isIngested}
-                                  data-asset-id={isIngested ? existingAsset.id : undefined}
-                                  onDragStart={isIngested ? (e) => handleDragStart(e, existingAsset) : undefined}
+                                  draggable={true}
+                                  data-asset-id={file.id}
+                                  onDragStart={(e) => handleDragStart(e, existingAsset, file)}
                                   onClick={() => selectDriveFile(file)}
                                   className={`w-full p-3 bg-background border rounded-lg transition-colors text-left flex items-center gap-3 ${
                                     state.driveSelectedFile?.id === file.id
                                       ? 'border-primary ring-2 ring-primary'
                                       : 'border-border hover:border-primary'
-                                  } ${isIngested ? 'cursor-grab' : 'cursor-pointer'}`}
+                                  } cursor-grab`}
                                 >
                                   {file.thumbnailLink ? (
                                     <img
