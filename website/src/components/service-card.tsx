@@ -27,19 +27,21 @@ import { useEffect, useState } from "react";
  */
 export function ServiceCard({ service }: { service: Service }) {
   const [runtimeCardMediaId, setRuntimeCardMediaId] = useState<string | null>(null);
+  const [renderRequestId] = useState(() => `render-${service.slug}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
 
   // Load runtime assignment on mount
   useEffect(() => {
     async function loadRuntimeAssignment() {
+      const requestId = `service-card-${service.slug}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       try {
         const { getServiceCardAssignment } = await import('@/lib/assignment-store');
-        const assignment = await getServiceCardAssignment(service.slug);
+        const assignment = await getServiceCardAssignment(service.slug, requestId);
         if (assignment) {
           setRuntimeCardMediaId(assignment.mediaId);
-          console.log('[SERVICE-CARD] Runtime assignment loaded:', service.slug, assignment.mediaId);
+          console.log('[SERVICE-CARD] Runtime assignment loaded:', { requestId, serviceSlug: service.slug, mediaId: assignment.mediaId });
         }
       } catch (error) {
-        console.error('[SERVICE-CARD] Failed to load runtime assignment:', error);
+        console.error('[SERVICE-CARD] Failed to load runtime assignment:', { requestId, serviceSlug: service.slug, error });
       }
     }
     loadRuntimeAssignment();
@@ -49,12 +51,13 @@ export function ServiceCard({ service }: { service: Service }) {
   const effectiveCardMediaId = runtimeCardMediaId || service.cardMediaId;
 
   // UNCONDITIONAL LOG - will appear in iframe console if component renders
-  console.log('[SERVICE-CARD-RENDER]', service.slug);
+  console.log('[SERVICE-CARD-RENDER]', { renderRequestId, serviceSlug: service.slug });
   
   // First check for Workbench-assigned card media
   const cardMedia = effectiveCardMediaId ? getMediaById(effectiveCardMediaId) : null;
 
   console.log('[FORENSIC] SERVICE_CARD_MEDIA_RESOLUTION', {
+    renderRequestId,
     serviceSlug: service.slug,
     runtimeCardMediaId,
     staticCardMediaId: service.cardMediaId,
@@ -70,6 +73,7 @@ export function ServiceCard({ service }: { service: Service }) {
   const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.original) : null;
 
   console.log('[FORENSIC] SERVICE_CARD_FINAL_IMAGE', {
+    renderRequestId,
     serviceSlug: service.slug,
     hasImage,
     imageSrc,

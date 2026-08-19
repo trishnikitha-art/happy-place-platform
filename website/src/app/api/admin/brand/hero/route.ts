@@ -14,7 +14,9 @@ import { workbenchSession } from "@/lib/workbench-session";
 import { storeServiceCardAssignment, getServiceCardAssignment } from "@/lib/assignment-store";
 
 export async function POST(request: Request) {
-  console.log('[BRAND HERO] REQUEST_RECEIVED');
+  const requestId = `hero-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  
+  console.log('[BRAND HERO] REQUEST_RECEIVED', { requestId });
 
   // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
   if (process.env.NODE_ENV === 'development') {
@@ -35,6 +37,7 @@ export async function POST(request: Request) {
     const { mediaId } = body;
 
     console.log('[BRAND HERO] IDENTIFIER_VALIDATION', {
+      requestId,
       mediaId,
     });
 
@@ -53,20 +56,23 @@ export async function POST(request: Request) {
       source: 'workbench' as const,
     };
 
-    await storeServiceCardAssignment(assignment);
+    await storeServiceCardAssignment(assignment, requestId);
 
     console.log('[BRAND HERO] ASSIGNMENT_STORED', {
+      requestId,
       mediaId,
     });
 
     // Read back to verify
-    const storedAssignment = await getServiceCardAssignment('brand-hero');
+    const storedAssignment = await getServiceCardAssignment('brand-hero', requestId);
     console.log('[BRAND HERO] ASSIGNMENT_VERIFICATION', {
+      requestId,
       storedMediaId: storedAssignment?.mediaId,
       matchesExpected: storedAssignment?.mediaId === mediaId,
     });
 
     console.log('[BRAND HERO] RESPONSE', {
+      requestId,
       success: true,
       mediaId,
     });
@@ -74,14 +80,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ 
       success: true, 
       mediaId,
-      assignment 
+      assignment,
+      requestId,
+      operationId: requestId 
     });
   } catch (error) {
-    console.error('[BRAND HERO ERROR]', error);
+    console.error('[BRAND HERO ERROR]', {
+      requestId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
     return NextResponse.json(
       { 
         error: "Failed to update brand hero", 
-        details: error instanceof Error ? error.message : 'Unknown error' 
+        details: error instanceof Error ? error.message : 'Unknown error',
+        requestId,
+        operationId: requestId 
       },
       { status: 500 }
     );

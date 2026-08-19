@@ -314,7 +314,10 @@ export default function MediaWorkbench() {
         });
         handleSlotClick(slot);
       } else if (messageType === 'SLOT_DROP') {
+        const requestId = `drop-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        
         console.log('[WB_FORENSIC] SLOT_DROP_RECEIVED', {
+          requestId,
           messageType,
           origin: event.origin,
           slotId: event.data.slot?.id,
@@ -331,6 +334,7 @@ export default function MediaWorkbench() {
         const applicationData = event.data.applicationData;
 
         console.log('[DND] SLOT_DROP_MESSAGE_RECEIVED', {
+          requestId,
           slotId,
           assetId,
           applicationData,
@@ -339,6 +343,7 @@ export default function MediaWorkbench() {
         });
 
         console.log('[WB_FORENSIC] DROP_SLOT_LOOKUP', {
+          requestId,
           requestedSlotId: slotId,
           registeredSlotIds: registeredSlotsRef.current.map(s => s.id),
           matchedSlot: registeredSlotsRef.current.find(s => s.id === slotId),
@@ -359,6 +364,7 @@ export default function MediaWorkbench() {
         };
 
         console.log('[DND] TARGET_SLOT_RESOLVED', {
+          requestId,
           slotId: slot.id,
           slotName: slot.slotName,
           route: slot.route,
@@ -371,6 +377,7 @@ export default function MediaWorkbench() {
         // Handle Drive reference (direct drag from Drive without ingestion)
         if (applicationData?.source === 'google-drive' && applicationData?.fileId) {
           console.log('[WB_FORENSIC] DRIVE_REFERENCE_PATH', {
+            requestId,
             fileId: applicationData.fileId,
             sharedDriveId: applicationData.sharedDriveId,
             slotId,
@@ -378,6 +385,7 @@ export default function MediaWorkbench() {
           });
           
           console.log('[DND] DRIVE_REFERENCE_DETECTED', {
+            requestId,
             fileId: applicationData.fileId,
             sharedDriveId: applicationData.sharedDriveId,
             slotId,
@@ -390,16 +398,17 @@ export default function MediaWorkbench() {
           );
           
           if (existingAsset) {
-            console.log('[DND] DRIVE_REFERENCE_EXISTS', { assetId: existingAsset.id });
+            console.log('[DND] DRIVE_REFERENCE_EXISTS', { requestId, assetId: existingAsset.id });
             // Use existing asset - route through existing replacement confirmation
-            handleDriveDropToSlot(slot, existingAsset, slot.currentMediaId);
+            handleDriveDropToSlot(slot, existingAsset, slot.currentMediaId, requestId);
           } else {
             console.log('[DND] DRIVE_REFERENCE_CREATE', {
+              requestId,
               fileId: applicationData.fileId,
               sharedDriveId: applicationData.sharedDriveId,
             });
             // Create Drive reference via API, then route through replacement confirmation
-            createDriveReference(applicationData, slot);
+            createDriveReference(applicationData, slot, requestId);
           }
           return;
         }
@@ -407,6 +416,7 @@ export default function MediaWorkbench() {
         // Use assetId from the message (for regular assets)
         if (assetId) {
           console.log('[DND] ASSET_LOOKUP', {
+            requestId,
             requestedAssetId: assetId,
             registryCount: assetsRef.current.length,
           });
@@ -415,6 +425,7 @@ export default function MediaWorkbench() {
           const canonicalAssetId = resolveAssetId(assetId, assetsRef.current);
           
           console.log('[DND] ASSET_ID_RESOLUTION', {
+            requestId,
             rawAssetId: assetId,
             canonicalAssetId,
             resolutionMethod: canonicalAssetId === assetId ? 'direct' : 'variant-fallback',
@@ -422,6 +433,7 @@ export default function MediaWorkbench() {
           
           if (!canonicalAssetId) {
             console.log('[DND_ERROR] ASSET_LOOKUP_FAILED', {
+              requestId,
               stage: 'ASSET_LOOKUP',
               slotId,
               requestedAssetId: assetId,
@@ -430,6 +442,7 @@ export default function MediaWorkbench() {
             
             // Log sample registry IDs for debugging
             console.log('[DND] REGISTRY_IDS', {
+              requestId,
               ids: assetsRef.current.slice(0, 30).map(a => ({
                 id: a.id,
                 filename: a.filename,
@@ -445,6 +458,7 @@ export default function MediaWorkbench() {
           const asset = assetsRef.current.find(a => a.id === canonicalAssetId);
           
           console.log('[DND] ASSET_LOOKUP_SUCCESS', {
+            requestId,
             canonicalAssetId,
             found: !!asset,
             filename: asset?.filename,
@@ -466,6 +480,7 @@ export default function MediaWorkbench() {
             }
 
             console.log('[WB_FORENSIC] ASSIGNMENT_STAGED', {
+              requestId,
               slotId,
               canonicalAssetId,
               currentMediaId: slot.currentMediaId,
@@ -473,6 +488,7 @@ export default function MediaWorkbench() {
             });
 
             console.log('[DND] STAGE_ASSIGNMENT', {
+              requestId,
               slotId,
               canonicalAssetId,
               currentMediaId: slot.currentMediaId,
@@ -493,6 +509,7 @@ export default function MediaWorkbench() {
             handleSlotAssignment(slot.id, canonicalAssetId);
           } else {
             console.log('[DND 7] SLOT_ASSIGNMENT_ATTEMPT - ASSET NOT FOUND', {
+              requestId,
               slotId,
               assetId,
             });
@@ -993,8 +1010,9 @@ Check browser console for detailed logs.`);
     });
   };
 
-  const createDriveReference = async (driveReference: any, slot: RegisteredSlot) => {
+  const createDriveReference = async (driveReference: any, slot: RegisteredSlot, requestId?: string) => {
     console.log('[DND] DRIVE_REFERENCE_STARTED', {
+      requestId,
       fileId: driveReference.fileId,
       sharedDriveId: driveReference.sharedDriveId,
       slotId: slot.id,
@@ -1015,6 +1033,7 @@ Check browser console for detailed logs.`);
 
       if (result.success && result.media) {
         console.log('[DND] DRIVE_REFERENCE_SUCCESS', {
+          requestId,
           mediaId: result.media.id,
           slotId: slot.id,
           hasVariants: !!result.media.variants,
@@ -1039,19 +1058,20 @@ Check browser console for detailed logs.`);
         }
 
         // Route through existing replacement confirmation
-        handleDriveDropToSlot(slot, result.media, slot.currentMediaId);
+        handleDriveDropToSlot(slot, result.media, slot.currentMediaId, requestId);
       } else {
-        console.error('[DND] DRIVE_REFERENCE_FAILED', result);
+        console.error('[DND] DRIVE_REFERENCE_FAILED', { requestId, result });
         alert(`Failed to create Drive reference: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('[DND] DRIVE_REFERENCE_ERROR', error);
+      console.error('[DND] DRIVE_REFERENCE_ERROR', { requestId, error });
       alert(`Failed to create Drive reference: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
-  const handleDriveDropToSlot = (slot: RegisteredSlot, asset: VisualAsset, currentMediaId: string | null) => {
+  const handleDriveDropToSlot = (slot: RegisteredSlot, asset: VisualAsset, currentMediaId: string | null, requestId?: string) => {
     console.log('[DND] DRIVE_DROP_TO_SLOT', {
+      requestId,
       slotId: slot.id,
       slotName: slot.slotName,
       assetId: asset.id,
@@ -1080,6 +1100,7 @@ Check browser console for detailed logs.`);
     // Stage the assignment directly using the already-resolved slot and asset
     // Do NOT use handleSlotAssignment which performs its own stale lookup
     console.log('[WB_FORENSIC] ASSIGNMENT_INPUT', {
+      requestId,
       slotId: slot.id,
       resolvedSlotId: slot.id,
       mediaId: asset.id,
@@ -1098,6 +1119,7 @@ Check browser console for detailed logs.`);
     });
 
     console.log('[WB_FORENSIC] ASSIGNMENT_STAGED', {
+      requestId,
       slotId: slot.id,
       mediaId: asset.id,
       source: asset.source,
@@ -1105,16 +1127,18 @@ Check browser console for detailed logs.`);
     });
 
     console.log('[DND] ASSIGNMENT_STAGED', {
+      requestId,
       slotId: slot.id,
       assetId: asset.id,
       pendingCount: state.pendingAssignments.size + 1,
     });
   };
 
-  const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot) => {
+  const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot, requestId?: string) => {
     const slotId = slot.id;
 
     console.log('[WB_FORENSIC] ASSIGNMENT_API_REQUEST', {
+      requestId,
       slotId,
       assetId: asset.id,
       mediaId: asset.id,
@@ -1123,6 +1147,7 @@ Check browser console for detailed logs.`);
     });
 
     console.log('[DND] API_REQUEST', {
+      requestId,
       slotId,
       assetId: asset.id,
       mediaId: asset.id,
@@ -1277,6 +1302,7 @@ Check browser console for detailed logs.`);
       }
 
       console.log('[DND] API_RESPONSE', {
+        requestId,
         endpoint,
         status: response.status,
         ok: response.ok,
@@ -1286,6 +1312,7 @@ Check browser console for detailed logs.`);
       if (!response.ok) {
         const errorText = await response.text();
         console.log('[DND] SLOT_ASSIGNMENT_FAILURE', {
+          requestId,
           slotId,
           assetId: asset.id,
           status: response.status,
@@ -1296,6 +1323,7 @@ Check browser console for detailed logs.`);
       }
 
       console.log('[WB_FORENSIC] ASSIGNMENT_API_SUCCESS', {
+        requestId,
         slotId,
         assetId: asset.id,
         endpoint,
@@ -1305,12 +1333,14 @@ Check browser console for detailed logs.`);
 
       const responseBody = await response.json();
       console.log('[DND] API_RESPONSE_BODY', {
+        requestId,
         slotId,
         assetId: asset.id,
         responseBody,
       });
 
       console.log('[DND] SLOT_ASSIGNMENT_SUCCESS', {
+        requestId,
         slotId,
         assetId: asset.id,
       });
@@ -1321,6 +1351,7 @@ Check browser console for detailed logs.`);
       // Force iframe reload to pick up authority changes
       if (iframeRef.current) {
         console.log('[DND 9] IFRAME_RELOAD_TRIGGERED', {
+          requestId,
           slotId,
           assetId: asset.id,
         });

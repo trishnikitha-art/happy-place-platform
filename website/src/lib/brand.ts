@@ -51,15 +51,18 @@ export function loadBrandManifest(): BrandManifest {
  * Applies runtime assignment from persistent store if available
  */
 export async function getHomepageHero(): Promise<BrandHero | null> {
+  const requestId = `hero-get-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const manifest = loadBrandManifest();
+  
+  console.log('[BRAND] HOMEPAGE_HERO_REQUEST', { requestId });
   
   // Try to load runtime assignment for brand-hero
   try {
     const { getServiceCardAssignment } = await import('@/lib/assignment-store');
-    const assignment = await getServiceCardAssignment('brand-hero');
+    const assignment = await getServiceCardAssignment('brand-hero', requestId);
     
     if (assignment && assignment.mediaId) {
-      console.log('[BRAND] Runtime assignment loaded for hero:', assignment.mediaId);
+      console.log('[BRAND] Runtime assignment loaded for hero:', { requestId, mediaId: assignment.mediaId });
       // Return hero with runtime mediaId
       return {
         ...manifest.homepageHero,
@@ -67,9 +70,10 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
       };
     }
   } catch (error) {
-    console.error('[BRAND] Failed to load runtime assignment for hero:', error);
+    console.error('[BRAND] Failed to load runtime assignment for hero:', { requestId, error });
   }
   
+  console.log('[BRAND] Falling back to static configuration', { requestId });
   return manifest.homepageHero;
 }
 
