@@ -38,12 +38,83 @@ export function getMediaManifest(): MediaManifest {
 }
 
 /**
- * Get media by ID from media.v1.json
+ * Get media by ID from media.v1.json (static) or KV (dynamic Drive records)
  */
 export function getMediaById(id: string): Media | null {
+  // First check static media.v1.json (existing HP images)
   const manifest = loadMediaManifest();
-  return findById(manifest.media, id);
+  const staticMedia = findById(manifest.media, id);
+  if (staticMedia) {
+    return staticMedia;
+  }
+
+  // Check dynamic KV cache (Drive records preloaded via loadDynamicMedia)
+  const dynamicMedia = findById(dynamicMediaCache, id);
+  if (dynamicMedia) {
+    return dynamicMedia;
+  }
+
+  return null;
 }
+
+/**
+ * Async version that checks KV directly (for dynamic loading)
+ */
+export async function getMediaByIdAsync(id: string): Promise<Media | null> {
+  // First check static media.v1.json
+  const staticMedia = getMediaById(id);
+  if (staticMedia) {
+    return staticMedia;
+  }
+
+  // Fallback to KV store for dynamic Drive records
+  try {
+    const { getMedia } = await import('@/lib/media-kv-store');
+    const dynamicMedia = await getMedia(id);
+    if (dynamicMedia) {
+      // Cache it for future synchronous access
+      dynamicMediaCache.push(dynamicMedia);
+      return dynamicMedia;
+    }
+  } catch (error) {
+    console.log('[MEDIA] KV lookup failed:', error);
+  }
+
+  return null;
+}
+
+/**
+ * Preload dynamic media from KV into memory cache
+ * Call this during app initialization or when Drive operations are expected
+ */
+export async function loadDynamicMedia(): Promise<void> {
+  try {
+    const { kv } = await import('@vercel/kv');
+    const keys = await kv.keys('media:*');
+    
+    for (const key of keys) {
+      const value = await kv.get(key);
+      if (value) {
+        const media = JSON.parse(value as string) as Media;
+        dynamicMediaCache.push(media);
+      }
+    }
+    
+    console.log('[MEDIA] Preloaded dynamic media from KV:', dynamicMediaCache.length);
+  } catch (error) {
+    console.log('[MEDIA] Failed to preload dynamic media:', error);
+  }
+}
+
+/**
+ * Clear dynamic media cache
+ */
+export function clearDynamicMediaCache(): void {
+  dynamicMediaCache = [];
+}
+
+// In-memory cache for dynamic KV media
+let dynamicMediaCache: Media[] = [];
 
 /**
  * Clear media cache (useful for testing or hot reload)

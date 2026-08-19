@@ -22,7 +22,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, ChevronRight, Loader2, List } from 'lucide-react';
 import { loadVisualAssetRegistry, addDriveAssetToRegistry, type VisualAsset } from '@/lib/visual-asset-registry';
-import { getMediaById } from '@/lib/media';
+import { getMediaById, loadDynamicMedia } from '@/lib/media';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
 
@@ -754,47 +754,44 @@ Check browser console for detailed logs.`);
   };
 
   const createDriveReference = async (driveReference: any, slot: RegisteredSlot) => {
-    console.log('[DND] DRIVE_MATERIALIZATION_STARTED', {
+    console.log('[DND] DRIVE_REFERENCE_STARTED', {
       fileId: driveReference.fileId,
       sharedDriveId: driveReference.sharedDriveId,
       slotId: slot.id,
     });
 
     try {
-      // Use FULL ingestion pipeline instead of lightweight reference
-      // This creates complete media record with proper variants in media.v1.json
-      const response = await fetch('/api/drive/ingest', {
+      // Use lightweight reference API that stores in KV (media.v1.json is static build artifact)
+      const response = await fetch('/api/drive/reference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          driveId: driveReference.fileId,
-          driveIdParameter: driveReference.sharedDriveId,
+          fileId: driveReference.fileId,
+          sharedDriveId: driveReference.sharedDriveId,
         }),
       });
 
       const result = await response.json();
 
       if (result.success && result.media) {
-        console.log('[DND] DRIVE_MATERIALIZATION_SUCCESS', {
+        console.log('[DND] DRIVE_REFERENCE_SUCCESS', {
           mediaId: result.media.id,
           slotId: slot.id,
           hasVariants: !!result.media.variants,
-          hasDimensions: !!result.media.dimensions,
         });
 
-        // Clear media cache and reload canonical data to pick up new media.v1.json entry
-        console.log('[DND] RELOADING_CANONICAL_DATA');
-        await loadCanonicalData();
+        // Reload dynamic media from KV to pick up new Drive record
+        await loadDynamicMedia();
 
         // Route through existing replacement confirmation
         handleDriveDropToSlot(slot, result.media, slot.currentMediaId);
       } else {
-        console.error('[DND] DRIVE_MATERIALIZATION_FAILED', result);
-        alert(`Failed to materialize Drive file: ${result.error || 'Unknown error'}`);
+        console.error('[DND] DRIVE_REFERENCE_FAILED', result);
+        alert(`Failed to create Drive reference: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('[DND] DRIVE_MATERIALIZATION_ERROR', error);
-      alert(`Failed to materialize Drive file: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('[DND] DRIVE_REFERENCE_ERROR', error);
+      alert(`Failed to create Drive reference: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
