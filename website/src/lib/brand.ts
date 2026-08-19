@@ -54,7 +54,7 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
   const requestId = `hero-get-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const manifest = loadBrandManifest();
   
-  console.log('[BRAND] HOMEPAGE_HERO_REQUEST', { requestId });
+  console.log('[PUBLIC_READER] HOMEPAGE_HERO_REQUEST', { requestId });
   
   // Try to load runtime assignment for brand-hero
   try {
@@ -62,7 +62,11 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
     const assignment = await getServiceCardAssignment('brand-hero', requestId);
     
     if (assignment && assignment.mediaId) {
-      console.log('[BRAND] Runtime assignment loaded for hero:', { requestId, mediaId: assignment.mediaId });
+      console.log('[PUBLIC_READER] ASSIGNMENT_FOUND', { 
+        requestId, 
+        key: 'service-card-assignment:brand-hero',
+        mediaId: assignment.mediaId 
+      });
       // Return hero with runtime mediaId
       return {
         ...manifest.homepageHero,
@@ -70,10 +74,10 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
       };
     }
   } catch (error) {
-    console.error('[BRAND] Failed to load runtime assignment for hero:', { requestId, error });
+    console.error('[PUBLIC_READER] ASSIGNMENT_LOAD_FAILED', { requestId, error });
   }
   
-  console.log('[BRAND] Falling back to static configuration', { requestId });
+  console.log('[PUBLIC_READER] FALLBACK_TO_STATIC', { requestId });
   return manifest.homepageHero;
 }
 

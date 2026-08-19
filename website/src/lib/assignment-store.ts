@@ -20,9 +20,12 @@ function getRedisClient(): Redis {
       key.includes('KV') || key.includes('REDIS') || key.includes('UPSTASH') || key.includes('REST')
     );
     
-    console.log('[REDIS_DIAGNOSTIC] Client initialization attempt', {
-      urlDetected: !!url,
-      tokenDetected: !!token,
+    const urlHost = url ? new URL(url).hostname : 'none';
+    
+    console.log('[REDIS_CONFIG]', {
+      urlPresent: !!url,
+      tokenPresent: !!token,
+      urlHost,
       urlLength: url?.length || 0,
       tokenLength: token?.length || 0,
       relevantEnvVars: envVars.map(key => ({ key, hasValue: !!process.env[key] })),
@@ -33,7 +36,7 @@ function getRedisClient(): Redis {
     }
     
     redis = new Redis({ url, token });
-    console.log('[REDIS_DIAGNOSTIC] Client initialization success');
+    console.log('[REDIS_CONFIG] Client initialization success');
   }
   return redis;
 }
@@ -56,7 +59,7 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
   const operationId = requestId || `store-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const key = `${ASSIGNMENT_PREFIX}${assignment.serviceSlug}`;
   
-  console.log('[ASSIGNMENT_STORE] STORE_REQUEST', {
+  console.log('[ASSIGNMENT_WRITE]', {
     operationId,
     serviceSlug: assignment.serviceSlug,
     mediaId: assignment.mediaId,
@@ -69,7 +72,7 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
     // Use typed object API - @upstash/redis handles serialization
     await client.set<ServiceCardAssignment>(key, assignment);
     
-    console.log('[ASSIGNMENT_STORE] STORE_SUCCESS', {
+    console.log('[ASSIGNMENT_WRITE] SUCCESS', {
       operationId,
       key,
       mediaId: assignment.mediaId,
@@ -78,12 +81,12 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
     // Readback verification using typed object API
     const readback = await client.get<ServiceCardAssignment>(key);
     
-    console.log('[ASSIGNMENT_STORE] READBACK_VERIFICATION', {
+    console.log('[ASSIGNMENT_READBACK]', {
       operationId,
       key,
       writtenMediaId: assignment.mediaId,
       readbackMediaId: readback?.mediaId,
-      readbackType: typeof readback,
+      rawType: typeof readback,
       match: readback?.mediaId === assignment.mediaId,
     });
     
@@ -92,7 +95,7 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
     }
     
   } catch (error) {
-    console.error('[ASSIGNMENT_STORE] STORE_FAILURE', {
+    console.error('[ASSIGNMENT_WRITE] FAILURE', {
       operationId,
       serviceSlug: assignment.serviceSlug,
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -111,7 +114,7 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
   const operationId = requestId || `get-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
   
-  console.log('[ASSIGNMENT_STORE] GET_REQUEST', {
+  console.log('[ASSIGNMENT_READ]', {
     operationId,
     serviceSlug,
     key,
@@ -124,7 +127,7 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
     const assignment = await client.get<ServiceCardAssignment>(key);
     
     if (!assignment) {
-      console.log('[ASSIGNMENT_STORE] GET_NOT_FOUND', {
+      console.log('[ASSIGNMENT_READ] NOT_FOUND', {
         operationId,
         key,
         serviceSlug,
@@ -132,7 +135,7 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
       return null;
     }
 
-    console.log('[ASSIGNMENT_STORE] GET_SUCCESS', {
+    console.log('[ASSIGNMENT_READ] SUCCESS', {
       operationId,
       key,
       serviceSlug,
@@ -141,7 +144,7 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
     
     return assignment;
   } catch (error) {
-    console.error('[ASSIGNMENT_STORE] GET_FAILURE', {
+    console.error('[ASSIGNMENT_READ] FAILURE', {
       operationId,
       serviceSlug,
       error: error instanceof Error ? error.message : 'Unknown error',
