@@ -181,13 +181,17 @@ export default function MediaWorkbench() {
       } else if (messageType === 'SLOT_DROP') {
         const slotId = event.data.slot?.id;
         const assetId = event.data.assetId;
+        const needsIngestion = event.data.needsIngestion;
+        const driveFileId = event.data.driveFileId;
+        const sharedDriveId = event.data.sharedDriveId;
 
         console.log('[DND] SLOT_DROP_MESSAGE_RECEIVED', {
           slotId,
           assetId,
           source: event.data.source,
-          driveFileId: event.data.driveFileId,
-          sharedDriveId: event.data.sharedDriveId,
+          driveFileId,
+          sharedDriveId,
+          needsIngestion,
         });
 
         // Use payload directly instead of slotRegistry.get (separate JS contexts)
@@ -201,6 +205,40 @@ export default function MediaWorkbench() {
           element: null,
           component: event.data.slot.component,
         };
+
+        // Auto-ingest Drive files that need it
+        if (needsIngestion && driveFileId) {
+          console.log('[DND] AUTO_INGEST_REQUIRED', { driveFileId, sharedDriveId });
+          
+          // Find the Drive file object
+          const driveFile = state.driveFiles.find((f: any) => f.id === driveFileId);
+          if (driveFile) {
+            console.log('[DND] AUTO_INGESTING', { driveFileId, filename: driveFile.name });
+            
+            // Trigger ingestion
+            useDriveFile(driveFile)
+              .then((mediaId) => {
+                console.log('[DND] AUTO_INGEST_SUCCESS', { mediaId, slotId });
+                // After successful ingestion, add to pending assignments
+                if (mediaId) {
+                  const newAsset = state.assets.find(a => a.id === mediaId);
+                  if (newAsset) {
+                    setState(prev => ({
+                      ...prev,
+                      pendingAssignments: new Map([...prev.pendingAssignments, [slotId, { slot, asset: newAsset }]]),
+                    }));
+                  }
+                }
+              })
+              .catch((err) => {
+                console.error('[DND] AUTO_INGEST_FAILED', err);
+                alert(`Failed to ingest file: ${err.message || 'Unknown error'}`);
+              });
+          } else {
+            console.error('[DND] DRIVE_FILE_NOT_FOUND', { driveFileId });
+          }
+          return;
+        }
 
         // Use assetId from the message (not from local state)
         if (assetId) {
@@ -904,7 +942,7 @@ Check browser console for detailed logs.`);
     }
   };
 
-  const handleDragStart = (e: React.DragEvent, asset: VisualAsset) => {
+  const handleDragStart = (e: React.DragEvent, asset: VisualAsset, driveFile?: any) => {
     const assetId = asset.id;
     
     console.log('[DND] DRAG_START', {
@@ -914,6 +952,7 @@ Check browser console for detailed logs.`);
       driveFileId: asset.drive?.fileId,
       sharedDriveId: asset.drive?.driveId,
       thumbnail: asset.variants?.thumbnail,
+      driveFile: driveFile?.id,
     });
     
     e.dataTransfer.setData(
@@ -921,8 +960,9 @@ Check browser console for detailed logs.`);
       JSON.stringify({
         assetId,
         source: asset.source,
-        driveFileId: asset.drive?.fileId ?? null,
-        sharedDriveId: asset.drive?.driveId ?? null,
+        driveFileId: asset.drive?.fileId ?? driveFile?.id ?? null,
+        sharedDriveId: asset.drive?.driveId ?? state.driveCurrentDriveId ?? null,
+        needsIngestion: !asset.physicalPath && asset.source === 'google-drive',
       })
     );
     
@@ -934,8 +974,9 @@ Check browser console for detailed logs.`);
       applicationData: {
         assetId,
         source: asset.source,
-        driveFileId: asset.drive?.fileId ?? null,
-        sharedDriveId: asset.drive?.driveId ?? null,
+        driveFileId: asset.drive?.fileId ?? driveFile?.id ?? null,
+        sharedDriveId: asset.drive?.driveId ?? state.driveCurrentDriveId ?? null,
+        needsIngestion: !asset.physicalPath && asset.source === 'google-drive',
       },
     });
     
@@ -1249,15 +1290,15 @@ Check browser console for detailed logs.`);
                               return (
                                 <button
                                   key={file.id}
-                                  draggable={isIngested}
-                                  data-asset-id={isIngested ? existingAsset.id : undefined}
-                                  onDragStart={isIngested ? (e) => handleDragStart(e, existingAsset) : undefined}
+                                  draggable={true}
+                                  data-asset-id={file.id}
+                                  onDragStart={(e) => handleDragStart(e, existingAsset || { id: file.id, source: 'google-drive', filename: file.name, drive: { fileId: file.id, driveId: state.driveCurrentDriveId } }, file)}
                                   onClick={() => selectDriveFile(file)}
                                   className={`p-3 bg-background border rounded-lg transition-colors text-left ${
                                     state.driveSelectedFile?.id === file.id
                                       ? 'border-primary ring-2 ring-primary'
                                       : 'border-border hover:border-primary'
-                                  } ${isIngested ? 'cursor-grab' : 'cursor-pointer'}`}
+                                  } ${isIngested ? 'cursor-grab' : 'cursor-grab'}`}
                                 >
                                   {file.thumbnailLink ? (
                                     <img
@@ -1292,15 +1333,15 @@ Check browser console for detailed logs.`);
                               return (
                                 <button
                                   key={file.id}
-                                  draggable={isIngested}
-                                  data-asset-id={isIngested ? existingAsset.id : undefined}
-                                  onDragStart={isIngested ? (e) => handleDragStart(e, existingAsset) : undefined}
+                                  draggable={true}
+                                  data-asset-id={file.id}
+                                  onDragStart={(e) => handleDragStart(e, existingAsset || { id: file.id, source: 'google-drive', filename: file.name, drive: { fileId: file.id, driveId: state.driveCurrentDriveId } }, file)}
                                   onClick={() => selectDriveFile(file)}
                                   className={`w-full p-3 bg-background border rounded-lg transition-colors text-left flex items-center gap-3 ${
                                     state.driveSelectedFile?.id === file.id
                                       ? 'border-primary ring-2 ring-primary'
                                       : 'border-border hover:border-primary'
-                                  } ${isIngested ? 'cursor-grab' : 'cursor-pointer'}`}
+                                  } cursor-grab`}
                                 >
                                   {file.thumbnailLink ? (
                                     <img
@@ -1382,7 +1423,7 @@ Check browser console for detailed logs.`);
                     key={asset.id}
                     draggable
                     data-asset-id={asset.id}
-                    onDragStart={(e) => handleDragStart(e, asset)}
+                    onDragStart={(e) => handleDragStart(e, asset, isDriveOnly ? { id: asset.drive?.fileId, name: asset.filename, mimeType: asset.drive?.mimeType } : undefined)}
                     onClick={() => handleAssetClick(asset)}
                     className={`relative aspect-[4/3] rounded-lg overflow-hidden cursor-pointer transition-all ${
                       isSelected
