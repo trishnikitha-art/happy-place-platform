@@ -15,11 +15,17 @@ function getRedisClient(): Redis {
     const url = process.env.KV_REST_API_URL;
     const token = process.env.KV_REST_API_TOKEN;
     
+    // Diagnostic: Check all possible environment variable names that might contain Redis credentials
+    const envVars = Object.keys(process.env).filter(key => 
+      key.includes('KV') || key.includes('REDIS') || key.includes('UPSTASH') || key.includes('REST')
+    );
+    
     console.log('[REDIS_DIAGNOSTIC] Client initialization attempt', {
       urlDetected: !!url,
       tokenDetected: !!token,
       urlLength: url?.length || 0,
       tokenLength: token?.length || 0,
+      relevantEnvVars: envVars.map(key => ({ key, hasValue: !!process.env[key] })),
     });
     
     if (!url || !token) {
