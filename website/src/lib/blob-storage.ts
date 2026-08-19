@@ -6,6 +6,8 @@
  */
 
 import { put } from '@vercel/blob';
+import { kv } from '@vercel/kv';
+import crypto from 'crypto';
 
 export interface BlobUploadResult {
   url: string;
@@ -25,11 +27,27 @@ export async function uploadToBlob(
   contentType: string
 ): Promise<BlobUploadResult> {
   try {
+    // Check if blob already exists with same content hash (idempotency)
+    const contentHash = crypto.createHash('sha256').update(buffer).digest('hex');
+    const existingBlobKey = await getBlobKeyByContentHash(contentHash);
+    
+    if (existingBlobKey) {
+      console.log('[BLOB_STORAGE] Blob already exists, reusing:', existingBlobKey);
+      // For idempotency, just return the existing key as a URL
+      // The actual URL would be generated from the blob key
+      return {
+        url: existingBlobKey, // Use the existing blob key as the URL identifier
+        uploadedAt: new Date().toISOString(),
+      };
+    }
+    
     const blob = await put(filename, buffer, {
       access: 'public',
       contentType,
-      // Do NOT use allowOverwrite - implement proper idempotency based on content hash
     });
+    
+    // Store content hash mapping for idempotency
+    await kv.set(`blob_hash:${contentHash}`, filename);
     
     return {
       url: blob.url,
@@ -38,6 +56,15 @@ export async function uploadToBlob(
   } catch (error) {
     console.error('[BLOB_STORAGE] Upload failed:', error);
     throw new Error(`Failed to upload ${filename} to Blob storage: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+async function getBlobKeyByContentHash(contentHash: string): Promise<string | null> {
+  try {
+    const key = await kv.get(`blob_hash:${contentHash}`);
+    return key as string | null;
+  } catch (e) {
+    return null;
   }
 }
 

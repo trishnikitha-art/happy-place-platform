@@ -741,6 +741,8 @@ Check browser console for detailed logs.`);
         assetId,
         slotFound: !!slot,
         assetFound: !!asset,
+        registeredSlotsCount: state.registeredSlots.length,
+        assetsCount: assetsRef.current.length,
       });
     }
   };

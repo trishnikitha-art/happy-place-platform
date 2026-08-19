@@ -38,7 +38,16 @@ export async function getMedia(id: string): Promise<Media | null> {
   try {
     const value = await kv.get(`${MEDIA_PREFIX}${id}`);
     if (!value) return null;
-    return JSON.parse(value as string) as Media;
+    
+    // Handle both string and object returns from KV SDK
+    if (typeof value === 'string') {
+      return JSON.parse(value) as Media;
+    } else if (typeof value === 'object') {
+      return value as Media;
+    } else {
+      console.error('[MEDIA_KV] Unexpected value type:', typeof value);
+      return null;
+    }
   } catch (error) {
     console.error('[MEDIA_KV] Get failed:', error);
     return null;

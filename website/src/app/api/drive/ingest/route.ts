@@ -25,8 +25,9 @@ import { uploadToBlob, generateBlobFilename } from '@/lib/blob-storage';
 let sharp: any = null;
 try {
   sharp = require('sharp');
+  console.log('[MEDIA_INGEST] Sharp loaded successfully');
 } catch (e) {
-  // Sharp not available, will use original-only mode
+  console.log('[MEDIA_INGEST] Sharp not available, will use original-only mode:', e);
 }
 
 export const dynamic = 'force-dynamic';

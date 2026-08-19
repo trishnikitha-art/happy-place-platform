@@ -92,17 +92,34 @@ export async function loadDynamicMedia(): Promise<void> {
     const { kv } = await import('@vercel/kv');
     const keys = await kv.keys('media:*');
     
+    console.log('[MEDIA] Found dynamic media keys:', keys.length);
+    
     for (const key of keys) {
-      const value = await kv.get(key);
-      if (value) {
-        const media = JSON.parse(value as string) as Media;
-        dynamicMediaCache.push(media);
+      try {
+        const value = await kv.get(key);
+        if (value) {
+          // Handle both string and object returns from KV SDK
+          let media: Media;
+          if (typeof value === 'string') {
+            media = JSON.parse(value) as Media;
+          } else if (typeof value === 'object') {
+            media = value as Media;
+          } else {
+            console.log('[MEDIA] Skipping invalid value type:', typeof value);
+            continue;
+          }
+          dynamicMediaCache.push(media);
+        }
+      } catch (error) {
+        console.log('[MEDIA] Failed to load individual key:', key, error);
       }
     }
     
     console.log('[MEDIA] Preloaded dynamic media from KV:', dynamicMediaCache.length);
   } catch (error) {
     console.log('[MEDIA] Failed to preload dynamic media:', error);
+    // KV might not be configured in all environments
+    dynamicMediaCache = [];
   }
 }
 
