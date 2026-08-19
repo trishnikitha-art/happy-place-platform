@@ -16,48 +16,19 @@ import { workbenchSession } from '@/lib/workbench-session';
 import crypto from 'crypto';
 import type { Media, MediaRole } from '@/types/media';
 
-// Dynamic imports for storage modules (ES modules need dynamic import)
-let sharp: any = null;
-let uploadToBlob: any = null;
-let generateBlobFilename: any = null;
-let storeMedia: any = null;
-let getMedia: any = null;
-let findMediaByContentHash: any = null;
-
-let sharpLoadError: any = null;
-let blobLoadError: any = null;
-let kvLoadError: any = null;
+// Import storage modules at top level (they are ES modules)
+import { uploadToBlob, generateBlobFilename } from '@/lib/blob-storage';
+import { storeMedia, getMedia, findMediaByContentHash } from '@/lib/media-kv-store';
 
 // Try to load Sharp (CommonJS)
+let sharp: any = null;
+let sharpLoadError: any = null;
+
 try {
   sharp = require('sharp');
 } catch (e) {
   sharpLoadError = e instanceof Error ? e.message : String(e);
   console.log('[MEDIA_INGEST] Sharp load failed:', sharpLoadError);
-}
-
-// Try to load storage modules (ES modules via dynamic import)
-async function loadStorageModules() {
-  try {
-    const blobStorage = await import('@/lib/blob-storage');
-    uploadToBlob = blobStorage.uploadToBlob;
-    generateBlobFilename = blobStorage.generateBlobFilename;
-    console.log('[MEDIA_INGEST] Blob module loaded successfully');
-  } catch (e) {
-    blobLoadError = e instanceof Error ? e.message : String(e);
-    console.error('[MEDIA_INGEST] Blob module load failed:', blobLoadError);
-  }
-
-  try {
-    const mediaKvStore = await import('@/lib/media-kv-store');
-    storeMedia = mediaKvStore.storeMedia;
-    getMedia = mediaKvStore.getMedia;
-    findMediaByContentHash = mediaKvStore.findMediaByContentHash;
-    console.log('[MEDIA_INGEST] KV module loaded successfully');
-  } catch (e) {
-    kvLoadError = e instanceof Error ? e.message : String(e);
-    console.error('[MEDIA_INGEST] KV module load failed:', kvLoadError);
-  }
 }
 
 export const dynamic = 'force-dynamic';
@@ -119,51 +90,15 @@ function determineOrientation(width: number, height: number): 'landscape' | 'por
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   
-  // Load storage modules dynamically
-  await loadStorageModules();
-  
   console.log('[MEDIA_INGEST] Module loading diagnostics', {
     requestId,
     sharpLoaded: !!sharp,
     sharpError: sharpLoadError,
     blobLoaded: !!uploadToBlob,
-    blobError: blobLoadError,
     kvLoaded: !!storeMedia,
-    kvError: kvLoadError,
     runtime: process.env.VERCEL_ENV || 'unknown',
     region: process.env.VERCEL_REGION || 'unknown',
   });
-
-  // Check if storage modules loaded successfully
-  if (!uploadToBlob || !generateBlobFilename) {
-    console.log('[MEDIA_INGEST_ERROR] BLOB_MODULE_NOT_AVAILABLE', { requestId, blobLoadError });
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'BLOB_MODULE_NOT_AVAILABLE',
-        stage: 'initialization',
-        message: 'Blob storage module failed to load.',
-        details: blobLoadError || 'Unknown error',
-        requestId,
-      },
-      { status: 500 }
-    );
-  }
-
-  if (!storeMedia || !getMedia || !findMediaByContentHash) {
-    console.log('[MEDIA_INGEST_ERROR] KV_MODULE_NOT_AVAILABLE', { requestId, kvLoadError });
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'KV_MODULE_NOT_AVAILABLE',
-        stage: 'initialization',
-        message: 'KV storage module failed to load.',
-        details: kvLoadError || 'Unknown error',
-        requestId,
-      },
-      { status: 500 }
-    );
-  }
 
   // Check environment variables for storage configuration
   const blobConfigured = !!process.env.BLOB_READ_WRITE_TOKEN;
