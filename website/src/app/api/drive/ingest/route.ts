@@ -16,7 +16,7 @@ import { workbenchSession } from '@/lib/workbench-session';
 import crypto from 'crypto';
 import type { Media, MediaRole } from '@/types/media';
 
-// Lazy load heavy dependencies to catch import errors
+// Try to import dependencies with fallback
 let sharp: any = null;
 let uploadToBlob: any = null;
 let generateBlobFilename: any = null;
@@ -26,13 +26,15 @@ let findMediaByContentHash: any = null;
 
 try {
   sharp = require('sharp');
-  uploadToBlob = require('@/lib/blob-storage').uploadToBlob;
-  generateBlobFilename = require('@/lib/blob-storage').generateBlobFilename;
-  storeMedia = require('@/lib/media-kv-store').storeMedia;
-  getMedia = require('@/lib/media-kv-store').getMedia;
-  findMediaByContentHash = require('@/lib/media-kv-store').findMediaByContentHash;
-} catch (importError) {
-  console.error('[MEDIA_INGEST] IMPORT_ERROR during module load:', importError);
+  const blobStorage = require('@/lib/blob-storage');
+  uploadToBlob = blobStorage.uploadToBlob;
+  generateBlobFilename = blobStorage.generateBlobFilename;
+  const mediaKvStore = require('@/lib/media-kv-store');
+  storeMedia = mediaKvStore.storeMedia;
+  getMedia = mediaKvStore.getMedia;
+  findMediaByContentHash = mediaKvStore.findMediaByContentHash;
+} catch (e) {
+  console.log('[MEDIA_INGEST] Dependencies not available:', e);
 }
 
 export const dynamic = 'force-dynamic';
@@ -91,32 +93,8 @@ function determineOrientation(width: number, height: number): 'landscape' | 'por
   return 'square';
 }
 
-// Top-level error handler to catch runtime errors and return JSON instead of HTML
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
-  
-  try {
-    return await handleIngestion(request, requestId);
-  } catch (error) {
-    console.error('[MEDIA_INGEST] TOP_LEVEL_ERROR', { requestId, error });
-    
-    // Return JSON error instead of letting Next.js return HTML error page
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'RUNTIME_ERROR',
-        stage: 'initialization',
-        message: 'Server runtime error during ingestion initialization',
-        details: error instanceof Error ? error.message : 'Unknown error',
-        stack: error instanceof Error ? error.stack : undefined,
-        requestId,
-      },
-      { status: 500 }
-    );
-  }
-}
-
-async function handleIngestion(request: Request, requestId: string) {
   console.log('[MEDIA_INGEST] request started', { requestId });
   console.log('[MEDIA_INGEST] environment detection', {
     requestId,
@@ -129,21 +107,6 @@ async function handleIngestion(request: Request, requestId: string) {
   });
 
   // Check if required modules loaded successfully
-  if (!sharp) {
-    console.log('[MEDIA_INGEST_ERROR] SHARP_NOT_AVAILABLE', { requestId });
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'DEPENDENCY_NOT_AVAILABLE',
-        stage: 'initialization',
-        message: 'Sharp image processing library is not available.',
-        details: 'This may be due to a module loading error or runtime incompatibility.',
-        requestId,
-      },
-      { status: 500 }
-    );
-  }
-
   if (!uploadToBlob || !storeMedia) {
     console.log('[MEDIA_INGEST_ERROR] STORAGE_MODULES_NOT_AVAILABLE', { requestId });
     return NextResponse.json(
@@ -158,6 +121,13 @@ async function handleIngestion(request: Request, requestId: string) {
       { status: 500 }
     );
   }
+
+  // Log Sharp availability for debugging (not a hard failure)
+  console.log('[MEDIA_INGEST] Sharp availability', {
+    requestId,
+    sharpAvailable: !!sharp,
+    sharpMode: sharp ? 'will-generate-variants' : 'will-store-original-only',
+  });
 
   // Check if required modules loaded successfully
   if (!sharp) {
@@ -342,37 +312,44 @@ async function handleIngestion(request: Request, requestId: string) {
       );
     }
 
-    // 3. Validate image
+    // 3. Validate image (optional if Sharp not available)
     console.log('[MEDIA_INGEST] IMAGE_VALIDATION stage started', { requestId });
-    try {
-      const metadata = await sharp(fileBuffer).metadata();
-      console.log('[MEDIA_INGEST] image metadata:', {
-        requestId,
-        width: metadata.width,
-        height: metadata.height,
-        format: metadata.format,
-        orientation: metadata.orientation,
-      });
-      
-      if (!metadata.width || !metadata.height) {
-        throw new Error('Invalid image dimensions');
-      }
-      console.log('[MEDIA_INGEST] IMAGE_VALIDATION stage succeeded', { requestId });
-    } catch (error) {
-      console.log('[MEDIA_INGEST_ERROR] IMAGE_VALIDATION stage failed', { requestId });
-      console.error('[MEDIA_INGEST_ERROR] validation error:', error);
-      return NextResponse.json(
-        { 
-          success: false,
-          error: 'IMAGE_VALIDATION_FAILED', 
-          stage: 'IMAGE_VALIDATION', 
-          message: 'The selected file is not a valid image or is corrupted.',
-          retryable: false,
-          details: error instanceof Error ? error.message : 'Unknown error',
+    let metadata: any = {};
+    if (sharp) {
+      try {
+        metadata = await sharp(fileBuffer).metadata();
+        console.log('[MEDIA_INGEST] image metadata:', {
           requestId,
-        },
-        { status: 400 }
-      );
+          width: metadata.width,
+          height: metadata.height,
+          format: metadata.format,
+          orientation: metadata.orientation,
+        });
+        
+        if (!metadata.width || !metadata.height) {
+          throw new Error('Invalid image dimensions');
+        }
+        console.log('[MEDIA_INGEST] IMAGE_VALIDATION stage succeeded', { requestId });
+      } catch (error) {
+        console.log('[MEDIA_INGEST_ERROR] IMAGE_VALIDATION stage failed', { requestId });
+        console.error('[MEDIA_INGEST_ERROR] validation error:', error);
+        return NextResponse.json(
+          { 
+            success: false,
+            error: 'IMAGE_VALIDATION_FAILED', 
+            stage: 'IMAGE_VALIDATION', 
+            message: 'The selected file is not a valid image or is corrupted.',
+            retryable: false,
+            details: error instanceof Error ? error.message : 'Unknown error',
+            requestId,
+          },
+          { status: 400 }
+        );
+      }
+    } else {
+      console.log('[MEDIA_INGEST] IMAGE_VALIDATION skipped - Sharp not available', { requestId });
+      // Use fallback dimensions when Sharp is not available
+      metadata = { width: 1920, height: 1080, format: 'unknown' };
     }
 
     // 4. Compute content hash for stable identity
@@ -409,80 +386,110 @@ async function handleIngestion(request: Request, requestId: string) {
     const uuid = generateUUIDv5(contentHash);
     const mediaId = `drive-${stableId}`;
 
-    // 7. Generate variants
+    // 7. Generate variants (or use original as fallback if Sharp not available)
     console.log('[MEDIA_INGEST] VARIANT_GENERATION stage started', { requestId });
     const variants = [];
-    const metadata = await sharp(fileBuffer).metadata();
-    const width = metadata.width || 1920;
-    const height = metadata.height || 1080;
-    const validWidths = WIDTHS.filter((w) => w <= width);
-    if (!validWidths.length) validWidths.push(width);
+    let originalUpload: any;
     
-    // Upload original
-    const originalExt = driveFile.name.split('.').pop() || 'jpg';
-    const originalFilename = generateBlobFilename(mediaId, 'original', originalExt);
-    const originalContentType = driveFile.mimeType || 'image/jpeg';
-    console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage started', {
-      requestId,
-      filename: originalFilename,
-      bytes: fileBuffer.length,
-    });
-    const originalUpload = await uploadToBlob(fileBuffer, originalFilename, originalContentType);
-    console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage succeeded', {
-      requestId,
-      url: originalUpload.url,
-    });
-    
-    // Generate and upload WebP/AVIF variants
-    for (const vw of validWidths) {
-      for (const fmt of ['avif', 'webp']) {
-        const variantFilename = generateBlobFilename(mediaId, `${vw}`, fmt);
-        const variantContentType = fmt === 'avif' ? 'image/avif' : 'image/webp';
-        
-        console.log('[MEDIA_INGEST] STORAGE_UPLOAD_VARIANT stage started', {
-          requestId,
-          variant: variantFilename,
-          width: vw,
-          format: fmt,
-        });
-        
-        const variantBuffer = await sharp(fileBuffer)
-          .resize({ width: vw, withoutEnlargement: true })
-          [fmt === 'avif' ? 'avif' : 'webp']({ quality: fmt === 'avif' ? 55 : 72 })
-          .toBuffer();
-        
-        const variantUpload = await uploadToBlob(variantBuffer, variantFilename, variantContentType);
-        
-        variants.push({
-          width: vw,
-          format: fmt,
-          src: variantUpload.url,
-        });
-        
-        console.log('[MEDIA_INGEST] STORAGE_UPLOAD_VARIANT stage succeeded', {
-          requestId,
-          variant: variantFilename,
-          url: variantUpload.url,
-        });
+    if (sharp) {
+      const width = metadata.width || 1920;
+      const height = metadata.height || 1080;
+      const validWidths = WIDTHS.filter((w) => w <= width);
+      if (!validWidths.length) validWidths.push(width);
+      
+      // Upload original
+      const originalExt = driveFile.name.split('.').pop() || 'jpg';
+      const originalFilename = generateBlobFilename(mediaId, 'original', originalExt);
+      const originalContentType = driveFile.mimeType || 'image/jpeg';
+      console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage started', {
+        requestId,
+        filename: originalFilename,
+        bytes: fileBuffer.length,
+      });
+      originalUpload = await uploadToBlob(fileBuffer, originalFilename, originalContentType);
+      console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage succeeded', {
+        requestId,
+        url: originalUpload.url,
+      });
+      
+      // Generate and upload WebP/AVIF variants
+      for (const vw of validWidths) {
+        for (const fmt of ['avif', 'webp']) {
+          const variantFilename = generateBlobFilename(mediaId, `${vw}`, fmt);
+          const variantContentType = fmt === 'avif' ? 'image/avif' : 'image/webp';
+          
+          console.log('[MEDIA_INGEST] STORAGE_UPLOAD_VARIANT stage started', {
+            requestId,
+            variant: variantFilename,
+            width: vw,
+            format: fmt,
+          });
+          
+          const variantBuffer = await sharp(fileBuffer)
+            .resize({ width: vw, withoutEnlargement: true })
+            [fmt === 'avif' ? 'avif' : 'webp']({ quality: fmt === 'avif' ? 55 : 72 })
+            .toBuffer();
+          
+          const variantUpload = await uploadToBlob(variantBuffer, variantFilename, variantContentType);
+          
+          variants.push({
+            width: vw,
+            format: fmt,
+            src: variantUpload.url,
+          });
+          
+          console.log('[MEDIA_INGEST] STORAGE_UPLOAD_VARIANT stage succeeded', {
+            requestId,
+            variant: variantFilename,
+            url: variantUpload.url,
+          });
+        }
       }
+    } else {
+      console.log('[MEDIA_INGEST] VARIANT_GENERATION skipped - Sharp not available, using original only', { requestId });
+      
+      // Upload original as all variants (fallback mode)
+      const originalExt = driveFile.name.split('.').pop() || 'jpg';
+      const originalFilename = generateBlobFilename(mediaId, 'original', originalExt);
+      const originalContentType = driveFile.mimeType || 'image/jpeg';
+      console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage started', {
+        requestId,
+        filename: originalFilename,
+        bytes: fileBuffer.length,
+      });
+      originalUpload = await uploadToBlob(fileBuffer, originalFilename, originalContentType);
+      console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage succeeded', {
+        requestId,
+        url: originalUpload.url,
+      });
     }
     
     // Generate and upload thumbnail
-    const thumbFilename = generateBlobFilename(mediaId, 'thumb', 'webp');
-    const thumbBuffer = await sharp(fileBuffer).resize(480).webp({ quality: 70 }).toBuffer();
-    const thumbUpload = await uploadToBlob(thumbBuffer, thumbFilename, 'image/webp');
-    console.log('[MEDIA_INGEST] STORAGE_UPLOAD_THUMBNAIL stage succeeded', {
-      requestId,
-      url: thumbUpload.url,
-    });
+    let thumbUpload: any;
+    let blurDataURL = '';
     
-    // Generate blur placeholder
-    const blurBuffer = await sharp(fileBuffer).resize(16).webp({ quality: 40 }).toBuffer();
-    const blurDataURL = `data:image/webp;base64,${blurBuffer.toString('base64')}`;
+    if (sharp) {
+      const thumbFilename = generateBlobFilename(mediaId, 'thumb', 'webp');
+      const thumbBuffer = await sharp(fileBuffer).resize(480).webp({ quality: 70 }).toBuffer();
+      thumbUpload = await uploadToBlob(thumbBuffer, thumbFilename, 'image/webp');
+      console.log('[MEDIA_INGEST] STORAGE_UPLOAD_THUMBNAIL stage succeeded', {
+        requestId,
+        url: thumbUpload.url,
+      });
+      
+      // Generate blur placeholder
+      const blurBuffer = await sharp(fileBuffer).resize(16).webp({ quality: 40 }).toBuffer();
+      blurDataURL = `data:image/webp;base64,${blurBuffer.toString('base64')}`;
+    } else {
+      console.log('[MEDIA_INGEST] THUMBNAIL/BLUR skipped - Sharp not available, using original as thumbnail', { requestId });
+      thumbUpload = originalUpload;
+      blurDataURL = '';
+    }
     
     console.log('[MEDIA_INGEST] VARIANT_GENERATION stage completed', {
       requestId,
       variantsCount: variants.length,
+      hasSharp: !!sharp,
     });
 
     // 8. Create full Media record
@@ -510,11 +517,11 @@ async function handleIngestion(request: Request, requestId: string) {
         height: metadata.height || 1080,
       },
       variants: {
-        original: originalUpload.url,
-        web: webpVariant?.src || originalUpload.url,
-        webp: webpVariant?.src || originalUpload.url,
+        original: originalUpload?.url || '',
+        web: webpVariant?.src || originalUpload?.url || '',
+        webp: webpVariant?.src || originalUpload?.url || '',
         avif: avifVariant?.src || '',
-        thumbnail: thumbUpload.url,
+        thumbnail: thumbUpload?.url || originalUpload?.url || '',
         blur: blurDataURL,
       },
       alt: driveFile.name,
@@ -527,8 +534,8 @@ async function handleIngestion(request: Request, requestId: string) {
       updatedAt: driveFile.modifiedTime,
       uploadedAt: new Date().toISOString(),
       fileSize: driveFile.size || fileBuffer.length,
-      format: metadata.format || 'WEBP',
-      colorSpace: metadata.space || 'sRGB',
+      format: sharp ? (metadata.format || 'WEBP') : driveFile.mimeType?.split('/')[1] || 'unknown',
+      colorSpace: sharp ? (metadata.space || 'sRGB') : 'sRGB',
       provenance: {
         drive_canonical: true,
         current_authority: true,
