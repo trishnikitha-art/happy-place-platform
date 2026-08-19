@@ -465,25 +465,56 @@ export default function MediaWorkbench() {
         driveIdParameter: state.driveCurrentDriveId, // Pass Shared Drive ID if present
       };
       
-      console.log('[WORKBENCH] API request payload', {
-        endpoint: '/api/drive/ingest',
+      const endpoint = '/api/drive/ingest';
+      console.log('[WORKBENCH] API request', {
+        endpoint,
         method: 'POST',
         body: JSON.stringify(requestBody),
       });
 
-      const response = await fetch('/api/drive/ingest', {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody),
       });
       
-      console.log('[WORKBENCH] API response received', {
+      console.log('[WORKBENCH] API response', {
         status: response.status,
         statusText: response.statusText,
         ok: response.ok,
+        contentType: response.headers.get('content-type'),
       });
       
-      const data = await response.json();
+      // Get response text first for debugging
+      const responseText = await response.text();
+      console.log('[WORKBENCH] Response body (first 500 chars)', {
+        preview: responseText.substring(0, 500),
+        length: responseText.length,
+        isHTML: responseText.startsWith('<!DOCTYPE') || responseText.startsWith('<html'),
+      });
+      
+      // Parse JSON only if it looks like JSON
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error('[WORKBENCH] JSON parse failed', {
+          error: parseError,
+          responseText: responseText.substring(0, 1000),
+        });
+        
+        // Return structured error with actual response info
+        alert(`API Error (Status ${response.status}):
+Expected JSON but received ${responseText.startsWith('<!DOCTYPE') ? 'HTML' : 'non-JSON'} response
+
+URL: ${endpoint}
+Status: ${response.status} ${response.statusText}
+Content-Type: ${response.headers.get('content-type') || 'unknown'}
+
+First 200 chars of response:
+${responseText.substring(0, 200)}`);
+        return;
+      }
       
       console.log('[WORKBENCH] Ingestion response parsed', {
         success: data.success,
@@ -492,6 +523,7 @@ export default function MediaWorkbench() {
         stage: data.stage,
         message: data.message,
         mediaId: data.media?.id,
+        requestId: data.requestId,
       });
       
       if (response.ok) {
@@ -527,6 +559,7 @@ export default function MediaWorkbench() {
       } else {
         console.error('[WORKBENCH] Ingestion failed with error:', data);
         const errorDetails = `
+Status: ${response.status} ${response.statusText}
 Error: ${data.error || 'UNKNOWN'}
 Stage: ${data.stage || 'UNKNOWN'}
 Message: ${data.message || 'Unknown error'}
@@ -542,10 +575,10 @@ Request ID: ${data.requestId || 'None'}
 ${error instanceof Error ? error.message : 'Unknown error'}
 
 This may be due to:
-- Vercel Blob environment variable not configured
-- Vercel KV environment variable not configured
-- Drive authentication issue
 - Network error
+- Authentication redirect
+- API endpoint not found
+- Vercel Blob/KV not configured
 
 Check browser console for detailed logs.`);
     }
