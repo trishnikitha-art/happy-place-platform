@@ -182,9 +182,12 @@ export default function MediaWorkbench() {
         const slotId = event.data.slot?.id;
         const assetId = event.data.assetId;
 
-        console.log('[DND 6] SLOT_DROP_MESSAGE_RECEIVED', {
+        console.log('[DND] SLOT_DROP_MESSAGE_RECEIVED', {
           slotId,
           assetId,
+          source: event.data.source,
+          driveFileId: event.data.driveFileId,
+          sharedDriveId: event.data.sharedDriveId,
         });
 
         // Use payload directly instead of slotRegistry.get (separate JS contexts)
@@ -201,19 +204,57 @@ export default function MediaWorkbench() {
 
         // Use assetId from the message (not from local state)
         if (assetId) {
-          console.log('[DND 7] ASSET_LOOKUP', {
-            assetId,
-            assetCount: assetsRef.current.length,
-            found: !!assetsRef.current.find(a => a.id === assetId),
-            sampleIds: assetsRef.current.slice(0, 10).map(a => a.id),
+          console.log('[DND] ASSET_LOOKUP', {
+            requestedAssetId: assetId,
+            registryCount: assetsRef.current.length,
           });
-          const asset = assetsRef.current.find(a => a.id === assetId);
+          
+          // Resolve to canonical ID (handles legacy URL-based assetIds)
+          const canonicalAssetId = resolveAssetId(assetId, assetsRef.current);
+          
+          console.log('[DND] ASSET_ID_RESOLUTION', {
+            rawAssetId: assetId,
+            canonicalAssetId,
+            resolutionMethod: canonicalAssetId === assetId ? 'direct' : 'variant-fallback',
+          });
+          
+          if (!canonicalAssetId) {
+            console.log('[DND_ERROR] ASSET_LOOKUP_FAILED', {
+              stage: 'ASSET_LOOKUP',
+              slotId,
+              requestedAssetId: assetId,
+              registryCount: assetsRef.current.length,
+            });
+            
+            // Log sample registry IDs for debugging
+            console.log('[DND] REGISTRY_IDS', {
+              ids: assetsRef.current.slice(0, 30).map(a => ({
+                id: a.id,
+                filename: a.filename,
+                source: a.source,
+                driveFileId: a.drive?.fileId,
+              })),
+            });
+            
+            alert(`Asset not found: ${assetId.substring(0, 50)}...`);
+            return;
+          }
+          
+          const asset = assetsRef.current.find(a => a.id === canonicalAssetId);
+          
+          console.log('[DND] ASSET_LOOKUP_SUCCESS', {
+            canonicalAssetId,
+            found: !!asset,
+            filename: asset?.filename,
+            source: asset?.source,
+          });
+          
           if (asset) {
             // Gallery duplicate prevention: check if mediaId is already in another gallery slot
             if (slotId.startsWith('our-work-gallery-') || slotId.startsWith('project-gallery-')) {
               const existingGallerySlot = state.registeredSlots.find(s => 
                 s.section === 'Gallery' && 
-                s.currentMediaId === assetId && 
+                s.currentMediaId === canonicalAssetId && 
                 s.id !== slotId
               );
               if (existingGallerySlot) {
@@ -222,16 +263,16 @@ export default function MediaWorkbench() {
               }
             }
 
-            console.log('[DND 7] STAGE_ASSIGNMENT', {
+            console.log('[DND] STAGE_ASSIGNMENT', {
               slotId,
-              assetId,
+              canonicalAssetId,
               currentMediaId: slot.currentMediaId,
             });
             
             // GALLERY DUPLICATE PREVENTION: Check if this mediaId is already assigned to another gallery slot
             if (slot.section === 'Gallery') {
               const existingGalleryAssignment = Array.from(state.pendingAssignments.values()).find(
-                p => p.slot.section === 'Gallery' && p.asset.id === assetId && p.slot.id !== slot.id
+                p => p.slot.section === 'Gallery' && p.asset.id === canonicalAssetId && p.slot.id !== slot.id
               );
               if (existingGalleryAssignment) {
                 alert(`This media is already assigned to ${existingGalleryAssignment.slot.slotName}. A media asset can only appear in one gallery slot.`);
@@ -462,6 +503,16 @@ export default function MediaWorkbench() {
         // Add the newly ingested asset to the registry
         if (data.action === 'created' && data.media) {
           const driveAsset = await addDriveAssetToRegistry(data.media);
+          
+          console.log('[DND] CANONICAL_ASSET', {
+            id: driveAsset.id,
+            source: driveAsset.source,
+            filename: driveAsset.filename,
+            driveFileId: driveAsset.drive?.fileId,
+            sharedDriveId: driveAsset.drive?.driveId,
+            thumbnail: driveAsset.variants?.thumbnail,
+          });
+          
           setState(prev => ({ 
             ...prev, 
             assets: [...prev.assets, driveAsset],
@@ -507,6 +558,24 @@ export default function MediaWorkbench() {
     if (!slot.currentMediaId) return null;
     return getMediaById(slot.currentMediaId);
   };
+
+  // Compatibility fallback: resolve URL-based assetIds to canonical IDs
+  function resolveAssetId(rawId: string, assets: VisualAsset[]): string | null {
+    // Direct match - canonical ID
+    const direct = assets.find(a => a.id === rawId);
+    if (direct) {
+      return direct.id;
+    }
+    
+    // Fallback: match against variant URLs (for legacy URL-based assetIds)
+    const byVariant = assets.find(a =>
+      Object.values(a.variants ?? {}).some(
+        value => value === rawId
+      )
+    );
+    
+    return byVariant?.id ?? null;
+  }
 
   const confirmAssignment = async () => {
     if (state.pendingAssignments.size === 0) return;
@@ -786,17 +855,40 @@ export default function MediaWorkbench() {
   };
 
   const handleDragStart = (e: React.DragEvent, asset: VisualAsset) => {
-    console.log('[DND 1] DRAG_START', {
-      assetId: asset.id,
+    const assetId = asset.id;
+    
+    console.log('[DND] DRAG_START', {
+      assetId,
       filename: asset.filename,
-      projectId: asset.projectId,
-      variants: Object.keys(asset.variants),
+      source: asset.source,
+      driveFileId: asset.drive?.fileId,
+      sharedDriveId: asset.drive?.driveId,
+      thumbnail: asset.variants?.thumbnail,
     });
-    e.dataTransfer.setData('text/plain', asset.id);
-    console.log('[DND 2] DATA_TRANSFER_SET', {
+    
+    e.dataTransfer.setData(
+      'application/x-workbench-asset',
+      JSON.stringify({
+        assetId,
+        source: asset.source,
+        driveFileId: asset.drive?.fileId ?? null,
+        sharedDriveId: asset.drive?.driveId ?? null,
+      })
+    );
+    
+    e.dataTransfer.setData('text/plain', assetId);
+    
+    console.log('[DND] DATA_TRANSFER_SET', {
       types: e.dataTransfer.types,
-      payload: asset.id,
+      assetId,
+      applicationData: {
+        assetId,
+        source: asset.source,
+        driveFileId: asset.drive?.fileId ?? null,
+        sharedDriveId: asset.drive?.driveId ?? null,
+      },
     });
+    
     e.dataTransfer.effectAllowed = 'copy';
     setState(prev => ({ ...prev, selectedAsset: asset }));
   };
@@ -1213,6 +1305,7 @@ export default function MediaWorkbench() {
                   <div
                     key={asset.id}
                     draggable
+                    data-asset-id={asset.id}
                     onDragStart={(e) => handleDragStart(e, asset)}
                     onClick={() => handleAssetClick(asset)}
                     className={`relative aspect-[4/3] rounded-lg overflow-hidden cursor-pointer transition-all ${

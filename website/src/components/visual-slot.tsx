@@ -136,7 +136,7 @@ export function VisualSlot({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    console.log('[DND 4] IFRAME_DROP', {
+    console.log('[DND] IFRAME_DROP', {
       slotId: id,
       windowIsIframe: window.parent !== window,
       dataTransferTypes: e.dataTransfer.types,
@@ -144,10 +144,22 @@ export function VisualSlot({
 
     // Extract asset ID from DataTransfer (same key used in parent handleDragStart)
     const assetId = e.dataTransfer.getData('text/plain');
+    
+    // Also try application/x-workbench-asset for structured data
+    let applicationData = null;
+    try {
+      const applicationJson = e.dataTransfer.getData('application/x-workbench-asset');
+      if (applicationJson) {
+        applicationData = JSON.parse(applicationJson);
+      }
+    } catch (e) {
+      // Ignore parse errors
+    }
 
-    console.log('[DND 5] SLOT_DROP_PAYLOAD_EXTRACTED', {
+    console.log('[DND] SLOT_DROP_PAYLOAD_EXTRACTED', {
       slotId: id,
       assetId,
+      applicationData,
       dataTransferTypes: e.dataTransfer.types,
     });
 
@@ -157,10 +169,14 @@ export function VisualSlot({
         type: 'SLOT_DROP',
         slot: { id, route, page, section, slotName, currentMediaId },
         assetId, // Include the dropped asset ID
+        source: applicationData?.source,
+        driveFileId: applicationData?.driveFileId,
+        sharedDriveId: applicationData?.sharedDriveId,
       };
-      console.log('[DND 5] SLOT_DROP_POSTMESSAGE', {
+      console.log('[DND] SLOT_DROP_POSTMESSAGE', {
         slotId: id,
         assetId,
+        source: applicationData?.source,
       });
       window.parent.postMessage(dropMessage, '*');
     }
