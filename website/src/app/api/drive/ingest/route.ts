@@ -13,12 +13,13 @@ import { NextResponse } from 'next/server';
 import { driveDiscovery } from '@/lib/drive/drive-discovery';
 import { driveSession } from '@/lib/drive/drive-session';
 import { workbenchSession } from '@/lib/workbench-session';
+import { readFileSync, writeFileSync } from 'fs';
+import { join } from 'path';
 import crypto from 'crypto';
 import type { Media, MediaRole } from '@/types/media';
 
 // Import storage modules at top level (they are ES modules)
 import { uploadToBlob, generateBlobFilename } from '@/lib/blob-storage';
-import { storeMedia, getMedia, findMediaByContentHash } from '@/lib/media-kv-store';
 
 // Try to load Sharp (optional for fallback mode)
 let sharp: any = null;
@@ -89,7 +90,6 @@ export async function POST(request: Request) {
   
   // Check environment variables for storage configuration
   const blobConfigured = !!process.env.BLOB_READ_WRITE_TOKEN;
-  const kvConfigured = !!(process.env.KV_REST_API_URL && (process.env.KV_REST_API_TOKEN || process.env.KV_REST_API__KV_REST_API_TOKEN));
 
   if (!blobConfigured) {
     return NextResponse.json(
@@ -99,20 +99,6 @@ export async function POST(request: Request) {
         stage: 'initialization',
         message: 'Vercel Blob storage is not configured.',
         details: 'BLOB_READ_WRITE_TOKEN environment variable is missing.',
-        requestId,
-      },
-      { status: 500 }
-    );
-  }
-
-  if (!kvConfigured) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'KV_NOT_CONFIGURED',
-        stage: 'initialization',
-        message: 'Vercel KV storage is not configured.',
-        details: 'KV_REST_API_URL and KV_REST_API_TOKEN (or KV_REST_API__KV_REST_API_TOKEN) environment variables are missing.',
         requestId,
       },
       { status: 500 }
@@ -283,23 +269,23 @@ export async function POST(request: Request) {
       hash: contentHash.substring(0, 16) + '...',
     });
     
-    // 5. Check for existing record with matching content hash (deduplication)
+    // 5. Check for existing record with matching content hash (deduplication in media.v1.json)
     console.log('[MEDIA_INGEST] DEDUPLICATION stage started', { requestId });
-    const existingMediaId = await findMediaByContentHash(contentHash);
-    if (existingMediaId) {
-      const existingMedia = await getMedia(existingMediaId);
-      if (existingMedia) {
-        console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - existing record', {
-          requestId,
-          existingMediaId,
-        });
-        return NextResponse.json({
-          success: true,
-          action: 'existing',
-          media: existingMedia,
-          requestId,
-        });
-      }
+    const mediaPath = join(process.cwd(), 'src/config/media.v1.json');
+    const mediaData = JSON.parse(readFileSync(mediaPath, 'utf-8'));
+    
+    const existingMedia = mediaData.media.find((m: Media) => m.contentHash === contentHash);
+    if (existingMedia) {
+      console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - existing record', {
+        requestId,
+        existingMediaId: existingMedia.id,
+      });
+      return NextResponse.json({
+        success: true,
+        action: 'existing',
+        media: existingMedia,
+        requestId,
+      });
     }
     console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - new record', { requestId });
     
@@ -472,12 +458,16 @@ export async function POST(request: Request) {
       mediaId,
     });
 
-    // 9. Store Media record in KV
-    await storeMedia(mediaRecord);
+    // 9. Store Media record in media.v1.json (canonical authority)
+    // Insert new record
+    mediaData.media.push(mediaRecord);
+    mediaData.generatedAt = new Date().toISOString();
+    writeFileSync(mediaPath, JSON.stringify(mediaData, null, 2));
     
     console.log('[MEDIA_INGEST] MEDIA_PERSIST stage succeeded', {
       requestId,
       mediaId,
+      totalMediaRecords: mediaData.media.length,
     });
 
     console.log('[MEDIA_INGEST] RESPONSE stage started', { requestId });

@@ -754,45 +754,47 @@ Check browser console for detailed logs.`);
   };
 
   const createDriveReference = async (driveReference: any, slot: RegisteredSlot) => {
-    console.log('[DND] CREATE_DRIVE_REFERENCE', {
+    console.log('[DND] DRIVE_MATERIALIZATION_STARTED', {
       fileId: driveReference.fileId,
       sharedDriveId: driveReference.sharedDriveId,
       slotId: slot.id,
     });
 
     try {
-      const response = await fetch('/api/drive/reference', {
+      // Use FULL ingestion pipeline instead of lightweight reference
+      // This creates complete media record with proper variants in media.v1.json
+      const response = await fetch('/api/drive/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fileId: driveReference.fileId,
-          sharedDriveId: driveReference.sharedDriveId,
+          driveId: driveReference.fileId,
+          driveIdParameter: driveReference.sharedDriveId,
         }),
       });
 
       const result = await response.json();
 
       if (result.success && result.media) {
-        console.log('[DND] DRIVE_REFERENCE_SUCCESS', {
+        console.log('[DND] DRIVE_MATERIALIZATION_SUCCESS', {
           mediaId: result.media.id,
           slotId: slot.id,
+          hasVariants: !!result.media.variants,
+          hasDimensions: !!result.media.dimensions,
         });
 
-        // Add to local assets
-        setState(prev => ({
-          ...prev,
-          assets: [...prev.assets, result.media],
-        }));
+        // Clear media cache and reload canonical data to pick up new media.v1.json entry
+        console.log('[DND] RELOADING_CANONICAL_DATA');
+        await loadCanonicalData();
 
         // Route through existing replacement confirmation
         handleDriveDropToSlot(slot, result.media, slot.currentMediaId);
       } else {
-        console.error('[DND] DRIVE_REFERENCE_FAILED', result);
-        alert(`Failed to create Drive reference: ${result.error || 'Unknown error'}`);
+        console.error('[DND] DRIVE_MATERIALIZATION_FAILED', result);
+        alert(`Failed to materialize Drive file: ${result.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('[DND] DRIVE_REFERENCE_ERROR', error);
-      alert(`Failed to create Drive reference: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('[DND] DRIVE_MATERIALIZATION_ERROR', error);
+      alert(`Failed to materialize Drive file: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 

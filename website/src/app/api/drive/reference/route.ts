@@ -3,7 +3,7 @@
  *
  * Creates a lightweight media record that references a Drive object directly.
  * Does not download the file; uses Drive's thumbnail and view URLs.
- * Uses KV store for persistence and proper idempotency based on Drive identity.
+ * Writes to media.v1.json for consistency with existing HPP media lifecycle.
  *
  * POST /api/drive/reference
  * Body: { fileId: string, sharedDriveId?: string, projectId?: string, roles?: MediaRole[] }
@@ -13,7 +13,8 @@ import { NextResponse } from 'next/server';
 import { driveDiscovery } from '@/lib/drive/drive-discovery';
 import { driveSession } from '@/lib/drive/drive-session';
 import { workbenchSession } from '@/lib/workbench-session';
-import { storeMedia, getMedia } from '@/lib/media-kv-store';
+import { readFileSync, writeFileSync } from 'fs';
+import { join } from 'path';
 import type { Media, MediaRole } from '@/types/media';
 import crypto from 'crypto';
 
@@ -70,36 +71,42 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Check for existing record with matching Drive identity (idempotency)
+    console.log('[DND] DRIVE_REFERENCE_METATADA_FETCHED', {
+      fileId,
+      sharedDriveId,
+      filename: driveFile.name,
+    });
+
+    // 2. Load media.v1.json (canonical media authority)
+    const mediaPath = join(process.cwd(), 'src/config/media.v1.json');
+    const mediaData = JSON.parse(readFileSync(mediaPath, 'utf-8'));
+
+    // 3. Check for existing record with matching Drive identity (idempotency)
     // Use (source, sharedDriveId, fileId) as the canonical Drive identity
     const identityString = `${fileId}${sharedDriveId || ''}`;
     const identityHash = crypto.createHash('sha256').update(identityString).digest('hex').substring(0, 16);
     const mediaId = `drive-${identityHash}`;
 
-    try {
-      const existingAsset = await getMedia(mediaId);
+    const existingIndex = mediaData.media.findIndex((m: Media) => m.id === mediaId);
 
-      if (existingAsset) {
-        console.log('[DRIVE_REFERENCE] Existing asset found', {
-          mediaId,
-          fileId,
-          sharedDriveId,
-        });
-        
-        return NextResponse.json({
-          success: true,
-          media: existingAsset,
-          action: 'existing',
-        });
-      }
-    } catch (e) {
-      console.log('[DRIVE_REFERENCE] KV lookup failed, proceeding with creation:', e);
+    if (existingIndex >= 0) {
+      console.log('[DND] DRIVE_REFERENCE_EXISTS', {
+        mediaId,
+        fileId,
+        sharedDriveId,
+      });
+      
+      return NextResponse.json({
+        success: true,
+        media: mediaData.media[existingIndex],
+        action: 'existing',
+      });
     }
 
-    // 3. Generate stable media ID from Drive identity
+    // 4. Generate stable media ID from Drive identity
     const baseName = driveFile.name.replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]/g, '-');
 
-    // 4. Create lightweight Drive reference (no dimensions, no fabricated data)
+    // 5. Create lightweight Drive reference (no dimensions, no fabricated data)
     const mediaRecord: Media = {
       id: mediaId,
       contentHash: identityHash, // Use Drive identity hash as content hash for now
@@ -115,7 +122,7 @@ export async function POST(request: Request) {
       filename: driveFile.name,
       type: driveFile.mimeType?.startsWith('image/') ? 'image' : 'document',
       orientation: 'landscape', // Will be determined on materialization
-      dimensions: null, // No dimensions until materialization
+      dimensions: { width: 0, height: 0 }, // Placeholder for materialization
       variants: {
         // Thumbnail URL is derived at runtime via proxy
         web: `/api/drive/files/${fileId}/thumbnail${sharedDriveId ? `?driveId=${sharedDriveId}` : ''}`,
@@ -125,7 +132,7 @@ export async function POST(request: Request) {
       projectId,
       tags: [],
       roles,
-      order: 0,
+      order: mediaData.media.length,
       createdAt: driveFile.createdTime,
       updatedAt: driveFile.modifiedTime,
       uploadedAt: new Date().toISOString(),
@@ -140,13 +147,18 @@ export async function POST(request: Request) {
       },
     };
 
-    // 5. Store in KV (only persistence layer needed for reference)
-    await storeMedia(mediaRecord);
+    // 6. Insert new record into media.v1.json
+    mediaData.media.push(mediaRecord);
+    mediaData.generatedAt = new Date().toISOString();
 
-    console.log('[DRIVE_REFERENCE] Created new reference', {
+    // 7. Write back to media.v1.json
+    writeFileSync(mediaPath, JSON.stringify(mediaData, null, 2));
+
+    console.log('[DND] DRIVE_REFERENCE_CREATED', {
       mediaId,
       fileId,
       sharedDriveId,
+      totalMediaRecords: mediaData.media.length,
     });
 
     return NextResponse.json({
