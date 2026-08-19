@@ -277,7 +277,7 @@ export class DriveDiscovery {
   /**
    * Get file metadata
    */
-  async getFile(fileId: string): Promise<DriveFile | null> {
+  async getFile(fileId: string, driveId?: string): Promise<DriveFile | null> {
     if (!(await driveOAuthManager.isAuthenticated())) {
       return null;
     }
@@ -285,10 +285,23 @@ export class DriveDiscovery {
     const drive = await driveOAuthManager.getDriveClient();
 
     try {
-      const response = await drive.files.get({
+      const params: any = {
         fileId,
         fields: 'id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,parents',
+        supportsAllDrives: true,
+      };
+
+      if (driveId) {
+        params.driveId = driveId;
+      }
+
+      console.log('[Drive Discovery] getFile params:', {
+        fileId,
+        driveId,
+        supportsAllDrives: params.supportsAllDrives,
       });
+
+      const response = await drive.files.get(params);
 
       if (response.data) {
         return {
@@ -314,7 +327,7 @@ export class DriveDiscovery {
   /**
    * Download file content
    */
-  async downloadFile(fileId: string): Promise<Buffer> {
+  async downloadFile(fileId: string, driveId?: string): Promise<Buffer> {
     if (!(await driveOAuthManager.isAuthenticated())) {
       throw new Error('Not authenticated with Drive');
     }
@@ -322,10 +335,23 @@ export class DriveDiscovery {
     const drive = await driveOAuthManager.getDriveClient();
 
     try {
-      const response = await drive.files.get(
-        { fileId, alt: 'media' },
-        { responseType: 'arraybuffer' }
-      );
+      const params: any = {
+        fileId,
+        alt: 'media',
+        supportsAllDrives: true,
+      };
+
+      if (driveId) {
+        params.driveId = driveId;
+      }
+
+      console.log('[Drive Discovery] downloadFile params:', {
+        fileId,
+        driveId,
+        supportsAllDrives: params.supportsAllDrives,
+      });
+
+      const response = await drive.files.get(params, { responseType: 'arraybuffer' });
 
       return Buffer.from(response.data);
     } catch (error) {

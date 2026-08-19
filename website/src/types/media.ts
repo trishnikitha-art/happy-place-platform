@@ -28,9 +28,11 @@ export interface MediaVariants {
 
 export interface Media {
   id: string;
+  contentHash?: string; // SHA-256 hash of content for stable identity
   source?: 'google-drive' | 'local'; // Source of the asset
   drive?: {
     fileId: string;
+    driveId?: string; // Shared Drive ID if applicable
     name: string;
     mimeType: string;
     webViewUrl?: string;

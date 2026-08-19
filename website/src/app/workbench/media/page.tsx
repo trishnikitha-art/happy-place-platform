@@ -407,21 +407,34 @@ export default function MediaWorkbench() {
 
   const useDriveFile = async (file: DriveFile) => {
     try {
-      const response = await fetch('/api/drive/reference', {
+      console.log('[WORKBENCH] Starting Drive file ingestion', {
+        fileId: file.id,
+        driveId: state.driveCurrentDriveId,
+        filename: file.name,
+      });
+
+      const response = await fetch('/api/drive/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ driveId: file.id }),
+        body: JSON.stringify({ 
+          driveId: file.id,
+          driveIdParameter: state.driveCurrentDriveId, // Pass Shared Drive ID if present
+        }),
       });
       const data = await response.json();
+      
+      console.log('[WORKBENCH] Ingestion response:', data);
+      
       if (response.ok) {
-        alert(`Drive asset added: ${data.media.id}`);
+        alert(`Drive asset ${data.action}: ${data.media.id}`);
         loadCanonicalData(); // Reload to show new asset
         setState(prev => ({ ...prev, driveBrowsing: false, driveSelectedFile: null }));
       } else {
-        alert(`Error: ${data.error || 'Unknown error'}`);
+        console.error('[WORKBENCH] Ingestion failed:', data);
+        alert(`Error: ${data.message || data.error || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('Failed to use Drive file:', error);
+      console.error('[WORKBENCH] Failed to use Drive file:', error);
       alert('Error: Failed to use Drive asset');
     }
   };
@@ -1136,7 +1149,7 @@ export default function MediaWorkbench() {
                           onClick={() => state.driveSelectedFile && useDriveFile(state.driveSelectedFile)}
                           className="px-3 py-1.5 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 transition-colors"
                         >
-                          Use This Asset
+                          Ingest as Media
                         </button>
                       </div>
                     )}
