@@ -1,3 +1,5 @@
+'use client';
+
 import Link from "next/link";
 import Image from "next/image";
 import type { Service } from "@/types/registries";
@@ -6,8 +8,6 @@ import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
 import { getFeaturedServiceMedia } from "@/lib/media";
 import { getMediaById } from "@/lib/media";
-
-'use client';
 
 /**
  * ServiceCard — photo-led and dense (CEO review): one iconic image, title,
