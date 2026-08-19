@@ -84,7 +84,41 @@ export async function POST(request: Request) {
     vercelEnv: process.env.VERCEL_ENV,
     vercelUrl: process.env.VERCEL_URL,
     isVercel: !!process.env.VERCEL,
+    blobConfigured: !!process.env.BLOB_READ_WRITE_TOKEN,
+    kvConfigured: !!process.env.KV_REST_API_URL || !!process.env.KV_REST_API_TOKEN,
   });
+
+  // Check Vercel Blob configuration
+  if (process.env.VERCEL && !process.env.BLOB_READ_WRITE_TOKEN) {
+    console.log('[MEDIA_INGEST_ERROR] Vercel Blob not configured', { requestId });
+    return NextResponse.json(
+      { 
+        success: false,
+        error: 'BLOB_NOT_CONFIGURED', 
+        stage: 'environment', 
+        message: 'Vercel Blob storage is not configured. Please add BLOB_READ_WRITE_TOKEN environment variable in Vercel project settings.',
+        retryable: false,
+        requestId,
+      },
+      { status: 500 }
+    );
+  }
+
+  // Check Vercel KV configuration
+  if (process.env.VERCEL && !process.env.KV_REST_API_URL && !process.env.KV_REST_API_TOKEN) {
+    console.log('[MEDIA_INGEST_ERROR] Vercel KV not configured', { requestId });
+    return NextResponse.json(
+      { 
+        success: false,
+        error: 'KV_NOT_CONFIGURED', 
+        stage: 'environment', 
+        message: 'Vercel KV storage is not configured. Please add KV_REST_API_URL and KV_REST_API_TOKEN environment variables in Vercel project settings.',
+        retryable: false,
+        requestId,
+      },
+      { status: 500 }
+    );
+  }
 
   // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
   if (process.env.NODE_ENV === 'development') {

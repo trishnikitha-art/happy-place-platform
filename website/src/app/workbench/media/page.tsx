@@ -526,11 +526,28 @@ export default function MediaWorkbench() {
         }
       } else {
         console.error('[WORKBENCH] Ingestion failed with error:', data);
-        alert(`Error (${data.error || 'UNKNOWN'}): ${data.message || 'Unknown error'}`);
+        const errorDetails = `
+Error: ${data.error || 'UNKNOWN'}
+Stage: ${data.stage || 'UNKNOWN'}
+Message: ${data.message || 'Unknown error'}
+Details: ${data.details || 'None'}
+Request ID: ${data.requestId || 'None'}
+        `.trim();
+        alert(errorDetails);
       }
     } catch (error) {
       console.error('[WORKBENCH] Failed to use Drive file:', error);
-      alert('Error: Failed to use Drive asset');
+      alert(`Error: Failed to use Drive asset
+
+${error instanceof Error ? error.message : 'Unknown error'}
+
+This may be due to:
+- Vercel Blob environment variable not configured
+- Vercel KV environment variable not configured
+- Drive authentication issue
+- Network error
+
+Check browser console for detailed logs.`);
     }
   };
 
