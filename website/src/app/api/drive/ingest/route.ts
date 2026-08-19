@@ -2,7 +2,8 @@
  * Drive Media Ingestion API Route
  *
  * Creates a complete canonical media object from a Drive file.
- * Downloads the file, processes it into variants, and creates a full Media record.
+ * Downloads the file, processes it into variants, uploads to Vercel Blob,
+ * and stores metadata in Vercel KV.
  *
  * POST /api/drive/ingest
  * Body: { driveId: string, projectId?: string, roles?: MediaRole[] }
@@ -12,13 +13,14 @@ import { NextResponse } from 'next/server';
 import { driveDiscovery } from '@/lib/drive/drive-discovery';
 import { driveSession } from '@/lib/drive/drive-session';
 import { workbenchSession } from '@/lib/workbench-session';
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
-import { join } from 'path';
 import crypto from 'crypto';
 import sharp from 'sharp';
 import type { Media, MediaRole } from '@/types/media';
+import { uploadToBlob, generateBlobFilename } from '@/lib/blob-storage';
+import { storeMedia, getMedia, findMediaByContentHash } from '@/lib/media-kv-store';
 
 export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
 
 interface IngestRequest {
   driveId: string;
@@ -29,8 +31,6 @@ interface IngestRequest {
 
 // Configuration matching the existing image pipeline
 const WIDTHS = [480, 768, 1080, 1600, 2000];
-const PROJECTS_DIR = join(process.cwd(), 'public', 'images', 'projects');
-const MEDIA_CONFIG_PATH = join(process.cwd(), 'src/config/media.v1.json');
 
 /**
  * Generate a stable media ID from content hash (deterministic)
@@ -75,142 +75,35 @@ function determineOrientation(width: number, height: number): 'landscape' | 'por
   return 'square';
 }
 
-/**
- * Generate image variants (WebP, AVIF, thumbnail, blur)
- */
-async function generateVariants(
-  buffer: Buffer,
-  folderName: string,
-  baseName: string,
-  outputDir: string
-): Promise<{
-  variants: { width: number; format: string; src: string }[];
-  thumbnail: string;
-  blurDataURL: string;
-}> {
-  const metadata = await sharp(buffer).metadata();
-  const width = metadata.width || 1920;
-  const height = metadata.height || 1080;
-  
-  const variants: { width: number; format: string; src: string }[] = [];
-  const validWidths = WIDTHS.filter((w) => w <= width);
-  if (!validWidths.length) validWidths.push(width);
-  
-  // Generate WebP and AVIF variants at multiple widths
-  for (const vw of validWidths) {
-    for (const fmt of ['avif', 'webp']) {
-      const outName = `${baseName}-${vw}.${fmt}`;
-      const outPath = join(outputDir, outName);
-      
-      console.log('[MEDIA_INGEST] variant generation started', {
-        variant: outName,
-        width: vw,
-        format: fmt,
-      });
-      
-      await sharp(buffer)
-        .resize({ width: vw, withoutEnlargement: true })
-        [fmt === 'avif' ? 'avif' : 'webp']({ quality: fmt === 'avif' ? 55 : 72 })
-        .toFile(outPath);
-      
-      // Verify file was created
-      if (!existsSync(outPath)) {
-        throw new Error(`Failed to create variant: ${outName}`);
-      }
-      
-      const stats = await import('fs/promises').then(fs => fs.stat(outPath));
-      if (stats.size === 0) {
-        throw new Error(`Variant file is empty: ${outName}`);
-      }
-      
-      console.log('[MEDIA_INGEST] variant completed', {
-        variant: outName,
-        bytes: stats.size,
-      });
-      
-      variants.push({
-        width: vw,
-        format: fmt,
-        src: `/images/projects/${folderName}/${outName}`,
-      });
-    }
-  }
-  
-  // Generate thumbnail
-  const thumbName = `${baseName}-thumb.webp`;
-  const thumbPath = join(outputDir, thumbName);
-  
-  console.log('[MEDIA_INGEST] variant generation started', {
-    variant: thumbName,
-    width: 480,
-    format: 'webp',
-  });
-  
-  await sharp(buffer).resize(480).webp({ quality: 70 }).toFile(thumbPath);
-  
-  if (!existsSync(thumbPath)) {
-    throw new Error(`Failed to create thumbnail: ${thumbName}`);
-  }
-  
-  // Generate blur placeholder
-  const blurBuf = await sharp(buffer).resize(16).webp({ quality: 40 }).toBuffer();
-  const blurDataURL = `data:image/webp;base64,${blurBuf.toString('base64')}`;
-  
-  console.log('[MEDIA_INGEST] variant completed', {
-    variant: thumbName,
-    blurLength: blurBuf.length,
-  });
-  
-  return {
-    variants,
-    thumbnail: `/images/projects/${folderName}/${thumbName}`,
-    blurDataURL,
-  };
-}
-
 export async function POST(request: Request) {
-  console.log('[MEDIA_INGEST] request started');
+  const requestId = crypto.randomUUID();
+  console.log('[MEDIA_INGEST] request started', { requestId });
   console.log('[MEDIA_INGEST] environment detection', {
+    requestId,
     nodeEnv: process.env.NODE_ENV,
     vercelEnv: process.env.VERCEL_ENV,
     vercelUrl: process.env.VERCEL_URL,
     isVercel: !!process.env.VERCEL,
-    cwd: process.cwd(),
-    projectsDir: PROJECTS_DIR,
-    mediaConfigPath: MEDIA_CONFIG_PATH,
   });
-  
-  // WARNING: Vercel filesystem is ephemeral
-  if (process.env.VERCEL) {
-    console.log('[MEDIA_INGEST] CRITICAL: Running on Vercel');
-    console.log('[MEDIA_INGEST] CRITICAL: Filesystem writes are ephemeral and do not persist across deployments');
-    console.log('[MEDIA_INGEST] CRITICAL: Media files will be lost when the function container is recycled');
-    console.log('[MEDIA_INGEST] CRITICAL: media.v1.json is part of git repository and cannot be reliably mutated in production');
-    console.log('[MEDIA_INGEST] CRITICAL: This architecture requires a persistent storage solution (Vercel Blob, S3, or similar)');
-    
-    // Return clear error about storage architecture
-    return NextResponse.json(
-      { 
-        error: 'STORAGE_ARCHITECTURE_ERROR', 
-        stage: 'architecture', 
-        message: 'Serverless deployment cannot reliably persist media files to filesystem.',
-        retryable: false,
-        details: 'Running on Vercel: filesystem writes are ephemeral. Media requires persistent storage (Vercel Blob, S3, etc).'
-      },
-      { status: 503 }
-    );
-  }
 
   // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
   if (process.env.NODE_ENV === 'development') {
-    console.log('[MEDIA_INGEST] development mode - skipping auth');
+    console.log('[MEDIA_INGEST] development mode - skipping auth', { requestId });
   } else {
+    console.log('[MEDIA_INGEST] AUTH stage started', { requestId });
     // Check Drive authentication
     const isDriveAuthenticated = await driveSession.isAuthenticated();
     if (!isDriveAuthenticated) {
-      console.log('[MEDIA_INGEST_ERROR] Drive authentication required');
+      console.log('[MEDIA_INGEST_ERROR] Drive authentication required', { requestId });
       return NextResponse.json(
-        { error: 'DRIVE_AUTH_REQUIRED', stage: 'auth', message: 'Drive authentication required', retryable: false },
+        { 
+          success: false,
+          error: 'DRIVE_AUTH_REQUIRED', 
+          stage: 'AUTH', 
+          message: 'Drive authentication required', 
+          retryable: false,
+          requestId,
+        },
         { status: 401 }
       );
     }
@@ -218,75 +111,107 @@ export async function POST(request: Request) {
     // Check Workbench authentication
     const isWorkbenchAuthenticated = await workbenchSession.isAuthenticated();
     if (!isWorkbenchAuthenticated) {
-      console.log('[MEDIA_INGEST_ERROR] Workbench authentication required');
+      console.log('[MEDIA_INGEST_ERROR] Workbench authentication required', { requestId });
       return NextResponse.json(
-        { error: 'WORKBENCH_AUTH_REQUIRED', stage: 'auth', message: 'Workbench authentication required', retryable: false },
+        { 
+          success: false,
+          error: 'WORKBENCH_AUTH_REQUIRED', 
+          stage: 'AUTH', 
+          message: 'Workbench authentication required', 
+          retryable: false,
+          requestId,
+        },
         { status: 401 }
       );
     }
+    console.log('[MEDIA_INGEST] AUTH stage succeeded', { requestId });
   }
 
   try {
     const body: IngestRequest = await request.json();
     const { driveId, driveIdParameter, projectId, roles = ['gallery'] } = body;
 
-    console.log('[MEDIA_INGEST] source: drive');
-    console.log('[MEDIA_INGEST] driveFileId:', driveId);
-    console.log('[MEDIA_INGEST] sharedDrive:', !!driveIdParameter);
-    console.log('[MEDIA_INGEST] sharedDriveId:', driveIdParameter || 'none');
-    console.log('[MEDIA_INGEST] projectId:', projectId || 'none');
-    console.log('[MEDIA_INGEST] roles:', roles);
+    console.log('[MEDIA_INGEST] REQUEST stage succeeded', {
+      requestId,
+      source: 'drive',
+      driveFileId: driveId,
+      sharedDrive: !!driveIdParameter,
+      sharedDriveId: driveIdParameter || 'none',
+      projectId: projectId || 'none',
+      roles,
+    });
 
     if (!driveId) {
-      console.log('[MEDIA_INGEST_ERROR] driveId is required');
+      console.log('[MEDIA_INGEST_ERROR] driveId is required', { requestId });
       return NextResponse.json(
-        { error: 'DRIVE_ID_REQUIRED', stage: 'validation', message: 'driveId is required', retryable: false },
+        { 
+          success: false,
+          error: 'DRIVE_ID_REQUIRED', 
+          stage: 'REQUEST', 
+          message: 'driveId is required', 
+          retryable: false,
+          requestId,
+        },
         { status: 400 }
       );
     }
 
     // 1. Get Drive file metadata
-    console.log('[MEDIA_INGEST] metadata fetch started');
+    console.log('[MEDIA_INGEST] DRIVE_METADATA stage started', { requestId });
     const driveFile = await driveDiscovery.getFile(driveId, driveIdParameter);
     if (!driveFile) {
-      console.log('[MEDIA_INGEST_ERROR] File not found in Drive');
+      console.log('[MEDIA_INGEST_ERROR] File not found in Drive', { requestId });
       return NextResponse.json(
-        { error: 'FILE_NOT_FOUND', stage: 'metadata', message: 'File not found in Drive', retryable: false },
+        { 
+          success: false,
+          error: 'FILE_NOT_FOUND', 
+          stage: 'DRIVE_METADATA', 
+          message: 'File not found in Drive', 
+          retryable: false,
+          requestId,
+        },
         { status: 404 }
       );
     }
-    console.log('[MEDIA_INGEST] metadata fetch succeeded');
-    console.log('[MEDIA_INGEST] driveName:', driveFile.name);
-    console.log('[MEDIA_INGEST] mimeType:', driveFile.mimeType);
-    console.log('[MEDIA_INGEST] size:', driveFile.size || 'unknown');
+    console.log('[MEDIA_INGEST] DRIVE_METADATA stage succeeded', {
+      requestId,
+      driveName: driveFile.name,
+      mimeType: driveFile.mimeType,
+      size: driveFile.size || 'unknown',
+    });
 
     // 2. Download file content from Drive
-    console.log('[MEDIA_INGEST] download started');
+    console.log('[MEDIA_INGEST] DRIVE_DOWNLOAD stage started', { requestId });
     let fileBuffer: Buffer;
     try {
       fileBuffer = await driveDiscovery.downloadFile(driveId, driveIdParameter);
-      console.log('[MEDIA_INGEST] download succeeded');
-      console.log('[MEDIA_INGEST] bytes:', fileBuffer.length);
+      console.log('[MEDIA_INGEST] DRIVE_DOWNLOAD stage succeeded', {
+        requestId,
+        bytes: fileBuffer.length,
+      });
     } catch (error) {
-      console.log('[MEDIA_INGEST_ERROR] download failed');
+      console.log('[MEDIA_INGEST_ERROR] DRIVE_DOWNLOAD stage failed', { requestId });
       console.error('[MEDIA_INGEST_ERROR] download error:', error);
       return NextResponse.json(
         { 
+          success: false,
           error: 'DRIVE_DOWNLOAD_FAILED', 
-          stage: 'download', 
+          stage: 'DRIVE_DOWNLOAD', 
           message: 'Unable to download the selected Drive file.',
           retryable: true,
-          details: error instanceof Error ? error.message : 'Unknown error'
+          details: error instanceof Error ? error.message : 'Unknown error',
+          requestId,
         },
         { status: 500 }
       );
     }
 
     // 3. Validate image
-    console.log('[MEDIA_INGEST] image validation started');
+    console.log('[MEDIA_INGEST] IMAGE_VALIDATION stage started', { requestId });
     try {
       const metadata = await sharp(fileBuffer).metadata();
       console.log('[MEDIA_INGEST] image metadata:', {
+        requestId,
         width: metadata.width,
         height: metadata.height,
         format: metadata.format,
@@ -296,159 +221,138 @@ export async function POST(request: Request) {
       if (!metadata.width || !metadata.height) {
         throw new Error('Invalid image dimensions');
       }
-      console.log('[MEDIA_INGEST] image validation succeeded');
+      console.log('[MEDIA_INGEST] IMAGE_VALIDATION stage succeeded', { requestId });
     } catch (error) {
-      console.log('[MEDIA_INGEST_ERROR] image validation failed');
+      console.log('[MEDIA_INGEST_ERROR] IMAGE_VALIDATION stage failed', { requestId });
       console.error('[MEDIA_INGEST_ERROR] validation error:', error);
       return NextResponse.json(
         { 
+          success: false,
           error: 'IMAGE_VALIDATION_FAILED', 
-          stage: 'validation', 
+          stage: 'IMAGE_VALIDATION', 
           message: 'The selected file is not a valid image or is corrupted.',
           retryable: false,
-          details: error instanceof Error ? error.message : 'Unknown error'
+          details: error instanceof Error ? error.message : 'Unknown error',
+          requestId,
         },
         { status: 400 }
       );
     }
 
     // 4. Compute content hash for stable identity
-    console.log('[MEDIA_INGEST] hash started');
+    console.log('[MEDIA_INGEST] HASH stage started', { requestId });
     const contentHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
-    console.log('[MEDIA_INGEST] hash completed');
-    console.log('[MEDIA_INGEST] hash:', contentHash.substring(0, 16) + '...');
+    console.log('[MEDIA_INGEST] HASH stage succeeded', {
+      requestId,
+      hash: contentHash.substring(0, 16) + '...',
+    });
     
-    // 5. Generate stable identifiers
+    // 5. Check for existing record with matching content hash (deduplication)
+    console.log('[MEDIA_INGEST] DEDUPLICATION stage started', { requestId });
+    const existingMediaId = await findMediaByContentHash(contentHash);
+    if (existingMediaId) {
+      const existingMedia = await getMedia(existingMediaId);
+      if (existingMedia) {
+        console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - existing record', {
+          requestId,
+          existingMediaId,
+        });
+        return NextResponse.json({
+          success: true,
+          action: 'existing',
+          media: existingMedia,
+          requestId,
+        });
+      }
+    }
+    console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - new record', { requestId });
+    
+    // 6. Generate stable identifiers
     const baseName = driveFile.name.replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]/g, '-');
-    const folderName = `drive-${baseName.substring(0, 20)}`; // Folder name from base name
     const stableId = generateStableId(contentHash, baseName);
     const uuid = generateUUIDv5(contentHash);
     const mediaId = `drive-${stableId}`;
 
-    // 6. Check for existing record with matching content hash (deduplication)
-    const mediaData = JSON.parse(readFileSync(MEDIA_CONFIG_PATH, 'utf-8'));
-    const existingByHash = mediaData.media.find((m: Media) => 
-      m.contentHash === contentHash || m.id === mediaId
-    );
-
-    if (existingByHash) {
-      console.log('[MEDIA_INGEST] duplicate detected - returning existing record');
-      return NextResponse.json({
-        success: true,
-        media: existingByHash,
-        action: 'existing',
-        message: 'Media already exists with same content',
-      });
-    }
-
-    // 7. Generate output directory
-    const outputDir = join(PROJECTS_DIR, folderName);
-    console.log('[MEDIA_INGEST] filesystem operation started', {
-      operation: 'create directory',
-      path: outputDir,
-      exists: existsSync(outputDir),
-    });
+    // 7. Generate variants
+    console.log('[MEDIA_INGEST] VARIANT_GENERATION stage started', { requestId });
+    const variants = [];
+    const metadata = await sharp(fileBuffer).metadata();
+    const width = metadata.width || 1920;
+    const height = metadata.height || 1080;
+    const validWidths = WIDTHS.filter((w) => w <= width);
+    if (!validWidths.length) validWidths.push(width);
     
-    if (!existsSync(outputDir)) {
-      mkdirSync(outputDir, { recursive: true });
-      console.log('[MEDIA_INGEST] directory created', { path: outputDir });
-    } else {
-      console.log('[MEDIA_INGEST] directory already exists', { path: outputDir });
-    }
-
-    // 8. Save original asset
+    // Upload original
     const originalExt = driveFile.name.split('.').pop() || 'jpg';
-    const originalPath = join(outputDir, `${baseName}-original.${originalExt}`);
-    
-    console.log('[MEDIA_INGEST] filesystem operation started', {
-      operation: 'write original',
-      path: originalPath,
+    const originalFilename = generateBlobFilename(mediaId, 'original', originalExt);
+    const originalContentType = driveFile.mimeType || 'image/jpeg';
+    console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage started', {
+      requestId,
+      filename: originalFilename,
       bytes: fileBuffer.length,
     });
-    
-    writeFileSync(originalPath, fileBuffer);
-    
-    // Verify original was written
-    const originalExists = existsSync(originalPath);
-    const originalStats = originalExists ? await import('fs/promises').then(fs => fs.stat(originalPath)) : null;
-    
-    console.log('[MEDIA_INGEST] original persisted', {
-      path: originalPath,
-      exists: originalExists,
-      size: originalStats?.size || 0,
-      success: originalExists && originalStats?.size === fileBuffer.length,
+    const originalUpload = await uploadToBlob(fileBuffer, originalFilename, originalContentType);
+    console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage succeeded', {
+      requestId,
+      url: originalUpload.url,
     });
     
-    if (!originalExists || originalStats?.size !== fileBuffer.length) {
-      console.log('[MEDIA_INGEST_ERROR] original asset verification failed');
-      return NextResponse.json(
-        { 
-          error: 'ORIGINAL_PERSISTENCE_FAILED', 
-          stage: 'storage', 
-          message: 'Failed to persist original asset to filesystem.',
-          retryable: false,
-          details: `exists=${originalExists}, expected=${fileBuffer.length}, actual=${originalStats?.size || 0}`
-        },
-        { status: 500 }
-      );
-    }
-
-    // 9. Generate variants
-    console.log('[MEDIA_INGEST] variant generation started');
-    const { variants, thumbnail, blurDataURL } = await generateVariants(fileBuffer, folderName, baseName, outputDir);
-    console.log('[MEDIA_INGEST] variant generation completed');
-    console.log('[MEDIA_INGEST] variants generated:', variants.length);
-
-    // Verify all variants can be read back
-    console.log('[MEDIA_INGEST] filesystem verification started');
-    const variantVerification = [];
-    for (const variant of variants) {
-      const variantPath = join(outputDir, variant.src.split('/').pop()!);
-      const exists = existsSync(variantPath);
-      const stats = exists ? await import('fs/promises').then(fs => fs.stat(variantPath)) : null;
-      variantVerification.push({
-        variant: variant.src,
-        exists,
-        size: stats?.size || 0,
-        readable: (stats?.size || 0) > 0,
-      });
+    // Generate and upload WebP/AVIF variants
+    for (const vw of validWidths) {
+      for (const fmt of ['avif', 'webp']) {
+        const variantFilename = generateBlobFilename(mediaId, `${vw}`, fmt);
+        const variantContentType = fmt === 'avif' ? 'image/avif' : 'image/webp';
+        
+        console.log('[MEDIA_INGEST] STORAGE_UPLOAD_VARIANT stage started', {
+          requestId,
+          variant: variantFilename,
+          width: vw,
+          format: fmt,
+        });
+        
+        const variantBuffer = await sharp(fileBuffer)
+          .resize({ width: vw, withoutEnlargement: true })
+          [fmt === 'avif' ? 'avif' : 'webp']({ quality: fmt === 'avif' ? 55 : 72 })
+          .toBuffer();
+        
+        const variantUpload = await uploadToBlob(variantBuffer, variantFilename, variantContentType);
+        
+        variants.push({
+          width: vw,
+          format: fmt,
+          src: variantUpload.url,
+        });
+        
+        console.log('[MEDIA_INGEST] STORAGE_UPLOAD_VARIANT stage succeeded', {
+          requestId,
+          variant: variantFilename,
+          url: variantUpload.url,
+        });
+      }
     }
     
-    const thumbnailPath = join(outputDir, thumbnail.split('/').pop()!);
-    const thumbnailExists = existsSync(thumbnailPath);
-    const thumbnailStats = thumbnailExists ? await import('fs/promises').then(fs => fs.stat(thumbnailPath)) : null;
-    
-    console.log('[MEDIA_INGEST] filesystem verification results', {
-      variants: variantVerification,
-      thumbnail: {
-        path: thumbnail,
-        exists: thumbnailExists,
-        size: thumbnailStats?.size || 0,
-      },
-      allReadable: variantVerification.every(v => v.readable) && (thumbnailStats?.size || 0) > 0,
+    // Generate and upload thumbnail
+    const thumbFilename = generateBlobFilename(mediaId, 'thumb', 'webp');
+    const thumbBuffer = await sharp(fileBuffer).resize(480).webp({ quality: 70 }).toBuffer();
+    const thumbUpload = await uploadToBlob(thumbBuffer, thumbFilename, 'image/webp');
+    console.log('[MEDIA_INGEST] STORAGE_UPLOAD_THUMBNAIL stage succeeded', {
+      requestId,
+      url: thumbUpload.url,
     });
     
-    if (!variantVerification.every(v => v.readable) || (thumbnailStats?.size || 0) === 0) {
-      console.log('[MEDIA_INGEST_ERROR] variant verification failed');
-      return NextResponse.json(
-        { 
-          error: 'VARIANT_VERIFICATION_FAILED', 
-          stage: 'storage', 
-          message: 'Generated variants could not be read back from filesystem.',
-          retryable: false,
-          details: variantVerification
-        },
-        { status: 500 }
-      );
-    }
+    // Generate blur placeholder
+    const blurBuffer = await sharp(fileBuffer).resize(16).webp({ quality: 40 }).toBuffer();
+    const blurDataURL = `data:image/webp;base64,${blurBuffer.toString('base64')}`;
+    
+    console.log('[MEDIA_INGEST] VARIANT_GENERATION stage completed', {
+      requestId,
+      variantsCount: variants.length,
+    });
 
-    // 10. Get image metadata
-    const metadata = await sharp(fileBuffer).metadata();
-    const orientation = determineOrientation(metadata.width || 1920, metadata.height || 1080);
-
-    // 11. Create full Media record
+    // 8. Create full Media record
     const webpVariant = variants.find((v) => v.format === 'webp');
     const avifVariant = variants.find((v) => v.format === 'avif');
+    const orientation = determineOrientation(metadata.width || 1920, metadata.height || 1080);
     
     const mediaRecord: Media = {
       id: mediaId,
@@ -470,11 +374,11 @@ export async function POST(request: Request) {
         height: metadata.height || 1080,
       },
       variants: {
-        original: `/images/projects/${folderName}/${baseName}-original.${originalExt}`,
-        web: webpVariant?.src || '',
-        webp: webpVariant?.src || '',
+        original: originalUpload.url,
+        web: webpVariant?.src || originalUpload.url,
+        webp: webpVariant?.src || originalUpload.url,
         avif: avifVariant?.src || '',
-        thumbnail,
+        thumbnail: thumbUpload.url,
         blur: blurDataURL,
       },
       alt: driveFile.name,
@@ -482,7 +386,7 @@ export async function POST(request: Request) {
       projectId,
       tags: [],
       roles,
-      order: mediaData.media.length,
+      order: 0, // Will be set by Workbench
       createdAt: driveFile.createdTime,
       updatedAt: driveFile.modifiedTime,
       uploadedAt: new Date().toISOString(),
@@ -497,79 +401,38 @@ export async function POST(request: Request) {
       },
     };
 
-    console.log('[MEDIA_INGEST] media record created');
-
-    // 12. Update media.v1.json
-    console.log('[MEDIA_INGEST] filesystem operation started', {
-      operation: 'write media.v1.json',
-      path: MEDIA_CONFIG_PATH,
-      exists: existsSync(MEDIA_CONFIG_PATH),
-      currentMediaCount: mediaData.media.length,
+    console.log('[MEDIA_INGEST] MEDIA_PERSIST stage started', {
+      requestId,
+      mediaId,
     });
-    
-    try {
-      mediaData.media.push(mediaRecord);
-      mediaData.generatedAt = new Date().toISOString();
-      writeFileSync(MEDIA_CONFIG_PATH, JSON.stringify(mediaData, null, 2));
-      
-      // Verify write succeeded
-      const writeExists = existsSync(MEDIA_CONFIG_PATH);
-      const writeContent = writeExists ? readFileSync(MEDIA_CONFIG_PATH, 'utf-8') : null;
-      const writeParsed = writeContent ? JSON.parse(writeContent) : null;
-      const recordExists = writeParsed?.media?.find((m: Media) => m.id === mediaId);
-      
-      console.log('[MEDIA_INGEST] media record verified', {
-        path: MEDIA_CONFIG_PATH,
-        exists: writeExists,
-        recordFound: !!recordExists,
-        recordId: recordExists?.id,
-        totalRecords: writeParsed?.media?.length,
-      });
-      
-      if (!writeExists || !recordExists) {
-        console.log('[MEDIA_INGEST_ERROR] media.v1.json verification failed');
-        return NextResponse.json(
-          { 
-            error: 'MEDIA_PERSISTENCE_FAILED', 
-            stage: 'storage', 
-            message: 'Failed to persist media record to media.v1.json.',
-            retryable: false,
-            details: `exists=${writeExists}, recordFound=${!!recordExists}`
-          },
-          { status: 500 }
-        );
-      }
-    } catch (error) {
-      console.log('[MEDIA_INGEST_ERROR] media.v1.json write failed');
-      console.error('[MEDIA_INGEST_ERROR]', error);
-      return NextResponse.json(
-        { 
-          error: 'MEDIA_WRITE_FAILED', 
-          stage: 'storage', 
-          message: 'Failed to write media.v1.json.',
-          retryable: false,
-          details: error instanceof Error ? error.message : 'Unknown error'
-        },
-        { status: 500 }
-      );
-    }
 
-    console.log('[MEDIA_INGEST] ingestion complete');
+    // 9. Store Media record in KV
+    await storeMedia(mediaRecord);
+    
+    console.log('[MEDIA_INGEST] MEDIA_PERSIST stage succeeded', {
+      requestId,
+      mediaId,
+    });
+
+    console.log('[MEDIA_INGEST] RESPONSE stage started', { requestId });
     return NextResponse.json({
       success: true,
-      media: mediaRecord,
       action: 'created',
+      media: mediaRecord,
+      requestId,
     });
   } catch (error) {
-    console.log('[MEDIA_INGEST_ERROR] unexpected error');
+    console.log('[MEDIA_INGEST_ERROR] unexpected error', { requestId });
     console.error('[MEDIA_INGEST_ERROR]', error);
     return NextResponse.json(
       {
+        success: false,
         error: 'INGESTION_FAILED',
         stage: 'unknown',
         message: 'An unexpected error occurred during ingestion.',
         retryable: false,
         details: error instanceof Error ? error.message : 'Unknown error',
+        requestId,
       },
       { status: 500 }
     );

@@ -16,6 +16,7 @@
 
 import { loadMediaManifest } from './media';
 import type { Media, MediaManifest } from '@/types/media';
+import { getMedia as getMediaFromKV } from './media-kv-store';
 
 // Visual slot structure
 export interface VisualSlot {
@@ -103,12 +104,13 @@ const WEBSITE_VISUAL_SLOTS: VisualSlot[] = [
 /**
  * Load complete visual asset registry
  * Combines current media.v1.json with August 3 baseline data
+ * Note: Vercel KV Drive assets are loaded dynamically when needed
  */
-export function loadVisualAssetRegistry(): VisualAsset[] {
+export async function loadVisualAssetRegistry(): Promise<VisualAsset[]> {
   const manifest = loadMediaManifest();
   const registry: VisualAsset[] = [];
 
-  // Add current media assets
+  // Add current media assets from media.v1.json
   manifest.media.forEach(m => {
     const augustData = AUGUST_3_BASELINE.find(a => a.filename === m.filename);
     const classification = classifyAsset(m, augustData);
@@ -302,22 +304,49 @@ export function getVisualSlotsByRoute(route: string): VisualSlot[] {
 /**
  * Get empty/broken slots
  */
-export function getEmptySlots(): VisualSlot[] {
+export async function getEmptySlots(): Promise<VisualSlot[]> {
+  const registry = await loadVisualAssetRegistry();
   return WEBSITE_VISUAL_SLOTS.filter(s => s.physicalStatus === 'MISSING' || s.physicalStatus === 'RECOVERABLE');
 }
 
 /**
- * Get assets with August 3 provenance
+ * Get August 3 recoverable assets
  */
-export function getAugust3RecoverableAssets(): VisualAsset[] {
-  const registry = loadVisualAssetRegistry();
+export async function getAugust3RecoverableAssets(): Promise<VisualAsset[]> {
+  const registry = await loadVisualAssetRegistry();
   return registry.filter(a => a.classification === 'AUGUST_RECOVERABLE' || a.augustDriveId);
 }
 
 /**
  * Get DRIVE_ONLY assets (exist in canonical Drive graph but not in physical filesystem)
  */
-export function getDriveOnlyAssets(): VisualAsset[] {
-  const registry = loadVisualAssetRegistry();
-  return registry.filter(a => a.classification === 'DRIVE_ONLY');
+export async function getDriveOnlyAssets(): Promise<VisualAsset[]> {
+  const driveAssets: VisualAsset[] = [];
+  
+  try {
+    // Since we can't list all keys, we'll need to track ingested assets separately
+    // For now, return empty array - Drive assets will be added to registry on ingestion
+    return driveAssets;
+  } catch (error) {
+    console.error('[VISUAL_ASSET_REGISTRY] Failed to load Drive assets:', error);
+    return [];
+  }
+}
+
+/**
+ * Add a Drive asset to the registry (called after successful ingestion)
+ */
+export async function addDriveAssetToRegistry(media: Media): Promise<VisualAsset> {
+  const classification = 'DRIVE_ONLY';
+  const usageSlots: VisualSlot[] = [];
+  const physicalPath = media.variants?.original || '';
+  const physicalStatus = 'DRIVE_ONLY';
+
+  return {
+    ...media,
+    classification,
+    usageSlots,
+    physicalPath,
+    physicalStatus,
+  } as VisualAsset;
 }

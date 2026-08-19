@@ -21,7 +21,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, ChevronRight, Loader2, List } from 'lucide-react';
-import { loadVisualAssetRegistry, type VisualAsset } from '@/lib/visual-asset-registry';
+import { loadVisualAssetRegistry, addDriveAssetToRegistry, type VisualAsset } from '@/lib/visual-asset-registry';
 import { getMediaById } from '@/lib/media';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
@@ -308,10 +308,10 @@ export default function MediaWorkbench() {
     };
   }, []);
 
-  const loadCanonicalData = () => {
+  const loadCanonicalData = async () => {
     try {
       setState(prev => ({ ...prev, loading: true }));
-      const registry = loadVisualAssetRegistry();
+      const registry = await loadVisualAssetRegistry();
       setState(prev => ({ ...prev, assets: registry, registeredSlots: slotRegistry.getAll() }));
     } catch (err) {
       console.error('Failed to load canonical data:', err);
@@ -401,8 +401,11 @@ export default function MediaWorkbench() {
     }
   };
 
-  const selectDriveFile = (file: DriveFile) => {
+  const selectDriveFile = async (file: DriveFile) => {
     setState(prev => ({ ...prev, driveSelectedFile: file }));
+    
+    // AUTOMATIC INGESTION: Immediately ingest when file is selected
+    await useDriveFile(file);
   };
 
   const useDriveFile = async (file: DriveFile) => {
@@ -451,9 +454,25 @@ export default function MediaWorkbench() {
       });
       
       if (response.ok) {
-        alert(`Drive asset ${data.action}: ${data.media.id}`);
-        loadCanonicalData(); // Reload to show new asset
-        setState(prev => ({ ...prev, driveBrowsing: false, driveSelectedFile: null }));
+        console.log('[WORKBENCH] Ingestion succeeded', {
+          action: data.action,
+          mediaId: data.media?.id,
+        });
+        
+        // Add the newly ingested asset to the registry
+        if (data.action === 'created' && data.media) {
+          const driveAsset = await addDriveAssetToRegistry(data.media);
+          setState(prev => ({ 
+            ...prev, 
+            assets: [...prev.assets, driveAsset],
+            driveBrowsing: false, 
+            driveSelectedFile: null 
+          }));
+          alert(`Drive asset created: ${data.media.id}`);
+        } else if (data.action === 'existing') {
+          alert(`Drive asset already exists: ${data.media.id}`);
+          loadCanonicalData(); // Reload to show existing asset
+        }
       } else {
         console.error('[WORKBENCH] Ingestion failed with error:', data);
         alert(`Error (${data.error || 'UNKNOWN'}): ${data.message || 'Unknown error'}`);
@@ -474,7 +493,7 @@ export default function MediaWorkbench() {
 
     const usedSlots = state.registeredSlots.filter(s => s.currentMediaId === asset.id);
     const isUsed = usedSlots.length > 0;
-    const isDriveOnly = asset.drive?.fileId && !asset.physicalPath;
+    const isDriveOnly = asset.source === 'google-drive' && asset.drive?.fileId;
 
     switch (state.filter) {
       case 'used': return isUsed;
