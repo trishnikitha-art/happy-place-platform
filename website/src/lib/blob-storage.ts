@@ -1,13 +1,18 @@
 /**
  * Vercel Blob Storage for Media Assets
- * 
+ *
  * Provides persistent storage for image assets on Vercel.
  * Stores original, WebP, AVIF, and thumbnail variants.
  */
 
 import { put } from '@vercel/blob';
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
+
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL || '',
+  token: process.env.KV_REST_API_TOKEN || '',
+});
 
 export interface BlobUploadResult {
   url: string;
@@ -47,7 +52,7 @@ export async function uploadToBlob(
     });
     
     // Store content hash mapping for idempotency
-    await kv.set(`blob_hash:${contentHash}`, filename);
+    await redis.set(`blob_hash:${contentHash}`, filename);
     
     return {
       url: blob.url,
@@ -82,7 +87,7 @@ export async function uploadToBlob(
 
 async function getBlobKeyByContentHash(contentHash: string): Promise<string | null> {
   try {
-    const key = await kv.get(`blob_hash:${contentHash}`);
+    const key = await redis.get(`blob_hash:${contentHash}`);
     return key as string | null;
   } catch (e) {
     return null;

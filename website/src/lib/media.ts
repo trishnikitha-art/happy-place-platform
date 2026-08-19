@@ -89,33 +89,14 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
  */
 export async function loadDynamicMedia(): Promise<void> {
   try {
-    const { kv } = await import('@vercel/kv');
-    const keys = await kv.keys('media:*');
-    
-    console.log('[MEDIA] Found dynamic media keys:', keys.length);
-    
-    for (const key of keys) {
-      try {
-        const value = await kv.get(key);
-        if (value) {
-          // Handle both string and object returns from KV SDK
-          let media: Media;
-          if (typeof value === 'string') {
-            media = JSON.parse(value) as Media;
-          } else if (typeof value === 'object') {
-            media = value as Media;
-          } else {
-            console.log('[MEDIA] Skipping invalid value type:', typeof value);
-            continue;
-          }
-          dynamicMediaCache.push(media);
-        }
-      } catch (error) {
-        console.log('[MEDIA] Failed to load individual key:', key, error);
-      }
-    }
-    
-    console.log('[MEDIA] Preloaded dynamic media from KV:', dynamicMediaCache.length);
+    const { getAllServiceCardAssignments } = await import('@/lib/assignment-store');
+    const assignments = await getAllServiceCardAssignments();
+
+    console.log('[MEDIA] Found dynamic media assignments:', assignments.length);
+
+    // For now, we're not preloading all media from KV since we use getMediaByIdAsync
+    // This function can be expanded if needed for bulk preloading
+    console.log('[MEDIA] Dynamic media loading skipped (using on-demand lookup)');
   } catch (error) {
     // Check if this is a KV configuration error
     if (error instanceof Error && error.message.includes('Missing required environment variables')) {
