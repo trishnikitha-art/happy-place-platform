@@ -20,15 +20,12 @@ import type { Media, MediaRole } from '@/types/media';
 import { uploadToBlob, generateBlobFilename } from '@/lib/blob-storage';
 import { storeMedia, getMedia, findMediaByContentHash } from '@/lib/media-kv-store';
 
-// Try to load Sharp (CommonJS)
+// Try to load Sharp (optional for fallback mode)
 let sharp: any = null;
-let sharpLoadError: any = null;
-
 try {
   sharp = require('sharp');
 } catch (e) {
-  sharpLoadError = e instanceof Error ? e.message : String(e);
-  console.log('[MEDIA_INGEST] Sharp load failed:', sharpLoadError);
+  // Sharp not available, will use original-only mode
 }
 
 export const dynamic = 'force-dynamic';
@@ -90,28 +87,11 @@ function determineOrientation(width: number, height: number): 'landscape' | 'por
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   
-  console.log('[MEDIA_INGEST] Module loading diagnostics', {
-    requestId,
-    sharpLoaded: !!sharp,
-    sharpError: sharpLoadError,
-    blobLoaded: !!uploadToBlob,
-    kvLoaded: !!storeMedia,
-    runtime: process.env.VERCEL_ENV || 'unknown',
-    region: process.env.VERCEL_REGION || 'unknown',
-  });
-
   // Check environment variables for storage configuration
   const blobConfigured = !!process.env.BLOB_READ_WRITE_TOKEN;
-  const kvConfigured = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
-
-  console.log('[MEDIA_INGEST] Environment diagnostics', {
-    requestId,
-    blobConfigured,
-    kvConfigured,
-  });
+  const kvConfigured = !!(process.env.KV_REST_API_URL && (process.env.KV_REST_API_TOKEN || process.env.KV_REST_API__KV_REST_API_TOKEN));
 
   if (!blobConfigured) {
-    console.log('[MEDIA_INGEST_ERROR] BLOB_NOT_CONFIGURED', { requestId });
     return NextResponse.json(
       {
         success: false,
@@ -126,84 +106,13 @@ export async function POST(request: Request) {
   }
 
   if (!kvConfigured) {
-    console.log('[MEDIA_INGEST_ERROR] KV_NOT_CONFIGURED', { requestId });
     return NextResponse.json(
       {
         success: false,
         error: 'KV_NOT_CONFIGURED',
         stage: 'initialization',
         message: 'Vercel KV storage is not configured.',
-        details: 'KV_REST_API_URL and/or KV_REST_API_TOKEN environment variables are missing.',
-        requestId,
-      },
-      { status: 500 }
-    );
-  }
-
-  // Log Sharp availability for debugging (not a hard failure)
-  console.log('[MEDIA_INGEST] Sharp availability', {
-    requestId,
-    sharpAvailable: !!sharp,
-    sharpMode: sharp ? 'will-generate-variants' : 'will-store-original-only',
-  });
-
-  // Check if required modules loaded successfully
-  if (!sharp) {
-    console.log('[MEDIA_INGEST_ERROR] SHARP_NOT_AVAILABLE', { requestId });
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'DEPENDENCY_NOT_AVAILABLE',
-        stage: 'initialization',
-        message: 'Sharp image processing library is not available.',
-        details: 'This may be due to a module loading error or runtime incompatibility.',
-        requestId,
-      },
-      { status: 500 }
-    );
-  }
-
-  if (!uploadToBlob || !storeMedia) {
-    console.log('[MEDIA_INGEST_ERROR] STORAGE_MODULES_NOT_AVAILABLE', { requestId });
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'STORAGE_MODULES_NOT_AVAILABLE',
-        stage: 'initialization',
-        message: 'Blob or KV storage modules are not available.',
-        details: 'This may be due to module loading errors.',
-        requestId,
-      },
-      { status: 500 }
-    );
-  }
-
-  // Check Vercel Blob configuration
-  if (process.env.VERCEL && !process.env.BLOB_READ_WRITE_TOKEN) {
-    console.log('[MEDIA_INGEST_ERROR] Vercel Blob not configured', { requestId });
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'BLOB_NOT_CONFIGURED', 
-        stage: 'environment', 
-        message: 'Vercel Blob storage is not configured. Please add BLOB_READ_WRITE_TOKEN environment variable in Vercel project settings.',
-        retryable: false,
-        requestId,
-      },
-      { status: 500 }
-    );
-  }
-
-  // Check Vercel KV configuration
-  if (process.env.VERCEL && !process.env.KV_REST_API_URL && !process.env.KV_REST_API_TOKEN) {
-    console.log('[MEDIA_INGEST_ERROR] Vercel KV not configured', { requestId });
-    return NextResponse.json(
-      { 
-        success: false,
-        error: 'KV_NOT_CONFIGURED', 
-        stage: 'environment', 
-        message: 'Vercel KV storage is not configured. Please add KV_REST_API_URL and KV_REST_API_TOKEN environment variables in Vercel project settings.',
-        retryable: false,
+        details: 'KV_REST_API_URL and KV_REST_API_TOKEN (or KV_REST_API__KV_REST_API_TOKEN) environment variables are missing.',
         requestId,
       },
       { status: 500 }
@@ -212,13 +121,11 @@ export async function POST(request: Request) {
 
   // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
   if (process.env.NODE_ENV === 'development') {
-    console.log('[MEDIA_INGEST] development mode - skipping auth', { requestId });
+    // Skip auth in development
   } else {
-    console.log('[MEDIA_INGEST] AUTH stage started', { requestId });
     // Check Drive authentication
     const isDriveAuthenticated = await driveSession.isAuthenticated();
     if (!isDriveAuthenticated) {
-      console.log('[MEDIA_INGEST_ERROR] Drive authentication required', { requestId });
       return NextResponse.json(
         { 
           success: false,
@@ -235,7 +142,6 @@ export async function POST(request: Request) {
     // Check Workbench authentication
     const isWorkbenchAuthenticated = await workbenchSession.isAuthenticated();
     if (!isWorkbenchAuthenticated) {
-      console.log('[MEDIA_INGEST_ERROR] Workbench authentication required', { requestId });
       return NextResponse.json(
         { 
           success: false,
@@ -248,7 +154,6 @@ export async function POST(request: Request) {
         { status: 401 }
       );
     }
-    console.log('[MEDIA_INGEST] AUTH stage succeeded', { requestId });
   }
 
   try {
