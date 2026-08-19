@@ -22,9 +22,11 @@ import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { NewsletterSignup } from "@/components/newsletter-signup";
 import { getOwnerPortrait } from "@/lib/brand";
 import { getMediaById } from "@/lib/media";
+import { getMediaByIdAsync } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 import { VisualSlot } from "@/components/visual-slot";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
+import type { Media } from "@/types/media";
 
 const siteUrl = "https://happyplacecarpentry.com";
 
@@ -67,12 +69,32 @@ export default async function HomePage() {
   const homepageServices = allServices.filter(s => s.homepageEligible);
   
   // Load runtime assignments for service cards on server side (avoids client-side Redis access)
-  const serviceCardAssignments = new Map<string, string>();
+  // For drive-prefixed IDs, resolve via async KV lookup
+  const serviceCardAssignments = new Map<string, { mediaId: string; mediaObject: Media | null }>();
   for (const service of homepageServices) {
     try {
       const assignment = await getServiceCardAssignment(service.slug);
       if (assignment?.mediaId) {
-        serviceCardAssignments.set(service.slug, assignment.mediaId);
+        // Resolve media object - use async KV lookup for drive-prefixed IDs
+        let mediaObject: Media | null = null;
+        if (assignment.mediaId.startsWith('drive-')) {
+          mediaObject = await getMediaByIdAsync(assignment.mediaId);
+        } else {
+          mediaObject = getMediaById(assignment.mediaId);
+        }
+        
+        console.log('[FORENSIC] SERVICE_CARD_MEDIA_RESOLUTION', {
+          serviceSlug: service.slug,
+          runtimeCardMediaId: assignment.mediaId,
+          resolved: Boolean(mediaObject),
+          resolvedMediaId: mediaObject?.id ?? null,
+          resolvedSource: mediaObject?.drive ? 'drive' : 'static',
+        });
+        
+        serviceCardAssignments.set(service.slug, {
+          mediaId: assignment.mediaId,
+          mediaObject,
+        });
       }
     } catch (error) {
       console.error('[HOMEPAGE] Failed to load service card assignment:', service.slug, error);
@@ -207,10 +229,10 @@ export default async function HomePage() {
                     page="Homepage"
                     section="Services"
                     slotName={`${s.name} Service Card`}
-                    currentMediaId={serviceCardAssignments.get(s.slug) || null}
+                    currentMediaId={serviceCardAssignments.get(s.slug)?.mediaId || null}
                     component="ServiceCard"
                   >
-                    <ServiceCard service={s} runtimeCardMediaId={serviceCardAssignments.get(s.slug) || null} />
+                    <ServiceCard service={s} runtimeCardMediaObject={serviceCardAssignments.get(s.slug)?.mediaObject || null} />
                   </VisualSlot>
                 </ScrollReveal>
               ))}

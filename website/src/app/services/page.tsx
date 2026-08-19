@@ -7,6 +7,9 @@ import { Icon } from "@/components/icon";
 import { VisualSlot } from "@/components/visual-slot";
 import { getNonArchivedServices } from "@/lib/registries";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
+import { getMediaById } from "@/lib/media";
+import { getMediaByIdAsync } from "@/lib/media";
+import type { Media } from "@/types/media";
 
 export const metadata: Metadata = {
   title: "Services",
@@ -19,12 +22,24 @@ export default async function ServicesPage() {
   const services = getNonArchivedServices();
   
   // Load runtime assignments for service cards on server side (avoids client-side Redis access)
-  const serviceCardAssignments = new Map<string, string>();
+  // For drive-prefixed IDs, resolve via async KV lookup
+  const serviceCardAssignments = new Map<string, { mediaId: string; mediaObject: Media | null }>();
   for (const service of services) {
     try {
       const assignment = await getServiceCardAssignment(service.slug);
       if (assignment?.mediaId) {
-        serviceCardAssignments.set(service.slug, assignment.mediaId);
+        // Resolve media object - use async KV lookup for drive-prefixed IDs
+        let mediaObject: Media | null = null;
+        if (assignment.mediaId.startsWith('drive-')) {
+          mediaObject = await getMediaByIdAsync(assignment.mediaId);
+        } else {
+          mediaObject = getMediaById(assignment.mediaId);
+        }
+        
+        serviceCardAssignments.set(service.slug, {
+          mediaId: assignment.mediaId,
+          mediaObject,
+        });
       }
     } catch (error) {
       console.error('[SERVICES_PAGE] Failed to load service card assignment:', service.slug, error);
@@ -84,10 +99,10 @@ export default async function ServicesPage() {
                         page="Services"
                         section={category}
                         slotName={`${s.name} Service Card`}
-                        currentMediaId={serviceCardAssignments.get(s.slug) || null}
+                        currentMediaId={serviceCardAssignments.get(s.slug)?.mediaId || null}
                         component="ServiceCard"
                       >
-                        <ServiceCard service={s} runtimeCardMediaId={serviceCardAssignments.get(s.slug) || null} />
+                        <ServiceCard service={s} runtimeCardMediaObject={serviceCardAssignments.get(s.slug)?.mediaObject || null} />
                       </VisualSlot>
                     </Link>
                   ))}

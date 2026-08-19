@@ -3,11 +3,11 @@
 import Link from "next/link";
 import Image from "next/image";
 import type { Service } from "@/types/registries";
+import type { Media } from "@/types/media";
 import { Icon } from "@/components/icon";
 import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
 import { getFeaturedServiceMedia } from "@/lib/media";
-import { getMediaById } from "@/lib/media";
 import { useState } from "react";
 
 /**
@@ -17,32 +17,26 @@ import { useState } from "react";
  * Updated to use new Service type from registries (data-driven configuration).
  * 
  * Service cards use intent-based media lookups from Media Authority.
- * Receives runtimeCardMediaId as prop from server component to avoid client-side Redis access.
- * Falls back to static cardMediaId from services.v1.json configuration.
+ * Receives runtimeCardMediaObject as prop from server component (already resolved).
  * Falls back to hero image of the highest-ranked project for that service.
  * Falls back to intentional empty state when no images exist for that service.
  * 
  * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
  * Card text always uses light register tokens regardless of page background.
  */
-export function ServiceCard({ service, runtimeCardMediaId }: { service: Service; runtimeCardMediaId?: string | null }) {
+export function ServiceCard({ service, runtimeCardMediaObject }: { service: Service; runtimeCardMediaObject?: Media | null }) {
   const [renderRequestId] = useState(() => `render-${service.slug}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
-
-  // Use runtime assignment if available, otherwise use static configuration
-  const effectiveCardMediaId = runtimeCardMediaId || service.cardMediaId;
 
   // UNCONDITIONAL LOG - will appear in iframe console if component renders
   console.log('[SERVICE-CARD-RENDER]', { renderRequestId, serviceSlug: service.slug });
   
-  // First check for Workbench-assigned card media
-  const cardMedia = effectiveCardMediaId ? getMediaById(effectiveCardMediaId) : null;
+  // Use runtime assignment if available, otherwise fall back to featured project media
+  const cardMedia = runtimeCardMediaObject || null;
 
   console.log('[FORENSIC] SERVICE_CARD_MEDIA_RESOLUTION', {
     renderRequestId,
     serviceSlug: service.slug,
-    runtimeCardMediaId,
-    staticCardMediaId: service.cardMediaId,
-    effectiveCardMediaId,
+    runtimeCardMediaId: runtimeCardMediaObject?.id ?? null,
     cardMediaFound: !!cardMedia,
     cardMediaIdResolved: cardMedia?.id,
     fallbackToFeatured: !cardMedia,
