@@ -40,6 +40,11 @@ class SlotRegistry {
     }
   }
 
+  // Use composite key (route + slotId) to prevent collisions across different pages
+  private makeKey(slot: RegisteredSlot): string {
+    return `${slot.route}:${slot.id}`;
+  }
+
   private handleMessage = (event: MessageEvent) => {
     // Filter: Only process Workbench protocol messages
     if (!event.data || typeof event.data.type !== 'string') {
@@ -78,11 +83,13 @@ class SlotRegistry {
   register(slot: RegisteredSlot) {
     console.log('[FORENSIC] SLOT REGISTRY REGISTER', {
       slotId: slot.id,
+      route: slot.route,
+      compositeKey: this.makeKey(slot),
       currentMediaId: slot.currentMediaId,
       isWorkbenchMode: this.isWorkbenchMode,
       parentWindow: typeof window !== 'undefined' ? window.parent !== window : 'N/A',
     });
-    this.slots.set(slot.id, slot);
+    this.slots.set(this.makeKey(slot), slot);
 
     // If in regular page mode and workbench is open, notify parent
     if (!this.isWorkbenchMode && typeof window !== 'undefined' && window.parent !== window) {
@@ -101,8 +108,19 @@ class SlotRegistry {
     this.notify();
   }
 
-  unregister(slotId: string) {
-    this.slots.delete(slotId);
+  unregister(slotId: string, route?: string) {
+    // If route provided, use composite key for direct lookup
+    if (route) {
+      this.slots.delete(`${route}:${slotId}`);
+    } else {
+      // Fallback: search by slotId alone (for backward compatibility)
+      for (const [key, slot] of this.slots.entries()) {
+        if (slot.id === slotId) {
+          this.slots.delete(key);
+          break;
+        }
+      }
+    }
     
     // If in regular page mode and workbench is open, notify parent
     if (!this.isWorkbenchMode && typeof window !== 'undefined' && window.parent !== window) {
@@ -115,8 +133,17 @@ class SlotRegistry {
     this.notify();
   }
 
-  get(slotId: string): RegisteredSlot | undefined {
-    return this.slots.get(slotId);
+  get(slotId: string, route?: string): RegisteredSlot | undefined {
+    if (route) {
+      return this.slots.get(`${route}:${slotId}`);
+    }
+    // Fallback: search by slotId alone (for backward compatibility)
+    for (const slot of this.slots.values()) {
+      if (slot.id === slotId) {
+        return slot;
+      }
+    }
+    return undefined;
   }
 
   getAll(): RegisteredSlot[] {

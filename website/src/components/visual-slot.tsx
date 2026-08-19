@@ -107,7 +107,7 @@ export function VisualSlot({
     // Unregister on unmount
     return () => {
       window.removeEventListener('message', handleMessage);
-      slotRegistry.unregister(id);
+      slotRegistry.unregister(id, route);
     };
   }, [id, route, page, section, slotName, currentMediaId, component]);
 
