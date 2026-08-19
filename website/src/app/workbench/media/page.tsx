@@ -900,7 +900,7 @@ Check browser console for detailed logs.`);
       console.log('[DND] IFRAME_REFRESH_TRIGGERED');
       // Send refresh message to iframe for immediate slot update
       if (iframeRef.current.contentWindow) {
-        iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, '*');
+        iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
       }
     }
   };
@@ -1248,7 +1248,7 @@ Check browser console for detailed logs.`);
         });
         // Send refresh message to iframe for immediate slot update
         if (iframeRef.current.contentWindow) {
-          iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, '*');
+          iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
         }
         // Also trigger reload as fallback
         iframeRef.current.src = iframeRef.current.src;

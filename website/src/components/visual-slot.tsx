@@ -125,6 +125,7 @@ export function VisualSlot({
         type: 'SLOT_REGISTER',
         slot: { id, route, page, section, slotName, currentMediaId, component },
       };
+      const targetOrigin = window.parent.location.origin;
       console.log('[VS_FORENSIC] REGISTER_SENT', {
         slotId: id,
         route,
@@ -135,7 +136,7 @@ export function VisualSlot({
         component,
         messageType: registerMessage.type,
         messageKeys: Object.keys(registerMessage),
-        targetOrigin: '*',
+        targetOrigin,
         windowIsIframe,
         parentExists: !!window.parent,
         parentWindowExists: window.parent !== window,
@@ -143,7 +144,7 @@ export function VisualSlot({
         parentOrigin: window.parent.location?.origin,
         timestamp: Date.now(),
       });
-      window.parent.postMessage(registerMessage, '*');
+      window.parent.postMessage(registerMessage, targetOrigin);
     } else {
       console.log('[VS_FORENSIC] REGISTRATION_SKIPPED', {
         slotId: id,
@@ -169,11 +170,12 @@ export function VisualSlot({
         // Re-register with current mediaId to sync state
         slotRegistry.register(slot);
         if (window.parent !== window) {
+          const targetOrigin = window.parent.location.origin;
           window.parent.postMessage({
             type: 'SLOT_REGISTER',
             slot: { id, route, page, section, slotName, currentMediaId, component },
-          }, '*');
-          console.log('[VS_FORENSIC] REFRESH_REGISTER_SENT', { slotId: id });
+          }, targetOrigin);
+          console.log('[VS_FORENSIC] REFRESH_REGISTER_SENT', { slotId: id, targetOrigin });
         }
       } else {
         console.log('[VS_FORENSIC] MESSAGE_IGNORED', {
@@ -278,16 +280,17 @@ export function VisualSlot({
         assetId,
         applicationData, // Pass full application data for Drive references
       };
+      const targetOrigin = window.parent.location.origin;
       console.log('[VS_FORENSIC] DROP_SENT', {
         slotId: id,
         messageType: dropMessage.type,
         messageKeys: Object.keys(dropMessage),
         assetId,
         hasApplicationData: !!applicationData,
-        targetOrigin: '*',
+        targetOrigin,
         timestamp: Date.now(),
       });
-      window.parent.postMessage(dropMessage, '*');
+      window.parent.postMessage(dropMessage, targetOrigin);
     } else {
       console.log('[VS_FORENSIC] DROP_NOT_FORWARDED', {
         slotId: id,
