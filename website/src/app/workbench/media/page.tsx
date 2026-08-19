@@ -89,11 +89,17 @@ export default function MediaWorkbench() {
   const mediaPanelRef = useRef<HTMLDivElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const assetsRef = useRef<VisualAsset[]>([]);
+  const registeredSlotsRef = useRef<RegisteredSlot[]>([]);
 
   // Keep assetsRef in sync with state.assets (avoids stale closure in message listener)
   useEffect(() => {
     assetsRef.current = state.assets;
   }, [state.assets]);
+
+  // Keep registeredSlotsRef in sync with state.registeredSlots (avoids stale closure in message listener)
+  useEffect(() => {
+    registeredSlotsRef.current = state.registeredSlots;
+  }, [state.registeredSlots]);
 
   useEffect(() => {
     console.log('[WORKBENCH] MESSAGE_LISTENER_ATTACHING');
@@ -217,9 +223,30 @@ export default function MediaWorkbench() {
           slotIds: slotRegistry.getAll().map(s => s.id),
         });
 
-        // Update React state to reflect new registration
+        // Update React state to reflect new registration (UPSERT, not append)
         setState(prev => {
-          const newRegisteredSlots = [...prev.registeredSlots, iframeSlot];
+          // Check if slot already exists
+          const existingIndex = prev.registeredSlots.findIndex(s => s.id === iframeSlot.id);
+          let newRegisteredSlots;
+          
+          if (existingIndex >= 0) {
+            // Replace existing slot
+            newRegisteredSlots = [...prev.registeredSlots];
+            newRegisteredSlots[existingIndex] = iframeSlot;
+            console.log('[WB_FORENSIC] SLOT_REGISTER_UPSERTED', {
+              slotId: iframeSlot.id,
+              action: 'REPLACED',
+              existingIndex,
+            });
+          } else {
+            // Append new slot
+            newRegisteredSlots = [...prev.registeredSlots, iframeSlot];
+            console.log('[WB_FORENSIC] SLOT_REGISTER_UPSERTED', {
+              slotId: iframeSlot.id,
+              action: 'APPENDED',
+            });
+          }
+          
           console.log('[WORKBENCH] REGISTERED_SLOTS_STATE', {
             count: newRegisteredSlots.length,
             slotIds: newRegisteredSlots.map(s => s.id),
@@ -288,18 +315,18 @@ export default function MediaWorkbench() {
           slotId,
           assetId,
           applicationData,
-          registeredSlotsCount: state.registeredSlots.length,
-          registeredSlots: state.registeredSlots.map(s => ({ id: s.id, route: s.route })),
+          registeredSlotsCount: registeredSlotsRef.current.length,
+          registeredSlots: registeredSlotsRef.current.map(s => ({ id: s.id, route: s.route })),
         });
 
         console.log('[DND] DROP_WAITING_FOR_REGISTRATION', {
           slotId,
-          registeredSlotsCount: state.registeredSlots.length,
-          targetSlotExists: state.registeredSlots.some(s => s.id === slotId),
+          registeredSlotsCount: registeredSlotsRef.current.length,
+          targetSlotExists: registeredSlotsRef.current.some(s => s.id === slotId),
         });
 
         // If no slots registered, reject gracefully
-        if (state.registeredSlots.length === 0) {
+        if (registeredSlotsRef.current.length === 0) {
           console.log('[DND] NO_SLOTS_REGISTERED - Cannot perform assignment');
           alert('Slot registration not ready. Please try again in a moment.');
           return;
@@ -327,6 +354,13 @@ export default function MediaWorkbench() {
 
         // Handle Drive reference (direct drag from Drive without ingestion)
         if (applicationData?.source === 'google-drive' && applicationData?.fileId) {
+          console.log('[WB_FORENSIC] DRIVE_REFERENCE_PATH', {
+            fileId: applicationData.fileId,
+            sharedDriveId: applicationData.sharedDriveId,
+            slotId,
+            timestamp: Date.now(),
+          });
+          
           console.log('[DND] DRIVE_REFERENCE_DETECTED', {
             fileId: applicationData.fileId,
             sharedDriveId: applicationData.sharedDriveId,
@@ -404,7 +438,7 @@ export default function MediaWorkbench() {
           if (asset) {
             // Gallery duplicate prevention: check if mediaId is already in another gallery slot
             if (slotId.startsWith('our-work-gallery-') || slotId.startsWith('project-gallery-')) {
-              const existingGallerySlot = state.registeredSlots.find(s => 
+              const existingGallerySlot = registeredSlotsRef.current.find(s => 
                 s.section === 'Gallery' && 
                 s.currentMediaId === canonicalAssetId && 
                 s.id !== slotId
@@ -414,6 +448,13 @@ export default function MediaWorkbench() {
                 return;
               }
             }
+
+            console.log('[WB_FORENSIC] ASSIGNMENT_STAGED', {
+              slotId,
+              canonicalAssetId,
+              currentMediaId: slot.currentMediaId,
+              timestamp: Date.now(),
+            });
 
             console.log('[DND] STAGE_ASSIGNMENT', {
               slotId,
@@ -808,6 +849,11 @@ Check browser console for detailed logs.`);
   const confirmAssignment = async () => {
     if (state.pendingAssignments.size === 0) return;
 
+    console.log('[WB_FORENSIC] CONFIRM_STARTED', {
+      count: state.pendingAssignments.size,
+      timestamp: Date.now(),
+    });
+
     console.log('[DND] CONFIRMING_ASSIGNMENTS', {
       count: state.pendingAssignments.size,
       assignments: Array.from(state.pendingAssignments.values()).map(a => ({
@@ -990,6 +1036,14 @@ Check browser console for detailed logs.`);
   const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot) => {
     const slotId = slot.id;
 
+    console.log('[WB_FORENSIC] ASSIGNMENT_API_REQUEST', {
+      slotId,
+      assetId: asset.id,
+      mediaId: asset.id,
+      assetFilename: asset.filename,
+      timestamp: Date.now(),
+    });
+
     console.log('[DND] API_REQUEST', {
       slotId,
       assetId: asset.id,
@@ -1162,6 +1216,14 @@ Check browser console for detailed logs.`);
         alert(`Assignment failed: ${response.status} - ${errorText}`);
         return;
       }
+
+      console.log('[WB_FORENSIC] ASSIGNMENT_API_SUCCESS', {
+        slotId,
+        assetId: asset.id,
+        endpoint,
+        status: response.status,
+        timestamp: Date.now(),
+      });
 
       const responseBody = await response.json();
       console.log('[DND] API_RESPONSE_BODY', {

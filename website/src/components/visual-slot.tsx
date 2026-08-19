@@ -83,6 +83,16 @@ export function VisualSlot({
       windowIsIframe,
     });
 
+    // Actually set the React state for workbench mode
+    setIsWorkbenchMode(isWorkbenchMode);
+    
+    console.log('[VS_FORENSIC] WORKBENCH_ENABLED', {
+      slotId: id,
+      isWorkbenchMode,
+      windowIsIframe,
+      timestamp: Date.now(),
+    });
+
     // Register slot on mount
     const slot: RegisteredSlot = {
       id,
@@ -216,6 +226,12 @@ export function VisualSlot({
     e.dataTransfer.dropEffect = 'copy';
     // Force cursor to show as valid drop target
     e.dataTransfer.effectAllowed = 'copy';
+    
+    console.log('[VS_FORENSIC] DRAGOVER_ACTIVE', {
+      slotId: id,
+      isWorkbenchMode,
+      timestamp: Date.now(),
+    });
   };
 
   const handleDrop = (e: React.DragEvent) => {
