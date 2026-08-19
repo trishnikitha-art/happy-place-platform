@@ -130,12 +130,17 @@ export default function MediaWorkbench() {
 
     // Listen for iframe messages (SLOT_REGISTER and SLOT_CLICK)
     const handleMessage = async (event: MessageEvent) => {
+      const iframeWindow = iframeRef.current?.contentWindow;
       console.log('[WORKBENCH] MESSAGE_RECEIVED', {
         eventType: event.type,
         origin: event.origin,
-        sourceMatchesIframe: iframeRef.current?.contentWindow === event.source,
+        sourceMatchesIframe: iframeWindow === event.source,
+        iframeExists: !!iframeRef.current,
+        iframeContentWindowExists: !!iframeWindow,
+        eventSourceExists: !!event.source,
         messageType: event.data?.type,
         slotId: event.data?.slot?.id,
+        iframeSrc: iframeRef.current?.src,
       });
 
       // Filter: Only process Workbench protocol messages
