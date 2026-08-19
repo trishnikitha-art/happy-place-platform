@@ -24,6 +24,12 @@ export async function storeMedia(media: Media): Promise<void> {
       await kv.set(`${CONTENT_HASH_PREFIX}${media.contentHash}`, media.id);
     }
   } catch (error) {
+    // Check if this is a KV configuration error
+    if (error instanceof Error && error.message.includes('Missing required environment variables')) {
+      console.error('[MEDIA_KV] KV not configured - media will not persist to KV:', error.message);
+      // Do not throw - allow the operation to continue with in-memory fallback
+      return;
+    }
     console.error('[MEDIA_KV] Store failed:', error);
     throw new Error(`Failed to store media ${media.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
@@ -49,6 +55,11 @@ export async function getMedia(id: string): Promise<Media | null> {
       return null;
     }
   } catch (error) {
+    // Check if this is a KV configuration error
+    if (error instanceof Error && error.message.includes('Missing required environment variables')) {
+      console.error('[MEDIA_KV] KV not configured - cannot retrieve media from KV:', error.message);
+      return null;
+    }
     console.error('[MEDIA_KV] Get failed:', error);
     return null;
   }
@@ -64,6 +75,11 @@ export async function findMediaByContentHash(contentHash: string): Promise<strin
     const value = await kv.get(`${CONTENT_HASH_PREFIX}${contentHash}`);
     return value as string | null;
   } catch (error) {
+    // Check if this is a KV configuration error
+    if (error instanceof Error && error.message.includes('Missing required environment variables')) {
+      console.error('[MEDIA_KV] KV not configured - cannot check content hash deduplication:', error.message);
+      return null;
+    }
     console.error('[MEDIA_KV] Content hash lookup failed:', error);
     return null;
   }

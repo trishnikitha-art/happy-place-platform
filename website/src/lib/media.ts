@@ -117,6 +117,13 @@ export async function loadDynamicMedia(): Promise<void> {
     
     console.log('[MEDIA] Preloaded dynamic media from KV:', dynamicMediaCache.length);
   } catch (error) {
+    // Check if this is a KV configuration error
+    if (error instanceof Error && error.message.includes('Missing required environment variables')) {
+      console.warn('[MEDIA] KV not configured - dynamic media loading skipped:', error.message);
+      // Clear cache and return gracefully - Drive references will work with in-memory fallback
+      dynamicMediaCache = [];
+      return;
+    }
     console.log('[MEDIA] Failed to preload dynamic media (KV unavailable or misconfigured):', error);
     // KV might not be configured in all environments - fail gracefully
     // This should NOT prevent slot registration or assignment

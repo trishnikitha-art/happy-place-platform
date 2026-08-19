@@ -190,6 +190,17 @@ export default function MediaWorkbench() {
 
       const messageType = event.data.type;
 
+      // Filter to only process application's known message types
+      const knownMessageTypes = ['SLOT_REGISTER', 'SLOT_DROP', 'SLOT_CLICK', 'REFRESH_SLOTS'];
+      if (!knownMessageTypes.includes(messageType)) {
+        console.log('[WB_FORENSIC] MESSAGE_REJECTED', {
+          reason: 'UNKNOWN_MESSAGE_TYPE',
+          messageType,
+          knownMessageTypes,
+        });
+        return;
+      }
+
       if (messageType === 'SLOT_REGISTER') {
         console.log('[WB_FORENSIC] SLOT_REGISTER_RECEIVED', {
           slotId: event.data.slot?.id,
@@ -916,8 +927,23 @@ Check browser console for detailed logs.`);
   };
 
   const handleSlotAssignment = (slotId: string, assetId: string) => {
-    const slot = state.registeredSlots.find(s => s.id === slotId);
+    // Use registeredSlotsRef.current instead of stale state.registeredSlots
+    const slot = registeredSlotsRef.current.find(s => s.id === slotId);
     const asset = assetsRef.current.find(a => a.id === assetId);
+    
+    console.log('[WB_FORENSIC] ASSIGNMENT_INPUT', {
+      slotId,
+      resolvedSlotId: slot?.id,
+      mediaId: assetId,
+      source: asset?.source || 'unknown',
+      driveFileId: asset?.drive?.fileId,
+      sharedDriveId: asset?.drive?.driveId,
+      slotFound: !!slot,
+      assetFound: !!asset,
+      registeredSlotsCount: registeredSlotsRef.current.length,
+      assetsCount: assetsRef.current.length,
+      timestamp: Date.now(),
+    });
     
     if (slot && asset) {
       console.log('[DND] SLOT_ASSIGNMENT', {
@@ -935,6 +961,13 @@ Check browser console for detailed logs.`);
         return { ...prev, pendingAssignments: newPendingAssignments };
       });
       
+      console.log('[WB_FORENSIC] ASSIGNMENT_STAGED', {
+        slotId,
+        mediaId: assetId,
+        source: asset.source,
+        timestamp: Date.now(),
+      });
+      
       console.log('[DND] ASSIGNMENT_STAGED', {
         slotId,
         assetId,
@@ -946,7 +979,7 @@ Check browser console for detailed logs.`);
         assetId,
         slotFound: !!slot,
         assetFound: !!asset,
-        registeredSlotsCount: state.registeredSlots.length,
+        registeredSlotsCount: registeredSlotsRef.current.length,
         assetsCount: assetsRef.current.length,
       });
     }
@@ -987,8 +1020,18 @@ Check browser console for detailed logs.`);
           hasVariants: !!result.media.variants,
         });
 
+        // Add the newly created Drive reference to assetsRef.current
+        // This ensures it's available for staging without requiring KV reload
+        assetsRef.current = [...assetsRef.current, result.media];
+        
+        // Also update React state to include the new asset
+        setState(prev => ({
+          ...prev,
+          assets: [...prev.assets, result.media],
+        }));
+
         // Reload dynamic media from KV to pick up new Drive record
-        // This is optional - if KV fails, we still have the Drive reference
+        // This is optional - if KV fails, we still have the Drive reference in memory
         try {
           await loadDynamicMedia();
         } catch (e) {
@@ -1034,8 +1077,38 @@ Check browser console for detailed logs.`);
       console.log('[DND] REPLACEMENT_CONFIRMED', { slotId: slot.id });
     }
 
-    // Stage the assignment through existing confirmation system
-    handleSlotAssignment(slot.id, asset.id);
+    // Stage the assignment directly using the already-resolved slot and asset
+    // Do NOT use handleSlotAssignment which performs its own stale lookup
+    console.log('[WB_FORENSIC] ASSIGNMENT_INPUT', {
+      slotId: slot.id,
+      resolvedSlotId: slot.id,
+      mediaId: asset.id,
+      source: asset.source,
+      driveFileId: asset.drive?.fileId,
+      sharedDriveId: asset.drive?.driveId,
+      slotFound: true,
+      assetFound: true,
+      timestamp: Date.now(),
+    });
+
+    setState(prev => {
+      const newPendingAssignments = new Map(prev.pendingAssignments);
+      newPendingAssignments.set(slot.id, { slot, asset });
+      return { ...prev, pendingAssignments: newPendingAssignments };
+    });
+
+    console.log('[WB_FORENSIC] ASSIGNMENT_STAGED', {
+      slotId: slot.id,
+      mediaId: asset.id,
+      source: asset.source,
+      timestamp: Date.now(),
+    });
+
+    console.log('[DND] ASSIGNMENT_STAGED', {
+      slotId: slot.id,
+      assetId: asset.id,
+      pendingCount: state.pendingAssignments.size + 1,
+    });
   };
 
   const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot) => {
