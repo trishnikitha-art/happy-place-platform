@@ -42,7 +42,7 @@ export interface Media {
   type: MediaType;
   orientation: MediaOrientation;
 
-  dimensions: MediaDimensions;
+  dimensions: MediaDimensions | null; // null until materialization (never fabricate 1920x1080)
   variants: MediaVariants;
 
   alt: string;

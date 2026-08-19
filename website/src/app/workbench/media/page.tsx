@@ -205,26 +205,27 @@ export default function MediaWorkbench() {
         if (applicationData?.source === 'google-drive' && applicationData?.fileId) {
           console.log('[DND] DRIVE_REFERENCE_DETECTED', {
             fileId: applicationData.fileId,
-            driveId: applicationData.driveId,
+            sharedDriveId: applicationData.sharedDriveId,
+            slotId,
           });
           
           // Check if Drive file already exists in local assets
           const existingAsset = assetsRef.current.find(a => 
             a.drive?.fileId === applicationData.fileId && 
-            a.drive?.driveId === applicationData.driveId
+            a.drive?.driveId === applicationData.sharedDriveId
           );
           
           if (existingAsset) {
             console.log('[DND] DRIVE_REFERENCE_EXISTS', { assetId: existingAsset.id });
-            // Use existing asset
-            handleSlotAssignment(slotId, existingAsset.id);
+            // Use existing asset - route through existing replacement confirmation
+            handleDriveDropToSlot(slot, existingAsset, slot.currentMediaId);
           } else {
             console.log('[DND] DRIVE_REFERENCE_CREATE', {
               fileId: applicationData.fileId,
-              driveId: applicationData.driveId,
+              sharedDriveId: applicationData.sharedDriveId,
             });
-            // Create Drive reference via API
-            createDriveReference(applicationData, slotId);
+            // Create Drive reference via API, then route through replacement confirmation
+            createDriveReference(applicationData, slot);
           }
           return;
         }
@@ -653,7 +654,7 @@ Check browser console for detailed logs.`);
   const confirmAssignment = async () => {
     if (state.pendingAssignments.size === 0) return;
 
-    console.log('[DND CONFIRM] CONFIRMING_ASSIGNMENTS', {
+    console.log('[DND] CONFIRMING_ASSIGNMENTS', {
       count: state.pendingAssignments.size,
       assignments: Array.from(state.pendingAssignments.values()).map(a => ({
         slotId: a.slot.id,
@@ -665,9 +666,20 @@ Check browser console for detailed logs.`);
     // Process all pending assignments
     for (const { slot, asset } of state.pendingAssignments.values()) {
       try {
+        console.log('[DND] SLOT_ASSIGNMENT_PERSIST', {
+          slotId: slot.id,
+          assetId: asset.id,
+          slotName: slot.slotName,
+        });
+        
         await assignAssetToSlot(asset, slot);
+        
+        console.log('[DND] SLOT_ASSIGNMENT_SUCCESS', {
+          slotId: slot.id,
+          assetId: asset.id,
+        });
       } catch (error) {
-        console.error('[DND CONFIRM] ASSIGNMENT_FAILED', {
+        console.error('[DND] SLOT_ASSIGNMENT_FAILED', {
           slotId: slot.id,
           assetId: asset.id,
           error: error instanceof Error ? error.message : String(error),
@@ -678,6 +690,19 @@ Check browser console for detailed logs.`);
 
     // Clear all pending assignments after processing
     setState(prev => ({ ...prev, pendingAssignments: new Map() }));
+    
+    // Force iframe refresh to pick up authority changes
+    console.log('[DND] SLOT_REFRESH', {
+      iframeExists: !!iframeRef.current,
+    });
+    
+    if (iframeRef.current) {
+      console.log('[DND] IFRAME_REFRESH_TRIGGERED');
+      // Send refresh message to iframe for immediate slot update
+      if (iframeRef.current.contentWindow) {
+        iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, '*');
+      }
+    }
   };
 
   const cancelAssignment = () => {
@@ -695,6 +720,7 @@ Check browser console for detailed logs.`);
         assetId,
         slotName: slot.slotName,
         assetFilename: asset.filename,
+        currentMediaId: slot.currentMediaId,
       });
       
       // Stage the assignment
@@ -702,6 +728,12 @@ Check browser console for detailed logs.`);
         const newPendingAssignments = new Map(prev.pendingAssignments);
         newPendingAssignments.set(slotId, { slot, asset });
         return { ...prev, pendingAssignments: newPendingAssignments };
+      });
+      
+      console.log('[DND] ASSIGNMENT_STAGED', {
+        slotId,
+        assetId,
+        pendingCount: state.pendingAssignments.size + 1,
       });
     } else {
       console.error('[DND] SLOT_ASSIGNMENT_FAILED', {
@@ -721,11 +753,11 @@ Check browser console for detailed logs.`);
     });
   };
 
-  const createDriveReference = async (driveReference: any, slotId: string) => {
+  const createDriveReference = async (driveReference: any, slot: RegisteredSlot) => {
     console.log('[DND] CREATE_DRIVE_REFERENCE', {
       fileId: driveReference.fileId,
-      driveId: driveReference.driveId,
-      slotId,
+      sharedDriveId: driveReference.sharedDriveId,
+      slotId: slot.id,
     });
 
     try {
@@ -733,8 +765,8 @@ Check browser console for detailed logs.`);
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          driveId: driveReference.fileId,
-          driveIdParameter: driveReference.driveId,
+          fileId: driveReference.fileId,
+          sharedDriveId: driveReference.sharedDriveId,
         }),
       });
 
@@ -743,7 +775,7 @@ Check browser console for detailed logs.`);
       if (result.success && result.media) {
         console.log('[DND] DRIVE_REFERENCE_SUCCESS', {
           mediaId: result.media.id,
-          slotId,
+          slotId: slot.id,
         });
 
         // Add to local assets
@@ -752,8 +784,8 @@ Check browser console for detailed logs.`);
           assets: [...prev.assets, result.media],
         }));
 
-        // Assign to slot
-        handleSlotAssignment(slotId, result.media.id);
+        // Route through existing replacement confirmation
+        handleDriveDropToSlot(slot, result.media, slot.currentMediaId);
       } else {
         console.error('[DND] DRIVE_REFERENCE_FAILED', result);
         alert(`Failed to create Drive reference: ${result.error || 'Unknown error'}`);
@@ -764,13 +796,44 @@ Check browser console for detailed logs.`);
     }
   };
 
+  const handleDriveDropToSlot = (slot: RegisteredSlot, asset: VisualAsset, currentMediaId: string | null) => {
+    console.log('[DND] DRIVE_DROP_TO_SLOT', {
+      slotId: slot.id,
+      slotName: slot.slotName,
+      assetId: asset.id,
+      assetFilename: asset.filename,
+      currentMediaId,
+    });
+
+    // If slot already has media, show replacement confirmation
+    if (currentMediaId) {
+      const currentAsset = assetsRef.current.find(a => a.id === currentMediaId);
+      const currentName = currentAsset?.filename || 'current image';
+      const newName = asset.filename;
+
+      const confirmed = confirm(
+        `Replace current image?\n\nCurrent: ${currentName}\nNew: ${newName}`
+      );
+
+      if (!confirmed) {
+        console.log('[DND] REPLACEMENT_CANCELLED', { slotId: slot.id });
+        return;
+      }
+
+      console.log('[DND] REPLACEMENT_CONFIRMED', { slotId: slot.id });
+    }
+
+    // Stage the assignment through existing confirmation system
+    handleSlotAssignment(slot.id, asset.id);
+  };
+
   const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot) => {
     const slotId = slot.id;
 
-    console.log('[DND 8] API_REQUEST', {
+    console.log('[DND] API_REQUEST', {
       slotId,
       assetId: asset.id,
-      mediaId: asset.id, // Actual identifier being sent to API
+      mediaId: asset.id,
       assetFilename: asset.filename,
     });
 
@@ -917,11 +980,11 @@ Check browser console for detailed logs.`);
         alert('Before/after assignment not yet implemented. Needs projects.v1.json write endpoint');
         return;
       } else {
-        console.log('[DND 8] UNSUPPORTED_SLOT_TYPE', { slotId });
+        console.log('[DND] UNSUPPORTED_SLOT_TYPE', { slotId });
         return;
       }
 
-      console.log('[DND 8] API_RESPONSE', {
+      console.log('[DND] API_RESPONSE', {
         endpoint,
         status: response.status,
         ok: response.ok,
@@ -930,7 +993,7 @@ Check browser console for detailed logs.`);
 
       if (!response.ok) {
         const errorText = await response.text();
-        console.log('[DND 8] SLOT_ASSIGNMENT_FAILURE', {
+        console.log('[DND] SLOT_ASSIGNMENT_FAILURE', {
           slotId,
           assetId: asset.id,
           status: response.status,
@@ -941,13 +1004,13 @@ Check browser console for detailed logs.`);
       }
 
       const responseBody = await response.json();
-      console.log('[DND 8] API_RESPONSE_BODY', {
+      console.log('[DND] API_RESPONSE_BODY', {
         slotId,
         assetId: asset.id,
         responseBody,
       });
 
-      console.log('[DND 8] SLOT_ASSIGNMENT_SUCCESS', {
+      console.log('[DND] SLOT_ASSIGNMENT_SUCCESS', {
         slotId,
         assetId: asset.id,
       });
@@ -1002,7 +1065,7 @@ Check browser console for detailed logs.`);
     console.log('[DND] DRAG_START', {
       isDriveFile: !!driveFile,
       assetId: asset?.id,
-      driveFileId: driveFile?.id,
+      fileId: driveFile?.id,
       filename: driveFile?.name || asset?.filename,
       source: driveFile ? 'google-drive' : asset?.source,
     });
@@ -1012,7 +1075,7 @@ Check browser console for detailed logs.`);
       const driveReference = {
         source: 'google-drive' as const,
         fileId: driveFile.id,
-        driveId: state.driveCurrentDriveId || undefined,
+        sharedDriveId: state.driveCurrentDriveId || undefined,
         name: driveFile.name,
         mimeType: driveFile.mimeType,
         modifiedTime: driveFile.modifiedTime,
@@ -1039,7 +1102,7 @@ Check browser console for detailed logs.`);
         JSON.stringify({
           assetId,
           source: asset.source,
-          driveFileId: asset.drive?.fileId ?? null,
+          fileId: asset.drive?.fileId ?? null,
           sharedDriveId: asset.drive?.driveId ?? null,
         })
       );

@@ -6,71 +6,27 @@
  * Uses KV store for persistence and proper idempotency based on Drive identity.
  *
  * POST /api/drive/reference
- * Body: { driveId: string, driveIdParameter?: string, projectId?: string, roles?: MediaRole[] }
+ * Body: { fileId: string, sharedDriveId?: string, projectId?: string, roles?: MediaRole[] }
  */
 
 import { NextResponse } from 'next/server';
 import { driveDiscovery } from '@/lib/drive/drive-discovery';
 import { driveSession } from '@/lib/drive/drive-session';
 import { workbenchSession } from '@/lib/workbench-session';
+import { storeMedia, getMedia } from '@/lib/media-kv-store';
 import type { Media, MediaRole } from '@/types/media';
 import crypto from 'crypto';
-
-// Dynamic imports for storage modules (ES modules need dynamic import)
-let storeMedia: any = null;
-let getMedia: any = null;
-let findMediaByContentHash: any = null;
-let uploadToBlob: any = null;
-let generateBlobFilename: any = null;
-
-async function loadStorageModules() {
-  try {
-    const mediaKvStore = await import('@/lib/media-kv-store');
-    storeMedia = mediaKvStore.storeMedia;
-    getMedia = mediaKvStore.getMedia;
-    findMediaByContentHash = mediaKvStore.findMediaByContentHash;
-    console.log('[DRIVE_REFERENCE] KV module loaded successfully');
-  } catch (e) {
-    console.error('[DRIVE_REFERENCE] KV module load failed:', e);
-  }
-
-  try {
-    const blobStorage = await import('@/lib/blob-storage');
-    uploadToBlob = blobStorage.uploadToBlob;
-    generateBlobFilename = blobStorage.generateBlobFilename;
-    console.log('[DRIVE_REFERENCE] Blob module loaded successfully');
-  } catch (e) {
-    console.error('[DRIVE_REFERENCE] Blob module load failed:', e);
-  }
-}
 
 export const dynamic = 'force-dynamic';
 
 interface ReferenceRequest {
-  driveId: string;
-  driveIdParameter?: string;
+  fileId: string;
+  sharedDriveId?: string;
   projectId?: string;
   roles?: MediaRole[];
 }
 
 export async function POST(request: Request) {
-  // Load storage modules dynamically
-  await loadStorageModules();
-
-  // Check if storage modules loaded successfully
-  if (!storeMedia || !getMedia) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'KV_MODULE_NOT_AVAILABLE',
-        stage: 'initialization',
-        message: 'KV storage module failed to load.',
-        details: 'This may be due to module loading errors.',
-      },
-      { status: 500 }
-    );
-  }
-
   // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
   if (process.env.NODE_ENV === 'development') {
     // Proceed without authentication
@@ -96,17 +52,17 @@ export async function POST(request: Request) {
 
   try {
     const body: ReferenceRequest = await request.json();
-    const { driveId, driveIdParameter, projectId, roles = ['gallery'] } = body;
+    const { fileId, sharedDriveId, projectId, roles = ['gallery'] } = body;
 
-    if (!driveId) {
+    if (!fileId) {
       return NextResponse.json(
-        { error: 'driveId is required' },
+        { error: 'fileId is required' },
         { status: 400 }
       );
     }
 
-    // 1. Get Drive file metadata
-    const driveFile = await driveDiscovery.getFile(driveId, driveIdParameter);
+    // 1. Get Drive file metadata (using corrected API contract)
+    const driveFile = await driveDiscovery.getFile(fileId, sharedDriveId);
     if (!driveFile) {
       return NextResponse.json(
         { error: 'File not found in Drive' },
@@ -115,42 +71,42 @@ export async function POST(request: Request) {
     }
 
     // 2. Check for existing record with matching Drive identity (idempotency)
-    // Use (source, driveId, fileId) as the canonical Drive identity
-    const existingAssets = await Promise.all([
-      getMedia(`drive-${driveId}`),
-      getMedia(`drive-${driveId}-${driveIdParameter}`),
-    ]);
-    
-    const existingAsset = existingAssets.find(a => a !== null);
+    // Use (source, sharedDriveId, fileId) as the canonical Drive identity
+    const identityString = `${fileId}${sharedDriveId || ''}`;
+    const identityHash = crypto.createHash('sha256').update(identityString).digest('hex').substring(0, 16);
+    const mediaId = `drive-${identityHash}`;
 
-    if (existingAsset) {
-      console.log('[DRIVE_REFERENCE] Existing asset found', {
-        mediaId: existingAsset.id,
-        driveFileId: driveId,
-        driveIdParameter,
-      });
-      
-      return NextResponse.json({
-        success: true,
-        media: existingAsset,
-        action: 'existing',
-      });
+    try {
+      const existingAsset = await getMedia(mediaId);
+
+      if (existingAsset) {
+        console.log('[DRIVE_REFERENCE] Existing asset found', {
+          mediaId,
+          fileId,
+          sharedDriveId,
+        });
+        
+        return NextResponse.json({
+          success: true,
+          media: existingAsset,
+          action: 'existing',
+        });
+      }
+    } catch (e) {
+      console.log('[DRIVE_REFERENCE] KV lookup failed, proceeding with creation:', e);
     }
 
     // 3. Generate stable media ID from Drive identity
     const baseName = driveFile.name.replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]/g, '-');
-    const identityString = `${driveId}${driveIdParameter || ''}`;
-    const identityHash = crypto.createHash('sha256').update(identityString).digest('hex').substring(0, 16);
-    const mediaId = `drive-${baseName}-${identityHash}`;
 
-    // 4. Create lightweight Drive reference
+    // 4. Create lightweight Drive reference (no dimensions, no fabricated data)
     const mediaRecord: Media = {
       id: mediaId,
       contentHash: identityHash, // Use Drive identity hash as content hash for now
       source: 'google-drive',
       drive: {
-        fileId: driveId,
-        driveId: driveIdParameter,
+        fileId: fileId,
+        driveId: sharedDriveId,
         name: driveFile.name,
         mimeType: driveFile.mimeType,
         webViewUrl: driveFile.webViewLink,
@@ -159,10 +115,10 @@ export async function POST(request: Request) {
       filename: driveFile.name,
       type: driveFile.mimeType?.startsWith('image/') ? 'image' : 'document',
       orientation: 'landscape', // Will be determined on materialization
-      dimensions: { width: 0, height: 0 }, // Will be determined on materialization
+      dimensions: null, // No dimensions until materialization
       variants: {
         // Thumbnail URL is derived at runtime via proxy
-        web: `/api/drive/files/${driveId}/thumbnail${driveIdParameter ? `?driveId=${driveIdParameter}` : ''}`,
+        web: `/api/drive/files/${fileId}/thumbnail${sharedDriveId ? `?driveId=${sharedDriveId}` : ''}`,
       },
       alt: driveFile.name,
       description: driveFile.description,
@@ -184,13 +140,13 @@ export async function POST(request: Request) {
       },
     };
 
-    // 5. Store in KV
+    // 5. Store in KV (only persistence layer needed for reference)
     await storeMedia(mediaRecord);
 
     console.log('[DRIVE_REFERENCE] Created new reference', {
       mediaId,
-      driveFileId: driveId,
-      driveIdParameter,
+      fileId,
+      sharedDriveId,
     });
 
     return NextResponse.json({
