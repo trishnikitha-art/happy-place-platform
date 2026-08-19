@@ -29,8 +29,18 @@ class SlotRegistry {
   private slots: Map<string, RegisteredSlot> = new Map();
   private listeners: Set<() => void> = new Set();
   private isWorkbenchMode = false;
+  private instanceId: string;
 
   constructor() {
+    // Generate unique instance ID for forensic debugging
+    this.instanceId = `REG-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    
+    console.log('[SLOT-REGISTRY] INSTANCE_CREATED', {
+      instanceId: this.instanceId,
+      isBrowser: typeof window !== 'undefined',
+      timestamp: new Date().toISOString(),
+    });
+
     if (typeof window !== 'undefined') {
       this.isWorkbenchMode = window.location.pathname.startsWith('/workbench');
       
@@ -81,7 +91,8 @@ class SlotRegistry {
   };
 
   register(slot: RegisteredSlot) {
-    console.log('[FORENSIC] SLOT REGISTRY REGISTER', {
+    console.log('[SLOT-REGISTRY] REGISTER', {
+      instanceId: this.instanceId,
       slotId: slot.id,
       route: slot.route,
       compositeKey: this.makeKey(slot),
@@ -147,6 +158,11 @@ class SlotRegistry {
   }
 
   getAll(): RegisteredSlot[] {
+    console.log('[SLOT-REGISTRY] GET_ALL', {
+      instanceId: this.instanceId,
+      count: this.slots.size,
+      slots: Array.from(this.slots.keys()),
+    });
     return Array.from(this.slots.values());
   }
 
