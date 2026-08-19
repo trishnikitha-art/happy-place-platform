@@ -64,7 +64,8 @@ export async function uploadToBlob(
     
     // Store content hash mapping for idempotency
     const client = getRedisClient();
-    await client.set(`blob_hash:${contentHash}`, filename);
+    // Content hash keys store strings (filenames), not objects
+    await client.set<string>(`blob_hash:${contentHash}`, filename);
     
     return {
       url: blob.url,
@@ -100,8 +101,9 @@ export async function uploadToBlob(
 async function getBlobKeyByContentHash(contentHash: string): Promise<string | null> {
   try {
     const client = getRedisClient();
-    const key = await client.get(`blob_hash:${contentHash}`);
-    return key as string | null;
+    // Content hash keys store strings (filenames), not objects
+    const key = await client.get<string>(`blob_hash:${contentHash}`);
+    return key;
   } catch (e) {
     console.error('[BLOB_STORAGE] Content hash lookup failed:', e);
     throw new Error(`Failed to find blob by content hash: ${e instanceof Error ? e.message : 'Unknown error'}`);

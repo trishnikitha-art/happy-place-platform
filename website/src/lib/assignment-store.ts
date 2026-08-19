@@ -48,20 +48,20 @@ export interface ServiceCardAssignment {
  */
 export async function storeServiceCardAssignment(assignment: ServiceCardAssignment, requestId?: string): Promise<void> {
   const operationId = requestId || `store-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const key = `${ASSIGNMENT_PREFIX}${assignment.serviceSlug}`;
   
   console.log('[ASSIGNMENT_STORE] STORE_REQUEST', {
     operationId,
     serviceSlug: assignment.serviceSlug,
     mediaId: assignment.mediaId,
-    key: `${ASSIGNMENT_PREFIX}${assignment.serviceSlug}`,
+    key,
   });
   
   try {
     const client = getRedisClient();
-    const key = `${ASSIGNMENT_PREFIX}${assignment.serviceSlug}`;
-    const value = JSON.stringify(assignment);
     
-    await client.set(key, value);
+    // Use typed object API - @upstash/redis handles serialization
+    await client.set<ServiceCardAssignment>(key, assignment);
     
     console.log('[ASSIGNMENT_STORE] STORE_SUCCESS', {
       operationId,
@@ -69,19 +69,19 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
       mediaId: assignment.mediaId,
     });
     
-    // Readback verification
-    const readback = await client.get(key);
-    const readbackValue = typeof readback === 'string' ? JSON.parse(readback) : null;
+    // Readback verification using typed object API
+    const readback = await client.get<ServiceCardAssignment>(key);
     
     console.log('[ASSIGNMENT_STORE] READBACK_VERIFICATION', {
       operationId,
       key,
       writtenMediaId: assignment.mediaId,
-      readbackMediaId: readbackValue?.mediaId,
-      match: readbackValue?.mediaId === assignment.mediaId,
+      readbackMediaId: readback?.mediaId,
+      readbackType: typeof readback,
+      match: readback?.mediaId === assignment.mediaId,
     });
     
-    if (readbackValue?.mediaId !== assignment.mediaId) {
+    if (readback?.mediaId !== assignment.mediaId) {
       throw new Error('Readback verification failed: written mediaId does not match readback');
     }
     
@@ -103,19 +103,21 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
  */
 export async function getServiceCardAssignment(serviceSlug: string, requestId?: string): Promise<ServiceCardAssignment | null> {
   const operationId = requestId || `get-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
   
   console.log('[ASSIGNMENT_STORE] GET_REQUEST', {
     operationId,
     serviceSlug,
-    key: `${ASSIGNMENT_PREFIX}${serviceSlug}`,
+    key,
   });
   
   try {
     const client = getRedisClient();
-    const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
-    const value = await client.get(key);
     
-    if (!value) {
+    // Use typed object API - @upstash/redis handles deserialization
+    const assignment = await client.get<ServiceCardAssignment>(key);
+    
+    if (!assignment) {
       console.log('[ASSIGNMENT_STORE] GET_NOT_FOUND', {
         operationId,
         key,
@@ -124,24 +126,14 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
       return null;
     }
 
-    // Upstash Redis returns strings; parse JSON
-    if (typeof value === 'string') {
-      const assignment = JSON.parse(value) as ServiceCardAssignment;
-      console.log('[ASSIGNMENT_STORE] GET_SUCCESS', {
-        operationId,
-        key,
-        serviceSlug,
-        mediaId: assignment.mediaId,
-      });
-      return assignment;
-    } else {
-      console.error('[ASSIGNMENT_STORE] GET_UNEXPECTED_TYPE', {
-        operationId,
-        key,
-        actualType: typeof value,
-      });
-      return null;
-    }
+    console.log('[ASSIGNMENT_STORE] GET_SUCCESS', {
+      operationId,
+      key,
+      serviceSlug,
+      mediaId: assignment.mediaId,
+    });
+    
+    return assignment;
   } catch (error) {
     console.error('[ASSIGNMENT_STORE] GET_FAILURE', {
       operationId,
@@ -159,16 +151,16 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
  */
 export async function deleteServiceCardAssignment(serviceSlug: string, requestId?: string): Promise<void> {
   const operationId = requestId || `delete-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
   
   console.log('[ASSIGNMENT_STORE] DELETE_REQUEST', {
     operationId,
     serviceSlug,
-    key: `${ASSIGNMENT_PREFIX}${serviceSlug}`,
+    key,
   });
   
   try {
     const client = getRedisClient();
-    const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
     await client.del(key);
     
     console.log('[ASSIGNMENT_STORE] DELETE_SUCCESS', {
@@ -206,9 +198,9 @@ export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignm
 
     for (const key of keys) {
       try {
-        const value = await client.get(key);
-        if (value && typeof value === 'string') {
-          const assignment = JSON.parse(value) as ServiceCardAssignment;
+        // Use typed object API - @upstash/redis handles deserialization
+        const assignment = await client.get<ServiceCardAssignment>(key);
+        if (assignment) {
           assignments.push(assignment);
         }
       } catch (error) {

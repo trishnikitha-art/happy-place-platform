@@ -34,7 +34,8 @@ const CONTENT_HASH_PREFIX = 'content_hash:';
 export async function storeMedia(media: Media): Promise<void> {
   try {
     const client = getRedisClient();
-    await client.set(`${MEDIA_PREFIX}${media.id}`, JSON.stringify(media));
+    // Use typed object API - @upstash/redis handles serialization
+    await client.set<Media>(`${MEDIA_PREFIX}${media.id}`, media);
 
     // Index by content hash for deduplication
     if (media.contentHash) {
@@ -54,16 +55,11 @@ export async function storeMedia(media: Media): Promise<void> {
 export async function getMedia(id: string): Promise<Media | null> {
   try {
     const client = getRedisClient();
-    const value = await client.get(`${MEDIA_PREFIX}${id}`);
-    if (!value) return null;
+    // Use typed object API - @upstash/redis handles deserialization
+    const media = await client.get<Media>(`${MEDIA_PREFIX}${id}`);
+    if (!media) return null;
 
-    // Upstash Redis returns strings; parse JSON
-    if (typeof value === 'string') {
-      return JSON.parse(value) as Media;
-    } else {
-      console.error('[MEDIA_KV] Unexpected value type:', typeof value);
-      return null;
-    }
+    return media;
   } catch (error) {
     console.error('[MEDIA_KV] Get failed:', error);
     throw new Error(`Failed to retrieve media ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
