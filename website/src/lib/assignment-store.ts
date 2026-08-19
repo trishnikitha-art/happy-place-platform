@@ -7,38 +7,80 @@
  */
 
 import { Redis } from '@upstash/redis';
+import crypto from 'crypto';
 
 let redis: Redis | null = null;
 
 function getRedisClient(): Redis {
   if (!redis) {
-    const url = process.env.KV_REST_API_URL;
-    const token = process.env.KV_REST_API_TOKEN;
+    // Credential source investigation
+    const credentialSource = {
+      urlVariable: 'KV_REST_API_URL',
+      tokenVariable: 'KV_REST_API_TOKEN',
+    };
     
-    // Diagnostic: Check all possible environment variable names that might contain Redis credentials
-    const envVars = Object.keys(process.env).filter(key => 
-      key.includes('KV') || key.includes('REDIS') || key.includes('UPSTASH') || key.includes('REST')
-    );
+    let url = process.env.KV_REST_API_URL;
+    let token = process.env.KV_REST_API_TOKEN;
+    
+    // Check integration-generated variables
+    const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
+    const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
+    const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
+    
+    // Generate safe fingerprints
+    const urlFingerprint = url ? createHash(url) : 'none';
+    const tokenFingerprint = token ? createHash(token) : 'none';
+    const integrationUrlFingerprint = integrationUrl ? createHash(integrationUrl) : 'none';
+    const integrationTokenFingerprint = integrationToken ? createHash(integrationToken) : 'none';
+    const readOnlyTokenFingerprint = readOnlyToken ? createHash(readOnlyToken) : 'none';
     
     const urlHost = url ? new URL(url).hostname : 'none';
+    const integrationUrlHost = integrationUrl ? new URL(integrationUrl).hostname : 'none';
     
-    console.log('[REDIS_CONFIG]', {
-      urlPresent: !!url,
-      tokenPresent: !!token,
+    // Determine token type
+    let tokenType = 'unknown';
+    if (token === readOnlyToken) {
+      tokenType = 'read-only';
+    } else if (token === integrationToken) {
+      tokenType = 'integration-read-write';
+    } else if (token) {
+      tokenType = 'manual-read-write';
+    }
+    
+    console.log('[CREDENTIAL_INVESTIGATION]', {
+      credentialSource,
       urlHost,
-      urlLength: url?.length || 0,
-      tokenLength: token?.length || 0,
-      relevantEnvVars: envVars.map(key => ({ key, hasValue: !!process.env[key] })),
+      integrationUrlHost,
+      urlFingerprint,
+      tokenFingerprint,
+      integrationUrlFingerprint,
+      integrationTokenFingerprint,
+      readOnlyTokenFingerprint,
+      tokenType,
+      integrationUrlPresent: !!integrationUrl,
+      integrationTokenPresent: !!integrationToken,
+      readOnlyTokenPresent: !!readOnlyToken,
+      selectedCredentialFingerprint: urlFingerprint,
+      allRedisVars: Object.keys(process.env).filter(key => 
+        key.includes('KV') || key.includes('REDIS') || key.includes('UPSTASH')
+      ).map(key => ({ key, hasValue: !!process.env[key] })),
     });
     
     if (!url || !token) {
-      throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
+      throw new Error(`Missing required environment variables: ${credentialSource.urlVariable} and ${credentialSource.tokenVariable}`);
     }
     
     redis = new Redis({ url, token });
-    console.log('[REDIS_CONFIG] Client initialization success');
+    console.log('[REDIS_CONFIG] Client initialization success', {
+      urlHost,
+      tokenType,
+    });
   }
   return redis;
+}
+
+function createHash(input: string): string {
+  return crypto.createHash('sha256').update(input).digest('hex').substring(0, 16);
 }
 
 const ASSIGNMENT_PREFIX = 'service-card-assignment:';
@@ -69,23 +111,40 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
   try {
     const client = getRedisClient();
     
+    // Log Redis host and credential fingerprint
+    const redisUrl = process.env.KV_REST_API_URL;
+    const redisHost = redisUrl ? new URL(redisUrl).hostname : 'none';
+    const credentialFingerprint = process.env.KV_REST_API_TOKEN ? crypto.createHash('sha256').update(process.env.KV_REST_API_TOKEN).digest('hex').substring(0, 16) : 'none';
+    
+    console.log('[ASSIGNMENT_WRITE] SELECTED_REDIS', {
+      operationId,
+      redisHost,
+      credentialFingerprint,
+    });
+    
     // Use typed object API - @upstash/redis handles serialization
     await client.set<ServiceCardAssignment>(key, assignment);
     
-    console.log('[ASSIGNMENT_WRITE] SUCCESS', {
+    console.log('[ASSIGNMENT_WRITE] SET_SUCCESS', {
       operationId,
       key,
       mediaId: assignment.mediaId,
     });
     
-    // Readback verification using typed object API
+    // Immediate readback verification using typed object API
     const readback = await client.get<ServiceCardAssignment>(key);
     
     console.log('[ASSIGNMENT_READBACK]', {
       operationId,
       key,
       writtenMediaId: assignment.mediaId,
+      writtenServiceSlug: assignment.serviceSlug,
+      writtenUpdatedAt: assignment.updatedAt,
+      writtenSource: assignment.source,
       readbackMediaId: readback?.mediaId,
+      readbackServiceSlug: readback?.serviceSlug,
+      readbackUpdatedAt: readback?.updatedAt,
+      readbackSource: readback?.source,
       rawType: typeof readback,
       match: readback?.mediaId === assignment.mediaId,
     });
