@@ -14,10 +14,26 @@ import { driveDiscovery } from '@/lib/drive/drive-discovery';
 import { driveSession } from '@/lib/drive/drive-session';
 import { workbenchSession } from '@/lib/workbench-session';
 import crypto from 'crypto';
-import sharp from 'sharp';
 import type { Media, MediaRole } from '@/types/media';
-import { uploadToBlob, generateBlobFilename } from '@/lib/blob-storage';
-import { storeMedia, getMedia, findMediaByContentHash } from '@/lib/media-kv-store';
+
+// Lazy load heavy dependencies to catch import errors
+let sharp: any = null;
+let uploadToBlob: any = null;
+let generateBlobFilename: any = null;
+let storeMedia: any = null;
+let getMedia: any = null;
+let findMediaByContentHash: any = null;
+
+try {
+  sharp = require('sharp');
+  uploadToBlob = require('@/lib/blob-storage').uploadToBlob;
+  generateBlobFilename = require('@/lib/blob-storage').generateBlobFilename;
+  storeMedia = require('@/lib/media-kv-store').storeMedia;
+  getMedia = require('@/lib/media-kv-store').getMedia;
+  findMediaByContentHash = require('@/lib/media-kv-store').findMediaByContentHash;
+} catch (importError) {
+  console.error('[MEDIA_INGEST] IMPORT_ERROR during module load:', importError);
+}
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -75,8 +91,32 @@ function determineOrientation(width: number, height: number): 'landscape' | 'por
   return 'square';
 }
 
+// Top-level error handler to catch runtime errors and return JSON instead of HTML
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
+  
+  try {
+    return await handleIngestion(request, requestId);
+  } catch (error) {
+    console.error('[MEDIA_INGEST] TOP_LEVEL_ERROR', { requestId, error });
+    
+    // Return JSON error instead of letting Next.js return HTML error page
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'RUNTIME_ERROR',
+        stage: 'initialization',
+        message: 'Server runtime error during ingestion initialization',
+        details: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined,
+        requestId,
+      },
+      { status: 500 }
+    );
+  }
+}
+
+async function handleIngestion(request: Request, requestId: string) {
   console.log('[MEDIA_INGEST] request started', { requestId });
   console.log('[MEDIA_INGEST] environment detection', {
     requestId,
@@ -87,6 +127,68 @@ export async function POST(request: Request) {
     blobConfigured: !!process.env.BLOB_READ_WRITE_TOKEN,
     kvConfigured: !!process.env.KV_REST_API_URL || !!process.env.KV_REST_API_TOKEN,
   });
+
+  // Check if required modules loaded successfully
+  if (!sharp) {
+    console.log('[MEDIA_INGEST_ERROR] SHARP_NOT_AVAILABLE', { requestId });
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'DEPENDENCY_NOT_AVAILABLE',
+        stage: 'initialization',
+        message: 'Sharp image processing library is not available.',
+        details: 'This may be due to a module loading error or runtime incompatibility.',
+        requestId,
+      },
+      { status: 500 }
+    );
+  }
+
+  if (!uploadToBlob || !storeMedia) {
+    console.log('[MEDIA_INGEST_ERROR] STORAGE_MODULES_NOT_AVAILABLE', { requestId });
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'STORAGE_MODULES_NOT_AVAILABLE',
+        stage: 'initialization',
+        message: 'Blob or KV storage modules are not available.',
+        details: 'This may be due to module loading errors.',
+        requestId,
+      },
+      { status: 500 }
+    );
+  }
+
+  // Check if required modules loaded successfully
+  if (!sharp) {
+    console.log('[MEDIA_INGEST_ERROR] SHARP_NOT_AVAILABLE', { requestId });
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'DEPENDENCY_NOT_AVAILABLE',
+        stage: 'initialization',
+        message: 'Sharp image processing library is not available.',
+        details: 'This may be due to a module loading error or runtime incompatibility.',
+        requestId,
+      },
+      { status: 500 }
+    );
+  }
+
+  if (!uploadToBlob || !storeMedia) {
+    console.log('[MEDIA_INGEST_ERROR] STORAGE_MODULES_NOT_AVAILABLE', { requestId });
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'STORAGE_MODULES_NOT_AVAILABLE',
+        stage: 'initialization',
+        message: 'Blob or KV storage modules are not available.',
+        details: 'This may be due to module loading errors.',
+        requestId,
+      },
+      { status: 500 }
+    );
+  }
 
   // Check Vercel Blob configuration
   if (process.env.VERCEL && !process.env.BLOB_READ_WRITE_TOKEN) {
