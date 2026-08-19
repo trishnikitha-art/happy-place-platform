@@ -115,26 +115,47 @@ export function VisualSlot({
         type: 'SLOT_REGISTER',
         slot: { id, route, page, section, slotName, currentMediaId, component },
       };
-      console.log('[SLOT] REGISTER_SENT', {
+      console.log('[VS_FORENSIC] REGISTER_SENT', {
         slotId: id,
+        route,
+        page,
+        section,
+        slotName,
+        currentMediaId,
+        component,
         messageType: registerMessage.type,
+        messageKeys: Object.keys(registerMessage),
         targetOrigin: '*',
         windowIsIframe,
         parentExists: !!window.parent,
         parentWindowExists: window.parent !== window,
+        iframeOrigin: window.location.origin,
+        parentOrigin: window.parent.location?.origin,
+        timestamp: Date.now(),
       });
       window.parent.postMessage(registerMessage, '*');
     } else {
-      console.log('[SLOT] REGISTRATION_SKIPPED', {
+      console.log('[VS_FORENSIC] REGISTRATION_SKIPPED', {
         slotId: id,
         reason: 'NOT_IN_IFRAME',
+        windowIsIframe,
       });
     }
 
     // Listen for REFRESH_SLOTS message from parent
     const handleMessage = (event: MessageEvent) => {
+      console.log('[VS_FORENSIC] MESSAGE_RECEIVED', {
+        slotId: id,
+        eventOrigin: event.origin,
+        expectedOrigin: window.location.origin,
+        messageType: event.data?.type,
+        messageKeys: event.data ? Object.keys(event.data) : [],
+        messageTypeMatch: event.data?.type === 'REFRESH_SLOTS',
+        timestamp: Date.now(),
+      });
+      
       if (event.data.type === 'REFRESH_SLOTS') {
-        console.log('[FORENSIC] iframe REFRESH_SLOTS received', { id });
+        console.log('[VS_FORENSIC] REFRESH_SLOTS_ACCEPTED', { id });
         // Re-register with current mediaId to sync state
         slotRegistry.register(slot);
         if (window.parent !== window) {
@@ -142,7 +163,14 @@ export function VisualSlot({
             type: 'SLOT_REGISTER',
             slot: { id, route, page, section, slotName, currentMediaId, component },
           }, '*');
+          console.log('[VS_FORENSIC] REFRESH_REGISTER_SENT', { slotId: id });
         }
+      } else {
+        console.log('[VS_FORENSIC] MESSAGE_IGNORED', {
+          slotId: id,
+          messageType: event.data?.type,
+          reason: 'TYPE_MISMATCH',
+        });
       }
     };
 
@@ -150,8 +178,18 @@ export function VisualSlot({
 
     // Unregister on unmount
     return () => {
+      console.log('[VS_FORENSIC] UNREGISTER_START', {
+        slotId: id,
+        route,
+        timestamp: Date.now(),
+      });
       window.removeEventListener('message', handleMessage);
       slotRegistry.unregister(id, route);
+      console.log('[VS_FORENSIC] UNREGISTER_COMPLETE', {
+        slotId: id,
+        remainingCount: slotRegistry.getAll().length,
+        timestamp: Date.now(),
+      });
     };
   }, [id, route, page, section, slotName, currentMediaId, component]);
 
@@ -182,10 +220,11 @@ export function VisualSlot({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    console.log('[DND] IFRAME_DROP', {
+    console.log('[VS_FORENSIC] DROP_RECEIVED', {
       slotId: id,
       windowIsIframe: window.parent !== window,
       dataTransferTypes: e.dataTransfer.types,
+      timestamp: Date.now(),
     });
 
     // Extract asset ID from DataTransfer (same key used in parent handleDragStart)
@@ -199,14 +238,20 @@ export function VisualSlot({
         applicationData = JSON.parse(applicationJson);
       }
     } catch (e) {
-      // Ignore parse errors
+      console.log('[VS_FORENSIC] APPLICATION_DATA_PARSE_FAILED', {
+        slotId: id,
+        error: e instanceof Error ? e.message : 'Unknown error',
+      });
     }
 
-    console.log('[DND] SLOT_DROP_PAYLOAD_EXTRACTED', {
+    console.log('[VS_FORENSIC] DROP_PAYLOAD_EXTRACTED', {
       slotId: id,
       assetId,
       applicationData,
+      applicationDataKeys: applicationData ? Object.keys(applicationData) : [],
       dataTransferTypes: e.dataTransfer.types,
+      hasValidAssetId: !!assetId,
+      hasValidApplicationData: !!applicationData,
     });
 
     // Communicate drop to parent (DataTransfer doesn't cross iframe boundary)
@@ -217,12 +262,21 @@ export function VisualSlot({
         assetId,
         applicationData, // Pass full application data for Drive references
       };
-      console.log('[DND] SLOT_DROP_POSTMESSAGE', {
+      console.log('[VS_FORENSIC] DROP_SENT', {
         slotId: id,
+        messageType: dropMessage.type,
+        messageKeys: Object.keys(dropMessage),
         assetId,
         hasApplicationData: !!applicationData,
+        targetOrigin: '*',
+        timestamp: Date.now(),
       });
       window.parent.postMessage(dropMessage, '*');
+    } else {
+      console.log('[VS_FORENSIC] DROP_NOT_FORWARDED', {
+        slotId: id,
+        reason: 'NOT_IN_IFRAME',
+      });
     }
   };
 

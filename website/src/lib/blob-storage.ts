@@ -54,6 +54,27 @@ export async function uploadToBlob(
       uploadedAt: new Date().toISOString(),
     };
   } catch (error) {
+    // Handle Vercel Blob duplicate error gracefully
+    if (error instanceof Error && error.message.includes('This blob already exists')) {
+      console.log('[BLOB_STORAGE] Blob already exists (API level), treating as success:', filename);
+      // For idempotency, try to get the existing blob by filename
+      const contentHash = crypto.createHash('sha256').update(buffer).digest('hex');
+      const existingBlobKey = await getBlobKeyByContentHash(contentHash);
+      
+      if (existingBlobKey) {
+        return {
+          url: existingBlobKey,
+          uploadedAt: new Date().toISOString(),
+        };
+      }
+      
+      // Fallback: return filename as URL identifier
+      return {
+        url: filename,
+        uploadedAt: new Date().toISOString(),
+      };
+    }
+    
     console.error('[BLOB_STORAGE] Upload failed:', error);
     throw new Error(`Failed to upload ${filename} to Blob storage: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }

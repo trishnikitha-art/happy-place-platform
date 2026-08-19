@@ -131,38 +131,62 @@ export default function MediaWorkbench() {
     // Listen for iframe messages (SLOT_REGISTER and SLOT_CLICK)
     const handleMessage = async (event: MessageEvent) => {
       const iframeWindow = iframeRef.current?.contentWindow;
-      console.log('[WORKBENCH] MESSAGE_RECEIVED', {
+      console.log('[WB_FORENSIC] MESSAGE_RECEIVED', {
         eventType: event.type,
-        origin: event.origin,
+        eventOrigin: event.origin,
+        expectedOrigin: window.location.origin,
+        originMatch: event.origin === window.location.origin,
         sourceMatchesIframe: iframeWindow === event.source,
         iframeExists: !!iframeRef.current,
         iframeContentWindowExists: !!iframeWindow,
         eventSourceExists: !!event.source,
         messageType: event.data?.type,
+        messageKeys: event.data ? Object.keys(event.data) : [],
         slotId: event.data?.slot?.id,
         iframeSrc: iframeRef.current?.src,
+        timestamp: Date.now(),
       });
 
       // Filter: Only process Workbench protocol messages from same origin
       // Note: iframe.source reference may not be stable, so rely on origin + message type
       if (!event.data || typeof event.data.type !== 'string') {
+        console.log('[WB_FORENSIC] MESSAGE_REJECTED', {
+          reason: 'INVALID_DATA_TYPE',
+          hasData: !!event.data,
+          dataType: typeof event.data,
+          typeType: typeof event.data?.type,
+        });
         return;
       }
 
       // Accept messages from same origin (security)
       if (event.origin !== window.location.origin) {
-        console.log('[WORKBENCH] MESSAGE_REJECTED - origin mismatch', {
+        console.log('[WB_FORENSIC] MESSAGE_REJECTED', {
+          reason: 'ORIGIN_MISMATCH',
           expectedOrigin: window.location.origin,
           actualOrigin: event.origin,
         });
         return;
       }
 
+      console.log('[WB_FORENSIC] MESSAGE_ACCEPTED', {
+        reason: 'VALID_ORIGIN_AND_TYPE',
+        messageType: event.data.type,
+      });
+
       const messageType = event.data.type;
 
       if (messageType === 'SLOT_REGISTER') {
-        console.log('[WORKBENCH] REGISTER_RECEIVED', {
+        console.log('[WB_FORENSIC] SLOT_REGISTER_RECEIVED', {
           slotId: event.data.slot?.id,
+          route: event.data.slot?.route,
+          page: event.data.slot?.page,
+          section: event.data.slot?.section,
+          slotName: event.data.slot?.slotName,
+          currentMediaId: event.data.slot?.currentMediaId,
+          component: event.data.slot?.component,
+          currentRegisteredSlots: state.registeredSlots.length,
+          timestamp: Date.now(),
         });
 
         console.log('[WORKBENCH] REGISTER_TO_PARENT_REGISTRY');
@@ -212,10 +236,17 @@ export default function MediaWorkbench() {
           };
         });
       } else if (messageType === 'SLOT_CLICK') {
-        console.log('[FORENSIC] WORKBENCH MESSAGE RECEIVED', {
+        console.log('[WB_FORENSIC] SLOT_CLICK_RECEIVED', {
           type: messageType,
           origin: event.origin,
           slotId: event.data.slot?.id,
+          route: event.data.slot?.route,
+          page: event.data.slot?.page,
+          section: event.data.slot?.section,
+          slotName: event.data.slot?.slotName,
+          currentMediaId: event.data.slot?.currentMediaId,
+          component: event.data.slot?.component,
+          timestamp: Date.now(),
         });
         // Use payload directly instead of slotRegistry.get (separate JS contexts)
         const slot: RegisteredSlot = {
@@ -237,6 +268,18 @@ export default function MediaWorkbench() {
         });
         handleSlotClick(slot);
       } else if (messageType === 'SLOT_DROP') {
+        console.log('[WB_FORENSIC] SLOT_DROP_RECEIVED', {
+          messageType,
+          origin: event.origin,
+          slotId: event.data.slot?.id,
+          assetId: event.data.assetId,
+          applicationData: event.data.applicationData,
+          applicationDataKeys: event.data.applicationData ? Object.keys(event.data.applicationData) : [],
+          registeredSlotsCount: state.registeredSlots.length,
+          registeredSlots: state.registeredSlots.map(s => ({ id: s.id, route: s.route })),
+          timestamp: Date.now(),
+        });
+
         const slotId = event.data.slot?.id;
         const assetId = event.data.assetId;
         const applicationData = event.data.applicationData;
@@ -1188,13 +1231,13 @@ Check browser console for detailed logs.`);
     });
     
     // If this is a Drive file that's not yet ingested, emit Drive identity
-    if (driveFile && driveFile.mimeType) {
+    if (driveFile && driveFile.id) {
       const driveReference = {
         source: 'google-drive' as const,
         fileId: driveFile.id,
         sharedDriveId: state.driveCurrentDriveId || undefined,
         name: driveFile.name,
-        mimeType: driveFile.mimeType,
+        mimeType: driveFile.mimeType || 'image/jpeg', // Default to image/jpeg if missing
         modifiedTime: driveFile.modifiedTime,
         webViewUrl: driveFile.webViewLink,
       };
