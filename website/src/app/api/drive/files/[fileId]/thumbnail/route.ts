@@ -26,7 +26,20 @@ export async function GET(
     console.log('[Drive Thumbnail] Request:', { fileId, driveId });
 
     // Use server-side OAuth credentials for public access
-    const auth = getGoogleAuth();
+    let auth;
+    try {
+      auth = getGoogleAuth();
+    } catch (error) {
+      console.error('[Drive Thumbnail] Google auth credentials not configured:', error);
+      return NextResponse.json(
+        { 
+          error: 'Google credentials not configured',
+          message: 'GOOGLE_REFRESH_TOKEN environment variable is required for Drive thumbnail access'
+        },
+        { status: 500 }
+      );
+    }
+
     const drive = google.drive({ version: 'v3', auth });
 
     // Get file metadata including thumbnailLink
