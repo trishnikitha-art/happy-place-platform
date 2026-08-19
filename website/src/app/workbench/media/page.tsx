@@ -1191,65 +1191,91 @@ export default function MediaWorkbench() {
                         <h3 className="text-xs font-semibold text-muted-foreground mb-2">Files</h3>
                         {state.driveViewMode === 'grid' ? (
                           <div className="grid grid-cols-3 gap-2">
-                            {state.driveFiles.filter((item: any) => item.type !== 'folder').map((file: any) => (
-                              <button
-                                key={file.id}
-                                onClick={() => selectDriveFile(file)}
-                                className={`p-3 bg-background border rounded-lg transition-colors text-left ${
-                                  state.driveSelectedFile?.id === file.id
-                                    ? 'border-primary ring-2 ring-primary'
-                                    : 'border-border hover:border-primary'
-                                }`}
-                              >
-                                {file.thumbnailLink ? (
-                                  <img
-                                    src={`/api/drive/files/${file.id}/thumbnail${state.driveCurrentDriveId ? `?driveId=${state.driveCurrentDriveId}` : ''}`}
-                                    alt={file.name}
-                                    className="w-full aspect-square object-cover rounded mb-2"
-                                  />
-                                ) : (
-                                  <div className="w-full aspect-square bg-muted rounded mb-2 flex items-center justify-center">
-                                    <FileImage size={24} className="text-muted-foreground" />
-                                  </div>
-                                )}
-                                <div className="text-sm font-medium text-foreground truncate">{file.name}</div>
-                                <div className="text-xs text-muted-foreground">
-                                  {file.modifiedTime ? new Date(file.modifiedTime).toLocaleDateString() : 'Unknown date'}
-                                </div>
-                              </button>
-                            ))}
-                          </div>
-                        ) : (
-                          <div className="space-y-1">
-                            {state.driveFiles.filter((item: any) => item.type !== 'folder').map((file: any) => (
-                              <button
-                                key={file.id}
-                                onClick={() => selectDriveFile(file)}
-                                className={`w-full p-3 bg-background border rounded-lg transition-colors text-left flex items-center gap-3 ${
-                                  state.driveSelectedFile?.id === file.id
-                                    ? 'border-primary ring-2 ring-primary'
-                                    : 'border-border hover:border-primary'
-                                }`}
-                              >
-                                {file.thumbnailLink ? (
-                                  <img
-                                    src={`/api/drive/files/${file.id}/thumbnail${state.driveCurrentDriveId ? `?driveId=${state.driveCurrentDriveId}` : ''}`}
-                                    alt={file.name}
-                                    className="w-12 h-12 object-cover rounded"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
-                                    <FileImage size={18} className="text-muted-foreground" />
-                                  </div>
-                                )}
-                                <div className="flex-1">
-                                  <div className="text-sm font-medium text-foreground">{file.name}</div>
+                            {state.driveFiles.filter((item: any) => item.type !== 'folder').map((file: any) => {
+                              // Check if this Drive file has already been ingested
+                              const existingAsset = state.assets.find(a => a.drive?.fileId === file.id);
+                              const isIngested = !!existingAsset;
+                              
+                              return (
+                                <button
+                                  key={file.id}
+                                  draggable={isIngested}
+                                  data-asset-id={isIngested ? existingAsset.id : undefined}
+                                  onDragStart={isIngested ? (e) => handleDragStart(e, existingAsset) : undefined}
+                                  onClick={() => selectDriveFile(file)}
+                                  className={`p-3 bg-background border rounded-lg transition-colors text-left ${
+                                    state.driveSelectedFile?.id === file.id
+                                      ? 'border-primary ring-2 ring-primary'
+                                      : 'border-border hover:border-primary'
+                                  } ${isIngested ? 'cursor-grab' : 'cursor-pointer'}`}
+                                >
+                                  {file.thumbnailLink ? (
+                                    <img
+                                      src={`/api/drive/files/${file.id}/thumbnail${state.driveCurrentDriveId ? `?driveId=${state.driveCurrentDriveId}` : ''}`}
+                                      alt={file.name}
+                                      className="w-full aspect-square object-cover rounded mb-2"
+                                      draggable={false}
+                                    />
+                                  ) : (
+                                    <div className="w-full aspect-square bg-muted rounded mb-2 flex items-center justify-center">
+                                      <FileImage size={24} className="text-muted-foreground" />
+                                    </div>
+                                  )}
+                                  <div className="text-sm font-medium text-foreground truncate">{file.name}</div>
                                   <div className="text-xs text-muted-foreground">
                                     {file.modifiedTime ? new Date(file.modifiedTime).toLocaleDateString() : 'Unknown date'}
                                   </div>
-                                </div>
-                              </button>
-                            ))}
+                                  {isIngested && (
+                                    <div className="text-xs text-green-600 font-medium mt-1">✓ Ingested</div>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        ) : (
+                          <div className="space-y-1">
+                            {state.driveFiles.filter((item: any) => item.type !== 'folder').map((file: any) => {
+                              // Check if this Drive file has already been ingested
+                              const existingAsset = state.assets.find(a => a.drive?.fileId === file.id);
+                              const isIngested = !!existingAsset;
+                              
+                              return (
+                                <button
+                                  key={file.id}
+                                  draggable={isIngested}
+                                  data-asset-id={isIngested ? existingAsset.id : undefined}
+                                  onDragStart={isIngested ? (e) => handleDragStart(e, existingAsset) : undefined}
+                                  onClick={() => selectDriveFile(file)}
+                                  className={`w-full p-3 bg-background border rounded-lg transition-colors text-left flex items-center gap-3 ${
+                                    state.driveSelectedFile?.id === file.id
+                                      ? 'border-primary ring-2 ring-primary'
+                                      : 'border-border hover:border-primary'
+                                  } ${isIngested ? 'cursor-grab' : 'cursor-pointer'}`}
+                                >
+                                  {file.thumbnailLink ? (
+                                    <img
+                                      src={`/api/drive/files/${file.id}/thumbnail${state.driveCurrentDriveId ? `?driveId=${state.driveCurrentDriveId}` : ''}`}
+                                      alt={file.name}
+                                      className="w-12 h-12 object-cover rounded"
+                                      draggable={false}
+                                    />
+                                  ) : (
+                                    <div className="w-12 h-12 bg-muted rounded flex items-center justify-center">
+                                      <FileImage size={18} className="text-muted-foreground" />
+                                    </div>
+                                  )}
+                                  <div className="flex-1">
+                                    <div className="text-sm font-medium text-foreground">{file.name}</div>
+                                    <div className="text-xs text-muted-foreground">
+                                      {file.modifiedTime ? new Date(file.modifiedTime).toLocaleDateString() : 'Unknown date'}
+                                    </div>
+                                    {isIngested && (
+                                      <div className="text-xs text-green-600 font-medium">✓ Ingested</div>
+                                    )}
+                                  </div>
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
 
