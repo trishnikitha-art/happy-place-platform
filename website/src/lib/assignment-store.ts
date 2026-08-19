@@ -1,12 +1,17 @@
 /**
  * Service Card Assignment Store
- * 
+ *
  * Provides persistent storage for service card media assignments.
  * Stores assignments independently of static services.v1.json configuration.
- * Uses Vercel KV for durable runtime storage.
+ * Uses Upstash Redis for durable runtime storage.
  */
 
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
+
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL || '',
+  token: process.env.KV_REST_API_TOKEN || '',
+});
 
 const ASSIGNMENT_PREFIX = 'service-card-assignment:';
 
@@ -24,7 +29,7 @@ export interface ServiceCardAssignment {
 export async function storeServiceCardAssignment(assignment: ServiceCardAssignment): Promise<void> {
   try {
     const key = `${ASSIGNMENT_PREFIX}${assignment.serviceSlug}`;
-    await kv.set(key, JSON.stringify(assignment));
+    await redis.set(key, JSON.stringify(assignment));
     console.log('[ASSIGNMENT_STORE] Stored assignment:', assignment.serviceSlug, assignment.mediaId);
   } catch (error) {
     // Check if this is a KV configuration error
@@ -46,14 +51,12 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
 export async function getServiceCardAssignment(serviceSlug: string): Promise<ServiceCardAssignment | null> {
   try {
     const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
-    const value = await kv.get(key);
+    const value = await redis.get(key);
     if (!value) return null;
-    
-    // Handle both string and object returns from KV SDK
+
+    // Upstash Redis returns strings; parse JSON
     if (typeof value === 'string') {
       return JSON.parse(value) as ServiceCardAssignment;
-    } else if (typeof value === 'object') {
-      return value as ServiceCardAssignment;
     } else {
       console.error('[ASSIGNMENT_STORE] Unexpected value type:', typeof value);
       return null;
@@ -76,7 +79,7 @@ export async function getServiceCardAssignment(serviceSlug: string): Promise<Ser
 export async function deleteServiceCardAssignment(serviceSlug: string): Promise<void> {
   try {
     const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
-    await kv.del(key);
+    await redis.del(key);
     console.log('[ASSIGNMENT_STORE] Deleted assignment:', serviceSlug);
   } catch (error) {
     // Check if this is a KV configuration error
@@ -95,29 +98,29 @@ export async function deleteServiceCardAssignment(serviceSlug: string): Promise<
  */
 export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignment[]> {
   try {
-    const keys = await kv.keys(`${ASSIGNMENT_PREFIX}*`);
+    // Use scan to find all keys with the assignment prefix
+    const keys: string[] = [];
+    let cursor = '0';
+    do {
+      const result = await redis.scan(cursor, { match: `${ASSIGNMENT_PREFIX}*`, count: 100 });
+      cursor = result[0];
+      keys.push(...result[1]);
+    } while (cursor !== '0');
+
     const assignments: ServiceCardAssignment[] = [];
-    
+
     for (const key of keys) {
       try {
-        const value = await kv.get(key);
-        if (value) {
-          let assignment: ServiceCardAssignment;
-          if (typeof value === 'string') {
-            assignment = JSON.parse(value) as ServiceCardAssignment;
-          } else if (typeof value === 'object') {
-            assignment = value as ServiceCardAssignment;
-          } else {
-            console.log('[ASSIGNMENT_STORE] Skipping invalid value type:', typeof value);
-            continue;
-          }
+        const value = await redis.get(key);
+        if (value && typeof value === 'string') {
+          const assignment = JSON.parse(value) as ServiceCardAssignment;
           assignments.push(assignment);
         }
       } catch (error) {
         console.log('[ASSIGNMENT_STORE] Failed to load individual key:', key, error);
       }
     }
-    
+
     return assignments;
   } catch (error) {
     // Check if this is a KV configuration error

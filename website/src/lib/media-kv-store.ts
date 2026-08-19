@@ -1,12 +1,17 @@
 /**
  * Media Metadata KV Store
- * 
- * Provides persistent storage for Media records using Vercel KV.
+ *
+ * Provides persistent storage for Media records using Upstash Redis.
  * Stores and retrieves Media objects by ID.
  */
 
-import { kv } from '@vercel/kv';
+import { Redis } from '@upstash/redis';
 import type { Media } from '@/types/media';
+
+const redis = new Redis({
+  url: process.env.KV_REST_API_URL || '',
+  token: process.env.KV_REST_API_TOKEN || '',
+});
 
 const MEDIA_PREFIX = 'media:';
 const CONTENT_HASH_PREFIX = 'content_hash:';
@@ -17,11 +22,11 @@ const CONTENT_HASH_PREFIX = 'content_hash:';
  */
 export async function storeMedia(media: Media): Promise<void> {
   try {
-    await kv.set(`${MEDIA_PREFIX}${media.id}`, JSON.stringify(media));
-    
+    await redis.set(`${MEDIA_PREFIX}${media.id}`, JSON.stringify(media));
+
     // Index by content hash for deduplication
     if (media.contentHash) {
-      await kv.set(`${CONTENT_HASH_PREFIX}${media.contentHash}`, media.id);
+      await redis.set(`${CONTENT_HASH_PREFIX}${media.contentHash}`, media.id);
     }
   } catch (error) {
     // Check if this is a KV configuration error
@@ -42,14 +47,12 @@ export async function storeMedia(media: Media): Promise<void> {
  */
 export async function getMedia(id: string): Promise<Media | null> {
   try {
-    const value = await kv.get(`${MEDIA_PREFIX}${id}`);
+    const value = await redis.get(`${MEDIA_PREFIX}${id}`);
     if (!value) return null;
-    
-    // Handle both string and object returns from KV SDK
+
+    // Upstash Redis returns strings; parse JSON
     if (typeof value === 'string') {
       return JSON.parse(value) as Media;
-    } else if (typeof value === 'object') {
-      return value as Media;
     } else {
       console.error('[MEDIA_KV] Unexpected value type:', typeof value);
       return null;
@@ -72,7 +75,7 @@ export async function getMedia(id: string): Promise<Media | null> {
  */
 export async function findMediaByContentHash(contentHash: string): Promise<string | null> {
   try {
-    const value = await kv.get(`${CONTENT_HASH_PREFIX}${contentHash}`);
+    const value = await redis.get(`${CONTENT_HASH_PREFIX}${contentHash}`);
     return value as string | null;
   } catch (error) {
     // Check if this is a KV configuration error
@@ -108,9 +111,9 @@ export async function deleteMedia(id: string): Promise<void> {
   try {
     const media = await getMedia(id);
     if (media && media.contentHash) {
-      await kv.del(`${CONTENT_HASH_PREFIX}${media.contentHash}`);
+      await redis.del(`${CONTENT_HASH_PREFIX}${media.contentHash}`);
     }
-    await kv.del(`${MEDIA_PREFIX}${id}`);
+    await redis.del(`${MEDIA_PREFIX}${id}`);
   } catch (error) {
     console.error('[MEDIA_KV] Delete failed:', error);
     throw new Error(`Failed to delete media ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
