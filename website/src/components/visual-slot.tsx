@@ -53,15 +53,21 @@ export function VisualSlot({
   const elementRef = useRef<HTMLDivElement>(null);
   const [isWorkbenchMode, setIsWorkbenchMode] = useState(false);
 
+  console.log('[SLOT] RENDER', { id, route, page, section, slotName, currentMediaId, windowIsIframe: window.parent !== window });
+
   useEffect(() => {
+    console.log('[SLOT] COMPONENT_MOUNTING', { id, route, page, section, slotName, currentMediaId, windowIsIframe: window.parent !== window });
+
     // Check workbench mode only on client
     const isWorkbench = typeof window !== 'undefined' &&
       new URLSearchParams(window.location.search).has('workbench');
     setIsWorkbenchMode(isWorkbench);
-  }, []);
+    
+    console.log('[SLOT] WORKBENCH_MODE_CHECK', { isWorkbench, searchParams: typeof window !== 'undefined' ? window.location.search : 'SSR' });
+  }, [id, route, page, section, slotName, currentMediaId]);
 
   useEffect(() => {
-    console.log('[SLOT] IFRAME_READY', { id, route, page, section, slotName, currentMediaId, windowIsIframe: window.parent !== window });
+    console.log('[SLOT] REGISTRATION_EFFECT_RUNNING', { id, route, page, section, slotName, currentMediaId, windowIsIframe: window.parent !== window });
 
     // Register slot on mount
     const slot: RegisteredSlot = {
@@ -87,6 +93,8 @@ export function VisualSlot({
       };
       console.log('[SLOT] REGISTER_SENT', registerMessage);
       window.parent.postMessage(registerMessage, '*');
+    } else {
+      console.log('[SLOT] NOT_IN_IFRAME - No parent postMessage needed');
     }
 
     // Listen for REFRESH_SLOTS message from parent

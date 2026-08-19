@@ -140,6 +140,7 @@ export default function MediaWorkbench() {
           slotId: event.data.slot?.id,
           route: event.data.slot?.route,
           currentRegisteredSlots: state.registeredSlots.length,
+          origin: event.origin,
         });
         
         // Store iframe slot directly from payload (iframe and parent have separate JS contexts)
@@ -1290,7 +1291,8 @@ Check browser console for detailed logs.`);
             src={`${window.location.origin}${state.selectedPage}?workbench=true`}
             className="w-full h-full border-0"
             title="Website Preview"
-            sandbox="allow-same-origin allow-scripts"
+            sandbox="allow-same-origin allow-scripts allow-popups"
+            onLoad={() => console.log('[SLOT] IFRAME_LOADED', { src: `${window.location.origin}${state.selectedPage}?workbench=true` })}
           />
         </section>
 
