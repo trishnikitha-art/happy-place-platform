@@ -103,7 +103,8 @@ async function getBlobKeyByContentHash(contentHash: string): Promise<string | nu
     const key = await client.get(`blob_hash:${contentHash}`);
     return key as string | null;
   } catch (e) {
-    return null;
+    console.error('[BLOB_STORAGE] Content hash lookup failed:', e);
+    throw new Error(`Failed to find blob by content hash: ${e instanceof Error ? e.message : 'Unknown error'}`);
   }
 }
 

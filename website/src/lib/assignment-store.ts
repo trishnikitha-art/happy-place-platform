@@ -44,12 +44,6 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
     await client.set(key, JSON.stringify(assignment));
     console.log('[ASSIGNMENT_STORE] Stored assignment:', assignment.serviceSlug, assignment.mediaId);
   } catch (error) {
-    // Check if this is a KV configuration error
-    if (error instanceof Error && error.message.includes('Missing required environment variables')) {
-      console.error('[ASSIGNMENT_STORE] KV not configured - assignment will not persist:', error.message);
-      // Do not throw - allow the operation to continue with in-memory fallback
-      return;
-    }
     console.error('[ASSIGNMENT_STORE] Store failed:', error);
     throw new Error(`Failed to store assignment for ${assignment.serviceSlug}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
@@ -75,13 +69,8 @@ export async function getServiceCardAssignment(serviceSlug: string): Promise<Ser
       return null;
     }
   } catch (error) {
-    // Check if this is a KV configuration error
-    if (error instanceof Error && error.message.includes('Missing required environment variables')) {
-      console.error('[ASSIGNMENT_STORE] KV not configured - cannot retrieve assignment:', error.message);
-      return null;
-    }
     console.error('[ASSIGNMENT_STORE] Get failed:', error);
-    return null;
+    throw new Error(`Failed to retrieve assignment for ${serviceSlug}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -96,11 +85,6 @@ export async function deleteServiceCardAssignment(serviceSlug: string): Promise<
     await client.del(key);
     console.log('[ASSIGNMENT_STORE] Deleted assignment:', serviceSlug);
   } catch (error) {
-    // Check if this is a KV configuration error
-    if (error instanceof Error && error.message.includes('Missing required environment variables')) {
-      console.error('[ASSIGNMENT_STORE] KV not configured - cannot delete assignment:', error.message);
-      return;
-    }
     console.error('[ASSIGNMENT_STORE] Delete failed:', error);
     throw new Error(`Failed to delete assignment for ${serviceSlug}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
@@ -138,12 +122,7 @@ export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignm
 
     return assignments;
   } catch (error) {
-    // Check if this is a KV configuration error
-    if (error instanceof Error && error.message.includes('Missing required environment variables')) {
-      console.error('[ASSIGNMENT_STORE] KV not configured - cannot list assignments:', error.message);
-      return [];
-    }
     console.error('[ASSIGNMENT_STORE] List failed:', error);
-    return [];
+    throw new Error(`Failed to list assignments: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
