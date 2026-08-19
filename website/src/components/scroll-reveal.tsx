@@ -4,6 +4,7 @@ import { motion, Variants } from "framer-motion";
 import { cn } from "@/lib/utils";
 import { revealUp, revealDown, revealLeft, revealRight } from "@/motion";
 import { useMotion } from "@/components/motion-provider";
+import { useEffect } from 'react';
 
 interface ScrollRevealProps {
   children: React.ReactNode;
@@ -31,10 +32,29 @@ export function ScrollReveal({
 }: ScrollRevealProps) {
   const { prefersReducedMotion } = useMotion();
 
+  useEffect(() => {
+    console.log('[SCROLL-REVEAL] COMPONENT_MOUNTED', {
+      prefersReducedMotion,
+      hasChildren: !!children,
+      direction,
+      delay,
+    });
+  }, [prefersReducedMotion, direction, delay]);
+
+  console.log('[SCROLL-REVEAL] RENDER', {
+    prefersReducedMotion,
+    hasChildren: !!children,
+    direction,
+    delay,
+  });
+
   if (prefersReducedMotion) {
+    console.log('[SCROLL-REVEAL] REDUCED_MOTION - rendering plain div');
     // Render children immediately without animation
     return <div className={cn(className)}>{children}</div>;
   }
+
+  console.log('[SCROLL-REVEAL] MOTION_MODE - rendering motion.div with viewport detection');
 
   const variants: Record<string, Variants> = {
     up: revealUp,
@@ -51,6 +71,8 @@ export function ScrollReveal({
       variants={variants[direction]}
       transition={{ delay }}
       className={cn(className)}
+      onAnimationStart={() => console.log('[SCROLL-REVEAL] ANIMATION_START')}
+      onAnimationComplete={() => console.log('[SCROLL-REVEAL] ANIMATION_COMPLETE')}
     >
       {children}
     </motion.div>
