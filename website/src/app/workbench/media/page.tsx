@@ -459,8 +459,36 @@ export default function MediaWorkbench() {
   const loadCanonicalData = async () => {
     try {
       setState(prev => ({ ...prev, loading: true }));
-      const registry = await loadVisualAssetRegistry();
-      setState(prev => ({ ...prev, assets: registry, registeredSlots: slotRegistry.getAll() }));
+      
+      // Load static visual asset registry (media.v1.json)
+      const staticRegistry = await loadVisualAssetRegistry();
+      
+      // Load dynamic media from KV (Drive records)
+      await loadDynamicMedia();
+      
+      // Combine static + dynamic media for complete inventory
+      const combinedRegistry = [...staticRegistry];
+      
+      // Add KV Drive records that aren't already in static registry
+      // Access the dynamic media cache from media.ts
+      const { getDynamicMediaCache } = await import('@/lib/media');
+      const dynamicCache = getDynamicMediaCache();
+      
+      for (const dynamicMedia of dynamicCache) {
+        const exists = staticRegistry.some(a => a.id === dynamicMedia.id);
+        if (!exists) {
+          const driveAsset = await addDriveAssetToRegistry(dynamicMedia);
+          combinedRegistry.push(driveAsset);
+        }
+      }
+      
+      console.log('[WORKBENCH] COMBINED_REGISTRY_LOADED', {
+        staticCount: staticRegistry.length,
+        dynamicCount: dynamicCache.length,
+        combinedCount: combinedRegistry.length,
+      });
+      
+      setState(prev => ({ ...prev, assets: combinedRegistry, registeredSlots: slotRegistry.getAll() }));
     } catch (err) {
       console.error('Failed to load canonical data:', err);
     } finally {

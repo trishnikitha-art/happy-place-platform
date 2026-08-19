@@ -125,6 +125,13 @@ export async function loadDynamicMedia(): Promise<void> {
 }
 
 /**
+ * Get the dynamic media cache (for accessing Drive records)
+ */
+export function getDynamicMediaCache(): Media[] {
+  return dynamicMediaCache;
+}
+
+/**
  * Clear dynamic media cache
  */
 export function clearDynamicMediaCache(): void {
