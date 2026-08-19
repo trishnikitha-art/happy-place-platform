@@ -126,6 +126,16 @@ export function VisualSlot({
         slot: { id, route, page, section, slotName, currentMediaId, component },
       };
       const targetOrigin = window.parent.location.origin;
+      console.log('[VS_FORENSIC] REGISTER_MESSAGE_CONSTRUCTED', {
+        messageType: registerMessage.type,
+        messageShape: Object.keys(registerMessage),
+        slotShape: Object.keys(registerMessage.slot),
+        targetOrigin,
+        parentOrigin: window.parent.location?.origin,
+        currentOrigin: window.location.origin,
+        originsMatch: window.parent.location?.origin === window.location.origin,
+        timestamp: Date.now(),
+      });
       console.log('[VS_FORENSIC] REGISTER_SENT', {
         slotId: id,
         route,
@@ -187,6 +197,28 @@ export function VisualSlot({
     };
 
     window.addEventListener('message', handleMessage);
+
+    // Add DOM forensic log after mount
+    setTimeout(() => {
+      const slots = document.querySelectorAll('[data-slot-id]');
+      console.log('[VS_FORENSIC] DOM_INVENTORY', {
+        totalSlots: slots.length,
+        slotIds: Array.from(slots).map(s => {
+          const element = s as HTMLElement;
+          return {
+            id: element.dataset.slotId,
+            route: element.dataset.slotRoute,
+            section: element.dataset.slotSection,
+            pointerEvents: getComputedStyle(element).pointerEvents,
+            draggable: element.draggable,
+            hasOnClick: element.getAttribute('onclick') !== null,
+            hasOnDragOver: element.getAttribute('ondragover') !== null,
+            hasOnDrop: element.getAttribute('ondrop') !== null,
+          };
+        }),
+        timestamp: Date.now(),
+      });
+    }, 1000);
 
     // Unregister on unmount
     return () => {
@@ -281,6 +313,19 @@ export function VisualSlot({
         applicationData, // Pass full application data for Drive references
       };
       const targetOrigin = window.parent.location.origin;
+      console.log('[VS_FORENSIC] DROP_MESSAGE_CONSTRUCTED', {
+        messageType: dropMessage.type,
+        messageShape: Object.keys(dropMessage),
+        slotShape: Object.keys(dropMessage.slot),
+        assetId,
+        hasApplicationData: !!applicationData,
+        applicationDataKeys: applicationData ? Object.keys(applicationData) : [],
+        targetOrigin,
+        parentOrigin: window.parent.location?.origin,
+        currentOrigin: window.location.origin,
+        originsMatch: window.parent.location?.origin === window.location.origin,
+        timestamp: Date.now(),
+      });
       console.log('[VS_FORENSIC] DROP_SENT', {
         slotId: id,
         messageType: dropMessage.type,

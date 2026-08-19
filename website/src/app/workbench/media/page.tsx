@@ -137,6 +137,14 @@ export default function MediaWorkbench() {
     // Listen for iframe messages (SLOT_REGISTER and SLOT_CLICK)
     const handleMessage = async (event: MessageEvent) => {
       const iframeWindow = iframeRef.current?.contentWindow;
+      console.log('[WB_FORENSIC] RAW_MESSAGE_DATA', {
+        data: event.data,
+        keys: event.data && typeof event.data === 'object' ? Object.keys(event.data) : [],
+        type: event.data?.type,
+        dataString: JSON.stringify(event.data),
+        timestamp: Date.now(),
+      });
+
       console.log('[WB_FORENSIC] MESSAGE_RECEIVED', {
         eventType: event.type,
         eventOrigin: event.origin,
@@ -319,18 +327,13 @@ export default function MediaWorkbench() {
           registeredSlots: registeredSlotsRef.current.map(s => ({ id: s.id, route: s.route })),
         });
 
-        console.log('[DND] DROP_WAITING_FOR_REGISTRATION', {
-          slotId,
-          registeredSlotsCount: registeredSlotsRef.current.length,
-          targetSlotExists: registeredSlotsRef.current.some(s => s.id === slotId),
+        console.log('[WB_FORENSIC] DROP_SLOT_LOOKUP', {
+          requestedSlotId: slotId,
+          registeredSlotIds: registeredSlotsRef.current.map(s => s.id),
+          matchedSlot: registeredSlotsRef.current.find(s => s.id === slotId),
+          lookupSuccess: !!registeredSlotsRef.current.find(s => s.id === slotId),
+          timestamp: Date.now(),
         });
-
-        // If no slots registered, reject gracefully
-        if (registeredSlotsRef.current.length === 0) {
-          console.log('[DND] NO_SLOTS_REGISTERED - Cannot perform assignment');
-          alert('Slot registration not ready. Please try again in a moment.');
-          return;
-        }
 
         // Use payload directly instead of slotRegistry.get (separate JS contexts)
         const slot: RegisteredSlot = {
@@ -350,6 +353,8 @@ export default function MediaWorkbench() {
           route: slot.route,
           currentMediaId: slot.currentMediaId,
           slotResolved: !!slot,
+          slotFromPayload: !!event.data.slot,
+          slotIdMatch: event.data.slot?.id === slot.id,
         });
 
         // Handle Drive reference (direct drag from Drive without ingestion)
