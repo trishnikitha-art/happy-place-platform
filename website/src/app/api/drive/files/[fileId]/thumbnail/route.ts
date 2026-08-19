@@ -9,7 +9,8 @@
  */
 
 import { NextResponse } from 'next/server';
-import { driveOAuthManager } from '@/lib/drive/oauth-manager';
+import { google } from 'googleapis';
+import { getGoogleAuth } from '@/lib/google';
 
 export const dynamic = 'force-dynamic';
 
@@ -24,8 +25,9 @@ export async function GET(
 
     console.log('[Drive Thumbnail] Request:', { fileId, driveId });
 
-    // Get Drive client with authentication
-    const drive = await driveOAuthManager.getDriveClient();
+    // Use server-side OAuth credentials for public access
+    const auth = getGoogleAuth();
+    const drive = google.drive({ version: 'v3', auth });
 
     // Get file metadata including thumbnailLink
     const getFileParams: any = {
@@ -51,9 +53,10 @@ export async function GET(
     console.log('[Drive Thumbnail] Fetching thumbnail from:', file.data.thumbnailLink);
 
     // Fetch thumbnail with authentication
+    const tokenResponse = await auth.getAccessToken();
     const thumbnailResponse = await fetch(file.data.thumbnailLink, {
       headers: {
-        Authorization: `Bearer ${(await driveOAuthManager.getClient()).credentials.access_token}`,
+        Authorization: `Bearer ${tokenResponse.token}`,
       },
     });
 
