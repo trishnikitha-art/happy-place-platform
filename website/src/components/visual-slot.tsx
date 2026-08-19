@@ -172,13 +172,11 @@ export function VisualSlot({
         source: applicationData?.source,
         driveFileId: applicationData?.driveFileId,
         sharedDriveId: applicationData?.sharedDriveId,
-        needsIngestion: applicationData?.needsIngestion,
       };
       console.log('[DND] SLOT_DROP_POSTMESSAGE', {
         slotId: id,
         assetId,
         source: applicationData?.source,
-        needsIngestion: applicationData?.needsIngestion,
       });
       window.parent.postMessage(dropMessage, '*');
     }
