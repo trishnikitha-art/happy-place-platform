@@ -29,18 +29,8 @@ class SlotRegistry {
   private slots: Map<string, RegisteredSlot> = new Map();
   private listeners: Set<() => void> = new Set();
   private isWorkbenchMode = false;
-  private instanceId: string;
 
   constructor() {
-    // Generate unique instance ID for forensic debugging
-    this.instanceId = `REG-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    
-    console.log('[SLOT-REGISTRY] INSTANCE_CREATED', {
-      instanceId: this.instanceId,
-      isBrowser: typeof window !== 'undefined',
-      timestamp: new Date().toISOString(),
-    });
-
     if (typeof window !== 'undefined') {
       this.isWorkbenchMode = window.location.pathname.startsWith('/workbench');
       
@@ -91,8 +81,7 @@ class SlotRegistry {
   };
 
   register(slot: RegisteredSlot) {
-    console.log('[SLOT-REGISTRY] REGISTER', {
-      instanceId: this.instanceId,
+    console.log('[FORENSIC] SLOT REGISTRY REGISTER', {
       slotId: slot.id,
       route: slot.route,
       compositeKey: this.makeKey(slot),
@@ -158,11 +147,6 @@ class SlotRegistry {
   }
 
   getAll(): RegisteredSlot[] {
-    console.log('[SLOT-REGISTRY] GET_ALL', {
-      instanceId: this.instanceId,
-      count: this.slots.size,
-      slots: Array.from(this.slots.keys()),
-    });
     return Array.from(this.slots.values());
   }
 
@@ -193,5 +177,18 @@ class SlotRegistry {
   }
 }
 
-// Singleton instance
-export const slotRegistry = new SlotRegistry();
+// Singleton instance with browser-global singleton for chunk deduplication
+function getSlotRegistrySingleton(): SlotRegistry {
+  if (typeof window === 'undefined') {
+    // Server-side: return module instance
+    return new SlotRegistry();
+  }
+  
+  // Browser-side: use window singleton to ensure single instance across chunks
+  if (!(window as any).__SLOT_REGISTRY__) {
+    (window as any).__SLOT_REGISTRY__ = new SlotRegistry();
+  }
+  return (window as any).__SLOT_REGISTRY__;
+}
+
+export const slotRegistry = getSlotRegistrySingleton();
