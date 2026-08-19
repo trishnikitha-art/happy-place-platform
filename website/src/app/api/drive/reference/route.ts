@@ -120,6 +120,7 @@ export async function POST(request: Request) {
       dimensions: { width: 0, height: 0 }, // Placeholder for materialization
       variants: {
         // Drive proxy URL for lightweight rendering (will be upgraded to Blob variants later)
+        thumbnail: `/api/drive/files/${fileId}/thumbnail${sharedDriveId ? `?driveId=${sharedDriveId}` : ''}`,
         web: `/api/drive/files/${fileId}/thumbnail${sharedDriveId ? `?driveId=${sharedDriveId}` : ''}`,
       },
       alt: driveFile.name,

@@ -1696,9 +1696,21 @@ Check browser console for detailed logs.`);
                         alt={asset.filename}
                         className="w-full h-full object-cover"
                       />
+                    ) : asset.variants?.web ? (
+                      <img
+                        src={asset.variants.web}
+                        alt={asset.filename}
+                        className="w-full h-full object-cover"
+                      />
                     ) : asset.variants?.webp || asset.variants?.original ? (
                       <img
                         src={asset.variants.webp || asset.variants.original}
+                        alt={asset.filename}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : asset.drive?.fileId ? (
+                      <img
+                        src={`/api/drive/files/${asset.drive.fileId}/thumbnail${asset.drive.driveId ? `?driveId=${asset.drive.driveId}` : ''}`}
                         alt={asset.filename}
                         className="w-full h-full object-cover"
                       />
