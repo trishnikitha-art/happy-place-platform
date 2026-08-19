@@ -29,13 +29,33 @@ class SlotRegistry {
   private slots: Map<string, RegisteredSlot> = new Map();
   private listeners: Set<() => void> = new Set();
   private isWorkbenchMode = false;
+  private readonly instanceId: string;
 
   constructor() {
+    this.instanceId = `REG-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    
+    console.log('[REGISTRY] CONSTRUCTOR', {
+      instanceId: this.instanceId,
+      isBrowser: typeof window !== 'undefined',
+      windowLocation: typeof window !== 'undefined' ? window.location.pathname : 'SSR',
+      windowSearch: typeof window !== 'undefined' ? window.location.search : 'SSR',
+      timestamp: new Date().toISOString(),
+    });
+
     if (typeof window !== 'undefined') {
       this.isWorkbenchMode = window.location.pathname.startsWith('/workbench');
       
+      console.log('[REGISTRY] WORKBENCH_MODE_DETECTION', {
+        instanceId: this.instanceId,
+        isWorkbenchMode: this.isWorkbenchMode,
+        pathname: window.location.pathname,
+        search: window.location.search,
+        hasWorkbenchParam: window.location.search.includes('workbench=true'),
+      });
+      
       if (this.isWorkbenchMode) {
         window.addEventListener('message', this.handleMessage);
+        console.log('[REGISTRY] MESSAGE_LISTENER_ATTACHED', { instanceId: this.instanceId });
       }
     }
   }
@@ -81,28 +101,59 @@ class SlotRegistry {
   };
 
   register(slot: RegisteredSlot) {
-    console.log('[FORENSIC] SLOT REGISTRY REGISTER', {
+    console.log('[REGISTRY] REGISTER_START', {
+      instanceId: this.instanceId,
       slotId: slot.id,
       route: slot.route,
       compositeKey: this.makeKey(slot),
       currentMediaId: slot.currentMediaId,
       isWorkbenchMode: this.isWorkbenchMode,
       parentWindow: typeof window !== 'undefined' ? window.parent !== window : 'N/A',
+      currentSlotCount: this.slots.size,
     });
+    
     this.slots.set(this.makeKey(slot), slot);
+    
+    console.log('[REGISTRY] REGISTER_COMPLETE', {
+      instanceId: this.instanceId,
+      slotId: slot.id,
+      newSlotCount: this.slots.size,
+      allSlots: Array.from(this.slots.keys()),
+    });
 
     // If in regular page mode and workbench is open, notify parent
     if (!this.isWorkbenchMode && typeof window !== 'undefined' && window.parent !== window) {
-      // Remove element before sending (cannot clone HTMLElement)
-      const { element, ...slotWithoutElement } = slot;
-      console.log('[FORENSIC] SLOT REGISTRY POSTMESSAGE SLOT_REGISTER', {
+      console.log('[REGISTRY] POSTMESSAGE_PREPARE', {
+        instanceId: this.instanceId,
         slotId: slot.id,
         targetOrigin: '*',
       });
+      
+      // Remove element before sending (cannot clone HTMLElement)
+      const { element, ...slotWithoutElement } = slot;
+      
+      console.log('[REGISTRY] POSTMESSAGE_SEND', {
+        instanceId: this.instanceId,
+        slotId: slot.id,
+        message: { type: 'SLOT_REGISTER', slot: slotWithoutElement },
+      });
+      
       window.parent.postMessage({
         type: 'SLOT_REGISTER',
         slot: slotWithoutElement,
       }, '*');
+      
+      console.log('[REGISTRY] POSTMESSAGE_SENT', {
+        instanceId: this.instanceId,
+        slotId: slot.id,
+      });
+    } else {
+      const skipReason = !this.isWorkbenchMode ? 'in workbench mode' : 'no parent window';
+      console.log('[REGISTRY] POSTMESSAGE_SKIPPED', {
+        instanceId: this.instanceId,
+        slotId: slot.id,
+        reason: skipReason,
+      });
     }
 
     this.notify();
@@ -147,6 +198,11 @@ class SlotRegistry {
   }
 
   getAll(): RegisteredSlot[] {
+    console.log('[REGISTRY] GET_ALL', {
+      instanceId: this.instanceId,
+      count: this.slots.size,
+      slots: Array.from(this.slots.keys()),
+    });
     return Array.from(this.slots.values());
   }
 
@@ -179,15 +235,29 @@ class SlotRegistry {
 
 // Singleton instance with browser-global singleton for chunk deduplication
 function getSlotRegistrySingleton(): SlotRegistry {
+  console.log('[REGISTRY] SINGLETON_ACCESS', {
+    isBrowser: typeof window !== 'undefined',
+    hasWindowGlobal: typeof window !== 'undefined' && (window as any).__SLOT_REGISTRY__,
+  });
+  
   if (typeof window === 'undefined') {
     // Server-side: return module instance
+    console.log('[REGISTRY] SINGLETON_SERVER_SIDE');
     return new SlotRegistry();
   }
   
   // Browser-side: use window singleton to ensure single instance across chunks
   if (!(window as any).__SLOT_REGISTRY__) {
+    console.log('[REGISTRY] SINGLETON_CREATING_BROWSER_GLOBAL');
     (window as any).__SLOT_REGISTRY__ = new SlotRegistry();
+  } else {
+    console.log('[REGISTRY] SINGLETON_REUSE_BROWSER_GLOBAL');
   }
+  
+  console.log('[REGISTRY] SINGLETON_RETURN', {
+    instanceId: (window as any).__SLOT_REGISTRY__.instanceId,
+  });
+  
   return (window as any).__SLOT_REGISTRY__;
 }
 
