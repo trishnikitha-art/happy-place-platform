@@ -176,6 +176,8 @@ export function VisualSlot({
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
+    // Force cursor to show as valid drop target
+    e.dataTransfer.effectAllowed = 'copy';
   };
 
   const handleDrop = (e: React.DragEvent) => {
