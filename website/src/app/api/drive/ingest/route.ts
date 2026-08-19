@@ -170,6 +170,36 @@ async function generateVariants(
 
 export async function POST(request: Request) {
   console.log('[MEDIA_INGEST] request started');
+  console.log('[MEDIA_INGEST] environment detection', {
+    nodeEnv: process.env.NODE_ENV,
+    vercelEnv: process.env.VERCEL_ENV,
+    vercelUrl: process.env.VERCEL_URL,
+    isVercel: !!process.env.VERCEL,
+    cwd: process.cwd(),
+    projectsDir: PROJECTS_DIR,
+    mediaConfigPath: MEDIA_CONFIG_PATH,
+  });
+  
+  // WARNING: Vercel filesystem is ephemeral
+  if (process.env.VERCEL) {
+    console.log('[MEDIA_INGEST] CRITICAL: Running on Vercel');
+    console.log('[MEDIA_INGEST] CRITICAL: Filesystem writes are ephemeral and do not persist across deployments');
+    console.log('[MEDIA_INGEST] CRITICAL: Media files will be lost when the function container is recycled');
+    console.log('[MEDIA_INGEST] CRITICAL: media.v1.json is part of git repository and cannot be reliably mutated in production');
+    console.log('[MEDIA_INGEST] CRITICAL: This architecture requires a persistent storage solution (Vercel Blob, S3, or similar)');
+    
+    // Return clear error about storage architecture
+    return NextResponse.json(
+      { 
+        error: 'STORAGE_ARCHITECTURE_ERROR', 
+        stage: 'architecture', 
+        message: 'Serverless deployment cannot reliably persist media files to filesystem.',
+        retryable: false,
+        details: 'Running on Vercel: filesystem writes are ephemeral. Media requires persistent storage (Vercel Blob, S3, etc).'
+      },
+      { status: 503 }
+    );
+  }
 
   // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
   if (process.env.NODE_ENV === 'development') {
@@ -313,21 +343,104 @@ export async function POST(request: Request) {
 
     // 7. Generate output directory
     const outputDir = join(PROJECTS_DIR, folderName);
+    console.log('[MEDIA_INGEST] filesystem operation started', {
+      operation: 'create directory',
+      path: outputDir,
+      exists: existsSync(outputDir),
+    });
+    
     if (!existsSync(outputDir)) {
       mkdirSync(outputDir, { recursive: true });
+      console.log('[MEDIA_INGEST] directory created', { path: outputDir });
+    } else {
+      console.log('[MEDIA_INGEST] directory already exists', { path: outputDir });
     }
 
     // 8. Save original asset
     const originalExt = driveFile.name.split('.').pop() || 'jpg';
     const originalPath = join(outputDir, `${baseName}-original.${originalExt}`);
+    
+    console.log('[MEDIA_INGEST] filesystem operation started', {
+      operation: 'write original',
+      path: originalPath,
+      bytes: fileBuffer.length,
+    });
+    
     writeFileSync(originalPath, fileBuffer);
-    console.log('[MEDIA_INGEST] original persisted');
+    
+    // Verify original was written
+    const originalExists = existsSync(originalPath);
+    const originalStats = originalExists ? await import('fs/promises').then(fs => fs.stat(originalPath)) : null;
+    
+    console.log('[MEDIA_INGEST] original persisted', {
+      path: originalPath,
+      exists: originalExists,
+      size: originalStats?.size || 0,
+      success: originalExists && originalStats?.size === fileBuffer.length,
+    });
+    
+    if (!originalExists || originalStats?.size !== fileBuffer.length) {
+      console.log('[MEDIA_INGEST_ERROR] original asset verification failed');
+      return NextResponse.json(
+        { 
+          error: 'ORIGINAL_PERSISTENCE_FAILED', 
+          stage: 'storage', 
+          message: 'Failed to persist original asset to filesystem.',
+          retryable: false,
+          details: `exists=${originalExists}, expected=${fileBuffer.length}, actual=${originalStats?.size || 0}`
+        },
+        { status: 500 }
+      );
+    }
 
     // 9. Generate variants
     console.log('[MEDIA_INGEST] variant generation started');
     const { variants, thumbnail, blurDataURL } = await generateVariants(fileBuffer, folderName, baseName, outputDir);
     console.log('[MEDIA_INGEST] variant generation completed');
     console.log('[MEDIA_INGEST] variants generated:', variants.length);
+
+    // Verify all variants can be read back
+    console.log('[MEDIA_INGEST] filesystem verification started');
+    const variantVerification = [];
+    for (const variant of variants) {
+      const variantPath = join(outputDir, variant.src.split('/').pop()!);
+      const exists = existsSync(variantPath);
+      const stats = exists ? await import('fs/promises').then(fs => fs.stat(variantPath)) : null;
+      variantVerification.push({
+        variant: variant.src,
+        exists,
+        size: stats?.size || 0,
+        readable: (stats?.size || 0) > 0,
+      });
+    }
+    
+    const thumbnailPath = join(outputDir, thumbnail.split('/').pop()!);
+    const thumbnailExists = existsSync(thumbnailPath);
+    const thumbnailStats = thumbnailExists ? await import('fs/promises').then(fs => fs.stat(thumbnailPath)) : null;
+    
+    console.log('[MEDIA_INGEST] filesystem verification results', {
+      variants: variantVerification,
+      thumbnail: {
+        path: thumbnail,
+        exists: thumbnailExists,
+        size: thumbnailStats?.size || 0,
+      },
+      allReadable: variantVerification.every(v => v.readable) && (thumbnailStats?.size || 0) > 0,
+    });
+    
+    if (!variantVerification.every(v => v.readable) || (thumbnailStats?.size || 0) === 0) {
+      console.log('[MEDIA_INGEST_ERROR] variant verification failed');
+      return NextResponse.json(
+        { 
+          error: 'VARIANT_VERIFICATION_FAILED', 
+          stage: 'storage', 
+          message: 'Generated variants could not be read back from filesystem.',
+          retryable: false,
+          details: variantVerification
+        },
+        { status: 500 }
+      );
+    }
 
     // 10. Get image metadata
     const metadata = await sharp(fileBuffer).metadata();
@@ -387,10 +500,59 @@ export async function POST(request: Request) {
     console.log('[MEDIA_INGEST] media record created');
 
     // 12. Update media.v1.json
-    mediaData.media.push(mediaRecord);
-    mediaData.generatedAt = new Date().toISOString();
-    writeFileSync(MEDIA_CONFIG_PATH, JSON.stringify(mediaData, null, 2));
-    console.log('[MEDIA_INGEST] media record verified');
+    console.log('[MEDIA_INGEST] filesystem operation started', {
+      operation: 'write media.v1.json',
+      path: MEDIA_CONFIG_PATH,
+      exists: existsSync(MEDIA_CONFIG_PATH),
+      currentMediaCount: mediaData.media.length,
+    });
+    
+    try {
+      mediaData.media.push(mediaRecord);
+      mediaData.generatedAt = new Date().toISOString();
+      writeFileSync(MEDIA_CONFIG_PATH, JSON.stringify(mediaData, null, 2));
+      
+      // Verify write succeeded
+      const writeExists = existsSync(MEDIA_CONFIG_PATH);
+      const writeContent = writeExists ? readFileSync(MEDIA_CONFIG_PATH, 'utf-8') : null;
+      const writeParsed = writeContent ? JSON.parse(writeContent) : null;
+      const recordExists = writeParsed?.media?.find((m: Media) => m.id === mediaId);
+      
+      console.log('[MEDIA_INGEST] media record verified', {
+        path: MEDIA_CONFIG_PATH,
+        exists: writeExists,
+        recordFound: !!recordExists,
+        recordId: recordExists?.id,
+        totalRecords: writeParsed?.media?.length,
+      });
+      
+      if (!writeExists || !recordExists) {
+        console.log('[MEDIA_INGEST_ERROR] media.v1.json verification failed');
+        return NextResponse.json(
+          { 
+            error: 'MEDIA_PERSISTENCE_FAILED', 
+            stage: 'storage', 
+            message: 'Failed to persist media record to media.v1.json.',
+            retryable: false,
+            details: `exists=${writeExists}, recordFound=${!!recordExists}`
+          },
+          { status: 500 }
+        );
+      }
+    } catch (error) {
+      console.log('[MEDIA_INGEST_ERROR] media.v1.json write failed');
+      console.error('[MEDIA_INGEST_ERROR]', error);
+      return NextResponse.json(
+        { 
+          error: 'MEDIA_WRITE_FAILED', 
+          stage: 'storage', 
+          message: 'Failed to write media.v1.json.',
+          retryable: false,
+          details: error instanceof Error ? error.message : 'Unknown error'
+        },
+        { status: 500 }
+      );
+    }
 
     console.log('[MEDIA_INGEST] ingestion complete');
     return NextResponse.json({

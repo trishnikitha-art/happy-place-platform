@@ -411,27 +411,52 @@ export default function MediaWorkbench() {
         fileId: file.id,
         driveId: state.driveCurrentDriveId,
         filename: file.name,
+        mimeType: file.mimeType,
+        size: file.size,
+        environment: process.env.NODE_ENV,
+      });
+
+      const requestBody = { 
+        driveId: file.id,
+        driveIdParameter: state.driveCurrentDriveId, // Pass Shared Drive ID if present
+      };
+      
+      console.log('[WORKBENCH] API request payload', {
+        endpoint: '/api/drive/ingest',
+        method: 'POST',
+        body: JSON.stringify(requestBody),
       });
 
       const response = await fetch('/api/drive/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          driveId: file.id,
-          driveIdParameter: state.driveCurrentDriveId, // Pass Shared Drive ID if present
-        }),
+        body: JSON.stringify(requestBody),
       });
+      
+      console.log('[WORKBENCH] API response received', {
+        status: response.status,
+        statusText: response.statusText,
+        ok: response.ok,
+      });
+      
       const data = await response.json();
       
-      console.log('[WORKBENCH] Ingestion response:', data);
+      console.log('[WORKBENCH] Ingestion response parsed', {
+        success: data.success,
+        action: data.action,
+        error: data.error,
+        stage: data.stage,
+        message: data.message,
+        mediaId: data.media?.id,
+      });
       
       if (response.ok) {
         alert(`Drive asset ${data.action}: ${data.media.id}`);
         loadCanonicalData(); // Reload to show new asset
         setState(prev => ({ ...prev, driveBrowsing: false, driveSelectedFile: null }));
       } else {
-        console.error('[WORKBENCH] Ingestion failed:', data);
-        alert(`Error: ${data.message || data.error || 'Unknown error'}`);
+        console.error('[WORKBENCH] Ingestion failed with error:', data);
+        alert(`Error (${data.error || 'UNKNOWN'}): ${data.message || 'Unknown error'}`);
       }
     } catch (error) {
       console.error('[WORKBENCH] Failed to use Drive file:', error);
