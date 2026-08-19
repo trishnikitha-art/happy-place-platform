@@ -1,8 +1,8 @@
 /**
  * Drive Thumbnail Proxy API Route
  *
- * Fetches Drive thumbnails using server-side authentication.
- * Avoids CORS issues and short-lived URL problems.
+ * Fetches Drive files using server-side authentication.
+ * Uses webContentLink to download actual image content.
  * Supports both My Drive and Shared Drive files.
  *
  * GET /api/drive/files/:fileId/thumbnail
@@ -42,10 +42,10 @@ export async function GET(
 
     const drive = google.drive({ version: 'v3', auth });
 
-    // Get file metadata including thumbnailLink
+    // Get file metadata including webContentLink and mimeType
     const getFileParams: any = {
       fileId,
-      fields: 'thumbnailLink',
+      fields: 'webContentLink,mimeType',
     };
 
     // Add Shared Drive support if driveId is provided
@@ -54,45 +54,51 @@ export async function GET(
     }
 
     const file = await drive.files.get(getFileParams);
+    const webContentLink = file.data.webContentLink;
+    const mimeType = file.data.mimeType || 'image/jpeg';
 
-    if (!file.data.thumbnailLink) {
-      console.log('[Drive Thumbnail] No thumbnail available for file:', fileId);
+    if (!webContentLink) {
+      console.error('[Drive Thumbnail] File does not have webContentLink:', fileId);
       return NextResponse.json(
-        { error: 'No thumbnail available' },
-        { status: 404 }
+        { error: 'File does not have webContentLink' },
+        { status: 500 }
       );
     }
 
-    console.log('[Drive Thumbnail] Fetching thumbnail from:', file.data.thumbnailLink);
+    console.log('[Drive Thumbnail] Downloading file from webContentLink:', {
+      fileId,
+      mimeType,
+    });
 
-    // Fetch thumbnail with authentication
+    // Download the actual file using webContentLink
     const tokenResponse = await auth.getAccessToken();
-    const thumbnailResponse = await fetch(file.data.thumbnailLink, {
+    const mediaResponse = await fetch(webContentLink, {
       headers: {
         Authorization: `Bearer ${tokenResponse.token}`,
       },
     });
 
-    if (!thumbnailResponse.ok) {
-      console.error('[Drive Thumbnail] Failed to fetch thumbnail:', thumbnailResponse.status, thumbnailResponse.statusText);
+    if (!mediaResponse.ok) {
+      console.error('[Drive Thumbnail] Failed to download file:', mediaResponse.status, mediaResponse.statusText);
       return NextResponse.json(
-        { error: 'Failed to fetch thumbnail' },
-        { status: thumbnailResponse.status }
+        { error: 'Failed to download file' },
+        { status: mediaResponse.status }
       );
     }
 
-    // Return the image
-    const imageBuffer = await thumbnailResponse.arrayBuffer();
+    const imageBuffer = Buffer.from(await mediaResponse.arrayBuffer());
+    const contentType = mediaResponse.headers.get('Content-Type') || mimeType;
 
-    console.log('[Drive Thumbnail] Successfully fetched thumbnail:', {
+    console.log('[Drive Thumbnail] Successfully downloaded file:', {
       fileId,
-      contentType: thumbnailResponse.headers.get('Content-Type'),
+      contentType,
       size: imageBuffer.byteLength,
     });
 
+    // Return the image
     return new NextResponse(imageBuffer, {
       headers: {
-        'Content-Type': thumbnailResponse.headers.get('Content-Type') || 'image/jpeg',
+        'Content-Type': contentType,
         'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
       },
     });
