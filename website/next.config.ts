@@ -9,6 +9,12 @@ const nextConfig: NextConfig = {
     // Remove this (and swap to real JPG/WebP) when client photos are dropped in.
     dangerouslyAllowSVG: true,
     contentDispositionType: "attachment",
+    // Allow Drive thumbnail URLs with query strings for dynamic Drive media
+    localPatterns: [
+      {
+        pathname: '/api/drive/files/**',
+      },
+    ],
   },
   // Allow browser preview for development
   allowedDevOrigins: ['127.0.0.1'],
