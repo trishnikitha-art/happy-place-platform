@@ -6,7 +6,8 @@ import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
 import { getFeaturedServiceMedia } from "@/lib/media";
 import { getMediaById } from "@/lib/media";
-import { useEffect } from 'react';
+
+'use client';
 
 /**
  * ServiceCard — photo-led and dense (CEO review): one iconic image, title,
@@ -23,14 +24,6 @@ import { useEffect } from 'react';
  * Card text always uses light register tokens regardless of page background.
  */
 export function ServiceCard({ service }: { service: Service }) {
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      console.log('[SERVICE_CARD] COMPONENT_MOUNTED', { 
-        serviceSlug: service.slug, 
-        workbenchMode: new URLSearchParams(window.location.search).has('workbench')
-      });
-    }
-  }, [service.slug]);
   // First check for Workbench-assigned card media
   const cardMedia = service.cardMediaId ? getMediaById(service.cardMediaId) : null;
 
