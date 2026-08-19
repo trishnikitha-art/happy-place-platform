@@ -143,8 +143,18 @@ export default function MediaWorkbench() {
         iframeSrc: iframeRef.current?.src,
       });
 
-      // Filter: Only process Workbench protocol messages
+      // Filter: Only process Workbench protocol messages from same origin
+      // Note: iframe.source reference may not be stable, so rely on origin + message type
       if (!event.data || typeof event.data.type !== 'string') {
+        return;
+      }
+
+      // Accept messages from same origin (security)
+      if (event.origin !== window.location.origin) {
+        console.log('[WORKBENCH] MESSAGE_REJECTED - origin mismatch', {
+          expectedOrigin: window.location.origin,
+          actualOrigin: event.origin,
+        });
         return;
       }
 
