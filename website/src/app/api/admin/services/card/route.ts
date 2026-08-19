@@ -1,7 +1,7 @@
 /**
  * Admin Services Card API Endpoint
  * 
- * Updates the service card mediaId in services.v1.json
+ * Updates the service card mediaId using persistent assignment store
  * 
  * POST /api/admin/services/card
  * Body: { serviceSlug: string, mediaId: string }
@@ -10,9 +10,9 @@
  */
 
 import { NextResponse } from "next/server";
-import { readFileSync, writeFileSync } from "fs";
-import { join } from "path";
 import { workbenchSession } from "@/lib/workbench-session";
+import { storeServiceCardAssignment, getServiceCardAssignment } from "@/lib/assignment-store";
+import { getAllServices } from "@/lib/registries";
 
 export const runtime = 'nodejs';
 
@@ -56,67 +56,63 @@ export async function POST(request: Request) {
       );
     }
 
-    // Read services.v1.json
-    const servicesPath = join(process.cwd(), "src/config/services.v1.json");
-    const servicesData = JSON.parse(readFileSync(servicesPath, "utf-8"));
-
-    console.log('[DND SERVER 3] AUTHORITY_BEFORE', {
-      serviceSlug,
-      service: servicesData.services.find((s: any) => s.slug === serviceSlug),
-    });
-
-    // Find and update the service
-    const serviceIndex = servicesData.services.findIndex((s: any) => s.slug === serviceSlug);
-    if (serviceIndex === -1) {
+    // Verify the service exists in static configuration
+    const services = getAllServices();
+    const service = services.find(s => s.slug === serviceSlug);
+    
+    if (!service) {
       return NextResponse.json(
         { error: "Service not found" },
         { status: 404 }
       );
     }
 
-    // Add or update the cardMediaId field
-    servicesData.services[serviceIndex].cardMediaId = mediaId;
-    servicesData.generatedAt = new Date().toISOString();
-
-    console.log('[DND SERVER 4] AUTHORITY_WRITE', {
+    console.log('[DND SERVER 3] SERVICE_VERIFIED', {
       serviceSlug,
-      newCardMediaId: mediaId,
+      serviceExists: true,
     });
 
-    // Write back
-    writeFileSync(servicesPath, JSON.stringify(servicesData, null, 2));
-
-    console.log('[DND SERVER 5] AUTHORITY_AFTER', {
+    // Store assignment in persistent store
+    const assignment = {
       serviceSlug,
-      service: servicesData.services[serviceIndex],
+      mediaId,
+      updatedAt: new Date().toISOString(),
+      source: 'workbench' as const,
+    };
+
+    await storeServiceCardAssignment(assignment);
+
+    console.log('[DND SERVER 4] ASSIGNMENT_STORED', {
+      serviceSlug,
+      mediaId,
     });
 
-    // Read back to prove the write succeeded
-    const readBackData = JSON.parse(readFileSync(servicesPath, "utf-8"));
-    const readBackService = readBackData.services.find((s: any) => s.slug === serviceSlug);
-    console.log('[DND SERVER 6] READ_BACK_VERIFICATION', {
+    // Read back to verify
+    const storedAssignment = await getServiceCardAssignment(serviceSlug);
+    console.log('[DND SERVER 5] ASSIGNMENT_VERIFICATION', {
       serviceSlug,
-      cardMediaId: readBackService?.cardMediaId,
-      matchesExpected: readBackService?.cardMediaId === mediaId,
+      storedMediaId: storedAssignment?.mediaId,
+      matchesExpected: storedAssignment?.mediaId === mediaId,
     });
 
-    console.log('[DND SERVER 7] RESPONSE', {
+    console.log('[DND SERVER 6] RESPONSE', {
       success: true,
       serviceSlug,
       mediaId,
     });
 
-    return NextResponse.json({ success: true, serviceSlug, mediaId });
-  } catch (error) {
-    console.error("Error updating service card:", error);
-    console.error("Error details:", {
-      message: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
+    return NextResponse.json({ 
+      success: true, 
+      serviceSlug, 
+      mediaId,
+      assignment 
     });
+  } catch (error) {
+    console.error('[DND SERVER ERROR]', error);
     return NextResponse.json(
       { 
-        error: "Failed to update service card",
-        details: error instanceof Error ? error.message : String(error)
+        error: "Failed to update service card", 
+        details: error instanceof Error ? error.message : 'Unknown error' 
       },
       { status: 500 }
     );

@@ -8,6 +8,7 @@ import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
 import { getFeaturedServiceMedia } from "@/lib/media";
 import { getMediaById } from "@/lib/media";
+import { useEffect, useState } from "react";
 
 /**
  * ServiceCard — photo-led and dense (CEO review): one iconic image, title,
@@ -16,7 +17,8 @@ import { getMediaById } from "@/lib/media";
  * Updated to use new Service type from registries (data-driven configuration).
  * 
  * Service cards use intent-based media lookups from Media Authority.
- * First checks for assigned cardMediaId from services.v1.json (Workbench assignment).
+ * First checks for assigned cardMediaId from runtime assignment store (Workbench assignment).
+ * Falls back to static cardMediaId from services.v1.json configuration.
  * Falls back to hero image of the highest-ranked project for that service.
  * Falls back to intentional empty state when no images exist for that service.
  * 
@@ -24,14 +26,39 @@ import { getMediaById } from "@/lib/media";
  * Card text always uses light register tokens regardless of page background.
  */
 export function ServiceCard({ service }: { service: Service }) {
+  const [runtimeCardMediaId, setRuntimeCardMediaId] = useState<string | null>(null);
+
+  // Load runtime assignment on mount
+  useEffect(() => {
+    async function loadRuntimeAssignment() {
+      try {
+        const { getServiceCardAssignment } = await import('@/lib/assignment-store');
+        const assignment = await getServiceCardAssignment(service.slug);
+        if (assignment) {
+          setRuntimeCardMediaId(assignment.mediaId);
+          console.log('[SERVICE-CARD] Runtime assignment loaded:', service.slug, assignment.mediaId);
+        }
+      } catch (error) {
+        console.error('[SERVICE-CARD] Failed to load runtime assignment:', error);
+      }
+    }
+    loadRuntimeAssignment();
+  }, [service.slug]);
+
+  // Use runtime assignment if available, otherwise use static configuration
+  const effectiveCardMediaId = runtimeCardMediaId || service.cardMediaId;
+
   // UNCONDITIONAL LOG - will appear in iframe console if component renders
   console.log('[SERVICE-CARD-RENDER]', service.slug);
+  
   // First check for Workbench-assigned card media
-  const cardMedia = service.cardMediaId ? getMediaById(service.cardMediaId) : null;
+  const cardMedia = effectiveCardMediaId ? getMediaById(effectiveCardMediaId) : null;
 
   console.log('[FORENSIC] SERVICE_CARD_MEDIA_RESOLUTION', {
     serviceSlug: service.slug,
-    cardMediaId: service.cardMediaId,
+    runtimeCardMediaId,
+    staticCardMediaId: service.cardMediaId,
+    effectiveCardMediaId,
     cardMediaFound: !!cardMedia,
     cardMediaIdResolved: cardMedia?.id,
     fallbackToFeatured: !cardMedia,

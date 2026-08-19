@@ -57,6 +57,39 @@ export function getAllServices(): Service[] {
 }
 
 /**
+ * Get all services with runtime assignments applied
+ * This combines static configuration with persistent runtime assignments
+ */
+export async function getAllServicesWithAssignments(): Promise<Service[]> {
+  const services = getAllServices();
+  
+  try {
+    const { getServiceCardAssignment } = await import('@/lib/assignment-store');
+    
+    // Apply runtime assignments to each service
+    const servicesWithAssignments = await Promise.all(
+      services.map(async (service) => {
+        const assignment = await getServiceCardAssignment(service.slug);
+        // Runtime assignment takes precedence over static configuration
+        if (assignment) {
+          return {
+            ...service,
+            cardMediaId: assignment.mediaId,
+          };
+        }
+        return service;
+      })
+    );
+    
+    return sortByOrder(servicesWithAssignments);
+  } catch (error) {
+    // If assignment store fails, return static services
+    console.error('[REGISTRY] Failed to apply runtime assignments:', error);
+    return services;
+  }
+}
+
+/**
  * Get service by ID
  */
 export function getServiceById(id: string): Service | null {
