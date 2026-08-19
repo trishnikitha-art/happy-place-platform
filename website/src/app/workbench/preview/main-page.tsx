@@ -25,6 +25,7 @@ import { getFeaturedProjects } from "@/lib/projects";
 import { getHomepageHero } from "@/lib/brand";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
 import { getMediaByIdAsync } from "@/lib/media";
+import type { Media } from "@/types/media";
 
 const siteUrl = "https://happyplacecarpentry.com";
 
@@ -68,24 +69,25 @@ export default async function HomePage() {
   
   // Load runtime assignments for service cards on server side (avoids client-side Redis access)
   // For drive-prefixed IDs, resolve via async KV lookup
-  const serviceCardAssignments = new Map<string, { mediaId: string; mediaObject: any }>();
+  const serviceCardAssignments = new Map<string, { mediaId: string; mediaObject: Media | null }>();
   for (const service of homepageServices) {
     try {
       const assignment = await getServiceCardAssignment(service.slug);
       if (assignment?.mediaId) {
         // Resolve media object - use async KV lookup for drive-prefixed IDs
-        let mediaObject = null;
+        let mediaObject: Media | null = null;
         if (assignment.mediaId.startsWith('drive-')) {
           mediaObject = await getMediaByIdAsync(assignment.mediaId);
         } else {
           mediaObject = getMediaById(assignment.mediaId);
         }
         
-        console.log('[WORKBENCH_PREVIEW] Service card assignment resolved:', {
+        console.log('[FORENSIC] SERVICE_CARD_MEDIA_RESOLUTION', {
           serviceSlug: service.slug,
-          mediaId: assignment.mediaId,
-          mediaResolved: mediaObject !== null,
-          mediaType: mediaObject?.type,
+          runtimeCardMediaId: assignment.mediaId,
+          resolved: Boolean(mediaObject),
+          resolvedMediaId: mediaObject?.id ?? null,
+          resolvedSource: mediaObject?.drive ? 'drive' : 'static',
         });
         
         serviceCardAssignments.set(service.slug, {
