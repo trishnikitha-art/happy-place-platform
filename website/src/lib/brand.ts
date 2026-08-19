@@ -48,9 +48,28 @@ export function loadBrandManifest(): BrandManifest {
 /**
  * Get homepage hero image
  * Returns brand hero or null if not set
+ * Applies runtime assignment from persistent store if available
  */
-export function getHomepageHero(): BrandHero | null {
+export async function getHomepageHero(): Promise<BrandHero | null> {
   const manifest = loadBrandManifest();
+  
+  // Try to load runtime assignment for brand-hero
+  try {
+    const { getServiceCardAssignment } = await import('@/lib/assignment-store');
+    const assignment = await getServiceCardAssignment('brand-hero');
+    
+    if (assignment && assignment.mediaId) {
+      console.log('[BRAND] Runtime assignment loaded for hero:', assignment.mediaId);
+      // Return hero with runtime mediaId
+      return {
+        ...manifest.homepageHero,
+        mediaId: assignment.mediaId,
+      };
+    }
+  } catch (error) {
+    console.error('[BRAND] Failed to load runtime assignment for hero:', error);
+  }
+  
   return manifest.homepageHero;
 }
 

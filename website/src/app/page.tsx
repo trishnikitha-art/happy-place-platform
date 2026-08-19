@@ -17,18 +17,18 @@ import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
 import { getNonArchivedServices } from "@/lib/registries";
 import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
+import { getHomepageHero } from "@/lib/brand";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { NewsletterSignup } from "@/components/newsletter-signup";
 import { getOwnerPortrait } from "@/lib/brand";
 import { getMediaById } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
-import { getHomepageHero } from "@/lib/brand";
 import { VisualSlot } from "@/components/visual-slot";
 
 const siteUrl = "https://happyplacecarpentry.com";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const heroBrand = getHomepageHero();
+  const heroBrand = await getHomepageHero();
   const heroMedia = heroBrand?.mediaId ? getMediaById(heroBrand.mediaId) : null;
   const ogImageUrl = heroMedia?.variants?.web || `${siteUrl}/brand/logo.png`;
 
@@ -54,8 +54,8 @@ export default async function HomePage() {
   const allServices = getNonArchivedServices();      // data-driven services from registry
   const featuredProjects = getFeaturedProjects(); // featured projects from Projects Authority
   
-  // Get hero from Brand Authority
-  const homepageHero = getHomepageHero();
+  // Get hero from Brand Authority with runtime assignment
+  const homepageHero = await getHomepageHero();
   const heroMedia = homepageHero?.mediaId ? getMediaById(homepageHero.mediaId) : null;
   const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original || '/images/hero-background-enhanced.jpg';
   

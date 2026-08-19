@@ -27,7 +27,7 @@ import { getHomepageHero } from "@/lib/brand";
 const siteUrl = "https://happyplacecarpentry.com";
 
 export async function generateMetadata(): Promise<Metadata> {
-  const heroBrand = getHomepageHero();
+  const heroBrand = await getHomepageHero();
   const heroMedia = heroBrand?.mediaId ? getMediaById(heroBrand.mediaId) : null;
   const ogImageUrl = heroMedia?.variants?.web || `${siteUrl}/brand/logo.png`;
 
@@ -56,16 +56,21 @@ export default async function HomePage() {
   // Get exterior painting project for featured transformation (has before/after media)
   const paintingProject = featuredProjects.find(p => p.id === 'exterior-painting-001');
   
+  // Get hero from Brand Authority with runtime assignment
+  const homepageHero = await getHomepageHero();
+  const heroMedia = homepageHero?.mediaId ? getMediaById(homepageHero.mediaId) : null;
+  const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original || '/images/hero-background-enhanced.jpg';
+  
   // Group services for homepage display (show homepageEligible services first)
   const homepageServices = allServices.filter(s => s.homepageEligible);
 
   return (
     <>
-      {/* HERO G�� full-width photograph with text overlay */}
+      {/* HERO — full-width photograph with text overlay */}
       <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
         <WorkshopAtmosphere particleCount={20} />
         <Image
-          src="/images/hero-background-enhanced.jpg"
+          src={heroSrc}
           alt="Photograph of a completed deck project showing quality carpentry work with warm wood tones and clean construction"
           fill
           priority

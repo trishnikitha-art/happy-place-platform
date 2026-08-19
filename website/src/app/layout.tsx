@@ -48,8 +48,8 @@ export const metadata: Metadata = {
   icons: { icon: "/brand/favicon.svg", apple: "/brand/favicon.svg" },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const heroBrand = getHomepageHero();
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const heroBrand = await getHomepageHero();
   const heroMedia = heroBrand?.mediaId ? getMediaById(heroBrand.mediaId) : null;
   const ogImageUrl = heroMedia?.variants?.web || `${siteUrl}/brand/logo.png`;
   const logoUrl = `${siteUrl}/brand/logo.png`;
