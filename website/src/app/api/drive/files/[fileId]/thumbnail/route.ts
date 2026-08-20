@@ -1,7 +1,7 @@
 /**
  * Drive Thumbnail Proxy API Route
  *
- * Fetches Drive files using server-side authentication.
+ * Fetches Drive files using Workbench user OAuth credentials.
  * Uses webContentLink to download actual image content.
  * Supports both My Drive and Shared Drive files.
  *
@@ -10,7 +10,7 @@
 
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { getGoogleAuth } from '@/lib/google';
+import { driveOAuthManager } from '@/lib/drive/oauth-manager';
 
 export const dynamic = 'force-dynamic';
 
@@ -25,21 +25,8 @@ export async function GET(
 
     console.log('[Drive Thumbnail] Request:', { fileId, driveId });
 
-    // Use server-side OAuth credentials for public access
-    let auth;
-    try {
-      auth = getGoogleAuth();
-    } catch (error) {
-      console.error('[Drive Thumbnail] Google auth credentials not configured:', error);
-      return NextResponse.json(
-        { 
-          error: 'Google credentials not configured',
-          message: 'GOOGLE_REFRESH_TOKEN environment variable is required for Drive thumbnail access'
-        },
-        { status: 500 }
-      );
-    }
-
+    // Use Workbench user OAuth credentials
+    const auth = await driveOAuthManager.getClient();
     const drive = google.drive({ version: 'v3', auth });
 
     // Get file metadata including webContentLink and mimeType
