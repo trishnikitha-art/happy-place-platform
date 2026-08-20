@@ -162,7 +162,32 @@ export class DriveSession {
     if (!credentials || !credentials.expiry_date) {
       return true;
     }
-    return Date.now() >= credentials.expiry_date;
+    // Add 60 second buffer to handle clock skew
+    return Date.now() >= (credentials.expiry_date - 60000);
+  }
+
+  /**
+   * Check if token is near expiry (within 5 minutes)
+   */
+  async isTokenNearExpiry(): Promise<boolean> {
+    const credentials = await this.getCredentials();
+    if (!credentials || !credentials.expiry_date) {
+      return true;
+    }
+    // Consider token near expiry if less than 5 minutes remaining
+    return Date.now() >= (credentials.expiry_date - 5 * 60 * 1000);
+  }
+
+  /**
+   * Get time until token expiry in seconds
+   */
+  async getTimeUntilExpiry(): Promise<number> {
+    const credentials = await this.getCredentials();
+    if (!credentials || !credentials.expiry_date) {
+      return 0;
+    }
+    const timeRemaining = credentials.expiry_date - Date.now();
+    return Math.max(0, Math.floor(timeRemaining / 1000));
   }
 
   /**

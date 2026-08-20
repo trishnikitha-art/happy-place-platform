@@ -29,11 +29,12 @@ export class DriveOAuthManager {
     
     const credentials = await driveSession.getCredentials();
     
-    console.log('Credentials from DriveSession:', {
+    console.log('[OAUTH_MANAGER] Credentials from DriveSession:', {
       hasAccessToken: !!credentials?.access_token,
       hasRefreshToken: !!credentials?.refresh_token,
       expiryDate: credentials?.expiry_date,
       scope: credentials?.scope,
+      tokenAge: credentials?.expiry_date ? Date.now() - credentials.expiry_date : 'unknown',
     });
     
     if (!credentials) {
@@ -62,22 +63,41 @@ export class DriveOAuthManager {
       scope: credentials.scope,
     });
 
-    console.log('OAuth2Client created and credentials set');
+    console.log('[OAUTH_MANAGER] OAuth2Client created and credentials set');
+
+    // Proactive token refresh if near expiry (within 5 minutes)
+    if (credentials.expiry_date && credentials.expiry_date - Date.now() < 5 * 60 * 1000) {
+      console.log('[OAUTH_MANAGER] Token near expiry, proactive refresh');
+      try {
+        await this.oauth2Client.refreshAccessToken();
+        console.log('[OAUTH_MANAGER] Proactive refresh successful');
+      } catch (error) {
+        console.error('[OAUTH_MANAGER] Proactive refresh failed:', error);
+        // Don't throw here, will retry on next API call
+      }
+    }
 
     // Set up automatic token refresh
     this.oauth2Client.on('tokens', async (tokens: any) => {
-      console.log('Token refresh event:', {
+      console.log('[OAUTH_MANAGER] Token refresh event:', {
         hasAccessToken: !!tokens.access_token,
         hasRefreshToken: !!tokens.refresh_token,
         expiryDate: tokens.expiry_date,
       });
-      // Update DriveSession with refreshed tokens
-      await driveSession.setCredentials({
-        access_token: tokens.access_token,
-        refresh_token: tokens.refresh_token || credentials.refresh_token,
-        expiry_date: tokens.expiry_date,
-        scope: tokens.scope,
-      });
+      try {
+        // Get current credentials to preserve refresh token if not provided
+        const currentCreds = await driveSession.getCredentials();
+        // Update DriveSession with refreshed tokens
+        await driveSession.setCredentials({
+          access_token: tokens.access_token,
+          refresh_token: tokens.refresh_token || currentCreds?.refresh_token,
+          expiry_date: tokens.expiry_date,
+          scope: tokens.scope,
+        });
+        console.log('[OAUTH_MANAGER] Credentials updated successfully');
+      } catch (error) {
+        console.error('[OAUTH_MANAGER] Failed to update credentials after refresh:', error);
+      }
     });
   }
 
@@ -89,10 +109,17 @@ export class DriveOAuthManager {
       await this.initialize();
     }
     
-    // Ensure token is valid
-    const tokens = await this.oauth2Client.getAccessToken();
-    if (!tokens.token) {
-      await this.oauth2Client.refreshAccessToken();
+    // Ensure token is valid with error handling
+    try {
+      const tokens = await this.oauth2Client.getAccessToken();
+      if (!tokens.token) {
+        await this.oauth2Client.refreshAccessToken();
+      }
+    } catch (error) {
+      console.error('[OAUTH_MANAGER] Token refresh failed, clearing credentials:', error);
+      // Clear invalid credentials on auth failure
+      await this.logout();
+      throw new Error('OAuth token refresh failed. Please re-authenticate with Google Drive.');
     }
 
     return this.oauth2Client;
