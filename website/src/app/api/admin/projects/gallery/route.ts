@@ -11,6 +11,11 @@
  *   - 'add': Append new mediaId to gallery (galleryIndex ignored)
  * 
  * Requires Workbench authentication.
+ * 
+ * Constitutional Architecture:
+ * - In development: Writes to local filesystem for testing
+ * - In production: Uses KV persistence to avoid EROFS errors
+ * - Deploy route commits changes to GitHub
  */
 
 import { NextResponse } from "next/server";
@@ -18,8 +23,22 @@ import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { workbenchSession } from "@/lib/workbench-session";
 import { getMediaById, getMediaByIdAsync } from "@/lib/media";
+import { Redis } from '@upstash/redis';
 
 export const runtime = 'nodejs';
+
+const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
+
+function getRedisClient(): Redis | null {
+  try {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    if (!url || !token) return null;
+    return new Redis({ url, token });
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
@@ -66,11 +85,48 @@ export async function POST(request: Request) {
       );
     }
 
-    // Read projects.v1.json
+    // Use KV for production persistence to avoid EROFS errors
+    const redis = getRedisClient();
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    if (isProduction && redis) {
+      // Production: Store in KV staging area
+      const stagingKey = `${WORKBENCH_STAGING_PREFIX}project:${projectId}:gallery`;
+      const currentGallery = await redis.get<string[]>(stagingKey) || [];
+      
+      if (operation === 'add') {
+        currentGallery.push(mediaId);
+      } else {
+        if (galleryIndex < 0 || galleryIndex >= currentGallery.length) {
+          return NextResponse.json(
+            { error: "Gallery index out of bounds" },
+            { status: 400 }
+          );
+        }
+        currentGallery[galleryIndex] = mediaId;
+      }
+      
+      await redis.set(stagingKey, currentGallery);
+      console.log('[GALLERY POST] STAGED_IN_KV', { projectId, operation, mediaId, stagingKey });
+      
+      return NextResponse.json({ 
+        success: true, 
+        projectId, 
+        operation,
+        galleryIndex: operation === 'add' ? currentGallery.length - 1 : galleryIndex,
+        mediaId,
+        galleryLength: currentGallery.length,
+        staged: true,
+        persistence: 'kv'
+      });
+    }
+
+    // Development: Write to local filesystem
+    console.log('[GALLERY POST] DEV_MODE', { projectId, operation, mediaId });
+
     const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
     const projectsData = JSON.parse(readFileSync(projectsPath, "utf-8"));
 
-    // Find project
     const projectIndex = projectsData.projects.findIndex((p: any) => p.id === projectId);
     if (projectIndex === -1) {
       return NextResponse.json(
@@ -79,7 +135,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // Ensure gallery array exists
     if (!projectsData.projects[projectIndex].media) {
       projectsData.projects[projectIndex].media = {};
     }
@@ -90,51 +145,34 @@ export async function POST(request: Request) {
     const gallery = projectsData.projects[projectIndex].media.gallery;
 
     if (operation === 'add') {
-      // ADD: Append new mediaId to gallery
-      console.log('[GALLERY ADD] BEFORE', { projectId, galleryLength: gallery.length, newMediaId: mediaId });
       gallery.push(mediaId);
-      projectsData.generatedAt = new Date().toISOString();
-      console.log('[GALLERY ADD] AFTER', { projectId, galleryLength: gallery.length, addedMediaId: mediaId });
     } else {
-      // REPLACE: Update existing gallery item at index
       if (galleryIndex < 0 || galleryIndex >= gallery.length) {
         return NextResponse.json(
           { error: "Gallery index out of bounds" },
           { status: 400 }
         );
       }
-
-      console.log('[GALLERY REPLACE] BEFORE', { projectId, galleryIndex, currentMediaId: gallery[galleryIndex], newMediaId: mediaId });
       gallery[galleryIndex] = mediaId;
-      projectsData.generatedAt = new Date().toISOString();
-      console.log('[GALLERY REPLACE] AFTER', { projectId, galleryIndex, updatedMediaId: gallery[galleryIndex] });
     }
 
-    // Write back
+    projectsData.generatedAt = new Date().toISOString();
     writeFileSync(projectsPath, JSON.stringify(projectsData, null, 2));
 
-    // Read-back verification
-    const readBackData = JSON.parse(readFileSync(projectsPath, "utf-8"));
-    const readBackGallery = readBackData.projects.find((p: any) => p.id === projectId)?.media?.gallery;
-    
-    console.log('[GALLERY READ_BACK_VERIFICATION]', { 
-      projectId, 
-      operation,
-      galleryLength: readBackGallery?.length,
-      mediaId,
-      added: operation === 'add' ? readBackGallery?.includes(mediaId) : readBackGallery?.[galleryIndex] === mediaId
-    });
+    console.log('[GALLERY POST] DEV_WRITE_SUCCESS', { projectId, operation, mediaId });
 
     return NextResponse.json({ 
       success: true, 
       projectId, 
       operation,
-      galleryIndex: operation === 'add' ? readBackGallery?.length - 1 : galleryIndex,
+      galleryIndex: operation === 'add' ? gallery.length - 1 : galleryIndex,
       mediaId,
-      galleryLength: readBackGallery?.length
+      galleryLength: gallery.length,
+      staged: false,
+      persistence: 'filesystem'
     });
   } catch (error) {
-    console.error("Error updating project gallery photo:", error);
+    console.error('[GALLERY POST] ERROR', error);
     return NextResponse.json(
       { error: "Failed to update project gallery photo" },
       { status: 500 }
@@ -170,11 +208,40 @@ export async function DELETE(request: Request) {
 
     console.log('[GALLERY DELETE] REQUEST_RECEIVED', { projectId, galleryIndex });
 
-    // Read projects.v1.json
+    // Use KV for production persistence to avoid EROFS errors
+    const redis = getRedisClient();
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    if (isProduction && redis) {
+      const stagingKey = `${WORKBENCH_STAGING_PREFIX}project:${projectId}:gallery`;
+      const currentGallery = await redis.get<string[]>(stagingKey) || [];
+      
+      if (galleryIndex < 0 || galleryIndex >= currentGallery.length) {
+        return NextResponse.json(
+          { error: "Gallery index out of bounds" },
+          { status: 400 }
+        );
+      }
+      
+      currentGallery[galleryIndex] = null;
+      await redis.set(stagingKey, currentGallery);
+      console.log('[GALLERY DELETE] STAGED_IN_KV', { projectId, galleryIndex });
+      
+      return NextResponse.json({ 
+        success: true, 
+        projectId, 
+        galleryIndex,
+        staged: true,
+        persistence: 'kv'
+      });
+    }
+
+    // Development: Write to local filesystem
+    console.log('[GALLERY DELETE] DEV_MODE', { projectId, galleryIndex });
+
     const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
     const projectsData = JSON.parse(readFileSync(projectsPath, "utf-8"));
 
-    // Find project and delete gallery photo mediaId
     const projectIndex = projectsData.projects.findIndex((p: any) => p.id === projectId);
     if (projectIndex === -1) {
       return NextResponse.json(
@@ -197,20 +264,21 @@ export async function DELETE(request: Request) {
       );
     }
 
-    // Set to null to remove the assignment
     projectsData.projects[projectIndex].media.gallery[galleryIndex] = null;
     projectsData.generatedAt = new Date().toISOString();
-
-    console.log('[GALLERY DELETE] AUTHORITY_WRITE', { projectId, galleryIndex });
-
-    // Write back
     writeFileSync(projectsPath, JSON.stringify(projectsData, null, 2));
 
-    console.log('[GALLERY DELETE] SUCCESS', { projectId, galleryIndex });
+    console.log('[GALLERY DELETE] DEV_WRITE_SUCCESS', { projectId, galleryIndex });
 
-    return NextResponse.json({ success: true, projectId, galleryIndex });
+    return NextResponse.json({ 
+      success: true, 
+      projectId, 
+      galleryIndex,
+      staged: false,
+      persistence: 'filesystem'
+    });
   } catch (error) {
-    console.error("Error deleting project gallery photo:", error);
+    console.error('[GALLERY DELETE] ERROR', error);
     return NextResponse.json(
       { error: "Failed to delete project gallery photo" },
       { status: 500 }

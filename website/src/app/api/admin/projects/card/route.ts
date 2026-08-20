@@ -7,14 +7,33 @@
  * Body: { projectId: string, mediaId: string }
  * 
  * Requires Workbench authentication.
+ * 
+ * Constitutional Architecture:
+ * - In development: Writes to local filesystem for testing
+ * - In production: Uses KV persistence to avoid EROFS errors
+ * - Deploy route commits changes to GitHub
  */
 
 import { NextResponse } from "next/server";
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { workbenchSession } from "@/lib/workbench-session";
+import { Redis } from '@upstash/redis';
 
 export const runtime = 'nodejs';
+
+const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
+
+function getRedisClient(): Redis | null {
+  try {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    if (!url || !token) return null;
+    return new Redis({ url, token });
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
@@ -42,16 +61,33 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log('[DND SERVER 1] REQUEST_RECEIVED', { projectId, mediaId });
-    console.log('[DND SERVER 2] IDENTIFIER_VALIDATION', { projectId, mediaId });
+    console.log('[CARD UPDATE] REQUEST_RECEIVED', { projectId, mediaId });
 
-    // Read projects.v1.json
+    // Use KV for production persistence to avoid EROFS errors
+    const redis = getRedisClient();
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    if (isProduction && redis) {
+      // Production: Store in KV staging area
+      const stagingKey = `${WORKBENCH_STAGING_PREFIX}project:${projectId}:hero`;
+      await redis.set(stagingKey, mediaId);
+      console.log('[CARD UPDATE] STAGED_IN_KV', { projectId, mediaId, stagingKey });
+      
+      return NextResponse.json({ 
+        success: true, 
+        projectId, 
+        mediaId,
+        staged: true,
+        persistence: 'kv'
+      });
+    }
+
+    // Development: Write to local filesystem
+    console.log('[CARD UPDATE] DEV_MODE', { projectId, mediaId });
+
     const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
     const projectsData = JSON.parse(readFileSync(projectsPath, "utf-8"));
 
-    console.log('[DND SERVER 3] AUTHORITY_BEFORE', { projectId, currentMediaId: projectsData.projects.find((p: any) => p.id === projectId)?.media?.hero });
-
-    // Find project and update hero mediaId
     const projectIndex = projectsData.projects.findIndex((p: any) => p.id === projectId);
     if (projectIndex === -1) {
       return NextResponse.json(
@@ -60,29 +96,22 @@ export async function POST(request: Request) {
       );
     }
 
-    const newMediaId = mediaId;
-    projectsData.projects[projectIndex].media.hero = newMediaId;
+    projectsData.projects[projectIndex].media.hero = mediaId;
     projectsData.generatedAt = new Date().toISOString();
 
-    console.log('[DND SERVER 4] AUTHORITY_WRITE', { projectId, newMediaId });
-
-    // Write back
     writeFileSync(projectsPath, JSON.stringify(projectsData, null, 2));
 
-    console.log('[DND SERVER 5] AUTHORITY_AFTER', { projectId, updatedMediaId: projectsData.projects[projectIndex].media?.hero });
+    console.log('[CARD UPDATE] DEV_WRITE_SUCCESS', { projectId, mediaId });
 
-    // Read-back verification
-    const readBackData = JSON.parse(readFileSync(projectsPath, "utf-8"));
-    const readBackMediaId = readBackData.projects.find((p: any) => p.id === projectId)?.media?.hero;
-    const matchesExpected = readBackMediaId === newMediaId;
-
-    console.log('[DND SERVER 6] READ_BACK_VERIFICATION', { projectId, projectMediaId: readBackMediaId, matchesExpected });
-
-    console.log('[DND SERVER 7] RESPONSE', { success: true, projectId, mediaId });
-
-    return NextResponse.json({ success: true, projectId, mediaId });
+    return NextResponse.json({ 
+      success: true, 
+      projectId, 
+      mediaId,
+      staged: false,
+      persistence: 'filesystem'
+    });
   } catch (error) {
-    console.error("Error updating project card:", error);
+    console.error('[CARD UPDATE] ERROR', error);
     return NextResponse.json(
       { error: "Failed to update project card" },
       { status: 500 }

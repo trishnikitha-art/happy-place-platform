@@ -9,14 +9,32 @@
  * Requires Workbench authentication.
  * Uses GitHub API to commit projects.v1.json to main branch.
  * Vercel Git integration will automatically deploy when changes are pushed to main.
+ * 
+ * Constitutional Architecture:
+ * - Production: Pulls from KV staging area, merges into projects.v1.json, commits to GitHub
+ * - Development: Reads local projects.v1.json and commits to GitHub
  */
 
 import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
 import { readFileSync } from "fs";
 import { join } from "path";
+import { Redis } from '@upstash/redis';
 
 export const runtime = 'nodejs';
+
+const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
+
+function getRedisClient(): Redis | null {
+  try {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    if (!url || !token) return null;
+    return new Redis({ url, token });
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
@@ -122,15 +140,82 @@ export async function POST(request: Request) {
       id: repoData.id
     });
 
-    // Read the current authority file (from local website directory)
-    const authorityFile = join(process.cwd(), "src/config/projects.v1.json");
-    const fileContent = readFileSync(authorityFile, "utf-8");
+    // In production, merge KV staging changes into projects.v1.json
+    let fileContent: string;
+    const isProduction = process.env.NODE_ENV === 'production';
+    const redis = getRedisClient();
+    
+    if (isProduction && redis) {
+      console.log('[DEPLOY API] PRODUCTION_MODE_MERGING_KV_STAGING');
+      
+      // Read current projects.v1.json
+      const authorityFile = join(process.cwd(), "src/config/projects.v1.json");
+      const projectsData = JSON.parse(readFileSync(authorityFile, "utf-8"));
+      
+      // Scan for all staging keys
+      const stagingKeys: string[] = [];
+      let cursor = '0';
+      do {
+        const result = await redis.scan(cursor, { match: `${WORKBENCH_STAGING_PREFIX}*`, count: 100 });
+        cursor = result[0];
+        stagingKeys.push(...result[1]);
+      } while (cursor !== '0');
+      
+      console.log('[DEPLOY API] FOUND_STAGING_KEYS', { count: stagingKeys.length });
+      
+      // Apply staging changes to projects data
+      for (const key of stagingKeys) {
+        const value = await redis.get(key);
+        if (!value) continue;
+        
+        // Parse key format: workbench-staging:project:{projectId}:{field}
+        const parts = key.split(':');
+        if (parts.length < 4) continue;
+        
+        const projectId = parts[2];
+        const field = parts[3]; // 'hero', 'gallery', 'before', 'after'
+        
+        const projectIndex = projectsData.projects.findIndex((p: any) => p.id === projectId);
+        if (projectIndex === -1) {
+          console.log('[DEPLOY API] STAGING_PROJECT_NOT_FOUND', { projectId, key });
+          continue;
+        }
+        
+        if (!projectsData.projects[projectIndex].media) {
+          projectsData.projects[projectIndex].media = {};
+        }
+        
+        if (field === 'hero') {
+          projectsData.projects[projectIndex].media.hero = value;
+        } else if (field === 'gallery') {
+          const galleryArray = Array.isArray(value) ? value : [value];
+          projectsData.projects[projectIndex].media.gallery = galleryArray;
+        } else if (field === 'before' || field === 'after') {
+          projectsData.projects[projectIndex].media[field] = value;
+        }
+        
+        console.log('[DEPLOY API] APPLIED_STAGING_CHANGE', { projectId, field, key });
+        
+        // Clear staging key after applying
+        await redis.del(key);
+      }
+      
+      projectsData.generatedAt = new Date().toISOString();
+      fileContent = JSON.stringify(projectsData, null, 2);
+      console.log('[DEPLOY API] PRODUCTION_MERGE_COMPLETE', { stagingKeysApplied: stagingKeys.length });
+    } else {
+      // Development: Read current projects.v1.json directly
+      const authorityFile = join(process.cwd(), "src/config/projects.v1.json");
+      fileContent = readFileSync(authorityFile, "utf-8");
+      console.log('[DEPLOY API] DEV_MODE_READING_LOCAL_FILE');
+    }
+
     const fileContentBase64 = Buffer.from(fileContent).toString('base64');
 
     // Get current file SHA from GitHub (repository root path)
     const filePath = "website/src/config/projects.v1.json";
     
-    console.log('[DEPLOY API] LOCAL_FILE_READ', { authorityFile, contentLength: fileContent.length });
+    console.log('[DEPLOY API] FILE_CONTENT_LENGTH', { contentLength: fileContent.length });
     console.log('[DEPLOY API] GITHUB_FILE_PATH', { filePath });
     const getFileUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/${filePath}`;
     
