@@ -26,7 +26,17 @@ export function ServiceCard({ service, runtimeCardMediaObject }: { service: Serv
   const cardMedia = runtimeCardMediaObject || null;
   const featuredMedia = cardMedia || getFeaturedServiceMedia(service.slug);
   const hasImage = featuredMedia !== null;
-  const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.original) : null;
+  
+  // Use responsive variants if available to select best quality
+  const responsiveVariants = featuredMedia?.variants?.responsive;
+  const hasResponsiveVariants = responsiveVariants && responsiveVariants.length > 0;
+  
+  // Select best variant: use highest resolution from responsive variants, otherwise fallback
+  const imageSrc = hasImage 
+    ? (hasResponsiveVariants 
+        ? responsiveVariants[responsiveVariants.length - 1].webp 
+        : (featuredMedia.variants?.web || featuredMedia.variants?.original))
+    : null;
 
   // Card text colors - always light register (cards are always light surfaces)
   const headingColor = "text-text";

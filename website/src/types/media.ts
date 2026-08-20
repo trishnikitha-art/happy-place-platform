@@ -24,6 +24,11 @@ export interface MediaVariants {
   thumbnail?: string;
   blur?: string; // Base64 blur data URL
   web?: string; // Simplified web variant for vertical slice
+  responsive?: Array<{
+    width: number;
+    webp: string;
+    avif: string;
+  }>;
 }
 
 export interface Media {

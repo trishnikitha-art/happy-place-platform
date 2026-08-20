@@ -53,14 +53,30 @@ export default async function HomePage() {
   const [taylor, lanie] = company.owners;
   const ownerBrand = await getOwnerPortrait();    // owner portrait from Brand Authority (now async for runtime assignment)
   const ownerMedia = ownerBrand?.mediaId ? getMediaById(ownerBrand.mediaId) : null;
-  const ownerSrc = ownerMedia?.variants?.web || ownerMedia?.variants?.original;
+  
+  // Use responsive variants if available to select best quality
+  const ownerResponsiveVariants = ownerMedia?.variants?.responsive;
+  const hasOwnerResponsiveVariants = ownerResponsiveVariants && ownerResponsiveVariants.length > 0;
+  const ownerSrc = ownerMedia 
+    ? (hasOwnerResponsiveVariants 
+        ? ownerResponsiveVariants[ownerResponsiveVariants.length - 1].webp 
+        : (ownerMedia.variants?.web || ownerMedia.variants?.original || undefined))
+    : undefined;
   const allServices = getNonArchivedServices();      // data-driven services from registry
   const featuredProjects = getFeaturedProjects(); // featured projects from Projects Authority
   
   // Get hero from Brand Authority with runtime assignment
   const homepageHero = await getHomepageHero();
   const heroMedia = homepageHero?.mediaId ? getMediaById(homepageHero.mediaId) : null;
-  const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original || '/images/hero-background-enhanced.jpg';
+  
+  // Use responsive variants if available to select best quality
+  const heroResponsiveVariants = heroMedia?.variants?.responsive;
+  const hasHeroResponsiveVariants = heroResponsiveVariants && heroResponsiveVariants.length > 0;
+  const heroSrc = heroMedia 
+    ? (hasHeroResponsiveVariants 
+        ? heroResponsiveVariants[heroResponsiveVariants.length - 1].webp 
+        : (heroMedia.variants?.web || heroMedia.variants?.original || '/images/hero-background-enhanced.jpg'))
+    : '/images/hero-background-enhanced.jpg';
   
   // Get exterior painting project for featured transformation (has before/after media)
   const paintingProject = featuredProjects.find(p => p.id === 'exterior-painting-001');

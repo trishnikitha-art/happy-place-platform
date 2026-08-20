@@ -45,13 +45,25 @@ export function ServiceCard({ service, runtimeCardMediaObject }: { service: Serv
   // Fall back to featured project media
   const featuredMedia = cardMedia || getFeaturedServiceMedia(service.slug);
   const hasImage = featuredMedia !== null;
-  const imageSrc = hasImage ? (featuredMedia.variants?.web || featuredMedia.variants?.original) : null;
+  
+  // Use responsive variants if available to select best quality
+  const responsiveVariants = featuredMedia?.variants?.responsive;
+  const hasResponsiveVariants = responsiveVariants && responsiveVariants.length > 0;
+  
+  // Select best variant: use highest resolution from responsive variants, otherwise fallback
+  const imageSrc = hasImage 
+    ? (hasResponsiveVariants 
+        ? responsiveVariants[responsiveVariants.length - 1].webp 
+        : (featuredMedia.variants?.web || featuredMedia.variants?.original))
+    : null;
 
   console.log('[FORENSIC] SERVICE_CARD_FINAL_IMAGE', {
     renderRequestId,
     serviceSlug: service.slug,
     hasImage,
     imageSrc,
+    hasResponsiveVariants,
+    selectedVariant: hasResponsiveVariants ? responsiveVariants[responsiveVariants.length - 1] : 'fallback',
     mediaId: featuredMedia?.id,
   });
 

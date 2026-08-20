@@ -17,7 +17,24 @@
         "web": "/images/projects/fences/FENCE BUILD-1080.webp",
         "webp": "/images/projects/fences/FENCE BUILD-1080.webp",
         "avif": "/images/projects/fences/FENCE BUILD-1080.avif",
-        "thumbnail": "/images/projects/fences/FENCE BUILD-thumb.webp"
+        "thumbnail": "/images/projects/fences/FENCE BUILD-thumb.webp",
+        "responsive": [
+          {
+            "width": 480,
+            "webp": "/images/projects/fences/FENCE BUILD-480.webp",
+            "avif": "/images/projects/fences/FENCE BUILD-480.avif"
+          },
+          {
+            "width": 768,
+            "webp": "/images/projects/fences/FENCE BUILD-768.webp",
+            "avif": "/images/projects/fences/FENCE BUILD-768.avif"
+          },
+          {
+            "width": 1080,
+            "webp": "/images/projects/fences/FENCE BUILD-1080.webp",
+            "avif": "/images/projects/fences/FENCE BUILD-1080.avif"
+          }
+        ]
       },
       "alt": "Completed fence installation",
       "description": "Professional fence construction and installation",

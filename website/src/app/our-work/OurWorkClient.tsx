@@ -142,7 +142,16 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
             {allProjects.map((project, i) => {
               const heroMediaId = project.media.hero;
               const heroMedia = heroMediaId ? getMediaById(heroMediaId) : null;
-              const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original;
+              
+              // Use responsive variants if available to select best quality
+              const responsiveVariants = heroMedia?.variants?.responsive;
+              const hasResponsiveVariants = responsiveVariants && responsiveVariants.length > 0;
+              const heroSrc = heroMedia 
+                ? (hasResponsiveVariants 
+                    ? responsiveVariants[responsiveVariants.length - 1].webp 
+                    : (heroMedia.variants?.web || heroMedia.variants?.original))
+                : null;
+              
               if (!heroSrc) return null;
               return (
                 <ScrollReveal key={project.id} delay={i * 80}>
@@ -213,7 +222,14 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                 .filter(m => m !== null && (m.variants?.web || m.variants?.original));
               
               return galleryPhotos.map((photo, photoIndex) => {
-                const src = photo!.variants.web || photo!.variants.original || photo!.variants.thumbnail;
+                // Use responsive variants if available to select best quality
+                const responsiveVariants = photo!.variants?.responsive;
+                const hasResponsiveVariants = responsiveVariants && responsiveVariants.length > 0;
+                const src = photo! 
+                  ? (hasResponsiveVariants 
+                      ? responsiveVariants[responsiveVariants.length - 1].webp 
+                      : (photo!.variants.web || photo!.variants.original || photo!.variants.thumbnail))
+                  : null;
                 if (!src) return null;
                 const mediaId = photo!.id;
                 
@@ -227,11 +243,18 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                         return pGalleryIds
                           .map(id => getMediaById(id))
                           .filter(m => m !== null && (m.variants?.web || m.variants?.original))
-                          .map(m => ({
-                            src: m!.variants.web || m!.variants.original || m!.variants.thumbnail!,
-                            alt: m!.alt,
-                            blurDataURL: m!.variants?.blur
-                          }));
+                          .map(m => {
+                            // Use highest quality variant for lightbox
+                            const responsiveVariants = m!.variants?.responsive;
+                            const highestQuality = responsiveVariants && responsiveVariants.length > 0
+                              ? responsiveVariants[responsiveVariants.length - 1].webp
+                              : (m!.variants.web || m!.variants.original || m!.variants.thumbnail!);
+                            return {
+                              src: highestQuality,
+                              alt: m!.alt,
+                              blurDataURL: m!.variants?.blur
+                            };
+                          });
                       });
                       const globalIndex = allGalleryImages.findIndex(img => img.src === src);
                       openLightbox(allGalleryImages, globalIndex);
