@@ -13,6 +13,7 @@ import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
 import { storeServiceCardAssignment, getServiceCardAssignment } from "@/lib/assignment-store";
 import { getAllServices } from "@/lib/registries";
+import { getMediaByIdAsync, isDriveReference, isPublishedMediaAsset } from "@/lib/media";
 
 export const runtime = 'nodejs';
 
@@ -70,6 +71,59 @@ export async function POST(request: Request) {
     console.log('[DND SERVER 3] SERVICE_VERIFIED', {
       serviceSlug,
       serviceExists: true,
+    });
+
+    // WORKBENCH ACCEPTANCE CONTRACT: DriveReference must be materialized before assignment
+    // Check if mediaId is a DriveReference
+    const media = await getMediaByIdAsync(mediaId);
+    if (!media) {
+      return NextResponse.json(
+        { error: "Media not found", message: "The specified media ID does not exist" },
+        { status: 404 }
+      );
+    }
+
+    // REJECT: DriveReference cannot be directly assigned - must be materialized first
+    if (isDriveReference(media)) {
+      console.error('[WORKBENCH_ACCEPTANCE] REJECTED: DriveReference cannot be directly assigned', {
+        serviceSlug,
+        mediaId,
+        lifecycleState: media.lifecycleState,
+      });
+      return NextResponse.json(
+        { 
+          error: "Asset must be materialized", 
+          message: "DriveReference cannot be directly assigned to public presentation. The asset must be materialized to a PublishedMediaAsset before assignment.",
+          lifecycleState: media.lifecycleState,
+          requiresMaterialization: true,
+        },
+        { status: 400 }
+      );
+    }
+
+    // VALIDATE: Only PublishedMediaAsset can be assigned
+    if (!isPublishedMediaAsset(media)) {
+      console.error('[WORKBENCH_ACCEPTANCE] REJECTED: Media is not a PublishedMediaAsset', {
+        serviceSlug,
+        mediaId,
+        lifecycleState: media.lifecycleState,
+        source: media.source,
+      });
+      return NextResponse.json(
+        { 
+          error: "Invalid media lifecycle state", 
+          message: "Only PublishedMediaAsset can be assigned to public presentation",
+          lifecycleState: media.lifecycleState,
+          source: media.source,
+        },
+        { status: 400 }
+      );
+    }
+
+    console.log('[WORKBENCH_ACCEPTANCE] APPROVED: PublishedMediaAsset can be assigned', {
+      serviceSlug,
+      mediaId,
+      lifecycleState: media.lifecycleState,
     });
 
     // Store assignment in persistent store

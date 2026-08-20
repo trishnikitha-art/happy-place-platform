@@ -332,7 +332,38 @@ export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignm
         // Use typed object API - @upstash/redis handles deserialization
         const assignment = await client.get<ServiceCardAssignment>(key);
         if (assignment && validateServiceCardAssignment(assignment)) {
-          return assignment;
+          // SEMANTIC VALIDATION: Check if mediaId still resolves to PublishedMediaAsset
+          try {
+            const { resolvePublicMedia } = await import('./media');
+            const resolvedMedia = await resolvePublicMedia(assignment.mediaId);
+            
+            if (!resolvedMedia) {
+              console.log('[ASSIGNMENT_READ] SEMANTIC_VALIDATION_FAILED: Assignment media no longer resolves to PublishedMediaAsset', {
+                serviceSlug: assignment.serviceSlug,
+                mediaId: assignment.mediaId,
+              });
+              // Quarantine and remove semantically invalid assignment
+              const serviceSlug = key.replace(ASSIGNMENT_PREFIX, '');
+              const quarantineKey = `${ASSIGNMENT_QUARANTINE_PREFIX}${serviceSlug}:${Date.now()}`;
+              await client.set(quarantineKey, assignment);
+              await client.del(key);
+              return null;
+            }
+            
+            return assignment;
+          } catch (validationError) {
+            console.log('[ASSIGNMENT_READ] SEMANTIC_VALIDATION_ERROR', {
+              serviceSlug: assignment.serviceSlug,
+              mediaId: assignment.mediaId,
+              error: validationError instanceof Error ? validationError.message : 'Unknown error',
+            });
+            // Quarantine if validation fails
+            const serviceSlug = key.replace(ASSIGNMENT_PREFIX, '');
+            const quarantineKey = `${ASSIGNMENT_QUARANTINE_PREFIX}${serviceSlug}:${Date.now()}`;
+            await client.set(quarantineKey, assignment);
+            await client.del(key);
+            return null;
+          }
         } else if (assignment) {
           console.log('[ASSIGNMENT_STORE] Quarantining invalid assignment:', key);
           // Quarantine corrupted data using separate namespace
