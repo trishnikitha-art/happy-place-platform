@@ -2,7 +2,7 @@
 
 import { useEffect, createContext, useContext, ReactNode, useState } from "react";
 import Lenis from "@studio-freight/lenis";
-import { usePathname, useSearchParams } from "next/navigation";
+import { usePathname } from "next/navigation";
 
 interface LenisContextValue {
   lenis: Lenis | null;
@@ -26,13 +26,14 @@ const LenisContext = createContext<LenisContextValue>({ lenis: null });
 export function LenisProvider({ children }: { children: ReactNode }) {
   const [lenis, setLenis] = useState<Lenis | null>(null);
   const pathname = usePathname();
-  const searchParams = useSearchParams();
 
   useEffect(() => {
     // Authoritative workbench context check
     // True when: pathname starts with /workbench OR workbench=true query param
     const isWorkbenchRoute = pathname.startsWith('/workbench');
-    const isWorkbenchPreview = searchParams.get('workbench') === 'true';
+    // Use window.location.search to avoid Suspense boundary requirement
+    const isWorkbenchPreview = typeof window !== 'undefined' && 
+      new URLSearchParams(window.location.search).get('workbench') === 'true';
     const isWorkbenchContext = isWorkbenchRoute || isWorkbenchPreview;
 
     // Disable Lenis for workbench context (both UI and iframe preview)
@@ -83,7 +84,7 @@ export function LenisProvider({ children }: { children: ReactNode }) {
       cancelAnimationFrame(frameId);
       lenisInstance.destroy();
     };
-  }, [pathname, searchParams]);
+  }, [pathname]);
 
   return (
     <LenisContext.Provider value={{ lenis }}>
