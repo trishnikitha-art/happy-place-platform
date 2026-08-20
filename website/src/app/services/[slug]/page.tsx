@@ -11,8 +11,7 @@ import { getServiceGallery } from "@/lib/galleries";
 import { PlaceholderSection } from "@/components/placeholder-section";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { getProjectById } from "@/lib/projects";
-import { getMediaById } from "@/lib/media";
-import { getMediaByIdAsync } from "@/lib/media";
+import { getMediaById, resolvePublicMedia } from "@/lib/media";
 import { VisualSlot } from "@/components/visual-slot";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
 import type { Media } from "@/types/media";
@@ -68,13 +67,8 @@ export default async function ServicePage({ params }: ServicePageProps) {
     try {
       const assignment = await getServiceCardAssignment(relatedService.slug);
       if (assignment?.mediaId) {
-        // Resolve media object - use async KV lookup for drive-prefixed IDs
-        let mediaObject: Media | null = null;
-        if (assignment.mediaId.startsWith('drive-')) {
-          mediaObject = await getMediaByIdAsync(assignment.mediaId);
-        } else {
-          mediaObject = getMediaById(assignment.mediaId);
-        }
+        // Resolve media object through public media gate (rejects Drive references)
+        const mediaObject = await resolvePublicMedia(assignment.mediaId);
         
         serviceCardAssignments.set(relatedService.slug, {
           mediaId: assignment.mediaId,
