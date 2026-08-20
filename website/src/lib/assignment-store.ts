@@ -97,15 +97,46 @@ export interface ServiceCardAssignment {
  * @param data - Data to validate
  * @returns True if valid, false otherwise
  */
-function validateServiceCardAssignment(data: any): data is ServiceCardAssignment {
-  return (
-    data &&
-    typeof data === 'object' &&
-    typeof data.serviceSlug === 'string' &&
-    typeof data.mediaId === 'string' &&
-    typeof data.updatedAt === 'string' &&
-    data.source === 'workbench'
-  );
+function validateServiceCardAssignment(data: unknown): data is ServiceCardAssignment {
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
+  
+  const candidate = data as Record<string, unknown>;
+  
+  // Domain validation for serviceSlug (non-empty, normalized)
+  if (typeof candidate.serviceSlug !== 'string' || candidate.serviceSlug.trim().length === 0) {
+    return false;
+  }
+  
+  // Domain validation for mediaId (non-empty, valid format)
+  if (typeof candidate.mediaId !== 'string' || candidate.mediaId.trim().length === 0) {
+    return false;
+  }
+  
+  // Domain validation for updatedAt (valid ISO timestamp)
+  if (typeof candidate.updatedAt !== 'string' || !isValidISODate(candidate.updatedAt)) {
+    return false;
+  }
+  
+  // Domain validation for source (must be 'workbench')
+  if (candidate.source !== 'workbench') {
+    return false;
+  }
+  
+  return true;
+}
+
+/**
+ * Validate ISO 8601 timestamp format
+ */
+function isValidISODate(dateString: string): boolean {
+  try {
+    const date = new Date(dateString);
+    return !isNaN(date.getTime()) && date.toISOString() === dateString;
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -157,37 +188,10 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
       mediaId: assignment.mediaId,
     });
     
-    // Immediate readback verification using typed object API
-    const readback = await client.get<ServiceCardAssignment>(key);
-    
-    console.log('[ASSIGNMENT_READBACK]', {
-      operationId,
-      key,
-      writtenMediaId: assignment.mediaId,
-      writtenServiceSlug: assignment.serviceSlug,
-      writtenUpdatedAt: assignment.updatedAt,
-      writtenSource: assignment.source,
-      readbackMediaId: readback?.mediaId,
-      readbackServiceSlug: readback?.serviceSlug,
-      readbackUpdatedAt: readback?.updatedAt,
-      readbackSource: readback?.source,
-      rawType: typeof readback,
-      match: readback?.mediaId === assignment.mediaId,
-    });
-    
-    // Validate readback schema
-    if (!validateServiceCardAssignment(readback)) {
-      console.error('[ASSIGNMENT_READBACK] SCHEMA_VALIDATION_FAILED', {
-        operationId,
-        readback,
-        validationError: 'Readback failed schema validation',
-      });
-      throw new Error('Readback failed schema validation');
-    }
-    
-    if (readback?.mediaId !== assignment.mediaId) {
-      throw new Error('Readback verification failed: written mediaId does not match readback');
-    }
+    // Removed expensive read-after-write verification
+    // Redis operations are atomic; if set succeeded, the data is stored
+    // Concurrency handling: last-write-wins is acceptable for current use case
+    // Future enhancement: add version/revision field for optimistic concurrency
     
   } catch (error) {
     console.error('[ASSIGNMENT_WRITE] FAILURE', {
@@ -239,9 +243,10 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
         assignment,
         validationError: 'Readback failed schema validation',
       });
-      // Delete corrupted data
-      await client.del(key);
-      console.log('[ASSIGNMENT_READ] CORRUPTED_DATA_DELETED', { operationId, key });
+      // Quarantine corrupted data instead of deleting
+      const quarantineKey = `${ASSIGNMENT_PREFIX}quarantine:${serviceSlug}:${Date.now()}`;
+      await client.set(quarantineKey, assignment);
+      console.log('[ASSIGNMENT_READ] CORRUPTED_DATA_QUARANTINED', { operationId, key, quarantineKey });
       return null;
     }
 
@@ -313,21 +318,30 @@ export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignm
       keys.push(...result[1]);
     } while (cursor !== '0');
 
+    // Use Promise.all for parallel reads instead of sequential loop
     const assignments: ServiceCardAssignment[] = [];
-
-    for (const key of keys) {
+    const readPromises = keys.map(async (key) => {
       try {
         // Use typed object API - @upstash/redis handles deserialization
         const assignment = await client.get<ServiceCardAssignment>(key);
         if (assignment && validateServiceCardAssignment(assignment)) {
-          assignments.push(assignment);
+          return assignment;
         } else if (assignment) {
-          console.log('[ASSIGNMENT_STORE] Skipping invalid assignment:', key, assignment);
+          console.log('[ASSIGNMENT_STORE] Quarantining invalid assignment:', key);
+          // Quarantine corrupted data
+          const quarantineKey = `${ASSIGNMENT_PREFIX}quarantine:${key.split(':').pop()}:${Date.now()}`;
+          await client.set(quarantineKey, assignment);
+          return null;
         }
+        return null;
       } catch (error) {
         console.log('[ASSIGNMENT_STORE] Failed to load individual key:', key, error);
+        return null;
       }
-    }
+    });
+
+    const results = await Promise.all(readPromises);
+    assignments.push(...results.filter((a): a is ServiceCardAssignment => a !== null));
 
     return assignments;
   } catch (error) {
