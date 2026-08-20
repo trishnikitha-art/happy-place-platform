@@ -5,6 +5,9 @@
  * Uses alt: 'media' to get actual binary image content from Drive API.
  * Supports both My Drive and Shared Drive files.
  *
+ * WORKBENCH-ONLY: This endpoint is for Workbench preview only.
+ * Public website delivery should use Vercel Blob optimized media.
+ *
  * GET /api/drive/files/:fileId/thumbnail
  */
 

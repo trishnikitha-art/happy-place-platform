@@ -32,9 +32,10 @@ export class DriveOAuthManager {
     console.log('[OAUTH_MANAGER] Credentials from DriveSession:', {
       hasAccessToken: !!credentials?.access_token,
       hasRefreshToken: !!credentials?.refresh_token,
-      expiryDate: credentials?.expiry_date,
+      expiresAt: credentials?.expiry_date,
+      expiresInSeconds: credentials?.expiry_date ? Math.floor((credentials.expiry_date - Date.now()) / 1000) : 'unknown',
+      isNearExpiry: credentials?.expiry_date ? (credentials.expiry_date - Date.now()) < 5 * 60 * 1000 : 'unknown',
       scope: credentials?.scope,
-      tokenAge: credentials?.expiry_date ? Date.now() - credentials.expiry_date : 'unknown',
     });
     
     if (!credentials) {
