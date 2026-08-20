@@ -11,12 +11,16 @@ const nextConfig: NextConfig = {
     contentDispositionType: "attachment",
     // Allow Drive thumbnail URLs with query strings for dynamic Drive media
     // Allow local project images (including filenames with spaces)
+    // Allow brand assets (logo, favicon, etc.)
     localPatterns: [
       {
         pathname: '/api/drive/files/**',
       },
       {
         pathname: '/images/**',
+      },
+      {
+        pathname: '/brand/**',
       },
     ],
   },
