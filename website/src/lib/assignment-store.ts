@@ -93,6 +93,22 @@ export interface ServiceCardAssignment {
 }
 
 /**
+ * Validate ServiceCardAssignment schema at runtime
+ * @param data - Data to validate
+ * @returns True if valid, false otherwise
+ */
+function validateServiceCardAssignment(data: any): data is ServiceCardAssignment {
+  return (
+    data &&
+    typeof data === 'object' &&
+    typeof data.serviceSlug === 'string' &&
+    typeof data.mediaId === 'string' &&
+    typeof data.updatedAt === 'string' &&
+    data.source === 'workbench'
+  );
+}
+
+/**
  * Store a service card assignment
  * @param assignment - Assignment to store
  * @param requestId - Optional request ID for correlation
@@ -100,6 +116,16 @@ export interface ServiceCardAssignment {
 export async function storeServiceCardAssignment(assignment: ServiceCardAssignment, requestId?: string): Promise<void> {
   const operationId = requestId || `store-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const key = `${ASSIGNMENT_PREFIX}${assignment.serviceSlug}`;
+  
+  // Runtime schema validation
+  if (!validateServiceCardAssignment(assignment)) {
+    console.error('[ASSIGNMENT_WRITE] SCHEMA_VALIDATION_FAILED', {
+      operationId,
+      assignment,
+      validationError: 'Invalid ServiceCardAssignment schema',
+    });
+    throw new Error(`Invalid assignment schema for ${assignment.serviceSlug}`);
+  }
   
   console.log('[ASSIGNMENT_WRITE]', {
     operationId,
@@ -149,6 +175,16 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
       match: readback?.mediaId === assignment.mediaId,
     });
     
+    // Validate readback schema
+    if (!validateServiceCardAssignment(readback)) {
+      console.error('[ASSIGNMENT_READBACK] SCHEMA_VALIDATION_FAILED', {
+        operationId,
+        readback,
+        validationError: 'Readback failed schema validation',
+      });
+      throw new Error('Readback failed schema validation');
+    }
+    
     if (readback?.mediaId !== assignment.mediaId) {
       throw new Error('Readback verification failed: written mediaId does not match readback');
     }
@@ -191,6 +227,21 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
         key,
         serviceSlug,
       });
+      return null;
+    }
+
+    // Validate readback schema
+    if (!validateServiceCardAssignment(assignment)) {
+      console.error('[ASSIGNMENT_READ] SCHEMA_VALIDATION_FAILED', {
+        operationId,
+        key,
+        serviceSlug,
+        assignment,
+        validationError: 'Readback failed schema validation',
+      });
+      // Delete corrupted data
+      await client.del(key);
+      console.log('[ASSIGNMENT_READ] CORRUPTED_DATA_DELETED', { operationId, key });
       return null;
     }
 
@@ -268,8 +319,10 @@ export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignm
       try {
         // Use typed object API - @upstash/redis handles deserialization
         const assignment = await client.get<ServiceCardAssignment>(key);
-        if (assignment) {
+        if (assignment && validateServiceCardAssignment(assignment)) {
           assignments.push(assignment);
+        } else if (assignment) {
+          console.log('[ASSIGNMENT_STORE] Skipping invalid assignment:', key, assignment);
         }
       } catch (error) {
         console.log('[ASSIGNMENT_STORE] Failed to load individual key:', key, error);
