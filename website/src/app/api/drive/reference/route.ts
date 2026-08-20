@@ -14,7 +14,7 @@ import { driveDiscovery } from '@/lib/drive/drive-discovery';
 import { driveSession } from '@/lib/drive/drive-session';
 import { workbenchSession } from '@/lib/workbench-session';
 import { storeMedia, getMedia } from '@/lib/media-kv-store';
-import type { Media, MediaRole } from '@/types/media';
+import type { Media, MediaRole, MediaLifecycleState } from '@/types/media';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -34,6 +34,7 @@ interface DriveReference {
   id: string;
   sourceIdentityHash: string; // Not contentHash - this is source identity
   source: 'google-drive';
+  lifecycleState: MediaLifecycleState; // Explicit lifecycle state
   drive: {
     fileId: string;
     driveId?: string;
@@ -47,7 +48,6 @@ interface DriveReference {
   thumbnailProxyUrl: string;
   projectId?: string;
   roles: MediaRole[];
-  status: 'referenced'; // Explicitly marked as not materialized
   createdAt: string;
   updatedAt: string;
 }
@@ -140,6 +140,7 @@ export async function POST(request: Request) {
       id: referenceId,
       sourceIdentityHash, // Not contentHash - this is source identity
       source: 'google-drive',
+      lifecycleState: 'source_reference', // Explicit lifecycle state
       drive: {
         fileId: fileId,
         driveId: sharedDriveId,
@@ -153,7 +154,6 @@ export async function POST(request: Request) {
       thumbnailProxyUrl,
       projectId,
       roles,
-      status: 'referenced', // Explicitly marked as not materialized
       createdAt: driveFile.createdTime || '',
       updatedAt: driveFile.modifiedTime || '',
     };
@@ -162,8 +162,10 @@ export async function POST(request: Request) {
     // For now, convert to Media format with proper status to pass validation
     const mediaRecord: Media = {
       id: referenceId,
-      contentHash: sourceIdentityHash, // Temporary: use source identity hash
+      sourceIdentityHash, // Source identity hash (not content hash)
+      contentHash: undefined, // No content hash until materialized
       source: 'google-drive',
+      lifecycleState: 'source_reference', // Explicit lifecycle state
       drive: {
         fileId: fileId,
         driveId: sharedDriveId,
@@ -195,7 +197,7 @@ export async function POST(request: Request) {
       provenance: {
         drive_canonical: true,
         current_authority: true,
-        status: 'referenced', // Can be upgraded to 'ingested' later
+        status: 'referenced', // Legacy field for compatibility
         preserved_at: new Date().toISOString(),
       },
     };

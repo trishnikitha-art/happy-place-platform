@@ -12,6 +12,24 @@ export type MediaType = "image" | "video" | "document";
 
 export type MediaOrientation = "landscape" | "portrait" | "square";
 
+/**
+ * Media Lifecycle States
+ * 
+ * SOURCE_REFERENCE: Drive metadata only, no bytes downloaded
+ * MATERIALIZING: Bytes downloaded, content hash computed
+ * MATERIALIZED: Master stored in Blob, derivatives ready
+ * RENDITION_READY: All presentation variants generated
+ * PUBLISHED: Available in production CDN
+ * STALE: Master or derivatives need refresh
+ */
+export type MediaLifecycleState = 
+  | 'source_reference'   // Drive metadata only
+  | 'materializing'      // Downloading bytes
+  | 'materialized'       // Master in Blob
+  | 'rendition_ready'    // Derivatives generated
+  | 'published'          // CDN available
+  | 'stale';             // Needs refresh
+
 export interface MediaDimensions {
   width: number;
   height: number;
@@ -33,8 +51,10 @@ export interface MediaVariants {
 
 export interface Media {
   id: string;
-  contentHash?: string; // SHA-256 hash of content for stable identity
+  contentHash?: string; // SHA-256 hash of actual bytes (null for source_reference)
+  sourceIdentityHash?: string; // Hash of source identity (fileId + driveId) for source_reference
   source?: 'google-drive' | 'local'; // Source of the asset
+  lifecycleState?: MediaLifecycleState; // Explicit lifecycle state
   drive?: {
     fileId: string;
     driveId?: string; // Shared Drive ID if applicable
