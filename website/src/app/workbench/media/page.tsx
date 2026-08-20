@@ -1006,8 +1006,8 @@ Check browser console for detailed logs.`);
       }
     }
 
-    // Trigger Vercel deployment after successful assignment persistence
-    console.log('[DEPLOY TRIGGER] INITIATING_DEPLOYMENT_AFTER_ACCEPT');
+    // Check deployment readiness after successful assignment persistence
+    console.log('[DEPLOY READINESS] CHECKING_DEPLOYMENT_READINESS');
     try {
       const deployResponse = await fetch('/api/admin/deploy', {
         method: 'POST',
@@ -1019,21 +1019,25 @@ Check browser console for detailed logs.`);
 
       if (deployResponse.ok) {
         const deployData = await deployResponse.json();
-        console.log('[DEPLOY TRIGGER] SUCCESS', { 
-          deploymentId: deployData.deploymentId,
-          deploymentUrl: deployData.deploymentUrl,
-          state: deployData.state,
-          commitSha: deployData.commitSha
+        console.log('[DEPLOY READINESS] SUCCESS', { 
+          readyForCommit: deployData.readyForCommit,
+          message: deployData.message,
+          nextSteps: deployData.nextSteps
         });
-        alert(`Changes accepted. Deployment trigger requested.\nDeployment ID: ${deployData.deploymentId}\nInitial state: ${deployData.state}\nCommit SHA: ${deployData.commitSha}\n\nMonitor deployment at Vercel dashboard.`);
+        
+        if (deployData.readyForCommit) {
+          alert(`Changes accepted and persisted successfully.\n\n${deployData.message}\n\nRequired next steps:\n${deployData.nextSteps ? deployData.nextSteps.join('\n') : ''}`);
+        } else {
+          alert(`Changes accepted successfully.\n\n${deployData.message}`);
+        }
       } else {
         const errorData = await deployResponse.json();
-        console.error('[DEPLOY TRIGGER] FAILED', { error: errorData });
-        alert(`Changes accepted and committed to main. Deployment trigger failed: ${errorData.error || errorData.message}`);
+        console.error('[DEPLOY READINESS] FAILED', { error: errorData });
+        alert(`Changes accepted successfully. Deployment readiness check failed: ${errorData.error || errorData.message}`);
       }
     } catch (error) {
-      console.error('[DEPLOY TRIGGER] ERROR', error);
-      alert(`Changes accepted and committed to main. Deployment trigger failed: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('[DEPLOY READINESS] ERROR', error);
+      alert(`Changes accepted successfully. Deployment readiness check failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setState(prev => ({ ...prev, isAccepting: false }));
     }
