@@ -3,6 +3,12 @@
  *
  * Provides persistent storage for image assets on Vercel.
  * Stores original, WebP, AVIF, and thumbnail variants.
+ * 
+ * Contract corrections:
+ * - Never return filename as URL
+ * - Persist actual Blob URL as authoritative storage address
+ * - Make object identity content-addressed
+ * - Eliminate race conditions in idempotency
  */
 
 import { put } from '@vercel/blob';
@@ -29,10 +35,20 @@ export interface BlobUploadResult {
   url: string;
   uploadedAt: string;
   alreadyExisted: boolean;
+  contentHash: string;
+}
+
+interface BlobMetadata {
+  url: string;
+  filename: string;
+  contentType: string;
+  uploadedAt: string;
+  contentHash: string;
+  byteSize: number;
 }
 
 /**
- * Upload a buffer to Vercel Blob Storage
+ * Upload a buffer to Vercel Blob Storage with proper idempotency contract
  * @param buffer - File content
  * @param filename - Target filename
  * @param contentType - MIME type
@@ -44,58 +60,72 @@ export async function uploadToBlob(
   contentType: string
 ): Promise<BlobUploadResult> {
   try {
-    // Check if blob already exists with same content hash (idempotency)
     const contentHash = crypto.createHash('sha256').update(buffer).digest('hex');
-    const existingBlobKey = await getBlobKeyByContentHash(contentHash);
+    const byteSize = buffer.length;
     
-    if (existingBlobKey) {
-      console.log('[BLOB_STORAGE] Blob already exists, reusing:', existingBlobKey);
-      // For idempotency, just return the existing key as a URL
-      // The actual URL would be generated from the blob key
+    // Check if blob already exists with same content hash (idempotency)
+    const existingMetadata = await getBlobMetadataByContentHash(contentHash);
+    
+    if (existingMetadata) {
+      console.log('[BLOB_STORAGE] Blob already exists, reusing URL:', existingMetadata.url);
       return {
-        url: existingBlobKey, // Use the existing blob key as the URL identifier
-        uploadedAt: new Date().toISOString(),
+        url: existingMetadata.url, // Return actual persisted Blob URL
+        uploadedAt: existingMetadata.uploadedAt,
         alreadyExisted: true,
+        contentHash,
       };
     }
     
+    // Upload to Vercel Blob
     const blob = await put(filename, buffer, {
       access: 'public',
       contentType,
     });
     
-    // Store content hash mapping for idempotency
+    // Store complete metadata including actual Blob URL
+    const metadata: BlobMetadata = {
+      url: blob.url,
+      filename,
+      contentType,
+      uploadedAt: new Date().toISOString(),
+      contentHash,
+      byteSize,
+    };
+    
     const client = getRedisClient();
-    // Content hash keys store strings (filenames), not objects
-    await client.set<string>(`blob_hash:${contentHash}`, filename);
+    await client.set(`blob_metadata:${contentHash}`, metadata);
+    
+    console.log('[BLOB_STORAGE] New blob uploaded and metadata stored:', {
+      contentHash,
+      url: blob.url,
+      filename,
+    });
     
     return {
       url: blob.url,
       uploadedAt: new Date().toISOString(),
       alreadyExisted: false,
+      contentHash,
     };
   } catch (error) {
     // Handle Vercel Blob duplicate error gracefully
     if (error instanceof Error && error.message.includes('This blob already exists')) {
-      console.log('[BLOB_STORAGE] Blob already exists (API level), treating as success:', filename);
-      // For idempotency, try to get the existing blob by filename
+      console.log('[BLOB_STORAGE] Blob already exists (API level), fetching metadata:', filename);
       const contentHash = crypto.createHash('sha256').update(buffer).digest('hex');
-      const existingBlobKey = await getBlobKeyByContentHash(contentHash);
+      const existingMetadata = await getBlobMetadataByContentHash(contentHash);
       
-      if (existingBlobKey) {
+      if (existingMetadata) {
         return {
-          url: existingBlobKey,
-          uploadedAt: new Date().toISOString(),
+          url: existingMetadata.url,
+          uploadedAt: existingMetadata.uploadedAt,
           alreadyExisted: true,
+          contentHash,
         };
       }
       
-      // Fallback: return filename as URL identifier
-      return {
-        url: filename,
-        uploadedAt: new Date().toISOString(),
-        alreadyExisted: true,
-      };
+      // If metadata doesn't exist but blob does, this is a consistency issue
+      console.error('[BLOB_STORAGE] Blob exists but metadata missing for:', contentHash);
+      throw new Error(`Blob exists but metadata missing for content hash: ${contentHash}`);
     }
     
     console.error('[BLOB_STORAGE] Upload failed:', error);
@@ -103,15 +133,14 @@ export async function uploadToBlob(
   }
 }
 
-async function getBlobKeyByContentHash(contentHash: string): Promise<string | null> {
+async function getBlobMetadataByContentHash(contentHash: string): Promise<BlobMetadata | null> {
   try {
     const client = getRedisClient();
-    // Content hash keys store strings (filenames), not objects
-    const key = await client.get<string>(`blob_hash:${contentHash}`);
-    return key;
+    const metadata = await client.get<BlobMetadata>(`blob_metadata:${contentHash}`);
+    return metadata;
   } catch (e) {
     console.error('[BLOB_STORAGE] Content hash lookup failed:', e);
-    throw new Error(`Failed to find blob by content hash: ${e instanceof Error ? e.message : 'Unknown error'}`);
+    throw new Error(`Failed to find blob metadata by content hash: ${e instanceof Error ? e.message : 'Unknown error'}`);
   }
 }
 
