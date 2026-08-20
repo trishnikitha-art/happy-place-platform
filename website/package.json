@@ -12,8 +12,7 @@
     "images": "node scripts/image-pipeline.mjs",
     "qa:images": "node scripts/image-qa.mjs",
     "projections": "node scripts/constitutional-projection-generator.js",
-    "graph-edges": "node scripts/graph-edge-generator.js",
-    "postinstall": "npx sharp install"
+    "graph-edges": "node scripts/graph-edge-generator.js"
   },
   "dependencies": {
     "@studio-freight/lenis": "^1.0.42",
@@ -31,9 +30,7 @@
     "tailwind-merge": "^3.6.0",
     "yaml": "^2.9.0"
   },
-  "optionalDependencies": {
-    "sharp-linux-x64": "^0.35.3"
-  },
+
   "engines": {
     "node": ">=18.0.0"
   },
