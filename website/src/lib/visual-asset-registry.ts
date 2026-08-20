@@ -334,13 +334,19 @@ export async function getDriveOnlyAssets(): Promise<VisualAsset[]> {
 }
 
 /**
- * Add a Drive asset to the registry (called after successful ingestion)
+ * Add a materialized asset to the registry (called after successful ingestion)
+ * 
+ * CONSTITUTIONAL FIX: Properly classify materialized assets
+ * - Drive source → materialized → PublishedMediaAsset should be classified as PUBLISHED
+ * - Physical status should reflect Blob storage, not Drive dependency
  */
 export async function addDriveAssetToRegistry(media: Media): Promise<VisualAsset> {
-  const classification = 'DRIVE_ONLY';
+  // CONSTITUTIONAL FIX: Materialized assets are not DRIVE_ONLY
+  // They have been converted from Drive source to local Blob storage
+  const classification = media.lifecycleState === 'published' ? 'PUBLISHED' : 'DRIVE_ONLY';
   const usageSlots: VisualSlot[] = [];
   const physicalPath = media.variants?.original || '';
-  const physicalStatus = 'DRIVE_ONLY';
+  const physicalStatus = media.source === 'local' ? 'BLOB' : 'DRIVE_ONLY';
 
   return {
     ...media,

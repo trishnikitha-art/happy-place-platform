@@ -376,9 +376,10 @@ export default function MediaWorkbench() {
           slotIdMatch: event.data.slot?.id === slot.id,
         });
 
-        // Handle Drive reference (direct drag from Drive without ingestion)
+        // Handle Drive file (direct drag from Drive)
+        // CONSTITUTIONAL FIX: Invoke materialization instead of creating assignable DriveReference
         if (applicationData?.source === 'google-drive' && applicationData?.fileId) {
-          console.log('[WB_FORENSIC] DRIVE_REFERENCE_PATH', {
+          console.log('[WB_FORENSIC] DRIVE_MATERIALIZATION_PATH', {
             requestId,
             fileId: applicationData.fileId,
             sharedDriveId: applicationData.sharedDriveId,
@@ -386,38 +387,38 @@ export default function MediaWorkbench() {
             timestamp: Date.now(),
           });
           
-          console.log('[DND] DRIVE_REFERENCE_DETECTED', {
+          console.log('[DND] DRIVE_FILE_DETECTED', {
             requestId,
             fileId: applicationData.fileId,
             sharedDriveId: applicationData.sharedDriveId,
             slotId,
           });
           
-          console.log('[DND] DRIVE_REFERENCE_VALIDATED', {
+          console.log('[DND] DRIVE_FILE_VALIDATED', {
             requestId,
             hasFileId: !!applicationData.fileId,
             hasSharedDriveId: !!applicationData.sharedDriveId,
             hasSlotId: !!slotId,
           });
           
-          // Check if Drive file already exists in local assets
+          // Check if Drive file already exists as PublishedMediaAsset
           const existingAsset = assetsRef.current.find(a => 
-            a.drive?.fileId === applicationData.fileId && 
-            a.drive?.driveId === applicationData.sharedDriveId
+            a.provenance?.august3_driveId === applicationData.fileId || 
+            a.provenance?.august3_driveId === applicationData.sharedDriveId
           );
           
           if (existingAsset) {
-            console.log('[DND] DRIVE_REFERENCE_EXISTS', { requestId, assetId: existingAsset.id });
-            // Use existing asset - route through existing replacement confirmation
+            console.log('[DND] DRIVE_ALREADY_MATERIALIZED', { requestId, assetId: existingAsset.id });
+            // Use existing PublishedMediaAsset - route through replacement confirmation
             handleDriveDropToSlot(slot, existingAsset, slot.currentMediaId, requestId);
           } else {
-            console.log('[DND] DRIVE_REFERENCE_CREATE', {
+            console.log('[DND] DRIVE_MATERIALIZATION_REQUIRED', {
               requestId,
               fileId: applicationData.fileId,
               sharedDriveId: applicationData.sharedDriveId,
             });
-            // Create Drive reference via API, then route through replacement confirmation
-            createDriveReference(applicationData, slot, requestId);
+            // Invoke materialization via ingest API, then route through replacement confirmation
+            materializeDriveFile(applicationData, slot, requestId);
           }
           return;
         }
@@ -749,8 +750,12 @@ export default function MediaWorkbench() {
   const selectDriveFile = async (file: DriveFile) => {
     setState(prev => ({ ...prev, driveSelectedFile: file }));
     
-    // AUTOMATIC INGESTION: Immediately ingest when file is selected
-    await useDriveFile(file);
+    // NO AUTOMATIC INGESTION: Selection is just selection
+    // Materialization must be explicit via "Ingest as Media" button
+    console.log('[WORKBENCH] Drive file selected (no automatic ingestion)', {
+      fileId: file.id,
+      name: file.name,
+    });
   };
 
   const useDriveFile = async (file: DriveFile) => {
@@ -1111,32 +1116,32 @@ Check browser console for detailed logs.`);
     });
   };
 
-  const createDriveReference = async (driveReference: any, slot: RegisteredSlot, requestId?: string) => {
-    console.log('[DND] DRIVE_REFERENCE_STARTED', {
+  const materializeDriveFile = async (driveFile: any, slot: RegisteredSlot, requestId?: string) => {
+    console.log('[DND] DRIVE_MATERIALIZATION_STARTED', {
       requestId,
-      fileId: driveReference.fileId,
-      sharedDriveId: driveReference.sharedDriveId,
+      fileId: driveFile.fileId,
+      sharedDriveId: driveFile.sharedDriveId,
       slotId: slot.id,
     });
 
     try {
-      console.log('[DND] DRIVE_FILE_LOOKUP_STARTED', {
+      console.log('[DND] DRIVE_INGEST_STARTED', {
         requestId,
-        fileId: driveReference.fileId,
-        sharedDriveId: driveReference.sharedDriveId,
+        fileId: driveFile.fileId,
+        sharedDriveId: driveFile.sharedDriveId,
       });
       
-      // Use lightweight reference API that stores in KV (media.v1.json is static build artifact)
-      const response = await fetch('/api/drive/reference', {
+      // Use ingest API to materialize Drive file into PublishedMediaAsset
+      const response = await fetch('/api/drive/ingest', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          fileId: driveReference.fileId,
-          sharedDriveId: driveReference.sharedDriveId,
+          driveId: driveFile.fileId,
+          driveIdParameter: driveFile.sharedDriveId,
         }),
       });
 
-      console.log('[DND] DRIVE_FILE_LOOKUP_SUCCESS', {
+      console.log('[DND] DRIVE_INGEST_RESPONSE', {
         requestId,
         httpStatus: response.status,
       });
@@ -1144,16 +1149,28 @@ Check browser console for detailed logs.`);
       const result = await response.json();
 
       if (result.success && result.media) {
-        console.log('[DND] DRIVE_MEDIA_URL_CREATED', {
+        console.log('[DND] DRIVE_MATERIALIZATION_SUCCESS', {
           requestId,
           mediaId: result.media.id,
+          lifecycleState: result.media.lifecycleState,
+          source: result.media.source,
           hasVariants: !!result.media.variants,
-          variants: result.media.variants,
           slotId: slot.id,
         });
 
-        // Add the newly created Drive reference to assetsRef.current
-        // This ensures it's available for staging without requiring KV reload
+        // Verify this is actually a PublishedMediaAsset
+        if (result.media.source !== 'local' || result.media.lifecycleState !== 'published') {
+          console.error('[DND] MATERIALIZATION_INVALID_STATE', {
+            requestId,
+            mediaId: result.media.id,
+            source: result.media.source,
+            lifecycleState: result.media.lifecycleState,
+          });
+          alert('Materialization failed: asset is not in published state');
+          return;
+        }
+
+        // Add the newly materialized PublishedMediaAsset to assetsRef.current
         assetsRef.current = [...assetsRef.current, result.media];
         
         // Also update React state to include the new asset
@@ -1167,8 +1184,7 @@ Check browser console for detailed logs.`);
           assetCount: assetsRef.current.length,
         });
 
-        // Reload dynamic media from KV to pick up new Drive record
-        // This is optional - if KV fails, we still have the Drive reference in memory
+        // Reload dynamic media from KV to pick up new PublishedMediaAsset
         try {
           await loadDynamicMedia();
         } catch (e) {
@@ -1184,12 +1200,12 @@ Check browser console for detailed logs.`);
         // Route through existing replacement confirmation
         handleDriveDropToSlot(slot, result.media, slot.currentMediaId, requestId);
       } else {
-        console.error('[DND] DRIVE_REFERENCE_FAILED', { requestId, result });
-        alert(`Failed to create Drive reference: ${result.error || 'Unknown error'}`);
+        console.error('[DND] DRIVE_MATERIALIZATION_FAILED', { requestId, result });
+        alert(`Materialization failed: ${result.error || result.message || 'Unknown error'}`);
       }
     } catch (error) {
-      console.error('[DND] DRIVE_REFERENCE_ERROR', { requestId, error });
-      alert(`Failed to create Drive reference: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('[DND] DRIVE_MATERIALIZATION_ERROR', { requestId, error });
+      alert(`Materialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -1455,7 +1471,24 @@ Check browser console for detailed logs.`);
           status: response.status,
           error: errorText,
         });
-        alert(`Assignment failed: ${response.status} - ${errorText}`);
+        
+        // Parse error for better user feedback
+        let userMessage = `Assignment failed (${response.status})`;
+        try {
+          const errorJson = JSON.parse(errorText);
+          if (errorJson.error === 'Asset must be materialized') {
+            userMessage = 'This asset must be materialized before assignment. Please use the ingest workflow to convert Drive assets to PublishedMediaAsset.';
+          } else if (errorJson.error === 'Invalid media lifecycle state') {
+            userMessage = 'This asset is not in a published state. Only fully materialized PublishedMediaAsset can be assigned.';
+          } else if (errorJson.message) {
+            userMessage = errorJson.message;
+          }
+        } catch {
+          // Not JSON, use raw text
+          userMessage = `Assignment failed: ${response.status} - ${errorText}`;
+        }
+        
+        alert(userMessage);
         return;
       }
 

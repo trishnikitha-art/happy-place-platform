@@ -72,6 +72,7 @@ interface BaseMedia {
   alt: string;
   description?: string;
   tags: string[];
+  roles: MediaRole[]; // Required across all lifecycle states
   createdAt?: string;
   uploadedAt?: string;
   fileSize?: number;
@@ -231,7 +232,11 @@ export interface Media extends BaseMedia {
  * Type guards for lifecycle states
  * 
  * These are runtime predicates that check the lifecycleState field.
- * They return boolean for type narrowing based on the lifecycleState discriminator.
+ * NOTE: These return boolean, not type predicates, due to Media union type incompatibility.
+ * The Media type requires dimensions, but some lifecycle states have optional dimensions.
+ * Type predicates require the predicate type to be assignable to the parameter type.
+ * 
+ * Future improvement: Restructure type hierarchy to support proper type predicates.
  */
 export function isDriveReference(media: Media): boolean {
   return media.lifecycleState === 'source_reference';

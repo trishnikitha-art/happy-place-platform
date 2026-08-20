@@ -32,26 +32,27 @@ import type { Media, MediaRole } from '@/types/media';
 // Import storage modules at top level (they are ES modules)
 import { uploadToBlob, generateBlobFilename } from '@/lib/blob-storage';
 
-// Try to load Sharp (critical for production media processing)
+// Try to load Sharp (important for production media processing)
 let sharp: any = null;
+let sharpAvailable = false;
 try {
   sharp = require('sharp');
+  sharpAvailable = true;
   console.log('[MEDIA_INGEST] Sharp loaded successfully', {
     version: sharp.versions,
     platform: sharp.platforms,
     format: sharp.format
   });
 } catch (e) {
-  console.error('[MEDIA_INGEST] CRITICAL: Sharp failed to load', {
+  console.error('[MEDIA_INGEST] WARNING: Sharp failed to load', {
     error: e instanceof Error ? e.message : String(e),
     platform: process.platform,
     arch: process.arch,
     nodeVersion: process.version
   });
-  // In production, Sharp must be available for media processing
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('Sharp is required for production media processing but failed to load. Ensure Sharp dependencies are correctly installed.');
-  }
+  // Sharp is important but not fatal - fall back to original-only mode
+  // This allows production to function even if native dependencies are missing
+  console.warn('[MEDIA_INGEST] Falling back to original-only mode (no variant generation)');
 }
 
 export const dynamic = 'force-dynamic';
@@ -69,11 +70,12 @@ const WIDTHS = [480, 768, 1080, 1600, 2000];
 
 /**
  * Generate a stable media ID from content hash (deterministic)
+ * CONSTITUTIONAL FIX: Purely content-based identity, no filename dependency
+ * Same bytes = same ID, regardless of filename
  */
-function generateStableId(contentHash: string, baseName: string): string {
-  const combined = `${contentHash}:${baseName}`;
-  const hash = crypto.createHash('sha256').update(combined).digest('hex');
-  return hash.substring(0, 32); // First 32 hex chars = 128 bits
+function generateStableId(contentHash: string): string {
+  // Use only content hash for identity - filename should not affect identity
+  return contentHash.substring(0, 32); // First 32 hex chars = 128 bits
 }
 
 /**
@@ -249,7 +251,7 @@ export async function POST(request: Request) {
     // 3. Validate image (optional if Sharp not available)
     console.log('[MEDIA_INGEST] IMAGE_VALIDATION stage started', { requestId });
     let metadata: any = {};
-    if (sharp) {
+    if (sharpAvailable) {
       try {
         metadata = await sharp(fileBuffer).metadata();
         console.log('[MEDIA_INGEST] image metadata:', {
@@ -319,9 +321,8 @@ export async function POST(request: Request) {
     // 6. Generate stable identifiers
     // CRITICAL: PublishedMediaAsset must NOT use drive- prefix
     // drive- prefix is reserved for DriveReference (source_reference) only
-    // PublishedMediaAsset uses content-based ID without source prefix
-    const baseName = driveFile.name.replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]/g, '-');
-    const stableId = generateStableId(contentHash, baseName);
+    // PublishedMediaAsset uses purely content-based ID without source prefix
+    const stableId = generateStableId(contentHash);
     const uuid = generateUUIDv5(contentHash);
     const mediaId = stableId; // Content-based ID, no drive- prefix
 
@@ -331,7 +332,7 @@ export async function POST(request: Request) {
     let originalUpload: any;
     let blobIdempotencyStats = { newUploads: 0, reusedUploads: 0 };
     
-    if (sharp) {
+    if (sharpAvailable) {
       const width = metadata.width || 1920;
       const height = metadata.height || 1080;
       const validWidths = WIDTHS.filter((w) => w <= width);
@@ -429,7 +430,7 @@ export async function POST(request: Request) {
     let thumbUpload: any;
     let blurDataURL = '';
     
-    if (sharp) {
+    if (sharpAvailable) {
       const thumbFilename = generateBlobFilename(mediaId, 'thumb', 'webp');
       const thumbBuffer = await sharp(fileBuffer).resize(480).webp({ quality: 70 }).toBuffer();
       thumbUpload = await uploadToBlob(thumbBuffer, thumbFilename, 'image/webp');
@@ -457,7 +458,7 @@ export async function POST(request: Request) {
     console.log('[MEDIA_INGEST] VARIANT_GENERATION stage completed', {
       requestId,
       variantsCount: variants.length,
-      hasSharp: !!sharp,
+      hasSharp: sharpAvailable,
       blobIdempotencyStats,
     });
 
@@ -503,8 +504,8 @@ export async function POST(request: Request) {
       updatedAt: driveFile.modifiedTime,
       uploadedAt: new Date().toISOString(),
       fileSize: driveFile.size || fileBuffer.length,
-      format: sharp ? (metadata.format || 'WEBP') : driveFile.mimeType?.split('/')[1] || 'unknown',
-      colorSpace: sharp ? (metadata.space || 'sRGB') : 'sRGB',
+      format: sharpAvailable ? (metadata.format || 'WEBP') : driveFile.mimeType?.split('/')[1] || 'unknown',
+      colorSpace: sharpAvailable ? (metadata.space || 'sRGB') : 'sRGB',
       // Provenance tracks Drive origin without creating Drive dependency
       provenance: {
         drive_canonical: true,
