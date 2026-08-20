@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     if (isProduction && redis) {
       // Production: Store in KV staging area
       const stagingKey = `${WORKBENCH_STAGING_PREFIX}project:${projectId}:gallery`;
-      const currentGallery = await redis.get<string[]>(stagingKey) || [];
+      const currentGallery = await redis.get<(string | null)[]>(stagingKey) || [];
       
       if (operation === 'add') {
         currentGallery.push(mediaId);
@@ -214,7 +214,7 @@ export async function DELETE(request: Request) {
     
     if (isProduction && redis) {
       const stagingKey = `${WORKBENCH_STAGING_PREFIX}project:${projectId}:gallery`;
-      const currentGallery = await redis.get<string[]>(stagingKey) || [];
+      const currentGallery = await redis.get<(string | null)[]>(stagingKey) || [];
       
       if (galleryIndex < 0 || galleryIndex >= currentGallery.length) {
         return NextResponse.json(

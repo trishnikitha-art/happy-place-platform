@@ -186,12 +186,12 @@ export async function POST(request: Request) {
         }
         
         if (field === 'hero') {
-          projectsData.projects[projectIndex].media.hero = value;
+          if (value) projectsData.projects[projectIndex].media.hero = value;
         } else if (field === 'gallery') {
-          const galleryArray = Array.isArray(value) ? value : [value];
+          const galleryArray = Array.isArray(value) ? value : (value ? [value] : []);
           projectsData.projects[projectIndex].media.gallery = galleryArray;
         } else if (field === 'before' || field === 'after') {
-          projectsData.projects[projectIndex].media[field] = value;
+          if (value) projectsData.projects[projectIndex].media[field] = value;
         }
         
         console.log('[DEPLOY API] APPLIED_STAGING_CHANGE', { projectId, field, key });
