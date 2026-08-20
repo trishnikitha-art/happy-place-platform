@@ -26,13 +26,13 @@ export async function GET(request: Request) {
       formats: null,
       cache: null,
       concurrency: null,
-      error: null
+      error: null as string | null
     },
     test: {
       canLoad: false,
       canResize: false,
       canConvert: false,
-      error: null
+      error: null as string | null
     }
   };
 
