@@ -61,7 +61,15 @@ function validateMedia(data: unknown): data is Media {
     return false;
   }
   
-  // Validate dimensions
+  // Special case: Drive references can have placeholder dimensions (0,0) and status 'referenced'
+  const isDriveReference = candidate.provenance?.status === 'referenced';
+  
+  if (isDriveReference) {
+    // Drive references are allowed to have placeholder dimensions and no real variants
+    return true;
+  }
+  
+  // Full Media objects require proper dimensions
   if (candidate.dimensions && typeof candidate.dimensions === 'object') {
     const dims = candidate.dimensions as Record<string, unknown>;
     if (typeof dims.width !== 'number' || dims.width <= 0) {
@@ -72,7 +80,7 @@ function validateMedia(data: unknown): data is Media {
     }
   }
   
-  // Validate variants
+  // Validate variants for fully materialized media
   if (candidate.variants && typeof candidate.variants === 'object') {
     const variants = candidate.variants as Record<string, unknown>;
     if (typeof variants.original !== 'string' || variants.original.trim().length === 0) {

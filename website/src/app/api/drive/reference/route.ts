@@ -26,6 +26,32 @@ interface ReferenceRequest {
   roles?: MediaRole[];
 }
 
+/**
+ * Drive-specific lightweight reference type
+ * Distinguishes Drive metadata from fully materialized Media assets
+ */
+interface DriveReference {
+  id: string;
+  sourceIdentityHash: string; // Not contentHash - this is source identity
+  source: 'google-drive';
+  drive: {
+    fileId: string;
+    driveId?: string;
+    name: string;
+    mimeType: string;
+    webViewUrl: string;
+    modifiedTime: string;
+  };
+  filename: string;
+  type: 'image' | 'document';
+  thumbnailProxyUrl: string;
+  projectId?: string;
+  roles: MediaRole[];
+  status: 'referenced'; // Explicitly marked as not materialized
+  createdAt: string;
+  updatedAt: string;
+}
+
 export async function POST(request: Request) {
   // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
   if (process.env.NODE_ENV === 'development') {
@@ -70,33 +96,34 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log('[DND] DRIVE_REFERENCE_METADATA_FETCHED', {
+    console.log('[DRIVE_REFERENCE] DRIVE_METADATA_FETCHED', {
       fileId,
       sharedDriveId,
       filename: driveFile.name,
+      mimeType: driveFile.mimeType,
     });
 
     // Construct the proxy URL for thumbnail rendering
     const thumbnailProxyUrl = `/api/drive/files/${fileId}/thumbnail${sharedDriveId ? `?driveId=${sharedDriveId}` : ''}`;
 
-    console.log('[DND] DRIVE_REFERENCE_VARIANTS_CONSTRUCTING', {
+    console.log('[DRIVE_REFERENCE] THUMBNAIL_PROXY_CONSTRUCTED', {
       fileId,
       sharedDriveId,
       thumbnailUrl: thumbnailProxyUrl,
-      webUrl: thumbnailProxyUrl,
     });
 
     // 2. Check for existing record with matching Drive identity (idempotency)
     // Use (source, sharedDriveId, fileId) as the canonical Drive identity
     const identityString = `${fileId}${sharedDriveId || ''}`;
-    const identityHash = crypto.createHash('sha256').update(identityString).digest('hex').substring(0, 16);
-    const mediaId = `drive-${identityHash}`;
+    const sourceIdentityHash = crypto.createHash('sha256').update(identityString).digest('hex').substring(0, 16);
+    const referenceId = `drive-ref-${sourceIdentityHash}`;
 
-    const existingAsset = await getMedia(mediaId);
+    // For now, check if Media exists with this ID (future: separate DriveReference store)
+    const existingAsset = await getMedia(referenceId);
 
     if (existingAsset) {
-      console.log('[DND] DRIVE_REFERENCE_EXISTS', {
-        mediaId,
+      console.log('[DRIVE_REFERENCE] EXISTS', {
+        referenceId,
         fileId,
         sharedDriveId,
       });
@@ -108,13 +135,34 @@ export async function POST(request: Request) {
       });
     }
 
-    // 3. Generate stable media ID from Drive identity
-    const baseName = driveFile.name.replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]/g, '-');
+    // 3. Create lightweight Drive reference (separate from fully materialized Media)
+    const driveReference: DriveReference = {
+      id: referenceId,
+      sourceIdentityHash, // Not contentHash - this is source identity
+      source: 'google-drive',
+      drive: {
+        fileId: fileId,
+        driveId: sharedDriveId,
+        name: driveFile.name,
+        mimeType: driveFile.mimeType,
+        webViewUrl: driveFile.webViewLink,
+        modifiedTime: driveFile.modifiedTime,
+      },
+      filename: driveFile.name,
+      type: driveFile.mimeType?.startsWith('image/') ? 'image' : 'document',
+      thumbnailProxyUrl,
+      projectId,
+      roles,
+      status: 'referenced', // Explicitly marked as not materialized
+      createdAt: driveFile.createdTime,
+      updatedAt: driveFile.modifiedTime,
+    };
 
-    // 4. Create lightweight Drive reference (stores in KV, not media.v1.json)
+    // 4. Store Drive reference separately (future: use DriveReference-specific store)
+    // For now, convert to Media format with proper status to pass validation
     const mediaRecord: Media = {
-      id: mediaId,
-      contentHash: identityHash, // Use Drive identity hash as content hash for now
+      id: referenceId,
+      contentHash: sourceIdentityHash, // Temporary: use source identity hash
       source: 'google-drive',
       drive: {
         fileId: fileId,
@@ -129,7 +177,6 @@ export async function POST(request: Request) {
       orientation: 'landscape', // Will be determined on materialization
       dimensions: { width: 0, height: 0 }, // Placeholder for materialization
       variants: {
-        // Drive proxy URL for lightweight rendering (will be upgraded to Blob variants later)
         thumbnail: thumbnailProxyUrl,
         web: thumbnailProxyUrl,
       },
@@ -156,22 +203,22 @@ export async function POST(request: Request) {
     // 5. Store in KV (dynamic persistence for Drive records)
     await storeMedia(mediaRecord);
 
-    console.log('[DND] DRIVE_REFERENCE_CREATED', {
-      mediaId,
+    console.log('[DRIVE_REFERENCE] CREATED', {
+      referenceId,
       fileId,
       sharedDriveId,
-      variantsSet: !!mediaRecord.variants,
       thumbnailUrl: mediaRecord.variants?.thumbnail,
-      webUrl: mediaRecord.variants?.web,
+      status: 'referenced',
     });
 
     return NextResponse.json({
       success: true,
       media: mediaRecord,
       action: 'created',
+      referenceId,
     });
   } catch (error) {
-    console.error('Drive reference error:', error);
+    console.error('[DRIVE_REFERENCE] ERROR', error);
     return NextResponse.json(
       {
         error: 'Failed to reference Drive file',
