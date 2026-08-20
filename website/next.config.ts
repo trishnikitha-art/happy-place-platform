@@ -9,13 +9,10 @@ const nextConfig: NextConfig = {
     // Remove this (and swap to real JPG/WebP) when client photos are dropped in.
     dangerouslyAllowSVG: true,
     contentDispositionType: "attachment",
-    // Allow Drive thumbnail URLs with query strings for dynamic Drive media
     // Allow local project images (including filenames with spaces)
     // Allow brand assets (logo, favicon, etc.)
+    // REMOVED: /api/drive/files/** - Drive endpoint is for Workbench only, not public delivery
     localPatterns: [
-      {
-        pathname: '/api/drive/files/**',
-      },
       {
         pathname: '/images/**',
       },

@@ -49,6 +49,7 @@ export function loadBrandManifest(): BrandManifest {
  * Get homepage hero image
  * Returns brand hero or null if not set
  * Applies runtime assignment from persistent store if available
+ * Uses public media gate to ensure only PublishedMediaAsset can be returned
  */
 export async function getHomepageHero(): Promise<BrandHero | null> {
   const requestId = `hero-get-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -67,11 +68,30 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
         key: 'service-card-assignment:brand-hero',
         mediaId: assignment.mediaId 
       });
-      // Return hero with runtime mediaId
-      return {
-        ...manifest.homepageHero,
-        mediaId: assignment.mediaId,
-      };
+      
+      // Resolve mediaId through public media gate (rejects Drive references)
+      const { resolvePublicMedia } = await import('@/lib/media');
+      const resolvedMedia = await resolvePublicMedia(assignment.mediaId);
+      
+      if (resolvedMedia) {
+        console.log('[PUBLIC_MEDIA_GATE] BRAND_HERO_APPROVED', { 
+          requestId, 
+          mediaId: assignment.mediaId,
+          resolvedMediaId: resolvedMedia.id 
+        });
+        // Return hero with runtime mediaId (only if it passed public media gate)
+        return {
+          ...manifest.homepageHero,
+          mediaId: assignment.mediaId,
+        };
+      } else {
+        console.error('[PUBLIC_MEDIA_GATE] BRAND_HERO_REJECTED', { 
+          requestId, 
+          mediaId: assignment.mediaId 
+        });
+        // Reject assignment if it doesn't resolve to PublishedMediaAsset
+        return manifest.homepageHero;
+      }
     }
   } catch (error) {
     console.error('[PUBLIC_READER] ASSIGNMENT_LOAD_FAILED', { requestId, error });
@@ -85,6 +105,7 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
  * Get owner portrait
  * Returns owner portrait or null if not set
  * Applies runtime assignment from persistent store if available
+ * Uses public media gate to ensure only PublishedMediaAsset can be returned
  */
 export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
   const requestId = `portrait-get-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -99,11 +120,30 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
     
     if (assignment && assignment.mediaId) {
       console.log('[BRAND] Runtime assignment loaded for portrait:', { requestId, mediaId: assignment.mediaId });
-      // Return portrait with runtime mediaId
-      return {
-        ...manifest.ownerPortrait,
-        mediaId: assignment.mediaId,
-      };
+      
+      // Resolve mediaId through public media gate (rejects Drive references)
+      const { resolvePublicMedia } = await import('@/lib/media');
+      const resolvedMedia = await resolvePublicMedia(assignment.mediaId);
+      
+      if (resolvedMedia) {
+        console.log('[PUBLIC_MEDIA_GATE] BRAND_PORTRAIT_APPROVED', { 
+          requestId, 
+          mediaId: assignment.mediaId,
+          resolvedMediaId: resolvedMedia.id 
+        });
+        // Return portrait with runtime mediaId (only if it passed public media gate)
+        return {
+          ...manifest.ownerPortrait,
+          mediaId: assignment.mediaId,
+        };
+      } else {
+        console.error('[PUBLIC_MEDIA_GATE] BRAND_PORTRAIT_REJECTED', { 
+          requestId, 
+          mediaId: assignment.mediaId 
+        });
+        // Reject assignment if it doesn't resolve to PublishedMediaAsset
+        return manifest.ownerPortrait;
+      }
     }
   } catch (error) {
     console.error('[BRAND] Failed to load runtime assignment for portrait:', { requestId, error });

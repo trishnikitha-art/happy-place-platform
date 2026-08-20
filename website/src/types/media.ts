@@ -10,6 +10,9 @@
  * - MaterializingMedia: Bytes in progress, never enters public presentation
  * - PublishedMediaAsset: Fully validated public asset, only this enters website
  * - StaleMedia: Needs refresh, never enters public presentation
+ * 
+ * IMPORTANT: These are discriminated union types. Media is the union of all lifecycle states.
+ * Type guards provide runtime discrimination for type narrowing.
  */
 
 export type MediaRole = "hero" | "before" | "after" | "detail" | "progress" | "gallery" | "brand" | "portrait" | "logo";
@@ -56,29 +59,16 @@ export interface MediaVariants {
 }
 
 /**
- * DriveReference - Source metadata only, never enters public presentation
+ * Base Media interface - shared fields across all lifecycle states
  * 
- * Purpose: Workbench can browse/manage Drive references
- * Invariant: Cannot cross the public media boundary
+ * This is the foundation interface that all lifecycle states extend.
+ * It contains fields that are common to all states.
  */
-export interface DriveReference {
+interface BaseMedia {
   id: string;
-  lifecycleState: 'source_reference';
-  sourceIdentityHash: string; // Hash of source identity (fileId + driveId)
-  source: 'google-drive';
-  drive: {
-    fileId: string;
-    driveId?: string; // Shared Drive ID if applicable
-    name: string;
-    mimeType: string;
-    webViewUrl?: string;
-    modifiedTime?: string;
-  };
   filename: string;
   type: MediaType;
   orientation: MediaOrientation;
-  dimensions?: MediaDimensions; // Optional for source references
-  variants?: MediaVariants; // Optional for source references
   alt: string;
   description?: string;
   tags: string[];
@@ -90,13 +80,34 @@ export interface DriveReference {
 }
 
 /**
+ * DriveReference - Source metadata only, never enters public presentation
+ * 
+ * Purpose: Workbench can browse/manage Drive references
+ * Invariant: Cannot cross the public media boundary
+ */
+export interface DriveReference extends BaseMedia {
+  lifecycleState: 'source_reference';
+  sourceIdentityHash: string; // Hash of source identity (fileId + driveId)
+  source: 'google-drive';
+  drive: {
+    fileId: string;
+    driveId?: string; // Shared Drive ID if applicable
+    name: string;
+    mimeType: string;
+    webViewUrl?: string;
+    modifiedTime?: string;
+  };
+  dimensions?: MediaDimensions; // Optional for source references
+  variants?: MediaVariants; // Optional for source references
+}
+
+/**
  * MaterializingMedia - Bytes in progress, never enters public presentation
  * 
  * Purpose: Track download/transcode progress
  * Invariant: Cannot cross the public media boundary
  */
-export interface MaterializingMedia {
-  id: string;
+export interface MaterializingMedia extends BaseMedia {
   lifecycleState: 'materializing';
   contentHash: string; // SHA-256 hash of actual bytes
   source: 'google-drive' | 'local';
@@ -108,19 +119,8 @@ export interface MaterializingMedia {
     webViewUrl?: string;
     modifiedTime?: string;
   };
-  filename: string;
-  type: MediaType;
-  orientation: MediaOrientation;
   dimensions?: MediaDimensions; // Required once materialized
   variants?: MediaVariants; // Required once materialized
-  alt: string;
-  description?: string;
-  tags: string[];
-  createdAt?: string;
-  uploadedAt?: string;
-  fileSize?: number;
-  format?: string;
-  colorSpace?: string;
 }
 
 /**
@@ -139,24 +139,12 @@ export interface MaterializingMedia {
  * - No /api/drive/* URLs
  * - No drive field
  */
-export interface PublishedMediaAsset {
-  id: string;
+export interface PublishedMediaAsset extends BaseMedia {
   contentHash: string; // SHA-256 hash of actual bytes (REQUIRED)
   source: 'local'; // Published assets must be local (REQUIRED)
   lifecycleState: 'published'; // Only published state allowed (REQUIRED)
-  filename: string;
-  type: MediaType;
-  orientation: MediaOrientation;
   dimensions: MediaDimensions; // Non-zero dimensions (REQUIRED)
   variants: MediaVariants; // At least one valid rendition (REQUIRED)
-  alt: string;
-  description?: string;
-  tags: string[];
-  createdAt?: string;
-  uploadedAt?: string;
-  fileSize?: number;
-  format?: string;
-  colorSpace?: string;
 }
 
 /**
@@ -165,8 +153,7 @@ export interface PublishedMediaAsset {
  * Purpose: Track assets that need re-materialization
  * Invariant: Cannot cross the public media boundary
  */
-export interface StaleMedia {
-  id: string;
+export interface StaleMedia extends BaseMedia {
   lifecycleState: 'stale';
   contentHash: string; // Previous content hash
   source: 'google-drive' | 'local';
@@ -178,30 +165,19 @@ export interface StaleMedia {
     webViewUrl?: string;
     modifiedTime?: string;
   };
-  filename: string;
-  type: MediaType;
-  orientation: MediaOrientation;
   dimensions: MediaDimensions;
   variants: MediaVariants;
-  alt: string;
-  description?: string;
-  tags: string[];
-  createdAt?: string;
-  uploadedAt?: string;
-  fileSize?: number;
-  format?: string;
-  colorSpace?: string;
 }
 
 /**
- * Media - Union type for all lifecycle states
+ * Media - Discriminated union of all lifecycle states
  * 
- * Legacy type for compatibility - new code should use specific lifecycle types
+ * This is the type-safe union that represents all possible media states.
+ * Use type guards to narrow to specific lifecycle states.
  * 
- * DEPRECATED: Prefer specific lifecycle types (DriveReference, MaterializingMedia, PublishedMediaAsset, StaleMedia)
+ * Legacy additional fields for backward compatibility with media.v1.json
  */
-export interface Media {
-  id: string;
+export interface Media extends BaseMedia {
   contentHash?: string; // SHA-256 hash of actual bytes (null for source_reference)
   sourceIdentityHash?: string; // Hash of source identity (fileId + driveId) for source_reference
   source?: 'google-drive' | 'local'; // Source of the asset
@@ -214,15 +190,8 @@ export interface Media {
     webViewUrl?: string;
     modifiedTime?: string;
   };
-  filename: string;
-  type: MediaType;
-  orientation: MediaOrientation;
-
   dimensions: MediaDimensions;
   variants: MediaVariants;
-
-  alt: string;
-  description?: string;
 
   // Classification
   service?: string;
@@ -230,7 +199,6 @@ export interface Media {
   county?: string;
   state?: string;
   projectId?: string;
-  tags: string[];
 
   // Roles
   roles: MediaRole[];
@@ -244,14 +212,7 @@ export interface Media {
   homepageEligible?: boolean;
 
   // Metadata
-  createdAt?: string; // ISO date string
   updatedAt?: string; // ISO date string
-  uploadedAt?: string; // ISO date string
-
-  // Technical
-  fileSize?: number;
-  format?: string;
-  colorSpace?: string;
 
   // Provenance (for reconciliation tracking)
   provenance?: {
@@ -268,6 +229,9 @@ export interface Media {
 
 /**
  * Type guards for lifecycle states
+ * 
+ * These are runtime predicates that narrow the Media union type to specific lifecycle states.
+ * They use the lifecycleState discriminator field.
  */
 export function isDriveReference(media: Media): media is DriveReference {
   return media.lifecycleState === 'source_reference';
