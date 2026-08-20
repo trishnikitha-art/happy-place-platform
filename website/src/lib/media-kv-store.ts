@@ -89,7 +89,7 @@ function validateMedia(data: unknown): data is Media {
  */
 export async function storeMedia(media: Media): Promise<void> {
   // Extract ID before validation for error messages
-  const mediaId = (media as Record<string, unknown>)?.id as string || 'unknown';
+  const mediaId = (media as unknown as Record<string, unknown>)?.id as string || 'unknown';
   
   // Validate Media schema before storage
   if (!validateMedia(media)) {
