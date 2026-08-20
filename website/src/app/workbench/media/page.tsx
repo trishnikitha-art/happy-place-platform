@@ -38,6 +38,7 @@ interface MediaWorkbenchState {
   filter: 'all' | 'used' | 'unused' | 'drive';
   registeredSlots: RegisteredSlot[];
   pendingAssignments: Map<string, { slot: RegisteredSlot; asset: VisualAsset }>;
+  isAccepting: boolean;
   driveBrowsing: boolean;
   driveStructure: { myDrive: any; sharedDrives: any[] } | null;
   driveFiles: (DriveFolder | DriveFile)[];
@@ -72,6 +73,7 @@ export default function MediaWorkbench() {
     filter: 'all',
     registeredSlots: [],
     pendingAssignments: new Map(),
+    isAccepting: false,
     driveBrowsing: false,
     driveStructure: null,
     driveFiles: [],
@@ -931,11 +933,14 @@ Check browser console for detailed logs.`);
 
   const confirmAssignment = async () => {
     if (state.pendingAssignments.size === 0) return;
+    if (state.isAccepting) return; // Prevent double-click
 
     console.log('[WB_FORENSIC] CONFIRM_STARTED', {
       count: state.pendingAssignments.size,
       timestamp: Date.now(),
     });
+
+    setState(prev => ({ ...prev, isAccepting: true }));
 
     console.log('[DND] CONFIRMING_ASSIGNMENTS', {
       count: state.pendingAssignments.size,
@@ -945,6 +950,10 @@ Check browser console for detailed logs.`);
         currentMediaId: a.slot.currentMediaId,
       })),
     });
+
+    // Track success/failure
+    let successCount = 0;
+    let failureCount = 0;
 
     // Process all pending assignments
     for (const { slot, asset } of state.pendingAssignments.values()) {
@@ -956,12 +965,14 @@ Check browser console for detailed logs.`);
         });
         
         await assignAssetToSlot(asset, slot);
+        successCount++;
         
         console.log('[DND] SLOT_ASSIGNMENT_SUCCESS', {
           slotId: slot.id,
           assetId: asset.id,
         });
       } catch (error) {
+        failureCount++;
         console.error('[DND] SLOT_ASSIGNMENT_FAILED', {
           slotId: slot.id,
           assetId: asset.id,
@@ -971,7 +982,15 @@ Check browser console for detailed logs.`);
       }
     }
 
-    // Clear all pending assignments after processing
+    // Only proceed with deployment if all assignments succeeded
+    if (failureCount > 0) {
+      console.log('[DEPLOY TRIGGER] SKIPPED_DUE_TO_FAILURES', { successCount, failureCount });
+      setState(prev => ({ ...prev, isAccepting: false, pendingAssignments: new Map() }));
+      alert(`Acceptance incomplete: ${successCount} succeeded, ${failureCount} failed. Deployment cancelled.`);
+      return;
+    }
+
+    // Clear all pending assignments after successful processing
     setState(prev => ({ ...prev, pendingAssignments: new Map() }));
     
     // Force iframe refresh to pick up authority changes
@@ -994,7 +1013,7 @@ Check browser console for detailed logs.`);
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          reason: `Workbench media changes accepted (${state.pendingAssignments.size} assignments)` 
+          reason: `Workbench media changes accepted (${successCount} assignments)` 
         }),
       });
 
@@ -1003,17 +1022,20 @@ Check browser console for detailed logs.`);
         console.log('[DEPLOY TRIGGER] SUCCESS', { 
           deploymentId: deployData.deploymentId,
           deploymentUrl: deployData.deploymentUrl,
-          state: deployData.state
+          state: deployData.state,
+          commitSha: deployData.commitSha
         });
-        alert(`Changes accepted and production deployment triggered successfully.\nDeployment ID: ${deployData.deploymentId}\nState: ${deployData.state}`);
+        alert(`Changes accepted. Deployment trigger requested.\nDeployment ID: ${deployData.deploymentId}\nInitial state: ${deployData.state}\nCommit SHA: ${deployData.commitSha}\n\nMonitor deployment at Vercel dashboard.`);
       } else {
         const errorData = await deployResponse.json();
         console.error('[DEPLOY TRIGGER] FAILED', { error: errorData });
-        alert(`Changes accepted successfully, but deployment trigger failed: ${errorData.error || errorData.message}`);
+        alert(`Changes accepted and committed to main. Deployment trigger failed: ${errorData.error || errorData.message}`);
       }
     } catch (error) {
       console.error('[DEPLOY TRIGGER] ERROR', error);
-      alert(`Changes accepted successfully, but deployment trigger failed: ${error instanceof Error ? error.message : String(error)}`);
+      alert(`Changes accepted and committed to main. Deployment trigger failed: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setState(prev => ({ ...prev, isAccepting: false }));
     }
   };
 
@@ -1609,9 +1631,10 @@ Check browser console for detailed logs.`);
                 </button>
                 <button
                   onClick={confirmAssignment}
-                  className="px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors flex items-center gap-2 text-xs"
+                  disabled={state.isAccepting}
+                  className="px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors flex items-center gap-2 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  CONFIRM ALL
+                  {state.isAccepting ? 'ACCEPTING...' : 'CONFIRM ALL'}
                 </button>
               </div>
             )}

@@ -17,6 +17,7 @@ import { NextResponse } from "next/server";
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { workbenchSession } from "@/lib/workbench-session";
+import { getMediaById, getMediaByIdAsync } from "@/lib/media";
 
 export const runtime = 'nodejs';
 
@@ -54,6 +55,16 @@ export async function POST(request: Request) {
     }
 
     console.log('[GALLERY POST] REQUEST_RECEIVED', { projectId, galleryIndex, mediaId, operation });
+
+    // Validate mediaId exists in authoritative media sources
+    const mediaExists = getMediaById(mediaId) || await getMediaByIdAsync(mediaId);
+    if (!mediaExists) {
+      console.log('[GALLERY POST] INVALID_MEDIA_ID', { mediaId });
+      return NextResponse.json(
+        { error: "Media ID not found in authoritative media sources" },
+        { status: 400 }
+      );
+    }
 
     // Read projects.v1.json
     const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
