@@ -391,6 +391,13 @@ export default function MediaWorkbench() {
             slotId,
           });
           
+          console.log('[DND] DRIVE_REFERENCE_VALIDATED', {
+            requestId,
+            hasFileId: !!applicationData.fileId,
+            hasSharedDriveId: !!applicationData.sharedDriveId,
+            hasSlotId: !!slotId,
+          });
+          
           // Check if Drive file already exists in local assets
           const existingAsset = assetsRef.current.find(a => 
             a.drive?.fileId === applicationData.fileId && 
@@ -1019,6 +1026,12 @@ Check browser console for detailed logs.`);
     });
 
     try {
+      console.log('[DND] DRIVE_FILE_LOOKUP_STARTED', {
+        requestId,
+        fileId: driveReference.fileId,
+        sharedDriveId: driveReference.sharedDriveId,
+      });
+      
       // Use lightweight reference API that stores in KV (media.v1.json is static build artifact)
       const response = await fetch('/api/drive/reference', {
         method: 'POST',
@@ -1029,14 +1042,20 @@ Check browser console for detailed logs.`);
         }),
       });
 
+      console.log('[DND] DRIVE_FILE_LOOKUP_SUCCESS', {
+        requestId,
+        httpStatus: response.status,
+      });
+
       const result = await response.json();
 
       if (result.success && result.media) {
-        console.log('[DND] DRIVE_REFERENCE_SUCCESS', {
+        console.log('[DND] DRIVE_MEDIA_URL_CREATED', {
           requestId,
           mediaId: result.media.id,
-          slotId: slot.id,
           hasVariants: !!result.media.variants,
+          variants: result.media.variants,
+          slotId: slot.id,
         });
 
         // Add the newly created Drive reference to assetsRef.current
@@ -1049,6 +1068,11 @@ Check browser console for detailed logs.`);
           assets: [...prev.assets, result.media],
         }));
 
+        console.log('[DND] SLOT_STATE_UPDATED', {
+          requestId,
+          assetCount: assetsRef.current.length,
+        });
+
         // Reload dynamic media from KV to pick up new Drive record
         // This is optional - if KV fails, we still have the Drive reference in memory
         try {
@@ -1056,6 +1080,12 @@ Check browser console for detailed logs.`);
         } catch (e) {
           console.log('[DND] KV preload failed (non-blocking):', e);
         }
+
+        console.log('[DND] THUMBNAIL_RENDER_PATH', {
+          requestId,
+          thumbnailUrl: result.media.variants?.thumbnail,
+          webUrl: result.media.variants?.web,
+        });
 
         // Route through existing replacement confirmation
         handleDriveDropToSlot(slot, result.media, slot.currentMediaId, requestId);
@@ -1077,6 +1107,9 @@ Check browser console for detailed logs.`);
       assetId: asset.id,
       assetFilename: asset.filename,
       currentMediaId,
+      hasVariants: !!asset.variants,
+      thumbnailUrl: asset.variants?.thumbnail,
+      webUrl: asset.variants?.web,
     });
 
     // If slot already has media, show replacement confirmation
@@ -1112,10 +1145,20 @@ Check browser console for detailed logs.`);
       timestamp: Date.now(),
     });
 
+    console.log('[DND] REACT_STATE_UPDATE_STARTED', {
+      requestId,
+      slotId: slot.id,
+    });
+
     setState(prev => {
       const newPendingAssignments = new Map(prev.pendingAssignments);
       newPendingAssignments.set(slot.id, { slot, asset });
       return { ...prev, pendingAssignments: newPendingAssignments };
+    });
+    
+    console.log('[DND] REACT_STATE_UPDATE_COMPLETED', {
+      requestId,
+      slotId: slot.id,
     });
 
     console.log('[WB_FORENSIC] ASSIGNMENT_STAGED', {
