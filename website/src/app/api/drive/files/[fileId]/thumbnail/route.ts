@@ -18,16 +18,22 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ fileId: string }> }
 ) {
-  try {
-    const { fileId } = await params;
-    const { searchParams } = new URL(request.url);
-    const driveId = searchParams.get('driveId') || undefined;
+  const { fileId } = await params;
+  const { searchParams } = new URL(request.url);
+  const driveId = searchParams.get('driveId') || undefined;
 
-    console.log('[Drive Thumbnail] Request:', { fileId, driveId });
+  console.log('[THUMBNAIL_REQUEST_STARTED]', { fileId, driveId });
+
+  try {
+    console.log('[THUMBNAIL_AUTH_RESOLVED]', { fileId, driveId, hasAuth: true });
+
+    console.log('[THUMBNAIL_AUTH_RESOLVED]', { fileId, driveId, hasAuth: true });
 
     // Use Workbench user OAuth credentials
     const auth = await driveOAuthManager.getClient();
     const drive = google.drive({ version: 'v3', auth });
+
+    console.log('[THUMBNAIL_DRIVE_FETCH_STARTED]', { fileId, driveId });
 
     // Get file metadata including webContentLink and mimeType
     const getFileParams: any = {
@@ -44,18 +50,21 @@ export async function GET(
     const webContentLink = file.data.webContentLink;
     const mimeType = file.data.mimeType || 'image/jpeg';
 
+    console.log('[THUMBNAIL_DRIVE_FETCH_SUCCESS]', { 
+      fileId, 
+      hasWebContentLink: !!webContentLink,
+      mimeType 
+    });
+
     if (!webContentLink) {
-      console.error('[Drive Thumbnail] File does not have webContentLink:', fileId);
+      console.error('[THUMBNAIL_REQUEST_FAILED]', { fileId, reason: 'no webContentLink' });
       return NextResponse.json(
         { error: 'File does not have webContentLink' },
         { status: 500 }
       );
     }
 
-    console.log('[Drive Thumbnail] Downloading file from webContentLink:', {
-      fileId,
-      mimeType,
-    });
+    console.log('[THUMBNAIL_DRIVE_FETCH_STARTED]', { fileId, webContentLink });
 
     // Download the actual file using webContentLink
     const tokenResponse = await auth.getAccessToken();
@@ -65,8 +74,18 @@ export async function GET(
       },
     });
 
+    console.log('[THUMBNAIL_RESPONSE_STATUS]', { 
+      fileId, 
+      status: mediaResponse.status, 
+      statusText: mediaResponse.statusText 
+    });
+
     if (!mediaResponse.ok) {
-      console.error('[Drive Thumbnail] Failed to download file:', mediaResponse.status, mediaResponse.statusText);
+      console.error('[THUMBNAIL_REQUEST_FAILED]', { 
+        fileId, 
+        status: mediaResponse.status, 
+        reason: 'Drive fetch failed' 
+      });
       return NextResponse.json(
         { error: 'Failed to download file' },
         { status: mediaResponse.status }
@@ -76,11 +95,18 @@ export async function GET(
     const imageBuffer = Buffer.from(await mediaResponse.arrayBuffer());
     const contentType = mediaResponse.headers.get('Content-Type') || mimeType;
 
-    console.log('[Drive Thumbnail] Successfully downloaded file:', {
-      fileId,
+    console.log('[THUMBNAIL_RESPONSE_CONTENT_TYPE]', { 
+      fileId, 
       contentType,
-      size: imageBuffer.byteLength,
+      expectedContentType: mimeType 
     });
+
+    console.log('[THUMBNAIL_RESPONSE_BYTES]', { 
+      fileId, 
+      size: imageBuffer.byteLength 
+    });
+
+    console.log('[THUMBNAIL_REQUEST_SUCCESS]', { fileId, contentType, size: imageBuffer.byteLength });
 
     // Return the image
     return new NextResponse(imageBuffer, {
@@ -90,7 +116,10 @@ export async function GET(
       },
     });
   } catch (error) {
-    console.error('[Drive Thumbnail] Error:', error);
+    console.error('[THUMBNAIL_REQUEST_FAILED]', {
+      fileId,
+      reason: error instanceof Error ? error.message : 'Unknown error'
+    });
     return NextResponse.json(
       {
         error: 'Failed to fetch thumbnail',

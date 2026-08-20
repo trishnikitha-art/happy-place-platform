@@ -76,6 +76,16 @@ export async function POST(request: Request) {
       filename: driveFile.name,
     });
 
+    // Construct the proxy URL for thumbnail rendering
+    const thumbnailProxyUrl = `/api/drive/files/${fileId}/thumbnail${sharedDriveId ? `?driveId=${sharedDriveId}` : ''}`;
+
+    console.log('[DND] DRIVE_REFERENCE_VARIANTS_CONSTRUCTING', {
+      fileId,
+      sharedDriveId,
+      thumbnailUrl: thumbnailProxyUrl,
+      webUrl: thumbnailProxyUrl,
+    });
+
     // 2. Check for existing record with matching Drive identity (idempotency)
     // Use (source, sharedDriveId, fileId) as the canonical Drive identity
     const identityString = `${fileId}${sharedDriveId || ''}`;
@@ -120,8 +130,8 @@ export async function POST(request: Request) {
       dimensions: { width: 0, height: 0 }, // Placeholder for materialization
       variants: {
         // Drive proxy URL for lightweight rendering (will be upgraded to Blob variants later)
-        thumbnail: `/api/drive/files/${fileId}/thumbnail${sharedDriveId ? `?driveId=${sharedDriveId}` : ''}`,
-        web: `/api/drive/files/${fileId}/thumbnail${sharedDriveId ? `?driveId=${sharedDriveId}` : ''}`,
+        thumbnail: thumbnailProxyUrl,
+        web: thumbnailProxyUrl,
       },
       alt: driveFile.name,
       description: driveFile.description,
@@ -150,6 +160,9 @@ export async function POST(request: Request) {
       mediaId,
       fileId,
       sharedDriveId,
+      variantsSet: !!mediaRecord.variants,
+      thumbnailUrl: mediaRecord.variants?.thumbnail,
+      webUrl: mediaRecord.variants?.web,
     });
 
     return NextResponse.json({
