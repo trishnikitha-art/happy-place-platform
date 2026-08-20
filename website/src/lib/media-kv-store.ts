@@ -31,6 +31,7 @@ function getRedisClient(): Redis {
 
 const MEDIA_PREFIX = 'media:';
 const CONTENT_HASH_PREFIX = 'content_hash:';
+const MEDIA_QUARANTINE_PREFIX = 'media_quarantine:';
 
 /**
  * Validate Media object schema at runtime
@@ -49,8 +50,20 @@ function validateMedia(data: unknown): data is Media {
     return false;
   }
   
-  if (typeof candidate.contentHash !== 'string' || candidate.contentHash.trim().length === 0) {
-    return false;
+  // source_reference state requires sourceIdentityHash, not contentHash
+  const isSourceReference = candidate.lifecycleState === 'source_reference';
+  
+  if (isSourceReference) {
+    // Source references require sourceIdentityHash
+    if (typeof candidate.sourceIdentityHash !== 'string' || candidate.sourceIdentityHash.trim().length === 0) {
+      return false;
+    }
+    // contentHash can be undefined for source references
+  } else {
+    // Fully materialized media requires contentHash
+    if (typeof candidate.contentHash !== 'string' || candidate.contentHash.trim().length === 0) {
+      return false;
+    }
   }
   
   if (typeof candidate.source !== 'string') {
@@ -61,7 +74,12 @@ function validateMedia(data: unknown): data is Media {
     return false;
   }
   
-  // Validate dimensions
+  // Source references can have placeholder dimensions and proxy URLs
+  if (isSourceReference) {
+    return true;
+  }
+  
+  // Full Media objects require proper dimensions
   if (candidate.dimensions && typeof candidate.dimensions === 'object') {
     const dims = candidate.dimensions as Record<string, unknown>;
     if (typeof dims.width !== 'number' || dims.width <= 0) {
@@ -72,7 +90,7 @@ function validateMedia(data: unknown): data is Media {
     }
   }
   
-  // Validate variants
+  // Validate variants for fully materialized media
   if (candidate.variants && typeof candidate.variants === 'object') {
     const variants = candidate.variants as Record<string, unknown>;
     if (typeof variants.original !== 'string' || variants.original.trim().length === 0) {
@@ -173,7 +191,7 @@ export async function listMediaIds(): Promise<string[]> {
     } while (cursor !== '0');
     
     // Filter out quarantine keys
-    return keys.filter(key => !key.includes(':quarantine:')).map(key => key.replace(MEDIA_PREFIX, ''));
+    return keys.filter(key => !key.includes(MEDIA_QUARANTINE_PREFIX)).map(key => key.replace(MEDIA_PREFIX, ''));
   } catch (error) {
     console.error('[MEDIA_KV] List failed:', error);
     throw new Error(`Failed to list media IDs: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -195,5 +213,84 @@ export async function deleteMedia(id: string): Promise<void> {
   } catch (error) {
     console.error('[MEDIA_KV] Delete failed:', error);
     throw new Error(`Failed to delete media ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Migrate historical Drive reference records to new lifecycle state
+ * Moves old 'referenced' status records to 'source_reference' lifecycle state
+ * Quarantines records that fail validation
+ */
+export async function migrateDriveReferences(): Promise<{
+  migrated: number;
+  quarantined: number;
+  errors: number;
+}> {
+  try {
+    const client = getRedisClient();
+    const allIds = await listMediaIds();
+    
+    let migrated = 0;
+    let quarantined = 0;
+    let errors = 0;
+    
+    for (const id of allIds) {
+      try {
+        const media = await getMedia(id);
+        if (!media) continue;
+        
+        // Check if this is an old Drive reference using legacy status field
+        const isLegacyDriveRef = media.provenance?.status === 'referenced' && 
+                                !media.lifecycleState;
+        
+        if (isLegacyDriveRef) {
+          // Migrate to new lifecycle state
+          const updated: Media = {
+            ...media,
+            lifecycleState: 'source_reference',
+            sourceIdentityHash: media.contentHash, // Move contentHash to sourceIdentityHash
+            contentHash: undefined, // Clear contentHash for source references
+          };
+          
+          // Validate the migrated record
+          if (validateMedia(updated)) {
+            await storeMedia(updated);
+            migrated++;
+            console.log('[MEDIA_KV] Migrated legacy Drive reference:', id);
+          } else {
+            // Quarantine if validation fails
+            await quarantineMedia(id, media);
+            quarantined++;
+            console.warn('[MEDIA_KV] Quarantined invalid Drive reference:', id);
+          }
+        }
+      } catch (error) {
+        errors++;
+        console.error('[MEDIA_KV] Migration error for:', id, error);
+      }
+    }
+    
+    console.log('[MEDIA_KV] Migration complete:', { migrated, quarantined, errors });
+    return { migrated, quarantined, errors };
+  } catch (error) {
+    console.error('[MEDIA_KV] Migration failed:', error);
+    throw new Error(`Failed to migrate Drive references: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Quarantine invalid media record
+ * Moves record to quarantine namespace to prevent corruption
+ */
+async function quarantineMedia(id: string, media: Media): Promise<void> {
+  try {
+    const client = getRedisClient();
+    const quarantineKey = `${MEDIA_QUARANTINE_PREFIX}${id}:${Date.now()}`;
+    await client.set(quarantineKey, media);
+    await client.del(`${MEDIA_PREFIX}${id}`);
+    console.log('[MEDIA_KV] Quarantined invalid media:', id);
+  } catch (error) {
+    console.error('[MEDIA_KV] Quarantine failed for:', id, error);
+    throw new Error(`Failed to quarantine media: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

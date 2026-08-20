@@ -14,7 +14,7 @@ import { driveDiscovery } from '@/lib/drive/drive-discovery';
 import { driveSession } from '@/lib/drive/drive-session';
 import { workbenchSession } from '@/lib/workbench-session';
 import { storeMedia, getMedia } from '@/lib/media-kv-store';
-import type { Media, MediaRole } from '@/types/media';
+import type { Media, MediaRole, MediaLifecycleState } from '@/types/media';
 import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
@@ -24,6 +24,32 @@ interface ReferenceRequest {
   sharedDriveId?: string;
   projectId?: string;
   roles?: MediaRole[];
+}
+
+/**
+ * Drive-specific lightweight reference type
+ * Distinguishes Drive metadata from fully materialized Media assets
+ */
+interface DriveReference {
+  id: string;
+  sourceIdentityHash: string; // Not contentHash - this is source identity
+  source: 'google-drive';
+  lifecycleState: MediaLifecycleState; // Explicit lifecycle state
+  drive: {
+    fileId: string;
+    driveId?: string;
+    name: string;
+    mimeType: string;
+    webViewUrl: string;
+    modifiedTime: string;
+  };
+  filename: string;
+  type: 'image' | 'document';
+  thumbnailProxyUrl: string;
+  projectId?: string;
+  roles: MediaRole[];
+  createdAt: string;
+  updatedAt: string;
 }
 
 export async function POST(request: Request) {
@@ -70,33 +96,34 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log('[DND] DRIVE_REFERENCE_METADATA_FETCHED', {
+    console.log('[DRIVE_REFERENCE] DRIVE_METADATA_FETCHED', {
       fileId,
       sharedDriveId,
       filename: driveFile.name,
+      mimeType: driveFile.mimeType,
     });
 
     // Construct the proxy URL for thumbnail rendering
     const thumbnailProxyUrl = `/api/drive/files/${fileId}/thumbnail${sharedDriveId ? `?driveId=${sharedDriveId}` : ''}`;
 
-    console.log('[DND] DRIVE_REFERENCE_VARIANTS_CONSTRUCTING', {
+    console.log('[DRIVE_REFERENCE] THUMBNAIL_PROXY_CONSTRUCTED', {
       fileId,
       sharedDriveId,
       thumbnailUrl: thumbnailProxyUrl,
-      webUrl: thumbnailProxyUrl,
     });
 
     // 2. Check for existing record with matching Drive identity (idempotency)
     // Use (source, sharedDriveId, fileId) as the canonical Drive identity
     const identityString = `${fileId}${sharedDriveId || ''}`;
-    const identityHash = crypto.createHash('sha256').update(identityString).digest('hex').substring(0, 16);
-    const mediaId = `drive-${identityHash}`;
+    const sourceIdentityHash = crypto.createHash('sha256').update(identityString).digest('hex').substring(0, 16);
+    const referenceId = `drive-ref-${sourceIdentityHash}`;
 
-    const existingAsset = await getMedia(mediaId);
+    // For now, check if Media exists with this ID (future: separate DriveReference store)
+    const existingAsset = await getMedia(referenceId);
 
     if (existingAsset) {
-      console.log('[DND] DRIVE_REFERENCE_EXISTS', {
-        mediaId,
+      console.log('[DRIVE_REFERENCE] EXISTS', {
+        referenceId,
         fileId,
         sharedDriveId,
       });
@@ -108,39 +135,61 @@ export async function POST(request: Request) {
       });
     }
 
-    // 3. Generate stable media ID from Drive identity
-    const baseName = driveFile.name.replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]/g, '-');
-
-    // 4. Create lightweight Drive reference (stores in KV, not media.v1.json)
-    const mediaRecord: Media = {
-      id: mediaId,
-      contentHash: identityHash, // Use Drive identity hash as content hash for now
+    // 3. Create lightweight Drive reference (separate from fully materialized Media)
+    const driveReference: DriveReference = {
+      id: referenceId,
+      sourceIdentityHash, // Not contentHash - this is source identity
       source: 'google-drive',
+      lifecycleState: 'source_reference', // Explicit lifecycle state
       drive: {
         fileId: fileId,
         driveId: sharedDriveId,
-        name: driveFile.name,
-        mimeType: driveFile.mimeType,
-        webViewUrl: driveFile.webViewLink,
-        modifiedTime: driveFile.modifiedTime,
+        name: driveFile.name || '',
+        mimeType: driveFile.mimeType || '',
+        webViewUrl: driveFile.webViewLink || '',
+        modifiedTime: driveFile.modifiedTime || '',
       },
-      filename: driveFile.name,
+      filename: driveFile.name || '',
+      type: driveFile.mimeType?.startsWith('image/') ? 'image' : 'document',
+      thumbnailProxyUrl,
+      projectId,
+      roles,
+      createdAt: driveFile.createdTime || '',
+      updatedAt: driveFile.modifiedTime || '',
+    };
+
+    // 4. Store Drive reference separately (future: use DriveReference-specific store)
+    // For now, convert to Media format with proper status to pass validation
+    const mediaRecord: Media = {
+      id: referenceId,
+      sourceIdentityHash, // Source identity hash (not content hash)
+      contentHash: undefined, // No content hash until materialized
+      source: 'google-drive',
+      lifecycleState: 'source_reference', // Explicit lifecycle state
+      drive: {
+        fileId: fileId,
+        driveId: sharedDriveId,
+        name: driveFile.name || '',
+        mimeType: driveFile.mimeType || '',
+        webViewUrl: driveFile.webViewLink || '',
+        modifiedTime: driveFile.modifiedTime || '',
+      },
+      filename: driveFile.name || '',
       type: driveFile.mimeType?.startsWith('image/') ? 'image' : 'document',
       orientation: 'landscape', // Will be determined on materialization
       dimensions: { width: 0, height: 0 }, // Placeholder for materialization
       variants: {
-        // Drive proxy URL for lightweight rendering (will be upgraded to Blob variants later)
         thumbnail: thumbnailProxyUrl,
         web: thumbnailProxyUrl,
       },
-      alt: driveFile.name,
+      alt: driveFile.name || '',
       description: driveFile.description,
       projectId,
       tags: [],
       roles,
       order: 0,
-      createdAt: driveFile.createdTime,
-      updatedAt: driveFile.modifiedTime,
+      createdAt: driveFile.createdTime || '',
+      updatedAt: driveFile.modifiedTime || '',
       uploadedAt: new Date().toISOString(),
       fileSize: driveFile.size || 0,
       format: driveFile.mimeType?.split('/')[1] || 'unknown',
@@ -148,7 +197,7 @@ export async function POST(request: Request) {
       provenance: {
         drive_canonical: true,
         current_authority: true,
-        status: 'referenced', // Can be upgraded to 'ingested' later
+        status: 'referenced', // Legacy field for compatibility
         preserved_at: new Date().toISOString(),
       },
     };
@@ -156,22 +205,22 @@ export async function POST(request: Request) {
     // 5. Store in KV (dynamic persistence for Drive records)
     await storeMedia(mediaRecord);
 
-    console.log('[DND] DRIVE_REFERENCE_CREATED', {
-      mediaId,
+    console.log('[DRIVE_REFERENCE] CREATED', {
+      referenceId,
       fileId,
       sharedDriveId,
-      variantsSet: !!mediaRecord.variants,
       thumbnailUrl: mediaRecord.variants?.thumbnail,
-      webUrl: mediaRecord.variants?.web,
+      status: 'referenced',
     });
 
     return NextResponse.json({
       success: true,
       media: mediaRecord,
       action: 'created',
+      referenceId,
     });
   } catch (error) {
-    console.error('Drive reference error:', error);
+    console.error('[DRIVE_REFERENCE] ERROR', error);
     return NextResponse.json(
       {
         error: 'Failed to reference Drive file',

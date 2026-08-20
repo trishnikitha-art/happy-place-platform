@@ -5,6 +5,9 @@
  * Uses alt: 'media' to get actual binary image content from Drive API.
  * Supports both My Drive and Shared Drive files.
  *
+ * WORKBENCH-ONLY: This endpoint is for Workbench preview only.
+ * Public website delivery should use Vercel Blob optimized media.
+ *
  * GET /api/drive/files/:fileId/thumbnail
  */
 
@@ -33,7 +36,7 @@ export async function GET(
 
     console.log('[THUMBNAIL_DRIVE_FETCH_STARTED]', { fileId, driveId });
 
-    // Get file metadata including mimeType
+    // Get file metadata including mimeType FIRST
     const getFileParams: any = {
       fileId,
       fields: 'mimeType',
@@ -52,15 +55,22 @@ export async function GET(
       mimeType 
     });
 
-    // Verify it's an image type
+    // Verify it's an image type BEFORE downloading
     if (!mimeType.startsWith('image/')) {
-      console.error('[THUMBNAIL_REQUEST_FAILED]', { 
+      console.log('[THUMBNAIL_REQUEST_REJECTED]', { 
         fileId, 
         reason: 'NOT_AN_IMAGE',
-        mimeType 
+        mimeType,
+        classification: mimeType.startsWith('video/') ? 'video' : 
+                       mimeType.includes('document') ? 'document' : 'unknown'
       });
       return NextResponse.json(
-        { error: 'File is not an image', mimeType },
+        { 
+          error: 'File is not an image', 
+          mimeType,
+          capability: mimeType.startsWith('video/') ? 'video' : 
+                     mimeType.includes('document') ? 'document' : 'unavailable'
+        },
         { status: 400 }
       );
     }

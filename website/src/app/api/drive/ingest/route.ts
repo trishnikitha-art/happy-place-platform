@@ -38,7 +38,7 @@ try {
   });
   // In production, Sharp must be available for media processing
   if (process.env.NODE_ENV === 'production') {
-    throw new Error('Sharp is required for production media processing but failed to load. Ensure sharp-linux-x64 is in dependencies.');
+    throw new Error('Sharp is required for production media processing but failed to load. Ensure Sharp dependencies are correctly installed.');
   }
 }
 
