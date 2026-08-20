@@ -28,6 +28,7 @@ function getRedisClient(): Redis {
 export interface BlobUploadResult {
   url: string;
   uploadedAt: string;
+  alreadyExisted: boolean;
 }
 
 /**
@@ -54,6 +55,7 @@ export async function uploadToBlob(
       return {
         url: existingBlobKey, // Use the existing blob key as the URL identifier
         uploadedAt: new Date().toISOString(),
+        alreadyExisted: true,
       };
     }
     
@@ -70,6 +72,7 @@ export async function uploadToBlob(
     return {
       url: blob.url,
       uploadedAt: new Date().toISOString(),
+      alreadyExisted: false,
     };
   } catch (error) {
     // Handle Vercel Blob duplicate error gracefully
@@ -83,6 +86,7 @@ export async function uploadToBlob(
         return {
           url: existingBlobKey,
           uploadedAt: new Date().toISOString(),
+          alreadyExisted: true,
         };
       }
       
@@ -90,6 +94,7 @@ export async function uploadToBlob(
       return {
         url: filename,
         uploadedAt: new Date().toISOString(),
+        alreadyExisted: true,
       };
     }
     

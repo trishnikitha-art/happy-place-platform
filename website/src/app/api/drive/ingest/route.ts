@@ -288,7 +288,7 @@ export async function POST(request: Request) {
     if (existingMediaId) {
       const existingMedia = await getMedia(existingMediaId);
       if (existingMedia) {
-        console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - existing record', {
+        console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - existing KV record', {
           requestId,
           existingMediaId: existingMedia.id,
         });
@@ -297,6 +297,8 @@ export async function POST(request: Request) {
           action: 'existing',
           media: existingMedia,
           requestId,
+          idempotent: true,
+          deduplicationSource: 'kv'
         });
       }
     }
@@ -312,6 +314,7 @@ export async function POST(request: Request) {
     console.log('[MEDIA_INGEST] VARIANT_GENERATION stage started', { requestId });
     const variants = [];
     let originalUpload: any;
+    let blobIdempotencyStats = { newUploads: 0, reusedUploads: 0 };
     
     if (sharp) {
       const width = metadata.width || 1920;
@@ -329,9 +332,15 @@ export async function POST(request: Request) {
         bytes: fileBuffer.length,
       });
       originalUpload = await uploadToBlob(fileBuffer, originalFilename, originalContentType);
+      if (originalUpload.alreadyExisted) {
+        blobIdempotencyStats.reusedUploads++;
+      } else {
+        blobIdempotencyStats.newUploads++;
+      }
       console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage succeeded', {
         requestId,
         url: originalUpload.url,
+        alreadyExisted: originalUpload.alreadyExisted,
       });
       
       // Generate and upload WebP/AVIF variants
@@ -353,6 +362,11 @@ export async function POST(request: Request) {
             .toBuffer();
           
           const variantUpload = await uploadToBlob(variantBuffer, variantFilename, variantContentType);
+          if (variantUpload.alreadyExisted) {
+            blobIdempotencyStats.reusedUploads++;
+          } else {
+            blobIdempotencyStats.newUploads++;
+          }
           
           variants.push({
             width: vw,
@@ -364,6 +378,7 @@ export async function POST(request: Request) {
             requestId,
             variant: variantFilename,
             url: variantUpload.url,
+            alreadyExisted: variantUpload.alreadyExisted,
           });
         }
       }
@@ -380,9 +395,15 @@ export async function POST(request: Request) {
         bytes: fileBuffer.length,
       });
       originalUpload = await uploadToBlob(fileBuffer, originalFilename, originalContentType);
+      if (originalUpload.alreadyExisted) {
+        blobIdempotencyStats.reusedUploads++;
+      } else {
+        blobIdempotencyStats.newUploads++;
+      }
       console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage succeeded', {
         requestId,
         url: originalUpload.url,
+        alreadyExisted: originalUpload.alreadyExisted,
       });
     }
     
@@ -394,9 +415,15 @@ export async function POST(request: Request) {
       const thumbFilename = generateBlobFilename(mediaId, 'thumb', 'webp');
       const thumbBuffer = await sharp(fileBuffer).resize(480).webp({ quality: 70 }).toBuffer();
       thumbUpload = await uploadToBlob(thumbBuffer, thumbFilename, 'image/webp');
+      if (thumbUpload.alreadyExisted) {
+        blobIdempotencyStats.reusedUploads++;
+      } else {
+        blobIdempotencyStats.newUploads++;
+      }
       console.log('[MEDIA_INGEST] STORAGE_UPLOAD_THUMBNAIL stage succeeded', {
         requestId,
         url: thumbUpload.url,
+        alreadyExisted: thumbUpload.alreadyExisted,
       });
       
       // Generate blur placeholder
@@ -412,6 +439,7 @@ export async function POST(request: Request) {
       requestId,
       variantsCount: variants.length,
       hasSharp: !!sharp,
+      blobIdempotencyStats,
     });
 
     // 8. Create full Media record
@@ -485,6 +513,8 @@ export async function POST(request: Request) {
       action: 'created',
       media: mediaRecord,
       requestId,
+      idempotent: blobIdempotencyStats.newUploads === 0,
+      blobIdempotencyStats,
     });
   } catch (error) {
     console.log('[MEDIA_INGEST_ERROR] unexpected error', { requestId });
