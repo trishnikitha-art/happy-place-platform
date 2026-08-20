@@ -21,8 +21,7 @@ import { getHomepageHero } from "@/lib/brand";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { NewsletterSignup } from "@/components/newsletter-signup";
 import { getOwnerPortrait } from "@/lib/brand";
-import { getMediaById } from "@/lib/media";
-import { getMediaByIdAsync } from "@/lib/media";
+import { getMediaById, getMediaByIdAsync, resolvePublicMedia } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 import { VisualSlot } from "@/components/visual-slot";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
@@ -91,20 +90,14 @@ export default async function HomePage() {
     try {
       const assignment = await getServiceCardAssignment(service.slug);
       if (assignment?.mediaId) {
-        // Resolve media object - use async KV lookup for drive-prefixed IDs
-        let mediaObject: Media | null = null;
-        if (assignment.mediaId.startsWith('drive-')) {
-          mediaObject = await getMediaByIdAsync(assignment.mediaId);
-        } else {
-          mediaObject = getMediaById(assignment.mediaId);
-        }
+        // Resolve media object through public media gate (rejects Drive references)
+        const mediaObject = await resolvePublicMedia(assignment.mediaId);
         
-        console.log('[FORENSIC] SERVICE_CARD_MEDIA_RESOLUTION', {
+        console.log('[PUBLIC_MEDIA_GATE] SERVICE_CARD_RESOLUTION', {
           serviceSlug: service.slug,
           runtimeCardMediaId: assignment.mediaId,
           resolved: Boolean(mediaObject),
           resolvedMediaId: mediaObject?.id ?? null,
-          resolvedSource: mediaObject?.drive ? 'drive' : 'static',
         });
         
         serviceCardAssignments.set(service.slug, {

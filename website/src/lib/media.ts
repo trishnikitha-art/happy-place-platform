@@ -84,6 +84,88 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
 }
 
 /**
+ * Public Media Materialization Gate
+ * 
+ * STRICT CONTRACT: Only returns published/public MediaAssets for production presentation.
+ * Rejects source references, materializing state, stale assets, and Drive proxy URLs.
+ * 
+ * This enforces the Drive → public delivery boundary:
+ * - Workbench can see DriveReferences
+ * - Website can ONLY see published MediaAssets with public URLs
+ * 
+ * @param id - Media ID to resolve
+ * @returns Published MediaAsset OR null (explicit unavailable state)
+ * 
+ * Rejected states:
+ * - drive-prefixed IDs (source references)
+ * - lifecycleState === 'source_reference'
+ * - lifecycleState === 'materializing'
+ * - lifecycleState === 'stale'
+ * - Media with /api/drive/* URLs
+ * - Media with thumbnailProxyUrl
+ */
+export async function resolvePublicMedia(id: string): Promise<Media | null> {
+  console.log('[PUBLIC_MEDIA_GATE] Resolving public media:', { id });
+
+  // REJECT: drive-prefixed IDs (source references)
+  if (id.startsWith('drive-')) {
+    console.error('[PUBLIC_MEDIA_GATE] REJECTED: drive-prefixed ID', { id });
+    return null;
+  }
+
+  // Resolve media via standard path
+  const media = await getMediaByIdAsync(id);
+  if (!media) {
+    console.log('[PUBLIC_MEDIA_GATE] NOT_FOUND:', { id });
+    return null;
+  }
+
+  // REJECT: source_reference lifecycle state
+  if ((media as any).lifecycleState === 'source_reference') {
+    console.error('[PUBLIC_MEDIA_GATE] REJECTED: source_reference lifecycle state', { id, lifecycleState: (media as any).lifecycleState });
+    return null;
+  }
+
+  // REJECT: materializing lifecycle state
+  if ((media as any).lifecycleState === 'materializing') {
+    console.error('[PUBLIC_MEDIA_GATE] REJECTED: materializing lifecycle state', { id, lifecycleState: (media as any).lifecycleState });
+    return null;
+  }
+
+  // REJECT: stale lifecycle state
+  if ((media as any).lifecycleState === 'stale') {
+    console.error('[PUBLIC_MEDIA_GATE] REJECTED: stale lifecycle state', { id, lifecycleState: (media as any).lifecycleState });
+    return null;
+  }
+
+  // REJECT: Media with /api/drive/* URLs (Drive proxy URLs)
+  const checkForDriveUrl = (obj: any): boolean => {
+    if (!obj) return false;
+    if (typeof obj === 'string' && obj.startsWith('/api/drive/')) {
+      return true;
+    }
+    if (typeof obj === 'object') {
+      return Object.values(obj).some((val) => checkForDriveUrl(val));
+    }
+    return false;
+  };
+
+  if (checkForDriveUrl(media)) {
+    console.error('[PUBLIC_MEDIA_GATE] REJECTED: contains /api/drive/* URL', { id });
+    return null;
+  }
+
+  // REJECT: Media with thumbnailProxyUrl (Drive reference)
+  if ((media as any).thumbnailProxyUrl) {
+    console.error('[PUBLIC_MEDIA_GATE] REJECTED: contains thumbnailProxyUrl', { id, thumbnailProxyUrl: (media as any).thumbnailProxyUrl });
+    return null;
+  }
+
+  console.log('[PUBLIC_MEDIA_GATE] APPROVED: published public media', { id });
+  return media;
+}
+
+/**
  * Preload dynamic media from KV into memory cache
  * Call this during app initialization or when Drive operations are expected
  */

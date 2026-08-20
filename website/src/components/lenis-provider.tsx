@@ -2,7 +2,7 @@
 
 import { useEffect, createContext, useContext, ReactNode, useState } from "react";
 import Lenis from "@studio-freight/lenis";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 
 interface LenisContextValue {
   lenis: Lenis | null;
@@ -15,16 +15,28 @@ const LenisContext = createContext<LenisContextValue>({ lenis: null });
  * 
  * Provides premium smooth scroll experience across the site.
  * Respects prefers-reduced-motion for accessibility.
- * Excludes workbench routes from smooth scrolling.
+ * Excludes workbench routes and workbench preview mode from smooth scrolling.
  * Exposes Lenis instance for Framer Motion scroll synchronization.
+ * 
+ * Architectural boundary:
+ * - isWorkbenchContext is true when pathname starts with /workbench OR workbench=true query param
+ * - Lenis is only initialized when NOT in workbench context
+ * - This ensures both Workbench UI and Workbench iframe preview have native scroll
  */
 export function LenisProvider({ children }: { children: ReactNode }) {
   const [lenis, setLenis] = useState<Lenis | null>(null);
   const pathname = usePathname();
+  const searchParams = useSearchParams();
 
   useEffect(() => {
-    // Disable Lenis for workbench routes
-    if (pathname.startsWith('/workbench')) {
+    // Authoritative workbench context check
+    // True when: pathname starts with /workbench OR workbench=true query param
+    const isWorkbenchRoute = pathname.startsWith('/workbench');
+    const isWorkbenchPreview = searchParams.get('workbench') === 'true';
+    const isWorkbenchContext = isWorkbenchRoute || isWorkbenchPreview;
+
+    // Disable Lenis for workbench context (both UI and iframe preview)
+    if (isWorkbenchContext) {
       return;
     }
 
@@ -38,6 +50,9 @@ export function LenisProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    // Diagnostic: detect duplicate mounts (historical regression detection)
+    console.count('LenisProvider mounted');
+
     // Initialize Lenis with conservative settings to prevent touchpad interference
     const lenisInstance = new Lenis({
       lerp: 0.25, // Higher lerp = snappier feel (default 0.1)
@@ -48,21 +63,27 @@ export function LenisProvider({ children }: { children: ReactNode }) {
 
     setLenis(lenisInstance);
 
-    // Animation loop with proper cancellation
+    // Animation loop with proper cancellation and loop leak detection
     let frameId: number;
+    let frameCount = 0;
     function raf(time: number) {
       lenisInstance.raf(time);
+      frameCount++;
+      if (frameCount % 60 === 0) {
+        console.count('Lenis RAF loop');
+      }
       frameId = requestAnimationFrame(raf);
     }
 
     frameId = requestAnimationFrame(raf);
 
-    // Cleanup
+    // Cleanup with diagnostic logging
     return () => {
+      console.log('LenisProvider cleanup: cancelling RAF and destroying instance');
       cancelAnimationFrame(frameId);
       lenisInstance.destroy();
     };
-  }, [pathname]);
+  }, [pathname, searchParams]);
 
   return (
     <LenisContext.Provider value={{ lenis }}>

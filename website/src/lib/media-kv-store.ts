@@ -144,8 +144,8 @@ export async function getMedia(id: string): Promise<Media | null> {
     // Validate Media schema
     if (!validateMedia(media)) {
       console.error('[MEDIA_KV] Schema validation failed for media:', id);
-      // Quarantine corrupted data
-      const quarantineKey = `${MEDIA_PREFIX}quarantine:${id}:${Date.now()}`;
+      // Quarantine corrupted data using consistent namespace
+      const quarantineKey = `${MEDIA_QUARANTINE_PREFIX}${id}:${Date.now()}`;
       await client.set(quarantineKey, media);
       console.log('[MEDIA_KV] Corrupted media quarantined:', quarantineKey);
       return null;
@@ -220,6 +220,9 @@ export async function deleteMedia(id: string): Promise<void> {
  * Migrate historical Drive reference records to new lifecycle state
  * Moves old 'referenced' status records to 'source_reference' lifecycle state
  * Quarantines records that fail validation
+ * 
+ * NOTE: Bypasses getMedia() validation to allow inspection of legacy records
+ * that might not pass current schema validation before migration
  */
 export async function migrateDriveReferences(): Promise<{
   migrated: number;
@@ -236,7 +239,8 @@ export async function migrateDriveReferences(): Promise<{
     
     for (const id of allIds) {
       try {
-        const media = await getMedia(id);
+        // Bypass getMedia() validation to access raw legacy records
+        const media = await client.get<Media>(`${MEDIA_PREFIX}${id}`);
         if (!media) continue;
         
         // Check if this is an old Drive reference using legacy status field
