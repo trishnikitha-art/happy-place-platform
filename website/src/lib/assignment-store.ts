@@ -84,12 +84,14 @@ function createHash(input: string): string {
 }
 
 const ASSIGNMENT_PREFIX = 'service-card-assignment:';
+const ASSIGNMENT_QUARANTINE_PREFIX = 'service-card-assignment-quarantine:';
 
 export interface ServiceCardAssignment {
   serviceSlug: string;
   mediaId: string;
   updatedAt: string;
   source: 'workbench';
+  revision?: number;
 }
 
 /**
@@ -124,6 +126,11 @@ function validateServiceCardAssignment(data: unknown): data is ServiceCardAssign
     return false;
   }
   
+  // Revision is optional but must be number if present
+  if (candidate.revision !== undefined && typeof candidate.revision !== 'number') {
+    return false;
+  }
+  
   return true;
 }
 
@@ -150,7 +157,7 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
   
   // Runtime schema validation
   if (!validateServiceCardAssignment(assignment)) {
-    const serviceSlug = (assignment as any)?.serviceSlug || 'unknown';
+    const serviceSlug = (assignment as Record<string, unknown>)?.serviceSlug as string || 'unknown';
     console.error('[ASSIGNMENT_WRITE] SCHEMA_VALIDATION_FAILED', {
       operationId,
       assignment,
@@ -169,6 +176,17 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
   try {
     const client = getRedisClient();
     
+    // Get current assignment for optimistic concurrency
+    const currentAssignment = await client.get<ServiceCardAssignment>(key);
+    const currentRevision = currentAssignment?.revision || 0;
+    
+    // Increment revision
+    const newRevision = currentRevision + 1;
+    const assignmentWithRevision = {
+      ...assignment,
+      revision: newRevision,
+    };
+    
     // Log Redis host and credential fingerprint
     const redisUrl = process.env.KV_REST_API_URL;
     const redisHost = redisUrl ? new URL(redisUrl).hostname : 'none';
@@ -178,21 +196,24 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
       operationId,
       redisHost,
       credentialFingerprint,
+      currentRevision,
+      newRevision,
     });
     
     // Use typed object API - @upstash/redis handles serialization
-    await client.set<ServiceCardAssignment>(key, assignment);
+    await client.set<ServiceCardAssignment>(key, assignmentWithRevision);
     
     console.log('[ASSIGNMENT_WRITE] SET_SUCCESS', {
       operationId,
       key,
       mediaId: assignment.mediaId,
+      revision: newRevision,
     });
     
     // Removed expensive read-after-write verification
     // Redis operations are atomic; if set succeeded, the data is stored
-    // Concurrency handling: last-write-wins is acceptable for current use case
-    // Future enhancement: add version/revision field for optimistic concurrency
+    // Concurrency handling: last-write-wins with revision tracking
+    // Future enhancement: add expectedRevision parameter for strict concurrency control
     
   } catch (error) {
     console.error('[ASSIGNMENT_WRITE] FAILURE', {
@@ -244,8 +265,8 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
         assignment,
         validationError: 'Readback failed schema validation',
       });
-      // Quarantine corrupted data instead of deleting
-      const quarantineKey = `${ASSIGNMENT_PREFIX}quarantine:${serviceSlug}:${Date.now()}`;
+      // Quarantine corrupted data using separate namespace
+      const quarantineKey = `${ASSIGNMENT_QUARANTINE_PREFIX}${serviceSlug}:${Date.now()}`;
       await client.set(quarantineKey, assignment);
       console.log('[ASSIGNMENT_READ] CORRUPTED_DATA_QUARANTINED', { operationId, key, quarantineKey });
       return null;
@@ -329,8 +350,9 @@ export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignm
           return assignment;
         } else if (assignment) {
           console.log('[ASSIGNMENT_STORE] Quarantining invalid assignment:', key);
-          // Quarantine corrupted data
-          const quarantineKey = `${ASSIGNMENT_PREFIX}quarantine:${key.split(':').pop()}:${Date.now()}`;
+          // Quarantine corrupted data using separate namespace
+          const serviceSlug = key.replace(ASSIGNMENT_PREFIX, '');
+          const quarantineKey = `${ASSIGNMENT_QUARANTINE_PREFIX}${serviceSlug}:${Date.now()}`;
           await client.set(quarantineKey, assignment);
           return null;
         }
