@@ -1006,8 +1006,8 @@ Check browser console for detailed logs.`);
       }
     }
 
-    // Check deployment readiness after successful assignment persistence
-    console.log('[DEPLOY READINESS] CHECKING_DEPLOYMENT_READINESS');
+    // Commit to GitHub after successful assignment persistence
+    console.log('[DEPLOY API] COMMITTING_TO_GITHUB');
     try {
       const deployResponse = await fetch('/api/admin/deploy', {
         method: 'POST',
@@ -1019,25 +1019,21 @@ Check browser console for detailed logs.`);
 
       if (deployResponse.ok) {
         const deployData = await deployResponse.json();
-        console.log('[DEPLOY READINESS] SUCCESS', { 
-          readyForCommit: deployData.readyForCommit,
-          message: deployData.message,
-          nextSteps: deployData.nextSteps
+        console.log('[DEPLOY API] SUCCESS', { 
+          commitSha: deployData.commitSha,
+          commitUrl: deployData.commitUrl,
+          message: deployData.message
         });
         
-        if (deployData.readyForCommit) {
-          alert(`Changes accepted and persisted successfully.\n\n${deployData.message}\n\nRequired next steps:\n${deployData.nextSteps ? deployData.nextSteps.join('\n') : ''}`);
-        } else {
-          alert(`Changes accepted successfully.\n\n${deployData.message}`);
-        }
+        alert(`Changes accepted and committed to main successfully.\n\n${deployData.message}\n\nCommit SHA: ${deployData.commitSha}\n\nVercel Git integration will automatically deploy this commit to production.`);
       } else {
         const errorData = await deployResponse.json();
-        console.error('[DEPLOY READINESS] FAILED', { error: errorData });
-        alert(`Changes accepted successfully. Deployment readiness check failed: ${errorData.error || errorData.message}`);
+        console.error('[DEPLOY API] FAILED', { error: errorData });
+        alert(`Changes accepted successfully. GitHub commit failed: ${errorData.error || errorData.message}`);
       }
     } catch (error) {
-      console.error('[DEPLOY READINESS] ERROR', error);
-      alert(`Changes accepted successfully. Deployment readiness check failed: ${error instanceof Error ? error.message : String(error)}`);
+      console.error('[DEPLOY API] ERROR', error);
+      alert(`Changes accepted successfully. GitHub commit failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setState(prev => ({ ...prev, isAccepting: false }));
     }

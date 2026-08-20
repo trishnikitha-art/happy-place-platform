@@ -1,20 +1,20 @@
 /**
- * Admin Deployment Readiness API Endpoint
+ * Admin Deployment API Endpoint
  * 
- * Indicates that accepted Workbench changes are ready for Git commit/push
+ * Commits accepted Workbench changes to GitHub main via GitHub API
  * 
  * POST /api/admin/deploy
  * Body: { reason?: string }
  * 
  * Requires Workbench authentication.
- * 
- * NOTE: This endpoint does NOT perform Git operations or trigger Vercel deployment.
- * Git commit/push must be performed from a machine with Git access.
+ * Uses GitHub API to commit projects.v1.json to main branch.
  * Vercel Git integration will automatically deploy when changes are pushed to main.
  */
 
 import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
+import { readFileSync } from "fs";
+import { join } from "path";
 
 export const runtime = 'nodejs';
 
@@ -37,61 +37,117 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { reason = "Workbench media changes accepted" } = body;
 
-    console.log('[DEPLOY READINESS] REQUEST_RECEIVED', { reason });
+    console.log('[DEPLOY API] REQUEST_RECEIVED', { reason });
 
-    // Check if authority file has uncommitted changes
-    const { readFileSync } = require('fs');
-    const { join } = require('path');
-    const { execSync } = require('child_process');
-    
-    const repoPath = process.cwd();
-    const authorityFile = join(repoPath, "src/config/projects.v1.json");
-    
-    // Check if file has been modified (git status)
-    try {
-      const gitStatus = execSync('git status --short', { cwd: repoPath, encoding: 'utf-8' });
-      const hasAuthorityChanges = gitStatus.includes('projects.v1.json');
-      
-      console.log('[DEPLOY READINESS] GIT_STATUS_CHECK', { 
-        hasAuthorityChanges,
-        gitStatus: gitStatus.trim()
-      });
-      
-      if (!hasAuthorityChanges) {
-        return NextResponse.json(
-          { 
-            success: true,
-            readyForCommit: false,
-            message: "No uncommitted authority changes detected"
-          },
-          { status: 200 }
-        );
-      }
-    } catch (gitError) {
-      console.log('[DEPLOY READINESS] GIT_STATUS_FAILED (running in Vercel runtime)', { error: gitError instanceof Error ? gitError.message : String(gitError) });
-      // In Vercel runtime, git may not be available - assume changes need commit
-      console.log('[DEPLOY READINESS] ASSUMING_CHANGES_READY_FOR_COMMIT');
+    // Check for GitHub credentials
+    const githubToken = process.env.GITHUB_TOKEN;
+    const githubOwner = process.env.GITHUB_REPO_OWNER || 'trishnikitha-art';
+    const githubRepo = process.env.GITHUB_REPO_NAME || 'happy-place-platform';
+
+    if (!githubToken) {
+      console.log('[DEPLOY API] MISSING_GITHUB_CREDENTIALS');
+      return NextResponse.json(
+        { 
+          error: "GitHub credentials not configured",
+          message: "Set GITHUB_TOKEN environment variable to enable automatic Git commit/push"
+        },
+        { status: 503 }
+      );
     }
 
-    // Indicate that changes are ready for manual or automated commit/push
+    console.log('[DEPLOY API] GITHUB_COMMIT_INITIATED', { githubOwner, githubRepo });
+
+    // Read the current authority file
+    const authorityFile = join(process.cwd(), "src/config/projects.v1.json");
+    const fileContent = readFileSync(authorityFile, "utf-8");
+    const fileContentBase64 = Buffer.from(fileContent).toString('base64');
+
+    // Get current file SHA from GitHub
+    const filePath = "src/config/projects.v1.json";
+    const getFileUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/${filePath}`;
+    
+    console.log('[DEPLOY API] GETTING_CURRENT_FILE_SHA', { filePath });
+    
+    const getFileResponse = await fetch(getFileUrl, {
+      headers: {
+        'Authorization': `Bearer ${githubToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+
+    let currentFileSha = null;
+    if (getFileResponse.ok) {
+      const fileData = await getFileResponse.json();
+      currentFileSha = fileData.sha;
+      console.log('[DEPLOY API] CURRENT_FILE_SHA', { currentFileSha });
+    } else if (getFileResponse.status === 404) {
+      console.log('[DEPLOY API] FILE_NOT_FOUND (new file)', { filePath });
+    } else {
+      const errorText = await getFileResponse.text();
+      console.error('[DEPLOY API] GET_FILE_FAILED', { status: getFileResponse.status, error: errorText });
+      return NextResponse.json(
+        { 
+          error: "Failed to get current file from GitHub",
+          details: errorText
+        },
+        { status: getFileResponse.status }
+      );
+    }
+
+    // Commit the file to GitHub
+    const commitMessage = `Workbench: accept media changes\n\n${reason}`;
+    const commitBody = {
+      message: commitMessage,
+      content: fileContentBase64,
+      sha: currentFileSha,
+      branch: 'main',
+    };
+
+    console.log('[DEPLOY API] COMMITTING_TO_GITHUB', { filePath, branch: 'main' });
+
+    const commitResponse = await fetch(getFileUrl, {
+      method: 'PUT',
+      headers: {
+        'Authorization': `Bearer ${githubToken}`,
+        'Content-Type': 'application/vnd.github.v3+json',
+      },
+      body: JSON.stringify(commitBody),
+    });
+
+    if (!commitResponse.ok) {
+      const errorText = await commitResponse.text();
+      console.error('[DEPLOY API] COMMIT_FAILED', { status: commitResponse.status, error: errorText });
+      return NextResponse.json(
+        { 
+          error: "Failed to commit to GitHub",
+          details: errorText
+        },
+        { status: commitResponse.status }
+      );
+    }
+
+    const commitData = await commitResponse.json();
+    const commitSha = commitData.commit.sha;
+    
+    console.log('[DEPLOY API] COMMIT_SUCCESS', { 
+      commitSha,
+      commitUrl: commitData.commit.html_url
+    });
+
     return NextResponse.json({ 
       success: true,
-      readyForCommit: true,
-      message: "Workbench changes accepted and persisted. Authority file is ready for Git commit/push to main.",
-      nextSteps: [
-        "Commit src/config/projects.v1.json to Git",
-        "Push commit to main branch",
-        "Vercel Git integration will automatically deploy the pushed commit"
-      ],
-      authorityFile: "src/config/projects.v1.json",
-      targetBranch: "main"
+      commitSha,
+      commitUrl: commitData.commit.html_url,
+      message: "Changes committed to main. Vercel Git integration will automatically deploy to production.",
+      authorityFile: filePath,
+      targetBranch: 'main'
     });
 
   } catch (error) {
-    console.error('[DEPLOY READINESS] ERROR', error);
+    console.error('[DEPLOY API] ERROR', error);
     return NextResponse.json(
       { 
-        error: "Failed to check deployment readiness",
+        error: "Failed to commit to GitHub",
         message: error instanceof Error ? error.message : String(error)
       },
       { status: 500 }
