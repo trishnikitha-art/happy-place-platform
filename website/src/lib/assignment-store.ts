@@ -150,9 +150,7 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
   
   // Runtime schema validation
   if (!validateServiceCardAssignment(assignment)) {
-    const serviceSlug = typeof assignment === 'object' && assignment !== null && 'serviceSlug' in assignment 
-      ? String(assignment.serviceSlug) 
-      : 'unknown';
+    const serviceSlug = (assignment as any)?.serviceSlug || 'unknown';
     console.error('[ASSIGNMENT_WRITE] SCHEMA_VALIDATION_FAILED', {
       operationId,
       assignment,
