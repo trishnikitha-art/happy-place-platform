@@ -10,9 +10,13 @@ const nextConfig: NextConfig = {
     dangerouslyAllowSVG: true,
     contentDispositionType: "attachment",
     // Allow Drive thumbnail URLs with query strings for dynamic Drive media
+    // Allow local project images (including filenames with spaces)
     localPatterns: [
       {
         pathname: '/api/drive/files/**',
+      },
+      {
+        pathname: '/images/**',
       },
     ],
   },
