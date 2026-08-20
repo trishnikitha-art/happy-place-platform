@@ -57,13 +57,16 @@ export async function POST(request: Request) {
 
     console.log('[DEPLOY API] GITHUB_COMMIT_INITIATED', { githubOwner, githubRepo });
 
-    // Read the current authority file
+    // Read the current authority file (from local website directory)
     const authorityFile = join(process.cwd(), "src/config/projects.v1.json");
     const fileContent = readFileSync(authorityFile, "utf-8");
     const fileContentBase64 = Buffer.from(fileContent).toString('base64');
 
-    // Get current file SHA from GitHub
+    // Get current file SHA from GitHub (repository root path)
     const filePath = "website/src/config/projects.v1.json";
+    
+    console.log('[DEPLOY API] LOCAL_FILE_READ', { authorityFile, contentLength: fileContent.length });
+    console.log('[DEPLOY API] GITHUB_FILE_PATH', { filePath });
     const getFileUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/${filePath}`;
     
     console.log('[DEPLOY API] GETTING_CURRENT_FILE_SHA', { filePath });
@@ -82,6 +85,8 @@ export async function POST(request: Request) {
       console.log('[DEPLOY API] CURRENT_FILE_SHA', { currentFileSha });
     } else if (getFileResponse.status === 404) {
       console.log('[DEPLOY API] FILE_NOT_FOUND (new file)', { filePath });
+      // For 404, we'll create the file, so sha should be null
+      currentFileSha = null;
     } else {
       const errorText = await getFileResponse.text();
       console.error('[DEPLOY API] GET_FILE_FAILED', { status: getFileResponse.status, error: errorText });
@@ -96,14 +101,23 @@ export async function POST(request: Request) {
 
     // Commit the file to GitHub
     const commitMessage = `Workbench: accept media changes\n\n${reason}`;
-    const commitBody = {
+    const commitBody: {
+      message: string;
+      content: string;
+      branch: string;
+      sha?: string;
+    } = {
       message: commitMessage,
       content: fileContentBase64,
-      sha: currentFileSha,
       branch: 'main',
     };
+    
+    // Only include sha if we're updating an existing file
+    if (currentFileSha) {
+      commitBody.sha = currentFileSha;
+    }
 
-    console.log('[DEPLOY API] COMMITTING_TO_GITHUB', { filePath, branch: 'main' });
+    console.log('[DEPLOY API] COMMITTING_TO_GITHUB', { filePath, branch: 'main', hasSha: !!currentFileSha });
 
     const commitResponse = await fetch(getFileUrl, {
       method: 'PUT',
