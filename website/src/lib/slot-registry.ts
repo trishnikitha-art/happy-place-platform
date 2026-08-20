@@ -25,6 +25,35 @@ export interface RegisteredSlot {
   component: string;
 }
 
+// Origin security for cross-frame Workbench messaging.
+// Dev is permissive (matches the existing NODE_ENV==='development' auth bypass);
+// production requires the peer origin to be in an allowlist (default: same-origin).
+function isProductionMode(): boolean {
+  return process.env.NODE_ENV === 'production';
+}
+
+function getAllowedOrigins(): string[] {
+  const configured = process.env.NEXT_PUBLIC_WORKBENCH_ALLOWED_ORIGINS;
+  if (configured) {
+    return configured.split(',').map((o) => o.trim()).filter(Boolean);
+  }
+  if (typeof window !== 'undefined') return [window.location.origin];
+  return [];
+}
+
+function isAllowedOrigin(origin: string): boolean {
+  if (!isProductionMode()) return true; // dev: permissive, matches existing bypass
+  return getAllowedOrigins().includes(origin);
+}
+
+function getTargetOrigin(): string {
+  if (!isProductionMode()) return '*'; // dev: permissive
+  const configured = process.env.NEXT_PUBLIC_WORKBENCH_TARGET_ORIGIN;
+  if (configured) return configured;
+  if (typeof window !== 'undefined') return window.location.origin;
+  return '*';
+}
+
 class SlotRegistry {
   private slots: Map<string, RegisteredSlot> = new Map();
   private listeners: Set<() => void> = new Set();
@@ -72,6 +101,15 @@ class SlotRegistry {
     }
 
     const messageType = event.data.type;
+
+    // Reject messages from unauthorized origins (production only; dev is permissive)
+    if (!isAllowedOrigin(event.origin)) {
+      console.warn('[REGISTRY] REJECTED_MESSAGE_FROM_UNAUTHORIZED_ORIGIN', {
+        type: messageType,
+        origin: event.origin,
+      });
+      return;
+    }
 
     if (messageType === 'SLOT_REGISTER') {
       console.log('[FORENSIC] SLOT REGISTRY MESSAGE RECEIVED', {
@@ -126,7 +164,7 @@ class SlotRegistry {
       console.log('[REGISTRY] POSTMESSAGE_PREPARE', {
         instanceId: this.instanceId,
         slotId: slot.id,
-        targetOrigin: '*',
+        targetOrigin: getTargetOrigin(),
       });
       
       // Remove element before sending (cannot clone HTMLElement)
@@ -141,7 +179,7 @@ class SlotRegistry {
       window.parent.postMessage({
         type: 'SLOT_REGISTER',
         slot: slotWithoutElement,
-      }, '*');
+      }, getTargetOrigin());
       
       console.log('[REGISTRY] POSTMESSAGE_SENT', {
         instanceId: this.instanceId,
@@ -178,7 +216,7 @@ class SlotRegistry {
       window.parent.postMessage({
         type: 'SLOT_UNREGISTER',
         slotId,
-      }, '*');
+      }, getTargetOrigin());
     }
     
     this.notify();
