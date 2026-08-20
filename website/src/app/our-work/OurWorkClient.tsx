@@ -58,6 +58,24 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     }
   };
 
+  const handleAddToGallery = () => {
+    if (contextMenu && ENABLE_WORKBENCH) {
+      // Send add-to-gallery request to workbench with project ID
+      const slotId = contextMenu.slotId;
+      // Extract project ID from slot ID (format: our-work-gallery-{projectId}-{index})
+      const idPart = slotId.replace('our-work-gallery-', '');
+      const lastHyphenIndex = idPart.lastIndexOf('-');
+      const projectId = idPart.substring(0, lastHyphenIndex);
+      
+      window.postMessage({
+        type: 'add-to-gallery',
+        slotId,
+        projectId,
+      }, '*');
+      setContextMenu(null);
+    }
+  };
+
   const closeContextMenu = () => {
     setContextMenu(null);
   };
@@ -264,13 +282,19 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
         subtitle="Let's start building your happy place."
       />
 
-      {/* Context Menu for Gallery Delete */}
+      {/* Context Menu for Gallery Delete/Add */}
       {contextMenu && ENABLE_WORKBENCH && (
         <div
-          className="fixed z-50 bg-surface border border-border rounded-lg shadow-lg py-1 min-w-32"
+          className="fixed z-50 bg-surface border border-border rounded-lg shadow-lg py-1 min-w-40"
           style={{ left: contextMenu.x, top: contextMenu.y }}
           onClick={closeContextMenu}
         >
+          <button
+            onClick={handleAddToGallery}
+            className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-accent transition-colors"
+          >
+            Add Photo to Gallery
+          </button>
           <button
             onClick={handleDeleteGallery}
             className="w-full px-4 py-2 text-left text-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"

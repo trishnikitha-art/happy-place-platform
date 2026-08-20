@@ -567,6 +567,49 @@ export default function MediaWorkbench() {
           console.error('[DELETE GALLERY] ERROR', error);
           alert(`Failed to delete gallery assignment: ${error instanceof Error ? error.message : String(error)}`);
         }
+      } else if (event.data.type === 'add-to-gallery') {
+        // Handle add-to-gallery request from Our Work page
+        const { slotId, projectId } = event.data;
+        console.log('[ADD TO GALLERY] MESSAGE_RECEIVED', { slotId, projectId });
+
+        // Prompt user to select media to add
+        const asset = state.selectedAsset;
+        if (!asset) {
+          alert('Please select a media asset from the Workbench panel first.');
+          return;
+        }
+
+        if (!confirm(`Add "${asset.filename}" to gallery? This will append it to the project's gallery without replacing existing photos.`)) {
+          return;
+        }
+
+        try {
+          const response = await fetch('/api/admin/projects/gallery', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              projectId, 
+              mediaId: asset.id, 
+              operation: 'add' 
+            }),
+          });
+
+          if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to add to gallery');
+          }
+
+          const result = await response.json();
+          console.log('[ADD TO GALLERY] SUCCESS', { projectId, mediaId: asset.id, galleryLength: result.galleryLength });
+
+          // Reload canonical data after successful add
+          loadCanonicalData();
+          
+          alert(`Successfully added "${asset.filename}" to gallery. Gallery now has ${result.galleryLength} photos.`);
+        } catch (error) {
+          console.error('[ADD TO GALLERY] ERROR', error);
+          alert(`Failed to add to gallery: ${error instanceof Error ? error.message : String(error)}`);
+        }
       }
     };
     window.addEventListener('message', handleMessage);
@@ -942,6 +985,35 @@ Check browser console for detailed logs.`);
       if (iframeRef.current.contentWindow) {
         iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
       }
+    }
+
+    // Trigger Vercel deployment after successful assignment persistence
+    console.log('[DEPLOY TRIGGER] INITIATING_DEPLOYMENT_AFTER_ACCEPT');
+    try {
+      const deployResponse = await fetch('/api/admin/deploy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          reason: `Workbench media changes accepted (${state.pendingAssignments.size} assignments)` 
+        }),
+      });
+
+      if (deployResponse.ok) {
+        const deployData = await deployResponse.json();
+        console.log('[DEPLOY TRIGGER] SUCCESS', { 
+          deploymentId: deployData.deploymentId,
+          deploymentUrl: deployData.deploymentUrl,
+          state: deployData.state
+        });
+        alert(`Changes accepted and production deployment triggered successfully.\nDeployment ID: ${deployData.deploymentId}\nState: ${deployData.state}`);
+      } else {
+        const errorData = await deployResponse.json();
+        console.error('[DEPLOY TRIGGER] FAILED', { error: errorData });
+        alert(`Changes accepted successfully, but deployment trigger failed: ${errorData.error || errorData.message}`);
+      }
+    } catch (error) {
+      console.error('[DEPLOY TRIGGER] ERROR', error);
+      alert(`Changes accepted successfully, but deployment trigger failed: ${error instanceof Error ? error.message : String(error)}`);
     }
   };
 

@@ -4,7 +4,11 @@
  * Updates a specific gallery photo mediaId for a project in projects.v1.json
  * 
  * POST /api/admin/projects/gallery
- * Body: { projectId: string, galleryIndex: number, mediaId: string }
+ * Body: { projectId: string, galleryIndex: number, mediaId: string, operation: 'replace' | 'add' }
+ * 
+ * operation:
+ *   - 'replace': Replace existing gallery item at index (default)
+ *   - 'add': Append new mediaId to gallery (galleryIndex ignored)
  * 
  * Requires Workbench authentication.
  */
@@ -33,25 +37,29 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { projectId, galleryIndex, mediaId } = body;
+    const { projectId, galleryIndex, mediaId, operation = 'replace' } = body;
 
-    if (!projectId || galleryIndex === undefined || !mediaId) {
+    if (!projectId || !mediaId) {
       return NextResponse.json(
-        { error: "projectId, galleryIndex, and mediaId are required" },
+        { error: "projectId and mediaId are required" },
         { status: 400 }
       );
     }
 
-    console.log('[DND SERVER 1] REQUEST_RECEIVED', { projectId, galleryIndex, mediaId });
-    console.log('[DND SERVER 2] IDENTIFIER_VALIDATION', { projectId, galleryIndex, mediaId });
+    if (operation === 'replace' && galleryIndex === undefined) {
+      return NextResponse.json(
+        { error: "galleryIndex is required for replace operation" },
+        { status: 400 }
+      );
+    }
+
+    console.log('[GALLERY POST] REQUEST_RECEIVED', { projectId, galleryIndex, mediaId, operation });
 
     // Read projects.v1.json
     const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
     const projectsData = JSON.parse(readFileSync(projectsPath, "utf-8"));
 
-    console.log('[DND SERVER 3] AUTHORITY_BEFORE', { projectId, galleryIndex, currentMediaId: projectsData.projects.find((p: any) => p.id === projectId)?.media?.gallery?.[galleryIndex] });
-
-    // Find project and update gallery photo mediaId
+    // Find project
     const projectIndex = projectsData.projects.findIndex((p: any) => p.id === projectId);
     if (projectIndex === -1) {
       return NextResponse.json(
@@ -60,41 +68,60 @@ export async function POST(request: Request) {
       );
     }
 
+    // Ensure gallery array exists
+    if (!projectsData.projects[projectIndex].media) {
+      projectsData.projects[projectIndex].media = {};
+    }
     if (!projectsData.projects[projectIndex].media.gallery) {
-      return NextResponse.json(
-        { error: "Project has no gallery" },
-        { status: 400 }
-      );
+      projectsData.projects[projectIndex].media.gallery = [];
     }
 
-    if (galleryIndex < 0 || galleryIndex >= projectsData.projects[projectIndex].media.gallery.length) {
-      return NextResponse.json(
-        { error: "Gallery index out of bounds" },
-        { status: 400 }
-      );
+    const gallery = projectsData.projects[projectIndex].media.gallery;
+
+    if (operation === 'add') {
+      // ADD: Append new mediaId to gallery
+      console.log('[GALLERY ADD] BEFORE', { projectId, galleryLength: gallery.length, newMediaId: mediaId });
+      gallery.push(mediaId);
+      projectsData.generatedAt = new Date().toISOString();
+      console.log('[GALLERY ADD] AFTER', { projectId, galleryLength: gallery.length, addedMediaId: mediaId });
+    } else {
+      // REPLACE: Update existing gallery item at index
+      if (galleryIndex < 0 || galleryIndex >= gallery.length) {
+        return NextResponse.json(
+          { error: "Gallery index out of bounds" },
+          { status: 400 }
+        );
+      }
+
+      console.log('[GALLERY REPLACE] BEFORE', { projectId, galleryIndex, currentMediaId: gallery[galleryIndex], newMediaId: mediaId });
+      gallery[galleryIndex] = mediaId;
+      projectsData.generatedAt = new Date().toISOString();
+      console.log('[GALLERY REPLACE] AFTER', { projectId, galleryIndex, updatedMediaId: gallery[galleryIndex] });
     }
-
-    const newMediaId = mediaId;
-    projectsData.projects[projectIndex].media.gallery[galleryIndex] = newMediaId;
-    projectsData.generatedAt = new Date().toISOString();
-
-    console.log('[DND SERVER 4] AUTHORITY_WRITE', { projectId, galleryIndex, newMediaId });
 
     // Write back
     writeFileSync(projectsPath, JSON.stringify(projectsData, null, 2));
 
-    console.log('[DND SERVER 5] AUTHORITY_AFTER', { projectId, galleryIndex, updatedMediaId: projectsData.projects[projectIndex].media.gallery[galleryIndex] });
-
     // Read-back verification
     const readBackData = JSON.parse(readFileSync(projectsPath, "utf-8"));
-    const readBackMediaId = readBackData.projects.find((p: any) => p.id === projectId)?.media?.gallery?.[galleryIndex];
-    const matchesExpected = readBackMediaId === newMediaId;
+    const readBackGallery = readBackData.projects.find((p: any) => p.id === projectId)?.media?.gallery;
+    
+    console.log('[GALLERY READ_BACK_VERIFICATION]', { 
+      projectId, 
+      operation,
+      galleryLength: readBackGallery?.length,
+      mediaId,
+      added: operation === 'add' ? readBackGallery?.includes(mediaId) : readBackGallery?.[galleryIndex] === mediaId
+    });
 
-    console.log('[DND SERVER 6] READ_BACK_VERIFICATION', { projectId, galleryIndex, galleryMediaId: readBackMediaId, matchesExpected });
-
-    console.log('[DND SERVER 7] RESPONSE', { success: true, projectId, galleryIndex, mediaId });
-
-    return NextResponse.json({ success: true, projectId, galleryIndex, mediaId });
+    return NextResponse.json({ 
+      success: true, 
+      projectId, 
+      operation,
+      galleryIndex: operation === 'add' ? readBackGallery?.length - 1 : galleryIndex,
+      mediaId,
+      galleryLength: readBackGallery?.length
+    });
   } catch (error) {
     console.error("Error updating project gallery photo:", error);
     return NextResponse.json(
