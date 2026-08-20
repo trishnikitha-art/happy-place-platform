@@ -62,7 +62,10 @@ function validateMedia(data: unknown): data is Media {
   }
   
   // Special case: Drive references can have placeholder dimensions (0,0) and status 'referenced'
-  const isDriveReference = candidate.provenance?.status === 'referenced';
+  const isDriveReference = candidate.provenance && 
+                           typeof candidate.provenance === 'object' &&
+                           'status' in candidate.provenance &&
+                           candidate.provenance.status === 'referenced';
   
   if (isDriveReference) {
     // Drive references are allowed to have placeholder dimensions and no real variants
