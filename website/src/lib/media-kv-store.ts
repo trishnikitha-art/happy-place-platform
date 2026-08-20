@@ -3,6 +3,11 @@
  *
  * Provides persistent storage for Media records using Upstash Redis.
  * Stores and retrieves Media objects by ID.
+ * 
+ * Contract corrections:
+ * - Fail-closed in production (no silent in-memory fallback)
+ * - Schema validation on Media objects
+ * - Eliminate silent empty array returns
  */
 
 import { Redis } from '@upstash/redis';
@@ -28,10 +33,67 @@ const MEDIA_PREFIX = 'media:';
 const CONTENT_HASH_PREFIX = 'content_hash:';
 
 /**
- * Store a Media record in KV
+ * Validate Media object schema at runtime
+ * @param data - Data to validate
+ * @returns True if valid, false otherwise
+ */
+function validateMedia(data: unknown): data is Media {
+  if (!data || typeof data !== 'object') {
+    return false;
+  }
+  
+  const candidate = data as Record<string, unknown>;
+  
+  // Core Media fields validation
+  if (typeof candidate.id !== 'string' || candidate.id.trim().length === 0) {
+    return false;
+  }
+  
+  if (typeof candidate.contentHash !== 'string' || candidate.contentHash.trim().length === 0) {
+    return false;
+  }
+  
+  if (typeof candidate.source !== 'string') {
+    return false;
+  }
+  
+  if (typeof candidate.type !== 'string') {
+    return false;
+  }
+  
+  // Validate dimensions
+  if (candidate.dimensions && typeof candidate.dimensions === 'object') {
+    const dims = candidate.dimensions as Record<string, unknown>;
+    if (typeof dims.width !== 'number' || dims.width <= 0) {
+      return false;
+    }
+    if (typeof dims.height !== 'number' || dims.height <= 0) {
+      return false;
+    }
+  }
+  
+  // Validate variants
+  if (candidate.variants && typeof candidate.variants === 'object') {
+    const variants = candidate.variants as Record<string, unknown>;
+    if (typeof variants.original !== 'string' || variants.original.trim().length === 0) {
+      return false;
+    }
+  }
+  
+  return true;
+}
+
+/**
+ * Store a Media record in KV with schema validation
  * @param media - Media object to store
  */
 export async function storeMedia(media: Media): Promise<void> {
+  // Validate Media schema before storage
+  if (!validateMedia(media)) {
+    console.error('[MEDIA_KV] Schema validation failed for media:', media.id);
+    throw new Error(`Invalid Media schema for ${media.id}`);
+  }
+  
   try {
     const client = getRedisClient();
     // Use typed object API - @upstash/redis handles serialization
@@ -48,16 +110,25 @@ export async function storeMedia(media: Media): Promise<void> {
 }
 
 /**
- * Retrieve a Media record by ID
+ * Retrieve a Media record by ID with schema validation
  * @param id - Media ID
  * @returns Media object or null
  */
 export async function getMedia(id: string): Promise<Media | null> {
   try {
     const client = getRedisClient();
-    // Use typed object API - @upstash/redis handles deserialization
     const media = await client.get<Media>(`${MEDIA_PREFIX}${id}`);
     if (!media) return null;
+
+    // Validate Media schema
+    if (!validateMedia(media)) {
+      console.error('[MEDIA_KV] Schema validation failed for media:', id);
+      // Quarantine corrupted data
+      const quarantineKey = `${MEDIA_PREFIX}quarantine:${id}:${Date.now()}`;
+      await client.set(quarantineKey, media);
+      console.log('[MEDIA_KV] Corrupted media quarantined:', quarantineKey);
+      return null;
+    }
 
     return media;
   } catch (error) {
@@ -88,12 +159,21 @@ export async function findMediaByContentHash(contentHash: string): Promise<strin
  */
 export async function listMediaIds(): Promise<string[]> {
   try {
-    // KV list is not available in all environments, return empty array for now
-    // In production, you would use a proper database with query capabilities
-    return [];
+    const client = getRedisClient();
+    const keys: string[] = [];
+    let cursor = '0';
+    
+    do {
+      const result = await client.scan(cursor, { match: `${MEDIA_PREFIX}*`, count: 100 });
+      cursor = result[0];
+      keys.push(...result[1]);
+    } while (cursor !== '0');
+    
+    // Filter out quarantine keys
+    return keys.filter(key => !key.includes(':quarantine:')).map(key => key.replace(MEDIA_PREFIX, ''));
   } catch (error) {
     console.error('[MEDIA_KV] List failed:', error);
-    return [];
+    throw new Error(`Failed to list media IDs: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
