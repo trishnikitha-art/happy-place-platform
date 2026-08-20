@@ -1,29 +1,13 @@
-/**
- * Admin Project Card API Endpoint
- * 
- * Updates the hero mediaId for a project in projects.v1.json
- * 
- * POST /api/admin/projects/card
- * Body: { projectId: string, mediaId: string }
- * 
- * Requires Workbench authentication.
- * 
- * Constitutional Architecture:
- * - In development: Writes to local filesystem for testing
- * - In production: Uses KV persistence to avoid EROFS errors
- * - Deploy route commits changes to GitHub
- */
-
 import { NextResponse } from "next/server";
+import { Redis } from '@upstash/redis';
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { workbenchSession } from "@/lib/workbench-session";
-import { Redis } from '@upstash/redis';
 
 export const runtime = 'nodejs';
 
-const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
-
+// Shared KV client factory. Returns null (never throws) when credentials are absent,
+// so callers can branch on presence instead of crashing.
 function getRedisClient(): Redis | null {
   try {
     const url = process.env.KV_REST_API_URL;
@@ -61,30 +45,31 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log('[CARD UPDATE] REQUEST_RECEIVED', { projectId, mediaId });
+    console.log('[DND SERVER 1] REQUEST_RECEIVED', { projectId, mediaId });
+    console.log('[DND SERVER 2] IDENTIFIER_VALIDATION', { projectId, mediaId });
 
-    // Use KV for production persistence to avoid EROFS errors
     const redis = getRedisClient();
     const isProduction = process.env.NODE_ENV === 'production';
-    
-    if (isProduction && redis) {
-      // Production: Store in KV staging area
-      const stagingKey = `${WORKBENCH_STAGING_PREFIX}project:${projectId}:hero`;
+
+    if (isProduction) {
+      // Production: NEVER write to the read-only filesystem. Stage in KV.
+      if (!redis) {
+        return NextResponse.json(
+          {
+            error: "Persistence unavailable",
+            details: "KV_REST_API_URL / KV_REST_API_TOKEN must be configured in production",
+          },
+          { status: 503 }
+        );
+      }
+      const stagingKey = `workbench-staging:project:${projectId}:card`;
       await redis.set(stagingKey, mediaId);
-      console.log('[CARD UPDATE] STAGED_IN_KV', { projectId, mediaId, stagingKey });
-      
-      return NextResponse.json({ 
-        success: true, 
-        projectId, 
-        mediaId,
-        staged: true,
-        persistence: 'kv'
-      });
+      console.log('[DND SERVER] STAGED_IN_KV', { projectId, mediaId, stagingKey });
+      return NextResponse.json({ success: true, projectId, mediaId, staged: true, persistence: 'kv' });
     }
 
-    // Development: Write to local filesystem
-    console.log('[CARD UPDATE] DEV_MODE', { projectId, mediaId });
-
+    // Development only: write to local filesystem
+    console.log('[DND SERVER] DEV_MODE', { projectId, mediaId });
     const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
     const projectsData = JSON.parse(readFileSync(projectsPath, "utf-8"));
 
@@ -96,22 +81,16 @@ export async function POST(request: Request) {
       );
     }
 
+    projectsData.projects[projectIndex].media = projectsData.projects[projectIndex].media || {};
     projectsData.projects[projectIndex].media.hero = mediaId;
     projectsData.generatedAt = new Date().toISOString();
 
     writeFileSync(projectsPath, JSON.stringify(projectsData, null, 2));
+    console.log('[DND SERVER] DEV_WRITE_SUCCESS', { projectId, mediaId });
 
-    console.log('[CARD UPDATE] DEV_WRITE_SUCCESS', { projectId, mediaId });
-
-    return NextResponse.json({ 
-      success: true, 
-      projectId, 
-      mediaId,
-      staged: false,
-      persistence: 'filesystem'
-    });
+    return NextResponse.json({ success: true, projectId, mediaId, staged: false, persistence: 'filesystem' });
   } catch (error) {
-    console.error('[CARD UPDATE] ERROR', error);
+    console.error("Error updating project card:", error);
     return NextResponse.json(
       { error: "Failed to update project card" },
       { status: 500 }
