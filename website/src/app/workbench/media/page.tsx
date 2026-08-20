@@ -402,10 +402,20 @@ export default function MediaWorkbench() {
           });
           
           // Check if Drive file already exists as PublishedMediaAsset
-          const existingAsset = assetsRef.current.find(a => 
-            a.provenance?.august3_driveId === applicationData.fileId || 
-            a.provenance?.august3_driveId === applicationData.sharedDriveId
-          );
+          // CRITICAL FIX: fileId and sharedDriveId are not interchangeable identities
+          // Must match on (fileId AND sharedDriveId) or fileId only (for non-shared files)
+          const existingAsset = assetsRef.current.find(a => {
+            const assetDriveId = a.provenance?.august3_driveId;
+            const fileId = applicationData.fileId;
+            const sharedDriveId = applicationData.sharedDriveId;
+            
+            // Match both fileId and sharedDriveId for shared files
+            if (sharedDriveId) {
+              return assetDriveId === fileId && a.provenance?.drive_canonical === true;
+            }
+            // Match fileId only for non-shared files
+            return assetDriveId === fileId && a.provenance?.drive_canonical === true;
+          });
           
           if (existingAsset) {
             console.log('[DND] DRIVE_ALREADY_MATERIALIZED', { requestId, assetId: existingAsset.id });

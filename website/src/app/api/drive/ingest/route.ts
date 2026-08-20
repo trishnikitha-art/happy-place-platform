@@ -248,44 +248,55 @@ export async function POST(request: Request) {
       );
     }
 
-    // 3. Validate image (optional if Sharp not available)
+    // 3. Validate image (required for constitutional media pipeline)
     console.log('[MEDIA_INGEST] IMAGE_VALIDATION stage started', { requestId });
     let metadata: any = {};
-    if (sharpAvailable) {
-      try {
-        metadata = await sharp(fileBuffer).metadata();
-        console.log('[MEDIA_INGEST] image metadata:', {
+    
+    if (!sharpAvailable) {
+      console.log('[MEDIA_INGEST_ERROR] Sharp not available - cannot validate image or extract dimensions', { requestId });
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'SHARP_UNAVAILABLE', 
+          stage: 'IMAGE_VALIDATION', 
+          message: 'Image processing library (Sharp) is not available. Cannot validate image or extract actual dimensions without fabricating metadata.',
+          retryable: false,
+          details: 'Sharp is required for constitutional media validation. The system cannot safely proceed without actual image metadata.',
           requestId,
-          width: metadata.width,
-          height: metadata.height,
-          format: metadata.format,
-          orientation: metadata.orientation,
-        });
-        
-        if (!metadata.width || !metadata.height) {
-          throw new Error('Invalid image dimensions');
-        }
-        console.log('[MEDIA_INGEST] IMAGE_VALIDATION stage succeeded', { requestId });
-      } catch (error) {
-        console.log('[MEDIA_INGEST_ERROR] IMAGE_VALIDATION stage failed', { requestId });
-        console.error('[MEDIA_INGEST_ERROR] validation error:', error);
-        return NextResponse.json(
-          { 
-            success: false,
-            error: 'IMAGE_VALIDATION_FAILED', 
-            stage: 'IMAGE_VALIDATION', 
-            message: 'The selected file is not a valid image or is corrupted.',
-            retryable: false,
-            details: error instanceof Error ? error.message : 'Unknown error',
-            requestId,
-          },
-          { status: 400 }
-        );
+        },
+        { status: 503 }
+      );
+    }
+    
+    try {
+      metadata = await sharp(fileBuffer).metadata();
+      console.log('[MEDIA_INGEST] image metadata:', {
+        requestId,
+        width: metadata.width,
+        height: metadata.height,
+        format: metadata.format,
+        orientation: metadata.orientation,
+      });
+      
+      if (!metadata.width || !metadata.height) {
+        throw new Error('Invalid image dimensions');
       }
-    } else {
-      console.log('[MEDIA_INGEST] IMAGE_VALIDATION skipped - Sharp not available', { requestId });
-      // Use fallback dimensions when Sharp is not available
-      metadata = { width: 1920, height: 1080, format: 'unknown' };
+      console.log('[MEDIA_INGEST] IMAGE_VALIDATION stage succeeded', { requestId });
+    } catch (error) {
+      console.log('[MEDIA_INGEST_ERROR] IMAGE_VALIDATION stage failed', { requestId });
+      console.error('[MEDIA_INGEST_ERROR] validation error:', error);
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'IMAGE_VALIDATION_FAILED', 
+          stage: 'IMAGE_VALIDATION', 
+          message: 'The selected file is not a valid image or is corrupted.',
+          retryable: false,
+          details: error instanceof Error ? error.message : 'Unknown error',
+          requestId,
+        },
+        { status: 400 }
+      );
     }
 
     // 4. Compute content hash for stable identity
@@ -326,139 +337,122 @@ export async function POST(request: Request) {
     const uuid = generateUUIDv5(contentHash);
     const mediaId = stableId; // Content-based ID, no drive- prefix
 
-    // 7. Generate variants (or use original as fallback if Sharp not available)
+    // 7. Generate variants (required for constitutional media pipeline)
     console.log('[MEDIA_INGEST] VARIANT_GENERATION stage started', { requestId });
     const variants = [];
     let originalUpload: any;
     let blobIdempotencyStats = { newUploads: 0, reusedUploads: 0 };
     
-    if (sharpAvailable) {
-      const width = metadata.width || 1920;
-      const height = metadata.height || 1080;
-      const validWidths = WIDTHS.filter((w) => w <= width);
-      if (!validWidths.length) validWidths.push(width);
-      
-      // Upload original
-      const originalExt = driveFile.name.split('.').pop() || 'jpg';
-      const originalFilename = generateBlobFilename(mediaId, 'original', originalExt);
-      const originalContentType = driveFile.mimeType || 'image/jpeg';
-      console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage started', {
-        requestId,
-        filename: originalFilename,
-        bytes: fileBuffer.length,
-      });
-      originalUpload = await uploadToBlob(fileBuffer, originalFilename, originalContentType);
-      if (originalUpload.alreadyExisted) {
-        blobIdempotencyStats.reusedUploads++;
-      } else {
-        blobIdempotencyStats.newUploads++;
-      }
-      console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage succeeded', {
-        requestId,
-        url: originalUpload.url,
-        alreadyExisted: originalUpload.alreadyExisted,
-        contentHash: originalUpload.contentHash,
-      });
-      
-      // Generate and upload WebP/AVIF variants
-      for (const vw of validWidths) {
-        for (const fmt of ['avif', 'webp']) {
-          const variantFilename = generateBlobFilename(mediaId, `${vw}`, fmt);
-          const variantContentType = fmt === 'avif' ? 'image/avif' : 'image/webp';
-          
-          console.log('[MEDIA_INGEST] STORAGE_UPLOAD_VARIANT stage started', {
-            requestId,
-            variant: variantFilename,
-            width: vw,
-            format: fmt,
-          });
-          
-          const variantBuffer = await sharp(fileBuffer)
-            .resize({ width: vw, withoutEnlargement: true })
-            [fmt === 'avif' ? 'avif' : 'webp']({ quality: fmt === 'avif' ? 55 : 72 })
-            .toBuffer();
-          
-          const variantUpload = await uploadToBlob(variantBuffer, variantFilename, variantContentType);
-          if (variantUpload.alreadyExisted) {
-            blobIdempotencyStats.reusedUploads++;
-          } else {
-            blobIdempotencyStats.newUploads++;
-          }
-          
-          variants.push({
-            width: vw,
-            format: fmt,
-            src: variantUpload.url,
-          });
-          
-          console.log('[MEDIA_INGEST] STORAGE_UPLOAD_VARIANT stage succeeded', {
-            requestId,
-            variant: variantFilename,
-            url: variantUpload.url,
-            alreadyExisted: variantUpload.alreadyExisted,
-            contentHash: variantUpload.contentHash,
-          });
-        }
-      }
+    if (!sharpAvailable) {
+      console.log('[MEDIA_INGEST_ERROR] Sharp not available - cannot generate variants', { requestId });
+      return NextResponse.json(
+        { 
+          success: false,
+          error: 'SHARP_UNAVAILABLE', 
+          stage: 'VARIANT_GENERATION', 
+          message: 'Image processing library (Sharp) is not available. Cannot generate rendition variants.',
+          retryable: false,
+          details: 'Sharp is required for constitutional media processing. The system cannot safely proceed without variant generation.',
+          requestId,
+        },
+        { status: 503 }
+      );
+    }
+    
+    const width = metadata.width || 1920;
+    const height = metadata.height || 1080;
+    const validWidths = WIDTHS.filter((w) => w <= width);
+    if (!validWidths.length) validWidths.push(width);
+    
+    // Upload original
+    const originalExt = driveFile.name.split('.').pop() || 'jpg';
+    const originalFilename = generateBlobFilename(mediaId, 'original', originalExt);
+    const originalContentType = driveFile.mimeType || 'image/jpeg';
+    console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage started', {
+      requestId,
+      filename: originalFilename,
+      bytes: fileBuffer.length,
+    });
+    originalUpload = await uploadToBlob(fileBuffer, originalFilename, originalContentType);
+    if (originalUpload.alreadyExisted) {
+      blobIdempotencyStats.reusedUploads++;
     } else {
-      console.log('[MEDIA_INGEST] VARIANT_GENERATION skipped - Sharp not available, using original only', { requestId });
-      
-      // Upload original as all variants (fallback mode)
-      const originalExt = driveFile.name.split('.').pop() || 'jpg';
-      const originalFilename = generateBlobFilename(mediaId, 'original', originalExt);
-      const originalContentType = driveFile.mimeType || 'image/jpeg';
-      console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage started', {
-        requestId,
-        filename: originalFilename,
-        bytes: fileBuffer.length,
-      });
-      originalUpload = await uploadToBlob(fileBuffer, originalFilename, originalContentType);
-      if (originalUpload.alreadyExisted) {
-        blobIdempotencyStats.reusedUploads++;
-      } else {
-        blobIdempotencyStats.newUploads++;
+      blobIdempotencyStats.newUploads++;
+    }
+    console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage succeeded', {
+      requestId,
+      url: originalUpload.url,
+      alreadyExisted: originalUpload.alreadyExisted,
+      contentHash: originalUpload.contentHash,
+    });
+    
+    // Generate and upload WebP/AVIF variants
+    for (const vw of validWidths) {
+      for (const fmt of ['avif', 'webp']) {
+        const variantFilename = generateBlobFilename(mediaId, `${vw}`, fmt);
+        const variantContentType = fmt === 'avif' ? 'image/avif' : 'image/webp';
+        
+        console.log('[MEDIA_INGEST] STORAGE_UPLOAD_VARIANT stage started', {
+          requestId,
+          variant: variantFilename,
+          width: vw,
+          format: fmt,
+        });
+        
+        const variantBuffer = await sharp(fileBuffer)
+          .resize({ width: vw, withoutEnlargement: true })
+          [fmt === 'avif' ? 'avif' : 'webp']({ quality: fmt === 'avif' ? 55 : 72 })
+          .toBuffer();
+        
+        const variantUpload = await uploadToBlob(variantBuffer, variantFilename, variantContentType);
+        if (variantUpload.alreadyExisted) {
+          blobIdempotencyStats.reusedUploads++;
+        } else {
+          blobIdempotencyStats.newUploads++;
+        }
+        
+        variants.push({
+          width: vw,
+          format: fmt,
+          src: variantUpload.url,
+        });
+        
+        console.log('[MEDIA_INGEST] STORAGE_UPLOAD_VARIANT stage succeeded', {
+          requestId,
+          variant: variantFilename,
+          url: variantUpload.url,
+          alreadyExisted: variantUpload.alreadyExisted,
+          contentHash: variantUpload.contentHash,
+        });
       }
-      console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage succeeded', {
-        requestId,
-        url: originalUpload.url,
-        alreadyExisted: originalUpload.alreadyExisted,
-        contentHash: originalUpload.contentHash,
-      });
     }
     
     // Generate and upload thumbnail
     let thumbUpload: any;
     let blurDataURL = '';
     
-    if (sharpAvailable) {
-      const thumbFilename = generateBlobFilename(mediaId, 'thumb', 'webp');
-      const thumbBuffer = await sharp(fileBuffer).resize(480).webp({ quality: 70 }).toBuffer();
-      thumbUpload = await uploadToBlob(thumbBuffer, thumbFilename, 'image/webp');
-      if (thumbUpload.alreadyExisted) {
-        blobIdempotencyStats.reusedUploads++;
-      } else {
-        blobIdempotencyStats.newUploads++;
-      }
-      console.log('[MEDIA_INGEST] STORAGE_UPLOAD_THUMBNAIL stage succeeded', {
-        requestId,
-        url: thumbUpload.url,
-        alreadyExisted: thumbUpload.alreadyExisted,
-        contentHash: thumbUpload.contentHash,
-      });
-      
-      // Generate blur placeholder
-      const blurBuffer = await sharp(fileBuffer).resize(16).webp({ quality: 40 }).toBuffer();
-      blurDataURL = `data:image/webp;base64,${blurBuffer.toString('base64')}`;
+    const thumbFilename = generateBlobFilename(mediaId, 'thumb', 'webp');
+    const thumbBuffer = await sharp(fileBuffer).resize(480).webp({ quality: 70 }).toBuffer();
+    thumbUpload = await uploadToBlob(thumbBuffer, thumbFilename, 'image/webp');
+    if (thumbUpload.alreadyExisted) {
+      blobIdempotencyStats.reusedUploads++;
     } else {
-      console.log('[MEDIA_INGEST] THUMBNAIL/BLUR skipped - Sharp not available, using original as thumbnail', { requestId });
-      thumbUpload = originalUpload;
-      blurDataURL = '';
+      blobIdempotencyStats.newUploads++;
     }
+    console.log('[MEDIA_INGEST] STORAGE_UPLOAD_THUMBNAIL stage succeeded', {
+      requestId,
+      url: thumbUpload.url,
+      alreadyExisted: thumbUpload.alreadyExisted,
+      contentHash: thumbUpload.contentHash,
+    });
+    
+    // Generate blur placeholder
+    const blurBuffer = await sharp(fileBuffer).resize(16).webp({ quality: 40 }).toBuffer();
+    blurDataURL = `data:image/webp;base64,${blurBuffer.toString('base64')}`;
     
     console.log('[MEDIA_INGEST] VARIANT_GENERATION stage completed', {
       requestId,
       variantsCount: variants.length,
-      hasSharp: sharpAvailable,
       blobIdempotencyStats,
     });
 
