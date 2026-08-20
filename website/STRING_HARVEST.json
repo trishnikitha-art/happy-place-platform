@@ -1,0 +1,1626 @@
+{
+  "strings": [
+    {
+      "id": "nav.home",
+      "currentText": "Home",
+      "canonicalText": "Home",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/site-header.tsx",
+          "line": 113,
+          "component": "SiteHeader",
+          "context": "primary navigation link"
+        },
+        {
+          "file": "src/components/site-footer.tsx",
+          "line": 40,
+          "component": "SiteFooter",
+          "context": "footer navigation link"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": true,
+      "semanticEquivalence": true
+    },
+    {
+      "id": "nav.services",
+      "currentText": "Services",
+      "canonicalText": "Services",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/site-header.tsx",
+          "line": 113,
+          "component": "SiteHeader",
+          "context": "primary navigation link"
+        },
+        {
+          "file": "src/app/services/page.tsx",
+          "line": 11,
+          "component": "ServicesPage",
+          "context": "page title"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": true,
+      "semanticEquivalence": true
+    },
+    {
+      "id": "nav.ourWork",
+      "currentText": "Our Work",
+      "canonicalText": "Our Work",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/site-header.tsx",
+          "line": 113,
+          "component": "SiteHeader",
+          "context": "primary navigation link"
+        },
+        {
+          "file": "src/app/our-work/page.tsx",
+          "line": 7,
+          "component": "OurWorkPage",
+          "context": "page title"
+        },
+        {
+          "file": "src/app/page.tsx",
+          "line": 125,
+          "component": "HomePage",
+          "context": "hero CTA button"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": true,
+      "semanticEquivalence": true
+    },
+    {
+      "id": "nav.about",
+      "currentText": "About",
+      "canonicalText": "About",
+      "classification": "CONTEXTUAL",
+      "locations": [
+        {
+          "file": "src/components/site-header.tsx",
+          "line": 113,
+          "component": "SiteHeader",
+          "context": "primary navigation link"
+        },
+        {
+          "file": "src/components/site-footer.tsx",
+          "line": 50,
+          "component": "SiteFooter",
+          "context": "footer section heading"
+        },
+        {
+          "file": "src/app/about/page.tsx",
+          "line": 13,
+          "component": "AboutPage",
+          "context": "page title"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": true,
+      "semanticEquivalence": true
+    },
+    {
+      "id": "nav.reviews",
+      "currentText": "Reviews",
+      "canonicalText": "Reviews",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/site-header.tsx",
+          "line": 113,
+          "component": "SiteHeader",
+          "context": "primary navigation link"
+        },
+        {
+          "file": "src/app/reviews/page.tsx",
+          "line": 11,
+          "component": "ReviewsPage",
+          "context": "page title"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": true,
+      "semanticEquivalence": true
+    },
+    {
+      "id": "nav.estimate",
+      "currentText": "Get a Free Estimate",
+      "canonicalText": "Get a Free Estimate",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 119,
+          "component": "HomePage",
+          "context": "hero CTA button"
+        },
+        {
+          "file": "src/components/cta-section.tsx",
+          "line": 25,
+          "component": "CTASection",
+          "context": "primary CTA button"
+        },
+        {
+          "file": "src/app/services/page.tsx",
+          "line": 112,
+          "component": "ServicesPage",
+          "context": "page CTA link"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": true,
+      "semanticEquivalence": true
+    },
+    {
+      "id": "homepage.hero.title",
+      "currentText": "Your favorite part of coming home should be the home itself.",
+      "canonicalText": "Your favorite part of coming home should be the home itself.",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 113,
+          "component": "HomePage",
+          "context": "hero section heading"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "homepage.hero.description",
+      "currentText": "We repair, restore, and improve homes across the Mid-Willamette Valley. The work should look right the day we leave, and still look right years later.",
+      "canonicalText": "We repair, restore, and improve homes across the Mid-Willamette Valley. The work should look right the day we leave, and still look right years later.",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 116,
+          "component": "HomePage",
+          "context": "hero section description"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "homepage.seeOurWork",
+      "currentText": "See Our Work",
+      "canonicalText": "See Our Work",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 125,
+          "component": "HomePage",
+          "context": "hero secondary CTA button"
+        },
+        {
+          "file": "src/components/cta-section.tsx",
+          "line": 28,
+          "component": "CTASection",
+          "context": "secondary CTA button"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": true,
+      "semanticEquivalence": true
+    },
+    {
+      "id": "homepage.tellUsPlanning",
+      "currentText": "Tell us what you're planning.",
+      "canonicalText": "Tell us what you're planning.",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 147,
+          "component": "HomePage",
+          "context": "hero signature call-to-action"
+        },
+        {
+          "file": "src/components/cta-section.tsx",
+          "line": 9,
+          "component": "CTASection",
+          "context": "CTA section title"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": true,
+      "semanticEquivalence": true
+    },
+    {
+      "id": "trust.licensed",
+      "currentText": "Licensed, Bonded & Insured",
+      "canonicalText": "Licensed, Bonded & Insured",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 159,
+          "component": "HomePage",
+          "context": "trust strip statistic"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "trust.familyOwned",
+      "currentText": "Family-Owned",
+      "canonicalText": "Family-Owned",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 160,
+          "component": "HomePage",
+          "context": "trust strip statistic"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "trust.serviceArea",
+      "currentText": "Mid-Willamette Valley",
+      "canonicalText": "Mid-Willamette Valley",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 161,
+          "component": "HomePage",
+          "context": "trust strip statistic"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "trust.projectsCompleted",
+      "currentText": "Projects Completed",
+      "canonicalText": "Projects Completed",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 162,
+          "component": "HomePage",
+          "context": "trust strip statistic label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "services.title",
+      "currentText": "A few ways we can help",
+      "canonicalText": "A few ways we can help",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 183,
+          "component": "HomePage",
+          "context": "services section heading"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "services.description",
+      "currentText": "Pick a service to start a free estimate — we'll guide you through the rest.",
+      "canonicalText": "Pick a service to start a free estimate — we'll guide you through the rest.",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 184,
+          "component": "HomePage",
+          "context": "services section description"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "featuredProjects.title",
+      "currentText": "Recent Work",
+      "canonicalText": "Recent Work",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 220,
+          "component": "HomePage",
+          "context": "featured projects section heading"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "featuredProjects.description",
+      "currentText": "A selection of our latest work across the Mid-Willamette Valley.",
+      "canonicalText": "A selection of our latest work across the Mid-Willamette Valley.",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 221,
+          "component": "HomePage",
+          "context": "featured projects section description"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "featuredProjects.seeAll",
+      "currentText": "See all projects",
+      "canonicalText": "See all projects",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 269,
+          "component": "HomePage",
+          "context": "featured projects section link"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "family.tagline",
+      "currentText": "Built by one family. Trusted by many more.",
+      "canonicalText": "Built by one family. Trusted by many more.",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 281,
+          "component": "HomePage",
+          "context": "family section tagline"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "family.title",
+      "currentText": "A family business built on doing things the right way.",
+      "canonicalText": "A family business built on doing things the right way.",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 283,
+          "component": "HomePage",
+          "context": "family section heading"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "reviews.title",
+      "currentText": "What people say once the work's done",
+      "canonicalText": "What people say once the work's done",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 328,
+          "component": "HomePage",
+          "context": "reviews section heading"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "reviews.empty",
+      "currentText": "We are building our review portfolio. In the meantime, ask us for references in your neighborhood.",
+      "canonicalText": "We are building our review portfolio. In the meantime, ask us for references in your neighborhood.",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 350,
+          "component": "HomePage",
+          "context": "reviews empty state"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "reviews.readAll",
+      "currentText": "Read all reviews",
+      "canonicalText": "Read all reviews",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/page.tsx",
+          "line": 344,
+          "component": "HomePage",
+          "context": "reviews section link"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "about.hero.title",
+      "currentText": "Every family deserves a {signature} place.",
+      "canonicalText": "Every family deserves a happy place.",
+      "classification": "DYNAMIC",
+      "locations": [
+        {
+          "file": "src/app/about/page.tsx",
+          "line": 39,
+          "component": "AboutPage",
+          "context": "about page hero heading"
+        }
+      ],
+      "hasInterpolation": true,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "about.serviceArea.title",
+      "currentText": "Serving the mid-Willamette Valley",
+      "canonicalText": "Serving the mid-Willamette Valley",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/about/page.tsx",
+          "line": 69,
+          "component": "AboutPage",
+          "context": "service area section heading"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "about.cta.title",
+      "currentText": "Ready to love coming home again?",
+      "canonicalText": "Ready to love coming home again?",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/about/page.tsx",
+          "line": 82,
+          "component": "AboutPage",
+          "context": "CTA section title"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "contact.title",
+      "currentText": "Let's talk about your project",
+      "canonicalText": "Let's talk about your project",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/contact/page.tsx",
+          "line": 29,
+          "component": "ContactPage",
+          "context": "contact page heading"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "contact.phone",
+      "currentText": "Phone",
+      "canonicalText": "Phone",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/contact/page.tsx",
+          "line": 35,
+          "component": "ContactPage",
+          "context": "contact phone label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "contact.email",
+      "currentText": "Email",
+      "canonicalText": "Email",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/contact/page.tsx",
+          "line": 39,
+          "component": "ContactPage",
+          "context": "contact email label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "contact.serviceArea",
+      "currentText": "Service area",
+      "canonicalText": "Service area",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/contact/page.tsx",
+          "line": 43,
+          "component": "ContactPage",
+          "context": "contact service area label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "contact.hours",
+      "currentText": "Hours",
+      "canonicalText": "Hours",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/contact/page.tsx",
+          "line": 47,
+          "component": "ContactPage",
+          "context": "contact hours label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "estimate.title",
+      "currentText": "Let's scope your project",
+      "canonicalText": "Let's scope your project",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/estimate/page.tsx",
+          "line": 28,
+          "component": "EstimatePage",
+          "context": "estimate page heading"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "estimate.description",
+      "currentText": "About two minutes. Your details go straight to our inbox — no account, no spam.",
+      "canonicalText": "About two minutes. Your details go straight to our inbox — no account, no spam.",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/estimate/page.tsx",
+          "line": 29,
+          "component": "EstimatePage",
+          "context": "estimate page description"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "estimate.preferTalk",
+      "currentText": "Prefer to talk? Call {phone} or email {email}.",
+      "canonicalText": "Prefer to talk? Call {phone} or email {email}.",
+      "classification": "DYNAMIC",
+      "locations": [
+        {
+          "file": "src/app/estimate/page.tsx",
+          "line": 37,
+          "component": "EstimatePage",
+          "context": "estimate page alternative contact"
+        }
+      ],
+      "hasInterpolation": true,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "reviews.helpingNeighbors",
+      "currentText": "Helping neighbors find their happy place",
+      "canonicalText": "Helping neighbors find their happy place",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/reviews/page.tsx",
+          "line": 32,
+          "component": "ReviewsPage",
+          "context": "reviews page heading"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "reviews.leaveReview",
+      "currentText": "Leave a Review →",
+      "canonicalText": "Leave a Review",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/reviews/page.tsx",
+          "line": 45,
+          "component": "ReviewsPage",
+          "context": "reviews page CTA button"
+        },
+        {
+          "file": "src/components/site-footer.tsx",
+          "line": 44,
+          "component": "SiteFooter",
+          "context": "footer link"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": true,
+      "semanticEquivalence": true
+    },
+    {
+      "id": "review.thankYou",
+      "currentText": "Thank you",
+      "canonicalText": "Thank you",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/review/page.tsx",
+          "line": 102,
+          "component": "ReviewPage",
+          "context": "review submission success heading"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "review.thankForTrusting",
+      "currentText": "Thank you for trusting Taylor and Lanie with your project.",
+      "canonicalText": "Thank you for trusting Taylor and Lanie with your project.",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/review/page.tsx",
+          "line": 106,
+          "component": "ReviewPage",
+          "context": "review submission success message"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "review.tellUsAboutProject",
+      "currentText": "Tell us about your project",
+      "canonicalText": "Tell us about your project",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/review/page.tsx",
+          "line": 163,
+          "component": "ReviewPage",
+          "context": "review form heading"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "review.label.yourName",
+      "currentText": "Your name",
+      "canonicalText": "Your name",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/review/page.tsx",
+          "line": 186,
+          "component": "ReviewPage",
+          "context": "review form field label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "review.label.city",
+      "currentText": "City (optional)",
+      "canonicalText": "City (optional)",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/review/page.tsx",
+          "line": 201,
+          "component": "ReviewPage",
+          "context": "review form field label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "review.label.service",
+      "currentText": "What did we work on?",
+      "canonicalText": "What did we work on?",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/review/page.tsx",
+          "line": 215,
+          "component": "ReviewPage",
+          "context": "review form field label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "review.label.rating",
+      "currentText": "How would you rate your experience?",
+      "canonicalText": "How would you rate your experience?",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/review/page.tsx",
+          "line": 238,
+          "component": "ReviewPage",
+          "context": "review form field label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "review.label.experience",
+      "currentText": "Tell us about your experience",
+      "canonicalText": "Tell us about your experience",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/review/page.tsx",
+          "line": 258,
+          "component": "ReviewPage",
+          "context": "review form field label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "review.submit",
+      "currentText": "Share your experience",
+      "canonicalText": "Share your experience",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/review/page.tsx",
+          "line": 302,
+          "component": "ReviewPage",
+          "context": "review form submit button"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "workbench.login.title",
+      "currentText": "Workbench Login",
+      "canonicalText": "Workbench Login",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/workbench/login/page.tsx",
+          "line": 50,
+          "component": "WorkbenchLogin",
+          "context": "workbench login page heading"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "workbench.login.subtitle",
+      "currentText": "Administrative access required",
+      "canonicalText": "Administrative access required",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/workbench/login/page.tsx",
+          "line": 52,
+          "component": "WorkbenchLogin",
+          "context": "workbench login page subtitle"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "workbench.login.password",
+      "currentText": "Password",
+      "canonicalText": "Password",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/workbench/login/page.tsx",
+          "line": 59,
+          "component": "WorkbenchLogin",
+          "context": "workbench login field label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "workbench.login.placeholder",
+      "currentText": "Enter workbench password",
+      "canonicalText": "Enter workbench password",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/workbench/login/page.tsx",
+          "line": 67,
+          "component": "WorkbenchLogin",
+          "context": "workbench login placeholder"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "workbench.login.button",
+      "currentText": "Login",
+      "canonicalText": "Login",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/workbench/login/page.tsx",
+          "line": 83,
+          "component": "WorkbenchLogin",
+          "context": "workbench login button"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "workbench.connectors.title",
+      "currentText": "Connector Studio",
+      "canonicalText": "Connector Studio",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/workbench/connectors/page.tsx",
+          "line": 132,
+          "component": "ConnectorsPage",
+          "context": "connectors page heading"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "workbench.connectors.connectDrive",
+      "currentText": "Connect Drive",
+      "canonicalText": "Connect Drive",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/workbench/connectors/page.tsx",
+          "line": 202,
+          "component": "ConnectorsPage",
+          "context": "connectors page button"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "workbench.connectors.openDrive",
+      "currentText": "Open Drive",
+      "canonicalText": "Open Drive",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/workbench/connectors/page.tsx",
+          "line": 212,
+          "component": "ConnectorsPage",
+          "context": "connectors page button"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "workbench.explorer.title",
+      "currentText": "Google Drive Explorer",
+      "canonicalText": "Google Drive Explorer",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/workbench/explorer/drive/page.tsx",
+          "line": 184,
+          "component": "DriveExplorerPage",
+          "context": "drive explorer page heading"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "workbench.explorer.search",
+      "currentText": "Search files and folders...",
+      "canonicalText": "Search files and folders...",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/workbench/explorer/drive/page.tsx",
+          "line": 199,
+          "component": "DriveExplorerPage",
+          "context": "drive explorer search placeholder"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "workbench.explorer.useAsset",
+      "currentText": "Use This Asset",
+      "canonicalText": "Use This Asset",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/workbench/explorer/drive/page.tsx",
+          "line": 371,
+          "component": "DriveExplorerPage",
+          "context": "drive explorer action button"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "newsletter.title",
+      "currentText": "Stay Ahead of Home Maintenance",
+      "canonicalText": "Stay Ahead of Home Maintenance",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/newsletter-signup.tsx",
+          "line": 63,
+          "component": "NewsletterSignup",
+          "context": "newsletter signup heading"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "newsletter.description",
+      "currentText": "Get practical homeowner tips, seasonal maintenance reminders, remodeling ideas, project showcases, and exclusive offers delivered to your inbox.",
+      "canonicalText": "Get practical homeowner tips, seasonal maintenance reminders, remodeling ideas, project showcases, and exclusive offers delivered to your inbox.",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/newsletter-signup.tsx",
+          "line": 66,
+          "component": "NewsletterSignup",
+          "context": "newsletter signup description"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "newsletter.emailPlaceholder",
+      "currentText": "Email address",
+      "canonicalText": "Email address",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/newsletter-signup.tsx",
+          "line": 75,
+          "component": "NewsletterSignup",
+          "context": "newsletter email placeholder"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "newsletter.firstNamePlaceholder",
+      "currentText": "First name (optional)",
+      "canonicalText": "First name (optional)",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/newsletter-signup.tsx",
+          "line": 87,
+          "component": "NewsletterSignup",
+          "context": "newsletter first name placeholder"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "newsletter.subscribe",
+      "currentText": "Subscribe",
+      "canonicalText": "Subscribe",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/newsletter-signup.tsx",
+          "line": 110,
+          "component": "NewsletterSignup",
+          "context": "newsletter subscribe button"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "newsletter.noSpam",
+      "currentText": "No spam, ever. Unsubscribe anytime.",
+      "canonicalText": "No spam, ever. Unsubscribe anytime.",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/newsletter-signup.tsx",
+          "line": 116,
+          "component": "NewsletterSignup",
+          "context": "newsletter disclaimer"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "theme.toggle",
+      "currentText": "Toggle theme",
+      "canonicalText": "Toggle theme",
+      "classification": "ACCESSIBILITY",
+      "locations": [
+        {
+          "file": "src/components/theme-toggle.tsx",
+          "line": 20,
+          "component": "ThemeToggle",
+          "context": "theme toggle button aria-label"
+        },
+        {
+          "file": "src/components/theme-toggle.tsx",
+          "line": 33,
+          "component": "ThemeToggle",
+          "context": "theme toggle button aria-label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": true,
+      "semanticEquivalence": true
+    },
+    {
+      "id": "siteHeader.aria.home",
+      "currentText": "{company.name} home",
+      "canonicalText": "{company.name} home",
+      "classification": "ACCESSIBILITY",
+      "locations": [
+        {
+          "file": "src/components/site-header.tsx",
+          "line": 89,
+          "component": "SiteHeader",
+          "context": "logo link aria-label"
+        }
+      ],
+      "hasInterpolation": true,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "siteHeader.aria.primary",
+      "currentText": "Primary",
+      "canonicalText": "Primary",
+      "classification": "ACCESSIBILITY",
+      "locations": [
+        {
+          "file": "src/components/site-header.tsx",
+          "line": 101,
+          "component": "SiteHeader",
+          "context": "primary nav aria-label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "siteHeader.aria.mobile",
+      "currentText": "Mobile",
+      "canonicalText": "Mobile",
+      "classification": "ACCESSIBILITY",
+      "locations": [
+        {
+          "file": "src/components/site-header.tsx",
+          "line": 144,
+          "component": "SiteHeader",
+          "context": "mobile nav aria-label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "siteHeader.aria.closeMenu",
+      "currentText": "Close menu",
+      "canonicalText": "Close menu",
+      "classification": "ACCESSIBILITY",
+      "locations": [
+        {
+          "file": "src/components/site-header.tsx",
+          "line": 135,
+          "component": "SiteHeader",
+          "context": "mobile menu button aria-label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "siteHeader.aria.openMenu",
+      "currentText": "Open menu",
+      "canonicalText": "Open menu",
+      "classification": "ACCESSIBILITY",
+      "locations": [
+        {
+          "file": "src/components/site-header.tsx",
+          "line": 135,
+          "component": "SiteHeader",
+          "context": "mobile menu button aria-label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "serviceCard.startQuote",
+      "currentText": "Start a quote →",
+      "canonicalText": "Start a quote",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/service-card.tsx",
+          "line": 90,
+          "component": "ServiceCard",
+          "context": "service card CTA link"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "serviceCard.photosComingSoon",
+      "currentText": "Project photos coming soon",
+      "canonicalText": "Project photos coming soon",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/service-card.tsx",
+          "line": 82,
+          "component": "ServiceCard",
+          "context": "service card empty state"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "placeholder.gallery",
+      "currentText": "Project Photos Coming Soon",
+      "canonicalText": "Project Photos Coming Soon",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/placeholder-section.tsx",
+          "line": 42,
+          "component": "PlaceholderSection",
+          "context": "gallery placeholder title"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "placeholder.gallery.description",
+      "currentText": "We're currently building our portfolio. Check back soon to see our latest work.",
+      "canonicalText": "We're currently building our portfolio. Check back soon to see our latest work.",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/placeholder-section.tsx",
+          "line": 43,
+          "component": "PlaceholderSection",
+          "context": "gallery placeholder description"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "cta.startFreeEstimate",
+      "currentText": "Start Your Free Estimate",
+      "canonicalText": "Start Your Free Estimate",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/cta-section.tsx",
+          "line": 25,
+          "component": "CTASection",
+          "context": "CTA section primary button"
+        },
+        {
+          "file": "src/app/contact/page.tsx",
+          "line": 61,
+          "component": "ContactPage",
+          "context": "contact page CTA button"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": true,
+      "semanticEquivalence": true
+    },
+    {
+      "id": "beforeAfter.before",
+      "currentText": "Before",
+      "canonicalText": "Before",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/before-after-slider.tsx",
+          "line": 170,
+          "component": "BeforeAfterSlider",
+          "context": "before/after slider label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "beforeAfter.after",
+      "currentText": "After",
+      "canonicalText": "After",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/components/before-after-slider.tsx",
+          "line": 171,
+          "component": "BeforeAfterSlider",
+          "context": "before/after slider label"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "starRating.aria",
+      "currentText": "Rated {rating} out of 5",
+      "canonicalText": "Rated {rating} out of 5",
+      "classification": "DYNAMIC",
+      "locations": [
+        {
+          "file": "src/components/star-rating.tsx",
+          "line": 17,
+          "component": "StarRating",
+          "context": "star rating aria-label"
+        }
+      ],
+      "hasInterpolation": true,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "api.error.unauthorized",
+      "currentText": "Unauthorized",
+      "canonicalText": "Unauthorized",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/api/drive/discovery/route.ts",
+          "line": 25,
+          "component": "API Route",
+          "context": "authentication error"
+        },
+        {
+          "file": "src/app/api/drive/files/route.ts",
+          "line": 25,
+          "component": "API Route",
+          "context": "authentication error"
+        },
+        {
+          "file": "src/app/api/workbench/login/route.ts",
+          "line": 34,
+          "component": "API Route",
+          "context": "authentication error"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": true,
+      "semanticEquivalence": true
+    },
+    {
+      "id": "api.error.workbenchAuthRequired",
+      "currentText": "Workbench authentication required",
+      "canonicalText": "Workbench authentication required",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/api/drive/discovery/route.ts",
+          "line": 26,
+          "component": "API Route",
+          "context": "authentication error message"
+        },
+        {
+          "file": "src/app/api/drive/files/route.ts",
+          "line": 26,
+          "component": "API Route",
+          "context": "authentication error message"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": true,
+      "semanticEquivalence": true
+    },
+    {
+      "id": "api.error.driveDiscoveryFailed",
+      "currentText": "Failed to discover Drive structure",
+      "canonicalText": "Failed to discover Drive structure",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/api/drive/discovery/route.ts",
+          "line": 37,
+          "component": "API Route",
+          "context": "Drive discovery error"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "api.error.driveFilesFailed",
+      "currentText": "Failed to list Drive files",
+      "canonicalText": "Failed to list Drive files",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/api/drive/files/route.ts",
+          "line": 55,
+          "component": "API Route",
+          "context": "Drive files error"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "api.error.estimateFailed",
+      "currentText": "send_failed",
+      "canonicalText": "Estimate submission failed",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/api/estimate/route.ts",
+          "line": 200,
+          "component": "API Route",
+          "context": "estimate API error"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "api.error.reviewValidationFailed",
+      "currentText": "invalid_submission",
+      "canonicalText": "Review validation failed",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/api/reviews/route.ts",
+          "line": 210,
+          "component": "API Route",
+          "context": "review validation error"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    },
+    {
+      "id": "api.error.newsletterFailed",
+      "currentText": "Failed to subscribe",
+      "canonicalText": "Failed to subscribe to newsletter",
+      "classification": "CANONICAL",
+      "locations": [
+        {
+          "file": "src/app/api/newsletter/subscribe/route.ts",
+          "line": 44,
+          "component": "API Route",
+          "context": "newsletter subscription error"
+        }
+      ],
+      "hasInterpolation": false,
+      "duplicates": false,
+      "semanticEquivalence": false
+    }
+  ],
+  "lockedIdentifiers": [
+    "driveCurrentDriveId",
+    "driveBreadcrumb",
+    "driveFiles",
+    "driveStructure",
+    "driveLoading",
+    "driveError",
+    "driveCurrentFolderId",
+    "driveSelectedFile",
+    "driveViewMode",
+    "driveNextPageToken",
+    "driveLoadingMore",
+    "/api/drive/discovery",
+    "/api/drive/files",
+    "/api/drive/reference",
+    "/api/drive/auth/status",
+    "/api/drive/oauth/authorize",
+    "/api/drive/oauth/callback",
+    "/api/workbench/login",
+    "application/vnd.google-apps.folder",
+    "OAuth",
+    "httpOnly",
+    "sameSite",
+    "workbenchSession",
+    "driveSession",
+    "mediaId",
+    "fileId",
+    "folderId",
+    "pageToken",
+    "driveId",
+    "ServiceCard",
+    "ProjectSpotlight",
+    "VisualSlot",
+    "BeforeAfterSlider",
+    "EstimateWizard",
+    "NewsletterSignup",
+    "ThemeToggle",
+    "SiteHeader",
+    "SiteFooter",
+    "CTASection",
+    "StarRating",
+    "ProjectLightbox",
+    "PlaceholderSection"
+  ],
+  "interpolationCases": [
+    {
+      "template": "Rated {rating} out of 5",
+      "variables": ["rating"],
+      "file": "src/components/star-rating.tsx",
+      "line": 17
+    },
+    {
+      "template": "Every family deserves a {signature} place.",
+      "variables": ["signature"],
+      "file": "src/app/about/page.tsx",
+      "line": 39
+    },
+    {
+      "template": "Prefer to talk? Call {phone} or email {email}.",
+      "variables": ["phone", "email"],
+      "file": "src/app/estimate/page.tsx",
+      "line": 37
+    },
+    {
+      "template": "{company.name} home",
+      "variables": ["company.name"],
+      "file": "src/components/site-header.tsx",
+      "line": 89
+    },
+    {
+      "template": "{stats.average} / 5 · {company.proof.projectsCompleted} projects",
+      "variables": ["stats.average", "company.proof.projectsCompleted"],
+      "file": "src/app/page.tsx",
+      "line": 132
+    },
+    {
+      "template": "{stats.average} / 5 across {stats.count} featured reviews from homeowners across the Willamette Valley.",
+      "variables": ["stats.average", "stats.count"],
+      "file": "src/app/reviews/page.tsx",
+      "line": 34
+    }
+  ],
+  "summary": {
+    "totalStrings": 95,
+    "canonical": 85,
+    "contextual": 1,
+    "dynamic": 6,
+    "accessibility": 6,
+    "locked": 36,
+    "interpolationCases": 6,
+    "filesAnalyzed": 50
+  }
+}

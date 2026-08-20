@@ -13,7 +13,8 @@ import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
 import { storeServiceCardAssignment, getServiceCardAssignment } from "@/lib/assignment-store";
 import { getAllServices } from "@/lib/registries";
-import { getMediaByIdAsync, isDriveReference, isPublishedMediaAsset } from "@/lib/media";
+import { getMediaByIdAsync } from "@/lib/media";
+import { isDriveReference, isPublishedMediaAsset } from "@/types/media";
 
 export const runtime = 'nodejs';
 

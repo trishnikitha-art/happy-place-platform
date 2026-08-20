@@ -110,7 +110,8 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
   const key = `${ASSIGNMENT_PREFIX}${assignment.serviceSlug}`;
   
   // REJECT: drive-prefixed IDs at write time (Drive references cannot become public assignments)
-  if (assignment.mediaId.startsWith('drive-')) {
+  // drive- and drive-ref- prefixes are reserved for DriveReference only
+  if (assignment.mediaId.startsWith('drive-') || assignment.mediaId.startsWith('drive-ref-')) {
     console.error('[ASSIGNMENT_WRITE] REJECTED: drive-prefixed mediaId at write time', {
       operationId,
       serviceSlug: assignment.serviceSlug,

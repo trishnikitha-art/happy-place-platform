@@ -1,24 +1,25 @@
 /**
  * Media Architecture Invariant Test
- * 
+ *
  * Tests the invariant: DriveReference X → materialization → PublishedMediaAsset → assignment → website
- * 
+ *
  * This test validates:
  * 1. DriveReference cannot directly enter public assignments
  * 2. Active assignment must resolve to PublishedMediaAsset
  * 3. resolvePublicMedia rejects Drive references
  * 4. PublishedMediaAsset has required fields (contentHash, dimensions, source='local', no drive field)
- * 
+ *
+ * Test states: PASS (executed and passed), FAIL (executed and failed), SKIPPED (not executed due to environment), BLOCKED (cannot execute)
+ *
  * Note: Static media records in media.v1.json may not have lifecycleState, so we check for basic PublishedMediaAsset properties.
  */
 
-import { getMediaByIdAsync } from '../src/lib/media';
-import { isDriveReference, isPublishedMediaAsset } from '../src/types/media';
+import { getMediaByIdAsync, isDriveReference, isPublishedMediaAsset } from '../src/lib/media';
 import { getAllServiceCardAssignments } from '../src/lib/assignment-store';
 
 interface InvariantTestResult {
   testName: string;
-  passed: boolean;
+  state: 'PASS' | 'FAIL' | 'SKIPPED' | 'BLOCKED';
   details: string;
 }
 
@@ -33,32 +34,32 @@ export async function runMediaInvariantTests(): Promise<InvariantTestResult[]> {
     // Skip if KV credentials not available
     if (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) {
       const assignments = await getAllServiceCardAssignments();
-      const driveAssignments = assignments.filter(a => a.mediaId.startsWith('drive-'));
+      const driveAssignments = assignments.filter(a => a.mediaId.startsWith('drive-') || a.mediaId.startsWith('drive-ref-'));
       
       if (driveAssignments.length > 0) {
         results.push({
           testName: 'No DriveReference in active assignments',
-          passed: false,
+          state: 'FAIL',
           details: `Found ${driveAssignments.length} drive-prefixed assignments: ${driveAssignments.map(a => `${a.serviceSlug}: ${a.mediaId}`).join(', ')}`,
         });
       } else {
         results.push({
           testName: 'No DriveReference in active assignments',
-          passed: true,
+          state: 'PASS',
           details: 'No drive-prefixed IDs found in active assignments',
         });
       }
     } else {
       results.push({
         testName: 'No DriveReference in active assignments',
-        passed: true,
-        details: 'SKIPPED: KV credentials not available',
+        state: 'SKIPPED',
+        details: 'KV credentials not available - cannot verify production state',
       });
     }
   } catch (error) {
     results.push({
       testName: 'No DriveReference in active assignments',
-      passed: false,
+      state: 'FAIL',
       details: `Test failed with error: ${error instanceof Error ? error.message : 'Unknown error'}`,
     });
   }
@@ -85,27 +86,27 @@ export async function runMediaInvariantTests(): Promise<InvariantTestResult[]> {
       if (failedAssignments > 0) {
         results.push({
           testName: 'Active assignments resolve to PublishedMediaAsset',
-          passed: false,
+          state: 'FAIL',
           details: `${failedAssignments} out of ${assignments.length} assignments do not resolve to PublishedMediaAsset`,
         });
       } else {
         results.push({
           testName: 'Active assignments resolve to PublishedMediaAsset',
-          passed: true,
+          state: 'PASS',
           details: `All ${assignments.length} active assignments resolve to PublishedMediaAsset`,
         });
       }
     } else {
       results.push({
         testName: 'Active assignments resolve to PublishedMediaAsset',
-        passed: true,
-        details: 'SKIPPED: KV credentials not available',
+        state: 'SKIPPED',
+        details: 'KV credentials not available - cannot verify production state',
       });
     }
   } catch (error) {
     results.push({
       testName: 'Active assignments resolve to PublishedMediaAsset',
-      passed: false,
+      state: 'FAIL',
       details: `Test failed with error: ${error instanceof Error ? error.message : 'Unknown error'}`,
     });
   }
@@ -124,10 +125,11 @@ export async function runMediaInvariantTests(): Promise<InvariantTestResult[]> {
         const hasValidDimensions = media.dimensions.width > 0 && media.dimensions.height > 0;
         const hasNoDrive = !media.drive;
         const hasVariants = media.variants && media.variants.original;
+        const hasNoDrivePrefix = !media.id.startsWith('drive-') && !media.id.startsWith('drive-ref-');
         
         // Static records are acceptable if they have no drive field and have valid variants
         // They don't need contentHash for static presentation
-        if (!hasValidDimensions || !hasNoDrive || !hasVariants) {
+        if (!hasValidDimensions || !hasNoDrive || !hasVariants || !hasNoDrivePrefix) {
           failedMediaIds++;
           console.error('[MEDIA_INVARIANT_TEST] Media does not satisfy basic PublishedMediaAsset properties:', {
             mediaId,
@@ -136,6 +138,7 @@ export async function runMediaInvariantTests(): Promise<InvariantTestResult[]> {
             hasValidDimensions,
             hasNoDrive,
             hasVariants,
+            hasNoDrivePrefix,
           });
         }
       }
@@ -144,20 +147,20 @@ export async function runMediaInvariantTests(): Promise<InvariantTestResult[]> {
     if (failedMediaIds > 0) {
       results.push({
         testName: 'PublishedMediaAsset contract validation',
-        passed: false,
+        state: 'FAIL',
         details: `${failedMediaIds} out of ${testMediaIds.length} test media IDs do not satisfy basic PublishedMediaAsset properties`,
       });
     } else {
       results.push({
         testName: 'PublishedMediaAsset contract validation',
-        passed: true,
-        details: `All ${testMediaIds.length} test media IDs satisfy basic PublishedMediaAsset properties (no drive field, valid dimensions, has variants)`,
+        state: 'PASS',
+        details: `All ${testMediaIds.length} test media IDs satisfy basic PublishedMediaAsset properties (no drive field, valid dimensions, has variants, no drive prefix)`,
       });
     }
   } catch (error) {
     results.push({
       testName: 'PublishedMediaAsset contract validation',
-      passed: false,
+      state: 'FAIL',
       details: `Test failed with error: ${error instanceof Error ? error.message : 'Unknown error'}`,
     });
   }
@@ -166,27 +169,34 @@ export async function runMediaInvariantTests(): Promise<InvariantTestResult[]> {
   try {
     const { resolvePublicMedia } = await import('../src/lib/media');
     
-    // Test with a known drive-prefixed ID pattern
-    const testDriveId = 'drive-test-12345';
-    const resolvedMedia = await resolvePublicMedia(testDriveId);
+    // Test with known drive-prefixed ID patterns
+    const testDriveIds = ['drive-test-12345', 'drive-ref-test-12345'];
+    let rejectedCount = 0;
     
-    if (resolvedMedia === null) {
+    for (const testDriveId of testDriveIds) {
+      const resolvedMedia = await resolvePublicMedia(testDriveId);
+      if (resolvedMedia === null) {
+        rejectedCount++;
+      }
+    }
+    
+    if (rejectedCount === testDriveIds.length) {
       results.push({
         testName: 'resolvePublicMedia rejects Drive references',
-        passed: true,
-        details: 'resolvePublicMedia correctly rejected drive-prefixed ID',
+        state: 'PASS',
+        details: `resolvePublicMedia correctly rejected all ${testDriveIds.length} drive-prefixed IDs`,
       });
     } else {
       results.push({
         testName: 'resolvePublicMedia rejects Drive references',
-        passed: false,
-        details: 'resolvePublicMedia did not reject drive-prefixed ID',
+        state: 'FAIL',
+        details: `resolvePublicMedia did not reject ${testDriveIds.length - rejectedCount} out of ${testDriveIds.length} drive-prefixed IDs`,
       });
     }
   } catch (error) {
     results.push({
       testName: 'resolvePublicMedia rejects Drive references',
-      passed: false,
+      state: 'FAIL',
       details: `Test failed with error: ${error instanceof Error ? error.message : 'Unknown error'}`,
     });
   }
@@ -194,11 +204,31 @@ export async function runMediaInvariantTests(): Promise<InvariantTestResult[]> {
   // Print results
   console.log('[MEDIA_INVARIANT_TEST] Test Results:');
   results.forEach(result => {
-    console.log(`[${result.passed ? 'PASS' : 'FAIL'}] ${result.testName}: ${result.details}`);
+    console.log(`[${result.state}] ${result.testName}: ${result.details}`);
   });
 
-  const allPassed = results.every(r => r.passed);
-  console.log(`[MEDIA_INVARIANT_TEST] Overall: ${allPassed ? 'ALL TESTS PASSED' : 'SOME TESTS FAILED'}`);
+  const allPassed = results.every(r => r.state === 'PASS');
+  const hasFailed = results.some(r => r.state === 'FAIL');
+  const hasSkipped = results.some(r => r.state === 'SKIPPED');
+  const hasBlocked = results.some(r => r.state === 'BLOCKED');
+  
+  if (hasFailed) {
+    console.log(`[MEDIA_INVARIANT_TEST] Overall: SOME TESTS FAILED`);
+  } else if (hasSkipped) {
+    console.log(`[MEDIA_INVARIANT_TEST] Overall: ALL EXECUTED TESTS PASSED (some SKIPPED)`);
+  } else if (hasBlocked) {
+    console.log(`[MEDIA_INVARIANT_TEST] Overall: ALL EXECUTED TESTS PASSED (some BLOCKED)`);
+  } else {
+    console.log(`[MEDIA_INVARIANT_TEST] Overall: ALL TESTS PASSED`);
+  }
+  
+  if (hasSkipped) {
+    console.log('[MEDIA_INVARIANT_TEST] WARNING: Some tests were SKIPPED - full verification requires production KV credentials');
+  }
+  
+  if (hasBlocked) {
+    console.log('[MEDIA_INVARIANT_TEST] WARNING: Some tests are BLOCKED - cannot execute in current environment');
+  }
 
   return results;
 }
@@ -206,8 +236,9 @@ export async function runMediaInvariantTests(): Promise<InvariantTestResult[]> {
 // Run tests if executed directly
 if (require.main === module) {
   runMediaInvariantTests()
-    .then(() => {
-      process.exit(0);
+    .then((results) => {
+      const hasFailed = results.some(r => r.state === 'FAIL');
+      process.exit(hasFailed ? 1 : 0);
     })
     .catch((error) => {
       console.error('[MEDIA_INVARIANT_TEST] Fatal error:', error);

@@ -18,6 +18,9 @@
  */
 import type { Media, MediaManifest } from "@/types/media";
 import { isDriveReference, isMaterializingMedia, isPublishedMediaAsset, isStaleMedia } from "@/types/media";
+
+// Re-export type guards for convenience
+export { isDriveReference, isMaterializingMedia, isPublishedMediaAsset, isStaleMedia };
 import { getProjectsByServiceSlug } from "@/lib/projects";
 import type { Project } from "@/types/projects";
 import { loadAuthority, clearAuthorityCache, findById, sortByOrder } from "./authority-loader";
@@ -114,7 +117,8 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
   console.log('[PUBLIC_MEDIA_GATE] Resolving public media:', { id });
 
   // REJECT: drive-prefixed IDs (source references)
-  if (id.startsWith('drive-')) {
+  // drive- and drive-ref- prefixes are reserved for DriveReference only
+  if (id.startsWith('drive-') || id.startsWith('drive-ref-')) {
     console.error('[PUBLIC_MEDIA_GATE] REJECTED: drive-prefixed ID', { id });
     return null;
   }

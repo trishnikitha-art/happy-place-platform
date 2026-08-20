@@ -1,9 +1,21 @@
 /**
  * Drive Media Ingestion API Route
  *
- * Creates a complete canonical media object from a Drive file.
- * Downloads the file, processes it into variants, uploads to Vercel Blob,
- * and stores metadata in Vercel KV.
+ * MATERIALIZATION PATH: DriveReference → PublishedMediaAsset
+ *
+ * This is the constitutional materialization operation that converts Drive source
+ * into a PublishedMediaAsset that can cross the public boundary.
+ *
+ * Lifecycle:
+ * 1. Download bytes from Drive
+ * 2. Compute content hash for stable identity
+ * 3. Generate variants (original, webp, avif, thumbnail, blur)
+ * 4. Upload all variants to Vercel Blob (local storage)
+ * 5. Create PublishedMediaAsset with:
+ *    - source: 'local' (bytes are in Blob, not Drive)
+ *    - lifecycleState: 'published' (ready for public presentation)
+ *    - No drive field (no Drive dependency)
+ *    - Provenance tracks Drive origin for lineage without creating dependency
  *
  * POST /api/drive/ingest
  * Body: { driveId: string, projectId?: string, roles?: MediaRole[] }
@@ -305,10 +317,13 @@ export async function POST(request: Request) {
     console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - new record', { requestId });
     
     // 6. Generate stable identifiers
+    // CRITICAL: PublishedMediaAsset must NOT use drive- prefix
+    // drive- prefix is reserved for DriveReference (source_reference) only
+    // PublishedMediaAsset uses content-based ID without source prefix
     const baseName = driveFile.name.replace(/\.[^/.]+$/, '').toLowerCase().replace(/[^a-z0-9]/g, '-');
     const stableId = generateStableId(contentHash, baseName);
     const uuid = generateUUIDv5(contentHash);
-    const mediaId = `drive-${stableId}`;
+    const mediaId = stableId; // Content-based ID, no drive- prefix
 
     // 7. Generate variants (or use original as fallback if Sharp not available)
     console.log('[MEDIA_INGEST] VARIANT_GENERATION stage started', { requestId });
@@ -446,7 +461,13 @@ export async function POST(request: Request) {
       blobIdempotencyStats,
     });
 
-    // 8. Create full Media record
+    // 8. Create full Media record as PublishedMediaAsset
+    // CRITICAL: Materialization converts Drive source to local PublishedMediaAsset
+    // - Bytes are now in Blob (local storage)
+    // - lifecycleState is 'published' (not 'materializing' or 'source_reference')
+    // - source is 'local' (not 'google-drive')
+    // - drive field is removed (no Drive dependency)
+    // - provenance tracks the Drive origin for lineage
     const webpVariant = variants.find((v) => v.format === 'webp');
     const avifVariant = variants.find((v) => v.format === 'avif');
     const orientation = determineOrientation(metadata.width || 1920, metadata.height || 1080);
@@ -454,15 +475,9 @@ export async function POST(request: Request) {
     const mediaRecord: Media = {
       id: mediaId,
       contentHash,
-      source: 'google-drive',
-      drive: {
-        fileId: driveId,
-        driveId: driveIdParameter, // Preserve Shared Drive ID
-        name: driveFile.name,
-        mimeType: driveFile.mimeType,
-        webViewUrl: driveFile.webViewLink,
-        modifiedTime: driveFile.modifiedTime,
-      },
+      source: 'local', // PUBLISHED: bytes are now in Blob storage
+      lifecycleState: 'published', // PUBLISHED: this is a PublishedMediaAsset
+      // CRITICAL: No drive field - PublishedMediaAsset must not have Drive dependency
       filename: driveFile.name,
       type: driveFile.mimeType?.startsWith('image/') ? 'image' : 'document',
       orientation,
@@ -490,11 +505,14 @@ export async function POST(request: Request) {
       fileSize: driveFile.size || fileBuffer.length,
       format: sharp ? (metadata.format || 'WEBP') : driveFile.mimeType?.split('/')[1] || 'unknown',
       colorSpace: sharp ? (metadata.space || 'sRGB') : 'sRGB',
+      // Provenance tracks Drive origin without creating Drive dependency
       provenance: {
         drive_canonical: true,
         current_authority: true,
-        status: 'ingested',
+        status: 'published', // Materialized and published
         preserved_at: new Date().toISOString(),
+        // Track Drive origin for lineage without creating drive field
+        august3_driveId: driveIdParameter || driveId,
       },
     };
 

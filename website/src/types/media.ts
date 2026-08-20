@@ -242,13 +242,17 @@ export function isMaterializingMedia(media: Media): boolean {
 }
 
 export function isPublishedMediaAsset(media: Media): boolean {
+  // CRITICAL: Constitutional validation for PublishedMediaAsset
+  // Only PublishedMediaAsset can cross the public boundary
   return media.lifecycleState === 'published' && 
          media.source === 'local' && 
          typeof media.contentHash === 'string' &&
          media.contentHash.length > 0 &&
          media.dimensions.width > 0 &&
          media.dimensions.height > 0 &&
-         !media.drive;
+         !media.drive && // No Drive dependency
+         !media.id.startsWith('drive-') && // No drive- prefix (reserved for DriveReference)
+         !media.id.startsWith('drive-ref-'); // No drive-ref- prefix (reserved for DriveReference)
 }
 
 export function isStaleMedia(media: Media): boolean {
