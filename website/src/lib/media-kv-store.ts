@@ -88,10 +88,13 @@ function validateMedia(data: unknown): data is Media {
  * @param media - Media object to store
  */
 export async function storeMedia(media: Media): Promise<void> {
+  // Extract ID before validation for error messages
+  const mediaId = (media as Record<string, unknown>)?.id as string || 'unknown';
+  
   // Validate Media schema before storage
   if (!validateMedia(media)) {
-    console.error('[MEDIA_KV] Schema validation failed for media:', media.id);
-    throw new Error(`Invalid Media schema for ${media.id}`);
+    console.error('[MEDIA_KV] Schema validation failed for media:', mediaId);
+    throw new Error(`Invalid Media schema for ${mediaId}`);
   }
   
   try {
