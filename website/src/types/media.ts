@@ -230,18 +230,18 @@ export interface Media extends BaseMedia {
 /**
  * Type guards for lifecycle states
  * 
- * These are runtime predicates that narrow the Media union type to specific lifecycle states.
- * They use the lifecycleState discriminator field.
+ * These are runtime predicates that check the lifecycleState field.
+ * They return boolean for type narrowing based on the lifecycleState discriminator.
  */
-export function isDriveReference(media: Media): media is DriveReference {
+export function isDriveReference(media: Media): boolean {
   return media.lifecycleState === 'source_reference';
 }
 
-export function isMaterializingMedia(media: Media): media is MaterializingMedia {
+export function isMaterializingMedia(media: Media): boolean {
   return media.lifecycleState === 'materializing';
 }
 
-export function isPublishedMediaAsset(media: Media): media is PublishedMediaAsset {
+export function isPublishedMediaAsset(media: Media): boolean {
   return media.lifecycleState === 'published' && 
          media.source === 'local' && 
          typeof media.contentHash === 'string' &&
@@ -251,7 +251,7 @@ export function isPublishedMediaAsset(media: Media): media is PublishedMediaAsse
          !media.drive;
 }
 
-export function isStaleMedia(media: Media): media is StaleMedia {
+export function isStaleMedia(media: Media): boolean {
   return media.lifecycleState === 'stale';
 }
 

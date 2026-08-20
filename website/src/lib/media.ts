@@ -144,7 +144,7 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
     return null;
   }
 
-  // VALIDATE: Must be PublishedMediaAsset using type guard
+  // VALIDATE: Must satisfy PublishedMediaAsset contract using type guard
   if (!isPublishedMediaAsset(media)) {
     console.error('[PUBLIC_MEDIA_GATE] REJECTED: not a valid PublishedMediaAsset', { 
       id, 
