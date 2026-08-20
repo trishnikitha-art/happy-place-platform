@@ -341,6 +341,7 @@ export async function POST(request: Request) {
         requestId,
         url: originalUpload.url,
         alreadyExisted: originalUpload.alreadyExisted,
+        contentHash: originalUpload.contentHash,
       });
       
       // Generate and upload WebP/AVIF variants
@@ -379,6 +380,7 @@ export async function POST(request: Request) {
             variant: variantFilename,
             url: variantUpload.url,
             alreadyExisted: variantUpload.alreadyExisted,
+            contentHash: variantUpload.contentHash,
           });
         }
       }
@@ -404,6 +406,7 @@ export async function POST(request: Request) {
         requestId,
         url: originalUpload.url,
         alreadyExisted: originalUpload.alreadyExisted,
+        contentHash: originalUpload.contentHash,
       });
     }
     
@@ -424,6 +427,7 @@ export async function POST(request: Request) {
         requestId,
         url: thumbUpload.url,
         alreadyExisted: thumbUpload.alreadyExisted,
+        contentHash: thumbUpload.contentHash,
       });
       
       // Generate blur placeholder
