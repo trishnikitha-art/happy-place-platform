@@ -80,20 +80,51 @@ function validateMedia(data: unknown): data is Media {
   }
   
   // Full Media objects require proper dimensions
-  if (candidate.dimensions && typeof candidate.dimensions === 'object') {
-    const dims = candidate.dimensions as Record<string, unknown>;
-    if (typeof dims.width !== 'number' || dims.width <= 0) {
-      return false;
-    }
-    if (typeof dims.height !== 'number' || dims.height <= 0) {
-      return false;
-    }
+  if (!candidate.dimensions || typeof candidate.dimensions !== 'object') {
+    return false;
+  }
+  const dims = candidate.dimensions as Record<string, unknown>;
+  if (typeof dims.width !== 'number' || dims.width <= 0) {
+    return false;
+  }
+  if (typeof dims.height !== 'number' || dims.height <= 0) {
+    return false;
   }
   
   // Validate variants for fully materialized media
-  if (candidate.variants && typeof candidate.variants === 'object') {
-    const variants = candidate.variants as Record<string, unknown>;
-    if (typeof variants.original !== 'string' || variants.original.trim().length === 0) {
+  if (!candidate.variants || typeof candidate.variants !== 'object') {
+    return false;
+  }
+  const variants = candidate.variants as Record<string, unknown>;
+  if (typeof variants.original !== 'string' || variants.original.trim().length === 0) {
+    return false;
+  }
+  
+  // Published media must NOT have Drive URLs
+  if (candidate.lifecycleState === 'published') {
+    // Published media must be local source
+    if (candidate.source !== 'local') {
+      return false;
+    }
+    
+    // Published media must not have drive field
+    if (candidate.drive) {
+      return false;
+    }
+    
+    // Published media must not have Drive URLs in variants
+    const checkForDriveUrl = (obj: any): boolean => {
+      if (!obj) return false;
+      if (typeof obj === 'string' && obj.startsWith('/api/drive/')) {
+        return true;
+      }
+      if (typeof obj === 'object') {
+        return Object.values(obj).some((val) => checkForDriveUrl(val));
+      }
+      return false;
+    };
+    
+    if (checkForDriveUrl(variants)) {
       return false;
     }
   }

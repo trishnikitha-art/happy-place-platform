@@ -155,6 +155,50 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
   const operationId = requestId || `store-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const key = `${ASSIGNMENT_PREFIX}${assignment.serviceSlug}`;
   
+  // REJECT: drive-prefixed IDs at write time (Drive references cannot become public assignments)
+  if (assignment.mediaId.startsWith('drive-')) {
+    console.error('[ASSIGNMENT_WRITE] REJECTED: drive-prefixed mediaId at write time', {
+      operationId,
+      serviceSlug: assignment.serviceSlug,
+      mediaId: assignment.mediaId,
+      validationError: 'Drive-prefixed IDs cannot be assigned to public presentation',
+    });
+    throw new Error(`Drive-prefixed IDs cannot be assigned to public presentation: ${assignment.mediaId}`);
+  }
+  
+  // VALIDATE: mediaId must resolve to a valid PublishedMediaAsset before assignment can become active
+  // This enforces the contract at write time instead of discovery at read time
+  try {
+    const { resolvePublicMedia } = await import('./media');
+    const resolvedMedia = await resolvePublicMedia(assignment.mediaId);
+    
+    if (!resolvedMedia) {
+      console.error('[ASSIGNMENT_WRITE] REJECTED: mediaId does not resolve to valid PublishedMediaAsset', {
+        operationId,
+        serviceSlug: assignment.serviceSlug,
+        mediaId: assignment.mediaId,
+        validationError: 'Media ID must resolve to a valid PublishedMediaAsset before assignment',
+      });
+      throw new Error(`Media ID does not resolve to a valid PublishedMediaAsset: ${assignment.mediaId}`);
+    }
+    
+    console.log('[ASSIGNMENT_WRITE] MEDIA_VALIDATION_PASSED', {
+      operationId,
+      serviceSlug: assignment.serviceSlug,
+      mediaId: assignment.mediaId,
+      resolvedMediaId: resolvedMedia.id,
+    });
+  } catch (validationError) {
+    // If validation fails, do not store the assignment
+    console.error('[ASSIGNMENT_WRITE] MEDIA_VALIDATION_FAILED', {
+      operationId,
+      serviceSlug: assignment.serviceSlug,
+      mediaId: assignment.mediaId,
+      error: validationError instanceof Error ? validationError.message : 'Unknown error',
+    });
+    throw validationError;
+  }
+  
   // Runtime schema validation
   if (!validateServiceCardAssignment(assignment)) {
     const serviceSlug = (assignment as Record<string, unknown>)?.serviceSlug as string || 'unknown';
@@ -354,6 +398,8 @@ export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignm
           const serviceSlug = key.replace(ASSIGNMENT_PREFIX, '');
           const quarantineKey = `${ASSIGNMENT_QUARANTINE_PREFIX}${serviceSlug}:${Date.now()}`;
           await client.set(quarantineKey, assignment);
+          // Remove from active namespace to prevent recurring validation failures
+          await client.del(key);
           return null;
         }
         return null;
@@ -370,5 +416,83 @@ export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignm
   } catch (error) {
     console.error('[ASSIGNMENT_STORE] List failed:', error);
     throw new Error(`Failed to list assignments: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Quarantine and remove poison assignments from active namespace
+ * 
+ * This fixes the recurring-error machine where quarantine copies don't remove the original.
+ * The new lifecycle is:
+ * ACTIVE -> validation failure -> QUARANTINED -> original removed from active namespace
+ * 
+ * @returns Object with counts of quarantined, removed, and errors
+ */
+export async function quarantinePoisonAssignments(): Promise<{
+  quarantined: number;
+  removed: number;
+  errors: number;
+}> {
+  try {
+    const client = getRedisClient();
+    const allAssignments = await getAllServiceCardAssignments();
+    
+    let quarantined = 0;
+    let removed = 0;
+    let errors = 0;
+    
+    for (const assignment of allAssignments) {
+      try {
+        // Check if assignment is poison (drive-prefixed or doesn't resolve to PublishedMediaAsset)
+        let isPoison = false;
+        let poisonReason = '';
+        
+        // Check for drive-prefixed IDs
+        if (assignment.mediaId.startsWith('drive-')) {
+          isPoison = true;
+          poisonReason = 'drive-prefixed ID';
+        } else {
+          // Check if media resolves to PublishedMediaAsset
+          try {
+            const { resolvePublicMedia } = await import('./media');
+            const resolvedMedia = await resolvePublicMedia(assignment.mediaId);
+            if (!resolvedMedia) {
+              isPoison = true;
+              poisonReason = 'does not resolve to PublishedMediaAsset';
+            }
+          } catch (error) {
+            isPoison = true;
+            poisonReason = 'validation error';
+          }
+        }
+        
+        if (isPoison) {
+          // Quarantine the assignment
+          const key = `${ASSIGNMENT_PREFIX}${assignment.serviceSlug}`;
+          const quarantineKey = `${ASSIGNMENT_QUARANTINE_PREFIX}${assignment.serviceSlug}:${Date.now()}`;
+          
+          await client.set(quarantineKey, assignment);
+          await client.del(key);
+          
+          quarantined++;
+          removed++;
+          console.log('[ASSIGNMENT_QUARANTINE] Poison assignment quarantined and removed:', {
+            serviceSlug: assignment.serviceSlug,
+            mediaId: assignment.mediaId,
+            poisonReason,
+            quarantineKey,
+          });
+        }
+      } catch (error) {
+        errors++;
+        console.error('[ASSIGNMENT_QUARANTINE] Error processing assignment:', assignment.serviceSlug, error);
+      }
+    }
+    
+    console.log('[ASSIGNMENT_QUARANTINE] Complete:', { quarantined, removed, errors });
+    return { quarantined, removed, errors };
+  } catch (error) {
+    console.error('[ASSIGNMENT_QUARANTINE] Failed:', error);
+    throw new Error(`Failed to quarantine poison assignments: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

@@ -17,6 +17,7 @@
  *   Component ΓåÆ Hardcoded IDs
  */
 import type { Media, MediaManifest } from "@/types/media";
+import { isDriveReference, isMaterializingMedia, isPublishedMediaAsset, isStaleMedia } from "@/types/media";
 import { getProjectsByServiceSlug } from "@/lib/projects";
 import type { Project } from "@/types/projects";
 import { loadAuthority, clearAuthorityCache, findById, sortByOrder } from "./authority-loader";
@@ -103,6 +104,11 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
  * - lifecycleState === 'stale'
  * - Media with /api/drive/* URLs
  * - Media with thumbnailProxyUrl
+ * - Media without contentHash
+ * - Media without valid dimensions
+ * - Media without valid rendition
+ * - Media with drive field
+ * - Media with source !== 'local'
  */
 export async function resolvePublicMedia(id: string): Promise<Media | null> {
   console.log('[PUBLIC_MEDIA_GATE] Resolving public media:', { id });
@@ -120,25 +126,38 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
     return null;
   }
 
-  // REJECT: source_reference lifecycle state
-  if ((media as any).lifecycleState === 'source_reference') {
-    console.error('[PUBLIC_MEDIA_GATE] REJECTED: source_reference lifecycle state', { id, lifecycleState: (media as any).lifecycleState });
+  // REJECT: source_reference lifecycle state using type guard
+  if (isDriveReference(media)) {
+    console.error('[PUBLIC_MEDIA_GATE] REJECTED: source_reference lifecycle state', { id, lifecycleState: media.lifecycleState });
     return null;
   }
 
-  // REJECT: materializing lifecycle state
-  if ((media as any).lifecycleState === 'materializing') {
-    console.error('[PUBLIC_MEDIA_GATE] REJECTED: materializing lifecycle state', { id, lifecycleState: (media as any).lifecycleState });
+  // REJECT: materializing lifecycle state using type guard
+  if (isMaterializingMedia(media)) {
+    console.error('[PUBLIC_MEDIA_GATE] REJECTED: materializing lifecycle state', { id, lifecycleState: media.lifecycleState });
     return null;
   }
 
-  // REJECT: stale lifecycle state
-  if ((media as any).lifecycleState === 'stale') {
-    console.error('[PUBLIC_MEDIA_GATE] REJECTED: stale lifecycle state', { id, lifecycleState: (media as any).lifecycleState });
+  // REJECT: stale lifecycle state using type guard
+  if (isStaleMedia(media)) {
+    console.error('[PUBLIC_MEDIA_GATE] REJECTED: stale lifecycle state', { id, lifecycleState: media.lifecycleState });
     return null;
   }
 
-  // REJECT: Media with /api/drive/* URLs (Drive proxy URLs)
+  // VALIDATE: Must be PublishedMediaAsset using type guard
+  if (!isPublishedMediaAsset(media)) {
+    console.error('[PUBLIC_MEDIA_GATE] REJECTED: not a valid PublishedMediaAsset', { 
+      id, 
+      lifecycleState: media.lifecycleState,
+      source: media.source,
+      hasContentHash: typeof media.contentHash === 'string' && media.contentHash.length > 0,
+      hasValidDimensions: media.dimensions.width > 0 && media.dimensions.height > 0,
+      hasDrive: !!media.drive
+    });
+    return null;
+  }
+
+  // ADDITIONAL VALIDATION: Check for Drive URLs in variants
   const checkForDriveUrl = (obj: any): boolean => {
     if (!obj) return false;
     if (typeof obj === 'string' && obj.startsWith('/api/drive/')) {
@@ -150,8 +169,8 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
     return false;
   };
 
-  if (checkForDriveUrl(media)) {
-    console.error('[PUBLIC_MEDIA_GATE] REJECTED: contains /api/drive/* URL', { id });
+  if (checkForDriveUrl(media.variants)) {
+    console.error('[PUBLIC_MEDIA_GATE] REJECTED: contains /api/drive/* URL in variants', { id });
     return null;
   }
 

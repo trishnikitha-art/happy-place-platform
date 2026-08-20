@@ -4,6 +4,12 @@
  * media.v1.json is the central media database.
  * Every image belongs to ONE media database.
  * Never duplicate metadata.
+ * 
+ * Architecture Principle: Type-safe lifecycle boundaries
+ * - DriveReference: Source metadata only, never enters public presentation
+ * - MaterializingMedia: Bytes in progress, never enters public presentation
+ * - PublishedMediaAsset: Fully validated public asset, only this enters website
+ * - StaleMedia: Needs refresh, never enters public presentation
  */
 
 export type MediaRole = "hero" | "before" | "after" | "detail" | "progress" | "gallery" | "brand" | "portrait" | "logo";
@@ -49,6 +55,151 @@ export interface MediaVariants {
   }>;
 }
 
+/**
+ * DriveReference - Source metadata only, never enters public presentation
+ * 
+ * Purpose: Workbench can browse/manage Drive references
+ * Invariant: Cannot cross the public media boundary
+ */
+export interface DriveReference {
+  id: string;
+  lifecycleState: 'source_reference';
+  sourceIdentityHash: string; // Hash of source identity (fileId + driveId)
+  source: 'google-drive';
+  drive: {
+    fileId: string;
+    driveId?: string; // Shared Drive ID if applicable
+    name: string;
+    mimeType: string;
+    webViewUrl?: string;
+    modifiedTime?: string;
+  };
+  filename: string;
+  type: MediaType;
+  orientation: MediaOrientation;
+  dimensions?: MediaDimensions; // Optional for source references
+  variants?: MediaVariants; // Optional for source references
+  alt: string;
+  description?: string;
+  tags: string[];
+  createdAt?: string;
+  uploadedAt?: string;
+  fileSize?: number;
+  format?: string;
+  colorSpace?: string;
+}
+
+/**
+ * MaterializingMedia - Bytes in progress, never enters public presentation
+ * 
+ * Purpose: Track download/transcode progress
+ * Invariant: Cannot cross the public media boundary
+ */
+export interface MaterializingMedia {
+  id: string;
+  lifecycleState: 'materializing';
+  contentHash: string; // SHA-256 hash of actual bytes
+  source: 'google-drive' | 'local';
+  drive?: {
+    fileId: string;
+    driveId?: string;
+    name: string;
+    mimeType: string;
+    webViewUrl?: string;
+    modifiedTime?: string;
+  };
+  filename: string;
+  type: MediaType;
+  orientation: MediaOrientation;
+  dimensions?: MediaDimensions; // Required once materialized
+  variants?: MediaVariants; // Required once materialized
+  alt: string;
+  description?: string;
+  tags: string[];
+  createdAt?: string;
+  uploadedAt?: string;
+  fileSize?: number;
+  format?: string;
+  colorSpace?: string;
+}
+
+/**
+ * PublishedMediaAsset - Fully validated public asset, only this enters website
+ * 
+ * Purpose: Public presentation - invariant: cannot contain Drive URLs
+ * 
+ * REQUIRED fields for published media:
+ * - id: stable immutable identity
+ * - contentHash: SHA-256 of actual bytes
+ * - dimensions: non-zero width/height
+ * - lifecycleState: 'published'
+ * - source: 'local' (Drive-backed assets cannot be published)
+ * - variants.original: actual public URL (not Drive proxy)
+ * - No thumbnailProxyUrl
+ * - No /api/drive/* URLs
+ * - No drive field
+ */
+export interface PublishedMediaAsset {
+  id: string;
+  contentHash: string; // SHA-256 hash of actual bytes (REQUIRED)
+  source: 'local'; // Published assets must be local (REQUIRED)
+  lifecycleState: 'published'; // Only published state allowed (REQUIRED)
+  filename: string;
+  type: MediaType;
+  orientation: MediaOrientation;
+  dimensions: MediaDimensions; // Non-zero dimensions (REQUIRED)
+  variants: MediaVariants; // At least one valid rendition (REQUIRED)
+  alt: string;
+  description?: string;
+  tags: string[];
+  createdAt?: string;
+  uploadedAt?: string;
+  fileSize?: number;
+  format?: string;
+  colorSpace?: string;
+}
+
+/**
+ * StaleMedia - Needs refresh, never enters public presentation
+ * 
+ * Purpose: Track assets that need re-materialization
+ * Invariant: Cannot cross the public media boundary
+ */
+export interface StaleMedia {
+  id: string;
+  lifecycleState: 'stale';
+  contentHash: string; // Previous content hash
+  source: 'google-drive' | 'local';
+  drive?: {
+    fileId: string;
+    driveId?: string;
+    name: string;
+    mimeType: string;
+    webViewUrl?: string;
+    modifiedTime?: string;
+  };
+  filename: string;
+  type: MediaType;
+  orientation: MediaOrientation;
+  dimensions: MediaDimensions;
+  variants: MediaVariants;
+  alt: string;
+  description?: string;
+  tags: string[];
+  createdAt?: string;
+  uploadedAt?: string;
+  fileSize?: number;
+  format?: string;
+  colorSpace?: string;
+}
+
+/**
+ * Media - Union type for all lifecycle states
+ * 
+ * Legacy type for compatibility - new code should use specific lifecycle types
+ * 
+ * DEPRECATED: Prefer specific lifecycle types (DriveReference, MaterializingMedia, PublishedMediaAsset, StaleMedia)
+ */
 export interface Media {
   id: string;
   contentHash?: string; // SHA-256 hash of actual bytes (null for source_reference)
@@ -113,6 +264,31 @@ export interface Media {
     current_authority?: boolean;
     preserved_at?: string;
   };
+}
+
+/**
+ * Type guards for lifecycle states
+ */
+export function isDriveReference(media: Media): media is DriveReference {
+  return media.lifecycleState === 'source_reference';
+}
+
+export function isMaterializingMedia(media: Media): media is MaterializingMedia {
+  return media.lifecycleState === 'materializing';
+}
+
+export function isPublishedMediaAsset(media: Media): media is PublishedMediaAsset {
+  return media.lifecycleState === 'published' && 
+         media.source === 'local' && 
+         typeof media.contentHash === 'string' &&
+         media.contentHash.length > 0 &&
+         media.dimensions.width > 0 &&
+         media.dimensions.height > 0 &&
+         !media.drive;
+}
+
+export function isStaleMedia(media: Media): media is StaleMedia {
+  return media.lifecycleState === 'stale';
 }
 
 export interface MediaManifest {
