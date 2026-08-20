@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     const fileContentBase64 = Buffer.from(fileContent).toString('base64');
 
     // Get current file SHA from GitHub
-    const filePath = "src/config/projects.v1.json";
+    const filePath = "website/src/config/projects.v1.json";
     const getFileUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/${filePath}`;
     
     console.log('[DEPLOY API] GETTING_CURRENT_FILE_SHA', { filePath });
