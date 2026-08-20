@@ -20,13 +20,26 @@ import type { Media, MediaRole } from '@/types/media';
 // Import storage modules at top level (they are ES modules)
 import { uploadToBlob, generateBlobFilename } from '@/lib/blob-storage';
 
-// Try to load Sharp (optional for fallback mode)
+// Try to load Sharp (critical for production media processing)
 let sharp: any = null;
 try {
   sharp = require('sharp');
-  console.log('[MEDIA_INGEST] Sharp loaded successfully');
+  console.log('[MEDIA_INGEST] Sharp loaded successfully', {
+    version: sharp.versions,
+    platform: sharp.platforms,
+    format: sharp.format
+  });
 } catch (e) {
-  console.log('[MEDIA_INGEST] Sharp not available, will use original-only mode:', e);
+  console.error('[MEDIA_INGEST] CRITICAL: Sharp failed to load', {
+    error: e instanceof Error ? e.message : String(e),
+    platform: process.platform,
+    arch: process.arch,
+    nodeVersion: process.version
+  });
+  // In production, Sharp must be available for media processing
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('Sharp is required for production media processing but failed to load. Ensure sharp-linux-x64 is in dependencies.');
+  }
 }
 
 export const dynamic = 'force-dynamic';
