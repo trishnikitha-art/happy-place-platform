@@ -61,7 +61,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
     .slice(0, 3);
 
   // Load runtime assignments for related service cards on server side (avoids client-side Redis access)
-  // For drive-prefixed IDs, resolve via async KV lookup
+  // Resolve media object through public media gate (rejects Drive references)
   const serviceCardAssignments = new Map<string, { mediaId: string; mediaObject: Media | null }>();
   for (const relatedService of relatedServices) {
     try {
@@ -69,7 +69,14 @@ export default async function ServicePage({ params }: ServicePageProps) {
       if (assignment?.mediaId) {
         // Resolve media object through public media gate (rejects Drive references)
         const mediaObject = await resolvePublicMedia(assignment.mediaId);
-        
+
+        console.log('[PUBLIC_MEDIA_GATE] SERVICE_CARD_RESOLUTION', {
+          serviceSlug: relatedService.slug,
+          runtimeCardMediaId: assignment.mediaId,
+          resolved: Boolean(mediaObject),
+          resolvedMediaId: mediaObject?.id ?? null,
+        });
+
         serviceCardAssignments.set(relatedService.slug, {
           mediaId: assignment.mediaId,
           mediaObject,

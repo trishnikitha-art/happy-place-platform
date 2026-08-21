@@ -7,8 +7,7 @@ import { Icon } from "@/components/icon";
 import { VisualSlot } from "@/components/visual-slot";
 import { getNonArchivedServices } from "@/lib/registries";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
-import { getMediaById } from "@/lib/media";
-import { getMediaByIdAsync } from "@/lib/media";
+import { resolvePublicMedia } from "@/lib/media";
 import type { Media } from "@/types/media";
 
 export const metadata: Metadata = {
@@ -22,20 +21,22 @@ export default async function ServicesPage() {
   const services = getNonArchivedServices();
   
   // Load runtime assignments for service cards on server side (avoids client-side Redis access)
-  // For drive-prefixed IDs, resolve via async KV lookup
+  // Resolve media object through public media gate (rejects Drive references)
   const serviceCardAssignments = new Map<string, { mediaId: string; mediaObject: Media | null }>();
   for (const service of services) {
     try {
       const assignment = await getServiceCardAssignment(service.slug);
       if (assignment?.mediaId) {
-        // Resolve media object - use async KV lookup for drive-prefixed IDs
-        let mediaObject: Media | null = null;
-        if (assignment.mediaId.startsWith('drive-')) {
-          mediaObject = await getMediaByIdAsync(assignment.mediaId);
-        } else {
-          mediaObject = getMediaById(assignment.mediaId);
-        }
-        
+        // Resolve media object through public media gate (rejects Drive references)
+        const mediaObject = await resolvePublicMedia(assignment.mediaId);
+
+        console.log('[PUBLIC_MEDIA_GATE] SERVICE_CARD_RESOLUTION', {
+          serviceSlug: service.slug,
+          runtimeCardMediaId: assignment.mediaId,
+          resolved: Boolean(mediaObject),
+          resolvedMediaId: mediaObject?.id ?? null,
+        });
+
         serviceCardAssignments.set(service.slug, {
           mediaId: assignment.mediaId,
           mediaObject,

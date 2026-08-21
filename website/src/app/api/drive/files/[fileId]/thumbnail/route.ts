@@ -226,7 +226,7 @@ export async function GET(
     return new NextResponse(imageBuffer, {
       headers: {
         'Content-Type': mimeType,
-        'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+        'Cache-Control': 'private, max-age=3600', // Cache for 1 hour (private - not publicly cacheable)
       },
     });
   } catch (error) {
