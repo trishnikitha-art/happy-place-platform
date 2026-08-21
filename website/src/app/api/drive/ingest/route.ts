@@ -36,23 +36,42 @@ import { uploadToBlob, generateBlobFilename } from '@/lib/blob-storage';
 let sharp: any = null;
 let sharpAvailable = false;
 try {
-  sharp = require('sharp');
-  sharpAvailable = true;
-  console.log('[MEDIA_INGEST] Sharp loaded successfully', {
-    version: sharp.versions,
-    platform: sharp.platforms,
-    format: sharp.format
-  });
-} catch (e) {
-  console.error('[MEDIA_INGEST] WARNING: Sharp failed to load', {
-    error: e instanceof Error ? e.message : String(e),
+  console.log('[MEDIA_INGEST_FORENSIC] Sharp loading attempt', {
+    timestamp: new Date().toISOString(),
     platform: process.platform,
     arch: process.arch,
-    nodeVersion: process.version
+    nodeVersion: process.version,
+    cwd: process.cwd(),
+    envNodeEnv: process.env.NODE_ENV,
+    SHARP_IGNORE_GLOBAL_LIBVIPS: process.env.SHARP_IGNORE_GLOBAL_LIBVIPS,
+  });
+  sharp = require('sharp');
+  sharpAvailable = true;
+  console.log('[MEDIA_INGEST_FORENSIC] Sharp loaded successfully', {
+    timestamp: new Date().toISOString(),
+    version: sharp.versions,
+    platform: sharp.platforms,
+    format: sharp.format,
+    cache: sharp.cache,
+    concurrency: sharp.concurrency,
+  });
+} catch (e) {
+  console.error('[MEDIA_INGEST_FORENSIC] Sharp failed to load', {
+    timestamp: new Date().toISOString(),
+    error: e instanceof Error ? e.message : String(e),
+    errorStack: e instanceof Error ? e.stack : undefined,
+    platform: process.platform,
+    arch: process.arch,
+    nodeVersion: process.version,
+    cwd: process.cwd(),
+    envNodeEnv: process.env.NODE_ENV,
+    SHARP_IGNORE_GLOBAL_LIBVIPS: process.env.SHARP_IGNORE_GLOBAL_LIBVIPS,
+    moduleName: 'sharp',
+    requirePaths: require.resolve.paths('sharp'),
   });
   // Sharp is required for constitutional media processing
   // The route will return SHARP_UNAVAILABLE and refuse materialization
-  console.warn('[MEDIA_INGEST] Sharp unavailable - materialization will be rejected');
+  console.warn('[MEDIA_INGEST_FORENSIC] Sharp unavailable - materialization will be rejected');
 }
 
 export const dynamic = 'force-dynamic';
@@ -249,51 +268,86 @@ export async function POST(request: Request) {
     }
 
     // 3. Validate image (required for constitutional media pipeline)
-    console.log('[MEDIA_INGEST] IMAGE_VALIDATION stage started', { requestId });
+    console.log('[MEDIA_INGEST_FORENSIC] IMAGE_VALIDATION stage started', { requestId, sharpAvailable });
     let metadata: any = {};
-    
+
     if (!sharpAvailable) {
-      console.log('[MEDIA_INGEST_ERROR] Sharp not available - cannot validate image or extract dimensions', { requestId });
+      console.log('[MEDIA_INGEST_FORENSIC] SHARP_UNAVAILABLE - cannot validate image', {
+        requestId,
+        sharpAvailable,
+        sharpObject: sharp,
+        sharpType: typeof sharp,
+      });
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: 'SHARP_UNAVAILABLE', 
-          stage: 'IMAGE_VALIDATION', 
+          error: 'SHARP_UNAVAILABLE',
+          stage: 'IMAGE_VALIDATION',
           message: 'Image processing library (Sharp) is not available. Cannot validate image or extract actual dimensions without fabricating metadata.',
           retryable: false,
           details: 'Sharp is required for constitutional media validation. The system cannot safely proceed without actual image metadata.',
           requestId,
+          forensic: {
+            sharpAvailable,
+            sharpType: typeof sharp,
+            platform: process.platform,
+            arch: process.arch,
+            nodeVersion: process.version,
+          },
         },
         { status: 503 }
       );
     }
-    
+
     try {
+      console.log('[MEDIA_INGEST_FORENSIC] Attempting Sharp metadata extraction', {
+        requestId,
+        bufferSize: fileBuffer.length,
+        sharpAvailable,
+        sharpType: typeof sharp,
+      });
       metadata = await sharp(fileBuffer).metadata();
-      console.log('[MEDIA_INGEST] image metadata:', {
+      console.log('[MEDIA_INGEST_FORENSIC] Sharp metadata extracted successfully', {
         requestId,
         width: metadata.width,
         height: metadata.height,
         format: metadata.format,
         orientation: metadata.orientation,
+        space: metadata.space,
+        density: metadata.density,
+        channels: metadata.channels,
+        depth: metadata.depth,
+        hasAlpha: metadata.hasAlpha,
+        isProgressive: metadata.isProgressive,
       });
-      
+
       if (!metadata.width || !metadata.height) {
         throw new Error('Invalid image dimensions');
       }
-      console.log('[MEDIA_INGEST] IMAGE_VALIDATION stage succeeded', { requestId });
+      console.log('[MEDIA_INGEST_FORENSIC] IMAGE_VALIDATION stage succeeded', { requestId });
     } catch (error) {
-      console.log('[MEDIA_INGEST_ERROR] IMAGE_VALIDATION stage failed', { requestId });
-      console.error('[MEDIA_INGEST_ERROR] validation error:', error);
+      console.log('[MEDIA_INGEST_FORENSIC] IMAGE_VALIDATION stage failed', { requestId });
+      console.error('[MEDIA_INGEST_FORENSIC] validation error:', {
+        requestId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        sharpAvailable,
+        sharpType: typeof sharp,
+      });
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: 'IMAGE_VALIDATION_FAILED', 
-          stage: 'IMAGE_VALIDATION', 
+          error: 'IMAGE_VALIDATION_FAILED',
+          stage: 'IMAGE_VALIDATION',
           message: 'The selected file is not a valid image or is corrupted.',
           retryable: false,
           details: error instanceof Error ? error.message : 'Unknown error',
           requestId,
+          forensic: {
+            sharpAvailable,
+            sharpType: typeof sharp,
+            bufferSize: fileBuffer.length,
+          },
         },
         { status: 400 }
       );
@@ -338,22 +392,34 @@ export async function POST(request: Request) {
     const mediaId = stableId; // Content-based ID, no drive- prefix
 
     // 7. Generate variants (required for constitutional media pipeline)
-    console.log('[MEDIA_INGEST] VARIANT_GENERATION stage started', { requestId });
+    console.log('[MEDIA_INGEST_FORENSIC] VARIANT_GENERATION stage started', { requestId, sharpAvailable });
     const variants = [];
     let originalUpload: any;
     let blobIdempotencyStats = { newUploads: 0, reusedUploads: 0 };
-    
+
     if (!sharpAvailable) {
-      console.log('[MEDIA_INGEST_ERROR] Sharp not available - cannot generate variants', { requestId });
+      console.log('[MEDIA_INGEST_FORENSIC] SHARP_UNAVAILABLE - cannot generate variants', {
+        requestId,
+        sharpAvailable,
+        sharpObject: sharp,
+        sharpType: typeof sharp,
+      });
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: 'SHARP_UNAVAILABLE', 
-          stage: 'VARIANT_GENERATION', 
+          error: 'SHARP_UNAVAILABLE',
+          stage: 'VARIANT_GENERATION',
           message: 'Image processing library (Sharp) is not available. Cannot generate rendition variants.',
           retryable: false,
           details: 'Sharp is required for constitutional media processing. The system cannot safely proceed without variant generation.',
           requestId,
+          forensic: {
+            sharpAvailable,
+            sharpType: typeof sharp,
+            platform: process.platform,
+            arch: process.arch,
+            nodeVersion: process.version,
+          },
         },
         { status: 503 }
       );
