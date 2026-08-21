@@ -75,7 +75,7 @@ export function LenisProvider({ children }: { children: ReactNode }) {
       historyScrollRestoration: history.scrollRestoration,
       lenisScroll: lenisInstance.scroll,
       lenisActualScroll: lenisInstance.actualScroll,
-      lenisTargetScroll: lenisInstance.targetScroll,
+      lenisLimit: lenisInstance.limit,
       lenisIsScrolling: lenisInstance.isScrolling,
       timestamp: performance.now(),
     };
@@ -94,6 +94,7 @@ export function LenisProvider({ children }: { children: ReactNode }) {
           timestamp: performance.now(),
           lenisScroll: lenisInstance.scroll,
           lenisActualScroll: lenisInstance.actualScroll,
+          lenisLimit: lenisInstance.limit,
           windowScrollY: window.scrollY,
         };
         console.log('[LENIS_DIAGNOSTIC] FIRST_WHEEL_EVENT', firstWheelEvent);
@@ -106,6 +107,7 @@ export function LenisProvider({ children }: { children: ReactNode }) {
           timestamp: performance.now(),
           lenisScroll: lenisInstance.scroll,
           lenisActualScroll: lenisInstance.actualScroll,
+          lenisLimit: lenisInstance.limit,
           windowScrollY: window.scrollY,
         };
         console.log('[LENIS_DIAGNOSTIC] FIRST_TOUCH_EVENT', firstTouchEvent);
@@ -118,7 +120,6 @@ export function LenisProvider({ children }: { children: ReactNode }) {
         firstLenisScrollEvent = {
           lenisScroll: lenisInstance.scroll,
           lenisActualScroll: lenisInstance.actualScroll,
-          lenisTargetScroll: lenisInstance.targetScroll,
           lenisLimit: lenisInstance.limit,
           lenisVelocity: e?.velocity,
           lenisDirection: e?.direction,
@@ -142,7 +143,7 @@ export function LenisProvider({ children }: { children: ReactNode }) {
         bodyScrollTop: document.body.scrollTop,
         lenisScroll: lenisInstance.scroll,
         lenisActualScroll: lenisInstance.actualScroll,
-        lenisTargetScroll: lenisInstance.targetScroll,
+        lenisLimit: lenisInstance.limit,
         lenisIsScrolling: lenisInstance.isScrolling,
         timestamp: performance.now(),
       };
@@ -158,7 +159,7 @@ export function LenisProvider({ children }: { children: ReactNode }) {
           bodyScrollTop: document.body.scrollTop,
           lenisScroll: lenisInstance.scroll,
           lenisActualScroll: lenisInstance.actualScroll,
-          lenisTargetScroll: lenisInstance.targetScroll,
+          lenisLimit: lenisInstance.limit,
           lenisIsScrolling: lenisInstance.isScrolling,
           timestamp: performance.now(),
         };
@@ -174,7 +175,7 @@ export function LenisProvider({ children }: { children: ReactNode }) {
             bodyScrollTop: document.body.scrollTop,
             lenisScroll: lenisInstance.scroll,
             lenisActualScroll: lenisInstance.actualScroll,
-            lenisTargetScroll: lenisInstance.targetScroll,
+            lenisLimit: lenisInstance.limit,
             lenisIsScrolling: lenisInstance.isScrolling,
             timestamp: performance.now(),
           };
