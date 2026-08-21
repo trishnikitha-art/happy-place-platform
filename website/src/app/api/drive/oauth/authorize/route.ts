@@ -6,6 +6,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { driveSession } from '@/lib/drive/drive-session';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,9 +38,22 @@ export async function GET(request: Request) {
   authUrl.searchParams.append('response_type', 'code');
   authUrl.searchParams.append('scope', scopes.join(' '));
   authUrl.searchParams.append('access_type', 'offline');
-  authUrl.searchParams.append('prompt', 'consent');
+  
+  // Check if user already has refresh token (has previously consented)
+  const hasRefreshToken = await driveSession.getRefreshToken();
+  
+  // Only force consent on first login; subsequent logins use silent approval
+  if (hasRefreshToken) {
+    authUrl.searchParams.append('prompt', 'none');
+  } else {
+    authUrl.searchParams.append('prompt', 'consent');
+  }
 
-  console.log('[DRIVE OAUTH FORENSIC] Redirecting to Google OAuth:', authUrl.toString());
+  console.log('[DRIVE OAUTH FORENSIC] Redirecting to Google OAuth:', {
+    authUrl: authUrl.toString(),
+    hasRefreshToken: !!hasRefreshToken,
+    prompt: hasRefreshToken ? 'none' : 'consent',
+  });
 
   return NextResponse.redirect(authUrl.toString());
 }
