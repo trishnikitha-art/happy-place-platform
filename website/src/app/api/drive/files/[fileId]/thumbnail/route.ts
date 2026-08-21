@@ -48,7 +48,25 @@ export async function GET(
     }
 
     const file = await drive.files.get(getFileParams);
-    const mimeType = file.data.mimeType || 'image/jpeg';
+    const mimeType = file.data.mimeType;
+
+    // CRITICAL: Fail closed if Drive does not provide MIME type
+    // Do NOT default to 'image/jpeg' - this creates false positive evidence
+    if (!mimeType) {
+      console.error('[THUMBNAIL_REQUEST_REJECTED]', { 
+        fileId, 
+        reason: 'MISSING_MIME_TYPE',
+        classification: 'unknown'
+      });
+      return NextResponse.json(
+        { 
+          error: 'Drive did not provide MIME type',
+          mimeType: null,
+          capability: 'unknown'
+        },
+        { status: 400 }
+      );
+    }
 
     console.log('[THUMBNAIL_DRIVE_FETCH_SUCCESS]', { 
       fileId, 

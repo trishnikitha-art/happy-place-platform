@@ -2,6 +2,7 @@
   "name": "website",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "npm@10.9.2",
   "scripts": {
     "dev": "next dev",
     "build": "node scripts/graph-edge-generator.js && node scripts/constitutional-projection-generator.js && next build",

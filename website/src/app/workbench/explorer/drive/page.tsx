@@ -271,7 +271,7 @@ export default function DriveExplorerPage() {
                           : 'border-border hover:border-primary'
                       }`}
                     >
-                      {file.thumbnailLink ? (
+                      {file.thumbnailLink && file.mimeType?.startsWith('image/') ? (
                         <img
                           src={`/api/drive/files/${file.id}/thumbnail`}
                           alt={file.name}
@@ -301,7 +301,7 @@ export default function DriveExplorerPage() {
                           : 'border-border hover:border-primary'
                       }`}
                     >
-                      {file.thumbnailLink ? (
+                      {file.thumbnailLink && file.mimeType?.startsWith('image/') ? (
                         <img
                           src={`/api/drive/files/${file.id}/thumbnail`}
                           alt={file.name}
