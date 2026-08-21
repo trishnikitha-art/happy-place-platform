@@ -50,9 +50,9 @@ try {
     arch: process.arch,
     nodeVersion: process.version
   });
-  // Sharp is important but not fatal - fall back to original-only mode
-  // This allows production to function even if native dependencies are missing
-  console.warn('[MEDIA_INGEST] Falling back to original-only mode (no variant generation)');
+  // Sharp is required for constitutional media processing
+  // The route will return SHARP_UNAVAILABLE and refuse materialization
+  console.warn('[MEDIA_INGEST] Sharp unavailable - materialization will be rejected');
 }
 
 export const dynamic = 'force-dynamic';
