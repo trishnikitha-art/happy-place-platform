@@ -399,7 +399,20 @@ export default function MediaWorkbench() {
             hasFileId: !!applicationData.fileId,
             hasSharedDriveId: !!applicationData.sharedDriveId,
             hasSlotId: !!slotId,
+            hasMimeType: !!applicationData.mimeType,
           });
+
+          // CRITICAL: Fail closed if Drive did not provide MIME type
+          // Do NOT proceed with materialization without knowing file type
+          if (!applicationData.mimeType) {
+            console.error('[DND] DRIVE_FILE_REJECTED', {
+              requestId,
+              fileId: applicationData.fileId,
+              reason: 'MISSING_MIME_TYPE',
+            });
+            alert('Cannot use this file: Drive did not provide MIME type information');
+            return;
+          }
           
           // Check if Drive file already exists as PublishedMediaAsset
           // CRITICAL FIX: fileId and sharedDriveId are not interchangeable identities
@@ -1588,7 +1601,7 @@ Check browser console for detailed logs.`);
         fileId: driveFile.id,
         sharedDriveId: state.driveCurrentDriveId || undefined,
         name: driveFile.name,
-        mimeType: driveFile.mimeType || 'image/jpeg', // Default to image/jpeg if missing
+        mimeType: driveFile.mimeType, // Do NOT default - must be provided by Drive
         modifiedTime: driveFile.modifiedTime,
         webViewUrl: driveFile.webViewLink,
       };

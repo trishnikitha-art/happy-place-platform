@@ -7,11 +7,13 @@ const nextConfig: NextConfig = {
   images: {
     // next/image will serve AVIF/WebP automatically for raster images.
     formats: ["image/avif", "image/webp"],
-    // MVP uses committed SVG placeholders. SVG optimization is disabled for
-    // safety by default; we explicitly allow our own SVGs and sandbox them.
-    // Remove this (and swap to real JPG/WebP) when client photos are dropped in.
+    // SAFETY: All SVGs are committed trusted assets in public/brand/ and public/images/
+    // No user-controlled SVGs are accepted through any upload/ingest path
+    // dangerouslyAllowSVG is required for brand logos, favicons, and service icons
     dangerouslyAllowSVG: true,
-    contentDispositionType: "attachment",
+    // REMOVED: contentDispositionType: "attachment"
+    // This was causing images to download instead of display inline
+    // Website-facing image delivery should display inline, not force download
     // Allow local project images (including filenames with spaces)
     // Allow brand assets (logo, favicon, etc.)
     // REMOVED: /api/drive/files/** - Drive endpoint is for Workbench only, not public delivery
