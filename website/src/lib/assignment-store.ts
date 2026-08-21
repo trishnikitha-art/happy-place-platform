@@ -615,40 +615,6 @@ export async function findPoisonedAssignments(): Promise<{
 }
 
 /**
- * Delete a service card assignment (EXPLICIT MUTATION)
- * @param serviceSlug - Service slug
- * @param requestId - Optional request ID for correlation
- */
-export async function deleteServiceCardAssignment(serviceSlug: string, requestId?: string): Promise<void> {
-  const operationId = requestId || `delete-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
-
-  console.log('[ASSIGNMENT_DELETE] DELETE_REQUEST', {
-    operationId,
-    serviceSlug,
-    key,
-  });
-
-  try {
-    const client = getRedisClient();
-    await client.del(key);
-
-    console.log('[ASSIGNMENT_DELETE] DELETE_SUCCESS', {
-      operationId,
-      key,
-      serviceSlug,
-    });
-  } catch (error) {
-    console.error('[ASSIGNMENT_DELETE] DELETE_FAILURE', {
-      operationId,
-      serviceSlug,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-    throw new Error(`Failed to delete assignment for ${serviceSlug}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-/**
  * Cleanup corrupted assignments (EXPLICIT MUTATION - uses unified quarantine primitive)
  *
  * This function explicitly removes assignments that fail schema validation.
