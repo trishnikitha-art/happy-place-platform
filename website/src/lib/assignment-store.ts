@@ -646,15 +646,18 @@ export async function cleanupCorruptedAssignments(): Promise<QuarantineReport> {
 }
 
 /**
- * Quarantine poisoned assignments (EXPLICIT MUTATION - CAS-SAFE with evidence preservation)
+ * Quarantine poisoned assignments (EXPLICIT MUTATION - re-read-before-delete protection)
  *
  * This is the UNIFIED QUARANTINE PRIMITIVE for all cleanup operations.
  * It implements:
- * - CAS-safety: verifies expected revision before deletion
+ * - Re-read-before-delete: verifies expected revision before deletion (NOT atomic CAS)
  * - Evidence preservation: full QuarantineRecord with original metadata
  * - Deterministic quarantine keys: based on evidence hash
- * - Reconciliation: before = quarantined + deleted + concurrently_changed + failed + after
+ * - Reconciliation: before = deleted + concurrently_changed + failed + after
  * - Authorization boundary: requires explicit dryRun flag
+ *
+ * NOTE: This is NOT atomic CAS. Race window exists between GET and DELETE.
+ * Atomic CAS would require conditional delete primitive not available in @upstash/redis client.
  *
  * @param poisonList - List of poisoned assignments to quarantine (from findPoisonedAssignments)
  * @param dryRun - If true, analyze only without mutation (default: false)
@@ -667,7 +670,7 @@ export async function quarantinePoisonedAssignments(
     reason: string;
     assignment: ServiceCardAssignment;
   }>,
-  dryRun: boolean = false
+  dryRun: boolean = true
 ): Promise<QuarantineReport> {
   const client = getRedisClient();
   const timestamp = new Date().toISOString();
@@ -777,10 +780,12 @@ export async function quarantinePoisonedAssignments(
       const key = `${ASSIGNMENT_PREFIX}${poison.serviceSlug}`;
       const originalAssignment = poison.assignment;
 
-      // CAS-SAFE: Re-read current state before mutation
+      // RE-READ-BEFORE-DELETE: Check current state before mutation (NOT atomic CAS)
+      // This is best-effort protection, not atomic compare-and-set
+      // Race window exists between GET and DELETE
       const currentAssignment = await client.get<ServiceCardAssignment>(key);
 
-      // Verify expected revision (CAS check)
+      // Verify expected revision (best-effort check, not atomic)
       if (currentAssignment && currentAssignment.revision !== originalAssignment.revision) {
         concurrentlyChangedCount++;
         console.warn('[ASSIGNMENT_QUARANTINE] CONCURRENT_MODIFICATION_DETECTED', {
