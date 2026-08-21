@@ -1,6 +1,11 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // Force Sharp to use prebuilt binaries instead of building from source
+  // This fixes libvips compatibility issues on Vercel/Node 24
+  env: {
+    SHARP_IGNORE_GLOBAL_LIBVIPS: '1',
+  },
   images: {
     // next/image will serve AVIF/WebP automatically for raster images.
     formats: ["image/avif", "image/webp"],
