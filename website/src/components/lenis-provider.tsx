@@ -32,12 +32,13 @@ export function LenisProvider({ children }: { children: ReactNode }) {
     // True when: pathname starts with /workbench OR workbench=true query param
     const isWorkbenchRoute = pathname.startsWith('/workbench');
     // Use window.location.search to avoid Suspense boundary requirement
-    const isWorkbenchPreview = typeof window !== 'undefined' && 
+    const isWorkbenchPreview = typeof window !== 'undefined' &&
       new URLSearchParams(window.location.search).get('workbench') === 'true';
     const isWorkbenchContext = isWorkbenchRoute || isWorkbenchPreview;
 
     // Disable Lenis for workbench context (both UI and iframe preview)
     if (isWorkbenchContext) {
+      console.log('[LENIS_DIAGNOSTIC] Disabled for workbench context', { pathname, isWorkbenchRoute, isWorkbenchPreview });
       return;
     }
 
@@ -47,12 +48,12 @@ export function LenisProvider({ children }: { children: ReactNode }) {
     ).matches;
 
     if (prefersReducedMotion) {
-      // Don't initialize Lenis if user prefers reduced motion
+      console.log('[LENIS_DIAGNOSTIC] Disabled for reduced motion preference');
       return;
     }
 
     // Diagnostic: detect duplicate mounts (historical regression detection)
-    console.count('LenisProvider mounted');
+    console.count('[LENIS_DIAGNOSTIC] LenisProvider mounted');
 
     // Initialize Lenis with conservative settings to prevent touchpad interference
     const lenisInstance = new Lenis({
@@ -64,6 +65,53 @@ export function LenisProvider({ children }: { children: ReactNode }) {
 
     setLenis(lenisInstance);
 
+    // DIAGNOSTIC: Log initial scroll state at Lenis initialization
+    const initialScrollState = {
+      lenisScroll: lenisInstance.scroll,
+      lenisActualScroll: lenisInstance.actualScroll,
+      lenisLimit: lenisInstance.limit,
+      windowScrollY: window.scrollY,
+      documentScrollHeight: document.documentElement.scrollHeight,
+      documentClientHeight: document.documentElement.clientHeight,
+      mainHeight: document.querySelector('main')?.scrollHeight || 0,
+      pathname,
+      timestamp: performance.now(),
+    };
+    console.log('[LENIS_DIAGNOSTIC] INITIAL_SCROLL_STATE', initialScrollState);
+
+    // DIAGNOSTIC: Track first wheel/touch event to Lenis
+    let firstWheelEvent: any = null;
+    let firstTouchEvent: any = null;
+    const onWheel = (e: WheelEvent) => {
+      if (!firstWheelEvent) {
+        firstWheelEvent = {
+          deltaY: e.deltaY,
+          deltaX: e.deltaX,
+          deltaMode: e.deltaMode,
+          timestamp: performance.now(),
+          lenisScroll: lenisInstance.scroll,
+          lenisActualScroll: lenisInstance.actualScroll,
+          windowScrollY: window.scrollY,
+        };
+        console.log('[LENIS_DIAGNOSTIC] FIRST_WHEEL_EVENT', firstWheelEvent);
+      }
+    };
+    const onTouchStart = (e: TouchEvent) => {
+      if (!firstTouchEvent) {
+        firstTouchEvent = {
+          touches: e.touches.length,
+          timestamp: performance.now(),
+          lenisScroll: lenisInstance.scroll,
+          lenisActualScroll: lenisInstance.actualScroll,
+          windowScrollY: window.scrollY,
+        };
+        console.log('[LENIS_DIAGNOSTIC] FIRST_TOUCH_EVENT', firstTouchEvent);
+      }
+    };
+
+    window.addEventListener('wheel', onWheel, { passive: true });
+    window.addEventListener('touchstart', onTouchStart, { passive: true });
+
     // Animation loop with proper cancellation and loop leak detection
     let frameId: number;
     let frameCount = 0;
@@ -71,7 +119,7 @@ export function LenisProvider({ children }: { children: ReactNode }) {
       lenisInstance.raf(time);
       frameCount++;
       if (frameCount % 60 === 0) {
-        console.count('Lenis RAF loop');
+        console.count('[LENIS_DIAGNOSTIC] Lenis RAF loop');
       }
       frameId = requestAnimationFrame(raf);
     }
@@ -80,7 +128,15 @@ export function LenisProvider({ children }: { children: ReactNode }) {
 
     // Cleanup with diagnostic logging
     return () => {
-      console.log('LenisProvider cleanup: cancelling RAF and destroying instance');
+      console.log('[LENIS_DIAGNOSTIC] LenisProvider cleanup: cancelling RAF and destroying instance');
+      if (firstWheelEvent) {
+        console.log('[LENIS_DIAGNOSTIC] Session summary - wheel events observed');
+      }
+      if (firstTouchEvent) {
+        console.log('[LENIS_DIAGNOSTIC] Session summary - touch events observed');
+      }
+      window.removeEventListener('wheel', onWheel);
+      window.removeEventListener('touchstart', onTouchStart);
       cancelAnimationFrame(frameId);
       lenisInstance.destroy();
     };
