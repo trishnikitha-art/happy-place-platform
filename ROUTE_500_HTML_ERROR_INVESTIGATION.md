@@ -1,9 +1,9 @@
 # ROUTE 500 HTML ERROR INVESTIGATION
 
 **Date:** 2026-08-21
-**Git SHA:** dbf9bae
+**Git SHA:** 24f0a66
 **Deployment ID:** (pending)
-**Status:** ROOT CAUSE IDENTIFIED AND FIXED — AWAITING VERIFICATION
+**Status:** 4d01558 MODULE EVALUATION CRASH FIXED; ORIGINAL SHARP_UNAVAILABLE ISSUE REMAINS
 
 ---
 
@@ -21,18 +21,22 @@ Enhanced logging commit (4d01558) included:
 ```javascript
 requirePaths: require.resolve.paths('sharp'),
 ```
-This line executed at module scope and caused a module evaluation crash because `require.resolve.paths` may be undefined in some Next.js execution contexts.
+This line executed at module scope and caused a module evaluation crash. The require object exposed to the bundled/transformed route was not the native CommonJS require shape the diagnostic assumed.
 
 **CEO FINDING:**
 - Build failure hypothesis: ❌ REJECTED (4d01558 built successfully)
 - HTML 500 = Sharp failure: ❌ NOT ESTABLISHED
 - Actual failure: 🔴 Module evaluation crash due to `require.resolve.paths`
 - Causation: 🔴 Enhanced logging created new failure mode
+- Response analysis: 🟡 Highly likely framework-generated error response (500 + HTML), but exact response-generation layer not yet proven
 
 **FIX APPLIED:**
 - Removed `require.resolve.paths('sharp')` from Sharp logging
 - Instrumentation must be best-effort and behaviorally inert
 - Diagnostics should not crash module initialization
+
+**CONSTITUTIONAL RULE:**
+Diagnostic code must never be capable of preventing the application module from loading. No filesystem probing, dependency introspection, require.resolve.* tricks, environment assumptions, native-module inspection, filesystem existence checks, network calls, Redis calls, or Drive calls at module scope unless the route absolutely requires them for its actual function.
 
 ---
 
@@ -239,15 +243,18 @@ Deployment history shows many changes in short interval:
 - ✅ Root cause identified: `require.resolve.paths('sharp')`
 - ✅ Fix applied: removed `require.resolve.paths`
 - ✅ bcccb6f deployed with no errors in 1h window
+- 🔴 POST to /api/drive/ingest now returns 503 SHARP_UNAVAILABLE (original issue returns)
+- 🔴 Module evaluation crash appears fixed, but Sharp runtime loading still fails
 
 **Evidence Missing:**
-- ❌ dbf9bae deployment status
-- ❌ dbf9bae runtime status
-- ❌ Authenticated POST test on dbf9bae
+- ❌ 24f0a66 deployment status
+- ❌ 24f0a66 runtime status
+- ❌ Vercel runtime logs for current 503 SHARP_UNAVAILABLE error
+- ❌ Sharp runtime loading verification
 - ❌ Complete materialization path proof
 
-**Investigation State:** ROOT CAUSE FIXED, AWAITING VERIFICATION
-**Next Step:** Deploy dbf9bae and test authenticated POST
+**Investigation State:** MODULE EVALUATION CRASH FIXED; ORIGINAL SHARP_UNAVAILABLE ISSUE REMAINS
+**Next Step:** Deploy 24f0a66 and verify Sharp runtime loading
 
 ---
 
@@ -260,27 +267,43 @@ Deployment history shows many changes in short interval:
 **Root cause of 4d crash:** 🟢 Identified as `require.resolve.paths` access
 **Build failure hypothesis:** ❌ Rejected
 **HTML = Sharp failure:** ❌ Not established
-**Sharp build-time loading:** 🟢 Proven
-**Sharp runtime on 4d:** ⚪ Not proven because route crashed earlier
-**Current dbf9bae runtime:** 🔴 Pending verification
-**Current materialization:** 🔴 Not proven
-**Client error handling:** 🔴 Masks server failures
-**Server JSON error contract:** 🔴 Not guaranteed against invocation/module crashes
+**Sharp package resolution:** 🟢 Verified
+**Sharp native runtime:** 🔴 Unproven
+**Sharp image decode:** 🔴 Unproven
+**WebP generation:** 🔴 Unproven
+**AVIF generation:** 🔴 Unproven
+**Drive download:** 🔴 Unproven end-to-end
+**Blob upload:** 🔴 Unproven
+**PublishedMediaAsset:** 🔴 Unproven
+**Provenance preservation:** 🔴 Unproven end-to-end
+**Browser rendering:** 🔴 Unproven
+**API JSON contract:** 🟡 Needs hardening
+**Client error parsing:** 🟡 Needs hardening
+**Materialization idempotency:** 🔴 Needs proof
+**Partial-failure recovery:** 🔴 Needs proof
+**Timeout behavior:** 🔴 Needs measurement
+**npm install reproducibility:** 🟡 Workaround, not ideal
 **Assignment cleanup:** 🔴 Still blocked
 **Production Redis mutation:** 🔴 Absolutely no
 
 **CEO Determination:**
-The root cause was module evaluation crash caused by enhanced logging accessing `require.resolve.paths`. This has been fixed. Need to verify that dbf9bae deployment resolves the issue and allows successful materialization.
+The root cause of the 4d01558 failure was module evaluation crash caused by enhanced logging accessing `require.resolve.paths`. This has been remediated. The evidence is strong enough to close the specific 4d01558 incident, but absolutely not strong enough to close the broader Sharp/materialization incident. Current deployment requires runtime verification.
 
 **Next Critical Path:**
-1. Deploy dbf9bae to Vercel
+1. Deploy 24f0a66 to Vercel
 2. Verify deployment status
-3. Test GET /api/drive/ingest (should return 405 JSON)
-4. Test authenticated POST with Drive file
-5. Capture: deployment SHA, requestId, HTTP status, content-type, response body, Vercel runtime evidence
-6. If successful, prove complete materialization chain
-7. Fix client error handling to mask server failures less
-8. Ensure JSON error contract for catchable failures
+3. Create runtime capability probe (diagnostic endpoint)
+4. Test Sharp capabilities progressively: module load → metadata → decode → transform → WebP encode → AVIF encode → thumbnail → blur
+5. Test GET /api/drive/ingest (should return 405 JSON)
+6. Test authenticated POST with Drive file
+7. Capture: deployment SHA, requestId, HTTP status, content-type, response body, Vercel runtime evidence
+8. If successful, prove complete materialization chain with evidence at every boundary
+9. Fix client error handling to inspect content-type before calling response.json()
+10. Ensure JSON error contract for catchable failures
+11. Implement correlation ID chain throughout pipeline
+12. Test materialization idempotency
+13. Test partial-failure recovery behavior
+14. Measure timeout behavior and memory consumption
 
 ---
 
