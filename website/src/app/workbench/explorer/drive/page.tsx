@@ -159,7 +159,7 @@ export default function DriveExplorerPage() {
       const data = await response.json();
 
       if (response.ok) {
-        alert(`Success: ${data.action} media record "${data.media.id}"`);
+        alert(`Drive reference created: ${data.media.id}\n\nNOTE: This is a Drive-only reference for Workbench browsing.\nTo use this asset publicly, you must drag it to the Media Workbench to materialize it first.`);
         setState(prev => ({ ...prev, selectedFile: null }));
       } else {
         alert(`Error: ${data.error || 'Unknown error'}`);
