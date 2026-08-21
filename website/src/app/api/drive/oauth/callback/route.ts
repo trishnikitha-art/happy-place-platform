@@ -97,10 +97,16 @@ export async function GET(request: Request) {
     const expiryDate = Date.now() + (expiresIn * 1000);
 
     console.log('[DRIVE OAUTH FORENSIC] Persisting credentials through DriveSession...');
+    
+    // Preserve existing refresh token if Google doesn't return a new one
+    // Google typically returns refresh token only on first authorization
+    const currentCreds = await driveSession.getCredentials();
+    const refreshTokenToStore = tokenData.refresh_token || currentCreds?.refresh_token;
+    
     // Persist credentials through DriveSession
     await driveSession.setCredentials({
       access_token: tokenData.access_token,
-      refresh_token: tokenData.refresh_token,
+      refresh_token: refreshTokenToStore,
       expiry_date: expiryDate,
       scope: tokenData.scope,
     });

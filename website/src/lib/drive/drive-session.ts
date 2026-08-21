@@ -35,17 +35,19 @@ export class DriveSession {
 
   /**
    * Check if user is authenticated with Drive
+   * 
+   * Authentication requires a valid refresh token (persistent authorization).
+   * Expired access token is acceptable and will be refreshed by OAuth manager.
    */
   async isAuthenticated(): Promise<boolean> {
-    const accessToken = await this.getCookie('drive_access_token');
     const refreshToken = await this.getCookie('drive_refresh_token');
     console.log('DriveSession.isAuthenticated():', {
-      hasAccessToken: !!accessToken,
       hasRefreshToken: !!refreshToken,
-      drive_access_token_cookie: !!accessToken ? 'PRESENT' : 'ABSENT',
       drive_refresh_token_cookie: !!refreshToken ? 'PRESENT' : 'ABSENT',
     });
-    return !!(accessToken && refreshToken);
+    // Persistent authorization exists if refresh token is present
+    // Access token can be refreshed using refresh token
+    return !!refreshToken;
   }
 
   /**

@@ -117,10 +117,24 @@ export class DriveOAuthManager {
         await this.oauth2Client.refreshAccessToken();
       }
     } catch (error) {
-      console.error('[OAUTH_MANAGER] Token refresh failed, clearing credentials:', error);
-      // Clear invalid credentials on auth failure
-      await this.logout();
-      throw new Error('OAuth token refresh failed. Please re-authenticate with Google Drive.');
+      console.error('[OAUTH_MANAGER] Token refresh failed:', error);
+      
+      // Don't automatically logout on transient failures
+      // Only logout on permanent authorization failures (invalid_grant, revoked token)
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isPermanentFailure = errorMessage.includes('invalid_grant') || 
+                                  errorMessage.includes('revoked') ||
+                                  errorMessage.includes('Token has been revoked');
+      
+      if (isPermanentFailure) {
+        console.log('[OAUTH_MANAGER] Permanent authorization failure, clearing credentials');
+        await this.logout();
+        throw new Error('OAuth authorization failed. Please re-authenticate with Google Drive.');
+      } else {
+        // Transient failure - throw without clearing credentials
+        console.log('[OAUTH_MANAGER] Transient token refresh failure, keeping credentials');
+        throw new Error('Token refresh failed (transient). Please retry.');
+      }
     }
 
     return this.oauth2Client;
