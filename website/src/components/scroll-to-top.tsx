@@ -2,46 +2,59 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { useLenis } from "./lenis-provider";
 
 /**
- * ScrollToTop - Route transition scroll reset coordinator.
+ * ScrollToTop - Resets scroll position to top on route transitions.
+ * Ensures users always land at the top of each page, avoiding
+ * the issue where scroll position is preserved across navigations.
  *
- * CEO FIX: Delegates scroll reset to Lenis instead of writing native scroll state.
- * Lenis owns all scroll interpolation. Route transitions reset through Lenis API.
- *
- * Only used as coordinator to trigger Lenis reset on pathname changes.
- * LenisProvider owns the actual scroll reset authority.
+ * DIAGNOSTIC: Instrumented to track scroll state changes relative to Lenis
  */
 export function ScrollToTop() {
   const pathname = usePathname();
-  const { lenis } = useLenis();
 
   useEffect(() => {
-    // CEO FIX: Delegate to Lenis instead of native window.scrollTo
-    // Lenis owns scroll state. Do not create competing scroll writer.
-    if (lenis) {
-      console.log('[SCROLLTOTOP_DIAGNOSTIC] ROUTE_RESET_DELEGATED_TO_LENIS', {
-        pathname,
-        lenisScroll: lenis.scroll,
-        lenisActualScroll: lenis.actualScroll,
-        timestamp: performance.now(),
-      });
+    // DIAGNOSTIC: Precise scroll state before route reset
+    const beforeResetState = {
+      pathname,
+      windowScrollY: window.scrollY,
+      documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
+      documentElementScrollTop: document.documentElement.scrollTop,
+      bodyScrollTop: document.body.scrollTop,
+      historyScrollRestoration: history.scrollRestoration,
+      timestamp: performance.now(),
+    };
+    console.log('[SCROLLTOTOP_DIAGNOSTIC] BEFORE_ROUTE_RESET', beforeResetState);
 
-      // Use Lenis API for route reset
-      lenis.scrollTo(0, {
-        immediate: true,
-        force: true,
-      });
-    } else {
-      // Fallback: native scroll only when Lenis is genuinely disabled
-      console.log('[SCROLLTOTOP_DIAGNOSTIC] NATIVE_FALLBACK_LENIS_DISABLED', {
+    // Native scroll to top
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+
+    // DIAGNOSTIC: Capture next frame after reset
+    requestAnimationFrame(() => {
+      const afterResetState = {
         pathname,
+        windowScrollY: window.scrollY,
+        documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
+        documentElementScrollTop: document.documentElement.scrollTop,
+        bodyScrollTop: document.body.scrollTop,
         timestamp: performance.now(),
+      };
+      console.log('[SCROLLTOTOP_DIAGNOSTIC] AFTER_ROUTE_RESET_FRAME_1', afterResetState);
+
+      // Capture 2nd frame after reset
+      requestAnimationFrame(() => {
+        const afterResetState2 = {
+          pathname,
+          windowScrollY: window.scrollY,
+          documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
+          documentElementScrollTop: document.documentElement.scrollTop,
+          bodyScrollTop: document.body.scrollTop,
+          timestamp: performance.now(),
+        };
+        console.log('[SCROLLTOTOP_DIAGNOSTIC] AFTER_ROUTE_RESET_FRAME_2', afterResetState2);
       });
-      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-    }
-  }, [pathname, lenis]);
+    });
+  }, [pathname]);
 
   return null;
 }
