@@ -1,30 +1,76 @@
 # ROUTE 500 HTML ERROR INVESTIGATION
 
 **Date:** 2026-08-21
-**Git SHA:** 4d01558
+**Git SHA:** dbf9bae
 **Deployment ID:** (pending)
-**Status:** ACTIVE INVESTIGATION — NEW FAILURE MODE
+**Status:** ROOT CAUSE IDENTIFIED AND FIXED — AWAITING VERIFICATION
+
+---
+
+## CEO VERDICT — ROOT CAUSE IDENTIFIED
+
+**VERCEL EVIDENCE:**
+- **4d01558 deployment:** 🟢 READY (did NOT fail to build)
+- **4d01558 runtime error:** `TypeError: Cannot read properties of undefined (reading 'paths')`
+- **Error location:** route.js:11:3 during module evaluation
+- **Error timing:** 2026-08-21T15:25:30Z to 2026-08-21T15:26:00Z (3 occurrences)
+- **Deployment ID:** dpl_EMhaQZXBzxgemfmXfuY16BohbMia
+
+**ROOT CAUSE:**
+Enhanced logging commit (4d01558) included:
+```javascript
+requirePaths: require.resolve.paths('sharp'),
+```
+This line executed at module scope and caused a module evaluation crash because `require.resolve.paths` may be undefined in some Next.js execution contexts.
+
+**CEO FINDING:**
+- Build failure hypothesis: ❌ REJECTED (4d01558 built successfully)
+- HTML 500 = Sharp failure: ❌ NOT ESTABLISHED
+- Actual failure: 🔴 Module evaluation crash due to `require.resolve.paths`
+- Causation: 🔴 Enhanced logging created new failure mode
+
+**FIX APPLIED:**
+- Removed `require.resolve.paths('sharp')` from Sharp logging
+- Instrumentation must be best-effort and behaviorally inert
+- Diagnostics should not crash module initialization
 
 ---
 
 ## PROBLEM STATEMENT
 
-**NEW FAILURE MODE DISCOVERED:**
-- 🔴 POST to `/api/drive/ingest` returns 500 (Internal Server Error)
-- 🔴 Response is HTML instead of JSON: `<!DOCTYPE "...`
-- 🔴 Client error: `SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON`
-- 🔴 This is a different failure mode than previous SHARP_UNAVAILABLE (503)
+**ORIGINAL FAILURE:**
+- POST to `/api/drive/ingest` returns 500 (Internal Server Error)
+- Response is HTML instead of JSON: `<!DOCTYPE "...`
+- Client error: `SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON`
 
 **PREVIOUS FAILURE (deployment 7ea2d2c):**
 - POST to `/api/drive/ingest` returns 503 (Service Unavailable)
 - Response was JSON: `{ error: 'SHARP_UNAVAILABLE', ... }`
 
 **CRITICAL CHANGE:**
-The error changed from Sharp-specific (503 JSON) to general server error (500 HTML). This suggests a different root cause - possibly a build failure, routing issue, or enhanced logging error.
+The error changed from Sharp-specific (503 JSON) to general server error (500 HTML). Root cause identified as module evaluation crash caused by enhanced logging.
 
 ---
 
 ## EVIDENCE
+
+### Vercel Deployment Status
+
+**4d01558:**
+- Deployment: dpl_EMhaQZXBzxgemfmXfuY16BohbMia
+- State: 🟢 READY
+- Build: 🟢 SUCCESS
+- Runtime: 🔴 Module evaluation crash
+
+**bcccb6f:**
+- Deployment: dpl_Bzs8k1RZJLBj3guaotL8mSMj1qRc
+- State: 🟢 READY
+- Runtime: 🟡 No errors observed in 1h window
+
+**dbf9bae:**
+- Deployment: (pending)
+- State: (pending)
+- Runtime: (pending)
 
 ### Client Browser Logs
 
@@ -38,225 +84,220 @@ POST https://happy-place-platform.vercel.app/api/drive/ingest 500 (Internal Serv
 SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON
 ```
 
-**Drop Events:**
+**Conclusion:** The route was returning HTML (Next.js error page) instead of JSON because module evaluation crashed before the route could return its intended JSON response.
+
+---
+
+## ROOT CAUSE ANALYSIS
+
+### Actual Root Cause (Confirmed)
+
+**4d01558 Change:**
+```javascript
+console.log('[MEDIA_INGEST_FORENSIC] Sharp loading attempt', {
+  // ... other fields
+  requirePaths: require.resolve.paths('sharp'),  // THIS LINE CAUSED THE CRASH
+});
 ```
-[DND] DRIVE_MATERIALIZATION_STARTED {requestId: 'drop-1787325956350-zwt5684rg', ...}
-[DND] DRIVE_INGEST_STARTED {requestId: 'drop-1787325956350-zwt5684rg', ...}
-[DND] DRIVE_INGEST_RESPONSE {requestId: 'drop-1787325956350-zwt5684rg', httpStatus: 500}
-[DND] DRIVE_MATERIALIZATION_ERROR {requestId: 'drop-1787325956350-zwt5684rg', error: SyntaxError: Unexpected token '<', "<!DOCTYPE "... is not valid JSON}
+
+**Vercel Runtime Error:**
+```
+TypeError: Cannot read properties of undefined (reading 'paths')
+at module evaluation
+.next/server/chunks/[root-of-the-server]__1ya_nbb._.js
+.next/server/app/api/drive/ingest/route.js:11:3
 ```
 
-**Conclusion:** The route is returning HTML (likely a Next.js error page) instead of JSON. The client expects JSON but receives HTML, causing a parsing error.
+**Why This Crashed:**
+- `require.resolve.paths` may be undefined in some Next.js execution contexts
+- This line executed at module scope (not inside the POST handler)
+- Module evaluation crash prevented the route from loading correctly
+- Next.js emitted 500 error page instead of JSON
+
+### Hypotheses Evaluated
+
+**Hypothesis 1: Build failure for enhanced logging** ❌ REJECTED
+- Vercel shows 4d01558 built successfully
+- Deployment state: READY
+- Runtime error occurred during module evaluation, not build
+
+**Hypothesis 2: Middleware or configuration error** ❌ NOT SUPPORTED
+- Error occurred at module evaluation time, not middleware execution
+- Specific error: `require.resolve.paths` access
+
+**Hypothesis 3: Route compilation error** ❌ NOT SUPPORTED
+- TypeScript compilation succeeded
+- Bundle generation succeeded
+- Error occurred at runtime module evaluation
+
+**Hypothesis 4: Environment variable access error** ⚪ PARTIALLY CORRECT
+- Environment variable access was safe
+- The issue was `require.resolve.paths` access, not environment variables
 
 ---
 
-## ROOT CAUSE HYPOTHESIS
+## FIX APPLIED
 
-### Hypothesis 1: Build Failure for Enhanced Logging
+### dbf9bae — Remove require.resolve.paths
 
-**Theory:** The enhanced logging commit (4d01558) caused a build failure, and Vercel is serving a previous deployment.
+**Change:**
+```javascript
+// REMOVED:
+requirePaths: require.resolve.paths('sharp'),
 
-**Evidence:**
-- Error changed from 503 to 500
-- Response is HTML instead of JSON
-- This suggests Next.js error page is being served
-- Could be that 4d01558 failed to build
+// KEPT:
+console.error('[MEDIA_INGEST_FORENSIC] Sharp failed to load', {
+  // ... other fields
+  moduleName: 'sharp',
+  // requirePaths removed
+});
+```
 
-**Test Required:**
-- Check Vercel deployment status for 4d01558
-- Check Vercel build logs for 4d01558
-- Verify which deployment is actually serving the route
-
-### Hypothesis 2: Middleware or Configuration Error
-
-**Theory:** The enhanced logging caused a runtime error that Next.js is catching and rendering as an HTML error page.
-
-**Evidence:**
-- Response is HTML (DOCTYPE)
-- Client expects JSON but receives HTML
-- This is typical behavior when Next.js catches an error
-- Could be caused by console.log in wrong context or environment variable access
-
-**Test Required:**
-- Check Vercel runtime logs for 4d01558
-- Verify which deployment is actually serving
-- Check if enhanced logging is causing runtime errors
-
-### Hypothesis 3: Route Compilation Error
-
-**Theory:** The enhanced logging changes caused a TypeScript or bundling error that prevents the route from compiling correctly.
-
-**Evidence:**
-- Response is HTML instead of JSON
-- This suggests the route may not be properly compiled
-- Could be caused by syntax error in enhanced logging
-
-**Test Required:**
-- Check TypeScript compilation
-- Check if route compiles correctly
-- Verify bundle generation
-
-### Hypothesis 4: Environment Variable Access Error
-
-**Theory:** The enhanced logging accesses environment variables that are not available in all contexts, causing runtime errors.
-
-**Evidence:**
-- Enhanced logging accesses `process.env.SHARP_IGNORE_GLOBAL_LIBVIPS`
-- Enhanced logging accesses `process.env.NODE_ENV`
-- These may not be available in all Next.js execution contexts
-
-**Test Required:**
-- Check if environment variable access is causing errors
-- Add defensive checks around environment variable access
+**Rationale:**
+- `require.resolve.paths` may be undefined in some contexts
+- Instrumentation must be best-effort and behaviorally inert
+- Diagnostics should not crash module initialization
+- This removes the module evaluation crash while preserving other diagnostic logging
 
 ---
 
-## FORENSIC QUESTIONS
+## CEO LESSONS
 
-1. **Why did the error change from 503 to 500?**
-   - Previous: SHARP_UNAVAILABLE (503)
-   - Current: HTML error page (500)
+### 1. Diagnostics Must Not Create New Failures
 
-2. **Why is the response HTML instead of JSON?**
-   - Route should return JSON
-   - Next.js error page is being served instead
-   - This suggests build or compilation error
+Instrumentation code must be:
+- Best-effort
+- Behaviorally inert
+- Never crash module initialization
+- Never assume package internals
 
-3. **Which deployment is actually serving?**
-   - Need to verify if 4d01558 actually deployed
-   - Need to check Vercel deployment status
-   - Need to check Vercel build logs
+### 2. Don't Inspect Sharp Internals for Diagnostics
 
-4. **Did the enhanced logging cause a build failure?**
-   - Enhanced logging added console.log statements
-   - Enhanced logging accesses environment variables
-   - Could have caused compilation or runtime errors
+Instead of:
+- Inspecting Sharp's internal module path object
+- Inspecting undocumented Sharp internals
 
-5. **Is this a Sharp issue or a different issue?**
-   - This error is no longer Sharp-specific
-   - The route is returning HTML error page
-   - This suggests a different root cause
+Test actual Sharp capabilities:
+- Can Sharp load?
+- Can Sharp process this buffer?
+- Can Sharp produce metadata?
+- Can Sharp produce WebP?
+- Can Sharp produce AVIF?
 
----
+### 3. Fix Client Error Handling
 
-## INVESTIGATION STEPS
+**Current Issue:**
+Client assumes `response.json()` without checking content-type
+This masks server failures as parsing errors
 
-### Step 1: Check Vercel Deployment Status
+**Required Fix:**
+```javascript
+HTTP response
+   ↓
+inspect status
+   ↓
+inspect content-type
+   ↓
+JSON? → parse JSON
+HTML/text? → preserve body as diagnostic
+   ↓
+emit requestId + status + server error
+```
 
-**Action:** Check Vercel deployment status for 4d01558.
+### 4. Ensure JSON Error Contract
 
-**Expected Evidence:**
-- Deployment state (READY, ERROR, BUILDING)
-- Build logs
-- Whether the deployment succeeded
+The API contract should be:
+- `/api/drive/ingest` always returns JSON (for catchable errors)
+- Module evaluation crashes cannot be caught inside POST handler
+- Remove dangerous top-level initialization
+- Lazy-load failure-prone dependencies inside controlled execution paths
 
-### Step 2: Check Vercel Runtime Logs
+### 5. Stabilization Checkpoint Required
 
-**Action:** Retrieve Vercel runtime logs for the failed POST request.
+Deployment history shows many changes in short interval:
+- 94b7f31 → 5e656d5 → 66457b8 → 3706b67 → 102eb3a → c73b898 → a1763ec → 7ea2d2c → 4d01558 → bcccb6f → dbf9bae
 
-**Expected Evidence:**
-- Exact error message
-- Stack trace
-- Which deployment is actually serving
-- Runtime error details
-
-### Step 3: Verify TypeScript Compilation
-
-**Action:** Run TypeScript compilation locally.
-
-**Expected Evidence:**
-- Whether the route compiles correctly
-- Whether enhanced logging caused compilation errors
-- Whether there are syntax errors
-
-### Step 4: Verify Build Locally
-
-**Action:** Run build locally with enhanced logging.
-
-**Expected Evidence:**
-- Whether build succeeds locally
-- Whether Sharp loads during local build
-- Whether there are build errors
-
-### Step 5: Test Enhanced Logging Changes
-
-**Action:** Review enhanced logging changes for potential issues.
-
-**Expected Evidence:**
-- Whether environment variable access is safe
-- Whether console.log statements are safe
-- Whether there are context issues
+**Required:**
+- Establish current production SHA
+- Reproduce current behavior
+- Inspect current runtime logs
+- Inspect exact diff from last known-good deployment
+- Make one surgical change
+- Deploy
+- Test
+- Record evidence
+- Only then proceed
 
 ---
 
 ## CURRENT STATUS
 
 **Evidence Collected:**
-- 🔴 Runtime error changed from 503 to 500
-- 🔴 Response is HTML instead of JSON
-- 🔴 New failure mode discovered
+- ✅ 4d01558 built successfully (not a build failure)
+- ✅ 4d01558 runtime error: `TypeError: Cannot read properties of undefined (reading 'paths')`
+- ✅ Error occurred at module evaluation time
+- ✅ Root cause identified: `require.resolve.paths('sharp')`
+- ✅ Fix applied: removed `require.resolve.paths`
+- ✅ bcccb6f deployed with no errors in 1h window
 
 **Evidence Missing:**
-- ❌ Vercel deployment status for 4d01558
-- ❌ Vercel build logs for 4d01558
-- ❌ Vercel runtime logs for current failure
-- ❌ TypeScript compilation status
-- ❌ Local build status
+- ❌ dbf9bae deployment status
+- ❌ dbf9bae runtime status
+- ❌ Authenticated POST test on dbf9bae
+- ❌ Complete materialization path proof
 
-**Investigation State:** ACTIVE
-**Next Step:** Check Vercel deployment status and build logs
+**Investigation State:** ROOT CAUSE FIXED, AWAITING VERIFICATION
+**Next Step:** Deploy dbf9bae and test authenticated POST
 
 ---
 
 ## CEO ASSESSMENT
 
-**Infrastructure recovery:** 🟢
-**Git/Vercel provenance:** 🟢
-**Sharp build-time loading:** 🟢 verified
-**Sharp runtime loading:** 🔴 UNKNOWN (new failure mode)
-**Route error:** 🔴 500 HTML RESPONSE
-**Materialization:** 🔴 BLOCKED BY ROUTE ERROR
-
-**Critical Finding:**
-The error changed from SHARP_UNAVAILABLE (503) to HTML error page (500). This suggests a different root cause - possibly a build failure, middleware error, or enhanced logging issue. This is no longer a Sharp-specific issue.
+**Git → Vercel provenance:** 🟢 Proven
+**bcccb6f deployment:** 🟢 READY
+**4d01558 build:** 🟢 READY
+**4d01558 runtime:** 🔴 Module-evaluation crash (fixed)
+**Root cause of 4d crash:** 🟢 Identified as `require.resolve.paths` access
+**Build failure hypothesis:** ❌ Rejected
+**HTML = Sharp failure:** ❌ Not established
+**Sharp build-time loading:** 🟢 Proven
+**Sharp runtime on 4d:** ⚪ Not proven because route crashed earlier
+**Current dbf9bae runtime:** 🔴 Pending verification
+**Current materialization:** 🔴 Not proven
+**Client error handling:** 🔴 Masks server failures
+**Server JSON error contract:** 🔴 Not guaranteed against invocation/module crashes
+**Assignment cleanup:** 🔴 Still blocked
+**Production Redis mutation:** 🔴 Absolutely no
 
 **CEO Determination:**
-The current status should be:
-- Sharp build-time loading: 🟢 verified
-- Sharp runtime loading: 🔴 UNKNOWN (new failure mode)
-- Route error: 🔴 500 HTML RESPONSE
-- Materialization: 🔴 BLOCKED BY ROUTE ERROR
-
-The claim "Sharp runtime loading failed" may be incorrect. The route is now returning HTML instead of JSON, which suggests a different issue.
+The root cause was module evaluation crash caused by enhanced logging accessing `require.resolve.paths`. This has been fixed. Need to verify that dbf9bae deployment resolves the issue and allows successful materialization.
 
 **Next Critical Path:**
-1. Check Vercel deployment status for 4d01558
-2. Check Vercel build logs for 4d01558
-3. Check Vercel runtime logs for current failure
-4. Verify TypeScript compilation
-5. Verify local build
-6. Determine root cause (build failure vs runtime error)
-7. Fix root cause
-8. Deploy fix
-9. Verify materialization succeeds
+1. Deploy dbf9bae to Vercel
+2. Verify deployment status
+3. Test GET /api/drive/ingest (should return 405 JSON)
+4. Test authenticated POST with Drive file
+5. Capture: deployment SHA, requestId, HTTP status, content-type, response body, Vercel runtime evidence
+6. If successful, prove complete materialization chain
+7. Fix client error handling to mask server failures less
+8. Ensure JSON error contract for catchable failures
 
 ---
 
 ## PROVENANCE
 
-**Git SHA:** 4d01558
+**Git SHA:** dbf9bae
 **Deployment ID:** (pending)
 **Deployment State:** (pending)
 **Build Status:** (pending)
-**Runtime Status:** 500 HTML RESPONSE
+**Runtime Status:** (pending)
 
 **Evidence Sources:**
-- Client browser logs
-- Vercel deployment status (pending)
-- Vercel build logs (pending)
-- Vercel runtime logs (pending)
+- Vercel deployment status (4d01558, bcccb6f)
+- Vercel runtime error aggregation (4d01558)
 - Git commit history
-- Route source code analysis
+- Route source code diff (7ea2d2c → 4d01558)
+- Route source code diff (4d01558 → dbf9bae)
 
 **Investigation Lead:** Devin AI
 **Date:** 2026-08-21

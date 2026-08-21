@@ -67,7 +67,6 @@ try {
     envNodeEnv: process.env.NODE_ENV,
     SHARP_IGNORE_GLOBAL_LIBVIPS: process.env.SHARP_IGNORE_GLOBAL_LIBVIPS,
     moduleName: 'sharp',
-    requirePaths: require.resolve.paths('sharp'),
   });
   // Sharp is required for constitutional media processing
   // The route will return SHARP_UNAVAILABLE and refuse materialization
