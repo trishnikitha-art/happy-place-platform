@@ -1,7 +1,7 @@
 {
-  "build": {
-    "env": {
-      "SHARP_IGNORE_GLOBAL_LIBVIPS": "1"
-    }
-  }
+  "buildCommand": "cd website && npm run build",
+  "outputDirectory": "website/.next",
+  "framework": "nextjs",
+  "installCommand": "cd website && npm install",
+  "devCommand": "cd website && npm run dev"
 }
