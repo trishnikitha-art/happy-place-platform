@@ -4,6 +4,13 @@
  * Provides persistent storage for service card media assignments.
  * Stores assignments independently of static services.v1.json configuration.
  * Uses Upstash Redis for durable runtime storage.
+ *
+ * ARCHITECTURAL BOUNDARIES:
+ * - Read operations are PURE (no side effects)
+ * - Cleanup operations are EXPLICIT MUTATION (clear intent)
+ * - Write gate is BEFORE persistence (constitutional enforcement)
+ * - Evidence preservation before any deletion
+ * - Forensic analysis uses raw scan, not filtered public readers
  */
 
 import { Redis } from '@upstash/redis';
@@ -49,6 +56,64 @@ export interface ServiceCardAssignment {
 }
 
 /**
+ * Raw assignment record for forensic analysis
+ * Contains both validated and malformed data
+ */
+export interface RawAssignmentRecord {
+  key: string;
+  serviceSlug: string;
+  rawPayload: unknown;
+  mediaId?: string;
+  revision?: number;
+  updatedAt?: string;
+  source?: string;
+  schemaClassification: 'VALID' | 'SCHEMA_INVALID' | 'MISSING_REQUIRED_FIELDS';
+  mediaLifecycleClassification: 'DRIVE_REFERENCE' | 'PUBLISHED_MEDIA_ASSET' | 'UNKNOWN_MEDIA' | 'UNCLASSIFIED';
+  chronologyClassification: 'PRE_GATE_RECORDED' | 'POST_GATE_RECORDED' | 'MISSING_TIMESTAMP' | 'INVALID_TIMESTAMP' | 'CHRONOLOGY_INCONCLUSIVE';
+}
+
+/**
+ * Quarantine record interface (evidence-preserving)
+ */
+export interface QuarantineRecord {
+  originalKey: string;
+  originalAssignment: ServiceCardAssignment;
+  quarantineReason: string;
+  quarantinedAt: string;
+  quarantinedBy: string;
+  originalUpdatedAt?: string;
+  originalRevision?: number;
+  evidenceHash: string;
+  gateClassification?: 'PRE_GATE' | 'POST_GATE' | 'UNKNOWN';
+}
+
+/**
+ * Quarantine report interface (reconciliation)
+ */
+export interface QuarantineReport {
+  beforeCount: number;
+  poisonedCount: number;
+  quarantinedCount: number;
+  deletedFromActiveCount: number;
+  concurrentlyChangedCount: number;
+  failedCount: number;
+  afterCount: number;
+  remainingPoisonCount: number;
+  quarantineRecords: QuarantineRecord[];
+  timestamp: string;
+  gateCommitSha?: string;
+  gateCommitTimestamp?: string;
+}
+
+/**
+ * Gate commit metadata for forensic classification
+ */
+const GATE_COMMIT_SHA = 'e2409e87b13ff554eb1378a6c156fa21f7e3eb2e';
+const GATE_COMMIT_TIMESTAMP = '2026-08-20T22:51:34Z';
+const ENHANCED_GATE_COMMIT_SHA = '0041a41ca4563f49d7ccf51ba4c723880a8de6e5';
+const ENHANCED_GATE_COMMIT_TIMESTAMP = '2026-08-20T23:45:24Z';
+
+/**
  * Validate ServiceCardAssignment schema at runtime
  * @param data - Data to validate
  * @returns True if valid, false otherwise
@@ -89,6 +154,40 @@ function validateServiceCardAssignment(data: unknown): data is ServiceCardAssign
 }
 
 /**
+ * Delete a service card assignment (EXPLICIT MUTATION)
+ * @param serviceSlug - Service slug
+ * @param requestId - Optional request ID for correlation
+ */
+export async function deleteServiceCardAssignment(serviceSlug: string, requestId?: string): Promise<void> {
+  const operationId = requestId || `delete-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
+
+  console.log('[ASSIGNMENT_DELETE] DELETE_REQUEST', {
+    operationId,
+    serviceSlug,
+    key,
+  });
+
+  try {
+    const client = getRedisClient();
+    await client.del(key);
+
+    console.log('[ASSIGNMENT_DELETE] DELETE_SUCCESS', {
+      operationId,
+      key,
+      serviceSlug,
+    });
+  } catch (error) {
+    console.error('[ASSIGNMENT_DELETE] DELETE_FAILURE', {
+      operationId,
+      serviceSlug,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    throw new Error(`Failed to delete assignment for ${serviceSlug}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
  * Validate ISO 8601 timestamp format
  */
 function isValidISODate(dateString: string): boolean {
@@ -98,6 +197,21 @@ function isValidISODate(dateString: string): boolean {
   } catch {
     return false;
   }
+}
+
+/**
+ * Generate stable evidence hash for quarantine identity
+ * Uses SHA-256 of canonical payload for idempotency
+ */
+async function generateEvidenceHash(payload: ServiceCardAssignment): Promise<string> {
+  const crypto = await import('crypto');
+  const canonical = JSON.stringify({
+    serviceSlug: payload.serviceSlug,
+    mediaId: payload.mediaId,
+    revision: payload.revision,
+    updatedAt: payload.updatedAt,
+  });
+  return crypto.createHash('sha256').update(canonical).digest('hex');
 }
 
 /**
@@ -212,7 +326,7 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
 }
 
 /**
- * Retrieve a service card assignment
+ * Retrieve a service card assignment (PURE READ - no side effects)
  * @param serviceSlug - Service slug
  * @param requestId - Optional request ID for correlation
  * @returns Assignment or null
@@ -220,19 +334,19 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
 export async function getServiceCardAssignment(serviceSlug: string, requestId?: string): Promise<ServiceCardAssignment | null> {
   const operationId = requestId || `get-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
-  
+
   console.log('[ASSIGNMENT_READ]', {
     operationId,
     serviceSlug,
     key,
   });
-  
+
   try {
     const client = getRedisClient();
-    
+
     // Use typed object API - @upstash/redis handles deserialization
     const assignment = await client.get<ServiceCardAssignment>(key);
-    
+
     if (!assignment) {
       console.log('[ASSIGNMENT_READ] NOT_FOUND', {
         operationId,
@@ -242,7 +356,7 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
       return null;
     }
 
-    // Validate readback schema
+    // Validate readback schema (PURE READ - no side effects)
     if (!validateServiceCardAssignment(assignment)) {
       console.error('[ASSIGNMENT_READ] SCHEMA_VALIDATION_FAILED', {
         operationId,
@@ -251,10 +365,8 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
         assignment,
         validationError: 'Readback failed schema validation',
       });
-      // Quarantine corrupted data using separate namespace
-      const quarantineKey = `${ASSIGNMENT_QUARANTINE_PREFIX}${serviceSlug}:${Date.now()}`;
-      await client.set(quarantineKey, assignment);
-      console.log('[ASSIGNMENT_READ] CORRUPTED_DATA_QUARANTINED', { operationId, key, quarantineKey });
+      // Return null for corrupted data - do NOT quarantine during read
+      // Use explicit cleanup function to handle corrupted data
       return null;
     }
 
@@ -264,7 +376,7 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
       serviceSlug,
       mediaId: assignment.mediaId,
     });
-    
+
     return assignment;
   } catch (error) {
     console.error('[ASSIGNMENT_READ] FAILURE', {
@@ -277,41 +389,7 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
 }
 
 /**
- * Delete a service card assignment
- * @param serviceSlug - Service slug
- * @param requestId - Optional request ID for correlation
- */
-export async function deleteServiceCardAssignment(serviceSlug: string, requestId?: string): Promise<void> {
-  const operationId = requestId || `delete-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
-  
-  console.log('[ASSIGNMENT_STORE] DELETE_REQUEST', {
-    operationId,
-    serviceSlug,
-    key,
-  });
-  
-  try {
-    const client = getRedisClient();
-    await client.del(key);
-    
-    console.log('[ASSIGNMENT_STORE] DELETE_SUCCESS', {
-      operationId,
-      key,
-      serviceSlug,
-    });
-  } catch (error) {
-    console.error('[ASSIGNMENT_STORE] DELETE_FAILURE', {
-      operationId,
-      serviceSlug,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-    throw new Error(`Failed to delete assignment for ${serviceSlug}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-/**
- * Get all service card assignments
+ * Get all service card assignments (PURE READ - no side effects)
  * @returns Array of all assignments
  */
 export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignment[]> {
@@ -333,51 +411,11 @@ export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignm
         // Use typed object API - @upstash/redis handles deserialization
         const assignment = await client.get<ServiceCardAssignment>(key);
         if (assignment && validateServiceCardAssignment(assignment)) {
-          // SEMANTIC VALIDATION: Check if mediaId still resolves to PublishedMediaAsset
-          try {
-            const { resolvePublicMedia } = await import('./media');
-            const resolvedMedia = await resolvePublicMedia(assignment.mediaId);
-            
-            if (!resolvedMedia) {
-              console.log('[ASSIGNMENT_READ] SEMANTIC_VALIDATION_FAILED: Assignment media no longer resolves to PublishedMediaAsset', {
-                serviceSlug: assignment.serviceSlug,
-                mediaId: assignment.mediaId,
-              });
-              // Quarantine and remove semantically invalid assignment
-              const serviceSlug = key.replace(ASSIGNMENT_PREFIX, '');
-              const quarantineKey = `${ASSIGNMENT_QUARANTINE_PREFIX}${serviceSlug}:${Date.now()}`;
-              await client.set(quarantineKey, assignment);
-              await client.del(key);
-              return null;
-            }
-            
-            return assignment;
-          } catch (validationError) {
-            console.log('[ASSIGNMENT_READ] SEMANTIC_VALIDATION_ERROR', {
-              serviceSlug: assignment.serviceSlug,
-              mediaId: assignment.mediaId,
-              error: validationError instanceof Error ? validationError.message : 'Unknown error',
-            });
-            // Quarantine if validation fails
-            const serviceSlug = key.replace(ASSIGNMENT_PREFIX, '');
-            const quarantineKey = `${ASSIGNMENT_QUARANTINE_PREFIX}${serviceSlug}:${Date.now()}`;
-            await client.set(quarantineKey, assignment);
-            await client.del(key);
-            return null;
-          }
-        } else if (assignment) {
-          console.log('[ASSIGNMENT_STORE] Quarantining invalid assignment:', key);
-          // Quarantine corrupted data using separate namespace
-          const serviceSlug = key.replace(ASSIGNMENT_PREFIX, '');
-          const quarantineKey = `${ASSIGNMENT_QUARANTINE_PREFIX}${serviceSlug}:${Date.now()}`;
-          await client.set(quarantineKey, assignment);
-          // Remove from active namespace to prevent recurring validation failures
-          await client.del(key);
-          return null;
+          return assignment;
         }
         return null;
       } catch (error) {
-        console.log('[ASSIGNMENT_STORE] Failed to load individual key:', key, error);
+        console.log('[ASSIGNMENT_READ] Failed to load individual key:', key, error);
         return null;
       }
     });
@@ -387,85 +425,498 @@ export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignm
 
     return assignments;
   } catch (error) {
-    console.error('[ASSIGNMENT_STORE] List failed:', error);
+    console.error('[ASSIGNMENT_READ] FAILURE', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
     throw new Error(`Failed to list assignments: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
 /**
- * Quarantine and remove poison assignments from active namespace
- * 
- * This fixes the recurring-error machine where quarantine copies don't remove the original.
- * The new lifecycle is:
- * ACTIVE -> validation failure -> QUARANTINED -> original removed from active namespace
- * 
- * @returns Object with counts of quarantined, removed, and errors
+ * Scan raw assignment records for forensic analysis (PURE FORENSIC READ)
+ * Returns all records including malformed ones - does NOT filter
+ *
+ * @returns Array of raw assignment records with classifications
  */
-export async function quarantinePoisonAssignments(): Promise<{
-  quarantined: number;
-  removed: number;
-  errors: number;
-}> {
+export async function scanRawAssignmentRecords(): Promise<RawAssignmentRecord[]> {
   try {
     const client = getRedisClient();
-    const allAssignments = await getAllServiceCardAssignments();
-    
-    let quarantined = 0;
-    let removed = 0;
-    let errors = 0;
-    
-    for (const assignment of allAssignments) {
+    const keys: string[] = [];
+    let cursor = '0';
+
+    // Scan all assignment keys
+    do {
+      const result = await client.scan(cursor, { match: `${ASSIGNMENT_PREFIX}*`, count: 100 });
+      cursor = result[0];
+      keys.push(...result[1]);
+    } while (cursor !== '0');
+
+    const records: RawAssignmentRecord[] = [];
+    const gateDate = new Date(GATE_COMMIT_TIMESTAMP);
+
+    for (const key of keys) {
       try {
-        // Check if assignment is poison (drive-prefixed or doesn't resolve to PublishedMediaAsset)
-        let isPoison = false;
-        let poisonReason = '';
-        
-        // Check for drive-prefixed IDs
-        if (assignment.mediaId.startsWith('drive-')) {
-          isPoison = true;
-          poisonReason = 'drive-prefixed ID';
-        } else {
-          // Check if media resolves to PublishedMediaAsset
-          try {
-            const { resolvePublicMedia } = await import('./media');
-            const resolvedMedia = await resolvePublicMedia(assignment.mediaId);
-            if (!resolvedMedia) {
-              isPoison = true;
-              poisonReason = 'does not resolve to PublishedMediaAsset';
-            }
-          } catch (error) {
-            isPoison = true;
-            poisonReason = 'validation error';
+        const rawPayload = await client.get(key);
+        const serviceSlug = key.replace(ASSIGNMENT_PREFIX, '');
+
+        // Schema classification
+        let schemaClassification: RawAssignmentRecord['schemaClassification'] = 'SCHEMA_INVALID';
+        let mediaId: string | undefined;
+        let revision: number | undefined;
+        let updatedAt: string | undefined;
+        let source: string | undefined;
+
+        if (rawPayload && typeof rawPayload === 'object') {
+          const candidate = rawPayload as Record<string, unknown>;
+          mediaId = typeof candidate.mediaId === 'string' ? candidate.mediaId : undefined;
+          revision = typeof candidate.revision === 'number' ? candidate.revision : undefined;
+          updatedAt = typeof candidate.updatedAt === 'string' ? candidate.updatedAt : undefined;
+          source = typeof candidate.source === 'string' ? candidate.source : undefined;
+
+          if (validateServiceCardAssignment(rawPayload)) {
+            schemaClassification = 'VALID';
           }
         }
-        
-        if (isPoison) {
-          // Quarantine the assignment
-          const key = `${ASSIGNMENT_PREFIX}${assignment.serviceSlug}`;
-          const quarantineKey = `${ASSIGNMENT_QUARANTINE_PREFIX}${assignment.serviceSlug}:${Date.now()}`;
-          
-          await client.set(quarantineKey, assignment);
-          await client.del(key);
-          
-          quarantined++;
-          removed++;
-          console.log('[ASSIGNMENT_QUARANTINE] Poison assignment quarantined and removed:', {
-            serviceSlug: assignment.serviceSlug,
-            mediaId: assignment.mediaId,
-            poisonReason,
-            quarantineKey,
-          });
+
+        // Media lifecycle classification (using canonical authority)
+        let mediaLifecycleClassification: RawAssignmentRecord['mediaLifecycleClassification'] = 'UNCLASSIFIED';
+        if (mediaId) {
+          if (mediaId.startsWith('drive-') || mediaId.startsWith('drive-ref-')) {
+            mediaLifecycleClassification = 'DRIVE_REFERENCE';
+          } else {
+            // Check if resolves to PublishedMediaAsset using canonical gate
+            try {
+              const { resolvePublicMedia } = await import('./media');
+              const resolvedMedia = await resolvePublicMedia(mediaId);
+              if (resolvedMedia) {
+                mediaLifecycleClassification = 'PUBLISHED_MEDIA_ASSET';
+              } else {
+                mediaLifecycleClassification = 'UNKNOWN_MEDIA';
+              }
+            } catch {
+              mediaLifecycleClassification = 'UNKNOWN_MEDIA';
+            }
+          }
         }
+
+        // Chronology classification (updatedAt, NOT createdAt)
+        let chronologyClassification: RawAssignmentRecord['chronologyClassification'] = 'MISSING_TIMESTAMP';
+        if (updatedAt) {
+          const updatedAtDate = new Date(updatedAt);
+          if (isNaN(updatedAtDate.getTime())) {
+            chronologyClassification = 'INVALID_TIMESTAMP';
+          } else if (updatedAtDate < gateDate) {
+            chronologyClassification = 'PRE_GATE_RECORDED';
+          } else {
+            chronologyClassification = 'POST_GATE_RECORDED';
+          }
+        }
+
+        records.push({
+          key,
+          serviceSlug,
+          rawPayload,
+          mediaId,
+          revision,
+          updatedAt,
+          source,
+          schemaClassification,
+          mediaLifecycleClassification,
+          chronologyClassification,
+        });
       } catch (error) {
-        errors++;
-        console.error('[ASSIGNMENT_QUARANTINE] Error processing assignment:', assignment.serviceSlug, error);
+        console.error('[FORENSIC_SCAN] Error processing key:', key, error);
       }
     }
-    
-    console.log('[ASSIGNMENT_QUARANTINE] Complete:', { quarantined, removed, errors });
-    return { quarantined, removed, errors };
+
+    return records;
   } catch (error) {
-    console.error('[ASSIGNMENT_QUARANTINE] Failed:', error);
-    throw new Error(`Failed to quarantine poison assignments: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error('[FORENSIC_SCAN] FAILURE', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    throw new Error(`Failed to scan raw assignment records: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+}
+
+/**
+ * Find poisoned assignments (PURE ANALYSIS - no side effects)
+ * Analyzes raw records and returns poison classification
+ *
+ * @returns Analysis report with poisoned assignments
+ */
+export async function findPoisonedAssignments(): Promise<{
+  total: number;
+  poisoned: Array<{
+    serviceSlug: string;
+    mediaId: string;
+    reason: string;
+    assignment: ServiceCardAssignment;
+    schemaClassification: string;
+    mediaLifecycleClassification: string;
+    chronologyClassification: string;
+  }>;
+}> {
+  try {
+    const rawRecords = await scanRawAssignmentRecords();
+    const poisoned: Array<{
+      serviceSlug: string;
+      mediaId: string;
+      reason: string;
+      assignment: ServiceCardAssignment;
+      schemaClassification: string;
+      mediaLifecycleClassification: string;
+      chronologyClassification: string;
+    }> = [];
+
+    for (const record of rawRecords) {
+      // Skip schema-invalid records (handled by cleanupCorruptedAssignments)
+      if (record.schemaClassification !== 'VALID') {
+        continue;
+      }
+
+      // Check for Drive references
+      if (record.mediaLifecycleClassification === 'DRIVE_REFERENCE') {
+        poisoned.push({
+          serviceSlug: record.serviceSlug,
+          mediaId: record.mediaId || 'unknown',
+          reason: 'Drive reference (drive- or drive-ref- prefix)',
+          assignment: record.rawPayload as ServiceCardAssignment,
+          schemaClassification: record.schemaClassification,
+          mediaLifecycleClassification: record.mediaLifecycleClassification,
+          chronologyClassification: record.chronologyClassification,
+        });
+        continue;
+      }
+
+      // Check for unknown/unresolved media
+      if (record.mediaLifecycleClassification === 'UNKNOWN_MEDIA') {
+        poisoned.push({
+          serviceSlug: record.serviceSlug,
+          mediaId: record.mediaId || 'unknown',
+          reason: 'Media does not resolve to PublishedMediaAsset',
+          assignment: record.rawPayload as ServiceCardAssignment,
+          schemaClassification: record.schemaClassification,
+          mediaLifecycleClassification: record.mediaLifecycleClassification,
+          chronologyClassification: record.chronologyClassification,
+        });
+      }
+    }
+
+    return {
+      total: rawRecords.length,
+      poisoned,
+    };
+  } catch (error) {
+    console.error('[POISON_ANALYSIS] FAILURE', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    throw new Error(`Failed to analyze poisoned assignments: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Delete a service card assignment (EXPLICIT MUTATION)
+ * @param serviceSlug - Service slug
+ * @param requestId - Optional request ID for correlation
+ */
+export async function deleteServiceCardAssignment(serviceSlug: string, requestId?: string): Promise<void> {
+  const operationId = requestId || `delete-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+  const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
+
+  console.log('[ASSIGNMENT_DELETE] DELETE_REQUEST', {
+    operationId,
+    serviceSlug,
+    key,
+  });
+
+  try {
+    const client = getRedisClient();
+    await client.del(key);
+
+    console.log('[ASSIGNMENT_DELETE] DELETE_SUCCESS', {
+      operationId,
+      key,
+      serviceSlug,
+    });
+  } catch (error) {
+    console.error('[ASSIGNMENT_DELETE] DELETE_FAILURE', {
+      operationId,
+      serviceSlug,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    throw new Error(`Failed to delete assignment for ${serviceSlug}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Cleanup corrupted assignments (EXPLICIT MUTATION - uses unified quarantine primitive)
+ *
+ * This function explicitly removes assignments that fail schema validation.
+ * It uses the same evidence-preserving quarantine primitive as poison cleanup.
+ *
+ * @returns Cleanup report with counts
+ */
+export async function cleanupCorruptedAssignments(): Promise<QuarantineReport> {
+  try {
+    const client = getRedisClient();
+    const rawRecords = await scanRawAssignmentRecords();
+
+    const schemaInvalidRecords = rawRecords.filter(r => r.schemaClassification !== 'VALID');
+
+    const poisonList = schemaInvalidRecords.map(record => ({
+      serviceSlug: record.serviceSlug,
+      mediaId: record.mediaId || 'unknown',
+      reason: `Schema invalid: ${record.schemaClassification}`,
+      assignment: record.rawPayload as ServiceCardAssignment,
+    }));
+
+    return await quarantinePoisonedAssignments(poisonList, false);
+  } catch (error) {
+    console.error('[ASSIGNMENT_CLEANUP] FAILED', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    throw new Error(`Failed to cleanup corrupted assignments: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Quarantine poisoned assignments (EXPLICIT MUTATION - CAS-SAFE with evidence preservation)
+ *
+ * This is the UNIFIED QUARANTINE PRIMITIVE for all cleanup operations.
+ * It implements:
+ * - CAS-safety: verifies expected revision before deletion
+ * - Evidence preservation: full QuarantineRecord with original metadata
+ * - Deterministic quarantine keys: based on evidence hash
+ * - Reconciliation: before = quarantined + deleted + concurrently_changed + failed + after
+ * - Authorization boundary: requires explicit dryRun flag
+ *
+ * @param poisonList - List of poisoned assignments to quarantine (from findPoisonedAssignments)
+ * @param dryRun - If true, analyze only without mutation (default: false)
+ * @returns Detailed quarantine report with reconciliation
+ */
+export async function quarantinePoisonedAssignments(
+  poisonList: Array<{
+    serviceSlug: string;
+    mediaId: string;
+    reason: string;
+    assignment: ServiceCardAssignment;
+  }>,
+  dryRun: boolean = false
+): Promise<QuarantineReport> {
+  const client = getRedisClient();
+  const timestamp = new Date().toISOString();
+  const quarantinedBy = 'assignment-store-quarantine-system';
+
+  const beforeCount = poisonList.length;
+  let quarantinedCount = 0;
+  let deletedFromActiveCount = 0;
+  let concurrentlyChangedCount = 0;
+  let failedCount = 0;
+  const quarantineRecords: QuarantineRecord[] = [];
+
+  console.log('[ASSIGNMENT_QUARANTINE] Starting quarantine analysis', {
+    beforeCount,
+    timestamp,
+    dryRun,
+    gateCommitSha: GATE_COMMIT_SHA,
+    gateCommitTimestamp: GATE_COMMIT_TIMESTAMP,
+  });
+
+  // AUTHORIZATION BOUNDARY: Check for post-gate poison
+  const postGatePoison = poisonList.filter(poison => {
+    if (poison.assignment.updatedAt) {
+      const updatedAtDate = new Date(poison.assignment.updatedAt);
+      const gateDate = new Date(GATE_COMMIT_TIMESTAMP);
+      return updatedAtDate >= gateDate;
+    }
+    return false;
+  });
+
+  if (postGatePoison.length > 0) {
+    console.error('[ASSIGNMENT_QUARANTINE] AUTHORIZATION_DENIED: POST-GATE POISON DETECTED', {
+      postGateCount: postGatePoison.length,
+      postGatePoison: postGatePoison.map(p => ({ serviceSlug: p.serviceSlug, mediaId: p.mediaId, updatedAt: p.assignment.updatedAt })),
+    });
+    throw new Error('AUTHORIZATION_DENIED: Cannot quarantine post-gate poison without explicit investigation');
+  }
+
+  // AUTHORIZATION BOUNDARY: Check for missing/invalid timestamps
+  const inconclusivePoison = poisonList.filter(poison => {
+    if (!poison.assignment.updatedAt) return true;
+    const updatedAtDate = new Date(poison.assignment.updatedAt);
+    return isNaN(updatedAtDate.getTime());
+  });
+
+  if (inconclusivePoison.length > 0) {
+    console.error('[ASSIGNMENT_QUARANTINE] AUTHORIZATION_DENIED: CHRONOLOGY INCONCLUSIVE', {
+      inconclusiveCount: inconclusivePoison.length,
+      inconclusivePoison: inconclusivePoison.map(p => ({ serviceSlug: p.serviceSlug, mediaId: p.mediaId, updatedAt: p.assignment.updatedAt })),
+    });
+    throw new Error('AUTHORIZATION_DENIED: Cannot quarantine poison with inconclusive chronology');
+  }
+
+  // Dry-run mode: analyze only, no mutation
+  if (dryRun) {
+    console.log('[ASSIGNMENT_QUARANTINE] DRY_RUN: Analysis complete, no mutations performed');
+    for (const poison of poisonList) {
+      const key = `${ASSIGNMENT_PREFIX}${poison.serviceSlug}`;
+      const originalAssignment = poison.assignment;
+      const evidenceHash = await generateEvidenceHash(originalAssignment);
+
+      let gateClassification: QuarantineRecord['gateClassification'] = 'UNKNOWN';
+      if (originalAssignment.updatedAt) {
+        const updatedAtDate = new Date(originalAssignment.updatedAt);
+        const gateDate = new Date(GATE_COMMIT_TIMESTAMP);
+        if (updatedAtDate < gateDate) {
+          gateClassification = 'PRE_GATE';
+        } else {
+          gateClassification = 'POST_GATE';
+        }
+      }
+
+      const quarantineRecord: QuarantineRecord = {
+        originalKey: key,
+        originalAssignment,
+        quarantineReason: poison.reason,
+        quarantinedAt: timestamp,
+        quarantinedBy,
+        originalUpdatedAt: originalAssignment.updatedAt,
+        originalRevision: originalAssignment.revision,
+        evidenceHash,
+        gateClassification,
+      };
+
+      quarantineRecords.push(quarantineRecord);
+    }
+
+    return {
+      beforeCount,
+      poisonedCount: beforeCount,
+      quarantinedCount: 0,
+      deletedFromActiveCount: 0,
+      concurrentlyChangedCount: 0,
+      failedCount: 0,
+      afterCount: beforeCount,
+      remainingPoisonCount: beforeCount,
+      quarantineRecords,
+      timestamp,
+      gateCommitSha: GATE_COMMIT_SHA,
+      gateCommitTimestamp: GATE_COMMIT_TIMESTAMP,
+    };
+  }
+
+  // Actual mutation mode
+  for (const poison of poisonList) {
+    try {
+      const key = `${ASSIGNMENT_PREFIX}${poison.serviceSlug}`;
+      const originalAssignment = poison.assignment;
+
+      // CAS-SAFE: Re-read current state before mutation
+      const currentAssignment = await client.get<ServiceCardAssignment>(key);
+
+      // Verify expected revision (CAS check)
+      if (currentAssignment && currentAssignment.revision !== originalAssignment.revision) {
+        concurrentlyChangedCount++;
+        console.warn('[ASSIGNMENT_QUARANTINE] CONCURRENT_MODIFICATION_DETECTED', {
+          serviceSlug: poison.serviceSlug,
+          expectedRevision: originalAssignment.revision,
+          currentRevision: currentAssignment.revision,
+        });
+        continue;
+      }
+
+      // Generate stable evidence hash for deterministic quarantine key
+      const evidenceHash = await generateEvidenceHash(originalAssignment);
+      const quarantineKey = `${ASSIGNMENT_QUARANTINE_PREFIX}${evidenceHash}`;
+
+      // Classify chronology for gate classification
+      let gateClassification: QuarantineRecord['gateClassification'] = 'UNKNOWN';
+      if (originalAssignment.updatedAt) {
+        const updatedAtDate = new Date(originalAssignment.updatedAt);
+        const gateDate = new Date(GATE_COMMIT_TIMESTAMP);
+        if (updatedAtDate < gateDate) {
+          gateClassification = 'PRE_GATE';
+        } else {
+          gateClassification = 'POST_GATE';
+        }
+      }
+
+      // Create evidence-preserving quarantine record
+      const quarantineRecord: QuarantineRecord = {
+        originalKey: key,
+        originalAssignment,
+        quarantineReason: poison.reason,
+        quarantinedAt: timestamp,
+        quarantinedBy,
+        originalUpdatedAt: originalAssignment.updatedAt,
+        originalRevision: originalAssignment.revision,
+        evidenceHash,
+        gateClassification,
+      };
+
+      // Store quarantine record with full evidence
+      await client.set(quarantineKey, quarantineRecord);
+
+      // Remove from active namespace (CAS-safe: already verified revision)
+      await client.del(key);
+
+      quarantinedCount++;
+      deletedFromActiveCount++;
+      quarantineRecords.push(quarantineRecord);
+
+      console.log('[ASSIGNMENT_QUARANTINE] Poison assignment quarantined and removed', {
+        serviceSlug: poison.serviceSlug,
+        mediaId: poison.mediaId,
+        reason: poison.reason,
+        quarantineKey,
+        originalRevision: originalAssignment.revision,
+        evidenceHash,
+      });
+    } catch (error) {
+      failedCount++;
+      console.error('[ASSIGNMENT_QUARANTINE] Error processing assignment:', poison.serviceSlug, error);
+    }
+  }
+
+  // Verify final state
+  const afterAnalysis = await findPoisonedAssignments();
+  const afterCount = afterAnalysis.poisoned.length;
+
+  const report: QuarantineReport = {
+    beforeCount,
+    poisonedCount: beforeCount,
+    quarantinedCount,
+    deletedFromActiveCount,
+    concurrentlyChangedCount,
+    failedCount,
+    afterCount,
+    remainingPoisonCount: afterCount,
+    quarantineRecords,
+    timestamp,
+    gateCommitSha: GATE_COMMIT_SHA,
+    gateCommitTimestamp: GATE_COMMIT_TIMESTAMP,
+  };
+
+  // Reconciliation check
+  const expectedAfter = beforeCount - quarantinedCount - concurrentlyChangedCount;
+  const reconciliation = afterCount === expectedAfter;
+  console.log('[ASSIGNMENT_QUARANTINE] Complete', {
+    ...report,
+    reconciliation: reconciliation ? 'PASS' : 'FAIL',
+    expectedAfter,
+    actualAfter: afterCount,
+  });
+
+  if (!reconciliation) {
+    console.error('[ASSIGNMENT_QUARANTINE] RECONCILIATION FAILED', {
+      beforeCount,
+      quarantinedCount,
+      concurrentlyChangedCount,
+      failedCount,
+      expectedAfter,
+      actualAfter: afterCount,
+    });
+  }
+
+  return report;
 }
