@@ -267,7 +267,7 @@ Deployment history shows many changes in short interval:
 **Root cause of 4d crash:** 🟢 Identified as `require.resolve.paths` access
 **Build failure hypothesis:** ❌ Rejected
 **HTML = Sharp failure:** ❌ Not established
-**Sharp package resolution:** 🟢 Verified
+**Sharp dependency installation:** � Appears present; exact Linux native-runtime resolution remains unproven
 **Sharp native runtime:** 🔴 Unproven
 **Sharp image decode:** 🔴 Unproven
 **WebP generation:** 🔴 Unproven
@@ -286,17 +286,39 @@ Deployment history shows many changes in short interval:
 **Assignment cleanup:** 🔴 Still blocked
 **Production Redis mutation:** 🔴 Absolutely no
 
+**WORKBENCH EVIDENCE (Proven):**
+- 🟢 Workbench receives Drive asset
+- 🟢 Drive file ID survives drag/drop
+- 🟢 Shared Drive ID survives drag/drop
+- 🟢 Target slot resolution works
+- 🟢 Materialization decision works
+- 🟢 /api/drive/ingest is invoked
+- 🟢 503 SHARP_UNAVAILABLE classification returned
+
+**SHARP UNAVAILABLE EVIDENCE (Not Yet Proven):**
+- 🔴 Server-side evidence showing actual caught exception
+- 🔴 Sharp import failure vs native binding failure vs other cause
+- 🔴 Exact error code (ERR_DLOPEN_FAILED, etc.)
+- 🔴 Sharp import in current production deployment
+- 🔴 Native libvips loading
+
 **CEO Determination:**
-The root cause of the 4d01558 failure was module evaluation crash caused by enhanced logging accessing `require.resolve.paths`. This has been remediated. The evidence is strong enough to close the specific 4d01558 incident, but absolutely not strong enough to close the broader Sharp/materialization incident. Current deployment requires runtime verification.
+The root cause of the 4d01558 failure was module evaluation crash caused by enhanced logging accessing `require.resolve.paths`. This has been remediated. The evidence is strong enough to close the specific 4d01558 incident, but absolutely not strong enough to close the broader Sharp/materialization incident. Current deployment requires runtime verification. The 503 SHARP_UNAVAILABLE classification does not by itself prove why Sharp failed to load; server-side evidence is required.
 
 **Next Critical Path:**
-1. Deploy 24f0a66 to Vercel
+1. Deploy eaf83bc to Vercel
 2. Verify deployment status
-3. Create runtime capability probe (diagnostic endpoint)
-4. Test Sharp capabilities progressively: module load → metadata → decode → transform → WebP encode → AVIF encode → thumbnail → blur
-5. Test GET /api/drive/ingest (should return 405 JSON)
-6. Test authenticated POST with Drive file
-7. Capture: deployment SHA, requestId, HTTP status, content-type, response body, Vercel runtime evidence
+3. Capture Vercel runtime logs for 503 SHARP_UNAVAILABLE error
+4. Create surgical runtime capability probe (not permanently public)
+5. Test Sharp capabilities progressively (module resolution → version → format capabilities → decode → transform → WebP → AVIF → materialization transformation)
+6. Test actual Sharp operations with fixture images
+7. Capture evidence at every boundary
+8. Implement correlation ID chain throughout pipeline
+9. Implement stage-specific error codes
+10. Separate workstream: Drive session persistence improvement
+11. Reduce client logging noise (remove DRAGOVER_ACTIVE spam)
+12. Fix client error handling to inspect content-type before calling response.json()
+13. Ensure JSON error contract for catchable failures
 8. If successful, prove complete materialization chain with evidence at every boundary
 9. Fix client error handling to inspect content-type before calling response.json()
 10. Ensure JSON error contract for catchable failures
