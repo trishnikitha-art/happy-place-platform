@@ -65,6 +65,67 @@ export function LenisProvider({ children }: { children: ReactNode }) {
 
     setLenis(lenisInstance);
 
+    // CEO FIX: Centralize route scroll reset authority
+    // Lenis owns all scroll interpolation. Route transitions reset through Lenis, not native scrollTo.
+    const handleRouteChange = () => {
+      const beforeResetState = {
+        pathname,
+        windowScrollY: window.scrollY,
+        documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
+        documentElementScrollTop: document.documentElement.scrollTop,
+        bodyScrollTop: document.body.scrollTop,
+        lenisScroll: lenisInstance.scroll,
+        lenisActualScroll: lenisInstance.actualScroll,
+        lenisTargetScroll: lenisInstance.targetScroll,
+        lenisIsScrolling: lenisInstance.isScrolling,
+        timestamp: performance.now(),
+      };
+      console.log('[LENIS_DIAGNOSTIC] ROUTE_CHANGE_BEFORE_RESET', beforeResetState);
+
+      // Use Lenis API for route reset, not native window.scrollTo
+      lenisInstance.scrollTo(0, {
+        immediate: true,
+        force: true,
+      });
+
+      // Capture next frame after reset
+      requestAnimationFrame(() => {
+        const afterResetState = {
+          pathname,
+          windowScrollY: window.scrollY,
+          documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
+          documentElementScrollTop: document.documentElement.scrollTop,
+          bodyScrollTop: document.body.scrollTop,
+          lenisScroll: lenisInstance.scroll,
+          lenisActualScroll: lenisInstance.actualScroll,
+          lenisTargetScroll: lenisInstance.targetScroll,
+          lenisIsScrolling: lenisInstance.isScrolling,
+          timestamp: performance.now(),
+        };
+        console.log('[LENIS_DIAGNOSTIC] ROUTE_CHANGE_AFTER_RESET_FRAME_1', afterResetState);
+
+        // Capture 2nd frame after reset
+        requestAnimationFrame(() => {
+          const afterResetState2 = {
+            pathname,
+            windowScrollY: window.scrollY,
+            documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
+            documentElementScrollTop: document.documentElement.scrollTop,
+            bodyScrollTop: document.body.scrollTop,
+            lenisScroll: lenisInstance.scroll,
+            lenisActualScroll: lenisInstance.actualScroll,
+            lenisTargetScroll: lenisInstance.targetScroll,
+            lenisIsScrolling: lenisInstance.isScrolling,
+            timestamp: performance.now(),
+          };
+          console.log('[LENIS_DIAGNOSTIC] ROUTE_CHANGE_AFTER_RESET_FRAME_2', afterResetState2);
+        });
+      });
+    };
+
+    // Listen for pathname changes to detect route transitions
+    window.addEventListener('popstate', handleRouteChange);
+
     // DIAGNOSTIC: Log initial scroll state at Lenis initialization
     const initialScrollState = {
       pathname,
@@ -132,60 +193,6 @@ export function LenisProvider({ children }: { children: ReactNode }) {
     window.addEventListener('wheel', onWheel, { passive: true });
     window.addEventListener('touchstart', onTouchStart, { passive: true });
 
-    // DIAGNOSTIC: Track route transition scroll state
-    const onRouteChange = () => {
-      const beforeResetState = {
-        pathname,
-        windowScrollY: window.scrollY,
-        documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
-        documentElementScrollTop: document.documentElement.scrollTop,
-        bodyScrollTop: document.body.scrollTop,
-        lenisScroll: lenisInstance.scroll,
-        lenisActualScroll: lenisInstance.actualScroll,
-        lenisTargetScroll: lenisInstance.targetScroll,
-        lenisIsScrolling: lenisInstance.isScrolling,
-        timestamp: performance.now(),
-      };
-      console.log('[LENIS_DIAGNOSTIC] ROUTE_CHANGE_BEFORE_RESET', beforeResetState);
-
-      // Capture next frame after reset
-      requestAnimationFrame(() => {
-        const afterResetState = {
-          pathname,
-          windowScrollY: window.scrollY,
-          documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
-          documentElementScrollTop: document.documentElement.scrollTop,
-          bodyScrollTop: document.body.scrollTop,
-          lenisScroll: lenisInstance.scroll,
-          lenisActualScroll: lenisInstance.actualScroll,
-          lenisTargetScroll: lenisInstance.targetScroll,
-          lenisIsScrolling: lenisInstance.isScrolling,
-          timestamp: performance.now(),
-        };
-        console.log('[LENIS_DIAGNOSTIC] ROUTE_CHANGE_AFTER_RESET_FRAME_1', afterResetState);
-
-        // Capture 2nd frame after reset
-        requestAnimationFrame(() => {
-          const afterResetState2 = {
-            pathname,
-            windowScrollY: window.scrollY,
-            documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
-            documentElementScrollTop: document.documentElement.scrollTop,
-            bodyScrollTop: document.body.scrollTop,
-            lenisScroll: lenisInstance.scroll,
-            lenisActualScroll: lenisInstance.actualScroll,
-            lenisTargetScroll: lenisInstance.targetScroll,
-            lenisIsScrolling: lenisInstance.isScrolling,
-            timestamp: performance.now(),
-          };
-          console.log('[LENIS_DIAGNOSTIC] ROUTE_CHANGE_AFTER_RESET_FRAME_2', afterResetState2);
-        });
-      });
-    };
-
-    // Listen for pathname changes to detect route transitions
-    window.addEventListener('popstate', onRouteChange);
-
     // Animation loop with proper cancellation and loop leak detection
     let frameId: number;
     let frameCount = 0;
@@ -214,11 +221,11 @@ export function LenisProvider({ children }: { children: ReactNode }) {
       }
       window.removeEventListener('wheel', onWheel);
       window.removeEventListener('touchstart', onTouchStart);
-      window.removeEventListener('popstate', onRouteChange);
+      window.removeEventListener('popstate', handleRouteChange);
       cancelAnimationFrame(frameId);
       lenisInstance.destroy();
     };
-  }, [pathname]);
+  }, []); // CEO FIX: Remove pathname dependency to prevent Lenis recreation on route changes
 
   return (
     <LenisContext.Provider value={{ lenis }}>
