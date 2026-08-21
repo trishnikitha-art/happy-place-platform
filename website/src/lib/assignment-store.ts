@@ -863,8 +863,8 @@ export async function quarantinePoisonedAssignments(
     gateCommitTimestamp: GATE_COMMIT_TIMESTAMP,
   };
 
-  // Reconciliation check
-  const expectedAfter = beforeCount - quarantinedCount - concurrentlyChangedCount;
+  // Reconciliation check (FIXED: use actual successful deletes, not quarantine writes)
+  const expectedAfter = beforeCount - deletedFromActiveCount - concurrentlyChangedCount;
   const reconciliation = afterCount === expectedAfter;
   console.log('[ASSIGNMENT_QUARANTINE] Complete', {
     ...report,
@@ -877,6 +877,7 @@ export async function quarantinePoisonedAssignments(
     console.error('[ASSIGNMENT_QUARANTINE] RECONCILIATION FAILED', {
       beforeCount,
       quarantinedCount,
+      deletedFromActiveCount,
       concurrentlyChangedCount,
       failedCount,
       expectedAfter,

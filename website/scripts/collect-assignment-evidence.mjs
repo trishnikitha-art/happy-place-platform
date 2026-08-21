@@ -28,21 +28,21 @@ async function collectAssignmentEvidence() {
     const token = process.env.KV_REST_API_TOKEN;
     const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
 
-    // STRICTLY READ-ONLY: Prefer read-only credentials
-    let effectiveToken = readOnlyToken || token;
-    let isReadOnly = !!readOnlyToken;
-
-    if (!url || !effectiveToken) {
-      console.error('[EVIDENCE_COLLECTION] Missing KV credentials: KV_REST_API_URL and KV_REST_API_TOKEN (or read-only token) required');
+    // STRICTLY READ-ONLY: REQUIRE read-only credentials
+    if (!readOnlyToken) {
+      console.error('[EVIDENCE_COLLECTION] ERROR: Read-only token required for forensic collection');
+      console.error('[EVIDENCE_COLLECTION] Provide KV_REST_API__KV_REST_API_READ_ONLY_TOKEN environment variable');
+      console.error('[EVIDENCE_COLLECTION] Forensic collection must be read-only to prevent accidental mutation');
       process.exit(1);
     }
 
-    // Warn if using writable credentials
-    if (!isReadOnly) {
-      console.warn('[EVIDENCE_COLLECTION] WARNING: Using writable credentials. For safety, provide KV_REST_API__KV_REST_API_READ_ONLY_TOKEN');
+    if (!url || !readOnlyToken) {
+      console.error('[EVIDENCE_COLLECTION] Missing KV credentials: KV_REST_API_URL and KV_REST_API__KV_REST_API_READ_ONLY_TOKEN required');
+      process.exit(1);
     }
 
-    const redis = new Redis({ url, token: effectiveToken });
+    const redis = new Redis({ url, token: readOnlyToken });
+    const isReadOnly = true;
 
     console.log('[EVIDENCE_COLLECTION] Starting production assignment evidence collection');
     console.log('[EVIDENCE_COLLECTION] READ_ONLY_MODE:', isReadOnly);
@@ -84,15 +84,17 @@ async function collectAssignmentEvidence() {
           }
 
           // Chronology classification (updatedAt, NOT createdAt)
+          // NOTE: updatedAt < gate does NOT prove record existed before gate
+          // It only proves the stored timestamp predates the gate
           let chronologyClassification = 'MISSING_TIMESTAMP';
           if (assignment.updatedAt) {
             const updatedAtDate = new Date(assignment.updatedAt);
             if (isNaN(updatedAtDate.getTime())) {
               chronologyClassification = 'INVALID_TIMESTAMP';
             } else if (updatedAtDate < gateDate) {
-              chronologyClassification = 'PRE_GATE_RECORDED';
+              chronologyClassification = 'TIMESTAMP_PRE_GATE';
             } else {
-              chronologyClassification = 'POST_GATE_RECORDED';
+              chronologyClassification = 'TIMESTAMP_POST_GATE';
             }
           }
 
@@ -149,16 +151,16 @@ async function collectAssignmentEvidence() {
 
     // Analyze evidence
     const poisonedAssignments = evidence.filter(e => e.isPoisoned);
-    const preGateRecorded = [];
-    const postGateRecorded = [];
+    const timestampPreGate = [];
+    const timestampPostGate = [];
     const missingTimestamp = [];
     const invalidTimestamp = [];
 
     for (const poisoned of poisonedAssignments) {
-      if (poisoned.chronologyClassification === 'PRE_GATE_RECORDED') {
-        preGateRecorded.push(poisoned);
-      } else if (poisoned.chronologyClassification === 'POST_GATE_RECORDED') {
-        postGateRecorded.push(poisoned);
+      if (poisoned.chronologyClassification === 'TIMESTAMP_PRE_GATE') {
+        timestampPreGate.push(poisoned);
+      } else if (poisoned.chronologyClassification === 'TIMESTAMP_POST_GATE') {
+        timestampPostGate.push(poisoned);
       } else if (poisoned.chronologyClassification === 'MISSING_TIMESTAMP') {
         missingTimestamp.push(poisoned);
       } else if (poisoned.chronologyClassification === 'INVALID_TIMESTAMP') {
@@ -177,15 +179,15 @@ async function collectAssignmentEvidence() {
       summary: {
         totalAssignments: evidence.length,
         poisonedAssignments: poisonedAssignments.length,
-        preGateRecorded: preGateRecorded.length,
-        postGateRecorded: postGateRecorded.length,
+        timestampPreGate: timestampPreGate.length,
+        timestampPostGate: timestampPostGate.length,
         missingTimestamp: missingTimestamp.length,
         invalidTimestamp: invalidTimestamp.length,
         quarantineRecords: quarantineEvidence.length,
       },
       classification: {
-        preGateRecorded,
-        postGateRecorded,
+        timestampPreGate,
+        timestampPostGate,
         missingTimestamp,
         invalidTimestamp,
       },
@@ -201,19 +203,22 @@ async function collectAssignmentEvidence() {
     console.log('[EVIDENCE_COLLECTION] Report written to ASSIGNMENT_EVIDENCE_REPORT.json');
 
     // Classification decision
-    if (postGateRecorded.length > 0) {
-      console.error('[EVIDENCE_COLLECTION] ❌ POST-GATE RECORDED POISON DETECTED - CLEANUP BLOCKED');
-      console.error('[EVIDENCE_COLLECTION] Post-gate assignments:', postGateRecorded);
+    if (timestampPostGate.length > 0) {
+      console.error('[EVIDENCE_COLLECTION] ❌ TIMESTAMP_POST_GATE POISON DETECTED - CLEANUP BLOCKED');
+      console.error('[EVIDENCE_COLLECTION] Post-gate timestamp assignments:', timestampPostGate);
+      console.error('[EVIDENCE_COLLECTION] NOTE: timestamp_post_gate does NOT prove creation time, only last-update timestamp after gate');
       process.exit(1);
     } else if (missingTimestamp.length > 0 || invalidTimestamp.length > 0) {
       console.error('[EVIDENCE_COLLECTION] ⚠️ FORENSIC INCONCLUSIVE - CLEANUP BLOCKED');
       console.error('[EVIDENCE_COLLECTION] Missing timestamps:', missingTimestamp.length);
       console.error('[EVIDENCE_COLLECTION] Invalid timestamps:', invalidTimestamp.length);
       process.exit(1);
-    } else if (preGateRecorded.length > 0) {
-      console.log('[EVIDENCE_COLLECTION] ✅ PRE-GATE RECORDED POISON CONFIRMED - CLEANUP SAFE TO AUTHORIZE');
-      console.log('[EVIDENCE_COLLECTION] Pre-gate recorded poison count:', preGateRecorded.length);
-      console.log('[EVIDENCE_COLLECTION] NOTE: Pre-gate updatedAt does NOT prove creation time, only last-update timestamp before gate');
+    } else if (timestampPreGate.length > 0) {
+      console.log('[EVIDENCE_COLLECTION] ✅ TIMESTAMP_PRE_GATE POISON CONFIRMED - CLEANUP SAFE TO AUTHORIZE');
+      console.log('[EVIDENCE_COLLECTION] Pre-gate timestamp poison count:', timestampPreGate.length);
+      console.log('[EVIDENCE_COLLECTION] CRITICAL DISTINCTION: timestamp_pre_gate ≠ creation_pre_gate');
+      console.log('[EVIDENCE_COLLECTION] This only proves the stored updatedAt predates the gate, not that the record existed before the gate');
+      console.log('[EVIDENCE_COLLECTION] Additional evidence required: deployment timeline, writer history, Redis persistence history');
     } else {
       console.log('[EVIDENCE_COLLECTION] ✅ NO POISON DETECTED');
     }
