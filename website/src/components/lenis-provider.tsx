@@ -67,14 +67,16 @@ export function LenisProvider({ children }: { children: ReactNode }) {
 
     // DIAGNOSTIC: Log initial scroll state at Lenis initialization
     const initialScrollState = {
+      pathname,
+      windowScrollY: window.scrollY,
+      documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
+      documentElementScrollTop: document.documentElement.scrollTop,
+      bodyScrollTop: document.body.scrollTop,
+      historyScrollRestoration: history.scrollRestoration,
       lenisScroll: lenisInstance.scroll,
       lenisActualScroll: lenisInstance.actualScroll,
-      lenisLimit: lenisInstance.limit,
-      windowScrollY: window.scrollY,
-      documentScrollHeight: document.documentElement.scrollHeight,
-      documentClientHeight: document.documentElement.clientHeight,
-      mainHeight: document.querySelector('main')?.scrollHeight || 0,
-      pathname,
+      lenisTargetScroll: lenisInstance.targetScroll,
+      lenisIsScrolling: lenisInstance.isScrolling,
       timestamp: performance.now(),
     };
     console.log('[LENIS_DIAGNOSTIC] INITIAL_SCROLL_STATE', initialScrollState);
@@ -82,6 +84,7 @@ export function LenisProvider({ children }: { children: ReactNode }) {
     // DIAGNOSTIC: Track first wheel/touch event to Lenis
     let firstWheelEvent: any = null;
     let firstTouchEvent: any = null;
+    let firstLenisScrollEvent: any = null;
     const onWheel = (e: WheelEvent) => {
       if (!firstWheelEvent) {
         firstWheelEvent = {
@@ -109,8 +112,79 @@ export function LenisProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    // DIAGNOSTIC: Track first Lenis scroll event
+    lenisInstance.on('scroll', (e: { velocity?: number; direction?: number } | undefined) => {
+      if (!firstLenisScrollEvent) {
+        firstLenisScrollEvent = {
+          lenisScroll: lenisInstance.scroll,
+          lenisActualScroll: lenisInstance.actualScroll,
+          lenisTargetScroll: lenisInstance.targetScroll,
+          lenisLimit: lenisInstance.limit,
+          lenisVelocity: e?.velocity,
+          lenisDirection: e?.direction,
+          lenisProgress: lenisInstance.progress,
+          timestamp: performance.now(),
+        };
+        console.log('[LENIS_DIAGNOSTIC] FIRST_LENIS_SCROLL_EVENT', firstLenisScrollEvent);
+      }
+    });
+
     window.addEventListener('wheel', onWheel, { passive: true });
     window.addEventListener('touchstart', onTouchStart, { passive: true });
+
+    // DIAGNOSTIC: Track route transition scroll state
+    const onRouteChange = () => {
+      const beforeResetState = {
+        pathname,
+        windowScrollY: window.scrollY,
+        documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
+        documentElementScrollTop: document.documentElement.scrollTop,
+        bodyScrollTop: document.body.scrollTop,
+        lenisScroll: lenisInstance.scroll,
+        lenisActualScroll: lenisInstance.actualScroll,
+        lenisTargetScroll: lenisInstance.targetScroll,
+        lenisIsScrolling: lenisInstance.isScrolling,
+        timestamp: performance.now(),
+      };
+      console.log('[LENIS_DIAGNOSTIC] ROUTE_CHANGE_BEFORE_RESET', beforeResetState);
+
+      // Capture next frame after reset
+      requestAnimationFrame(() => {
+        const afterResetState = {
+          pathname,
+          windowScrollY: window.scrollY,
+          documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
+          documentElementScrollTop: document.documentElement.scrollTop,
+          bodyScrollTop: document.body.scrollTop,
+          lenisScroll: lenisInstance.scroll,
+          lenisActualScroll: lenisInstance.actualScroll,
+          lenisTargetScroll: lenisInstance.targetScroll,
+          lenisIsScrolling: lenisInstance.isScrolling,
+          timestamp: performance.now(),
+        };
+        console.log('[LENIS_DIAGNOSTIC] ROUTE_CHANGE_AFTER_RESET_FRAME_1', afterResetState);
+
+        // Capture 2nd frame after reset
+        requestAnimationFrame(() => {
+          const afterResetState2 = {
+            pathname,
+            windowScrollY: window.scrollY,
+            documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
+            documentElementScrollTop: document.documentElement.scrollTop,
+            bodyScrollTop: document.body.scrollTop,
+            lenisScroll: lenisInstance.scroll,
+            lenisActualScroll: lenisInstance.actualScroll,
+            lenisTargetScroll: lenisInstance.targetScroll,
+            lenisIsScrolling: lenisInstance.isScrolling,
+            timestamp: performance.now(),
+          };
+          console.log('[LENIS_DIAGNOSTIC] ROUTE_CHANGE_AFTER_RESET_FRAME_2', afterResetState2);
+        });
+      });
+    };
+
+    // Listen for pathname changes to detect route transitions
+    window.addEventListener('popstate', onRouteChange);
 
     // Animation loop with proper cancellation and loop leak detection
     let frameId: number;
@@ -135,8 +209,12 @@ export function LenisProvider({ children }: { children: ReactNode }) {
       if (firstTouchEvent) {
         console.log('[LENIS_DIAGNOSTIC] Session summary - touch events observed');
       }
+      if (firstLenisScrollEvent) {
+        console.log('[LENIS_DIAGNOSTIC] Session summary - Lenis scroll events observed');
+      }
       window.removeEventListener('wheel', onWheel);
       window.removeEventListener('touchstart', onTouchStart);
+      window.removeEventListener('popstate', onRouteChange);
       cancelAnimationFrame(frameId);
       lenisInstance.destroy();
     };

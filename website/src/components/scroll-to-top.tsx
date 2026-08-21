@@ -14,37 +14,46 @@ export function ScrollToTop() {
   const pathname = usePathname();
 
   useEffect(() => {
-    // DIAGNOSTIC: Log component mount timestamp to track initialization order relative to Lenis
-    console.log('[SCROLLTOTOP_DIAGNOSTIC] COMPONENT_MOUNT', {
+    // DIAGNOSTIC: Precise scroll state before route reset
+    const beforeResetState = {
       pathname,
-      timestamp: performance.now(),
-    });
-
-    // DIAGNOSTIC: Log scroll state BEFORE native scrollTo
-    const preScrollState = {
       windowScrollY: window.scrollY,
-      documentScrollHeight: document.documentElement.scrollHeight,
-      documentClientHeight: document.documentElement.clientHeight,
-      pathname,
+      documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
+      documentElementScrollTop: document.documentElement.scrollTop,
+      bodyScrollTop: document.body.scrollTop,
+      historyScrollRestoration: history.scrollRestoration,
       timestamp: performance.now(),
     };
-    console.log('[SCROLLTOTOP_DIAGNOSTIC] PRE_SCROLL_STATE', preScrollState);
+    console.log('[SCROLLTOTOP_DIAGNOSTIC] BEFORE_ROUTE_RESET', beforeResetState);
 
     // Native scroll to top
     window.scrollTo({ top: 0, left: 0, behavior: "instant" });
 
-    // DIAGNOSTIC: Log scroll state AFTER native scrollTo
-    // Use setTimeout to allow the scroll to settle
-    setTimeout(() => {
-      const postScrollState = {
-        windowScrollY: window.scrollY,
-        documentScrollHeight: document.documentElement.scrollHeight,
-        documentClientHeight: document.documentElement.clientHeight,
+    // DIAGNOSTIC: Capture next frame after reset
+    requestAnimationFrame(() => {
+      const afterResetState = {
         pathname,
+        windowScrollY: window.scrollY,
+        documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
+        documentElementScrollTop: document.documentElement.scrollTop,
+        bodyScrollTop: document.body.scrollTop,
         timestamp: performance.now(),
       };
-      console.log('[SCROLLTOTOP_DIAGNOSTIC] POST_SCROLL_STATE', postScrollState);
-    }, 10);
+      console.log('[SCROLLTOTOP_DIAGNOSTIC] AFTER_ROUTE_RESET_FRAME_1', afterResetState);
+
+      // Capture 2nd frame after reset
+      requestAnimationFrame(() => {
+        const afterResetState2 = {
+          pathname,
+          windowScrollY: window.scrollY,
+          documentScrollingElementScrollTop: document.scrollingElement?.scrollTop,
+          documentElementScrollTop: document.documentElement.scrollTop,
+          bodyScrollTop: document.body.scrollTop,
+          timestamp: performance.now(),
+        };
+        console.log('[SCROLLTOTOP_DIAGNOSTIC] AFTER_ROUTE_RESET_FRAME_2', afterResetState2);
+      });
+    });
   }, [pathname]);
 
   return null;
