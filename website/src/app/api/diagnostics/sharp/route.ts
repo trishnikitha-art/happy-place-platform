@@ -39,9 +39,6 @@ async function runSharpDiagnostics(requestId: string) {
   const results: any = {
     requestId,
     timestamp: new Date().toISOString(),
-    platform: process.platform,
-    arch: process.arch,
-    nodeVersion: process.version,
     stages: {},
   };
 
@@ -50,23 +47,22 @@ async function runSharpDiagnostics(requestId: string) {
     const sharp = require('sharp');
     results.stages.moduleImport = {
       status: 'passed',
-      sharpLoaded: true,
     };
     results.stages.version = {
       status: 'passed',
-      version: sharp.versions || 'unknown',
+      version: sharp.versions ? 'loaded' : 'unknown',
     };
 
     // Stage 2: Format capabilities (using documented APIs)
     try {
       results.stages.formatCapabilities = {
         status: 'passed',
-        formats: sharp.format || {},
+        formats: sharp.format ? 'available' : 'unavailable',
       };
     } catch (e) {
       results.stages.formatCapabilities = {
         status: 'failed',
-        error: e instanceof Error ? e.message : String(e),
+        errorCode: 'SHARP_FORMAT_QUERY_FAILED',
       };
     }
 
@@ -82,8 +78,7 @@ async function runSharpDiagnostics(requestId: string) {
     } catch (e) {
       results.stages.metadata = {
         status: 'failed',
-        error: e instanceof Error ? e.message : String(e),
-        stack: e instanceof Error ? e.stack : undefined,
+        errorCode: 'SHARP_METADATA_FAILED',
       };
       return results; // Stop here if metadata fails
     }
@@ -98,8 +93,7 @@ async function runSharpDiagnostics(requestId: string) {
     } catch (e) {
       results.stages.transform = {
         status: 'failed',
-        error: e instanceof Error ? e.message : String(e),
-        stack: e instanceof Error ? e.stack : undefined,
+        errorCode: 'SHARP_TRANSFORM_FAILED',
       };
     }
 
@@ -113,8 +107,7 @@ async function runSharpDiagnostics(requestId: string) {
     } catch (e) {
       results.stages.webp = {
         status: 'failed',
-        error: e instanceof Error ? e.message : String(e),
-        stack: e instanceof Error ? e.stack : undefined,
+        errorCode: 'SHARP_WEBP_FAILED',
       };
     }
 
@@ -128,16 +121,14 @@ async function runSharpDiagnostics(requestId: string) {
     } catch (e) {
       results.stages.avif = {
         status: 'failed',
-        error: e instanceof Error ? e.message : String(e),
-        stack: e instanceof Error ? e.stack : undefined,
+        errorCode: 'SHARP_AVIF_FAILED',
       };
     }
 
   } catch (e) {
     results.stages.moduleImport = {
       status: 'failed',
-      error: e instanceof Error ? e.message : String(e),
-      stack: e instanceof Error ? e.stack : undefined,
+      errorCode: 'SHARP_IMPORT_FAILED',
     };
   }
 

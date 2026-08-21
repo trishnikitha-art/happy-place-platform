@@ -239,16 +239,17 @@ authUrl.searchParams.append('prompt', 'consent');  // Only on first login
 - ❓ Cookie secret stability across deployments not verified
 - ❓ Cookie persistence across deployments not verified
 
-**Most Likely Root Cause:**
+**Most Likely Root Cause (UX):**
 `prompt=consent` forces user to grant consent every time, creating the perception of "repeated login."
 
-**Secondary Root Cause:**
-Cookie signing secret may change between deployments, invalidating cookies.
+**Root Cause (Architectural):**
+Refresh token stored in 30-day browser cookie, not server-side durable storage. Cookie may not survive Vercel deployments if signing secret changes.
 
 **Recommendation:**
 1. Remove `prompt=consent` after first login (use only on initial consent)
-2. Verify cookie secret stability across Vercel deployments
-3. Consider server-side refresh token storage for long-term solution
+2. Omit prompt on subsequent logins (Google recommends user prompted only first time project requests access)
+3. Verify cookie secret stability across Vercel deployments
+4. Implement server-side refresh token storage for long-term solution
 
 ---
 

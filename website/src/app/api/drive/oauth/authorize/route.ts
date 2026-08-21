@@ -39,20 +39,17 @@ export async function GET(request: Request) {
   authUrl.searchParams.append('scope', scopes.join(' '));
   authUrl.searchParams.append('access_type', 'offline');
   
-  // Check if user already has refresh token (has previously consented)
+  // Use prompt=consent only on first login; omit prompt on subsequent logins
+  // Google recommends: user prompted only first time project requests access
   const hasRefreshToken = await driveSession.getRefreshToken();
-  
-  // Only force consent on first login; subsequent logins use silent approval
-  if (hasRefreshToken) {
-    authUrl.searchParams.append('prompt', 'none');
-  } else {
+  if (!hasRefreshToken) {
     authUrl.searchParams.append('prompt', 'consent');
   }
 
   console.log('[DRIVE OAUTH FORENSIC] Redirecting to Google OAuth:', {
     authUrl: authUrl.toString(),
     hasRefreshToken: !!hasRefreshToken,
-    prompt: hasRefreshToken ? 'none' : 'consent',
+    prompt: !hasRefreshToken ? 'consent' : 'omitted',
   });
 
   return NextResponse.redirect(authUrl.toString());
