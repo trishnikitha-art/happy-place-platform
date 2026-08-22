@@ -133,9 +133,10 @@ function validateAuthorizationRecord(data: unknown): data is GoogleAuthorization
 }
 
 /**
- * Store authorization record
+ * Store authorization record with atomic subject index
  *
- * Updates subject index for identity lookup
+ * Uses Redis Lua transaction for atomic authorization + subject index write
+ * Ensures subject index cannot point to non-existent authorization
  */
 export async function storeAuthorization(record: GoogleAuthorizationRecord): Promise<void> {
   if (!validateAuthorizationRecord(record)) {
@@ -144,14 +145,33 @@ export async function storeAuthorization(record: GoogleAuthorizationRecord): Pro
 
   try {
     const client = getRedisClient();
-    await client.set(`${AUTH_PREFIX}${record.id}`, record);
-    await client.expire(`${AUTH_PREFIX}${record.id}`, AUTH_TTL_SECONDS);
 
-    // Update subject index for identity lookup
-    await client.set(`${AUTH_SUBJECT_PREFIX}${record.googleSubject}`, record.id);
-    await client.expire(`${AUTH_SUBJECT_PREFIX}${record.googleSubject}`, AUTH_TTL_SECONDS);
+    // Redis Lua script for atomic authorization + subject index write
+    const luaScript = `
+      local auth_key = KEYS[1]
+      local subject_key = KEYS[2]
+      local auth_data = ARGV[1]
+      local subject_value = ARGV[2]
+      local ttl = ARGV[3]
 
-    console.log('[AUTH_STORE] Authorization stored:', record.id);
+      -- Store authorization record
+      redis.call('SET', auth_key, auth_data)
+      redis.call('EXPIRE', auth_key, ttl)
+
+      -- Store subject index
+      redis.call('SET', subject_key, subject_value)
+      redis.call('EXPIRE', subject_key, ttl)
+
+      return 1
+    `;
+
+    await client.eval(
+      luaScript,
+      [`${AUTH_PREFIX}${record.id}`, `${AUTH_SUBJECT_PREFIX}${record.googleSubject}`],
+      [JSON.stringify(record), record.id, AUTH_TTL_SECONDS.toString()]
+    );
+
+    console.log('[AUTH_STORE] Authorization stored atomically:', record.id);
   } catch (error) {
     console.error('[AUTH_STORE] Store failed:', error);
     throw new Error(`Failed to store authorization ${record.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
