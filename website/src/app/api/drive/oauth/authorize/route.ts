@@ -28,6 +28,25 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'GOOGLE_CLIENT_ID not configured' }, { status: 500 });
   }
 
+  // Validate redirect URI to prevent redirect_uri injection
+  const redirectUriUrl = new URL(redirectUri);
+  const isLocalhost = redirectUriUrl.hostname === 'localhost' || redirectUriUrl.hostname === '127.0.0.1';
+  const isHttps = redirectUriUrl.protocol === 'https:';
+  const expectedPath = '/api/drive/oauth/callback';
+  const hasExpectedPath = redirectUriUrl.pathname === expectedPath;
+
+  if (!isLocalhost && !isHttps) {
+    console.log('[DRIVE OAUTH FORENSIC] Redirect URI validation failed: non-localhost must use HTTPS');
+    return NextResponse.json({ error: 'Invalid redirect URI: non-localhost must use HTTPS' }, { status: 500 });
+  }
+
+  if (!hasExpectedPath) {
+    console.log('[DRIVE OAUTH FORENSIC] Redirect URI validation failed: path must be /api/drive/oauth/callback');
+    return NextResponse.json({ error: 'Invalid redirect URI: path must be /api/drive/oauth/callback' }, { status: 500 });
+  }
+
+  console.log('[DRIVE OAUTH FORENSIC] Redirect URI validation passed');
+
   // Create OAuth state for CSRF protection
   const state = await createState();
   if (!state) {
