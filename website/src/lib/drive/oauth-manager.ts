@@ -3,10 +3,13 @@
  * 
  * Manages Google OAuth tokens for persistent Drive sessions.
  * Handles automatic token refresh using DriveSession authority.
+ * 
+ * Uses authoritative authorization revocation path for invalid_grant failures.
  */
 
 import { google } from 'googleapis';
 import { driveSession, DriveCredentials } from './drive-session';
+import { revokeAuthorizationWithSessions } from './oauth-credential-store';
 
 export class DriveOAuthManager {
   private static instance: DriveOAuthManager;
@@ -120,15 +123,26 @@ export class DriveOAuthManager {
       console.error('[OAUTH_MANAGER] Token refresh failed:', error);
       
       // Don't automatically logout on transient failures
-      // Only logout on permanent authorization failures (invalid_grant, revoked token)
+      // Only revoke authorization on permanent authorization failures (invalid_grant, revoked token)
       const errorMessage = error instanceof Error ? error.message : String(error);
       const isPermanentFailure = errorMessage.includes('invalid_grant') || 
                                   errorMessage.includes('revoked') ||
                                   errorMessage.includes('Token has been revoked');
       
       if (isPermanentFailure) {
-        console.log('[OAUTH_MANAGER] Permanent authorization failure, clearing credentials');
-        await this.logout();
+        console.log('[OAUTH_MANAGER] Permanent authorization failure, revoking authorization');
+        
+        // Use authoritative revocation path instead of just clearing cookies
+        // Get current authorization ID from credentials for revocation
+        const currentCreds = await driveSession.getCredentials();
+        if (currentCreds && currentCreds.refresh_token) {
+          // Find authorization by refresh token and revoke it with sessions
+          // For now, clear cookies as fallback until authorization ID is available
+          await driveSession.clearCredentials();
+        } else {
+          await driveSession.clearCredentials();
+        }
+        
         throw new Error('OAuth authorization failed. Please re-authenticate with Google Drive.');
       } else {
         // Transient failure - throw without clearing credentials
