@@ -18,11 +18,12 @@ export async function GET(request: NextRequest) {
     const oauth2 = getGoogleAuth();
     const { tokens } = await oauth2.getToken(code);
     // SECURITY: Never expose refresh_token to client
-    // Store refresh_token in server-side secret store (GOOGLE_REFRESH_TOKEN env var)
+    // This route does NOT persist the refresh token - it only displays it for manual copy
+    // The user must manually copy the refresh token to GOOGLE_REFRESH_TOKEN environment variable
     return NextResponse.json({
       ok: true,
-      refresh_token_stored: !!tokens.refresh_token,
-      note: "Refresh token has been stored server-side. Never expose to client.",
+      refresh_token_provided: !!tokens.refresh_token,
+      note: "Refresh token was provided by Google. Copy it manually to GOOGLE_REFRESH_TOKEN environment variable. This route does not persist tokens automatically.",
     });
   } catch (e) {
     return NextResponse.json({ ok: false, error: String(e) }, { status: 500 });

@@ -9,7 +9,9 @@
 
 import { google } from 'googleapis';
 import { driveSession, DriveCredentials } from './drive-session';
-import { revokeAuthorizationWithSessions } from './oauth-credential-store';
+import { revokeAuthorizationWithSessions, getAuthorization, updateAuthorizationAfterRefresh } from './oauth-credential-store';
+import { getSession } from './session-store';
+import { cookies } from 'next/headers';
 
 export class DriveOAuthManager {
   private static instance: DriveOAuthManager;
@@ -89,18 +91,32 @@ export class DriveOAuthManager {
         expiryDate: tokens.expiry_date,
       });
       try {
-        // Get current credentials to preserve refresh token if not provided
-        const currentCreds = await driveSession.getCredentials();
-        // Update DriveSession with refreshed tokens
-        await driveSession.setCredentials({
-          access_token: tokens.access_token,
-          refresh_token: tokens.refresh_token || currentCreds?.refresh_token,
-          expiry_date: tokens.expiry_date,
-          scope: tokens.scope,
-        });
-        console.log('[OAUTH_MANAGER] Credentials updated successfully');
+        // Get session ID to find authorization
+        const cookieStore = await cookies();
+        const sessionId = cookieStore.get('drive_session_id')?.value;
+        
+        if (sessionId) {
+          const session = await getSession(sessionId);
+          if (session) {
+            const authorization = await getAuthorization(session.authorizationId);
+            if (authorization && authorization.status === 'active') {
+              // Update authorization with refreshed tokens
+              await updateAuthorizationAfterRefresh(
+                authorization.id,
+                tokens.access_token,
+                tokens.expiry_date || Date.now() + 3600 * 1000,
+                tokens.refresh_token
+              );
+              
+              console.log('[OAUTH_MANAGER] Authorization updated successfully');
+              return;
+            }
+          }
+        }
+        
+        console.log('[OAUTH_MANAGER] Session or authorization not found, cannot update tokens');
       } catch (error) {
-        console.error('[OAUTH_MANAGER] Failed to update credentials after refresh:', error);
+        console.error('[OAUTH_MANAGER] Failed to update authorization after refresh:', error);
       }
     });
   }
@@ -132,16 +148,20 @@ export class DriveOAuthManager {
       if (isPermanentFailure) {
         console.log('[OAUTH_MANAGER] Permanent authorization failure, revoking authorization');
         
-        // Use authoritative revocation path instead of just clearing cookies
-        // Get current authorization ID from credentials for revocation
-        const currentCreds = await driveSession.getCredentials();
-        if (currentCreds && currentCreds.refresh_token) {
-          // Find authorization by refresh token and revoke it with sessions
-          // For now, clear cookies as fallback until authorization ID is available
-          await driveSession.clearCredentials();
-        } else {
-          await driveSession.clearCredentials();
+        // Use authoritative revocation path
+        const cookieStore = await cookies();
+        const sessionId = cookieStore.get('drive_session_id')?.value;
+        
+        if (sessionId) {
+          const session = await getSession(sessionId);
+          if (session) {
+            await revokeAuthorizationWithSessions(session.authorizationId);
+            console.log('[OAUTH_MANAGER] Authorization revoked:', session.authorizationId);
+          }
         }
+        
+        // Clear session cookie
+        cookieStore.delete('drive_session_id');
         
         throw new Error('OAuth authorization failed. Please re-authenticate with Google Drive.');
       } else {
