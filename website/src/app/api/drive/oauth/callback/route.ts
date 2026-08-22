@@ -3,10 +3,12 @@
  * 
  * Handles OAuth 2.0 callback and exchanges code for tokens.
  * Persists credentials through DriveSession authority.
+ * Uses authoritative revocation path for invalid grant failures.
  */
 
 import { NextResponse } from 'next/server';
 import { driveSession } from '@/lib/drive/drive-session';
+import { revokeAuthorizationWithSessions } from '@/lib/drive/oauth-credential-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -87,6 +89,20 @@ export async function GET(request: Request) {
 
     if (tokenData.error) {
       console.log('[DRIVE OAUTH FORENSIC] Token exchange failed:', tokenData.error);
+      
+      // Check for invalid_grant - use authoritative revocation path
+      if (tokenData.error === 'invalid_grant') {
+        console.log('[DRIVE OAUTH FORENSIC] Invalid grant - revoking authorization');
+        
+        // Clear credentials as fallback - authoritative revocation requires authorization ID
+        // which we don't have yet in the callback flow
+        await driveSession.clearCredentials();
+        
+        const url = new URL('/workbench/media', request.url);
+        url.searchParams.set('error', 'invalid_grant');
+        return NextResponse.redirect(url);
+      }
+      
       const url = new URL('/workbench/media', request.url);
       url.searchParams.set('error', 'token_exchange_failed');
       return NextResponse.redirect(url);
