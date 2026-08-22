@@ -19,13 +19,21 @@ function getRedisClient(): Redis {
       tokenVariable: 'KV_REST_API_TOKEN',
     };
     
+    // Manual credentials, with fallback to Upstash Vercel-integration names.
+    // Previously the integration names were logged but never used, so deployments
+    // relying on the integration (KV_REST_API__* prefix) hit "Missing required
+    // environment variables" and every assignment route 500'd. Fail-closed:
+    // still throws if BOTH sources are absent.
     let url = process.env.KV_REST_API_URL;
     let token = process.env.KV_REST_API_TOKEN;
     
-    // Check integration-generated variables
+    // Check integration-generated variables (used as fallback below)
     const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
     const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
     const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
+    
+    if (!url && integrationUrl) url = integrationUrl;
+    if (!token && integrationToken) token = integrationToken;
     
     // Generate safe fingerprints
     const urlFingerprint = url ? createHash(url) : 'none';
