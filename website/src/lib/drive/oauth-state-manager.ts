@@ -5,7 +5,7 @@
  * 
  * Constitutional authority for OAuth state:
  * - Cryptographically random state generation
- * - Browser-bound state validation
+ * - Browser-bound state validation (via HttpOnly cookie)
  * - One-time state consumption
  * - Server-side persistence (Redis KV)
  * - Atomic consume operation
@@ -15,6 +15,7 @@
  */
 
 import { Redis } from '@upstash/redis';
+import { cookies } from 'next/headers';
 import crypto from 'crypto';
 
 let redis: Redis | null = null;
@@ -38,6 +39,12 @@ const STATE_PREFIX = 'drive:oauth:state:';
 
 // State TTL: 5 minutes (one-time use, short-lived)
 const STATE_TTL_SECONDS = 5 * 60;
+
+// Browser binding cookie name
+const BROWSER_BINDING_COOKIE = 'drive_oauth_binding';
+
+// Browser binding cookie TTL: 5 minutes (matches state TTL)
+const BROWSER_BINDING_TTL_SECONDS = 5 * 60;
 
 /**
  * OAuth State Record
@@ -102,22 +109,82 @@ export function generateBrowserBinding(): string {
 }
 
 /**
+ * Get or create browser binding cookie
+ *
+ * Establishes or retrieves an HttpOnly browser binding cookie for CSRF protection.
+ * The binding is cryptographically random and opaque.
+ * 
+ * @param cookieStore - Optional cookie store for testing
+ * @returns Browser binding value
+ */
+export async function getOrCreateBrowserBinding(cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<string> {
+  const actualCookieStore = cookieStore || await cookies();
+  const existingBinding = actualCookieStore.get(BROWSER_BINDING_COOKIE);
+  
+  if (existingBinding) {
+    return existingBinding.value;
+  }
+  
+  // Create new browser binding
+  const binding = generateBrowserBinding();
+  const secureFlag = process.env.NODE_ENV === 'production';
+  
+  actualCookieStore.set(BROWSER_BINDING_COOKIE, binding, {
+    httpOnly: true,
+    secure: secureFlag,
+    sameSite: 'lax',
+    maxAge: BROWSER_BINDING_TTL_SECONDS,
+    path: '/',
+  });
+  
+  return binding;
+}
+
+/**
+ * Get browser binding from cookie
+ *
+ * Retrieves the browser binding value from the HttpOnly cookie.
+ * 
+ * @param cookieStore - Optional cookie store for testing
+ * @returns Browser binding value or null if not present
+ */
+export async function getBrowserBinding(cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<string | null> {
+  const actualCookieStore = cookieStore || await cookies();
+  const binding = actualCookieStore.get(BROWSER_BINDING_COOKIE);
+  return binding?.value || null;
+}
+
+/**
+ * Clear browser binding cookie
+ *
+ * Removes the browser binding cookie.
+ * 
+ * @param cookieStore - Optional cookie store for testing
+ */
+export async function clearBrowserBinding(cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<void> {
+  const actualCookieStore = cookieStore || await cookies();
+  actualCookieStore.delete(BROWSER_BINDING_COOKIE);
+}
+
+/**
  * Create OAuth state record with browser binding
  *
  * Stores state in Redis with 5-minute TTL
  * State is not yet consumed
- *
- * @param browserBinding - Optional browser session/nonce for CSRF protection (generated if not provided)
+ * 
+ * Browser binding is obtained from HttpOnly cookie for CSRF protection
+ * 
+ * @param cookieStore - Optional cookie store for testing
  */
-export async function createState(browserBinding?: string): Promise<string> {
+export async function createState(cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<string> {
   const state = generateState();
-  const actualBrowserBinding = browserBinding || generateBrowserBinding();
+  const browserBinding = await getOrCreateBrowserBinding(cookieStore);
   const now = new Date();
   const expiresAt = new Date(now.getTime() + STATE_TTL_SECONDS * 1000);
 
   const record: OAuthStateRecord = {
     state,
-    browserBinding: actualBrowserBinding,
+    browserBinding,
     createdAt: now.toISOString(),
     expiresAt: expiresAt.toISOString(),
     consumed: false,
@@ -128,11 +195,7 @@ export async function createState(browserBinding?: string): Promise<string> {
     await client.set(`${STATE_PREFIX}${state}`, record);
     await client.expire(`${STATE_PREFIX}${state}`, STATE_TTL_SECONDS);
 
-    console.log('[OAUTH_STATE] State created:', {
-      state: state.substring(0, 8) + '...',
-      browserBinding: actualBrowserBinding.substring(0, 8) + '...',
-      expiresAt: expiresAt.toISOString(),
-    });
+    console.log('[OAUTH_STATE] State created');
 
     return state;
   } catch (error) {
@@ -146,41 +209,44 @@ export async function createState(browserBinding?: string): Promise<string> {
  *
  * Checks if state exists, not expired, not consumed, and browser binding matches
  * Does NOT consume the state
+ * 
+ * Browser binding is obtained from HttpOnly cookie
  *
  * @param state - OAuth state string
- * @param browserBinding - Browser session/nonce to validate against (optional for backward compatibility)
+ * @param cookieStore - Optional cookie store for testing
  */
-export async function validateState(state: string, browserBinding?: string): Promise<boolean> {
+export async function validateState(state: string, cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<boolean> {
   try {
     const client = getRedisClient();
     const record = await client.get<OAuthStateRecord>(`${STATE_PREFIX}${state}`);
 
     if (!record) {
-      console.log('[OAUTH_STATE] State not found:', state.substring(0, 8) + '...');
+      console.log('[OAUTH_STATE] State not found');
       return false;
     }
 
     if (!validateStateRecord(record)) {
-      console.error('[OAUTH_STATE] Invalid state record:', state.substring(0, 8) + '...');
+      console.error('[OAUTH_STATE] Invalid state record');
       return false;
     }
 
     if (record.consumed) {
-      console.log('[OAUTH_STATE] State already consumed:', state.substring(0, 8) + '...');
+      console.log('[OAUTH_STATE] State already consumed');
       return false;
     }
 
     if (new Date(record.expiresAt) < new Date()) {
-      console.log('[OAUTH_STATE] State expired:', state.substring(0, 8) + '...');
+      console.log('[OAUTH_STATE] State expired');
       return false;
     }
 
-    if (browserBinding && record.browserBinding !== browserBinding) {
-      console.log('[OAUTH_STATE] Browser binding mismatch:', state.substring(0, 8) + '...');
+    const browserBinding = await getBrowserBinding(cookieStore);
+    if (!browserBinding || record.browserBinding !== browserBinding) {
+      console.log('[OAUTH_STATE] Browser binding mismatch');
       return false;
     }
 
-    console.log('[OAUTH_STATE] State valid:', state.substring(0, 8) + '...');
+    console.log('[OAUTH_STATE] State valid');
     return true;
   } catch (error) {
     console.error('[OAUTH_STATE] Failed to validate state:', error);
@@ -199,18 +265,24 @@ export async function validateState(state: string, browserBinding?: string): Pro
  * - Check state exists
  * - Check not expired
  * - Check not consumed
- * - Check browser binding matches
+ * - Check browser binding matches (from HttpOnly cookie)
  * - Mark as consumed
  * - All in one atomic operation
  *
  * Under concurrent requests, exactly one consumer will succeed
  *
  * @param state - OAuth state string
- * @param browserBinding - Browser session/nonce to validate against
+ * @param cookieStore - Optional cookie store for testing
  */
-export async function consumeState(state: string, browserBinding: string): Promise<boolean> {
+export async function consumeState(state: string, cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<boolean> {
   try {
     const client = getRedisClient();
+    const browserBinding = await getBrowserBinding(cookieStore);
+    
+    if (!browserBinding) {
+      console.log('[OAUTH_STATE] Browser binding missing from cookie');
+      return false;
+    }
 
     // Redis Lua script for atomic state consumption (Upstash-compatible)
     // Note: We skip timestamp expiry check in Lua for Upstash compatibility
@@ -251,10 +323,10 @@ export async function consumeState(state: string, browserBinding: string): Promi
     );
 
     if (result === 1) {
-      console.log('[OAUTH_STATE] State consumed atomically:', state.substring(0, 8) + '...');
+      console.log('[OAUTH_STATE] State consumed atomically');
       return true;
     } else {
-      console.log('[OAUTH_STATE] Consume failed (atomic check):', state.substring(0, 8) + '...');
+      console.log('[OAUTH_STATE] Consume failed (atomic check)');
       return false;
     }
   } catch (error) {
@@ -267,13 +339,18 @@ export async function consumeState(state: string, browserBinding: string): Promi
  * Delete OAuth state
  *
  * Removes state from Redis immediately
+ * Clears browser binding cookie
  * Used for cleanup or explicit revocation
+ * 
+ * @param state - OAuth state string
+ * @param cookieStore - Optional cookie store for testing
  */
-export async function deleteState(state: string): Promise<void> {
+export async function deleteState(state: string, cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<void> {
   try {
     const client = getRedisClient();
     await client.del(`${STATE_PREFIX}${state}`);
-    console.log('[OAUTH_STATE] State deleted:', state.substring(0, 8) + '...');
+    await clearBrowserBinding(cookieStore);
+    console.log('[OAUTH_STATE] State deleted');
   } catch (error) {
     console.error('[OAUTH_STATE] Failed to delete state:', error);
   }

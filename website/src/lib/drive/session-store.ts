@@ -218,7 +218,7 @@ export async function revokeSession(id: string): Promise<void> {
 export async function revokeAllSessionsForAuthorization(authorizationId: string): Promise<void> {
   try {
     const client = getRedisClient();
-    const sessionIds = await client.smembers<string>(`${AUTH_SESSIONS_PREFIX}${authorizationId}`);
+    const sessionIds = await client.smembers(`${AUTH_SESSIONS_PREFIX}${authorizationId}`) as string[];
 
     if (sessionIds.length === 0) {
       console.log('[SESSION_STORE] No sessions found for authorization:', authorizationId);
