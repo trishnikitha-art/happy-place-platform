@@ -4,8 +4,8 @@
  * Constitutional authority for Google Drive OAuth session management.
  * 
  * Single source of truth for Drive credentials:
- * - Persists access token, refresh token, expiry, scope
- * - Reads from httpOnly cookies (secure, server-side only)
+ * - Resolves opaque session ID to server-side authorization
+ * - Reads from session repository and authorization repository
  * - Provides automatic token refresh
  * - All Drive services obtain credentials through this authority
  * 
@@ -13,6 +13,9 @@
  */
 
 import { cookies } from 'next/headers';
+import { getAuthorization } from './oauth-credential-store';
+import { getSession } from './session-store';
+import { decrypt, type EncryptionEnvelope } from './encryption';
 
 export interface DriveCredentials {
   access_token: string;
@@ -36,127 +39,124 @@ export class DriveSession {
   /**
    * Check if user is authenticated with Drive
    * 
-   * Authentication requires a valid refresh token (persistent authorization).
-   * Expired access token is acceptable and will be refreshed by OAuth manager.
+   * Authentication requires a valid session ID and active authorization.
    */
   async isAuthenticated(): Promise<boolean> {
-    const refreshToken = await this.getCookie('drive_refresh_token');
-    console.log('DriveSession.isAuthenticated():', {
-      hasRefreshToken: !!refreshToken,
-      drive_refresh_token_cookie: !!refreshToken ? 'PRESENT' : 'ABSENT',
-    });
-    // Persistent authorization exists if refresh token is present
-    // Access token can be refreshed using refresh token
-    return !!refreshToken;
+    const sessionId = await this.getSessionId();
+    if (!sessionId) {
+      console.log('DriveSession.isAuthenticated(): no session ID');
+      return false;
+    }
+
+    try {
+      const session = await getSession(sessionId);
+      if (!session) {
+        console.log('DriveSession.isAuthenticated(): session not found');
+        return false;
+      }
+
+      const authorization = await getAuthorization(session.authorizationId);
+      if (!authorization || authorization.status !== 'active') {
+        console.log('DriveSession.isAuthenticated(): authorization not active');
+        return false;
+      }
+
+      console.log('DriveSession.isAuthenticated(): session and authorization valid');
+      return true;
+    } catch (error) {
+      console.error('DriveSession.isAuthenticated(): error', error);
+      return false;
+    }
   }
 
   /**
-   * Get current credentials from cookies
+   * Get current credentials from session and authorization repositories
    * 
-   * Refresh token is the authoritative credential. Access token can be missing/expired.
+   * Resolves session ID → session → authorization → decrypted credentials
    */
   async getCredentials(): Promise<DriveCredentials | null> {
-    const accessToken = await this.getCookie('drive_access_token');
-    const refreshToken = await this.getCookie('drive_refresh_token');
-    const expiryDate = await this.getCookie('drive_expiry_date');
-    const scope = await this.getCookie('drive_scope');
-
-    // Refresh token is the authoritative credential for persistent authorization
-    if (!refreshToken) {
+    const sessionId = await this.getSessionId();
+    if (!sessionId) {
+      console.log('DriveSession.getCredentials(): no session ID');
       return null;
     }
 
-    return {
-      access_token: accessToken || '', // May be empty/missing, will be refreshed
-      refresh_token: refreshToken,
-      expiry_date: expiryDate ? parseInt(expiryDate, 10) : undefined,
-      scope: scope || undefined,
-    };
+    try {
+      const session = await getSession(sessionId);
+      if (!session) {
+        console.log('DriveSession.getCredentials(): session not found');
+        return null;
+      }
+
+      const authorization = await getAuthorization(session.authorizationId);
+      if (!authorization || authorization.status !== 'active') {
+        console.log('DriveSession.getCredentials(): authorization not active');
+        return null;
+      }
+
+      // Decrypt credentials
+      const accessTokenEnvelope = JSON.parse(authorization.encryptedAccessToken) as EncryptionEnvelope;
+      const refreshTokenEnvelope = JSON.parse(authorization.encryptedRefreshToken) as EncryptionEnvelope;
+
+      const accessToken = decrypt(accessTokenEnvelope);
+      const refreshToken = decrypt(refreshTokenEnvelope);
+
+      const expiryDate = new Date(authorization.accessTokenExpiresAt).getTime();
+
+      console.log('DriveSession.getCredentials(): credentials resolved from authorization');
+      
+      return {
+        access_token: accessToken,
+        refresh_token: refreshToken,
+        expiry_date: expiryDate,
+        scope: authorization.scopes.join(' '),
+      };
+    } catch (error) {
+      console.error('DriveSession.getCredentials(): error', error);
+      return null;
+    }
   }
 
   /**
-   * Store credentials in cookies
+   * Set credentials is now a no-op - credentials are stored in authorization repository
+   * This method is kept for compatibility but should not be used
    */
   async setCredentials(credentials: DriveCredentials): Promise<void> {
-    console.log('[DRIVE SESSION FORENSIC] SETTING CREDENTIAL COOKIES');
-    const cookieStore = await cookies();
-
-    // Calculate expiry if not provided
-    const expiryDate = credentials.expiry_date || (Date.now() + 3600 * 1000);
-
-    const secureFlag = process.env.NODE_ENV === 'production';
-
-    console.log('[DRIVE SESSION FORENSIC] Cookie configuration:', {
-      secure: secureFlag,
-      sameSite: 'lax',
-      path: '/',
-      hasAccessToken: !!credentials.access_token,
-      hasRefreshToken: !!credentials.refresh_token,
-      hasExpiry: !!credentials.expiry_date,
-      hasScope: !!credentials.scope,
-    });
-
-    // Set access token (short-lived, 1 hour)
-    cookieStore.set('drive_access_token', credentials.access_token, {
-      httpOnly: true,
-      secure: secureFlag,
-      sameSite: 'lax',
-      maxAge: 3600, // 1 hour
-      path: '/',
-    });
-    console.log('[DRIVE SESSION FORENSIC] access_token cookie: SET');
-
-    // Set refresh token (long-lived, 30 days)
-    if (credentials.refresh_token) {
-      cookieStore.set('drive_refresh_token', credentials.refresh_token, {
-        httpOnly: true,
-        secure: secureFlag,
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30, // 30 days
-        path: '/',
-      });
-      console.log('[DRIVE SESSION FORENSIC] refresh_token cookie: SET');
-    } else {
-      console.log('[DRIVE SESSION FORENSIC] refresh_token cookie: NOT SET (no refresh token provided)');
-    }
-
-    // Set expiry date
-    cookieStore.set('drive_expiry_date', expiryDate.toString(), {
-      httpOnly: true,
-      secure: secureFlag,
-      sameSite: 'lax',
-      maxAge: 60 * 60 * 24 * 30,
-      path: '/',
-    });
-    console.log('[DRIVE SESSION FORENSIC] expiry_date cookie: SET');
-
-    // Set scope
-    if (credentials.scope) {
-      cookieStore.set('drive_scope', credentials.scope, {
-        httpOnly: true,
-        secure: secureFlag,
-        sameSite: 'lax',
-        maxAge: 60 * 60 * 24 * 30,
-        path: '/',
-      });
-      console.log('[DRIVE SESSION FORENSIC] scope cookie: SET');
-    } else {
-      console.log('[DRIVE SESSION FORENSIC] scope cookie: NOT SET (no scope provided)');
-    }
-
-    console.log('[DRIVE SESSION FORENSIC] CREDENTIAL COOKIES SET COMPLETE');
+    console.log('[DRIVE SESSION FORENSIC] setCredentials() called - NO-OP (credentials stored in authorization repository)');
+    // Credentials are now stored in oauth-credential-store, not cookies
+    // This method is kept for backward compatibility but does nothing
   }
 
   /**
-   * Clear all Drive credentials (logout)
+   * Clear session and authorization (logout)
    */
   async clearCredentials(): Promise<void> {
     const cookieStore = await cookies();
+    const sessionId = await this.getSessionId();
 
+    if (sessionId) {
+      try {
+        const { revokeAuthorizationWithSessions } = await import('./oauth-credential-store');
+        const session = await getSession(sessionId);
+        if (session) {
+          await revokeAuthorizationWithSessions(session.authorizationId);
+          console.log('[DRIVE SESSION FORENSIC] Authorization revoked:', session.authorizationId);
+        }
+      } catch (error) {
+        console.error('[DRIVE SESSION FORENSIC] Failed to revoke authorization:', error);
+      }
+    }
+
+    // Clear session cookie
+    cookieStore.delete('drive_session_id');
+    
+    // Clear legacy OAuth credential cookies (cleanup)
     cookieStore.delete('drive_access_token');
     cookieStore.delete('drive_refresh_token');
     cookieStore.delete('drive_expiry_date');
     cookieStore.delete('drive_scope');
+
+    console.log('[DRIVE SESSION FORENSIC] Session and credentials cleared');
   }
 
   /**
@@ -199,25 +199,20 @@ export class DriveSession {
    * Get refresh token (for token refresh flow)
    */
   async getRefreshToken(): Promise<string | null> {
-    return await this.getCookie('drive_refresh_token');
+    const credentials = await this.getCredentials();
+    return credentials?.refresh_token || null;
   }
 
   /**
-   * Helper to get cookie value
+   * Get session ID from cookie
    */
-  private async getCookie(name: string): Promise<string | null> {
+  private async getSessionId(): Promise<string | null> {
     try {
       const cookieStore = await cookies();
-      const cookie = cookieStore.get(name);
-      if (cookie) {
-        console.log(`DriveSession.getCookie(${name}): cookie exists`);
-      } else {
-        console.log(`DriveSession.getCookie(${name}): cookie NOT found`);
-      }
+      const cookie = cookieStore.get('drive_session_id');
       return cookie?.value || null;
     } catch (error) {
-      console.log(`DriveSession.getCookie(${name}): cookies() failed`, error);
-      // Cookies might not be available in all contexts
+      console.log('DriveSession.getSessionId(): cookies() failed', error);
       return null;
     }
   }

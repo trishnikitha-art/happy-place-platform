@@ -7,7 +7,6 @@
  */
 
 import { NextResponse } from 'next/server';
-import { driveSession } from '@/lib/drive/drive-session';
 import { createState } from '@/lib/drive/oauth-state-manager';
 
 export const dynamic = 'force-dynamic';
@@ -67,17 +66,9 @@ export async function GET(request: Request) {
   authUrl.searchParams.append('scope', scopes.join(' '));
   authUrl.searchParams.append('access_type', 'offline');
   authUrl.searchParams.append('state', state);
-  
-  // Use prompt=consent only on first login; omit prompt on subsequent logins
-  // Google recommends: user prompted only first time project requests access
-  const hasRefreshToken = await driveSession.getRefreshToken();
-  if (!hasRefreshToken) {
-    authUrl.searchParams.append('prompt', 'consent');
-  }
+  authUrl.searchParams.append('prompt', 'consent'); // Always prompt consent for offline access
 
   console.log('[DRIVE OAUTH FORENSIC] Redirecting to Google OAuth:', {
-    hasRefreshToken: !!hasRefreshToken,
-    prompt: !hasRefreshToken ? 'consent' : 'omitted',
     hasState: !!state,
   });
 
