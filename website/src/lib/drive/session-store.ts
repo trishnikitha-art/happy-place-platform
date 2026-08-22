@@ -105,9 +105,10 @@ export function generateSessionId(): string {
 }
 
 /**
- * Create session record
+ * Create session record with atomic index registration
  *
- * Registers session in authorization's session index
+ * Registers session in authorization's session index using Redis Lua transaction
+ * Ensures session record and index are written atomically
  */
 export async function createSession(
   authorizationId: string,
@@ -128,14 +129,33 @@ export async function createSession(
 
   try {
     const client = getRedisClient();
-    await client.set(`${SESSION_PREFIX}${sessionId}`, record);
-    await client.expire(`${SESSION_PREFIX}${sessionId}`, SESSION_TTL_SECONDS);
 
-    // Register session in authorization's session index
-    await client.sadd(`${AUTH_SESSIONS_PREFIX}${authorizationId}`, sessionId);
-    await client.expire(`${AUTH_SESSIONS_PREFIX}${authorizationId}`, SESSION_TTL_SECONDS);
+    // Redis Lua script for atomic session + index write
+    const luaScript = `
+      local session_key = KEYS[1]
+      local index_key = KEYS[2]
+      local session_data = ARGV[1]
+      local session_id = ARGV[2]
+      local ttl = ARGV[3]
 
-    console.log('[SESSION_STORE] Session created:', sessionId);
+      -- Store session record
+      redis.call('SET', session_key, session_data)
+      redis.call('EXPIRE', session_key, ttl)
+
+      -- Register in authorization's session index
+      redis.call('SADD', index_key, session_id)
+      redis.call('EXPIRE', index_key, ttl)
+
+      return 1
+    `;
+
+    await client.eval(
+      luaScript,
+      [`${SESSION_PREFIX}${sessionId}`, `${AUTH_SESSIONS_PREFIX}${authorizationId}`],
+      [JSON.stringify(record), sessionId, SESSION_TTL_SECONDS.toString()]
+    );
+
+    console.log('[SESSION_STORE] Session created atomically:', sessionId);
     return record;
   } catch (error) {
     console.error('[SESSION_STORE] Create failed:', error);
