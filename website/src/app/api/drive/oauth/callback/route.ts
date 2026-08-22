@@ -47,7 +47,6 @@ export async function GET(request: Request) {
     hasCode: !!code,
     hasError: !!error,
     hasState: !!state,
-    errorValue: error || 'none',
   });
 
   // Validate and consume OAuth state for CSRF protection
@@ -89,7 +88,6 @@ export async function GET(request: Request) {
 
   console.log('[DRIVE OAUTH FORENSIC] OAuth configuration:', {
     hasClientId: !!clientId,
-    hasClientSecret: !!clientSecret,
     redirectUri: redirectUri,
   });
 
@@ -119,12 +117,7 @@ export async function GET(request: Request) {
 
     console.log('[DRIVE OAUTH FORENSIC] Token exchange response:', {
       status: tokenResponse.status,
-      hasAccessToken: !!tokenData.access_token,
-      hasRefreshToken: !!tokenData.refresh_token,
-      expiresIn: tokenData.expires_in,
-      hasScope: !!tokenData.scope,
       hasError: !!tokenData.error,
-      errorValue: tokenData.error || 'none',
     });
 
     if (tokenData.error) {

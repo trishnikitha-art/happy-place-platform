@@ -57,7 +57,6 @@ export async function GET(request: Request) {
   }
 
   console.log('[DRIVE OAUTH FORENSIC] Redirecting to Google OAuth:', {
-    authUrl: authUrl.toString(),
     hasRefreshToken: !!hasRefreshToken,
     prompt: !hasRefreshToken ? 'consent' : 'omitted',
     hasState: !!state,
