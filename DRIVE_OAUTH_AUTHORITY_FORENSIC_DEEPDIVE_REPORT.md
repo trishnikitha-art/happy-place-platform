@@ -355,14 +355,23 @@ async function renewSession(id: string): Promise<void> {
 
 # ADDITIONAL CONTRADICTIONS FOUND
 
-## 🔴 CONTRADICTION 9: Documentation Claims ≠ Implementation Reality
+## 🔴 CONTRADICTION 9: Documentation Claims ≠ Implementation Reality (REMEDIATED ✅)
 
-**DOCUMENTED:** "P0.1-H: OAuth State Authority complete - atomic consumption"
+**DOCUMENTED (BEFORE REMEDIATION):** "P0.1-H: OAuth State Authority complete - atomic consumption"
 
-**ACTUAL IMPLEMENTATION:**
+**ACTUAL IMPLEMENTATION (BEFORE REMEDIATION):**
 - State creation: NOT atomic (SET + EXPIRE)
 - Browser binding: NOT real browser authentication (random nonce)
 - State validation: Conflates security failure with infrastructure failure
+
+**REMEDIATION (PATCHES 1-3, 12-13):**
+- PATCH 1: Real browser-bound OAuth initiation (HttpOnly cookie)
+- PATCH 2: OAuth state error semantics (explicit security vs infrastructure failures)
+- PATCH 3: State creation atomicity (single SET NX EX operation)
+- PATCH 12: State creation integrated into authorize route
+- PATCH 13: State consumption integrated into callback route
+
+**CURRENT STATE:** OAuth state authority is now correctly implemented and integrated.
 
 **SEVERITY:** 🔴 CRITICAL - Documentation misleading
 

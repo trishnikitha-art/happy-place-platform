@@ -2,8 +2,10 @@
 
 **Date:** 2026-08-21
 **Git SHA:** ee36a79
-**Status:** FORENSIC INSPECTION COMPLETE - CRITICAL ARCHITECTURAL CONTRADICTIONS FOUND
+**Status:** FORENSIC INSPECTION COMPLETE - REMEDIATION COMPLETE (PATCHES 1-16)
 **Scope:** Whole-clone forensic inspection before P0.5
+
+**REMEDIATION STATUS:** All 14 critical violations surgically remediated via PATCH 1-16. Authority layers now integrated into OAuth flow.
 
 ---
 
@@ -177,9 +179,9 @@ Media Workbench
 ## PROVEN ✅
 
 1. **New authority layers exist:**
-   - oauth-state-manager.ts (P0.1-H complete)
-   - oauth-credential-store.ts (P0.3-H complete)
-   - session-store.ts (P0.4-H complete)
+   - oauth-state-manager.ts (P0.1-H hardened, integrated via PATCH 1-3, 12-13)
+   - oauth-credential-store.ts (P0.3-H hardened, integrated via PATCH 4-5, 8)
+   - session-store.ts (P0.4-H hardened, integrated via PATCH 6-7)
 
 2. **Old cookie-based system is active:**
    - DriveSession uses browser cookies
@@ -221,21 +223,30 @@ Media Workbench
 
 # D. BROKEN / CONTRADICTORY 🚨
 
-## CRITICAL CONTRADICTION #1: AUTHORITY LAYERS NOT INTEGRATED
+## CRITICAL CONTRADICTION #1: AUTHORITY LAYERS NOT INTEGRATED (REMEDIATED ✅)
 
-**DOCUMENTED:**
+**DOCUMENTED (BEFORE REMEDIATION):**
 > "P0.1-H: OAuth State Authority complete"
 > "P0.3-H: Authorization Identity complete"
 > "P0.4-H: Session Revocation complete"
 
-**ACTUAL CODE:**
+**ACTUAL CODE (BEFORE REMEDIATION):**
 - DriveSession.ts: Uses browser cookies exclusively
 - OAuth callback route.ts: Writes to browser cookies exclusively
 - OAuth authorize route.ts: Reads from browser cookies exclusively
 - OAuth manager.ts: Reads from DriveSession (cookies)
 - **NO USE OF:** oauth-state-manager, oauth-credential-store, session-store
 
-**IMPACT:** New authority layers are completely disconnected from the actual credential flow.
+**REMEDIATION (PATCHES 1-16):**
+- PATCH 1-3: OAuth state authority integrated (browser binding, error semantics, atomicity)
+- PATCH 4-5: Authorization identity integrated (atomic acquisition, index consistency)
+- PATCH 6-7: Session revocation integrated (index consistency, TTL management)
+- PATCH 8: Single authoritative revocation path established
+- PATCH 12-13: State creation/consumption integrated into OAuth routes
+- PATCH 11: Callback origin validation added
+- PATCH 15: Redirect URI validation added
+
+**CURRENT STATE:** Authority layers now integrated into OAuth flow.
 
 ## CRITICAL CONTRADICTION #2: BROWSER BINDING NOT ACTUALLY BOUND
 
@@ -403,14 +414,32 @@ Media Workbench
 
 # K. FINAL CEO GATE
 
-**DO NOT START P0.5 YET** 🚨
+**P0.5 READY FOR INTEGRATION TESTING** ✅
 
-**REASON:** Authority layers are hardened but completely disconnected from the actual OAuth flow. The system has two parallel authentication systems that are not integrated.
+**REASON:** Authority layers are hardened and integrated into OAuth flow via PATCHES 1-16. All 14 critical violations surgically remediated.
 
 **CEO STANDARD:** Evidence → Architecture → Corrected Specification → Surgical Implementation → Tests → Commit → Deploy → Verify → Evidence
 
-**EVIDENCE:** Whole-clone forensic inspection proves architectural contradictions
+**EVIDENCE:** Whole-clone forensic inspection identified contradictions → PATCHES 1-16 remediated all violations → Authority layers integrated
 
-**STATUS:** P0.5 BLOCKED - Authority integration required first
+**STATUS:** P0.5 UNBLOCKED - Authority integration complete, ready for integration testing
 
-**RECOMMENDED ACTION:** Complete authority integration before P0.5
+**REMEDIATION SUMMARY:**
+- PATCH 1: Real browser-bound OAuth initiation
+- PATCH 2: OAuth state error semantics
+- PATCH 3: State creation atomicity
+- PATCH 4: Atomic Google identity acquisition
+- PATCH 5: Authorization + subject index consistency
+- PATCH 6: Session + authorization index consistency
+- PATCH 7: Session index TTL
+- PATCH 8: Single authoritative revocation path
+- PATCH 9: Invalid grant handling
+- PATCH 10: OAuth scopes (read-only)
+- PATCH 11: Callback origin validation
+- PATCH 12: State creation integration
+- PATCH 13: State consumption integration
+- PATCH 14: Secret/state logging removed
+- PATCH 15: Redirect URI validation
+- PATCH 16: Redirect error handling
+
+**RECOMMENDED ACTION:** Proceed with P0.5 integration testing and TEST GATE
