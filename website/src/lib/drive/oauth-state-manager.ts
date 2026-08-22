@@ -18,6 +18,34 @@ import { Redis } from '@upstash/redis';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 
+/**
+ * OAuth State Validation Result
+ * 
+ * Distinguishes between security failures and infrastructure failures
+ */
+export enum StateValidationResult {
+  STATE_VALID = 'STATE_VALID',
+  STATE_INVALID = 'STATE_INVALID',
+  STATE_EXPIRED = 'STATE_EXPIRED',
+  STATE_REPLAYED = 'STATE_REPLAYED',
+  STATE_BROWSER_MISMATCH = 'STATE_BROWSER_MISMATCH',
+  STATE_MISSING = 'STATE_MISSING',
+  STATE_MALFORMED = 'STATE_MALFORMED',
+  STATE_INFRASTRUCTURE_ERROR = 'STATE_INFRASTRUCTURE_ERROR',
+}
+
+/**
+ * OAuth State Validation Error
+ * 
+ * Thrown when infrastructure failures occur
+ */
+export class StateInfrastructureError extends Error {
+  constructor(message: string, public readonly originalError?: Error) {
+    super(message);
+    this.name = 'StateInfrastructureError';
+  }
+}
+
 let redis: Redis | null = null;
 
 function getRedisClient(): Redis {
@@ -200,7 +228,10 @@ export async function createState(cookieStore?: Awaited<ReturnType<typeof cookie
     return state;
   } catch (error) {
     console.error('[OAUTH_STATE] Failed to create state:', error);
-    throw new Error(`Failed to create OAuth state: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new StateInfrastructureError(
+      'Redis infrastructure failure during state creation',
+      error instanceof Error ? error : undefined
+    );
   }
 }
 
@@ -211,46 +242,56 @@ export async function createState(cookieStore?: Awaited<ReturnType<typeof cookie
  * Does NOT consume the state
  * 
  * Browser binding is obtained from HttpOnly cookie
+ * 
+ * Returns explicit validation result to distinguish security from infrastructure failures
  *
  * @param state - OAuth state string
  * @param cookieStore - Optional cookie store for testing
  */
-export async function validateState(state: string, cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<boolean> {
+export async function validateState(state: string, cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<StateValidationResult> {
   try {
     const client = getRedisClient();
     const record = await client.get<OAuthStateRecord>(`${STATE_PREFIX}${state}`);
 
     if (!record) {
       console.log('[OAUTH_STATE] State not found');
-      return false;
+      return StateValidationResult.STATE_MISSING;
     }
 
     if (!validateStateRecord(record)) {
       console.error('[OAUTH_STATE] Invalid state record');
-      return false;
+      return StateValidationResult.STATE_MALFORMED;
     }
 
     if (record.consumed) {
       console.log('[OAUTH_STATE] State already consumed');
-      return false;
+      return StateValidationResult.STATE_REPLAYED;
     }
 
     if (new Date(record.expiresAt) < new Date()) {
       console.log('[OAUTH_STATE] State expired');
-      return false;
+      return StateValidationResult.STATE_EXPIRED;
     }
 
     const browserBinding = await getBrowserBinding(cookieStore);
-    if (!browserBinding || record.browserBinding !== browserBinding) {
+    if (!browserBinding) {
+      console.log('[OAUTH_STATE] Browser binding missing');
+      return StateValidationResult.STATE_BROWSER_MISMATCH;
+    }
+    
+    if (record.browserBinding !== browserBinding) {
       console.log('[OAUTH_STATE] Browser binding mismatch');
-      return false;
+      return StateValidationResult.STATE_BROWSER_MISMATCH;
     }
 
     console.log('[OAUTH_STATE] State valid');
-    return true;
+    return StateValidationResult.STATE_VALID;
   } catch (error) {
     console.error('[OAUTH_STATE] Failed to validate state:', error);
-    return false;
+    throw new StateInfrastructureError(
+      'Redis infrastructure failure during state validation',
+      error instanceof Error ? error : undefined
+    );
   }
 }
 
@@ -331,7 +372,10 @@ export async function consumeState(state: string, cookieStore?: Awaited<ReturnTy
     }
   } catch (error) {
     console.error('[OAUTH_STATE] Failed to consume state atomically:', error);
-    throw new Error(`Redis infrastructure failure during state consumption: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new StateInfrastructureError(
+      'Redis infrastructure failure during state consumption',
+      error instanceof Error ? error : undefined
+    );
   }
 }
 
@@ -353,5 +397,9 @@ export async function deleteState(state: string, cookieStore?: Awaited<ReturnTyp
     console.log('[OAUTH_STATE] State deleted');
   } catch (error) {
     console.error('[OAUTH_STATE] Failed to delete state:', error);
+    throw new StateInfrastructureError(
+      'Redis infrastructure failure during state deletion',
+      error instanceof Error ? error : undefined
+    );
   }
 }

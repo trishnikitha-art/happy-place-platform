@@ -17,6 +17,8 @@ import {
   validateState,
   consumeState,
   deleteState,
+  StateValidationResult,
+  StateInfrastructureError,
 } from '../oauth-state-manager';
 
 // Mock cookie store for testing
@@ -85,8 +87,8 @@ describe('OAuth Browser Binding', () => {
     expect(state.length).toBe(32); // 16 bytes = 32 hex characters
     
     // State should be valid with matching browser binding
-    const isValid = await validateState(state, mockCookieStore as any);
-    expect(isValid).toBe(true);
+    const validationResult = await validateState(state, mockCookieStore as any);
+    expect(validationResult).toBe(StateValidationResult.STATE_VALID);
   });
 
   it('should reject state without browser binding', async () => {
@@ -97,8 +99,8 @@ describe('OAuth Browser Binding', () => {
     await clearBrowserBinding(mockCookieStore as any);
     
     // State should be invalid without matching binding
-    const isValid = await validateState(state, mockCookieStore as any);
-    expect(isValid).toBe(false);
+    const validationResult = await validateState(state, mockCookieStore as any);
+    expect(validationResult).toBe(StateValidationResult.STATE_BROWSER_MISMATCH);
   });
 
   it('should consume state with matching browser binding', async () => {
@@ -130,7 +132,47 @@ describe('OAuth Browser Binding', () => {
     const binding = await getBrowserBinding(mockCookieStore as any);
     expect(binding).toBeNull();
     
-    const isValid = await validateState(state, mockCookieStore as any);
-    expect(isValid).toBe(false);
+    const validationResult = await validateState(state, mockCookieStore as any);
+    expect(validationResult).toBe(StateValidationResult.STATE_BROWSER_MISMATCH);
+  });
+
+  it('should return STATE_BROWSER_MISMATCH when binding missing', async () => {
+    const binding = await getOrCreateBrowserBinding(mockCookieStore as any);
+    const state = await createState(mockCookieStore as any);
+    
+    // Clear binding
+    await clearBrowserBinding(mockCookieStore as any);
+    
+    const validationResult = await validateState(state, mockCookieStore as any);
+    expect(validationResult).toBe(StateValidationResult.STATE_BROWSER_MISMATCH);
+  });
+
+  it('should return STATE_BROWSER_MISMATCH when binding differs', async () => {
+    const state = await createState(mockCookieStore as any);
+    
+    // Simulate different browser by changing binding
+    mockCookieStore.set('drive_oauth_binding', 'different_binding_value');
+    
+    const validationResult = await validateState(state, mockCookieStore as any);
+    expect(validationResult).toBe(StateValidationResult.STATE_BROWSER_MISMATCH);
+  });
+
+  it('should export StateValidationResult enum', () => {
+    expect(StateValidationResult).toBeDefined();
+    expect(StateValidationResult.STATE_VALID).toBe('STATE_VALID');
+    expect(StateValidationResult.STATE_INVALID).toBe('STATE_INVALID');
+    expect(StateValidationResult.STATE_EXPIRED).toBe('STATE_EXPIRED');
+    expect(StateValidationResult.STATE_REPLAYED).toBe('STATE_REPLAYED');
+    expect(StateValidationResult.STATE_BROWSER_MISMATCH).toBe('STATE_BROWSER_MISMATCH');
+    expect(StateValidationResult.STATE_MISSING).toBe('STATE_MISSING');
+    expect(StateValidationResult.STATE_MALFORMED).toBe('STATE_MALFORMED');
+    expect(StateValidationResult.STATE_INFRASTRUCTURE_ERROR).toBe('STATE_INFRASTRUCTURE_ERROR');
+  });
+
+  it('should export StateInfrastructureError class', () => {
+    expect(StateInfrastructureError).toBeDefined();
+    const error = new StateInfrastructureError('Test error');
+    expect(error.name).toBe('StateInfrastructureError');
+    expect(error.message).toBe('Test error');
   });
 });
