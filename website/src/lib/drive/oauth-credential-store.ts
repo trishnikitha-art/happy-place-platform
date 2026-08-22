@@ -15,7 +15,7 @@
 
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
-import { encrypt, decrypt, validateEncryptionEnvelope, rotateKey, type EncryptionEnvelope } from './encryption';
+import { encrypt, decrypt, type EncryptionEnvelope } from './encryption';
 
 let redis: Redis | null = null;
 
@@ -35,6 +35,7 @@ function getRedisClient(): Redis {
 
 // Redis namespace
 const AUTH_PREFIX = 'drive:auth:';
+const AUTH_SUBJECT_PREFIX = 'drive:auth:subject:';
 
 // Authorization TTL: 30 days (browser session lifetime)
 // This is Redis retention, NOT Google refresh token validity
@@ -133,17 +134,23 @@ function validateAuthorizationRecord(data: unknown): data is GoogleAuthorization
 
 /**
  * Store authorization record
+ *
+ * Updates subject index for identity lookup
  */
 export async function storeAuthorization(record: GoogleAuthorizationRecord): Promise<void> {
   if (!validateAuthorizationRecord(record)) {
     throw new Error('Invalid GoogleAuthorizationRecord schema');
   }
-  
+
   try {
     const client = getRedisClient();
     await client.set(`${AUTH_PREFIX}${record.id}`, record);
     await client.expire(`${AUTH_PREFIX}${record.id}`, AUTH_TTL_SECONDS);
-    
+
+    // Update subject index for identity lookup
+    await client.set(`${AUTH_SUBJECT_PREFIX}${record.googleSubject}`, record.id);
+    await client.expire(`${AUTH_SUBJECT_PREFIX}${record.googleSubject}`, AUTH_TTL_SECONDS);
+
     console.log('[AUTH_STORE] Authorization stored:', record.id);
   } catch (error) {
     console.error('[AUTH_STORE] Store failed:', error);
@@ -177,20 +184,148 @@ export async function getAuthorization(id: string): Promise<GoogleAuthorizationR
 
 /**
  * Find authorization by Google subject
- * 
- * Returns the first active authorization for the given Google subject
+ *
+ * Returns the authorization record for the given Google subject
+ * Uses subject index for efficient lookup
  */
 export async function findAuthorizationBySubject(googleSubject: string): Promise<GoogleAuthorizationRecord | null> {
   try {
-    // This would require a secondary index in a real implementation
-    // For now, we'll skip this and implement direct lookup by ID
-    // P0 gap: Identity deduplication strategy deferred
-    console.log('[AUTH_STORE] Subject lookup not yet implemented:', googleSubject);
-    return null;
+    const client = getRedisClient();
+    const authId = await client.get<string>(`${AUTH_SUBJECT_PREFIX}${googleSubject}`);
+
+    if (!authId) {
+      console.log('[AUTH_STORE] No authorization found for subject:', googleSubject.substring(0, 8) + '...');
+      return null;
+    }
+
+    const auth = await getAuthorization(authId);
+    if (!auth) {
+      console.error('[AUTH_STORE] Subject index corrupted, authorization not found:', authId);
+      // Clean up corrupted index
+      await client.del(`${AUTH_SUBJECT_PREFIX}${googleSubject}`);
+      return null;
+    }
+
+    console.log('[AUTH_STORE] Authorization found for subject:', googleSubject.substring(0, 8) + '...');
+    return auth;
   } catch (error) {
     console.error('[AUTH_STORE] Subject lookup failed:', error);
-    return null;
+    throw new Error(`Failed to find authorization by subject: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+}
+
+/**
+ * Upsert authorization (create or update)
+ *
+ * Deterministic reauthorization behavior:
+ * - If authorization exists for googleSubject, update credentials
+ * - If authorization does not exist, create new authorization
+ * - If existing authorization is revoked, create new authorization
+ * - Ensures one authoritative authorization per googleSubject
+ */
+export async function upsertAuthorization(
+  googleSubject: string,
+  email: string,
+  scopes: string[],
+  accessToken: string,
+  accessTokenExpiresAt: number,
+  refreshToken: string,
+  keyVersion: number = 0
+): Promise<GoogleAuthorizationRecord> {
+  try {
+    // Check if authorization exists for subject
+    const existingAuth = await findAuthorizationBySubject(googleSubject);
+
+    let auth: GoogleAuthorizationRecord;
+
+    if (existingAuth) {
+      if (existingAuth.status === 'revoked') {
+        // Revoked authorization: create new authorization
+        console.log('[AUTH_STORE] Existing authorization revoked, creating new authorization');
+        auth = await createNewAuthorization(
+          googleSubject,
+          email,
+          scopes,
+          accessToken,
+          accessTokenExpiresAt,
+          refreshToken,
+          keyVersion
+        );
+      } else {
+        // Active authorization: update credentials in place
+        console.log('[AUTH_STORE] Updating existing authorization credentials');
+        existingAuth.email = email;
+        existingAuth.scopes = scopes;
+        existingAuth.encryptedAccessToken = JSON.stringify(encrypt(accessToken, keyVersion));
+        existingAuth.accessTokenExpiresAt = new Date(accessTokenExpiresAt).toISOString();
+        existingAuth.encryptedRefreshToken = JSON.stringify(encrypt(refreshToken, keyVersion));
+        existingAuth.lastRefreshAt = new Date().toISOString();
+        existingAuth.lastUsedAt = new Date().toISOString();
+        existingAuth.updatedAt = new Date().toISOString();
+        existingAuth.keyVersion = keyVersion;
+
+        // Update directly without recreating index (subject index already points to this ID)
+        const client = getRedisClient();
+        await client.set(`${AUTH_PREFIX}${existingAuth.id}`, existingAuth);
+        await client.expire(`${AUTH_PREFIX}${existingAuth.id}`, AUTH_TTL_SECONDS);
+
+        auth = existingAuth;
+      }
+    } else {
+      // No existing authorization: create new
+      console.log('[AUTH_STORE] Creating new authorization');
+      auth = await createNewAuthorization(
+        googleSubject,
+        email,
+        scopes,
+        accessToken,
+        accessTokenExpiresAt,
+        refreshToken,
+        keyVersion
+      );
+    }
+
+    return auth;
+  } catch (error) {
+    console.error('[AUTH_STORE] Upsert failed:', error);
+    throw new Error(`Failed to upsert authorization: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Create new authorization record
+ */
+async function createNewAuthorization(
+  googleSubject: string,
+  email: string,
+  scopes: string[],
+  accessToken: string,
+  accessTokenExpiresAt: number,
+  refreshToken: string,
+  keyVersion: number
+): Promise<GoogleAuthorizationRecord> {
+  const id = crypto.randomUUID();
+  const now = new Date();
+
+  const auth: GoogleAuthorizationRecord = {
+    id,
+    provider: 'google',
+    googleSubject,
+    email,
+    scopes,
+    encryptedAccessToken: JSON.stringify(encrypt(accessToken, keyVersion)),
+    accessTokenExpiresAt: new Date(accessTokenExpiresAt).toISOString(),
+    encryptedRefreshToken: JSON.stringify(encrypt(refreshToken, keyVersion)),
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+    lastUsedAt: now.toISOString(),
+    lastRefreshAt: now.toISOString(),
+    status: 'active',
+    keyVersion,
+  };
+
+  await storeAuthorization(auth);
+  return auth;
 }
 
 /**
@@ -242,9 +377,10 @@ export async function updateAuthorizationAfterRefresh(
 
 /**
  * Revoke authorization
- * 
+ *
  * Marks authorization as revoked
  * Does NOT delete the record (preserves forensic evidence)
+ * Cleans up subject index to prevent reauthorization of revoked identity
  */
 export async function revokeAuthorization(id: string): Promise<void> {
   try {
@@ -253,6 +389,11 @@ export async function revokeAuthorization(id: string): Promise<void> {
       auth.status = 'revoked';
       auth.updatedAt = new Date().toISOString();
       await storeAuthorization(auth);
+
+      // Clean up subject index to prevent reauthorization
+      const client = getRedisClient();
+      await client.del(`${AUTH_SUBJECT_PREFIX}${auth.googleSubject}`);
+
       console.log('[AUTH_STORE] Authorization revoked:', id);
     }
   } catch (error) {
@@ -263,15 +404,20 @@ export async function revokeAuthorization(id: string): Promise<void> {
 
 /**
  * Delete authorization record
- * 
+ *
  * WARNING: This destroys forensic evidence
  * Use revokeAuthorization instead for most cases
+ * Cleans up subject index when deleting
  */
 export async function deleteAuthorization(id: string): Promise<void> {
   try {
-    const client = getRedisClient();
-    await client.del(`${AUTH_PREFIX}${id}`);
-    console.log('[AUTH_STORE] Authorization deleted:', id);
+    const auth = await getAuthorization(id);
+    if (auth) {
+      const client = getRedisClient();
+      await client.del(`${AUTH_PREFIX}${id}`);
+      await client.del(`${AUTH_SUBJECT_PREFIX}${auth.googleSubject}`);
+      console.log('[AUTH_STORE] Authorization deleted:', id);
+    }
   } catch (error) {
     console.error('[AUTH_STORE] Delete failed:', error);
     throw new Error(`Failed to delete authorization ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
