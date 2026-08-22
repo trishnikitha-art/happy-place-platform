@@ -4,11 +4,13 @@
  * Handles OAuth 2.0 callback and exchanges code for tokens.
  * Persists credentials through DriveSession authority.
  * Uses authoritative revocation path for invalid grant failures.
+ * Validates and consumes OAuth state for CSRF protection.
  */
 
 import { NextResponse } from 'next/server';
 import { driveSession } from '@/lib/drive/drive-session';
 import { revokeAuthorizationWithSessions } from '@/lib/drive/oauth-credential-store';
+import { consumeState, StateValidationResult } from '@/lib/drive/oauth-state-manager';
 
 export const dynamic = 'force-dynamic';
 
@@ -47,6 +49,24 @@ export async function GET(request: Request) {
     hasState: !!state,
     errorValue: error || 'none',
   });
+
+  // Validate and consume OAuth state for CSRF protection
+  if (!state) {
+    console.log('[DRIVE OAUTH FORENSIC] Missing state parameter');
+    const url = new URL('/workbench/media', request.url);
+    url.searchParams.set('error', 'missing_state');
+    return NextResponse.redirect(url);
+  }
+
+  const stateConsumed = await consumeState(state);
+  if (!stateConsumed) {
+    console.log('[DRIVE OAUTH FORENSIC] State validation or consumption failed');
+    const url = new URL('/workbench/media', request.url);
+    url.searchParams.set('error', 'invalid_state');
+    return NextResponse.redirect(url);
+  }
+
+  console.log('[DRIVE OAUTH FORENSIC] State validated and consumed successfully');
 
   if (error) {
     console.log('[DRIVE OAUTH FORENSIC] Google OAuth error:', error);
