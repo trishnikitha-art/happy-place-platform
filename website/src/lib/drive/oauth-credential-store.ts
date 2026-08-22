@@ -217,11 +217,13 @@ export async function findAuthorizationBySubject(googleSubject: string): Promise
 /**
  * Upsert authorization (create or update)
  *
- * Deterministic reauthorization behavior:
+ * Deterministic reauthorization behavior with atomic subject acquisition:
  * - If authorization exists for googleSubject, update credentials
  * - If authorization does not exist, create new authorization
  * - If existing authorization is revoked, create new authorization
  * - Ensures one authoritative authorization per googleSubject
+ * 
+ * Uses atomic SET NX on subject index to prevent concurrent duplicate creation
  */
 export async function upsertAuthorization(
   googleSubject: string,
@@ -272,9 +274,9 @@ export async function upsertAuthorization(
         auth = existingAuth;
       }
     } else {
-      // No existing authorization: create new
-      console.log('[AUTH_STORE] Creating new authorization');
-      auth = await createNewAuthorization(
+      // No existing authorization: create new with atomic subject acquisition
+      console.log('[AUTH_STORE] Creating new authorization with atomic subject acquisition');
+      auth = await createNewAuthorizationWithAtomicSubject(
         googleSubject,
         email,
         scopes,
@@ -326,6 +328,71 @@ async function createNewAuthorization(
 
   await storeAuthorization(auth);
   return auth;
+}
+
+/**
+ * Create new authorization record with atomic subject acquisition
+ * 
+ * Uses atomic SET NX on subject index to prevent concurrent duplicate creation
+ * Ensures only one authorization can be created per googleSubject
+ */
+async function createNewAuthorizationWithAtomicSubject(
+  googleSubject: string,
+  email: string,
+  scopes: string[],
+  accessToken: string,
+  accessTokenExpiresAt: number,
+  refreshToken: string,
+  keyVersion: number
+): Promise<GoogleAuthorizationRecord> {
+  const id = crypto.randomUUID();
+  const now = new Date();
+
+  const auth: GoogleAuthorizationRecord = {
+    id,
+    provider: 'google',
+    googleSubject,
+    email,
+    scopes,
+    encryptedAccessToken: JSON.stringify(encrypt(accessToken, keyVersion)),
+    accessTokenExpiresAt: new Date(accessTokenExpiresAt).toISOString(),
+    encryptedRefreshToken: JSON.stringify(encrypt(refreshToken, keyVersion)),
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString(),
+    lastUsedAt: now.toISOString(),
+    lastRefreshAt: now.toISOString(),
+    status: 'active',
+    keyVersion,
+  };
+
+  const client = getRedisClient();
+  
+  // Atomic subject acquisition: SET NX on subject index
+  // If this succeeds, we have the lock on this googleSubject
+  const subjectAcquired = await client.set(`${AUTH_SUBJECT_PREFIX}${googleSubject}`, id, {
+    nx: true,
+    ex: AUTH_TTL_SECONDS,
+  });
+
+  if (!subjectAcquired) {
+    // Another process acquired the subject, retry from the beginning
+    console.log('[AUTH_STORE] Subject acquisition failed, retrying');
+    return upsertAuthorization(googleSubject, email, scopes, accessToken, accessTokenExpiresAt, refreshToken, keyVersion);
+  }
+
+  // Subject acquired, store authorization record
+  try {
+    await client.set(`${AUTH_PREFIX}${id}`, auth);
+    await client.expire(`${AUTH_PREFIX}${id}`, AUTH_TTL_SECONDS);
+    
+    console.log('[AUTH_STORE] Authorization created with atomic subject acquisition');
+    return auth;
+  } catch (error) {
+    // Authorization storage failed, clean up subject index
+    await client.del(`${AUTH_SUBJECT_PREFIX}${googleSubject}`);
+    console.error('[AUTH_STORE] Authorization storage failed, cleaned up subject index:', error);
+    throw new Error(`Failed to store authorization after subject acquisition: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
 }
 
 /**
