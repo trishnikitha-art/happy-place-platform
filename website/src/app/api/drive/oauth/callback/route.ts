@@ -53,7 +53,6 @@ export async function GET(request: Request) {
   if (!state) {
     console.log('[DRIVE OAUTH FORENSIC] Missing state parameter');
     const url = new URL('/workbench/media', request.url);
-    url.searchParams.set('error', 'missing_state');
     return NextResponse.redirect(url);
   }
 
@@ -61,7 +60,6 @@ export async function GET(request: Request) {
   if (!stateConsumed) {
     console.log('[DRIVE OAUTH FORENSIC] State validation or consumption failed');
     const url = new URL('/workbench/media', request.url);
-    url.searchParams.set('error', 'invalid_state');
     return NextResponse.redirect(url);
   }
 
@@ -70,14 +68,12 @@ export async function GET(request: Request) {
   if (error) {
     console.log('[DRIVE OAUTH FORENSIC] Google OAuth error:', error);
     const url = new URL('/workbench/media', request.url);
-    url.searchParams.set('error', 'oauth_denied');
     return NextResponse.redirect(url);
   }
 
   if (!code) {
     console.log('[DRIVE OAUTH FORENSIC] No authorization code received');
     const url = new URL('/workbench/media', request.url);
-    url.searchParams.set('error', 'no_code');
     return NextResponse.redirect(url);
   }
 
@@ -132,12 +128,10 @@ export async function GET(request: Request) {
         await driveSession.clearCredentials();
         
         const url = new URL('/workbench/media', request.url);
-        url.searchParams.set('error', 'invalid_grant');
         return NextResponse.redirect(url);
       }
       
       const url = new URL('/workbench/media', request.url);
-      url.searchParams.set('error', 'token_exchange_failed');
       return NextResponse.redirect(url);
     }
 
@@ -165,12 +159,10 @@ export async function GET(request: Request) {
 
     // Redirect to workbench with success
     const url = new URL('/workbench/media', request.url);
-    url.searchParams.set('oauth', 'success');
     return NextResponse.redirect(url);
   } catch (error) {
     console.error('[DRIVE OAUTH FORENSIC] OAuth token exchange error:', error);
     const url = new URL('/workbench/media', request.url);
-    url.searchParams.set('error', 'token_exchange_error');
     return NextResponse.redirect(url);
   }
 }
