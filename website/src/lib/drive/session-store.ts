@@ -39,6 +39,9 @@ const AUTH_SESSIONS_PREFIX = 'drive:auth:sessions:';
 // Session TTL: 30 days (browser session lifetime)
 const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
 
+// Session index safety TTL: 60 days (longer than session TTL to allow renewal)
+const SESSION_INDEX_TTL_SECONDS = 60 * 24 * 60 * 60;
+
 /**
  * Browser Session Record
  * 
@@ -136,15 +139,16 @@ export async function createSession(
       local index_key = KEYS[2]
       local session_data = ARGV[1]
       local session_id = ARGV[2]
-      local ttl = ARGV[3]
+      local session_ttl = ARGV[3]
+      local index_ttl = ARGV[4]
 
       -- Store session record
       redis.call('SET', session_key, session_data)
-      redis.call('EXPIRE', session_key, ttl)
+      redis.call('EXPIRE', session_key, session_ttl)
 
-      -- Register in authorization's session index
+      -- Register in authorization's session index with longer TTL
       redis.call('SADD', index_key, session_id)
-      redis.call('EXPIRE', index_key, ttl)
+      redis.call('EXPIRE', index_key, index_ttl)
 
       return 1
     `;
@@ -152,7 +156,7 @@ export async function createSession(
     await client.eval(
       luaScript,
       [`${SESSION_PREFIX}${sessionId}`, `${AUTH_SESSIONS_PREFIX}${authorizationId}`],
-      [JSON.stringify(record), sessionId, SESSION_TTL_SECONDS.toString()]
+      [JSON.stringify(record), sessionId, SESSION_TTL_SECONDS.toString(), SESSION_INDEX_TTL_SECONDS.toString()]
     );
 
     console.log('[SESSION_STORE] Session created atomically:', sessionId);
@@ -194,6 +198,8 @@ export async function getSession(id: string): Promise<BrowserSessionRecord | nul
 
 /**
  * Update session last seen timestamp
+ * 
+ * Also renews the authorization session index TTL
  */
 export async function updateSessionLastSeen(id: string): Promise<void> {
   try {
@@ -203,9 +209,13 @@ export async function updateSessionLastSeen(id: string): Promise<void> {
       const client = getRedisClient();
       await client.set(`${SESSION_PREFIX}${id}`, record);
       await client.expire(`${SESSION_PREFIX}${id}`, SESSION_TTL_SECONDS);
+      
+      // Renew authorization session index TTL to safety TTL
+      await client.expire(`${AUTH_SESSIONS_PREFIX}${record.authorizationId}`, SESSION_INDEX_TTL_SECONDS);
     }
   } catch (error) {
     console.error('[SESSION_STORE] Last seen update failed:', error);
+    throw new Error(`Failed to update session last seen ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -289,6 +299,7 @@ export async function deleteSession(id: string): Promise<void> {
  * Renew session
  * 
  * Extends session expiration by 30 days from now
+ * Also renews the authorization session index TTL to match
  */
 export async function renewSession(id: string): Promise<void> {
   try {
@@ -300,10 +311,15 @@ export async function renewSession(id: string): Promise<void> {
       record.lastSeenAt = now.toISOString();
       
       const client = getRedisClient();
+      
+      // Renew session record TTL
       await client.set(`${SESSION_PREFIX}${id}`, record);
       await client.expire(`${SESSION_PREFIX}${id}`, SESSION_TTL_SECONDS);
       
-      console.log('[SESSION_STORE] Session renewed:', id);
+      // Renew authorization session index TTL to safety TTL (longer than session TTL)
+      await client.expire(`${AUTH_SESSIONS_PREFIX}${record.authorizationId}`, SESSION_INDEX_TTL_SECONDS);
+      
+      console.log('[SESSION_STORE] Session renewed with index TTL:', id);
     }
   } catch (error) {
     console.error('[SESSION_STORE] Renew failed:', error);
