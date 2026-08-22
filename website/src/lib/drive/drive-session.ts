@@ -52,6 +52,8 @@ export class DriveSession {
 
   /**
    * Get current credentials from cookies
+   * 
+   * Refresh token is the authoritative credential. Access token can be missing/expired.
    */
   async getCredentials(): Promise<DriveCredentials | null> {
     const accessToken = await this.getCookie('drive_access_token');
@@ -59,12 +61,13 @@ export class DriveSession {
     const expiryDate = await this.getCookie('drive_expiry_date');
     const scope = await this.getCookie('drive_scope');
 
-    if (!accessToken || !refreshToken) {
+    // Refresh token is the authoritative credential for persistent authorization
+    if (!refreshToken) {
       return null;
     }
 
     return {
-      access_token: accessToken,
+      access_token: accessToken || '', // May be empty/missing, will be refreshed
       refresh_token: refreshToken,
       expiry_date: expiryDate ? parseInt(expiryDate, 10) : undefined,
       scope: scope || undefined,

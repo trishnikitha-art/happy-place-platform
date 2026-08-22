@@ -16,8 +16,6 @@
  */
 
 import { NextResponse } from 'next/server';
-import { driveSession } from '@/lib/drive/drive-session';
-import { workbenchSession } from '@/lib/workbench-session';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -138,35 +136,19 @@ async function runSharpDiagnostics(requestId: string) {
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
 
-  // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
-  if (process.env.NODE_ENV === 'development') {
-    // Skip auth in development
-  } else {
-    // Check Drive authentication
-    const isDriveAuthenticated = await driveSession.isAuthenticated();
-    if (!isDriveAuthenticated) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'DRIVE_AUTH_REQUIRED',
-          requestId,
-        },
-        { status: 401 }
-      );
-    }
-
-    // Check Workbench authentication
-    const isWorkbenchAuthenticated = await workbenchSession.isAuthenticated();
-    if (!isWorkbenchAuthenticated) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'WORKBENCH_AUTH_REQUIRED',
-          requestId,
-        },
-        { status: 401 }
-      );
-    }
+  // Simple header-based authorization for diagnostic endpoint
+  const authHeader = request.headers.get('authorization');
+  const expectedAuth = `Bearer ${process.env.DIAGNOSTIC_SECRET || 'dev-diagnostic-secret'}`;
+  
+  if (authHeader !== expectedAuth) {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'UNAUTHORIZED',
+        requestId,
+      },
+      { status: 401 }
+    );
   }
 
   try {
