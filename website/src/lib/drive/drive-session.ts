@@ -24,17 +24,28 @@ export interface DriveCredentials {
   scope?: string;
 }
 
-export class DriveSession {
-  private static instance: DriveSession;
-
-  private constructor() {}
-
-  static getInstance(): DriveSession {
-    if (!DriveSession.instance) {
-      DriveSession.instance = new DriveSession();
-    }
-    return DriveSession.instance;
+/**
+ * Get session ID from cookies (utility function for external callers)
+ * 
+ * Returns session ID from drive_session_id cookie or null if not found.
+ * This is a utility function for authorization resolution in oauth-manager.
+ */
+export async function getSessionIdFromCookies(): Promise<string | null> {
+  try {
+    const cookieStore = await cookies();
+    const sessionId = cookieStore.get('drive_session_id')?.value;
+    return sessionId || null;
+  } catch (error) {
+    console.error('getSessionIdFromCookies(): cookies() failed', error);
+    return null;
   }
+}
+
+export class DriveSession {
+  // Singleton removed - per-request instance creation
+  // No process-level state
+  
+  constructor() {}
 
   /**
    * Check if user is authenticated with Drive
@@ -121,7 +132,8 @@ export class DriveSession {
    * Set credentials is now a no-op - credentials are stored in authorization repository
    * This method is kept for compatibility but should not be used
    */
-  async setCredentials(credentials: DriveCredentials): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  async setCredentials(_credentials?: DriveCredentials): Promise<void> {
     console.log('[DRIVE SESSION FORENSIC] setCredentials() called - NO-OP (credentials stored in authorization repository)');
     // Credentials are now stored in oauth-credential-store, not cookies
     // This method is kept for backward compatibility but does nothing
@@ -206,7 +218,12 @@ export class DriveSession {
   /**
    * Get session ID from cookie
    */
-  private async getSessionId(): Promise<string | null> {
+  /**
+   * Get session ID from cookies
+   * 
+   * Made public for authorization resolution in oauth-manager
+   */
+  async getSessionId(): Promise<string | null> {
     try {
       const cookieStore = await cookies();
       const cookie = cookieStore.get('drive_session_id');
@@ -218,4 +235,5 @@ export class DriveSession {
   }
 }
 
-export const driveSession = DriveSession.getInstance();
+// Per-request instance creation - no singleton
+export const driveSession = new DriveSession();

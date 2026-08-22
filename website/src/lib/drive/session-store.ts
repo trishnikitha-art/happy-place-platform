@@ -244,26 +244,47 @@ export async function revokeSession(id: string): Promise<void> {
  *
  * Marks all sessions linked to the authorization as revoked
  * Uses authorization's session index for efficient enumeration
+ * 
+ * ARCHITECTURAL CORRECTION:
+ * - Uses Redis Lua script for atomic revocation
+ * - Session index deleted FIRST as atomic barrier (prevents new session creation)
+ * - Then individual sessions revoked
+ * - Prevents race condition where concurrent session creation resurrects access during revocation
  */
 export async function revokeAllSessionsForAuthorization(authorizationId: string): Promise<void> {
   try {
     const client = getRedisClient();
-    const sessionIds = await client.smembers(`${AUTH_SESSIONS_PREFIX}${authorizationId}`) as string[];
+    
+    // Redis Lua script for atomic session revocation with index barrier
+    // Delete session index FIRST (atomic barrier), then revoke individual sessions
+    const luaScript = `
+      local session_index_key = KEYS[1]
+      local session_prefix = ARGV[1]
+      
+      -- Get all session IDs from index atomically
+      local session_ids = redis.call('SMEMBERS', session_index_key)
+      
+      -- Delete session index FIRST (atomic barrier prevents new session creation)
+      redis.call('DEL', session_index_key)
+      
+      -- Revoke each session atomically
+      for i, session_id in ipairs(session_ids) do
+        local session_key = session_prefix .. session_id
+        redis.call('DEL', session_key)
+      end
+      
+      -- Return count of revoked sessions
+      return #session_ids
+    `;
 
-    if (sessionIds.length === 0) {
-      console.log('[SESSION_STORE] No sessions found for authorization:', authorizationId);
-      return;
-    }
+    const result = await client.eval(
+      luaScript,
+      [`${AUTH_SESSIONS_PREFIX}${authorizationId}`],
+      [`${SESSION_PREFIX}`]
+    );
 
-    // Revoke each session
-    for (const sessionId of sessionIds) {
-      await revokeSession(sessionId);
-    }
-
-    // Clean up session index
-    await client.del(`${AUTH_SESSIONS_PREFIX}${authorizationId}`);
-
-    console.log('[SESSION_STORE] Revoked all sessions for authorization:', authorizationId, 'count:', sessionIds.length);
+    const revokedCount = result as number;
+    console.log('[SESSION_STORE] Revoked all sessions for authorization:', authorizationId, 'count:', revokedCount);
   } catch (error) {
     console.error('[SESSION_STORE] Revoke all failed:', error);
     throw new Error(`Failed to revoke all sessions for authorization ${authorizationId}: ${error instanceof Error ? error.message : 'Unknown error'}`);

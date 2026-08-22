@@ -17,6 +17,9 @@ import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 import { encrypt, decrypt, type EncryptionEnvelope } from './encryption';
 
+// Re-export encryption utilities for oauth-manager
+export { decrypt, type EncryptionEnvelope };
+
 let redis: Redis | null = null;
 
 function getRedisClient(): Redis {

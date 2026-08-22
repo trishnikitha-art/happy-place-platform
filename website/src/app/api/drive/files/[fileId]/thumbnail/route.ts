@@ -18,7 +18,7 @@
 
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { driveOAuthManager } from '@/lib/drive/oauth-manager';
+import { getOAuthClient } from '@/lib/drive/oauth-manager';
 
 export const dynamic = 'force-dynamic';
 
@@ -39,13 +39,14 @@ export async function GET(
     console.log('[MEDIA_PROXY_AUTH_RESOLVED]', { fileId, driveId, hasAuth: true });
 
     // Use Workbench user OAuth credentials
-    const auth = await driveOAuthManager.getClient();
-    const drive = google.drive({ version: 'v3', auth });
+    const auth = await getOAuthClient();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const drive = google.drive({ version: 'v3', auth: auth as any });
 
     console.log('[MEDIA_PROXY_DRIVE_FETCH_STARTED]', { fileId, driveId });
 
     // Get file metadata including mimeType and size FIRST
-    const getFileParams: any = {
+    const getFileParams: Record<string, unknown> = {
       fileId,
       fields: 'mimeType,size',
     };
@@ -57,7 +58,8 @@ export async function GET(
 
     const file = await drive.files.get(getFileParams);
     const mimeType = file.data.mimeType;
-    const fileSize = file.data.size ? parseInt(file.data.size, 10) : 0;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const fileSize = (file.data as any).size ? parseInt(String((file.data as any).size), 10) : 0;
 
     // CRITICAL: Fail closed if Drive does not provide MIME type
     // Do NOT default to 'image/jpeg' - this creates false positive evidence
@@ -125,6 +127,7 @@ export async function GET(
     console.log('[MEDIA_PROXY_MEDIA_DOWNLOAD_STARTED]', { fileId, driveId });
 
     // Download actual binary content using Drive API alt: 'media'
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mediaParams: any = {
       fileId,
       alt: 'media',

@@ -5,7 +5,8 @@
  * Never requires manual path entry from the operator.
  */
 
-import { driveOAuthManager } from './oauth-manager';
+import { getDriveClient, isAuthenticated } from './oauth-manager';
+import { google } from 'googleapis';
 
 export interface DriveFolder {
   id: string;
@@ -39,16 +40,10 @@ export interface DriveFile {
 }
 
 export class DriveDiscovery {
-  private static instance: DriveDiscovery;
-
-  private constructor() {}
-
-  static getInstance(): DriveDiscovery {
-    if (!DriveDiscovery.instance) {
-      DriveDiscovery.instance = new DriveDiscovery();
-    }
-    return DriveDiscovery.instance;
-  }
+  // Singleton removed - per-request instance creation
+  // No process-level state
+  
+  constructor() {}
 
   /**
    * Discover all accessible drives and folders
@@ -60,10 +55,10 @@ export class DriveDiscovery {
     console.log('=== Drive Discovery Started ===');
     
     // Check if authenticated first
-    const isAuthenticated = await driveOAuthManager.isAuthenticated();
-    console.log('Authenticated:', isAuthenticated);
+    const authenticated = await isAuthenticated();
+    console.log('Authenticated:', authenticated);
     
-    if (!isAuthenticated) {
+    if (!authenticated) {
       console.log('Not authenticated, returning empty structure');
       return {
         myDrive: null,
@@ -71,12 +66,13 @@ export class DriveDiscovery {
       };
     }
 
-    const drive = await driveOAuthManager.getDriveClient();
+    const drive = await getDriveClient();
     console.log('Drive client obtained');
 
     // Verify authenticated account (Drive API v3)
     try {
-      const about = await drive.about.get({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const about = await (drive as any).about.get({
         fields: 'user(emailAddress,displayName,permissionId)',
       });
       console.log('Authenticated account:', {
@@ -90,13 +86,14 @@ export class DriveDiscovery {
 
     // Verify Drive API itself
     try {
-      const filesTest = await drive.files.list({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const filesTest = await (drive as any).files.list({
         pageSize: 10,
         fields: 'files(id,name,mimeType)',
       });
       console.log('Drive API test - total files:', filesTest.data.files?.length || 0);
       if (filesTest.data.files?.length > 0) {
-        console.log('Sample files:', filesTest.data.files.slice(0, 3).map((f: any) => ({
+        console.log('Sample files:', filesTest.data.files.slice(0, 3).map((f: { id: string; name: string; mimeType: string }) => ({
           id: f.id,
           name: f.name,
           mimeType: f.mimeType,
@@ -127,9 +124,10 @@ export class DriveDiscovery {
   /**
    * Get My Drive information (Drive API v3: use files.get with fileId='root')
    */
-  private async getMyDrive(drive: any): Promise<DriveFolder | null> {
+  private async getMyDrive(drive: ReturnType<typeof google.drive>): Promise<DriveFolder | null> {
     try {
-      const response = await drive.files.get({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (drive as any).files.get({
         fileId: 'root',
         fields: 'id,name,mimeType',
       });
@@ -151,14 +149,15 @@ export class DriveDiscovery {
   /**
    * Get all Shared Drives
    */
-  private async getSharedDrives(drive: any): Promise<DriveFolder[]> {
+  private async getSharedDrives(drive: ReturnType<typeof google.drive>): Promise<DriveFolder[]> {
     try {
-      const response = await drive.drives.list({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (drive as any).drives.list({
         pageSize: 100,
       });
 
       if (response.data.drives) {
-        return response.data.drives.map((drive: any) => ({
+        return response.data.drives.map((drive: { id: string; name: string }) => ({
           id: drive.id,
           name: drive.name,
           type: 'shared_drive',
@@ -179,13 +178,13 @@ export class DriveDiscovery {
    * Supports pagination via nextPageToken
    */
   async listChildren(context: DriveListContext, pageToken?: string): Promise<DriveListResult> {
-    if (!(await driveOAuthManager.isAuthenticated())) {
+    if (!(await isAuthenticated())) {
       throw new Error('Not authenticated with Drive');
     }
 
-    const drive = await driveOAuthManager.getDriveClient();
+    const drive = await getDriveClient();
 
-    const params: any = {
+    const params: Record<string, unknown> = {
       fields: 'nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,parents)',
       pageSize: 100,
       orderBy: 'folder,name_natural',
@@ -226,7 +225,8 @@ export class DriveDiscovery {
     });
 
     try {
-      const response = await drive.files.list(params);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (drive as any).files.list(params);
 
       const items: (DriveFolder | DriveFile)[] = [];
 
@@ -259,8 +259,8 @@ export class DriveDiscovery {
 
       console.log('[Drive Discovery] listChildren result:', {
         itemCount: items.length,
-        folderCount: items.filter(i => (i as any).type === 'folder').length,
-        fileCount: items.filter(i => (i as any).type !== 'folder').length,
+        folderCount: items.filter(i => (i as DriveFolder).type === 'folder').length,
+        fileCount: items.filter(i => (i as DriveFolder).type !== 'folder').length,
         nextPageToken: response.data.nextPageToken,
       });
 
@@ -278,14 +278,14 @@ export class DriveDiscovery {
    * Get file metadata
    */
   async getFile(fileId: string, driveId?: string): Promise<DriveFile | null> {
-    if (!(await driveOAuthManager.isAuthenticated())) {
+    if (!(await isAuthenticated())) {
       return null;
     }
 
-    const drive = await driveOAuthManager.getDriveClient();
+    const drive = await getDriveClient();
 
     try {
-      const params: any = {
+      const params: Record<string, unknown> = {
         fileId,
         fields: 'id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,parents',
         supportsAllDrives: true,
@@ -301,7 +301,8 @@ export class DriveDiscovery {
         supportsAllDrives: params.supportsAllDrives,
       });
 
-      const response = await drive.files.get(params);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (drive as any).files.get(params);
 
       if (response.data) {
         return {
@@ -328,14 +329,14 @@ export class DriveDiscovery {
    * Download file content
    */
   async downloadFile(fileId: string, driveId?: string): Promise<Buffer> {
-    if (!(await driveOAuthManager.isAuthenticated())) {
+    if (!(await isAuthenticated())) {
       throw new Error('Not authenticated with Drive');
     }
 
-    const drive = await driveOAuthManager.getDriveClient();
+    const drive = await getDriveClient();
 
     try {
-      const params: any = {
+      const params: Record<string, unknown> = {
         fileId,
         alt: 'media',
         supportsAllDrives: true,
@@ -351,7 +352,8 @@ export class DriveDiscovery {
         supportsAllDrives: params.supportsAllDrives,
       });
 
-      const response = await drive.files.get(params, { responseType: 'arraybuffer' });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (drive as any).files.get(params, { responseType: 'arraybuffer' });
 
       return Buffer.from(response.data);
     } catch (error) {
@@ -364,21 +366,22 @@ export class DriveDiscovery {
    * Search for files by name
    */
   async searchFiles(query: string): Promise<DriveFile[]> {
-    if (!(await driveOAuthManager.isAuthenticated())) {
+    if (!(await isAuthenticated())) {
       return [];
     }
 
-    const drive = await driveOAuthManager.getDriveClient();
+    const drive = await getDriveClient();
 
     try {
-      const response = await drive.files.list({
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (drive as any).files.list({
         q: `name contains '${query}' and trashed = false`,
         fields: 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,parents)',
         pageSize: 100,
       });
 
       if (response.data.files) {
-        return response.data.files.map((file: any) => ({
+        return response.data.files.map((file: { id: string; name: string; mimeType: string; size?: string; createdTime?: string; modifiedTime?: string; thumbnailLink?: string; webViewLink?: string; description?: string; parents?: string[] }) => ({
           id: file.id,
           name: file.name,
           mimeType: file.mimeType,
@@ -397,4 +400,5 @@ export class DriveDiscovery {
   }
 }
 
-export const driveDiscovery = DriveDiscovery.getInstance();
+// Per-request instance creation - no singleton
+export const driveDiscovery = new DriveDiscovery();
