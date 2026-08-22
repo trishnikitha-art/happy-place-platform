@@ -197,10 +197,12 @@ export async function clearBrowserBinding(cookieStore?: Awaited<ReturnType<typeo
 /**
  * Create OAuth state record with browser binding
  *
- * Stores state in Redis with 5-minute TTL
+ * Stores state in Redis with 5-minute TTL using atomic SET NX EX operation
  * State is not yet consumed
  * 
  * Browser binding is obtained from HttpOnly cookie for CSRF protection
+ * 
+ * Uses atomic SET NX EX to ensure state record cannot exist without intended expiration
  * 
  * @param cookieStore - Optional cookie store for testing
  */
@@ -220,8 +222,14 @@ export async function createState(cookieStore?: Awaited<ReturnType<typeof cookie
 
   try {
     const client = getRedisClient();
-    await client.set(`${STATE_PREFIX}${state}`, record);
-    await client.expire(`${STATE_PREFIX}${state}`, STATE_TTL_SECONDS);
+    
+    // Use atomic SET NX EX to ensure state record cannot exist without intended expiration
+    // NX: Only set if key does not exist (prevents duplicate state creation)
+    // EX: Set expiration time atomically with the value
+    await client.set(`${STATE_PREFIX}${state}`, record, {
+      nx: true,
+      ex: STATE_TTL_SECONDS,
+    });
 
     console.log('[OAUTH_STATE] State created');
 

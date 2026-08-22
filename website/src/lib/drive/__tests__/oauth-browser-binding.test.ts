@@ -175,4 +175,12 @@ describe('OAuth Browser Binding', () => {
     expect(error.name).toBe('StateInfrastructureError');
     expect(error.message).toBe('Test error');
   });
+
+  it('should support originalError in StateInfrastructureError', () => {
+    const originalError = new Error('Original Redis error');
+    const error = new StateInfrastructureError('Test error', originalError);
+    expect(error.name).toBe('StateInfrastructureError');
+    expect(error.message).toBe('Test error');
+    expect(error.originalError).toBe(originalError);
+  });
 });
