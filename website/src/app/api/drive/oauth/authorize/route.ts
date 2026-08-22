@@ -3,10 +3,12 @@
  * 
  * Initiates OAuth 2.0 flow for Google Drive access.
  * Uses PING90 Google Cloud project credentials.
+ * Integrates with state authority for CSRF protection.
  */
 
 import { NextResponse } from 'next/server';
 import { driveSession } from '@/lib/drive/drive-session';
+import { createState } from '@/lib/drive/oauth-state-manager';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +28,13 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'GOOGLE_CLIENT_ID not configured' }, { status: 500 });
   }
 
+  // Create OAuth state for CSRF protection
+  const state = await createState();
+  if (!state) {
+    console.log('[DRIVE OAUTH FORENSIC] Failed to create OAuth state');
+    return NextResponse.json({ error: 'Failed to create OAuth state' }, { status: 500 });
+  }
+
   const scopes = [
     'https://www.googleapis.com/auth/drive.readonly',
     'https://www.googleapis.com/auth/drive.metadata.readonly',
@@ -38,6 +47,7 @@ export async function GET(request: Request) {
   authUrl.searchParams.append('response_type', 'code');
   authUrl.searchParams.append('scope', scopes.join(' '));
   authUrl.searchParams.append('access_type', 'offline');
+  authUrl.searchParams.append('state', state);
   
   // Use prompt=consent only on first login; omit prompt on subsequent logins
   // Google recommends: user prompted only first time project requests access
@@ -50,6 +60,7 @@ export async function GET(request: Request) {
     authUrl: authUrl.toString(),
     hasRefreshToken: !!hasRefreshToken,
     prompt: !hasRefreshToken ? 'consent' : 'omitted',
+    hasState: !!state,
   });
 
   return NextResponse.redirect(authUrl.toString());
