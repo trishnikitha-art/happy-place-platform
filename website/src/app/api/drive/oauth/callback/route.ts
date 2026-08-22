@@ -10,10 +10,9 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
-import { driveSession } from '@/lib/drive/drive-session';
 import { revokeAuthorizationWithSessions, upsertAuthorization } from '@/lib/drive/oauth-credential-store';
-import { createSession } from '@/lib/drive/session-store';
-import { consumeState, StateValidationResult } from '@/lib/drive/oauth-state-manager';
+import { createSession, getSession } from '@/lib/drive/session-store';
+import { consumeState } from '@/lib/drive/oauth-state-manager';
 
 export const dynamic = 'force-dynamic';
 
