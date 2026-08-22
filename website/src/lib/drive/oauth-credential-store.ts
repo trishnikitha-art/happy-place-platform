@@ -381,6 +381,9 @@ export async function updateAuthorizationAfterRefresh(
  * Marks authorization as revoked
  * Does NOT delete the record (preserves forensic evidence)
  * Cleans up subject index to prevent reauthorization of revoked identity
+ *
+ * NOTE: Session revocation should be called separately via revokeAllSessionsForAuthorization
+ * This avoids circular dependency between auth and session modules
  */
 export async function revokeAuthorization(id: string): Promise<void> {
   try {
@@ -403,11 +406,33 @@ export async function revokeAuthorization(id: string): Promise<void> {
 }
 
 /**
+ * Revoke authorization and all associated sessions
+ *
+ * Combined operation for authorization-wide revocation
+ * Calls revokeAuthorization and revokeAllSessionsForAuthorization
+ */
+export async function revokeAuthorizationWithSessions(id: string): Promise<void> {
+  try {
+    // Revoke authorization
+    await revokeAuthorization(id);
+
+    // Revoke all associated sessions
+    const { revokeAllSessionsForAuthorization } = await import('./session-store');
+    await revokeAllSessionsForAuthorization(id);
+
+    console.log('[AUTH_STORE] Authorization and sessions revoked:', id);
+  } catch (error) {
+    console.error('[AUTH_STORE] Revoke with sessions failed:', error);
+    throw new Error(`Failed to revoke authorization with sessions ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
  * Delete authorization record
  *
  * WARNING: This destroys forensic evidence
  * Use revokeAuthorization instead for most cases
- * Cleans up subject index when deleting
+ * Cleans up subject index and session index when deleting
  */
 export async function deleteAuthorization(id: string): Promise<void> {
   try {
@@ -416,6 +441,10 @@ export async function deleteAuthorization(id: string): Promise<void> {
       const client = getRedisClient();
       await client.del(`${AUTH_PREFIX}${id}`);
       await client.del(`${AUTH_SUBJECT_PREFIX}${auth.googleSubject}`);
+
+      // Clean up session index
+      await client.del(`drive:auth:sessions:${id}`);
+
       console.log('[AUTH_STORE] Authorization deleted:', id);
     }
   } catch (error) {

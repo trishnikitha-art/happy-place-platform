@@ -34,6 +34,7 @@ function getRedisClient(): Redis {
 
 // Redis namespace
 const SESSION_PREFIX = 'drive:session:';
+const AUTH_SESSIONS_PREFIX = 'drive:auth:sessions:';
 
 // Session TTL: 30 days (browser session lifetime)
 const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
@@ -105,6 +106,8 @@ export function generateSessionId(): string {
 
 /**
  * Create session record
+ *
+ * Registers session in authorization's session index
  */
 export async function createSession(
   authorizationId: string,
@@ -113,7 +116,7 @@ export async function createSession(
   const sessionId = generateSessionId();
   const now = new Date();
   const expiresAt = new Date(now.getTime() + SESSION_TTL_SECONDS * 1000);
-  
+
   const record: BrowserSessionRecord = {
     id: sessionId,
     authorizationId,
@@ -122,12 +125,16 @@ export async function createSession(
     expiresAt: expiresAt.toISOString(),
     lastSeenAt: now.toISOString(),
   };
-  
+
   try {
     const client = getRedisClient();
     await client.set(`${SESSION_PREFIX}${sessionId}`, record);
     await client.expire(`${SESSION_PREFIX}${sessionId}`, SESSION_TTL_SECONDS);
-    
+
+    // Register session in authorization's session index
+    await client.sadd(`${AUTH_SESSIONS_PREFIX}${authorizationId}`, sessionId);
+    await client.expire(`${AUTH_SESSIONS_PREFIX}${authorizationId}`, SESSION_TTL_SECONDS);
+
     console.log('[SESSION_STORE] Session created:', sessionId);
     return record;
   } catch (error) {
@@ -204,31 +211,54 @@ export async function revokeSession(id: string): Promise<void> {
 
 /**
  * Revoke all sessions for an authorization
- * 
+ *
  * Marks all sessions linked to the authorization as revoked
+ * Uses authorization's session index for efficient enumeration
  */
 export async function revokeAllSessionsForAuthorization(authorizationId: string): Promise<void> {
   try {
-    // This would require a secondary index in a real implementation
-    // For now, we'll skip this and implement direct lookup by ID
-    // P0 gap: Session index by authorization deferred
-    console.log('[SESSION_STORE] Revoke all sessions not yet implemented:', authorizationId);
+    const client = getRedisClient();
+    const sessionIds = await client.smembers<string>(`${AUTH_SESSIONS_PREFIX}${authorizationId}`);
+
+    if (sessionIds.length === 0) {
+      console.log('[SESSION_STORE] No sessions found for authorization:', authorizationId);
+      return;
+    }
+
+    // Revoke each session
+    for (const sessionId of sessionIds) {
+      await revokeSession(sessionId);
+    }
+
+    // Clean up session index
+    await client.del(`${AUTH_SESSIONS_PREFIX}${authorizationId}`);
+
+    console.log('[SESSION_STORE] Revoked all sessions for authorization:', authorizationId, 'count:', sessionIds.length);
   } catch (error) {
     console.error('[SESSION_STORE] Revoke all failed:', error);
+    throw new Error(`Failed to revoke all sessions for authorization ${authorizationId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
 /**
  * Delete session record
- * 
+ *
  * WARNING: This destroys forensic evidence
  * Use revokeSession instead for most cases
+ * Removes session from authorization's session index
  */
 export async function deleteSession(id: string): Promise<void> {
   try {
-    const client = getRedisClient();
-    await client.del(`${SESSION_PREFIX}${id}`);
-    console.log('[SESSION_STORE] Session deleted:', id);
+    const record = await getSession(id);
+    if (record) {
+      const client = getRedisClient();
+      await client.del(`${SESSION_PREFIX}${id}`);
+
+      // Remove from authorization's session index
+      await client.srem(`${AUTH_SESSIONS_PREFIX}${record.authorizationId}`, id);
+
+      console.log('[SESSION_STORE] Session deleted:', id);
+    }
   } catch (error) {
     console.error('[SESSION_STORE] Delete failed:', error);
     throw new Error(`Failed to delete session ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
