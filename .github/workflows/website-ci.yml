@@ -24,5 +24,6 @@ jobs:
           node-version: 20
       - run: npm install
       - run: npm run build
+      - run: npm test
       # Lint is best-effort; the build is the gate.
       - run: npm run lint || true

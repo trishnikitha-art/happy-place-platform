@@ -358,9 +358,9 @@ export async function consumeState(state: string, cookieStore?: Awaited<ReturnTy
         return 0
       end
 
-      -- Mark as consumed atomically
+      -- Mark as consumed atomically, preserving TTL
       decoded.consumed = true
-      redis.call('SET', key, cjson.encode(decoded))
+      redis.call('SET', key, cjson.encode(decoded), 'KEEPTTL')
 
       return 1
     `;

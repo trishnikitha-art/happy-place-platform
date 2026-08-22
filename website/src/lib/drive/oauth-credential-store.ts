@@ -353,8 +353,9 @@ async function createNewAuthorization(
 /**
  * Create new authorization record with atomic subject acquisition
  * 
- * Uses atomic SET NX on subject index to prevent concurrent duplicate creation
+ * Uses Redis Lua transaction for atomic authorization + subject index write
  * Ensures only one authorization can be created per googleSubject
+ * Eliminates race condition between subject acquisition and authorization storage
  */
 async function createNewAuthorizationWithAtomicSubject(
   googleSubject: string,
@@ -387,32 +388,47 @@ async function createNewAuthorizationWithAtomicSubject(
 
   const client = getRedisClient();
   
-  // Atomic subject acquisition: SET NX on subject index
-  // If this succeeds, we have the lock on this googleSubject
-  const subjectAcquired = await client.set(`${AUTH_SUBJECT_PREFIX}${googleSubject}`, id, {
-    nx: true,
-    ex: AUTH_TTL_SECONDS,
-  });
+  // Use Lua script for atomic authorization + subject index write
+  // This ensures the subject index and authorization record are written atomically
+  // Eliminates race condition where subject is acquired but authorization storage fails
+  const luaScript = `
+    local auth_key = KEYS[1]
+    local subject_key = KEYS[2]
+    local auth_data = ARGV[1]
+    local subject_value = ARGV[2]
+    local ttl = ARGV[3]
 
-  if (!subjectAcquired) {
-    // Another process acquired the subject, retry from the beginning
-    console.log('[AUTH_STORE] Subject acquisition failed, retrying');
+    -- Check if subject index already exists (concurrent check)
+    local existing_subject = redis.call('GET', subject_key)
+    if existing_subject then
+      return 0  -- Subject already taken by another process
+    end
+
+    -- Store authorization record
+    redis.call('SET', auth_key, auth_data)
+    redis.call('EXPIRE', auth_key, ttl)
+
+    -- Store subject index atomically
+    redis.call('SET', subject_key, subject_value)
+    redis.call('EXPIRE', subject_key, ttl)
+
+    return 1  -- Success
+  `;
+
+  const result = await client.eval(
+    luaScript,
+    [`${AUTH_PREFIX}${id}`, `${AUTH_SUBJECT_PREFIX}${googleSubject}`],
+    [JSON.stringify(auth), id, AUTH_TTL_SECONDS.toString()]
+  );
+
+  if (result === 0) {
+    // Subject already taken by another process, retry from the beginning
+    console.log('[AUTH_STORE] Subject already taken, retrying');
     return upsertAuthorization(googleSubject, email, scopes, accessToken, accessTokenExpiresAt, refreshToken, keyVersion);
   }
-
-  // Subject acquired, store authorization record
-  try {
-    await client.set(`${AUTH_PREFIX}${id}`, auth);
-    await client.expire(`${AUTH_PREFIX}${id}`, AUTH_TTL_SECONDS);
-    
-    console.log('[AUTH_STORE] Authorization created with atomic subject acquisition');
-    return auth;
-  } catch (error) {
-    // Authorization storage failed, clean up subject index
-    await client.del(`${AUTH_SUBJECT_PREFIX}${googleSubject}`);
-    console.error('[AUTH_STORE] Authorization storage failed, cleaned up subject index:', error);
-    throw new Error(`Failed to store authorization after subject acquisition: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
+  
+  console.log('[AUTH_STORE] Authorization created with atomic subject acquisition');
+  return auth;
 }
 
 /**
@@ -454,7 +470,12 @@ export async function updateAuthorizationAfterRefresh(
     auth.lastUsedAt = new Date().toISOString();
     auth.updatedAt = new Date().toISOString();
     
-    await storeAuthorization(auth);
+    // Update authorization record directly without rewriting subject index
+    // Subject index remains unchanged during refresh
+    const client = getRedisClient();
+    await client.set(`${AUTH_PREFIX}${auth.id}`, auth);
+    await client.expire(`${AUTH_PREFIX}${auth.id}`, AUTH_TTL_SECONDS);
+    
     console.log('[AUTH_STORE] Authorization updated after refresh:', authId);
   } catch (error) {
     console.error('[AUTH_STORE] Update failed:', error);

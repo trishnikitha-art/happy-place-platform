@@ -9,7 +9,7 @@
  */
 
 import {
-  createAuthorization,
+  upsertAuthorization,
   revokeAuthorizationWithSessions,
   findAuthorizationBySubject,
   getAuthorization,
@@ -47,7 +47,7 @@ describe('OAuth Authority Revocation', () => {
   describe('Multiple Session Revocation', () => {
     it('should revoke all sessions when authorization is revoked', async () => {
       // Create authorization
-      const auth = await createAuthorization(
+      const auth = await upsertAuthorization(
         TEST_SUBJECT,
         TEST_EMAIL,
         TEST_SCOPES,
@@ -62,7 +62,7 @@ describe('OAuth Authority Revocation', () => {
       // Verify authorization exists
       const retrieved = await getAuthorization(auth.id);
       expect(retrieved).toBeTruthy();
-      expect(retrieved?.revokedAt).toBeNull();
+      expect(retrieved?.status).toBe('active');
 
       // Revoke authorization with sessions
       await revokeAuthorizationWithSessions(auth.id);
@@ -70,7 +70,7 @@ describe('OAuth Authority Revocation', () => {
       // Verify authorization is revoked
       const revoked = await getAuthorization(auth.id);
       expect(revoked).toBeTruthy();
-      expect(revoked?.revokedAt).not.toBeNull();
+      expect(revoked?.status).toBe('revoked');
 
       // All sessions should be revoked (covered by revokeAuthorizationWithSessions)
       // This is a placeholder for session-specific tests
@@ -80,7 +80,7 @@ describe('OAuth Authority Revocation', () => {
   describe('Revoked Authorization Usability', () => {
     it('should not allow use of revoked authorization', async () => {
       // Create authorization
-      const auth = await createAuthorization(
+      const auth = await upsertAuthorization(
         TEST_SUBJECT,
         TEST_EMAIL,
         TEST_SCOPES,
@@ -94,18 +94,18 @@ describe('OAuth Authority Revocation', () => {
 
       // Verify authorization is revoked
       const revoked = await getAuthorization(auth.id);
-      expect(revoked?.revokedAt).not.toBeNull();
+      expect(revoked?.status).toBe('revoked');
 
       // Attempting to use revoked authorization should fail
       // This is a placeholder for authorization usage tests
-      expect(revoked?.revokedAt).not.toBeNull();
+      expect(revoked?.status).toBe('revoked');
     });
   });
 
   describe('Idempotent Revocation', () => {
     it('should be idempotent - repeated revocation should not error', async () => {
       // Create authorization
-      const auth = await createAuthorization(
+      const auth = await upsertAuthorization(
         TEST_SUBJECT,
         TEST_EMAIL,
         TEST_SCOPES,
@@ -128,7 +128,7 @@ describe('OAuth Authority Revocation', () => {
   describe('Single Authoritative Revocation Path', () => {
     it('should use revokeAuthorizationWithSessions as the single revocation path', async () => {
       // Create authorization
-      const auth = await createAuthorization(
+      const auth = await upsertAuthorization(
         TEST_SUBJECT,
         TEST_EMAIL,
         TEST_SCOPES,
@@ -142,7 +142,7 @@ describe('OAuth Authority Revocation', () => {
 
       // Verify it worked
       const revoked = await getAuthorization(auth.id);
-      expect(revoked?.revokedAt).not.toBeNull();
+      expect(revoked?.status).toBe('revoked');
 
       // This test ensures we're using the correct function
       // Integration tests would verify no other revocation paths exist
