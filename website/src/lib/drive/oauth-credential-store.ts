@@ -24,8 +24,21 @@ let redis: Redis | null = null;
 
 function getRedisClient(): Redis {
   if (!redis) {
-    const url = process.env.KV_REST_API_URL;
-    const token = process.env.KV_REST_API_TOKEN;
+    let url = process.env.KV_REST_API_URL;
+    let token = process.env.KV_REST_API_TOKEN;
+    
+    // Check integration-generated variables
+    const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
+    const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
+    const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
+    
+    // Use integration credentials if primary not set
+    if (!url && integrationUrl) {
+      url = integrationUrl;
+    }
+    if (!token && integrationToken) {
+      token = integrationToken;
+    }
     
     if (!url || !token) {
       throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
