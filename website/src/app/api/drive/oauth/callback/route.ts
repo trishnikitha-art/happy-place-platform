@@ -203,6 +203,9 @@ export async function GET(request: Request) {
           'Authorization': `Bearer ${tokenData.access_token}`,
         },
       });
+
+      // CRITICAL: Do not log access token in console
+      // The Authorization header is sent to Google, not logged locally
       
       if (!userInfoResponse.ok) {
         throw new Error(`Google userinfo request failed: ${userInfoResponse.status}`);
