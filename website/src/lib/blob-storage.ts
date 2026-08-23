@@ -157,11 +157,20 @@ export async function uploadToBlob(
 async function getBlobMetadataByContentHash(contentHash: string): Promise<BlobMetadata | null> {
   try {
     const client = getRedisClient();
-    const data = await client.get<string>(`blob_metadata:${contentHash}`);
+    const data = await client.get(`blob_metadata:${contentHash}`);
     if (!data) return null;
     
-    // Explicitly deserialize from JSON to match storage format
-    return JSON.parse(data) as BlobMetadata;
+    // Handle both JSON strings and already-deserialized objects
+    // Upstash may return objects for some existing records
+    if (typeof data === 'string') {
+      // Standard case: JSON string, parse it
+      return JSON.parse(data) as BlobMetadata;
+    } else if (typeof data === 'object' && data !== null) {
+      // Upstash returned already-deserialized object
+      return data as BlobMetadata;
+    } else {
+      throw new Error(`Unexpected data type: ${typeof data}`);
+    }
   } catch (e) {
     console.error('[BLOB_STORAGE] Content hash lookup failed:', e);
     throw new Error(`Failed to find blob metadata by content hash: ${e instanceof Error ? e.message : 'Unknown error'}`);

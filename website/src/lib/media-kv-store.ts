@@ -184,18 +184,30 @@ export async function storeMedia(media: Media): Promise<void> {
 export async function getMedia(id: string): Promise<Media | null> {
   try {
     const client = getRedisClient();
-    const data = await client.get<string>(`${MEDIA_PREFIX}${id}`);
+    const data = await client.get(`${MEDIA_PREFIX}${id}`);
     if (!data) return null;
 
-    // Explicitly deserialize from JSON to match storeMedia serialization
+    // Handle both JSON strings and already-deserialized objects
+    // Upstash may return objects for some existing records
     let media: Media;
     try {
-      media = JSON.parse(data) as Media;
+      if (typeof data === 'string') {
+        // Standard case: JSON string, parse it
+        media = JSON.parse(data) as Media;
+      } else if (typeof data === 'object' && data !== null) {
+        // Upstash returned already-deserialized object
+        media = data as Media;
+      } else {
+        throw new Error(`Unexpected data type: ${typeof data}`);
+      }
     } catch (parseError) {
-      console.error('[MEDIA_KV] JSON parse failed for media:', id);
+      console.error('[MEDIA_KV] Deserialization failed for media:', id, {
+        dataType: typeof data,
+        error: parseError instanceof Error ? parseError.message : 'Unknown error'
+      });
       // Quarantine corrupted data using consistent namespace
       const quarantineKey = `${MEDIA_QUARANTINE_PREFIX}${id}:${Date.now()}`;
-      await client.set(quarantineKey, data);
+      await client.set(quarantineKey, typeof data === 'string' ? data : JSON.stringify(data));
       console.log('[MEDIA_KV] Corrupted media quarantined:', quarantineKey);
       return null;
     }
@@ -205,7 +217,7 @@ export async function getMedia(id: string): Promise<Media | null> {
       console.error('[MEDIA_KV] Schema validation failed for media:', id);
       // Quarantine corrupted data using consistent namespace
       const quarantineKey = `${MEDIA_QUARANTINE_PREFIX}${id}:${Date.now()}`;
-      await client.set(quarantineKey, data);
+      await client.set(quarantineKey, typeof data === 'string' ? data : JSON.stringify(data));
       console.log('[MEDIA_KV] Corrupted media quarantined:', quarantineKey);
       return null;
     }
@@ -299,11 +311,20 @@ export async function migrateDriveReferences(): Promise<{
     for (const id of allIds) {
       try {
         // Bypass getMedia() validation to access raw legacy records
-        const data = await client.get<string>(`${MEDIA_PREFIX}${id}`);
+        const data = await client.get(`${MEDIA_PREFIX}${id}`);
         if (!data) continue;
         
-        // Explicitly deserialize from JSON
-        const media = JSON.parse(data) as Media;
+        // Handle both JSON strings and already-deserialized objects
+        let media: Media;
+        if (typeof data === 'string') {
+          media = JSON.parse(data) as Media;
+        } else if (typeof data === 'object' && data !== null) {
+          media = data as Media;
+        } else {
+          errors++;
+          console.error('[MEDIA_KV] Unexpected data type during migration:', id, typeof data);
+          continue;
+        }
         
         // Check if this is an old Drive reference using legacy status field
         const isLegacyDriveRef = media.provenance?.status === 'referenced' && 
