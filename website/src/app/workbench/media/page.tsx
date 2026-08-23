@@ -35,7 +35,7 @@ interface MediaWorkbenchState {
   selectedSlot: RegisteredSlot | null;
   selectedAsset: VisualAsset | null;
   searchQuery: string;
-  filter: 'all' | 'used' | 'unused' | 'drive';
+  filter: 'all' | 'used' | 'unused' | 'drive' | 'published' | 'legacy';
   registeredSlots: RegisteredSlot[];
   pendingAssignments: Map<string, { slot: RegisteredSlot; asset: VisualAsset }>;
   isAccepting: boolean;
@@ -931,12 +931,16 @@ Check browser console for detailed logs.`);
 
     const usedSlots = state.registeredSlots.filter(s => s.currentMediaId === asset.id);
     const isUsed = usedSlots.length > 0;
-    const isDriveOnly = asset.source === 'google-drive' && asset.drive?.fileId;
+    const isDriveOnly = asset.classification === 'DRIVE_ONLY';
+    const isPublished = asset.classification === 'PUBLISHED';
+    const isLegacy = asset.classification !== 'PUBLISHED' && asset.classification !== 'DRIVE_ONLY';
 
     switch (state.filter) {
       case 'used': return isUsed;
       case 'unused': return !isUsed;
       case 'drive': return isDriveOnly;
+      case 'published': return isPublished;
+      case 'legacy': return isLegacy;
       default: return true;
     }
   });
@@ -1087,6 +1091,8 @@ Check browser console for detailed logs.`);
       resolvedSlotId: slot?.id,
       mediaId: assetId,
       source: asset?.source || 'unknown',
+      classification: asset?.classification || 'unknown',
+      lifecycleState: asset?.lifecycleState || 'unknown',
       driveFileId: asset?.drive?.fileId,
       sharedDriveId: asset?.drive?.driveId,
       slotFound: !!slot,
@@ -1096,44 +1102,62 @@ Check browser console for detailed logs.`);
       timestamp: Date.now(),
     });
     
-    if (slot && asset) {
-      console.log('[DND] SLOT_ASSIGNMENT', {
-        slotId,
-        assetId,
-        slotName: slot.slotName,
-        assetFilename: asset.filename,
-        currentMediaId: slot.currentMediaId,
-      });
-      
-      // Stage the assignment
-      setState(prev => {
-        const newPendingAssignments = new Map(prev.pendingAssignments);
-        newPendingAssignments.set(slotId, { slot, asset });
-        return { ...prev, pendingAssignments: newPendingAssignments };
-      });
-      
-      console.log('[WB_FORENSIC] ASSIGNMENT_STAGED', {
-        slotId,
-        mediaId: assetId,
-        source: asset.source,
-        timestamp: Date.now(),
-      });
-      
-      console.log('[DND] ASSIGNMENT_STAGED', {
-        slotId,
-        assetId,
-        pendingCount: state.pendingAssignments.size + 1,
-      });
-    } else {
-      console.error('[DND] SLOT_ASSIGNMENT_FAILED', {
-        slotId,
-        assetId,
-        slotFound: !!slot,
-        assetFound: !!asset,
-        registeredSlotsCount: registeredSlotsRef.current.length,
-        assetsCount: assetsRef.current.length,
-      });
+    if (!slot || !asset) {
+      console.error('[WORKBENCH] Assignment failed: slot or asset not found', { slotId, assetId });
+      return;
     }
+
+    // ENFORCE ASSIGNABILITY BOUNDARY: Only PUBLISHED assets can be assigned
+    // Legacy assets (PRESENT_MAPPED, PRESENT_UNMAPPED, etc.) must be promoted first
+    if (asset.classification !== 'PUBLISHED') {
+      alert(`This asset is not in a published state. Only fully materialized PublishedMediaAsset can be assigned.\n\nCurrent classification: ${asset.classification}\n\nLegacy assets must be promoted to PublishedMediaAsset before assignment.`);
+      console.log('[WORKBENCH] ASSIGNMENT_REJECTED: Asset not PUBLISHED', {
+        assetId,
+        classification: asset.classification,
+        lifecycleState: asset.lifecycleState,
+        source: asset.source,
+      });
+      return;
+    }
+
+    // Additional constitutional gate: enforce PublishedMediaAsset contract
+    if (asset.source !== 'local' || asset.lifecycleState !== 'published') {
+      alert(`This asset does not meet PublishedMediaAsset requirements.\n\nSource: ${asset.source}\nLifecycle: ${asset.lifecycleState}\n\nOnly local published assets can be assigned.`);
+      console.log('[WORKBENCH] ASSIGNMENT_REJECTED: Asset not PublishedMediaAsset', {
+        assetId,
+        source: asset.source,
+        lifecycleState: asset.lifecycleState,
+      });
+      return;
+    }
+    
+    console.log('[DND] SLOT_ASSIGNMENT', {
+      slotId,
+      assetId,
+      slotName: slot.slotName,
+      assetFilename: asset.filename,
+      currentMediaId: slot.currentMediaId,
+    });
+      
+    // Stage the assignment
+    setState(prev => {
+      const newPendingAssignments = new Map(prev.pendingAssignments);
+      newPendingAssignments.set(slotId, { slot, asset });
+      return { ...prev, pendingAssignments: newPendingAssignments };
+    });
+      
+    console.log('[WB_FORENSIC] ASSIGNMENT_STAGED', {
+      slotId,
+      mediaId: assetId,
+      source: asset.source,
+      timestamp: Date.now(),
+    });
+      
+    console.log('[DND] ASSIGNMENT_STAGED', {
+      slotId,
+      assetId,
+      pendingCount: state.pendingAssignments.size + 1,
+    });
   };
 
   const removePendingAssignment = (slotId: string) => {
@@ -1803,7 +1827,7 @@ Check browser console for detailed logs.`);
 
             {/* Filters */}
             <div className="flex gap-1 mb-4">
-              {(['all', 'used', 'unused', 'drive'] as const).map((filter) => (
+              {(['all', 'used', 'unused', 'drive', 'published', 'legacy'] as const).map((filter) => (
                 <button
                   key={filter}
                   onClick={() => setState(prev => ({ ...prev, filter }))}
@@ -2089,7 +2113,9 @@ Check browser console for detailed logs.`);
               {filteredAssets.map((asset) => {
                 const isSelected = state.selectedAsset?.id === asset.id;
                 const isUsed = state.registeredSlots.some(s => s.currentMediaId === asset.id);
-                const isDriveOnly = asset.drive?.fileId && !asset.physicalPath;
+                const isDriveOnly = asset.classification === 'DRIVE_ONLY';
+                const isPublished = asset.classification === 'PUBLISHED';
+                const isLegacy = asset.classification !== 'PUBLISHED' && asset.classification !== 'DRIVE_ONLY';
                 
                 return (
                   <div
@@ -2145,8 +2171,18 @@ Check browser console for detailed logs.`);
                         Drive
                       </div>
                     )}
+                    {isPublished && (
+                      <div className="absolute top-2 left-2 px-2 py-1 bg-green-500 text-white text-xs rounded">
+                        Assignable
+                      </div>
+                    )}
+                    {isLegacy && (
+                      <div className="absolute top-2 left-2 px-2 py-1 bg-amber-500 text-white text-xs rounded">
+                        Legacy
+                      </div>
+                    )}
                     {isUsed && !isDriveOnly && (
-                      <div className="absolute top-2 right-2 px-2 py-1 bg-green-500 text-white text-xs rounded">
+                      <div className="absolute top-2 right-2 px-2 py-1 bg-gray-500 text-white text-xs rounded">
                         Used
                       </div>
                     )}
