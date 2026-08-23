@@ -455,7 +455,7 @@ export async function POST(request: Request) {
         // This ensures DriveReference assignments are repaired when re-ingesting the same content
         const reconciliationResult = await reconcileDriveAssignments(
           existingMedia.id,
-          driveIdParameter || driveId,
+          driveId, // Use actual Drive file ID for provenance, not Shared Drive ID
           requestId
         );
         
@@ -663,7 +663,10 @@ export async function POST(request: Request) {
         status: 'published', // Materialized and published
         preserved_at: new Date().toISOString(),
         // Track Drive origin for lineage without creating drive field
-        august3_driveId: driveIdParameter || driveId,
+        // Use actual Drive file ID for provenance, not Shared Drive ID
+        august3_driveId: driveId,
+        // Store Shared Drive context separately for corpus/metadata
+        sharedDriveId: driveIdParameter || undefined,
       },
     };
 
@@ -683,10 +686,10 @@ export async function POST(request: Request) {
     // 10. Reconcile DriveReference assignments to PublishedMediaAsset assignments
     // This is authoritative - if reconciliation fails, report it in the response
     let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [] };
-    if (driveIdParameter || driveId) {
+    if (driveId) {
       reconciliationResult = await reconcileDriveAssignments(
         mediaId,
-        driveIdParameter || driveId,
+        driveId, // Use actual Drive file ID for provenance, not Shared Drive ID
         requestId
       );
     }

@@ -36,8 +36,8 @@ function extractDriveSourceId(mediaId) {
 }
 
 /**
- * Find PublishedMediaAsset by Drive source ID
- * This requires either content hash matching or direct ID lookup
+ * Find PublishedMediaAsset by Drive source ID using provenance matching
+ * This implements content hash matching and Drive provenance scan
  */
 async function findPublishedMediaAsset(driveSourceId) {
   try {
@@ -47,8 +47,25 @@ async function findPublishedMediaAsset(driveSourceId) {
       return directMedia;
     }
     
-    // If not found, we would need to scan all media for Drive provenance
-    // For now, return null - this requires Drive connection
+    // Scan all media for Drive provenance via august3_driveId
+    const { listMediaIds } = await import('../src/lib/media-kv-store.js');
+    const mediaIds = await listMediaIds();
+    
+    for (const mediaId of mediaIds) {
+      const media = await getMedia(mediaId);
+      if (media && 
+          media.source === 'local' && 
+          media.lifecycleState === 'published' &&
+          media.provenance?.august3_driveId === driveSourceId) {
+        console.log('[REPAIR] Found PublishedMediaAsset via provenance scan:', {
+          driveSourceId,
+          mediaId,
+        });
+        return media;
+      }
+    }
+    
+    console.log('[REPAIR] No PublishedMediaAsset found for Drive source ID:', driveSourceId);
     return null;
   } catch (error) {
     console.error('[REPAIR] Failed to find PublishedMediaAsset:', error);

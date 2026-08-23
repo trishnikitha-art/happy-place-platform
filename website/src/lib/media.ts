@@ -191,6 +191,7 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
 /**
  * Preload dynamic media from KV into memory cache
  * Call this during app initialization or when Drive operations are expected
+ * Fails closed in production (no silent in-memory fallback when KV unavailable)
  */
 export async function loadDynamicMedia(): Promise<void> {
   try {
@@ -200,21 +201,18 @@ export async function loadDynamicMedia(): Promise<void> {
     console.log('[MEDIA] Loaded PublishedMediaAssets from KV:', publishedAssets.length);
 
     // Cache the published assets for on-demand lookup
-    for (const asset of publishedAssets) {
-      dynamicMediaCache[asset.id] = asset;
-    }
+    dynamicMediaCache.push(...publishedAssets);
   } catch (error) {
     // Check if this is a KV configuration error
     if (error instanceof Error && error.message.includes('Missing required environment variables')) {
-      console.warn('[MEDIA] KV not configured - dynamic media loading skipped:', error.message);
-      // Clear cache and return gracefully - Drive references will work with in-memory fallback
-      dynamicMediaCache = [];
-      return;
+      console.error('[MEDIA] KV not configured - fail-closed for production media authority:', error.message);
+      // Fail closed: KV unavailable is different from empty media authority
+      // Throw to prevent silent authority disconnect
+      throw new Error('KV_MEDIA_AUTHORITY_UNAVAILABLE: KV not configured for dynamic media');
     }
-    console.log('[MEDIA] Failed to preload dynamic media (KV unavailable or misconfigured):', error);
-    // KV might not be configured in all environments - fail gracefully
-    // This should NOT prevent slot registration or assignment
-    dynamicMediaCache = [];
+    console.error('[MEDIA] Failed to preload dynamic media (KV unavailable or misconfigured):', error);
+    // Fail closed for production media authority
+    throw new Error('KV_MEDIA_AUTHORITY_FAILURE: Failed to load dynamic media from KV');
   }
 }
 

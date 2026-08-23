@@ -218,6 +218,7 @@ export interface Media extends BaseMedia {
   // Provenance (for reconciliation tracking)
   provenance?: {
     august3_driveId?: string;
+    sharedDriveId?: string; // Shared Drive context (corpus/metadata, not file identity)
     match_type?: string;
     confidence?: string;
     drive_canonical?: boolean;

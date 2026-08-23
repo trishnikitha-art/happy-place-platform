@@ -656,8 +656,13 @@ export default function MediaWorkbench() {
       // Load static visual asset registry (media.v1.json)
       const staticRegistry = await loadVisualAssetRegistry();
       
-      // Load dynamic media from KV (Drive records)
-      await loadDynamicMedia();
+      // Load dynamic media from KV (Drive records) - fail-closed if KV unavailable
+      try {
+        await loadDynamicMedia();
+      } catch (error) {
+        console.warn('[WORKBENCH] KV media authority unavailable - using static registry only:', error);
+        // Continue with static registry - KV unavailability is not a Workbench blocking error
+      }
       
       // Combine static + dynamic media for complete inventory
       const combinedRegistry = [...staticRegistry];
@@ -1210,8 +1215,9 @@ Check browser console for detailed logs.`);
         // Reload dynamic media from KV to pick up new PublishedMediaAsset
         try {
           await loadDynamicMedia();
-        } catch (e) {
-          console.log('[DND] KV preload failed (non-blocking):', e);
+        } catch (error) {
+          console.warn('[DND] KV media authority unavailable - skipping dynamic reload:', error);
+          // Continue without dynamic reload - KV unavailability is not a DND blocking error
         }
 
         console.log('[DND] THUMBNAIL_RENDER_PATH', {

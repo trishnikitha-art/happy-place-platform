@@ -325,6 +325,7 @@ export async function getAugust3RecoverableAssets(): Promise<VisualAsset[]> {
 /**
  * Get PublishedMediaAsset records from KV (materialized from Drive sources)
  * Returns local published assets that have been materialized from Drive or other sources
+ * Reconstructs usage slot assignments from service card assignments
  */
 export async function getPublishedMediaAssets(): Promise<VisualAsset[]> {
   const publishedAssets: VisualAsset[] = [];
@@ -334,6 +335,19 @@ export async function getPublishedMediaAssets(): Promise<VisualAsset[]> {
     const { listMediaIds } = await import('./media-kv-store');
     const mediaIds = await listMediaIds();
     
+    // Load all service card assignments for usage slot reconstruction
+    const { getAllServiceCardAssignments } = await import('./assignment-store');
+    const assignments = await getAllServiceCardAssignments();
+    
+    // Build mediaId -> assignments map for efficient lookup
+    const mediaAssignments = new Map<string, typeof assignments>();
+    for (const assignment of assignments) {
+      if (!mediaAssignments.has(assignment.mediaId)) {
+        mediaAssignments.set(assignment.mediaId, []);
+      }
+      mediaAssignments.get(assignment.mediaId)!.push(assignment);
+    }
+    
     for (const mediaId of mediaIds) {
       const { getMedia } = await import('./media-kv-store');
       const media = await getMedia(mediaId);
@@ -341,7 +355,21 @@ export async function getPublishedMediaAssets(): Promise<VisualAsset[]> {
       if (media && media.source === 'local' && media.lifecycleState === 'published') {
         // This is a PublishedMediaAsset (materialized from Drive or other sources)
         const classification = 'PUBLISHED';
-        const usageSlots: VisualSlot[] = [];
+        
+        // Reconstruct usage slots from assignments
+        const assetAssignments = mediaAssignments.get(mediaId) || [];
+        const usageSlots: VisualSlot[] = assetAssignments.map(assignment => ({
+          id: assignment.serviceSlug,
+          route: 'service-card',
+          page: 'homepage',
+          component: 'ServiceCard',
+          section: 'services',
+          slotName: assignment.serviceSlug,
+          currentMediaId: assignment.mediaId,
+          physicalStatus: 'BLOB',
+          augustDriveId: undefined,
+        }));
+        
         const physicalPath = media.variants?.original || '';
         const physicalStatus = 'BLOB';
         
@@ -357,6 +385,7 @@ export async function getPublishedMediaAssets(): Promise<VisualAsset[]> {
     
     console.log('[VISUAL_ASSET_REGISTRY] Loaded PublishedMediaAsset records from KV:', {
       count: publishedAssets.length,
+      withAssignments: publishedAssets.filter(a => a.usageSlots.length > 0).length,
     });
     
     return publishedAssets;

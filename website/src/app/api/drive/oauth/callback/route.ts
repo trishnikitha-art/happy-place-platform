@@ -57,7 +57,6 @@ export async function GET(request: Request) {
     });
   }
 
-  const { searchParams } = new URL(request.url);
   const code = searchParams.get('code');
   const error = searchParams.get('error');
   const state = searchParams.get('state');
@@ -150,10 +149,6 @@ export async function GET(request: Request) {
       // authorization attempt/code is invalid, NOT that the existing authorization was revoked.
       // Only refresh-token failures should trigger authoritative revocation.
       // Authorization-code exchange failures should simply fail the new attempt.
-      
-      const url = new URL('/workbench/media', request.url);
-      return NextResponse.redirect(url);
-      }
       
       const url = new URL('/workbench/media', request.url);
       return NextResponse.redirect(url);
