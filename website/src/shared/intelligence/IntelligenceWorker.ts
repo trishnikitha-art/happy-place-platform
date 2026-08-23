@@ -28,7 +28,7 @@ export interface Observation {
 }
 
 export interface DomainEvent {
-  [key: string]: any;
+  [key: string]: Record<string, unknown>;
 }
 
 export interface Knowledge {
@@ -48,13 +48,13 @@ export interface VectorResult {
 }
 
 export interface EvidenceMetadata {
-  [key: string]: any;
+  [key: string]: Record<string, unknown>;
 }
 
 export interface GraphResult {
-  nodes: any[];
-  relationships: any[];
-  path: any[];
+  nodes: Record<string, unknown>[];
+  relationships: Record<string, unknown>[];
+  path: Record<string, unknown>[];
   confidence: number; // Weighted confidence signal
 }
 
@@ -156,25 +156,25 @@ export class IntelligenceWorker {
     return evidencePackage;
   }
 
-  private async knowledgeLookup(observation: Observation): Promise<Knowledge[]> {
+  private async knowledgeLookup(_observation: Observation): Promise<Knowledge[]> {
     // Knowledge base lookup
     // In production, this would query a knowledge base
     return [];
   }
 
-  private async vectorSearch(observation: Observation): Promise<VectorResult[]> {
+  private async vectorSearch(_observation: Observation): Promise<VectorResult[]> {
     // Vector similarity search using Qdrant
     // In production, this would query Qdrant
     return [];
   }
 
-  private async graphLookup(observation: Observation): Promise<GraphResult[]> {
+  private async graphLookup(_observation: Observation): Promise<GraphResult[]> {
     // Graph traversal using Neo4j
     // In production, this would query Neo4j
     return [];
   }
 
-  private async llmInference(observation: Observation, evidencePackage: EvidencePackage): Promise<LLMResponse> {
+  private async llmInference(_observation: Observation, _evidencePackage: EvidencePackage): Promise<LLMResponse> {
     // LLM inference using Ollama
     // In production, this would call Ollama API
     return {

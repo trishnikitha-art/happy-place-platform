@@ -6,5 +6,11 @@
   "devCommand": "npm run dev",
   "env": {
     "SHARP_IGNORE_GLOBAL_LIBVIPS": "1"
-  }
+  },
+  "crons": [
+    {
+      "path": "/api/admin/metrics",
+      "schedule": "0 0 * * *"
+    }
+  ]
 }

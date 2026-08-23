@@ -25,7 +25,7 @@ export interface TimelineEvent {
   timestamp: string;
   description: string;
   status?: string;
-  data?: any;
+  data?: Record<string, unknown>;
   causality?: {
     causedBy?: string[];
     caused?: string[];
@@ -121,7 +121,7 @@ export function ObjectTimeline({
         </div>
       ) : (
         <div className="space-y-4">
-          {sortedEvents.map((event, index) => (
+          {sortedEvents.map((event) => (
             <div key={event.id} className="relative pl-6">
               <div className={`absolute left-0 top-2 w-3 h-3 rounded-full border-2 ${getEventColor(event.type)}`} />
               <div className="absolute left-1.5 top-5 bottom-0 w-0.5 bg-gray-200" />

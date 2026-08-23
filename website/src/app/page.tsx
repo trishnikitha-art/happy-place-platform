@@ -189,7 +189,7 @@ export default async function HomePage() {
               <span className="hidden sm:inline">{company.proof.serviceCounties.join(" · ")}</span>
               <span className="sm:hidden">{company.proof.serviceCounties[0]}</span>
             </div>
-            <span className="mt-5 sm:mt-7 block font-signature text-2xl sm:text-3xl text-honey">Tell us what you're planning.</span>
+            <span className="mt-5 sm:mt-7 block font-signature text-2xl sm:text-3xl text-honey">Tell us what you&apos;re planning.</span>
           </div>
         </Container>
       </section>
@@ -329,12 +329,12 @@ export default async function HomePage() {
               </h2>
               <div className="measure mt-7 space-y-5 text-primary">
                 <p className="text-lg leading-relaxed">
-                  Good projects don't start with lumber. They start with good communication and realistic expectations.</p>
+                  Good projects don&apos;t start with lumber. They start with good communication and realistic expectations.</p>
                 <p>
-                  <span className="font-semibold text-primary">{taylor.name}</span> — Taylor cares about the work you'll notice five years from now, not just on the day it passes inspection.
+                  <span className="font-semibold text-primary">{taylor.name}</span> — Taylor cares about the work you&apos;ll notice five years from now, not just on the day it passes inspection.
                 </p>
                 <p>
-                  <span className="font-semibold text-primary">{lanie.name}</span> — Lanie keeps every project organized so you always know what's happening, what's next, and who to call.
+                  <span className="font-semibold text-primary">{lanie.name}</span> — Lanie keeps every project organized so you always know what&apos;s happening, what&apos;s next, and who to call.
                 </p>
               </div>
             </div>
@@ -370,7 +370,7 @@ export default async function HomePage() {
         <Section className="relative bg-[#F2EFE8]">
           <div className="absolute inset-0 bg-gradient-to-b from-[#F2EFE8] via-[#EFECE5] to-[#ECE9E2] opacity-100" aria-hidden="true" />
           <Container className="relative z-10">
-            <SectionHeading eyebrow="Reviews" title={<span className="text-primary">What people say once the work's done</span>} align="center" description={hasReviews ? "Real experiences from families throughout the Mid-Willamette Valley." : "We're building our public review portfolio. In the meantime, we're happy to provide references from homeowners throughout the Mid-Willamette Valley."} descriptionColor="text-primary" />
+            <SectionHeading eyebrow="Reviews" title={<span className="text-primary">What people say once the work&apos;s done</span>} align="center" description={hasReviews ? "Real experiences from families throughout the Mid-Willamette Valley." : "We&apos;re building our public review portfolio. In the meantime, we&apos;re happy to provide references from homeowners throughout the Mid-Willamette Valley."} descriptionColor="text-primary" />
             {hasReviews ? (
               <>
                 <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">

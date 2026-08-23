@@ -15,7 +15,6 @@
 "use client";
 
 import { useState } from 'react';
-import { ObjectInspector } from '../inspector/ObjectInspector';
 import { ObjectTimeline, type TimelineEvent } from '../timeline/ObjectTimeline';
 import { BusinessReconstruction } from '../reconstruction/BusinessReconstruction';
 

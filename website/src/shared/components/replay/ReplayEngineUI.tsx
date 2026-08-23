@@ -15,7 +15,7 @@
 
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ObjectInspector } from '../inspector/ObjectInspector';
 import { ProjectionDiff } from '../diff/ProjectionDiff';
 
@@ -23,19 +23,19 @@ export interface ReplayEvent {
   id: string;
   type: string;
   timestamp: string;
-  data: any;
+  data: Record<string, unknown>;
 }
 
 export interface ReplayState {
   eventId: string;
-  state: any;
+  state: Record<string, unknown>;
   timestamp: string;
 }
 
 interface ReplayEngineUIProps {
   events: ReplayEvent[];
-  initialState?: any;
-  onReplay?: (eventId: string) => any;
+  initialState?: Record<string, unknown>;
+  onReplay?: (eventId: string) => Record<string, unknown>;
 }
 
 export function ReplayEngineUI({ events, initialState, onReplay }: ReplayEngineUIProps) {
@@ -53,12 +53,12 @@ export function ReplayEngineUI({ events, initialState, onReplay }: ReplayEngineU
   const currentEvent = sortedEvents[currentIndex];
   const currentState = states[currentIndex];
 
-  // Replay events to build state history
-  const replay = () => {
-    const stateHistory: ReplayState[] = [];
+  // Build state history outside effect
+  const stateHistory = useMemo(() => {
+    const history: ReplayState[] = [];
     let currentState = initialState || {};
 
-    sortedEvents.forEach((event, index) => {
+    sortedEvents.forEach((event) => {
       if (onReplay) {
         currentState = onReplay(event.id);
       } else {
@@ -66,20 +66,20 @@ export function ReplayEngineUI({ events, initialState, onReplay }: ReplayEngineU
         currentState = { ...currentState, lastEvent: event };
       }
 
-      stateHistory.push({
+      history.push({
         eventId: event.id,
         state: currentState,
         timestamp: event.timestamp
       });
     });
 
-    setStates(stateHistory);
-  };
+    return history;
+  }, [sortedEvents, initialState, onReplay]);
 
   // Initialize replay on mount
   useEffect(() => {
-    replay();
-  }, []);
+    setStates(stateHistory);
+  }, [stateHistory]);
 
   const handlePlay = () => {
     setIsPlaying(!isPlaying);

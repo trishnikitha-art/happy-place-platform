@@ -55,7 +55,7 @@ export function AuthorityCard({ name, data, color }: AuthorityCardProps) {
   };
 
   const colors = getColorClasses(color);
-  const metrics = data as any;
+  const metrics = data as unknown as { total?: number | string; score?: number | string; status?: string; health?: string; altTextCoverage?: number | string; variantCoverage?: number | string; lastUpdated?: string; heroCoverage?: number | string; storyCoverage?: number | string; ratingCoverage?: number | string; averageRating?: number | string; [key: string]: unknown };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -82,15 +82,15 @@ export function AuthorityCard({ name, data, color }: AuthorityCardProps) {
       <div className="space-y-3">
         <div className="flex items-center justify-between">
           <span className="text-sm text-text-muted">Score</span>
-          <span className={`text-2xl font-bold ${getStatusColor(metrics.health)}`}>
+          <span className={`text-2xl font-bold ${getStatusColor(metrics.health || 'unknown')}`}>
             {metrics.score}
           </span>
         </div>
 
         <div className="flex items-center justify-between">
           <span className="text-sm text-text-muted">Health</span>
-          <span className={`text-sm font-medium ${getStatusColor(metrics.health)}`}>
-            {metrics.health.toUpperCase()}
+          <span className={`text-sm font-medium ${getStatusColor(metrics.health || 'unknown')}`}>
+            {metrics.health?.toUpperCase() || 'UNKNOWN'}
           </span>
         </div>
 
@@ -99,11 +99,11 @@ export function AuthorityCard({ name, data, color }: AuthorityCardProps) {
           <div className="pt-3 border-t border-border-soft space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="text-text-muted">Alt Text Coverage</span>
-              <span className="font-medium">{metrics.altTextCoverage}%</span>
+              <span className="font-medium">{metrics.altTextCoverage ?? 0}%</span>
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="text-text-muted">Variant Coverage</span>
-              <span className="font-medium">{metrics.variantCoverage}%</span>
+              <span className="font-medium">{metrics.variantCoverage ?? 0}%</span>
             </div>
           </div>
         )}
@@ -113,11 +113,11 @@ export function AuthorityCard({ name, data, color }: AuthorityCardProps) {
           <div className="pt-3 border-t border-border-soft space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="text-text-muted">Hero Coverage</span>
-              <span className="font-medium">{metrics.heroCoverage}%</span>
+              <span className="font-medium">{metrics.heroCoverage ?? 0}%</span>
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="text-text-muted">Story Coverage</span>
-              <span className="font-medium">{metrics.storyCoverage}%</span>
+              <span className="font-medium">{metrics.storyCoverage ?? 0}%</span>
             </div>
           </div>
         )}
@@ -127,11 +127,11 @@ export function AuthorityCard({ name, data, color }: AuthorityCardProps) {
           <div className="pt-3 border-t border-border-soft space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="text-text-muted">Rating Coverage</span>
-              <span className="font-medium">{metrics.ratingCoverage}%</span>
+              <span className="font-medium">{metrics.ratingCoverage ?? 0}%</span>
             </div>
             <div className="flex items-center justify-between text-xs">
               <span className="text-text-muted">Average Rating</span>
-              <span className="font-medium">{metrics.averageRating}</span>
+              <span className="font-medium">{metrics.averageRating ?? 0}</span>
             </div>
           </div>
         )}

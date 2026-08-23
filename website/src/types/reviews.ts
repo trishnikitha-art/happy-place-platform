@@ -158,7 +158,7 @@ export interface Review {
     eventType: string;
     timestamp: string;
     actor: string;
-    data?: Record<string, any>;
+    data?: Record<string, unknown>;
     notes?: string;
   }>; // Audit trail of all moderation decisions
 }

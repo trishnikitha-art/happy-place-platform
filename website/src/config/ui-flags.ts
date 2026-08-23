@@ -53,12 +53,12 @@ export function isFeatureEnabled(flag: FeatureFlag): boolean {
  * Enable a feature (for testing/debugging)
  */
 export function enableFeature(flag: FeatureFlag): void {
-  (featureFlags as any)[flag] = true;
+  (featureFlags as Record<FeatureFlag, boolean>)[flag] = true;
 }
 
 /**
  * Disable a feature (for rollback)
  */
 export function disableFeature(flag: FeatureFlag): void {
-  (featureFlags as any)[flag] = false;
+  (featureFlags as Record<FeatureFlag, boolean>)[flag] = false;
 }

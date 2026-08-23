@@ -22,9 +22,9 @@ export interface ExplorerAdapter {
   id: string;
   name: string;
   type: string;
-  canHandle: (item: any) => boolean;
-  renderItem: (item: any) => React.ReactNode;
-  renderDetails: (item: any) => React.ReactNode;
+  canHandle: (item: Record<string, unknown>) => boolean;
+  renderItem: (item: Record<string, unknown>) => React.ReactNode;
+  renderDetails: (item: Record<string, unknown>) => React.ReactNode;
   getFilters: () => Filter[];
   getSortOptions: () => SortOption[];
 }
@@ -34,27 +34,27 @@ export interface Filter {
   label: string;
   type: 'text' | 'select' | 'multiselect' | 'date' | 'number';
   options?: { value: string; label: string }[];
-  apply: (item: any, value: any) => boolean;
+  apply: (item: Record<string, unknown>, value: Record<string, unknown>) => boolean;
 }
 
 export interface SortOption {
   id: string;
   label: string;
-  compare: (a: any, b: any) => number;
+  compare: (a: Record<string, unknown>, b: Record<string, unknown>) => number;
 }
 
 interface UniversalExplorerProps {
   adapters: ExplorerAdapter[];
-  items: any[];
+  items: Record<string, unknown>[];
   defaultAdapterId?: string;
 }
 
 export function UniversalExplorer({ adapters, items, defaultAdapterId }: UniversalExplorerProps) {
   const [selectedAdapterId, setSelectedAdapterId] = useState(defaultAdapterId || adapters[0]?.id);
   const [filter, setFilter] = useState('');
-  const [selectedFilter, setSelectedFilter] = useState<Record<string, any>>({});
+  const [selectedFilter, setSelectedFilter] = useState<Record<string, unknown>>({});
   const [sortOption, setSortOption] = useState<string | null>(null);
-  const [selectedItem, setSelectedItem] = useState<any>(null);
+  const [selectedItem, setSelectedItem] = useState<Record<string, unknown> | null>(null);
 
   const selectedAdapter = adapters.find(a => a.id === selectedAdapterId) || adapters[0];
   const filters = selectedAdapter?.getFilters() || [];

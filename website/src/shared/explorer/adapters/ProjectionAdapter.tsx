@@ -10,11 +10,11 @@ export const projectionAdapter: ExplorerAdapter = {
   name: 'Projections',
   type: 'projection',
   
-  canHandle: (item: any) => {
+  canHandle: (item: Record<string, unknown>) => {
     return item && typeof item === 'object' && (item.type || item.object || item.projection);
   },
   
-  renderItem: (item: any) => {
+  renderItem: (item: Record<string, unknown>) => {
     return (
       <div>
         <div className="font-medium">{item.id || item.name || 'Unknown'}</div>
@@ -25,7 +25,7 @@ export const projectionAdapter: ExplorerAdapter = {
     );
   },
   
-  renderDetails: (item: any) => {
+  renderDetails: (item: Record<string, unknown>) => {
     return (
       <div className="space-y-4">
         <div>
@@ -90,7 +90,7 @@ export const projectionAdapter: ExplorerAdapter = {
         { value: 'agent', label: 'Agent' },
         { value: 'analytics', label: 'Analytics' },
       ],
-      apply: (item: any, value: string) => item.type === value,
+      apply: (item: Record<string, unknown>, value: string) => item.type === value,
     },
     {
       id: 'object',
@@ -104,7 +104,7 @@ export const projectionAdapter: ExplorerAdapter = {
         { value: 'agent', label: 'Agent' },
         { value: 'analytics', label: 'Analytics' },
       ],
-      apply: (item: any, value: string) => item.object === value,
+      apply: (item: Record<string, unknown>, value: string) => item.object === value,
     },
   ],
   
@@ -112,7 +112,7 @@ export const projectionAdapter: ExplorerAdapter = {
     {
       id: 'generatedAt',
       label: 'Generated At (Newest)',
-      compare: (a: any, b: any) => {
+      compare: (a: Record<string, unknown>, b: Record<string, unknown>) => {
         const dateA = new Date(a.generatedAt || 0).getTime();
         const dateB = new Date(b.generatedAt || 0).getTime();
         return dateB - dateA;
@@ -121,7 +121,7 @@ export const projectionAdapter: ExplorerAdapter = {
     {
       id: 'generatedAt-asc',
       label: 'Generated At (Oldest)',
-      compare: (a: any, b: any) => {
+      compare: (a: Record<string, unknown>, b: Record<string, unknown>) => {
         const dateA = new Date(a.generatedAt || 0).getTime();
         const dateB = new Date(b.generatedAt || 0).getTime();
         return dateA - dateB;
@@ -130,7 +130,7 @@ export const projectionAdapter: ExplorerAdapter = {
     {
       id: 'name',
       label: 'Name (A-Z)',
-      compare: (a: any, b: any) => {
+      compare: (a: Record<string, unknown>, b: Record<string, unknown>) => {
         const nameA = (a.id || a.name || '').toLowerCase();
         const nameB = (b.id || b.name || '').toLowerCase();
         return nameA.localeCompare(nameB);

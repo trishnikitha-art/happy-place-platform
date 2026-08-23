@@ -19,16 +19,15 @@ export interface ReconstructionNode {
   type: string;
   status: string;
   events: TimelineEvent[];
-  state: any;
+  state: Record<string, unknown>;
   children?: ReconstructionNode[];
 }
 
 interface BusinessReconstructionProps {
   events: TimelineEvent[];
-  rootObjectId?: string;
 }
 
-export function BusinessReconstruction({ events, rootObjectId }: BusinessReconstructionProps) {
+export function BusinessReconstruction({ events }: BusinessReconstructionProps) {
   const [selectedNode, setSelectedNode] = useState<ReconstructionNode | null>(null);
   const [reconstructedState, setReconstructedState] = useState<ReconstructionNode[]>([]);
 
@@ -56,7 +55,7 @@ export function BusinessReconstruction({ events, rootObjectId }: BusinessReconst
     });
 
     // Build relationships based on causality
-    stateMap.forEach((node, objectId) => {
+    stateMap.forEach((node) => {
       node.events.forEach(event => {
         if (event.causality?.causedBy) {
           event.causality.causedBy.forEach(parentId => {

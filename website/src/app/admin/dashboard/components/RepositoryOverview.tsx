@@ -12,19 +12,6 @@ interface RepositoryOverviewProps {
 }
 
 export function RepositoryOverview({ repository }: RepositoryOverviewProps) {
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "healthy":
-        return "text-green-500";
-      case "warning":
-        return "text-yellow-500";
-      case "critical":
-        return "text-red-500";
-      default:
-        return "text-text-muted";
-    }
-  };
-
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "healthy":

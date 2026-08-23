@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { StarRating } from "@/components/star-rating";
 import { SectionHeading, Container, Section } from "@/components/section";
 
@@ -111,7 +112,7 @@ export default function ReviewPage() {
             </p>
             
             <p className="mt-2 text-lg text-text-on-dark/70">
-              Your feedback helps future homeowners know what it's like to work with us.
+              Your feedback helps future homeowners know what it&apos;s like to work with us.
             </p>
 
             <div className="mt-8 mb-6 flex justify-center">
@@ -120,7 +121,7 @@ export default function ReviewPage() {
 
             <div className="mt-8 rounded-2xl bg-white/10 p-6 backdrop-blur-sm">
               <p className="text-text-on-dark/90 mb-4">
-                If you'd also like to support our small business, we'd truly appreciate a Google review.
+                If you&apos;d also like to support our small business, we&apos;d truly appreciate a Google review.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <a
@@ -138,12 +139,12 @@ export default function ReviewPage() {
             </div>
 
             <div className="mt-8">
-              <a
+              <Link
                 href="/"
                 className="text-text-on-dark/70 hover:text-text-on-dark transition-colors"
               >
                 Return to homepage →
-              </a>
+              </Link>
             </div>
           </div>
         </Container>
@@ -164,7 +165,7 @@ export default function ReviewPage() {
           </h1>
           
           <p className="mt-4 text-lg text-text-on-dark/90">
-            We'd love to hear how it turned out.
+            We&apos;d love to hear how it turned out.
           </p>
           
           <p className="mt-2 text-lg text-text-on-dark/80">
@@ -277,7 +278,7 @@ export default function ReviewPage() {
                     className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:border-primary focus:ring-primary"
                   />
                   <span className="text-sm text-gray-700">
-                    I'm okay with you publishing my first name with this review
+                    I&apos;m okay with you publishing my first name with this review
                   </span>
                 </label>
 

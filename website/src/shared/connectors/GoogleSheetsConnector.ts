@@ -22,8 +22,6 @@ import type {
   WebhookEvent,
   Schema,
   ResourceSchema,
-  FieldSchema,
-  StreamEvent,
   HealthStatus,
   ConnectorMetrics
 } from "./ConnectorTypes";
@@ -80,7 +78,7 @@ export class GoogleSheetsConnector extends AbstractConnector implements Readable
     this.internalMetrics.requests++;
 
     try {
-      let data: any[] = [];
+      let data: Record<string, unknown>[] = [];
 
       switch (resource) {
         case 'reviews':
@@ -101,12 +99,12 @@ export class GoogleSheetsConnector extends AbstractConnector implements Readable
     }
   }
 
-  async readOne<T>(resource: string, id: string, options?: ReadOptions): Promise<T> {
+  async readOne<T>(resource: string, id: string): Promise<T> {
     const startTime = Date.now();
     this.internalMetrics.requests++;
 
     try {
-      let data: any;
+      let data: Record<string, unknown>;
 
       switch (resource) {
         case 'reviews':
@@ -127,51 +125,51 @@ export class GoogleSheetsConnector extends AbstractConnector implements Readable
     }
   }
 
-  async query<T>(query: string, options?: QueryOptions): Promise<T[]> {
+  async query<T>(_query: string): Promise<T[]> {
     // Simple query implementation for Google Sheets
     // In production, this would use Google Sheets Query API
     return [] as T[];
   }
 
   // Write
-  async create<T>(resource: string, data: any): Promise<T> {
+  async create<T>(_resource: string, _data: Record<string, unknown>): Promise<T> {
     // Google Sheets write operations would go here
     throw new Error('Write operations not implemented for Google Sheets');
   }
 
-  async update<T>(resource: string, id: string, data: any): Promise<T> {
+  async update<T>(_resource: string, _id: string, _data: Record<string, unknown>): Promise<T> {
     // Google Sheets write operations would go here
     throw new Error('Write operations not implemented for Google Sheets');
   }
 
-  async delete(resource: string, id: string): Promise<void> {
+  async delete(_resource: string, _id: string): Promise<void> {
     // Google Sheets write operations would go here
     throw new Error('Write operations not implemented for Google Sheets');
   }
 
-  async upsert<T>(resource: string, data: any): Promise<T> {
+  async upsert<T>(_resource: string, _data: Record<string, unknown>): Promise<T> {
     // Google Sheets write operations would go here
     throw new Error('Write operations not implemented for Google Sheets');
   }
 
   // Stream
-  subscribe(resource: string, callback: StreamCallback): Unsubscribe {
+  subscribe(_resource: string, _callback: StreamCallback): Unsubscribe {
     // Google Sheets doesn't support real-time streaming
     // This would use Google Sheets API polling or webhooks
     return () => {};
   }
 
-  subscribeQuery(query: string, callback: StreamCallback): Unsubscribe {
+  subscribeQuery(_query: string, _callback: StreamCallback): Unsubscribe {
     // Google Sheets doesn't support real-time streaming
     return () => {};
   }
 
   // Webhook
-  async handleWebhook(event: WebhookEvent): Promise<void> {
+  async handleWebhook(_event: WebhookEvent): Promise<void> {
     // Google Sheets webhooks would be handled here
   }
 
-  verifyWebhook(signature: string, payload: any): boolean {
+  verifyWebhook(_signature: string, _payload: Record<string, unknown>): boolean {
     // Google Sheets webhook verification would go here
     return false;
   }
@@ -224,12 +222,12 @@ export class GoogleSheetsConnector extends AbstractConnector implements Readable
     }
   }
 
-  transformToCanonical(data: any, resource: string): any {
+  transformToCanonical(data: Record<string, unknown>, _resource: string): Record<string, unknown> {
     // Transform Google Sheets format to canonical format
     return data;
   }
 
-  transformFromCanonical(data: any, resource: string): any {
+  transformFromCanonical(data: Record<string, unknown>, _resource: string): Record<string, unknown> {
     // Transform canonical format to Google Sheets format
     return data;
   }

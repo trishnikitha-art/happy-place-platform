@@ -43,10 +43,6 @@ export default function AdminReviewsPage() {
   const [selectedReview, setSelectedReview] = useState<Review | null>(null);
   const [notes, setNotes] = useState("");
 
-  useEffect(() => {
-    loadReviews();
-  }, []);
-
   const loadReviews = async () => {
     try {
       const response = await fetch('/api/reviews');
@@ -60,6 +56,10 @@ export default function AdminReviewsPage() {
       setLoading(false);
     }
   };
+
+  useEffect(() => {
+    loadReviews();
+  }, []);
 
   const filteredReviews = reviews.filter(review => {
     if (filter === "all") return true;
@@ -142,7 +142,7 @@ export default function AdminReviewsPage() {
           {["all", "pending", "approved", "rejected", "published"].map((status) => (
             <button
               key={status}
-              onClick={() => setFilter(status as any)}
+              onClick={() => setFilter(status as "all" | "pending" | "approved" | "rejected" | "published")}
               className={`px-4 py-2 font-medium capitalize transition-colors ${
                 filter === status
                   ? "border-b-2 border-primary text-primary"

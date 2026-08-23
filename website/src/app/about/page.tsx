@@ -39,7 +39,7 @@ export default async function AboutPage() {
               Every family deserves a <HappyBrandSignature /> place.
             </h1>
             <p className="measure mt-5 text-lg text-text-on-dark/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
-              {company.name} isn't built around sales teams, project managers, or handoffs. It's built around one family that believes your home should become your happy place. From your first conversation to the final walkthrough, you'll work directly with the people doing the work—people who care about every detail as much as you do.
+              {company.name} isn&apos;t built around sales teams, project managers, or handoffs. It&apos;s built around one family that believes your home should become your happy place. From your first conversation to the final walkthrough, you&apos;ll work directly with the people doing the work—people who care about every detail as much as you do.
             </p>
             <p className="mt-6 font-display text-xl text-text-on-dark/90" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>
               Build it right. Explain it clearly. Stand behind the work.
