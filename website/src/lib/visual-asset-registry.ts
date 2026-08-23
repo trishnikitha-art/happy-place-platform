@@ -323,14 +323,14 @@ export async function getAugust3RecoverableAssets(): Promise<VisualAsset[]> {
 }
 
 /**
- * Get DRIVE_ONLY assets (exist in canonical Drive graph but not in physical filesystem)
- * Actually loads PublishedMediaAsset records from KV that have local source
+ * Get PublishedMediaAsset records from KV (materialized from Drive sources)
+ * Returns local published assets that have been materialized from Drive or other sources
  */
-export async function getDriveOnlyAssets(): Promise<VisualAsset[]> {
-  const driveAssets: VisualAsset[] = [];
+export async function getPublishedMediaAssets(): Promise<VisualAsset[]> {
+  const publishedAssets: VisualAsset[] = [];
   
   try {
-    // Load all media records from KV that are published (materialized from Drive)
+    // Load all media records from KV that are published (materialized from Drive or other sources)
     const { listMediaIds } = await import('./media-kv-store');
     const mediaIds = await listMediaIds();
     
@@ -339,13 +339,13 @@ export async function getDriveOnlyAssets(): Promise<VisualAsset[]> {
       const media = await getMedia(mediaId);
       
       if (media && media.source === 'local' && media.lifecycleState === 'published') {
-        // This is a PublishedMediaAsset (materialized from Drive)
+        // This is a PublishedMediaAsset (materialized from Drive or other sources)
         const classification = 'PUBLISHED';
         const usageSlots: VisualSlot[] = [];
         const physicalPath = media.variants?.original || '';
         const physicalStatus = 'BLOB';
         
-        driveAssets.push({
+        publishedAssets.push({
           ...media,
           classification,
           usageSlots,
@@ -356,12 +356,12 @@ export async function getDriveOnlyAssets(): Promise<VisualAsset[]> {
     }
     
     console.log('[VISUAL_ASSET_REGISTRY] Loaded PublishedMediaAsset records from KV:', {
-      count: driveAssets.length,
+      count: publishedAssets.length,
     });
     
-    return driveAssets;
+    return publishedAssets;
   } catch (error) {
-    console.error('[VISUAL_ASSET_REGISTRY] Failed to load Drive assets:', error);
+    console.error('[VISUAL_ASSET_REGISTRY] Failed to load PublishedMediaAssets:', error);
     return [];
   }
 }

@@ -40,8 +40,9 @@ export interface DriveFile {
 }
 
 export class DriveDiscovery {
-  // Singleton removed - per-request instance creation
-  // No process-level state
+  // Module-level stateless instance
+  // DriveDiscovery contains no mutable request-specific state
+  // The exported instance is safe to share across requests
   
   constructor() {}
 

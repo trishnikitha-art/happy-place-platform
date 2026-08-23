@@ -18,7 +18,19 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   console.log('=== DRIVE OAUTH CALLBACK REACHED ===');
-  console.log('Request URL:', request.url);
+  
+  // SECURITY: Never log full request URL, query strings, or OAuth codes
+  // Log only safe telemetry without sensitive credential material
+  const { searchParams } = new URL(request.url);
+  const hasCode = !!searchParams.get('code');
+  const hasState = !!searchParams.get('state');
+  const hasError = !!searchParams.get('error');
+  
+  console.log('[DRIVE OAUTH CALLBACK] Safe telemetry:', {
+    hasCode,
+    hasState,
+    hasError,
+  });
 
   // Origin validation - telemetry/defense-in-depth, not the primary CSRF barrier
   // The authoritative CSRF barrier is the Redis-backed, browser-bound, one-time OAuth state
@@ -134,32 +146,13 @@ export async function GET(request: Request) {
     if (tokenData.error) {
       console.log('[DRIVE OAUTH FORENSIC] Token exchange failed:', tokenData.error);
       
-      // Check for invalid_grant - use authoritative revocation path
-      if (tokenData.error === 'invalid_grant') {
-        console.log('[DRIVE OAUTH FORENSIC] Invalid grant - revoking authorization');
-        
-        // Try to get authorization ID from session ID cookie for authoritative revocation
-        const cookieStore = await cookies();
-        const sessionId = cookieStore.get('drive_session_id')?.value;
-        
-        if (sessionId) {
-          try {
-            const { getSession } = await import('@/lib/drive/session-store');
-            const session = await getSession(sessionId);
-            if (session && session.authorizationId) {
-              await revokeAuthorizationWithSessions(session.authorizationId);
-              console.log('[DRIVE OAUTH FORENSIC] Authorization revoked:', session.authorizationId);
-            }
-          } catch (error) {
-            console.error('[DRIVE OAUTH FORENSIC] Failed to revoke authorization:', error);
-          }
-        }
-        
-        // Clear session cookie
-        cookieStore.delete('drive_session_id');
-        
-        const url = new URL('/workbench/media', request.url);
-        return NextResponse.redirect(url);
+      // IMPORTANT: invalid_grant during authorization-code exchange means the new
+      // authorization attempt/code is invalid, NOT that the existing authorization was revoked.
+      // Only refresh-token failures should trigger authoritative revocation.
+      // Authorization-code exchange failures should simply fail the new attempt.
+      
+      const url = new URL('/workbench/media', request.url);
+      return NextResponse.redirect(url);
       }
       
       const url = new URL('/workbench/media', request.url);

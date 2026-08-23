@@ -194,14 +194,15 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
  */
 export async function loadDynamicMedia(): Promise<void> {
   try {
-    const { getAllServiceCardAssignments } = await import('@/lib/assignment-store');
-    const assignments = await getAllServiceCardAssignments();
+    const { getPublishedMediaAssets } = await import('@/lib/visual-asset-registry');
+    const publishedAssets = await getPublishedMediaAssets();
 
-    console.log('[MEDIA] Found dynamic media assignments:', assignments.length);
+    console.log('[MEDIA] Loaded PublishedMediaAssets from KV:', publishedAssets.length);
 
-    // For now, we're not preloading all media from KV since we use getMediaByIdAsync
-    // This function can be expanded if needed for bulk preloading
-    console.log('[MEDIA] Dynamic media loading skipped (using on-demand lookup)');
+    // Cache the published assets for on-demand lookup
+    for (const asset of publishedAssets) {
+      dynamicMediaCache[asset.id] = asset;
+    }
   } catch (error) {
     // Check if this is a KV configuration error
     if (error instanceof Error && error.message.includes('Missing required environment variables')) {
