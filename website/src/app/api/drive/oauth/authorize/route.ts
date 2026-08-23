@@ -7,6 +7,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
 import { createState } from '@/lib/drive/oauth-state-manager';
 
 export const dynamic = 'force-dynamic';
@@ -47,7 +48,9 @@ export async function GET(request: Request) {
   console.log('[DRIVE OAUTH FORENSIC] Redirect URI validation passed');
 
   // Create OAuth state for CSRF protection
-  const state = await createState();
+  // Explicitly pass cookie store to make request context ownership explicit
+  const cookieStore = await cookies();
+  const state = await createState(cookieStore);
   if (!state) {
     console.log('[DRIVE OAUTH FORENSIC] Failed to create OAuth state');
     return NextResponse.json({ error: 'Failed to create OAuth state' }, { status: 500 });

@@ -128,16 +128,7 @@ export class DriveSession {
     }
   }
 
-  /**
-   * Set credentials is now a no-op - credentials are stored in authorization repository
-   * This method is kept for compatibility but should not be used
-   */
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  async setCredentials(_credentials?: DriveCredentials): Promise<void> {
-    console.log('[DRIVE SESSION FORENSIC] setCredentials() called - NO-OP (credentials stored in authorization repository)');
-    // Credentials are now stored in oauth-credential-store, not cookies
-    // This method is kept for backward compatibility but does nothing
-  }
+
 
   /**
    * Clear session and authorization (logout)

@@ -150,9 +150,12 @@ export async function POST(request: Request) {
     );
   }
 
-  // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
-  if (process.env.NODE_ENV === 'development') {
-    // Skip auth in development
+  // CRITICAL: Authentication bypass is DANGEROUS and should only be used with explicit consent
+  // This bypass requires both NODE_ENV=development AND explicit DRIVE_AUTH_BYPASS=true
+  const authBypassEnabled = process.env.NODE_ENV === 'development' && process.env.DRIVE_AUTH_BYPASS === 'true';
+  
+  if (authBypassEnabled) {
+    console.warn('[DRIVE INGEST API] AUTHENTICATION BYPASS ENABLED - DEVELOPMENT ONLY');
   } else {
     // Check Drive authentication
     const isDriveAuthenticated = await driveSession.isAuthenticated();

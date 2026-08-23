@@ -16,11 +16,18 @@ import {
   StateInfrastructureError,
 } from '../oauth-state-manager';
 
+// Mock cookie store for testing
+const mockCookieStore = {
+  get: (name: string) => ({ value: null }),
+  set: (name: string, value: string, options: any) => {},
+  delete: (name: string) => {},
+};
+
 describe('OAuth State Concurrency', () => {
   describe('Concurrent State Consumption', () => {
     it('should allow exactly one consumer to succeed on concurrent consume', async () => {
-      // Create a state
-      const state = await createState();
+      // Create a state with mock cookie store
+      const state = await createState(mockCookieStore as any);
       expect(state).toBeTruthy();
 
       // Simulate concurrent consumption
@@ -38,7 +45,7 @@ describe('OAuth State Concurrency', () => {
     });
 
     it('should reject replayed state', async () => {
-      const state = await createState();
+      const state = await createState(mockCookieStore as any);
       expect(state).toBeTruthy();
 
       // First consume should succeed
@@ -61,8 +68,8 @@ describe('OAuth State Concurrency', () => {
       // For now, we'll test the validation logic path
       // In a real test environment, we'd need to mock Redis or use a very short TTL
       
-      // Create state
-      const state = await createState();
+      // Create state with mock cookie store
+      const state = await createState(mockCookieStore as any);
       expect(state).toBeTruthy();
 
       // Validate immediately (should be valid)

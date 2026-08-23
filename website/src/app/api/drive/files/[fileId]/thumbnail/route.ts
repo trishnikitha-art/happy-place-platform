@@ -18,7 +18,7 @@
 
 import { NextResponse } from 'next/server';
 import { google } from 'googleapis';
-import { getOAuthClient } from '@/lib/drive/oauth-manager';
+import { getOAuthClient, isAuthenticated } from '@/lib/drive/oauth-manager';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +36,19 @@ export async function GET(
   console.log('[MEDIA_PROXY_REQUEST_STARTED]', { fileId, driveId });
 
   try {
+    // CRITICAL: Explicit authentication check before Drive API access
+    const authenticated = await isAuthenticated();
+    if (!authenticated) {
+      console.error('[MEDIA_PROXY_REQUEST_REJECTED]', { 
+        fileId, 
+        reason: 'NOT_AUTHENTICATED' 
+      });
+      return NextResponse.json(
+        { error: 'Drive authentication required' },
+        { status: 401 }
+      );
+    }
+
     console.log('[MEDIA_PROXY_AUTH_RESOLVED]', { fileId, driveId, hasAuth: true });
 
     // Use Workbench user OAuth credentials

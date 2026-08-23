@@ -58,7 +58,9 @@ export async function GET(request: Request) {
     return NextResponse.redirect(url);
   }
 
-  const stateConsumed = await consumeState(state);
+  // Explicitly pass cookie store to make request context ownership explicit
+  const cookieStore = await cookies();
+  const stateConsumed = await consumeState(state, cookieStore);
   if (!stateConsumed) {
     console.log('[DRIVE OAUTH FORENSIC] State validation or consumption failed');
     const url = new URL('/workbench/media', request.url);
@@ -111,6 +113,12 @@ export async function GET(request: Request) {
       body: params.toString(),
     });
 
+    if (!tokenResponse.ok) {
+      console.error('[DRIVE OAUTH FORENSIC] Token exchange HTTP error:', tokenResponse.status);
+      const url = new URL('/workbench/media', request.url);
+      return NextResponse.redirect(url);
+    }
+
     const tokenData = await tokenResponse.json();
 
     console.log('[DRIVE OAUTH FORENSIC] Token exchange response:', {
@@ -153,6 +161,30 @@ export async function GET(request: Request) {
       return NextResponse.redirect(url);
     }
 
+    // Validate token response shape
+    if (!tokenData.access_token || typeof tokenData.access_token !== 'string') {
+      console.error('[DRIVE OAUTH FORENSIC] Token response missing or invalid access_token');
+      const url = new URL('/workbench/media', request.url);
+      return NextResponse.redirect(url);
+    }
+
+    if (tokenData.token_type && tokenData.token_type !== 'Bearer') {
+      console.error('[DRIVE OAUTH FORENSIC] Unexpected token_type:', tokenData.token_type);
+      const url = new URL('/workbench/media', request.url);
+      return NextResponse.redirect(url);
+    }
+
+    if (!tokenData.expires_in || typeof tokenData.expires_in !== 'number') {
+      console.error('[DRIVE OAUTH FORENSIC] Token response missing or invalid expires_in');
+      const url = new URL('/workbench/media', request.url);
+      return NextResponse.redirect(url);
+    }
+
+    // refresh_token is optional for some flows but required for offline access
+    if (!tokenData.refresh_token && !tokenData.scope?.includes('offline')) {
+      console.warn('[DRIVE OAUTH FORENSIC] Token response missing refresh_token (offline access may not work)');
+    }
+
     // Calculate expiry date
     const expiresIn = tokenData.expires_in || 3600;
     const expiryDate = Date.now() + (expiresIn * 1000);
@@ -160,6 +192,8 @@ export async function GET(request: Request) {
     console.log('[DRIVE OAUTH FORENSIC] Integrating with authority layers...');
     
     // Extract Google identity from userinfo endpoint
+    // CRITICAL: Google subject (sub) is the authoritative identity key
+    // Email is display-only and not required for authorization
     let googleSubject: string;
     let email: string;
     
@@ -170,24 +204,36 @@ export async function GET(request: Request) {
         },
       });
       
+      if (!userInfoResponse.ok) {
+        throw new Error(`Google userinfo request failed: ${userInfoResponse.status}`);
+      }
+      
       const userInfo = await userInfoResponse.json();
       
-      if (!userInfo.sub) {
-        throw new Error('Google userinfo missing subject identifier');
+      // Validate response shape
+      if (!userInfo || typeof userInfo !== 'object') {
+        throw new Error('Google userinfo returned invalid response');
+      }
+      
+      // Subject is REQUIRED - this is the authoritative identity
+      if (!userInfo.sub || typeof userInfo.sub !== 'string') {
+        throw new Error('Google userinfo missing or invalid subject identifier');
       }
       
       googleSubject = userInfo.sub;
-      email = userInfo.email || `user-${googleSubject}@gmail.com`;
+      
+      // Email is optional display field - do not fabricate
+      email = userInfo.email && typeof userInfo.email === 'string' ? userInfo.email : '';
       
       console.log('[DRIVE OAUTH FORENSIC] Google identity extracted:', {
         googleSubject: googleSubject.substring(0, 8) + '...',
-        email,
+        hasEmail: !!email,
       });
     } catch (error) {
       console.error('[DRIVE OAUTH FORENSIC] Failed to extract Google identity:', error);
-      // Fallback: use access token hash as subject identifier
-      googleSubject = `fallback-${crypto.createHash('sha256').update(tokenData.access_token).digest('hex').substring(0, 32)}`;
-      email = `user@example.com`;
+      // FAIL CLOSED: Do not fabricate identity data
+      const url = new URL('/workbench/media', request.url);
+      return NextResponse.redirect(url);
     }
     
     // Persist authorization through oauth-credential-store

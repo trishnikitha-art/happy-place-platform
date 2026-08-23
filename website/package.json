@@ -11,7 +11,7 @@
     "test": "jest",
     "test:compiler": "jest --testPathPattern=compiler",
     "test:media-invariant": "tsx scripts/test-media-invariant.ts",
-    "test:oauth": "jest --testPathPattern=oauth",
+    "test:oauth": "jest --testPathPatterns=oauth",
     "images": "node scripts/image-pipeline.mjs",
     "qa:images": "node scripts/image-qa.mjs",
     "projections": "node scripts/constitutional-projection-generator.js",
