@@ -42,6 +42,12 @@ git push -u origin master
    | Name | Value | Environments |
    |---|---|---|
    | `NEXT_PUBLIC_SITE_URL` | `https://<production-domain>` | Production, Preview, Development |
+   | `ENCRYPTION_KEY` | 64 hex chars (32 bytes) for AES-256-GCM | Production, Preview, Development |
+   | `GOOGLE_CLIENT_ID` | OAuth 2.0 client ID from Google Cloud Console | Production, Preview, Development |
+   | `GOOGLE_CLIENT_SECRET` | OAuth 2.0 client secret from Google Cloud Console | Production, Preview, Development |
+   | `GOOGLE_REDIRECT_URI` | `https://<production-domain>/api/drive/oauth/callback` | Production, Preview, Development |
+   > Generate ENCRYPTION_KEY with: `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+   > Get Google credentials from: https://console.cloud.google.com/apis/credentials
    > *Until the code reads this env (Directive 025), also confirm `src/config/
    > company.ts` `siteUrl` matches the production domain.*
 5. **Deploy.** Wait for the green preview URL. Click it — the site should load.
