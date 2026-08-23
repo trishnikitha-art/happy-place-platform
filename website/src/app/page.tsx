@@ -21,11 +21,14 @@ import { getHomepageHero } from "@/lib/brand";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { NewsletterSignup } from "@/components/newsletter-signup";
 import { getOwnerPortrait } from "@/lib/brand";
-import { getMediaById, getMediaByIdAsync, resolvePublicMedia } from "@/lib/media";
+import { getMediaById, resolvePublicMedia } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 import { VisualSlot } from "@/components/visual-slot";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
 import type { Media } from "@/types/media";
+
+// Mark homepage as dynamic to allow KV access during runtime assignments
+export const dynamic = 'force-dynamic';
 
 const siteUrl = "https://happyplacecarpentry.com";
 
@@ -84,7 +87,7 @@ export default async function HomePage() {
   const homepageServices = allServices.filter(s => s.homepageEligible);
   
   // Load runtime assignments for service cards on server side (avoids client-side Redis access)
-  // For drive-prefixed IDs, resolve via async KV lookup
+  // During static build, KV may be unavailable - fall back to static configuration
   const serviceCardAssignments = new Map<string, { mediaId: string; mediaObject: Media | null }>();
   for (const service of homepageServices) {
     try {
@@ -106,7 +109,16 @@ export default async function HomePage() {
         });
       }
     } catch (error) {
-      console.error('[HOMEPAGE] Failed to load service card assignment:', service.slug, error);
+      // During static build, KV fetches may fail - this is expected
+      // Fall back to static configuration (cardMediaId from services.v1.json)
+      console.log('[HOMEPAGE] Runtime assignment unavailable, using static config:', service.slug);
+      if (service.cardMediaId) {
+        const mediaObject = getMediaById(service.cardMediaId);
+        serviceCardAssignments.set(service.slug, {
+          mediaId: service.cardMediaId,
+          mediaObject,
+        });
+      }
     }
   }
 
