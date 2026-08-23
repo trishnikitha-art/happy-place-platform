@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     }
 
     // 1. Get Drive file metadata (using corrected API contract)
-    const driveFile = await driveDiscovery.getFile(fileId, sharedDriveId);
+    const driveFile = await driveDiscovery.getFile(fileId);
     if (!driveFile) {
       return NextResponse.json(
         { error: 'File not found in Drive' },

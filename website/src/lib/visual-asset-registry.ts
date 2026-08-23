@@ -27,20 +27,20 @@ export interface VisualSlot {
   section: string;
   slotName: string;
   currentMediaId: string | null;
-  physicalStatus: 'PRESENT' | 'MISSING' | 'RECOVERABLE' | 'DRIVE_ONLY';
+  physicalStatus: 'PRESENT' | 'MISSING' | 'RECOVERABLE' | 'DRIVE_ONLY' | 'BLOB';
   augustDriveId?: string;
 }
 
 // Enhanced asset with full provenance
 export interface VisualAsset extends Media {
-  classification: 'PRESENT_MAPPED' | 'PRESENT_UNMAPPED' | 'REFERENCED_MISSING' | 'AUGUST_RECOVERABLE' | 'ORPHANED_VARIANT' | 'DRIVE_ONLY' | 'UNKNOWN';
+  classification: 'PRESENT_MAPPED' | 'PRESENT_UNMAPPED' | 'REFERENCED_MISSING' | 'AUGUST_RECOVERABLE' | 'ORPHANED_VARIANT' | 'DRIVE_ONLY' | 'PUBLISHED' | 'UNKNOWN';
   usageSlots: VisualSlot[];
   physicalPath: string;
   augustDriveId?: string;
   augustProject?: string | null;
   augustService?: string | null;
   augustRoles?: string[];
-  physicalStatus: 'PRESENT' | 'MISSING' | 'RECOVERABLE' | 'DRIVE_ONLY';
+  physicalStatus: 'PRESENT' | 'MISSING' | 'RECOVERABLE' | 'DRIVE_ONLY' | 'BLOB';
 }
 
 // August 3 baseline assets (from archive/legacy-runtime/media.v1.json)
@@ -172,6 +172,11 @@ export async function loadVisualAssetRegistry(): Promise<VisualAsset[]> {
  * Classify asset based on semantic analysis
  */
 function classifyAsset(media: Media, augustData?: any): VisualAsset['classification'] {
+  // PUBLISHED: Materialized from Drive with local source and Blob storage
+  if (media.source === 'local' && media.lifecycleState === 'published') {
+    return 'PUBLISHED';
+  }
+
   // DRIVE_ONLY: exists in canonical Drive graph but not in physical filesystem
   if (media.provenance?.drive_canonical && !media.variants?.original) {
     return 'DRIVE_ONLY';
