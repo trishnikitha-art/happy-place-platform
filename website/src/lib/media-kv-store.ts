@@ -161,8 +161,10 @@ export async function storeMedia(media: Media): Promise<void> {
   
   try {
     const client = getRedisClient();
-    // Use typed object API - @upstash/redis handles serialization
-    await client.set<Media>(`${MEDIA_PREFIX}${media.id}`, media);
+    // Explicitly serialize to JSON to ensure consistent storage format
+    // This prevents "Unexpected value type: object" errors from Redis client
+    const serialized = JSON.stringify(media);
+    await client.set(`${MEDIA_PREFIX}${media.id}`, serialized);
 
     // Index by content hash for deduplication
     if (media.contentHash) {
@@ -182,15 +184,28 @@ export async function storeMedia(media: Media): Promise<void> {
 export async function getMedia(id: string): Promise<Media | null> {
   try {
     const client = getRedisClient();
-    const media = await client.get<Media>(`${MEDIA_PREFIX}${id}`);
-    if (!media) return null;
+    const data = await client.get<string>(`${MEDIA_PREFIX}${id}`);
+    if (!data) return null;
+
+    // Explicitly deserialize from JSON to match storeMedia serialization
+    let media: Media;
+    try {
+      media = JSON.parse(data) as Media;
+    } catch (parseError) {
+      console.error('[MEDIA_KV] JSON parse failed for media:', id);
+      // Quarantine corrupted data using consistent namespace
+      const quarantineKey = `${MEDIA_QUARANTINE_PREFIX}${id}:${Date.now()}`;
+      await client.set(quarantineKey, data);
+      console.log('[MEDIA_KV] Corrupted media quarantined:', quarantineKey);
+      return null;
+    }
 
     // Validate Media schema
     if (!validateMedia(media)) {
       console.error('[MEDIA_KV] Schema validation failed for media:', id);
       // Quarantine corrupted data using consistent namespace
       const quarantineKey = `${MEDIA_QUARANTINE_PREFIX}${id}:${Date.now()}`;
-      await client.set(quarantineKey, media);
+      await client.set(quarantineKey, data);
       console.log('[MEDIA_KV] Corrupted media quarantined:', quarantineKey);
       return null;
     }
@@ -284,8 +299,11 @@ export async function migrateDriveReferences(): Promise<{
     for (const id of allIds) {
       try {
         // Bypass getMedia() validation to access raw legacy records
-        const media = await client.get<Media>(`${MEDIA_PREFIX}${id}`);
-        if (!media) continue;
+        const data = await client.get<string>(`${MEDIA_PREFIX}${id}`);
+        if (!data) continue;
+        
+        // Explicitly deserialize from JSON
+        const media = JSON.parse(data) as Media;
         
         // Check if this is an old Drive reference using legacy status field
         const isLegacyDriveRef = media.provenance?.status === 'referenced' && 
@@ -334,7 +352,8 @@ async function quarantineMedia(id: string, media: Media): Promise<void> {
   try {
     const client = getRedisClient();
     const quarantineKey = `${MEDIA_QUARANTINE_PREFIX}${id}:${Date.now()}`;
-    await client.set(quarantineKey, media);
+    const serialized = JSON.stringify(media);
+    await client.set(quarantineKey, serialized);
     await client.del(`${MEDIA_PREFIX}${id}`);
     console.log('[MEDIA_KV] Quarantined invalid media:', id);
   } catch (error) {
