@@ -2,7 +2,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": ".next",
   "framework": "nextjs",
-  "installCommand": "npm install --include=optional --os=linux --cpu=x64 sharp",
+  "installCommand": "npm install --include=optional",
   "devCommand": "npm run dev",
   "env": {
     "SHARP_IGNORE_GLOBAL_LIBVIPS": "1"
