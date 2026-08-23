@@ -200,8 +200,9 @@ export class DriveDiscovery {
       // For Shared Drive root, use the driveId as the folderId
       // Otherwise use the specific folder ID
       if (context.parentId === context.driveId) {
-        // Shared Drive root - query without parent filter
-        params.q = `trashed = false`;
+        // Shared Drive root - constrain to immediate root children only
+        // Root-level items in Shared Drives have no parents
+        params.q = `trashed = false and parents is null`;
       } else {
         // Shared Drive folder
         params.q = `'${context.parentId}' in parents and trashed = false`;
@@ -363,9 +364,11 @@ export class DriveDiscovery {
   }
 
   /**
-   * Search for files by name
+   * Search for files by name within a specific Drive context
+   * @param query - Search query string
+   * @param context - Optional Drive context (My Drive or Shared Drive)
    */
-  async searchFiles(query: string): Promise<DriveFile[]> {
+  async searchFiles(query: string, context?: DriveListContext): Promise<DriveFile[]> {
     if (!(await isAuthenticated())) {
       return [];
     }
@@ -373,12 +376,32 @@ export class DriveDiscovery {
     const drive = await getDriveClient();
 
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (drive as any).files.list({
+      const params: Record<string, unknown> = {
         q: `name contains '${query}' and trashed = false`,
         fields: 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,parents)',
         pageSize: 100,
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      };
+
+      // Preserve Drive context for search - scope to the same corpus as browsing
+      if (context?.driveId) {
+        // Search within specific Shared Drive
+        params.corpora = 'drive';
+        params.driveId = context.driveId;
+      } else {
+        // Search within My Drive only
+        params.corpora = 'user';
+      }
+
+      console.log('[Drive Discovery] searchFiles params:', {
+        query,
+        corpora: params.corpora,
+        driveId: params.driveId,
       });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (drive as any).files.list(params);
 
       if (response.data.files) {
         return response.data.files.map((file: { id: string; name: string; mimeType: string; size?: string; createdTime?: string; modifiedTime?: string; thumbnailLink?: string; webViewLink?: string; description?: string; parents?: string[] }) => ({

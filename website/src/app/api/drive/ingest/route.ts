@@ -592,6 +592,56 @@ export async function POST(request: Request) {
       mediaId,
     });
 
+    // 10. Update assignments that reference the Drive source
+    // Convert DriveReference assignments to PublishedMediaAsset assignments
+    if (driveIdParameter || driveId) {
+      try {
+        const { getAllServiceCardAssignments, storeServiceCardAssignment } = await import('@/lib/assignment-store');
+        const assignments = await getAllServiceCardAssignments();
+        
+        const driveReferenceId = driveIdParameter || driveId;
+        const updates: string[] = [];
+        
+        for (const assignment of assignments) {
+          // Check if assignment references this Drive source
+          if (assignment.mediaId === `drive-${driveReferenceId}` || 
+              assignment.mediaId === `drive-ref-${driveReferenceId}`) {
+            // Update assignment to point to the new PublishedMediaAsset
+            const updatedAssignment = {
+              ...assignment,
+              mediaId: mediaId,
+              updatedAt: new Date().toISOString(),
+            };
+            
+            await storeServiceCardAssignment(updatedAssignment, requestId);
+            updates.push(assignment.serviceSlug);
+            
+            console.log('[MEDIA_INGEST] ASSIGNMENT_UPDATED', {
+              requestId,
+              serviceSlug: assignment.serviceSlug,
+              oldMediaId: assignment.mediaId,
+              newMediaId: mediaId,
+            });
+          }
+        }
+        
+        if (updates.length > 0) {
+          console.log('[MEDIA_INGEST] ASSIGNMENTS_UPDATED', {
+            requestId,
+            count: updates.length,
+            services: updates,
+          });
+        }
+      } catch (assignmentError) {
+        console.error('[MEDIA_INGEST] ASSIGNMENT_UPDATE_FAILED', {
+          requestId,
+          error: assignmentError instanceof Error ? assignmentError.message : 'Unknown error',
+        });
+        // Don't fail the ingestion if assignment update fails
+        // The asset is still available for manual assignment in Workbench
+      }
+    }
+
     console.log('[MEDIA_INGEST] RESPONSE stage started', { requestId });
     return NextResponse.json({
       success: true,

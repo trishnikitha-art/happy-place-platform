@@ -57,6 +57,11 @@ export async function GET(request: Request) {
   }
 
   const scopes = [
+    // OpenID identity scopes for authoritative Google sub extraction
+    'openid',
+    'profile',
+    'email',
+    // Drive read-only scopes for file access
     'https://www.googleapis.com/auth/drive.readonly',
     'https://www.googleapis.com/auth/drive.metadata.readonly',
     'https://www.googleapis.com/auth/drive.photos.readonly',
