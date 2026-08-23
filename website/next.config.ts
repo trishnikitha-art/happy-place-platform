@@ -16,13 +16,16 @@ const nextConfig: NextConfig = {
     // Website-facing image delivery should display inline, not force download
     // Allow local project images (including filenames with spaces)
     // Allow brand assets (logo, favicon, etc.)
-    // REMOVED: /api/drive/files/** - Drive endpoint is for Workbench only, not public delivery
+    // Allow Drive API proxy endpoints for Workbench (must use unoptimized flag)
     localPatterns: [
       {
         pathname: '/images/**',
       },
       {
         pathname: '/brand/**',
+      },
+      {
+        pathname: '/api/drive/files/**',
       },
     ],
   },
