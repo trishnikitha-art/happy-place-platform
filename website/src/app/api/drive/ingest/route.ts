@@ -29,6 +29,83 @@ import { storeMedia, findMediaByContentHash, getMedia } from '@/lib/media-kv-sto
 import crypto from 'crypto';
 import type { Media, MediaRole } from '@/types/media';
 
+/**
+ * Assignment reconciliation result
+ */
+interface ReconciliationResult {
+  reconciled: boolean;
+  updated: string[];
+  error?: string;
+}
+
+/**
+ * Reconcile DriveReference assignments to PublishedMediaAsset assignments
+ * Called after materialization to repair poisoned drive-* / drive-ref-* assignments
+ * 
+ * @param publishedMediaId - The new PublishedMediaAsset ID
+ * @param driveSourceId - The original Drive source ID
+ * @param requestId - Correlation ID
+ * @returns Reconciliation result with updated service slugs
+ */
+async function reconcileDriveAssignments(
+  publishedMediaId: string,
+  driveSourceId: string,
+  requestId: string
+): Promise<ReconciliationResult> {
+  try {
+    const { getAllServiceCardAssignments, storeServiceCardAssignment } = await import('@/lib/assignment-store');
+    const assignments = await getAllServiceCardAssignments();
+    
+    const driveReferenceId = driveSourceId;
+    const updates: string[] = [];
+    
+    for (const assignment of assignments) {
+      // Check if assignment references this Drive source
+      if (assignment.mediaId === `drive-${driveReferenceId}` || 
+          assignment.mediaId === `drive-ref-${driveReferenceId}`) {
+        // Update assignment to point to the new PublishedMediaAsset
+        const updatedAssignment = {
+          ...assignment,
+          mediaId: publishedMediaId,
+          updatedAt: new Date().toISOString(),
+        };
+        
+        await storeServiceCardAssignment(updatedAssignment, requestId);
+        updates.push(assignment.serviceSlug);
+        
+        console.log('[ASSIGNMENT_RECONCILIATION] UPDATED', {
+          requestId,
+          serviceSlug: assignment.serviceSlug,
+          oldMediaId: assignment.mediaId,
+          newMediaId: publishedMediaId,
+        });
+      }
+    }
+    
+    console.log('[ASSIGNMENT_RECONCILIATION] COMPLETE', {
+      requestId,
+      count: updates.length,
+      services: updates,
+    });
+    
+    return {
+      reconciled: updates.length > 0,
+      updated: updates,
+    };
+  } catch (error) {
+    console.error('[ASSIGNMENT_RECONCILIATION] FAILED', {
+      requestId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    
+    return {
+      reconciled: false,
+      updated: [],
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
 // Import storage modules at top level (they are ES modules)
 import { uploadToBlob, generateBlobFilename } from '@/lib/blob-storage';
 
@@ -221,7 +298,7 @@ export async function POST(request: Request) {
 
     // 1. Get Drive file metadata
     console.log('[MEDIA_INGEST] DRIVE_METADATA stage started', { requestId });
-    const driveFile = await driveDiscovery.getFile(driveId, driveIdParameter);
+    const driveFile = await driveDiscovery.getFile(driveId);
     if (!driveFile) {
       console.log('[MEDIA_INGEST_ERROR] File not found in Drive', { requestId });
       return NextResponse.json(
@@ -247,7 +324,7 @@ export async function POST(request: Request) {
     console.log('[MEDIA_INGEST] DRIVE_DOWNLOAD stage started', { requestId });
     let fileBuffer: Buffer;
     try {
-      fileBuffer = await driveDiscovery.downloadFile(driveId, driveIdParameter);
+      fileBuffer = await driveDiscovery.downloadFile(driveId);
       console.log('[MEDIA_INGEST] DRIVE_DOWNLOAD stage succeeded', {
         requestId,
         bytes: fileBuffer.length,
@@ -373,13 +450,24 @@ export async function POST(request: Request) {
           requestId,
           existingMediaId: existingMedia.id,
         });
+        
+        // CRITICAL: Run assignment reconciliation even for deduplicated media
+        // This ensures DriveReference assignments are repaired when re-ingesting the same content
+        const reconciliationResult = await reconcileDriveAssignments(
+          existingMedia.id,
+          driveIdParameter || driveId,
+          requestId
+        );
+        
         return NextResponse.json({
           success: true,
           action: 'existing',
           media: existingMedia,
           requestId,
           idempotent: true,
-          deduplicationSource: 'kv'
+          deduplicationSource: 'kv',
+          assignmentReconciled: reconciliationResult.reconciled,
+          assignmentsUpdated: reconciliationResult.updated,
         });
       }
     }
@@ -592,54 +680,15 @@ export async function POST(request: Request) {
       mediaId,
     });
 
-    // 10. Update assignments that reference the Drive source
-    // Convert DriveReference assignments to PublishedMediaAsset assignments
+    // 10. Reconcile DriveReference assignments to PublishedMediaAsset assignments
+    // This is authoritative - if reconciliation fails, report it in the response
+    let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [] };
     if (driveIdParameter || driveId) {
-      try {
-        const { getAllServiceCardAssignments, storeServiceCardAssignment } = await import('@/lib/assignment-store');
-        const assignments = await getAllServiceCardAssignments();
-        
-        const driveReferenceId = driveIdParameter || driveId;
-        const updates: string[] = [];
-        
-        for (const assignment of assignments) {
-          // Check if assignment references this Drive source
-          if (assignment.mediaId === `drive-${driveReferenceId}` || 
-              assignment.mediaId === `drive-ref-${driveReferenceId}`) {
-            // Update assignment to point to the new PublishedMediaAsset
-            const updatedAssignment = {
-              ...assignment,
-              mediaId: mediaId,
-              updatedAt: new Date().toISOString(),
-            };
-            
-            await storeServiceCardAssignment(updatedAssignment, requestId);
-            updates.push(assignment.serviceSlug);
-            
-            console.log('[MEDIA_INGEST] ASSIGNMENT_UPDATED', {
-              requestId,
-              serviceSlug: assignment.serviceSlug,
-              oldMediaId: assignment.mediaId,
-              newMediaId: mediaId,
-            });
-          }
-        }
-        
-        if (updates.length > 0) {
-          console.log('[MEDIA_INGEST] ASSIGNMENTS_UPDATED', {
-            requestId,
-            count: updates.length,
-            services: updates,
-          });
-        }
-      } catch (assignmentError) {
-        console.error('[MEDIA_INGEST] ASSIGNMENT_UPDATE_FAILED', {
-          requestId,
-          error: assignmentError instanceof Error ? assignmentError.message : 'Unknown error',
-        });
-        // Don't fail the ingestion if assignment update fails
-        // The asset is still available for manual assignment in Workbench
-      }
+      reconciliationResult = await reconcileDriveAssignments(
+        mediaId,
+        driveIdParameter || driveId,
+        requestId
+      );
     }
 
     console.log('[MEDIA_INGEST] RESPONSE stage started', { requestId });
@@ -650,6 +699,9 @@ export async function POST(request: Request) {
       requestId,
       idempotent: blobIdempotencyStats.newUploads === 0,
       blobIdempotencyStats,
+      assignmentReconciled: reconciliationResult.reconciled,
+      assignmentsUpdated: reconciliationResult.updated,
+      reconciliationError: reconciliationResult.error,
     });
   } catch (error) {
     console.log('[MEDIA_INGEST_ERROR] unexpected error', { requestId });

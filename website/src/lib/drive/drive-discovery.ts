@@ -198,11 +198,11 @@ export class DriveDiscovery {
       params.corpora = 'drive';
       params.driveId = context.driveId;
       // For Shared Drive root, use the driveId as the folderId
-      // Otherwise use the specific folder ID
+      // Google documentation: Shared Drive ID is also the ID of its top-level folder
+      // Root-level items have the Shared Drive ID as their parent
       if (context.parentId === context.driveId) {
-        // Shared Drive root - constrain to immediate root children only
-        // Root-level items in Shared Drives have no parents
-        params.q = `trashed = false and parents is null`;
+        // Shared Drive root - constrain to immediate root children
+        params.q = `'${context.driveId}' in parents and trashed = false`;
       } else {
         // Shared Drive folder
         params.q = `'${context.parentId}' in parents and trashed = false`;
@@ -277,8 +277,9 @@ export class DriveDiscovery {
 
   /**
    * Get file metadata
+   * @param fileId - The actual file ID (file identity, not corpus context)
    */
-  async getFile(fileId: string, driveId?: string): Promise<DriveFile | null> {
+  async getFile(fileId: string): Promise<DriveFile | null> {
     if (!(await isAuthenticated())) {
       return null;
     }
@@ -292,13 +293,8 @@ export class DriveDiscovery {
         supportsAllDrives: true,
       };
 
-      if (driveId) {
-        params.driveId = driveId;
-      }
-
       console.log('[Drive Discovery] getFile params:', {
         fileId,
-        driveId,
         supportsAllDrives: params.supportsAllDrives,
       });
 
@@ -328,8 +324,9 @@ export class DriveDiscovery {
 
   /**
    * Download file content
+   * @param fileId - The actual file ID (file identity, not corpus context)
    */
-  async downloadFile(fileId: string, driveId?: string): Promise<Buffer> {
+  async downloadFile(fileId: string): Promise<Buffer> {
     if (!(await isAuthenticated())) {
       throw new Error('Not authenticated with Drive');
     }
@@ -343,13 +340,8 @@ export class DriveDiscovery {
         supportsAllDrives: true,
       };
 
-      if (driveId) {
-        params.driveId = driveId;
-      }
-
       console.log('[Drive Discovery] downloadFile params:', {
         fileId,
-        driveId,
         supportsAllDrives: params.supportsAllDrives,
       });
 

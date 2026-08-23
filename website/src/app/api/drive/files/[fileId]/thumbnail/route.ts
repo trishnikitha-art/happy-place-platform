@@ -62,12 +62,8 @@ export async function GET(
     const getFileParams: Record<string, unknown> = {
       fileId,
       fields: 'mimeType,size',
+      supportsAllDrives: true,
     };
-
-    // Add Shared Drive support if driveId is provided
-    if (driveId) {
-      getFileParams.supportsAllDrives = true;
-    }
 
     const file = await drive.files.get(getFileParams);
     const mimeType = file.data.mimeType;
@@ -144,12 +140,8 @@ export async function GET(
     const mediaParams: any = {
       fileId,
       alt: 'media',
+      supportsAllDrives: true,
     };
-
-    // Preserve Shared Drive support for media download
-    if (driveId) {
-      mediaParams.supportsAllDrives = true;
-    }
 
     const mediaResponse = await drive.files.get(mediaParams, { responseType: 'arraybuffer' });
     const imageBuffer = Buffer.from(mediaResponse.data as ArrayBuffer);

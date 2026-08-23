@@ -319,13 +319,41 @@ export async function getAugust3RecoverableAssets(): Promise<VisualAsset[]> {
 
 /**
  * Get DRIVE_ONLY assets (exist in canonical Drive graph but not in physical filesystem)
+ * Actually loads PublishedMediaAsset records from KV that have local source
  */
 export async function getDriveOnlyAssets(): Promise<VisualAsset[]> {
   const driveAssets: VisualAsset[] = [];
   
   try {
-    // Since we can't list all keys, we'll need to track ingested assets separately
-    // For now, return empty array - Drive assets will be added to registry on ingestion
+    // Load all media records from KV that are published (materialized from Drive)
+    const { listMediaIds } = await import('./media-kv-store');
+    const mediaIds = await listMediaIds();
+    
+    for (const mediaId of mediaIds) {
+      const { getMedia } = await import('./media-kv-store');
+      const media = await getMedia(mediaId);
+      
+      if (media && media.source === 'local' && media.lifecycleState === 'published') {
+        // This is a PublishedMediaAsset (materialized from Drive)
+        const classification = 'PUBLISHED';
+        const usageSlots: VisualSlot[] = [];
+        const physicalPath = media.variants?.original || '';
+        const physicalStatus = 'BLOB';
+        
+        driveAssets.push({
+          ...media,
+          classification,
+          usageSlots,
+          physicalPath,
+          physicalStatus,
+        } as VisualAsset);
+      }
+    }
+    
+    console.log('[VISUAL_ASSET_REGISTRY] Loaded PublishedMediaAsset records from KV:', {
+      count: driveAssets.length,
+    });
+    
     return driveAssets;
   } catch (error) {
     console.error('[VISUAL_ASSET_REGISTRY] Failed to load Drive assets:', error);

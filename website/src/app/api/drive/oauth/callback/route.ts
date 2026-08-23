@@ -20,24 +20,29 @@ export async function GET(request: Request) {
   console.log('=== DRIVE OAUTH CALLBACK REACHED ===');
   console.log('Request URL:', request.url);
 
-  // Origin validation - prevent CSRF attacks
+  // Origin validation - telemetry/defense-in-depth, not the primary CSRF barrier
+  // The authoritative CSRF barrier is the Redis-backed, browser-bound, one-time OAuth state
   const origin = request.headers.get('origin');
   const referer = request.headers.get('referer');
   const expectedOrigin = process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000';
   
-  console.log('[DRIVE OAUTH FORENSIC] Origin validation:', {
+  console.log('[DRIVE OAUTH FORENSIC] Origin telemetry:', {
     origin: origin || 'none',
     referer: referer || 'none',
     expectedOrigin,
   });
 
   // Allow callback from same origin or from Google OAuth
+  // Log mismatches but don't fail - let the authoritative state validation handle security
   const isSameOrigin = origin === expectedOrigin;
   const isFromGoogle = referer?.startsWith('https://accounts.google.com/');
   
   if (!isSameOrigin && !isFromGoogle) {
-    console.log('[DRIVE OAUTH FORENSIC] Origin validation failed - rejecting request');
-    return NextResponse.json({ error: 'Invalid origin' }, { status: 403 });
+    console.log('[DRIVE OAUTH FORENSIC] Origin mismatch - proceeding to state validation', {
+      origin,
+      referer,
+      expectedOrigin,
+    });
   }
 
   const { searchParams } = new URL(request.url);
