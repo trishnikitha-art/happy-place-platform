@@ -89,8 +89,16 @@ export async function uploadToBlob(
       };
     }
     
-    // Upload to Vercel Blob
-    const blob = await put(filename, buffer, {
+    // Generate content-addressed filename to prevent Blob key collisions
+    // Use first 12 chars of content hash + original filename extension
+    const hashPrefix = contentHash.substring(0, 12);
+    const filenameParts = filename.split('.');
+    const extension = filenameParts.length > 1 ? filenameParts.pop() : 'bin';
+    const baseName = filenameParts.join('.');
+    const contentAddressedFilename = `${baseName}-${hashPrefix}.${extension}`;
+    
+    // Upload to Vercel Blob with content-addressed filename
+    const blob = await put(contentAddressedFilename, buffer, {
       access: 'public',
       contentType,
     });
@@ -98,7 +106,7 @@ export async function uploadToBlob(
     // Store complete metadata including actual Blob URL
     const metadata: BlobMetadata = {
       url: blob.url,
-      filename,
+      filename: contentAddressedFilename,
       contentType,
       uploadedAt: new Date().toISOString(),
       contentHash,
@@ -106,12 +114,12 @@ export async function uploadToBlob(
     };
     
     const client = getRedisClient();
-    await client.set(`blob_metadata:${contentHash}`, metadata);
+    await client.set(`blob_metadata:${contentHash}`, JSON.stringify(metadata));
     
     console.log('[BLOB_STORAGE] New blob uploaded and metadata stored:', {
       contentHash,
       url: blob.url,
-      filename,
+      filename: contentAddressedFilename,
     });
     
     return {
@@ -149,8 +157,11 @@ export async function uploadToBlob(
 async function getBlobMetadataByContentHash(contentHash: string): Promise<BlobMetadata | null> {
   try {
     const client = getRedisClient();
-    const metadata = await client.get<BlobMetadata>(`blob_metadata:${contentHash}`);
-    return metadata;
+    const data = await client.get<string>(`blob_metadata:${contentHash}`);
+    if (!data) return null;
+    
+    // Explicitly deserialize from JSON to match storage format
+    return JSON.parse(data) as BlobMetadata;
   } catch (e) {
     console.error('[BLOB_STORAGE] Content hash lookup failed:', e);
     throw new Error(`Failed to find blob metadata by content hash: ${e instanceof Error ? e.message : 'Unknown error'}`);
