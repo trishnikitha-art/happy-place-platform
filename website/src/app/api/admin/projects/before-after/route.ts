@@ -8,6 +8,12 @@ export const runtime = 'nodejs';
 const PROJECTS_PATH = path.join(process.cwd(), 'src', 'config', 'projects.v1.json');
 const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
 
+// PRODUCTION GUARD: Prevent runtime writes to read-only Vercel filesystem
+function isProductionWriteBlocked(): boolean {
+  // Block writes in Vercel production environment
+  return process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+}
+
 interface BeforeAfterRequest {
   projectId: string;
   side: 'before' | 'after';
@@ -93,6 +99,15 @@ export async function POST(request: NextRequest) {
       mediaId,
       updatedMedia: projects[projectIndex].media,
     });
+
+    // PRODUCTION GUARD: Block filesystem writes in production
+    if (isProductionWriteBlocked()) {
+      console.error('[BEFORE-AFTER API] PRODUCTION_WRITE_BLOCKED', { projectId, side, mediaId });
+      return NextResponse.json(
+        { error: "Filesystem writes are not allowed in production. Use the Workbench commit flow instead." },
+        { status: 403 }
+      );
+    }
 
     fs.writeFileSync(PROJECTS_PATH, JSON.stringify(projects, null, 2), 'utf-8');
 

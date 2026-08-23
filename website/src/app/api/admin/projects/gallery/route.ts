@@ -20,6 +20,12 @@
 
 import { NextResponse } from "next/server";
 import { readFileSync, writeFileSync } from "fs";
+
+// PRODUCTION GUARD: Prevent runtime writes to read-only Vercel filesystem
+function isProductionWriteBlocked(): boolean {
+  // Block writes in Vercel production environment
+  return process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
+}
 import { join } from "path";
 import { workbenchSession } from "@/lib/workbench-session";
 import { getMediaById, getMediaByIdAsync } from "@/lib/media";
@@ -157,6 +163,16 @@ export async function POST(request: Request) {
     }
 
     projectsData.generatedAt = new Date().toISOString();
+    
+    // PRODUCTION GUARD: Block filesystem writes in production
+    if (isProductionWriteBlocked()) {
+      console.error('[GALLERY POST] PRODUCTION_WRITE_BLOCKED', { projectId, operation, mediaId });
+      return NextResponse.json(
+        { error: "Filesystem writes are not allowed in production. Use the Workbench commit flow instead." },
+        { status: 403 }
+      );
+    }
+    
     writeFileSync(projectsPath, JSON.stringify(projectsData, null, 2));
 
     console.log('[GALLERY POST] DEV_WRITE_SUCCESS', { projectId, operation, mediaId });
@@ -266,6 +282,16 @@ export async function DELETE(request: Request) {
 
     projectsData.projects[projectIndex].media.gallery[galleryIndex] = null;
     projectsData.generatedAt = new Date().toISOString();
+    
+    // PRODUCTION GUARD: Block filesystem writes in production
+    if (isProductionWriteBlocked()) {
+      console.error('[GALLERY DELETE] PRODUCTION_WRITE_BLOCKED', { projectId, galleryIndex });
+      return NextResponse.json(
+        { error: "Filesystem writes are not allowed in production. Use the Workbench commit flow instead." },
+        { status: 403 }
+      );
+    }
+    
     writeFileSync(projectsPath, JSON.stringify(projectsData, null, 2));
 
     console.log('[GALLERY DELETE] DEV_WRITE_SUCCESS', { projectId, galleryIndex });
