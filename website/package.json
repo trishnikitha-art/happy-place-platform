@@ -8,7 +8,7 @@
     "build": "node scripts/graph-edge-generator.js && node scripts/constitutional-projection-generator.js && next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "jest",
+    "test": "jest --testPathIgnorePatterns=oauth",
     "test:compiler": "jest --testPathPattern=compiler",
     "test:media-invariant": "tsx scripts/test-media-invariant.ts",
     "test:oauth": "jest --testPathPatterns=oauth",
