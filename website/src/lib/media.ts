@@ -63,15 +63,16 @@ export function getMediaById(id: string): Media | null {
 
 /**
  * Async version that checks KV directly (for dynamic loading)
+ * 
+ * AUTHORITY PRECEDENCE: Runtime KV first, static authority as fallback
+ * 
+ * This ensures that materialized PublishedMediaAsset records take precedence
+ * over static canonical records. Static authority serves as fallback for
+ * legacy compatibility when runtime records are not available.
  */
 export async function getMediaByIdAsync(id: string): Promise<Media | null> {
-  // First check static media.v1.json
-  const staticMedia = getMediaById(id);
-  if (staticMedia) {
-    return staticMedia;
-  }
-
-  // Fallback to KV store for dynamic Drive records
+  // FIRST: Check KV store for runtime PublishedMediaAsset records
+  // Runtime authority (materialized assets) takes precedence
   try {
     const { getMedia } = await import('@/lib/media-kv-store');
     const dynamicMedia = await getMedia(id);
@@ -82,6 +83,13 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
     }
   } catch (error) {
     console.log('[MEDIA] KV lookup failed:', error);
+  }
+
+  // SECOND: Fall back to static media.v1.json for legacy compatibility
+  // Static authority is fallback when runtime records are not available
+  const staticMedia = getMediaById(id);
+  if (staticMedia) {
+    return staticMedia;
   }
 
   return null;
