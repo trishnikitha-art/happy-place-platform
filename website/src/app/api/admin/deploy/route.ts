@@ -278,8 +278,24 @@ export async function POST(request: Request) {
           const parts = key.split(':');
           if (parts.length < 4) continue;
           
-          const projectId = parts[2];
-          const field = parts[3]; // 'hero', 'gallery', 'before', 'after'
+          let projectId: string;
+          let field: string;
+          
+          // New transactional format: workbench-staging:{txId}:project:{projectId}:{field}
+          if (parts.length >= 5 && parts[1].startsWith('tx-') && parts[2] === 'project') {
+            projectId = parts[3];
+            field = parts[4];
+          } 
+          // Legacy format: workbench-staging:project:{projectId}:{field}
+          else if (parts[1] === 'project') {
+            projectId = parts[2];
+            field = parts[3];
+          } 
+          // Very old format without 'project' prefix
+          else {
+            projectId = parts[2];
+            field = parts[3];
+          }
           
           const projectIndex = projectsData.projects.findIndex((p: any) => p.id === projectId);
           if (projectIndex === -1) {

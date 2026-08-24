@@ -1,9 +1,12 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-07-22T00:00:00.000Z",
+  "generatedAt": "2026-08-24T15:58:15.716Z",
   "media": [
     {
       "id": "fences-001-hero",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "placeholder-hash-fences-001-hero",
       "driveId": "fences-001-master",
       "filename": "FENCE BUILD.jpg",
       "type": "image",
@@ -63,6 +66,9 @@
     },
     {
       "id": "fences-001-before",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "placeholder-hash-fences-001-before",
       "driveId": "drive-c266e5096e43",
       "filename": "FENCE BEFORE.jpg",
       "type": "image",
@@ -143,7 +149,10 @@
       "uploadedAt": "2026-07-20T00:00:00.000Z",
       "fileSize": 100492,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "42ec1482fa6e1eda73bd1bdbe831a42e998be6147ffdf6a453ce82749fd61ea1"
     },
     {
       "id": "fences-001-matching",
@@ -185,10 +194,16 @@
       "uploadedAt": "2026-07-20T00:00:00.000Z",
       "fileSize": 100492,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "421a5978b21afdc5ee0f44f6198297d939d3152e036fdcbda1e2ec1f71a8f885"
     },
     {
       "id": "builtins-001-hero",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "placeholder-hash-builtins-001-hero",
       "driveId": "builtins-001-master",
       "filename": "FINISHEDCARPENTRY.png",
       "type": "image",
@@ -269,10 +284,16 @@
       "uploadedAt": "2026-07-19T00:00:00.000Z",
       "fileSize": 51376,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "f428ceb6c3f436cff98634b5d05443ae6a88adaef8c47d9a0b1b5ef55673e830"
     },
     {
       "id": "repairs-001-hero",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "placeholder-hash-repairs-001-hero",
       "driveId": "repairs-001-master",
       "filename": "TRIMREPAIR.png",
       "type": "image",
@@ -353,7 +374,10 @@
       "uploadedAt": "2026-07-18T00:00:00.000Z",
       "fileSize": 116814,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "807af444c6240419ef4e8da242ed0c173f8ccbadf6254ef3b5e19b05559d9cd4"
     },
     {
       "id": "repairs-001-floor",
@@ -395,7 +419,10 @@
       "uploadedAt": "2026-07-18T00:00:00.000Z",
       "fileSize": 71190,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "1252b43109895a82fd777574ebefb719b54a3902604def0e6943aa1e125faa2d"
     },
     {
       "id": "repairs-001-gutter",
@@ -437,10 +464,16 @@
       "uploadedAt": "2026-07-18T00:00:00.000Z",
       "fileSize": 34178,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "2c5825163f457673cfb3278f1f9eaa4a8c1b8d625c60b6e84f0c89de556e4a34"
     },
     {
       "id": "outdoor-living-001-hero",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "placeholder-hash-outdoor-living-001-hero",
       "driveId": "painting-001-master",
       "filename": "IMG_0535.JPG",
       "type": "image",
@@ -523,7 +556,10 @@
       "uploadedAt": "2026-07-17T00:00:00.000Z",
       "fileSize": 70366,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "f25513b1c562b31ef06940cbb4f5f06d89160edd4b4a7d7f2f039a8eb6b5be38"
     },
     {
       "id": "outdoor-living-001-3",
@@ -566,7 +602,10 @@
       "uploadedAt": "2026-07-17T00:00:00.000Z",
       "fileSize": 28584,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "3fb3261cf720face3bb8b27cf8cd5b72244854c18218d987d424072229220e84"
     },
     {
       "id": "outdoor-living-001-4",
@@ -609,7 +648,10 @@
       "uploadedAt": "2026-07-17T00:00:00.000Z",
       "fileSize": 68246,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "19d1dd8e67e486e2be2f5eb703cd5c11168122de4da90d1f13c7eec62a4613e8"
     },
     {
       "id": "outdoor-living-001-5",
@@ -652,7 +694,10 @@
       "uploadedAt": "2026-07-17T00:00:00.000Z",
       "fileSize": 54778,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "4f75f5c18eb05b619a753c0925bc54ca0fb2fbcce1009fa4d063574a54ef8d68"
     },
     {
       "id": "outdoor-living-001-6",
@@ -695,7 +740,10 @@
       "uploadedAt": "2026-07-17T00:00:00.000Z",
       "fileSize": 36778,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "f5167d53adb3d2be3b3cbeeccc0cfa8c7cf3191cf2729f6352959698f56597d7"
     },
     {
       "id": "bathroom-remodeling-001-hero",
@@ -737,7 +785,10 @@
       "uploadedAt": "2026-07-16T00:00:00.000Z",
       "fileSize": 54050,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "12a9af409684c0a5f17ed3fda34fc3748695aeb1ed0c9cab43f983cd54928ac8"
     },
     {
       "id": "brand-featured",
@@ -778,7 +829,10 @@
       "uploadedAt": "2026-07-21T00:00:00.000Z",
       "fileSize": 27050,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "a2c25dd5ed5221bd1e12e3475a8c19208d7f000bf0611948214c74205ba5553d"
     },
     {
       "id": "brand-hero",
@@ -821,7 +875,10 @@
       "uploadedAt": "2026-07-21T00:00:00.000Z",
       "fileSize": 64212,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "4365b40fcd213ac18370fc10c449e97d3960104ca070e0e78faa3f4b2f12ed04"
     },
     {
       "id": "brand-portrait",
@@ -864,7 +921,10 @@
       "uploadedAt": "2026-07-21T00:00:00.000Z",
       "fileSize": 5434,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "fc511466a1d437e69b15f7506c099a4be35f8938db3790853318e7b4493f0b74"
     },
     {
       "id": "repairs-001-floor0",
@@ -907,7 +967,10 @@
       "uploadedAt": "2026-07-21T00:00:00.000Z",
       "fileSize": 146402,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "c977985eb8d1a245e893217c926baf1934637800a0560767f0f814fe7b7d2c7b"
     },
     {
       "id": "repairs-001-img0544",
@@ -949,7 +1012,10 @@
       "uploadedAt": "2026-07-21T00:00:00.000Z",
       "fileSize": 27744,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "f934a09907f4d9bee6e1a1413f8891ea159d43979bc29efc2655acb2cbfa5e98"
     },
     {
       "id": "repairs-001-img0546",
@@ -991,7 +1057,10 @@
       "uploadedAt": "2026-07-21T00:00:00.000Z",
       "fileSize": 68536,
       "format": "WEBP",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "6b33d395ba1a5569d739e49f8e2a13de4d123d8a9dc7efad8314f331120bf592"
     },
     {
       "id": "pergolas-001-hero",
@@ -1033,7 +1102,10 @@
       "uploadedAt": "2026-07-22T00:00:00.000Z",
       "fileSize": 2081361,
       "format": "JPG",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "0fe2399f2f3b90bad4e935aa13065ff0e94f77c1d9908c06074ba0c34c6a150f"
     },
     {
       "id": "pergolas-001-before",
@@ -1075,7 +1147,10 @@
       "uploadedAt": "2026-07-22T00:00:00.000Z",
       "fileSize": 2637377,
       "format": "PNG",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "3c8087ada1b8d0165bedd53e88b3bae069e6bfded5a9a1e5308997c1a7a65131"
     },
     {
       "id": "pergolas-001-after",
@@ -1117,7 +1192,10 @@
       "uploadedAt": "2026-07-22T00:00:00.000Z",
       "fileSize": 2081361,
       "format": "JPG",
-      "colorSpace": "sRGB"
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "04d5d34452e9064d0e6f8c9bcaf9715ab56809d423444c42a895af3c5a0e7d02"
     }
   ]
 }
