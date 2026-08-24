@@ -103,6 +103,16 @@ export async function POST(request: Request) {
       lifecycleState: media.lifecycleState,
     });
 
+    // CAS ENFORCEMENT: Read current assignment to obtain expected revision
+    const currentAssignment = await getServiceCardAssignment('brand-hero', requestId);
+    const expectedRevision = currentAssignment?.revision;
+    
+    console.log('[BRAND HERO] CAS_READ', {
+      requestId,
+      currentRevision: expectedRevision,
+      currentMediaId: currentAssignment?.mediaId,
+    });
+
     // Store assignment in persistent store using brand-hero as serviceSlug
     const assignment = {
       serviceSlug: 'brand-hero',
@@ -111,7 +121,7 @@ export async function POST(request: Request) {
       source: 'workbench' as const,
     };
 
-    await storeServiceCardAssignment(assignment, undefined, requestId);
+    await storeServiceCardAssignment(assignment, expectedRevision, requestId);
 
     console.log('[BRAND HERO] ASSIGNMENT_STORED', {
       requestId,

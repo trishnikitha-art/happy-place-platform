@@ -103,6 +103,16 @@ export async function POST(request: Request) {
       lifecycleState: media.lifecycleState,
     });
 
+    // CAS ENFORCEMENT: Read current assignment to obtain expected revision
+    const currentAssignment = await getServiceCardAssignment('brand-portrait', requestId);
+    const expectedRevision = currentAssignment?.revision;
+    
+    console.log('[BRAND PORTRAIT] CAS_READ', {
+      requestId,
+      currentRevision: expectedRevision,
+      currentMediaId: currentAssignment?.mediaId,
+    });
+
     // Store assignment in persistent store using brand-portrait as serviceSlug
     const assignment = {
       serviceSlug: 'brand-portrait',
@@ -111,7 +121,7 @@ export async function POST(request: Request) {
       source: 'workbench' as const,
     };
 
-    await storeServiceCardAssignment(assignment, undefined, requestId);
+    await storeServiceCardAssignment(assignment, expectedRevision, requestId);
 
     console.log('[BRAND PORTRAIT] ASSIGNMENT_STORED', {
       requestId,

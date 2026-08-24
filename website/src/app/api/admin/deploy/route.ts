@@ -1,18 +1,26 @@
 /**
  * Admin Deployment API Endpoint
  * 
- * Commits accepted Workbench changes to GitHub main via GitHub API
+ * Commits accepted Workbench changes to GitHub main via GitHub Git Data API
  * 
  * POST /api/admin/deploy
  * Body: { reason?: string }
  * 
  * Requires Workbench authentication.
- * Uses GitHub API to commit projects.v1.json to main branch.
- * Vercel Git integration will automatically deploy when changes are pushed to main.
+ * Uses GitHub Git Data API to create a SINGLE atomic commit containing both
+ * projects.v1.json and services.v1.json. This ensures true atomicity - either
+ * both files land together, or neither does.
  * 
  * Constitutional Architecture:
- * - Production: Pulls from KV staging area, merges into projects.v1.json, commits to GitHub
- * - Development: Reads local projects.v1.json and commits to GitHub
+ * - Production: Pulls from KV staging area, merges into both authority files,
+ *   creates one Git commit with both files, updates main branch
+ * - Development: Reads local authority files and commits to GitHub
+ * 
+ * ATOMIC COMMIT GUARANTEE:
+ * - Uses Git Data API: blobs → tree → commit → ref update
+ * - Single Git commit contains BOTH projects.v1.json and services.v1.json
+ * - If any step fails, main branch is NOT updated
+ * - No split-brain state where only one file is committed
  * 
  * TRANSACTIONAL FIX: Staging keys are only deleted after GitHub commit succeeds
  * This prevents data loss if GitHub commit fails.
@@ -23,6 +31,16 @@ import { workbenchSession } from "@/lib/workbench-session";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { Redis } from '@upstash/redis';
+import {
+  createDeploymentTransaction,
+  claimDeploymentTransaction,
+  commitDeploymentTransaction,
+  consumeDeploymentTransaction,
+  failDeploymentTransaction,
+  getDeploymentTransaction,
+  isTransactionTerminal,
+  type DeploymentTransaction
+} from "@/lib/deployment-transaction";
 
 export const runtime = 'nodejs';
 
@@ -100,6 +118,7 @@ export async function POST(request: Request) {
   let stagingKeys: string[] = [];
   let isProduction = process.env.NODE_ENV === 'production';
   let deploymentTransactionId = `WBDEP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  let transaction: DeploymentTransaction | null = null;
   
   console.log('[DEPLOY API] TRANSACTION_ID', { deploymentTransactionId });
   
@@ -122,6 +141,56 @@ export async function POST(request: Request) {
     const { reason = "Workbench media changes accepted" } = body;
 
     console.log('[DEPLOY API] REQUEST_RECEIVED', { reason });
+    
+    // IDEMPOTENCY CHECK: Check if transaction already exists
+    const existingTransaction = await getDeploymentTransaction(deploymentTransactionId);
+    if (existingTransaction) {
+      console.log('[DEPLOY API] EXISTING_TRANSACTION_FOUND', { 
+        transactionId: deploymentTransactionId,
+        state: existingTransaction.state,
+        commitSha: existingTransaction.commitSha 
+      });
+      
+      // If already committed/consumed, return idempotent result
+      if (existingTransaction.state === 'committed' || existingTransaction.state === 'consumed') {
+        return NextResponse.json({
+          success: true,
+          deploymentTransactionId,
+          commitSha: existingTransaction.commitSha,
+          commitUrl: existingTransaction.commitUrl,
+          message: "Idempotent replay: transaction already committed",
+          authorityFiles: existingTransaction.files,
+          status: "IDEMPOTENT_REPLAY",
+          filesCommitted: existingTransaction.files,
+          atomic: true,
+          originalState: existingTransaction.state,
+          originalCommittedAt: existingTransaction.committedAt
+        });
+      }
+      
+      // If in terminal failed state, return error
+      if (existingTransaction.state === 'failed' && (existingTransaction.retryCount || 0) >= 3) {
+        return NextResponse.json({
+          error: "Transaction terminal",
+          message: "Transaction failed after maximum retries",
+          deploymentTransactionId,
+          state: existingTransaction.state,
+          failureReason: existingTransaction.failureReason,
+          retryCount: existingTransaction.retryCount
+        }, { status: 409 });
+      }
+      
+      // If currently committing, reject concurrent deployment
+      if (existingTransaction.state === 'committing') {
+        return NextResponse.json({
+          error: "Concurrent deployment in progress",
+          message: "Transaction is currently being deployed by another process",
+          deploymentTransactionId,
+          state: existingTransaction.state,
+          owner: existingTransaction.owner
+        }, { status: 409 });
+      }
+    }
 
     // Check for GitHub credentials
     const githubToken = process.env.GITHUB_TOKEN;
@@ -208,6 +277,7 @@ export async function POST(request: Request) {
 
     // In production, merge KV staging changes into projects.v1.json
     let fileContent: string;
+    let servicesFileContent: string = '';
     const redis = getRedisClient();
     
     if (isProduction && redis) {
@@ -341,6 +411,7 @@ export async function POST(request: Request) {
       const assignments = await getAllServiceCardAssignments();
       
       let servicesUpdatedCount = 0;
+      let servicesCommitSha = null;
       for (const assignment of assignments) {
         const serviceIndex = servicesData.services.findIndex((s: any) => s.slug === assignment.serviceSlug);
         if (serviceIndex !== -1) {
@@ -355,167 +426,129 @@ export async function POST(request: Request) {
       
       servicesData.generatedAt = new Date().toISOString();
       
-      // Store services.v1.json content for separate GitHub commit
-      const servicesFileContent = JSON.stringify(servicesData, null, 2);
-      
-      // Commit services.v1.json to GitHub
-      const servicesFilePath = "website/src/config/services.v1.json";
-      const servicesGetFileUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/${servicesFilePath}`;
-      
-      console.log('[DEPLOY API] COMMITTING_SERVICES_JSON', { servicesFilePath });
-      
-      const servicesGetResponse = await fetchWithRetry(servicesGetFileUrl, {
-        headers: {
-          'Authorization': `Bearer ${githubToken}`,
-          'Accept': 'application/vnd.github.v3+json',
-        },
-      }, 'get services file SHA');
-      
-      let servicesCurrentSha = null;
-      if (servicesGetResponse.ok) {
-        const servicesFileData = await servicesGetResponse.json();
-        servicesCurrentSha = servicesFileData.sha;
-      }
-      
-      const servicesCommitBody = {
-        message: `Workbench: service card assignments\n\n${reason}\n\nTransaction ID: ${deploymentTransactionId}`,
-        content: Buffer.from(servicesFileContent).toString('base64'),
-        branch: 'main',
-        sha: servicesCurrentSha || undefined,
-      };
-      
-      const servicesCommitResponse = await fetchWithRetry(servicesGetFileUrl, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${githubToken}`,
-          'Content-Type': 'application/vnd.github.v3+json',
-        },
-        body: JSON.stringify(servicesCommitBody),
-      }, 'services GitHub commit');
-      
-      if (!servicesCommitResponse.ok) {
-        console.error('[DEPLOY API] SERVICES_COMMIT_FAILED', { status: servicesCommitResponse.status });
-        // Continue with projects commit - services failure is not fatal
-      } else {
-        console.log('[DEPLOY API] SERVICES_COMMIT_SUCCESS');
-      }
+      // Store services.v1.json content for atomic Git commit
+      servicesFileContent = JSON.stringify(servicesData, null, 2);
+      console.log('[DEPLOY API] SERVICES_CONTENT_PREPARED', { length: servicesFileContent.length });
       
     } else {
-      // Development: Read current projects.v1.json directly
+      // Development: Read local authority files
       const authorityFile = join(process.cwd(), "src/config/projects.v1.json");
       fileContent = readFileSync(authorityFile, "utf-8");
-      console.log('[DEPLOY API] DEV_MODE_READING_LOCAL_FILE');
+      console.log('[DEPLOY API] DEV_MODE_READING_LOCAL_FILES');
+      
+      // Also read services.v1.json in dev mode
+      const servicesFile = join(process.cwd(), "src/config/services.v1.json");
+      const servicesData = JSON.parse(readFileSync(servicesFile, "utf-8"));
+      servicesFileContent = JSON.stringify(servicesData, null, 2);
     }
 
-    const fileContentBase64 = Buffer.from(fileContent).toString('base64');
-
-    // Get current file SHA from GitHub (repository root path)
-    const filePath = "website/src/config/projects.v1.json";
+    // =====================================================================
+    // ATOMIC GIT COMMIT USING GIT DATA API
+    // =====================================================================
+    // This creates a SINGLE commit containing BOTH files atomically.
+    // If any step fails, main branch is NOT updated.
+    // =====================================================================
     
-    console.log('[DEPLOY API] FILE_CONTENT_LENGTH', { contentLength: fileContent.length });
-    console.log('[DEPLOY API] GITHUB_FILE_PATH', { filePath });
-    const getFileUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/${filePath}`;
+    const projectsFilePath = "website/src/config/projects.v1.json";
+    const servicesFilePath = "website/src/config/services.v1.json";
     
-    console.log('[DEPLOY API] GETTING_CURRENT_FILE_SHA', { filePath });
+    console.log('[DEPLOY API] ATOMIC_COMMIT_INITIATED', { 
+      deploymentTransactionId,
+      projectsFile: projectsFilePath,
+      servicesFile: servicesFilePath
+    });
     
-    const getFileResponse = await fetchWithRetry(getFileUrl, {
+    // Step 1: Get current commit SHA (branch head)
+    const refUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/git/refs/heads/main`;
+    console.log('[DEPLOY API] GETTING_CURRENT_COMMIT_SHA');
+    
+    const refResponse = await fetchWithRetry(refUrl, {
       headers: {
         'Authorization': `Bearer ${githubToken}`,
         'Accept': 'application/vnd.github.v3+json',
       },
-    }, 'get current file SHA');
-
-    let currentFileSha = null;
-    if (getFileResponse.ok) {
-      const fileData = await getFileResponse.json();
-      currentFileSha = fileData.sha;
-      console.log('[DEPLOY API] CURRENT_FILE_SHA', { currentFileSha });
-    } else if (getFileResponse.status === 404) {
-      console.log('[DEPLOY API] FILE_NOT_FOUND (new file)', { filePath });
-      // For 404, we'll create the file, so sha should be null
-      currentFileSha = null;
-    } else {
-      const errorText = await getFileResponse.text();
-      console.error('[DEPLOY API] GET_FILE_FAILED', { status: getFileResponse.status, error: errorText });
-      return NextResponse.json(
-        { 
-          error: "Failed to get current file from GitHub",
-          details: errorText,
-          forensic: {
-            githubOwner,
-            githubRepo,
-            filePath,
-            status: getFileResponse.status
-          }
-        },
-        { status: getFileResponse.status }
-      );
-    }
-
-    // Commit the file to GitHub
-    const commitMessage = `Workbench: accept media changes\n\n${reason}\n\nTransaction ID: ${deploymentTransactionId}`;
-    const commitBody: {
-      message: string;
-      content: string;
-      branch: string;
-      sha?: string;
-    } = {
-      message: commitMessage,
-      content: fileContentBase64,
-      branch: 'main',
-    };
+    }, 'get current commit SHA');
     
-    // Only include sha if we're updating an existing file
-    if (currentFileSha) {
-      commitBody.sha = currentFileSha;
-    }
-
-    console.log('[DEPLOY API] COMMITTING_TO_GITHUB', { 
-      deploymentTransactionId,
-      filePath, 
-      branch: 'main', 
-      hasSha: !!currentFileSha,
-      contentBytes: fileContentBase64.length 
-    });
-
-    const commitResponse = await fetchWithRetry(getFileUrl, {
-      method: 'PUT',
-      headers: {
-        'Authorization': `Bearer ${githubToken}`,
-        'Content-Type': 'application/vnd.github.v3+json',
-      },
-      body: JSON.stringify(commitBody),
-    }, 'GitHub commit');
-
-    if (!commitResponse.ok) {
-      const errorText = await commitResponse.text();
-      console.error('[DEPLOY API] COMMIT_FAILED', { 
-        deploymentTransactionId,
-        status: commitResponse.status, 
-        error: errorText,
-        githubOwner,
-        githubRepo,
-        filePath,
-        branch: 'main',
-        hasSha: !!currentFileSha
-      });
+    if (!refResponse.ok) {
+      const errorText = await refResponse.text();
+      console.error('[DEPLOY API] GET_REF_FAILED', { status: refResponse.status, error: errorText });
       
-      // Classify the commit failure
-      // TRANSACTIONAL FIX: Staging keys are preserved for retry
+      // MARK TRANSACTION AS FAILED
+      if (transaction) {
+        await failDeploymentTransaction(deploymentTransactionId, `Failed to get current branch reference: ${errorText}`);
+      }
+      
       return NextResponse.json(
         { 
-          error: "Failed to commit to GitHub",
-          message: "GitHub commit failed - Workbench changes were NOT persisted to repository. Staging keys are preserved for retry.",
+          error: "Failed to get current branch reference",
           details: errorText,
           forensic: {
             deploymentTransactionId,
             githubOwner,
             githubRepo,
-            filePath,
             branch: 'main',
-            hasSha: !!currentFileSha,
+            status: refResponse.status,
+            error: "GET_REF_FAILED",
+            stagingKeysPreserved: isProduction && stagingKeys.length > 0,
+            stagingKeysCount: stagingKeys.length
+          }
+        },
+        { status: refResponse.status }
+      );
+    }
+    
+    const refData = await refResponse.json();
+    const currentCommitSha = refData.object.sha;
+    console.log('[DEPLOY API] CURRENT_COMMIT_SHA', { currentCommitSha });
+    
+    // CREATE TRANSACTION in prepared state with parent commit SHA for concurrent safety
+    if (!transaction) {
+      transaction = await createDeploymentTransaction(
+        deploymentTransactionId,
+        stagingKeys,
+        ['website/src/config/projects.v1.json', 'website/src/config/services.v1.json'],
+        reason,
+        currentCommitSha
+      );
+      console.log('[DEPLOY API] TRANSACTION_CREATED', { transactionId: deploymentTransactionId, state: transaction.state, parentCommitSha: currentCommitSha });
+    }
+    
+    // CLAIM TRANSACTION for deployment (prepared → committing)
+    const claimToken = `claim-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    transaction = await claimDeploymentTransaction(deploymentTransactionId, claimToken);
+    console.log('[DEPLOY API] TRANSACTION_CLAIMED', { transactionId: deploymentTransactionId, owner: claimToken });
+    
+    // Step 2: Get current tree SHA from the commit
+    const commitUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/git/commits/${currentCommitSha}`;
+    console.log('[DEPLOY API] GETTING_CURRENT_TREE_SHA');
+    
+    const commitResponse = await fetchWithRetry(commitUrl, {
+      headers: {
+        'Authorization': `Bearer ${githubToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    }, 'get current tree SHA');
+    
+    if (!commitResponse.ok) {
+      const errorText = await commitResponse.text();
+      console.error('[DEPLOY API] GET_COMMIT_FAILED', { status: commitResponse.status, error: errorText });
+      
+      // MARK TRANSACTION AS FAILED
+      if (transaction) {
+        await failDeploymentTransaction(deploymentTransactionId, `Failed to get current commit: ${errorText}`);
+      }
+      
+      return NextResponse.json(
+        { 
+          error: "Failed to get current commit",
+          details: errorText,
+          forensic: {
+            deploymentTransactionId,
+            githubOwner,
+            githubRepo,
+            commitSha: currentCommitSha,
             status: commitResponse.status,
-            error: "GITHUB_COMMIT_FAILED",
+            error: "GET_COMMIT_FAILED",
             stagingKeysPreserved: isProduction && stagingKeys.length > 0,
             stagingKeysCount: stagingKeys.length
           }
@@ -523,18 +556,357 @@ export async function POST(request: Request) {
         { status: commitResponse.status }
       );
     }
-
-    const commitData = await commitResponse.json();
-    const commitSha = commitData.commit.sha;
     
-    console.log('[DEPLOY API] COMMIT_SUCCESS', { 
+    const commitData = await commitResponse.json();
+    const currentTreeSha = commitData.tree.sha;
+    console.log('[DEPLOY API] CURRENT_TREE_SHA', { currentTreeSha });
+    
+    // Step 3: Create blobs for both files
+    console.log('[DEPLOY API] CREATING_BLOBS');
+    
+    const projectsBlobBase64 = Buffer.from(fileContent).toString('base64');
+    const servicesBlobBase64 = Buffer.from(servicesFileContent).toString('base64');
+    
+    // Create projects.v1.json blob
+    const projectsBlobResponse = await fetchWithRetry(
+      `https://api.github.com/repos/${githubOwner}/${githubRepo}/git/blobs`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Content-Type': 'application/vnd.github.v3+json',
+        },
+        body: JSON.stringify({
+          content: projectsBlobBase64,
+          encoding: 'base64',
+        }),
+      },
+      'create projects blob'
+    );
+    
+    if (!projectsBlobResponse.ok) {
+      const errorText = await projectsBlobResponse.text();
+      console.error('[DEPLOY API] CREATE_PROJECTS_BLOB_FAILED', { status: projectsBlobResponse.status });
+      
+      // MARK TRANSACTION AS FAILED
+      if (transaction) {
+        await failDeploymentTransaction(deploymentTransactionId, `Failed to create projects blob: ${errorText}`);
+      }
+      
+      return NextResponse.json(
+        { 
+          error: "Failed to create projects blob",
+          details: errorText,
+          forensic: {
+            deploymentTransactionId,
+            githubOwner,
+            githubRepo,
+            status: projectsBlobResponse.status,
+            error: "CREATE_PROJECTS_BLOB_FAILED",
+            stagingKeysPreserved: isProduction && stagingKeys.length > 0,
+            stagingKeysCount: stagingKeys.length
+          }
+        },
+        { status: projectsBlobResponse.status }
+      );
+    }
+    
+    const projectsBlobData = await projectsBlobResponse.json();
+    const projectsBlobSha = projectsBlobData.sha;
+    console.log('[DEPLOY API] PROJECTS_BLOB_CREATED', { sha: projectsBlobSha });
+    
+    // Create services.v1.json blob
+    const servicesBlobResponse = await fetchWithRetry(
+      `https://api.github.com/repos/${githubOwner}/${githubRepo}/git/blobs`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Content-Type': 'application/vnd.github.v3+json',
+        },
+        body: JSON.stringify({
+          content: servicesBlobBase64,
+          encoding: 'base64',
+        }),
+      },
+      'create services blob'
+    );
+    
+    if (!servicesBlobResponse.ok) {
+      const errorText = await servicesBlobResponse.text();
+      console.error('[DEPLOY API] CREATE_SERVICES_BLOB_FAILED', { status: servicesBlobResponse.status });
+      
+      // MARK TRANSACTION AS FAILED
+      if (transaction) {
+        await failDeploymentTransaction(deploymentTransactionId, `Failed to create services blob: ${errorText}`);
+      }
+      
+      return NextResponse.json(
+        { 
+          error: "Failed to create services blob",
+          details: errorText,
+          forensic: {
+            deploymentTransactionId,
+            githubOwner,
+            githubRepo,
+            status: servicesBlobResponse.status,
+            error: "CREATE_SERVICES_BLOB_FAILED",
+            stagingKeysPreserved: isProduction && stagingKeys.length > 0,
+            stagingKeysCount: stagingKeys.length
+          }
+        },
+        { status: servicesBlobResponse.status }
+      );
+    }
+    
+    const servicesBlobData = await servicesBlobResponse.json();
+    const servicesBlobSha = servicesBlobData.sha;
+    console.log('[DEPLOY API] SERVICES_BLOB_CREATED', { sha: servicesBlobSha });
+    
+    // Step 4: Create new tree with both files
+    console.log('[DEPLOY API] CREATING_NEW_TREE');
+    
+    const treeResponse = await fetchWithRetry(
+      `https://api.github.com/repos/${githubOwner}/${githubRepo}/git/trees`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Content-Type': 'application/vnd.github.v3+json',
+        },
+        body: JSON.stringify({
+          base_tree: currentTreeSha,
+          tree: [
+            {
+              path: projectsFilePath,
+              mode: '100644',
+              type: 'blob',
+              sha: projectsBlobSha,
+            },
+            {
+              path: servicesFilePath,
+              mode: '100644',
+              type: 'blob',
+              sha: servicesBlobSha,
+            },
+          ],
+        }),
+      },
+      'create new tree'
+    );
+    
+    if (!treeResponse.ok) {
+      const errorText = await treeResponse.text();
+      console.error('[DEPLOY API] CREATE_TREE_FAILED', { status: treeResponse.status });
+      
+      // MARK TRANSACTION AS FAILED
+      if (transaction) {
+        await failDeploymentTransaction(deploymentTransactionId, `Failed to create new tree: ${errorText}`);
+      }
+      
+      return NextResponse.json(
+        { 
+          error: "Failed to create new tree",
+          details: errorText,
+          forensic: {
+            deploymentTransactionId,
+            githubOwner,
+            githubRepo,
+            baseTree: currentTreeSha,
+            status: treeResponse.status,
+            error: "CREATE_TREE_FAILED",
+            stagingKeysPreserved: isProduction && stagingKeys.length > 0,
+            stagingKeysCount: stagingKeys.length
+          }
+        },
+        { status: treeResponse.status }
+      );
+    }
+    
+    const treeData = await treeResponse.json();
+    const newTreeSha = treeData.sha;
+    console.log('[DEPLOY API] NEW_TREE_CREATED', { sha: newTreeSha });
+    
+    // Step 5: Create new commit
+    console.log('[DEPLOY API] CREATING_NEW_COMMIT');
+    
+    const newCommitResponse = await fetchWithRetry(
+      `https://api.github.com/repos/${githubOwner}/${githubRepo}/git/commits`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Content-Type': 'application/vnd.github.v3+json',
+        },
+        body: JSON.stringify({
+          message: `Workbench: accept media changes\n\n${reason}\n\nTransaction ID: ${deploymentTransactionId}`,
+          tree: newTreeSha,
+          parents: [currentCommitSha],
+        }),
+      },
+      'create new commit'
+    );
+    
+    if (!newCommitResponse.ok) {
+      const errorText = await newCommitResponse.text();
+      console.error('[DEPLOY API] CREATE_COMMIT_FAILED', { status: newCommitResponse.status });
+      
+      // MARK TRANSACTION AS FAILED
+      if (transaction) {
+        await failDeploymentTransaction(deploymentTransactionId, `Failed to create new commit: ${errorText}`);
+      }
+      
+      return NextResponse.json(
+        { 
+          error: "Failed to create new commit",
+          details: errorText,
+          forensic: {
+            deploymentTransactionId,
+            githubOwner,
+            githubRepo,
+            treeSha: newTreeSha,
+            parentCommit: currentCommitSha,
+            status: newCommitResponse.status,
+            error: "CREATE_COMMIT_FAILED",
+            stagingKeysPreserved: isProduction && stagingKeys.length > 0,
+            stagingKeysCount: stagingKeys.length
+          }
+        },
+        { status: newCommitResponse.status }
+      );
+    }
+    
+    const newCommitData = await newCommitResponse.json();
+    const newCommitSha = newCommitData.sha;
+    console.log('[DEPLOY API] NEW_COMMIT_CREATED', { sha: newCommitSha });
+    
+    // Step 6: Update branch ref to point to new commit
+    console.log('[DEPLOY API] UPDATING_BRANCH_REF');
+    
+    const updateRefResponse = await fetchWithRetry(refUrl, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${githubToken}`,
+        'Content-Type': 'application/vnd.github.v3+json',
+      },
+      body: JSON.stringify({
+        sha: newCommitSha,
+        force: false, // No force push - this prevents overwriting concurrent changes
+      }),
+    }, 'update branch ref');
+    
+    if (!updateRefResponse.ok) {
+      const errorText = await updateRefResponse.text();
+      console.error('[DEPLOY API] UPDATE_REF_FAILED', { status: updateRefResponse.status });
+      
+      // MARK TRANSACTION AS FAILED
+      if (transaction) {
+        await failDeploymentTransaction(deploymentTransactionId, `Failed to update branch reference: ${errorText}`);
+      }
+      
+      return NextResponse.json(
+        { 
+          error: "Failed to update branch reference",
+          message: "Branch update failed - this may indicate a concurrent deployment. Please retry.",
+          details: errorText,
+          forensic: {
+            deploymentTransactionId,
+            githubOwner,
+            githubRepo,
+            newCommitSha,
+            expectedParent: currentCommitSha,
+            status: updateRefResponse.status,
+            error: "UPDATE_REF_FAILED",
+            stagingKeysPreserved: isProduction && stagingKeys.length > 0,
+            stagingKeysCount: stagingKeys.length
+          }
+        },
+        { status: updateRefResponse.status }
+      );
+    }
+    
+    console.log('[DEPLOY API] BRANCH_REF_UPDATED', { newCommitSha });
+    
+    // Step 7: Verify the commit contains both files
+    console.log('[DEPLOY API] VERIFYING_COMMIT_CONTENTS');
+    
+    const verifyCommitResponse = await fetchWithRetry(
+      `https://api.github.com/repos/${githubOwner}/${githubRepo}/git/commits/${newCommitSha}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      },
+      'verify commit contents'
+    );
+    
+    if (!verifyCommitResponse.ok) {
+      console.error('[DEPLOY API] VERIFY_COMMIT_FAILED', { status: verifyCommitResponse.status });
+      // Continue anyway - commit succeeded even if verification failed
+    } else {
+      const verifyData = await verifyCommitResponse.json();
+      const treeUrl = verifyData.tree.url;
+      
+      const verifyTreeResponse = await fetchWithRetry(treeUrl, {
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }, 'verify tree contents');
+      
+      if (verifyTreeResponse.ok) {
+        const verifyTreeData = await verifyTreeResponse.json();
+        const projectsFileInTree = verifyTreeData.tree.find((item: any) => item.path === projectsFilePath);
+        const servicesFileInTree = verifyTreeData.tree.find((item: any) => item.path === servicesFilePath);
+        
+        console.log('[DEPLOY API] VERIFICATION_RESULT', {
+          projectsFilePresent: !!projectsFileInTree,
+          servicesFilePresent: !!servicesFileInTree,
+          projectsFileSha: projectsFileInTree?.sha,
+          servicesFileSha: servicesFileInTree?.sha
+        });
+        
+        if (!projectsFileInTree || !servicesFileInTree) {
+          console.error('[DEPLOY API] VERIFICATION_FAILED', { 
+            projectsFilePresent: !!projectsFileInTree,
+            servicesFilePresent: !!servicesFileInTree 
+          });
+          // This is a critical error - commit succeeded but files are missing
+          return NextResponse.json(
+            { 
+              error: "Commit verification failed",
+              message: "Commit was created but one or more files are missing from the tree",
+              forensic: {
+                deploymentTransactionId,
+                githubOwner,
+                githubRepo,
+                newCommitSha,
+                projectsFilePresent: !!projectsFileInTree,
+                servicesFilePresent: !!servicesFileInTree,
+                error: "VERIFICATION_FAILED",
+                stagingKeysPreserved: isProduction && stagingKeys.length > 0,
+                stagingKeysCount: stagingKeys.length
+              }
+            },
+            { status: 500 }
+          );
+        }
+      }
+    }
+    
+    console.log('[DEPLOY API] ATOMIC_COMMIT_SUCCESS', { 
       deploymentTransactionId,
-      commitSha,
-      commitUrl: commitData.commit.html_url
+      commitSha: newCommitSha,
+      commitUrl: newCommitData.html_url
     });
+    
+    // MARK TRANSACTION AS COMMITTED (committing → committed)
+    transaction = await commitDeploymentTransaction(deploymentTransactionId, newCommitSha, newCommitData.html_url);
+    console.log('[DEPLOY API] TRANSACTION_COMMITTED', { transactionId: deploymentTransactionId, commitSha: newCommitSha });
 
-    // TRANSACTIONAL FIX: Only delete staging keys after GitHub commit succeeds
-    // This prevents data loss if GitHub commit fails
+    // TRANSACTIONAL FIX: Only delete staging keys after durable commit verification
+    // This prevents data loss if commit fails
     if (isProduction && redis && stagingKeys.length > 0) {
       console.log('[DEPLOY API] CLEARING_STAGING_KEYS_AFTER_COMMIT', { count: stagingKeys.length });
       
@@ -544,21 +916,42 @@ export async function POST(request: Request) {
       }
       
       console.log('[DEPLOY API] STAGING_KEYS_CLEARED_COMPLETE');
+      
+      // MARK TRANSACTION AS CONSUMED (committed → consumed)
+      if (transaction) {
+        transaction = await consumeDeploymentTransaction(deploymentTransactionId);
+        console.log('[DEPLOY API] TRANSACTION_CONSUMED', { transactionId: deploymentTransactionId });
+      }
     }
 
     return NextResponse.json({ 
       success: true,
       deploymentTransactionId,
-      commitSha,
-      commitUrl: commitData.commit.html_url,
-      message: "Changes committed to main. Vercel Git integration will automatically deploy to production.",
-      authorityFile: filePath,
+      commitSha: newCommitSha,
+      commitUrl: newCommitData.html_url,
+      message: "Atomic commit successful. Both projects.v1.json and services.v1.json committed together. Vercel Git integration will automatically deploy to production.",
+      authorityFiles: [projectsFilePath, servicesFilePath],
       targetBranch: 'main',
-      status: "GITHUB_COMMIT_SUCCEEDED"
+      status: "ATOMIC_COMMIT_SUCCEEDED",
+      filesCommitted: ['projects.v1.json', 'services.v1.json'],
+      atomic: true
     });
 
   } catch (error) {
     console.error('[DEPLOY API] ERROR', error);
+    
+    // MARK TRANSACTION AS FAILED on uncaught errors
+    if (transaction) {
+      try {
+        await failDeploymentTransaction(
+          deploymentTransactionId,
+          error instanceof Error ? error.message : String(error)
+        );
+      } catch (txError) {
+        console.error('[DEPLOY API] TRANSACTION_MARK_FAILED', { txError });
+      }
+    }
+    
     // TRANSACTIONAL FIX: Staging keys are preserved on error for retry
     return NextResponse.json(
       { 

@@ -127,6 +127,16 @@ export async function POST(request: Request) {
       lifecycleState: media.lifecycleState,
     });
 
+    // CAS ENFORCEMENT: Read current assignment to obtain expected revision
+    const currentAssignment = await getServiceCardAssignment(serviceSlug);
+    const expectedRevision = currentAssignment?.revision;
+    
+    console.log('[SERVICES CARD] CAS_READ', {
+      serviceSlug,
+      currentRevision: expectedRevision,
+      currentMediaId: currentAssignment?.mediaId,
+    });
+
     // Store assignment in persistent store
     const assignment = {
       serviceSlug,
@@ -135,7 +145,7 @@ export async function POST(request: Request) {
       source: 'workbench' as const,
     };
 
-    await storeServiceCardAssignment(assignment, undefined);
+    await storeServiceCardAssignment(assignment, expectedRevision);
 
     console.log('[DND SERVER 4] ASSIGNMENT_STORED', {
       serviceSlug,

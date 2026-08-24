@@ -1,0 +1,492 @@
+/**
+ * Deployment Transaction State Machine
+ *
+ * Provides authoritative transaction state management for Workbench deployments.
+ * Enforces legal state transitions, idempotency, and concurrent deployment safety.
+ *
+ * TRANSACTION STATES:
+ * - prepared: Transaction is ready to be claimed for deployment
+ * - committing: Transaction is actively being deployed (exactly one owner)
+ * - committed: Git commit SHA recorded and immutable
+ * - consumed: Staging cleanup allowed, transaction is complete
+ * - failed: Retry/recovery policy applies
+ *
+ * LEGAL TRANSITIONS:
+ * - prepared → committing (claim transaction)
+ * - committing → committed (Git commit succeeded)
+ * - committing → failed (Git commit failed, retryable)
+ * - committed → consumed (staging cleanup complete)
+ * - failed → prepared (retry attempt)
+ *
+ * ILLEGAL TRANSITIONS (rejected):
+ * - Any state → committing (must go through prepared first)
+ * - committed → committing (cannot replay committed transaction)
+ * - consumed → any state (terminal state)
+ * - committing → prepared (must fail first)
+ *
+ * IDEMPOTENCY:
+ * - Duplicate transaction submission returns existing authoritative state
+ * - Exactly one Git commit per transaction ID
+ * - Idempotent replay returns original commit SHA
+ */
+
+import { Redis } from '@upstash/redis';
+
+let redis: Redis | null = null;
+
+function getRedisClient(): Redis {
+  if (!redis) {
+    let url = process.env.KV_REST_API_URL;
+    let token = process.env.KV_REST_API_TOKEN;
+    
+    const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
+    const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
+    
+    if (!url && integrationUrl) url = integrationUrl;
+    if (!token && integrationToken) token = integrationToken;
+    
+    if (!url || !token) {
+      throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
+    }
+    
+    redis = new Redis({ url, token });
+  }
+  return redis;
+}
+
+export type TransactionState = 'prepared' | 'committing' | 'committed' | 'consumed' | 'failed';
+
+export interface DeploymentTransaction {
+  transactionId: string;
+  state: TransactionState;
+  owner?: string; // Claim token for committing state
+  commitSha?: string; // Git commit SHA (immutable once set)
+  commitUrl?: string;
+  parentCommitSha?: string; // Expected parent for concurrent safety
+  stagingKeys: string[];
+  files: string[]; // Authority files in this transaction
+  reason?: string;
+  createdAt: string;
+  claimedAt?: string;
+  committedAt?: string;
+  consumedAt?: string;
+  failedAt?: string;
+  failureReason?: string;
+  retryCount?: number;
+}
+
+const TRANSACTION_PREFIX = 'deployment-transaction:';
+
+/**
+ * Atomic Lua script for state transition enforcement
+ * Prevents illegal transitions and concurrent claims
+ */
+const STATE_TRANSITION_SCRIPT = `
+  local key = KEYS[1]
+  local transactionId = ARGV[1]
+  local newState = ARGV[2]
+  local owner = ARGV[3]
+  local expectedParent = ARGV[4]
+  local transactionData = ARGV[5]
+  
+  local current = redis.call('GET', key)
+  
+  -- New transaction: allow if key doesn't exist
+  if not current then
+    if newState ~= 'prepared' then
+      return {err = 'INVALID_INITIAL_STATE: Must start with prepared'}
+    end
+    redis.call('SET', key, transactionData)
+    redis.call('EXPIRE', key, 86400) -- 24 hour TTL
+    return {ok = 'CREATED'}
+  end
+  
+  local parsed = cjson.decode(current)
+  local currentState = parsed.state
+  
+  -- Legal transition matrix
+  local legalTransitions = {
+    prepared = { committing = true },
+    committing = { committed = true, failed = true },
+    committed = { consumed = true },
+    failed = { prepared = true },
+    consumed = {}
+  }
+  
+  -- Check if transition is legal
+  if not legalTransitions[currentState] or not legalTransitions[currentState][newState] then
+    return {err = 'ILLEGAL_TRANSITION: ' .. currentState .. ' -> ' .. newState}
+  end
+  
+  -- prepared → committing: atomic claim check
+  if currentState == 'prepared' and newState == 'committing' then
+    if parsed.owner and parsed.owner ~= owner then
+      return {err = 'ALREADY_CLAIMED: Transaction owned by ' .. parsed.owner}
+    end
+  end
+  
+  -- committing → committed: verify commit SHA is set
+  if currentState == 'committing' and newState == 'committed' then
+    local newParsed = cjson.decode(transactionData)
+    if not newParsed.commitSha then
+      return {err = 'MISSING_COMMIT_SHA: Must provide commit SHA for committed state'}
+    end
+  end
+  
+  -- committing → failed: record failure reason
+  if currentState == 'committing' and newState == 'failed' then
+    local newParsed = cjson.decode(transactionData)
+    if not newParsed.failureReason then
+      return {err = 'MISSING_FAILURE_REASON: Must provide failure reason'}
+    end
+    newParsed.retryCount = (parsed.retryCount or 0) + 1
+    transactionData = cjson.encode(newParsed)
+  end
+  
+  -- Update transaction
+  redis.call('SET', key, transactionData)
+  return {ok = 'TRANSITIONED'}
+`;
+
+/**
+ * Create a new deployment transaction in prepared state
+ * @param transactionId - Unique transaction ID
+ * @param stagingKeys - Staging keys to clean up after commit
+ * @param files - Authority files in this transaction
+ * @param reason - Deployment reason
+ * @param parentCommitSha - Expected parent commit for concurrent safety
+ * @returns Created transaction
+ */
+export async function createDeploymentTransaction(
+  transactionId: string,
+  stagingKeys: string[],
+  files: string[],
+  reason?: string,
+  parentCommitSha?: string
+): Promise<DeploymentTransaction> {
+  const key = `${TRANSACTION_PREFIX}${transactionId}`;
+  const client = getRedisClient();
+  
+  const transaction: DeploymentTransaction = {
+    transactionId,
+    state: 'prepared',
+    stagingKeys,
+    files,
+    reason,
+    parentCommitSha,
+    createdAt: new Date().toISOString(),
+  };
+  
+  console.log('[DEPLOYMENT_TRANSACTION] CREATING', { transactionId, stagingKeysCount: stagingKeys.length, files });
+  
+  try {
+    const result = await client.eval(
+      STATE_TRANSITION_SCRIPT,
+      [key],
+      [
+        transactionId,
+        'prepared',
+        '', // no owner for prepared state
+        parentCommitSha || '',
+        JSON.stringify(transaction),
+      ]
+    );
+    
+    if (result && typeof result === 'object' && 'err' in result) {
+      throw new Error(`Failed to create transaction: ${(result as any).err}`);
+    }
+    
+    console.log('[DEPLOYMENT_TRANSACTION] CREATED', { transactionId });
+    return transaction;
+  } catch (error) {
+    console.error('[DEPLOYMENT_TRANSACTION] CREATE_FAILED', { transactionId, error });
+    throw error;
+  }
+}
+
+/**
+ * Claim a transaction for deployment (prepared → committing)
+ * @param transactionId - Transaction ID
+ * @param owner - Claim token (e.g., session ID or request ID)
+ * @returns Updated transaction
+ */
+export async function claimDeploymentTransaction(
+  transactionId: string,
+  owner: string
+): Promise<DeploymentTransaction> {
+  const key = `${TRANSACTION_PREFIX}${transactionId}`;
+  const client = getRedisClient();
+  
+  console.log('[DEPLOYMENT_TRANSACTION] CLAIMING', { transactionId, owner });
+  
+  try {
+    const current = await client.get<DeploymentTransaction>(key);
+    if (!current) {
+      throw new Error(`Transaction not found: ${transactionId}`);
+    }
+    
+    const updated: DeploymentTransaction = {
+      ...current,
+      state: 'committing',
+      owner,
+      claimedAt: new Date().toISOString(),
+    };
+    
+    const result = await client.eval(
+      STATE_TRANSITION_SCRIPT,
+      [key],
+      [
+        transactionId,
+        'committing',
+        owner,
+        current.parentCommitSha || '',
+        JSON.stringify(updated),
+      ]
+    );
+    
+    if (result && typeof result === 'object' && 'err' in result) {
+      const err = (result as any).err;
+      if (err.includes('ALREADY_CLAIMED')) {
+        throw new Error(`Transaction already claimed by another process: ${transactionId}`);
+      }
+      throw new Error(`Failed to claim transaction: ${err}`);
+    }
+    
+    console.log('[DEPLOYMENT_TRANSACTION] CLAIMED', { transactionId, owner });
+    return updated;
+  } catch (error) {
+    console.error('[DEPLOYMENT_TRANSACTION] CLAIM_FAILED', { transactionId, owner, error });
+    throw error;
+  }
+}
+
+/**
+ * Mark transaction as committed with Git commit SHA (committing → committed)
+ * @param transactionId - Transaction ID
+ * @param commitSha - Git commit SHA
+ * @param commitUrl - Git commit URL
+ * @returns Updated transaction
+ */
+export async function commitDeploymentTransaction(
+  transactionId: string,
+  commitSha: string,
+  commitUrl: string
+): Promise<DeploymentTransaction> {
+  const key = `${TRANSACTION_PREFIX}${transactionId}`;
+  const client = getRedisClient();
+  
+  console.log('[DEPLOYMENT_TRANSACTION] COMMITTING', { transactionId, commitSha });
+  
+  try {
+    const current = await client.get<DeploymentTransaction>(key);
+    if (!current) {
+      throw new Error(`Transaction not found: ${transactionId}`);
+    }
+    
+    const updated: DeploymentTransaction = {
+      ...current,
+      state: 'committed',
+      commitSha,
+      commitUrl,
+      committedAt: new Date().toISOString(),
+    };
+    
+    const result = await client.eval(
+      STATE_TRANSITION_SCRIPT,
+      [key],
+      [
+        transactionId,
+        'committed',
+        current.owner || '',
+        current.parentCommitSha || '',
+        JSON.stringify(updated),
+      ]
+    );
+    
+    if (result && typeof result === 'object' && 'err' in result) {
+      throw new Error(`Failed to commit transaction: ${(result as any).err}`);
+    }
+    
+    console.log('[DEPLOYMENT_TRANSACTION] COMMITTED', { transactionId, commitSha });
+    return updated;
+  } catch (error) {
+    console.error('[DEPLOYMENT_TRANSACTION] COMMIT_FAILED', { transactionId, commitSha, error });
+    throw error;
+  }
+}
+
+/**
+ * Mark transaction as consumed after staging cleanup (committed → consumed)
+ * @param transactionId - Transaction ID
+ * @returns Updated transaction
+ */
+export async function consumeDeploymentTransaction(transactionId: string): Promise<DeploymentTransaction> {
+  const key = `${TRANSACTION_PREFIX}${transactionId}`;
+  const client = getRedisClient();
+  
+  console.log('[DEPLOYMENT_TRANSACTION] CONSUMING', { transactionId });
+  
+  try {
+    const current = await client.get<DeploymentTransaction>(key);
+    if (!current) {
+      throw new Error(`Transaction not found: ${transactionId}`);
+    }
+    
+    const updated: DeploymentTransaction = {
+      ...current,
+      state: 'consumed',
+      consumedAt: new Date().toISOString(),
+    };
+    
+    const result = await client.eval(
+      STATE_TRANSITION_SCRIPT,
+      [key],
+      [
+        transactionId,
+        'consumed',
+        current.owner || '',
+        current.parentCommitSha || '',
+        JSON.stringify(updated),
+      ]
+    );
+    
+    if (result && typeof result === 'object' && 'err' in result) {
+      throw new Error(`Failed to consume transaction: ${(result as any).err}`);
+    }
+    
+    console.log('[DEPLOYMENT_TRANSACTION] CONSUMED', { transactionId });
+    return updated;
+  } catch (error) {
+    console.error('[DEPLOYMENT_TRANSACTION] CONSUME_FAILED', { transactionId, error });
+    throw error;
+  }
+}
+
+/**
+ * Mark transaction as failed (committing → failed)
+ * @param transactionId - Transaction ID
+ * @param failureReason - Reason for failure
+ * @returns Updated transaction
+ */
+export async function failDeploymentTransaction(
+  transactionId: string,
+  failureReason: string
+): Promise<DeploymentTransaction> {
+  const key = `${TRANSACTION_PREFIX}${transactionId}`;
+  const client = getRedisClient();
+  
+  console.log('[DEPLOYMENT_TRANSACTION] FAILING', { transactionId, failureReason });
+  
+  try {
+    const current = await client.get<DeploymentTransaction>(key);
+    if (!current) {
+      throw new Error(`Transaction not found: ${transactionId}`);
+    }
+    
+    const updated: DeploymentTransaction = {
+      ...current,
+      state: 'failed',
+      failureReason,
+      failedAt: new Date().toISOString(),
+      retryCount: (current.retryCount || 0) + 1,
+    };
+    
+    const result = await client.eval(
+      STATE_TRANSITION_SCRIPT,
+      [key],
+      [
+        transactionId,
+        'failed',
+        current.owner || '',
+        current.parentCommitSha || '',
+        JSON.stringify(updated),
+      ]
+    );
+    
+    if (result && typeof result === 'object' && 'err' in result) {
+      throw new Error(`Failed to fail transaction: ${(result as any).err}`);
+    }
+    
+    console.log('[DEPLOYMENT_TRANSACTION] FAILED', { transactionId, failureReason, retryCount: updated.retryCount });
+    return updated;
+  } catch (error) {
+    console.error('[DEPLOYMENT_TRANSACTION] FAIL_OPERATION_FAILED', { transactionId, error });
+    throw error;
+  }
+}
+
+/**
+ * Get deployment transaction by ID (idempotent read)
+ * @param transactionId - Transaction ID
+ * @returns Transaction or null
+ */
+export async function getDeploymentTransaction(transactionId: string): Promise<DeploymentTransaction | null> {
+  const key = `${TRANSACTION_PREFIX}${transactionId}`;
+  const client = getRedisClient();
+  
+  try {
+    const transaction = await client.get<DeploymentTransaction>(key);
+    return transaction;
+  } catch (error) {
+    console.error('[DEPLOYMENT_TRANSACTION] GET_FAILED', { transactionId, error });
+    throw error;
+  }
+}
+
+/**
+ * Check if transaction is in a terminal state (committed, consumed, or failed with max retries)
+ * @param transactionId - Transaction ID
+ * @returns True if terminal
+ */
+export async function isTransactionTerminal(transactionId: string): Promise<boolean> {
+  const transaction = await getDeploymentTransaction(transactionId);
+  if (!transaction) return false;
+  
+  if (transaction.state === 'committed' || transaction.state === 'consumed') {
+    return true;
+  }
+  
+  if (transaction.state === 'failed' && (transaction.retryCount || 0) >= 3) {
+    return true;
+  }
+  
+  return false;
+}
+
+/**
+ * Clean up old transactions (maintenance operation)
+ * @param olderThanHours - Delete transactions older than this many hours
+ * @returns Count of deleted transactions
+ */
+export async function cleanupOldTransactions(olderThanHours: number = 24): Promise<number> {
+  const client = getRedisClient();
+  const keys: string[] = [];
+  let cursor = '0';
+  
+  do {
+    const result = await client.scan(cursor, { match: `${TRANSACTION_PREFIX}*`, count: 100 });
+    cursor = result[0];
+    keys.push(...result[1]);
+  } while (cursor !== '0');
+  
+  const cutoff = Date.now() - (olderThanHours * 60 * 60 * 1000);
+  let deletedCount = 0;
+  
+  for (const key of keys) {
+    try {
+      const transaction = await client.get<DeploymentTransaction>(key);
+      if (!transaction) continue;
+      
+      const createdAt = new Date(transaction.createdAt).getTime();
+      if (createdAt < cutoff && (transaction.state === 'consumed' || transaction.state === 'failed')) {
+        await client.del(key);
+        deletedCount++;
+      }
+    } catch (error) {
+      console.error('[DEPLOYMENT_TRANSACTION] CLEANUP_ERROR', { key, error });
+    }
+  }
+  
+  console.log('[DEPLOYMENT_TRANSACTION] CLEANUP_COMPLETE', { deletedCount, cutoff });
+  return deletedCount;
+}

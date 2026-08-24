@@ -292,6 +292,18 @@ export async function storeServiceCardAssignment(
     expectedRevision,
   });
   
+  // CAS ENFORCEMENT: Reject undefined expectedRevision to prevent unconditional overwrites
+  // Callers MUST read current state first and provide expected revision
+  if (expectedRevision === undefined) {
+    console.error('[ASSIGNMENT_WRITE] REJECTED: expectedRevision is required for CAS enforcement', {
+      operationId,
+      serviceSlug: assignment.serviceSlug,
+      mediaId: assignment.mediaId,
+      validationError: 'expectedRevision is required to prevent lost updates',
+    });
+    throw new Error(`CAS enforcement requires expectedRevision for ${assignment.serviceSlug}. Read current assignment first to obtain the revision.`);
+  }
+  
   try {
     const client = getRedisClient();
     
@@ -312,7 +324,7 @@ export async function storeServiceCardAssignment(
         end
       end
       
-      -- CAS check: only proceed if expectedRevision matches or no expectation
+      -- CAS check: only proceed if expectedRevision matches
       if expectedRevision ~= nil and currentRevision ~= expectedRevision then
         return {err = 'CAS_FAILURE: Revision mismatch'}
       end
@@ -329,7 +341,7 @@ export async function storeServiceCardAssignment(
       casScript,
       [key],
       [
-        expectedRevision !== undefined ? String(expectedRevision) : 'nil',
+        String(expectedRevision),
         JSON.stringify(assignment),
       ]
     ) as number;
