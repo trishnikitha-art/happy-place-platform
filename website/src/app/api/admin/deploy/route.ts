@@ -117,10 +117,10 @@ export async function POST(request: Request) {
   // TRANSACTIONAL VARIABLES: Declare before try block for error handling access
   let stagingKeys: string[] = [];
   let isProduction = process.env.NODE_ENV === 'production';
-  let deploymentTransactionId = `WBDEP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  let deploymentTransactionId: string = ''; // Will be set from request body
   let transaction: DeploymentTransaction | null = null;
   
-  console.log('[DEPLOY API] TRANSACTION_ID', { deploymentTransactionId });
+  console.log('[DEPLOY API] REQUEST_RECEIVED');
   
   // SECURITY: Require authentication in production
   // Development bypass requires explicit DRIVE_AUTH_BYPASS=true
@@ -144,9 +144,20 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { reason = "Workbench media changes accepted" } = body;
+    const { reason = "Workbench media changes accepted", transactionIds } = body;
 
-    console.log('[DEPLOY API] REQUEST_RECEIVED', { reason });
+    console.log('[DEPLOY API] REQUEST_RECEIVED', { reason, transactionIds });
+    
+    // IDEMPOTENCY: Use provided transaction IDs or generate new one
+    if (transactionIds && transactionIds.length > 0) {
+      // Use the first transaction ID as the deployment transaction ID
+      deploymentTransactionId = transactionIds[0];
+      console.log('[DEPLOY API] USING_PROVIDED_TRANSACTION_IDS', { deploymentTransactionId, transactionIds });
+    } else {
+      // Legacy fallback: generate random transaction ID
+      deploymentTransactionId = `WBDEP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+      console.log('[DEPLOY API] GENERATED_NEW_TRANSACTION_ID', { deploymentTransactionId });
+    }
     
     // IDEMPOTENCY CHECK: Check if transaction already exists
     const existingTransaction = await getDeploymentTransaction(deploymentTransactionId);
@@ -297,6 +308,7 @@ export async function POST(request: Request) {
       const servicesFile = join(process.cwd(), "src/config/services.v1.json");
       const servicesData = JSON.parse(readFileSync(servicesFile, "utf-8"));
       
+      // PROCESS SPECIFIC TRANSACTIONS ONLY (transaction isolation)
       // Scan for all staging keys and group by transaction ID
       let cursor = '0';
       const transactionGroups = new Map<string, string[]>(); // transactionId -> keys
@@ -310,7 +322,7 @@ export async function POST(request: Request) {
           // OR legacy format: workbench-staging:project:{projectId}:{field}
           const parts = key.split(':');
           
-          if (parts.length >= 5 && parts[1].startsWith('tx-')) {
+          if (parts.length >= 5 && parts[1].startsWith('WBDEP-')) {
             // New transactional format
             const transactionId = parts[1];
             if (!transactionGroups.has(transactionId)) {
@@ -330,8 +342,24 @@ export async function POST(request: Request) {
       
       console.log('[DEPLOY API] FOUND_TRANSACTION_GROUPS', { transactionCount: transactionGroups.size });
       
+      // FILTER: Only process the specific transaction IDs provided (transaction isolation)
+      const targetTransactionIds = transactionIds || [deploymentTransactionId];
+      const filteredTransactionGroups = new Map<string, string[]>();
+      
+      for (const [transactionId, keys] of transactionGroups) {
+        if (targetTransactionIds.includes(transactionId)) {
+          filteredTransactionGroups.set(transactionId, keys);
+        }
+      }
+      
+      console.log('[DEPLOY API] FILTERED_TRANSACTION_GROUPS', { 
+        total: transactionGroups.size, 
+        filtered: filteredTransactionGroups.size,
+        targetTransactionIds 
+      });
+      
       // Apply staging changes by transaction (newest first by timestamp)
-      const sortedTransactions = Array.from(transactionGroups.entries())
+      const sortedTransactions = Array.from(filteredTransactionGroups.entries())
         .sort((a, b) => {
           // Try to get transaction metadata to determine order
           const aMetaKey = `${WORKBENCH_STAGING_PREFIX}${a[0]}:meta`;
@@ -366,13 +394,13 @@ export async function POST(request: Request) {
           let mutationType: string;
           
           // New transactional format: workbench-staging:{txId}:project:{projectId}:{field}
-          if (parts.length >= 5 && parts[1].startsWith('tx-') && parts[2] === 'project') {
+          if (parts.length >= 5 && (parts[1].startsWith('WBDEP-') || parts[1].startsWith('tx-')) && parts[2] === 'project') {
             projectId = parts[3];
             field = parts[4];
             mutationType = 'project';
           } 
           // New transactional format: workbench-staging:{txId}:service:{serviceSlug}
-          else if (parts.length >= 4 && parts[1].startsWith('tx-') && parts[2] === 'service') {
+          else if (parts.length >= 4 && (parts[1].startsWith('WBDEP-') || parts[1].startsWith('tx-')) && parts[2] === 'service') {
             const serviceSlug = parts[3];
             const serviceIndex = servicesData.services.findIndex((s: any) => s.slug === serviceSlug);
             if (serviceIndex !== -1) {

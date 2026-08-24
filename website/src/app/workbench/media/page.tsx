@@ -988,9 +988,10 @@ Check browser console for detailed logs.`);
       })),
     });
 
-    // Track success/failure
+    // Track success/failure and transaction IDs
     let successCount = 0;
     let failureCount = 0;
+    const transactionIds: string[] = [];
 
     // Process all pending assignments
     for (const { slot, asset } of state.pendingAssignments.values()) {
@@ -1001,12 +1002,18 @@ Check browser console for detailed logs.`);
           slotName: slot.slotName,
         });
         
-        await assignAssetToSlot(asset, slot);
+        const result = await assignAssetToSlot(asset, slot);
         successCount++;
+        
+        // Collect transaction ID if staging was used
+        if (result && result.transactionId) {
+          transactionIds.push(result.transactionId);
+        }
         
         console.log('[DND] SLOT_ASSIGNMENT_SUCCESS', {
           slotId: slot.id,
           assetId: asset.id,
+          transactionId: result?.transactionId,
         });
       } catch (error) {
         failureCount++;
@@ -1050,7 +1057,8 @@ Check browser console for detailed logs.`);
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          reason: `Workbench media changes accepted (${successCount} assignments)` 
+          reason: `Workbench media changes accepted (${successCount} assignments)`,
+          transactionIds: transactionIds.length > 0 ? transactionIds : undefined
         }),
       });
 
@@ -1570,37 +1578,12 @@ Check browser console for detailed logs.`);
         responseBody,
       });
 
-      console.log('[DND] SLOT_ASSIGNMENT_SUCCESS', {
-        requestId,
-        slotId,
-        assetId: asset.id,
-      });
+      return responseBody;
 
-      setState(prev => ({ ...prev, selectedSlot: slot, selectedAsset: asset }));
-      loadCanonicalData();
-
-      // Force iframe reload to pick up authority changes
-      if (iframeRef.current) {
-        console.log('[DND 9] IFRAME_RELOAD_TRIGGERED', {
-          requestId,
-          slotId,
-          assetId: asset.id,
-        });
-        // Send refresh message to iframe for immediate slot update
-        if (iframeRef.current.contentWindow) {
-          iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
-        }
-        // Also trigger reload as fallback
-        iframeRef.current.src = iframeRef.current.src;
-      }
     } catch (error) {
-      console.log('[DND 8] SLOT_ASSIGNMENT_FAILURE', {
-        slotId,
-        assetId: asset.id,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      console.error('Failed to assign asset to slot:', error);
-      alert('Failed to assign asset. Check console for details.');
+      console.error('[DND] ASSIGNMENT_ERROR', error);
+      alert(`Failed to assign ${asset.filename} to ${slot.slotName}: ${error instanceof Error ? error.message : String(error)}`);
+      throw error;
     }
   };
 
@@ -1612,6 +1595,15 @@ Check browser console for detailed logs.`);
       if (asset) {
         setState(prev => ({ ...prev, selectedAsset: asset }));
       }
+    }
+    
+    // Force iframe reload to pick up authority changes after assignment
+    if (iframeRef.current) {
+      console.log('[DND] IFRAME_RELOAD_TRIGGERED', {
+        slotId: slot.id,
+        assetId: media?.id,
+      });
+      iframeRef.current.src = iframeRef.current.src;
     }
   };
 

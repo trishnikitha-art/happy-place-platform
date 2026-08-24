@@ -29,6 +29,10 @@ function getRedisClient(): Redis | null {
   }
 }
 
+function generateTransactionId(): string {
+  return `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
 export async function POST(request: Request) {
   const requestId = `hero-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   
@@ -123,7 +127,7 @@ export async function POST(request: Request) {
     const isProduction = process.env.NODE_ENV === 'production';
     
     if (isProduction && redis) {
-      const transactionId = `tx-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const transactionId = generateTransactionId();
       const stagingKey = `${WORKBENCH_STAGING_PREFIX}${transactionId}:service:brand-hero`;
       
       await redis.set(stagingKey, mediaId);
