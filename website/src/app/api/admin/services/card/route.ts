@@ -39,10 +39,11 @@ function generateTransactionId(): string {
 export async function POST(request: Request) {
   console.log('[DND SERVER 1] REQUEST_RECEIVED');
 
-  // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
-  if (process.env.NODE_ENV === 'development') {
-    // Proceed without authentication
-  } else {
+  // SECURITY: Require authentication in production
+  // Development bypass requires explicit DRIVE_AUTH_BYPASS=true
+  const isDevBypass = process.env.DRIVE_AUTH_BYPASS === 'true';
+  
+  if (process.env.NODE_ENV !== 'development' || !isDevBypass) {
     // Check Workbench authentication
     const isAuthenticated = await workbenchSession.isAuthenticated();
     if (!isAuthenticated) {
@@ -51,6 +52,11 @@ export async function POST(request: Request) {
         { status: 401 }
       );
     }
+  } else {
+    console.warn('[SERVICES CARD] DEV_MODE_BYPASS_ACTIVE', { 
+      reason: 'DRIVE_AUTH_BYPASS=true',
+      securityNote: 'This bypass is for development only'
+    });
   }
 
   try {
