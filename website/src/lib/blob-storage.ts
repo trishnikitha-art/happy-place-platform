@@ -11,7 +11,7 @@
  * - Eliminate race conditions in idempotency
  */
 
-import { put, head } from '@vercel/blob';
+import { put, head, del } from '@vercel/blob';
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 
@@ -42,6 +42,39 @@ function getRedisClient(): Redis {
     redis = new Redis({ url, token });
   }
   return redis;
+}
+
+/**
+ * Verify that a Blob's actual bytes match the expected content hash
+ * This is real physical verification, not just metadata checking
+ */
+export async function verifyBlobHash(blobUrl: string, expectedContentHash: string): Promise<boolean> {
+  try {
+    // Fetch the Blob to get actual bytes
+    const response = await fetch(blobUrl);
+    if (!response.ok) {
+      console.error('[BLOB_STORAGE] Failed to fetch Blob for hash verification', { blobUrl, status: response.status });
+      return false;
+    }
+    
+    const buffer = await response.arrayBuffer();
+    const hash = crypto.createHash('sha256').update(Buffer.from(buffer)).digest('hex');
+    
+    const matches = hash === expectedContentHash;
+    
+    if (!matches) {
+      console.error('[BLOB_STORAGE] Blob hash mismatch', {
+        blobUrl,
+        expected: expectedContentHash,
+        actual: hash,
+      });
+    }
+    
+    return matches;
+  } catch (error) {
+    console.error('[BLOB_STORAGE] Error verifying Blob hash', { blobUrl, error });
+    return false;
+  }
 }
 
 export interface BlobUploadResult {
@@ -158,6 +191,11 @@ export async function uploadToBlob(
         // Use Vercel Blob SDK to recover metadata from existing Blob
         const blobHead = await head(contentAddressedFilename);
         
+        // Fail closed if size is missing - cannot trust recovered metadata without it
+        if (!blobHead.size || blobHead.size <= 0) {
+          throw new Error(`Blob recovery failed: missing or invalid size for ${contentAddressedFilename}`);
+        }
+        
         // Recreate metadata from recovered Blob information
         const recoveredMetadata: BlobMetadata = {
           url: blobHead.url,
@@ -167,7 +205,7 @@ export async function uploadToBlob(
             ? blobHead.uploadedAt 
             : new Date().toISOString(),
           contentHash,
-          byteSize: blobHead.size || 0,
+          byteSize: blobHead.size,
         };
         
         // Store recovered metadata in Redis

@@ -295,42 +295,56 @@ export async function storeServiceCardAssignment(
   try {
     const client = getRedisClient();
     
-    // Get current assignment for optimistic concurrency
-    const currentAssignment = await client.get<ServiceCardAssignment>(key);
-    const currentRevision = currentAssignment?.revision || 0;
+    // Use atomic Lua script for CAS - prevents lost updates
+    // Script: GET current revision, compare with expected, SET if match
+    const casScript = `
+      local key = KEYS[1]
+      local expectedRevision = tonumber(ARGV[1])
+      local newAssignment = ARGV[2]
+      
+      local current = redis.call('GET', key)
+      local currentRevision = 0
+      
+      if current then
+        local parsed = cjson.decode(current)
+        if parsed.revision then
+          currentRevision = tonumber(parsed.revision)
+        end
+      end
+      
+      -- CAS check: only proceed if expectedRevision matches or no expectation
+      if expectedRevision ~= nil and currentRevision ~= expectedRevision then
+        return {err = 'CAS_FAILURE: Revision mismatch'}
+      end
+      
+      -- Set new assignment with incremented revision
+      local parsedAssignment = cjson.decode(newAssignment)
+      parsedAssignment.revision = currentRevision + 1
+      redis.call('SET', key, cjson.encode(parsedAssignment))
+      
+      return currentRevision + 1
+    `;
     
-    // CAS: Check expected revision if provided
-    if (expectedRevision !== undefined && currentRevision !== expectedRevision) {
-      console.error('[ASSIGNMENT_WRITE] CAS_FAILURE: Revision mismatch', {
-        operationId,
-        serviceSlug: assignment.serviceSlug,
-        expectedRevision,
-        currentRevision,
-        casError: 'Assignment was modified by another process',
-      });
-      throw new Error(`CAS_FAILURE: Expected revision ${expectedRevision}, but current revision is ${currentRevision}`);
-    }
-    
-    // Increment revision
-    const newRevision = currentRevision + 1;
-    const assignmentWithRevision = {
-      ...assignment,
-      revision: newRevision,
-    };
-    
-    // Use typed object API - @upstash/redis handles serialization
-    await client.set<ServiceCardAssignment>(key, assignmentWithRevision);
+    const newRevision = await client.eval(
+      casScript,
+      {
+        keys: [key],
+        arguments: [
+          expectedRevision !== undefined ? String(expectedRevision) : 'nil',
+          JSON.stringify(assignment),
+        ],
+      }
+    ) as number;
     
     console.log('[ASSIGNMENT_WRITE] SET_SUCCESS', {
       operationId,
       key,
       mediaId: assignment.mediaId,
       revision: newRevision,
-      previousRevision: currentRevision,
-      casCheck: expectedRevision !== undefined ? 'CAS_VERIFIED' : 'NO_CAS_EXPECTED',
+      casCheck: expectedRevision !== undefined ? 'ATOMIC_CAS_VERIFIED' : 'NO_CAS_EXPECTED',
     });
     
-    // CAS implemented: expectedRevision parameter provides strict concurrency control
+    // CAS implemented: atomic Lua script prevents lost updates
     // Last-write-wins still applies when expectedRevision is not provided
     
   } catch (error) {

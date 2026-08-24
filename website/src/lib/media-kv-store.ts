@@ -9,8 +9,13 @@
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 import type { Media } from '@/types/media';
+import { verifyBlobHash } from '@/lib/blob-storage';
 
 let redis: Redis | null = null;
+
+// KV key prefixes
+const MEDIA_PREFIX = 'media:';
+const CONTENT_HASH_PREFIX = 'content_hash:';
 
 function getRedisClient(): Redis {
   if (!redis) {
@@ -57,7 +62,7 @@ function isSyntheticContentHash(canonicalId: string, actualContentHash: string):
 
 /**
  * Verify that a PublishedMediaAsset has constitutional proof:
- * - Real physical Blob object exists
+ * - Real physical Blob object exists with matching bytes
  * - Content hash is from actual bytes, not synthetic
  * - Blob metadata is present in Redis
  * 
@@ -65,7 +70,7 @@ function isSyntheticContentHash(canonicalId: string, actualContentHash: string):
  */
 async function verifyConstitutionalProof(media: Media): Promise<boolean> {
   // DriveReference records are exempt from constitutional proof
-  if (media.lifecycleState === 'source_reference' || media.source === 'google-drive') {
+  if (media.lifecycleState === 'source_reference') {
     return true;
   }
   
@@ -92,15 +97,29 @@ async function verifyConstitutionalProof(media: Media): Promise<boolean> {
       });
       return false;
     }
-  }
-  
-  // Verify the asset has actual variant URLs (not Drive proxy URLs)
-  if (!media.variants || !media.variants.original) {
-    console.error('[MEDIA_KV] REJECTED: Missing original variant', {
-      mediaId: media.id,
-      reason: 'PublishedMediaAsset must have original variant URL'
-    });
-    return false;
+    
+    // Verify the asset has actual variant URLs (not Drive proxy URLs)
+    if (!media.variants || !media.variants.original) {
+      console.error('[MEDIA_KV] REJECTED: Missing original variant', {
+        mediaId: media.id,
+        reason: 'PublishedMediaAsset must have original variant URL'
+      });
+      return false;
+    }
+    
+    // Real physical verification: fetch Blob bytes and verify hash
+    const blobUrl = media.variants.original;
+    const hashMatches = await verifyBlobHash(blobUrl, media.contentHash);
+    
+    if (!hashMatches) {
+      console.error('[MEDIA_KV] REJECTED: Blob hash verification failed', {
+        mediaId: media.id,
+        contentHash: media.contentHash,
+        blobUrl,
+        reason: 'Physical Blob bytes do not match content hash'
+      });
+      return false;
+    }
   }
   
   return true;
@@ -149,12 +168,12 @@ export async function listMediaIds(): Promise<string[]> {
     let cursor = '0';
     
     do {
-      const result = await client.scan(cursor, { match: 'media:*', count: 100 });
+      const result = await client.scan(cursor, { match: `${MEDIA_PREFIX}*`, count: 100 });
       cursor = result[0];
       keys.push(...result[1]);
     } while (cursor !== '0');
     
-    return keys.map(key => key.replace('media:', ''));
+    return keys.map(key => key.replace(MEDIA_PREFIX, ''));
   } catch (error) {
     console.error('[MEDIA_KV] Failed to list media IDs:', error);
     throw new Error(`Failed to list media IDs: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -163,6 +182,7 @@ export async function listMediaIds(): Promise<string[]> {
 
 /**
  * Save media to KV
+ * Stores media record and maintains content hash index for O(1) deduplication
  */
 export async function saveMedia(media: Media): Promise<void> {
   try {
@@ -175,7 +195,14 @@ export async function saveMedia(media: Media): Promise<void> {
     }
     
     const client = getRedisClient();
-    await client.set(`media:${media.id}`, JSON.stringify(media));
+    
+    // Store media record
+    await client.set(`${MEDIA_PREFIX}${media.id}`, JSON.stringify(media));
+    
+    // Index by content hash for O(1) deduplication
+    if (media.contentHash) {
+      await client.set(`${CONTENT_HASH_PREFIX}${media.contentHash}`, media.id);
+    }
   } catch (error) {
     console.error('[MEDIA_KV] Failed to save media:', error);
     throw new Error(`Failed to save media ${media.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -184,11 +211,22 @@ export async function saveMedia(media: Media): Promise<void> {
 
 /**
  * Delete media from KV
+ * Also removes content hash index entry
  */
 export async function deleteMedia(id: string): Promise<void> {
   try {
     const client = getRedisClient();
-    await client.del(`media:${id}`);
+    
+    // Get media record to retrieve content hash for index cleanup
+    const media = await getMedia(id);
+    
+    // Delete media record
+    await client.del(`${MEDIA_PREFIX}${id}`);
+    
+    // Delete content hash index entry
+    if (media && media.contentHash) {
+      await client.del(`${CONTENT_HASH_PREFIX}${media.contentHash}`);
+    }
   } catch (error) {
     console.error('[MEDIA_KV] Failed to delete media:', error);
     throw new Error(`Failed to delete media ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -201,28 +239,22 @@ export async function deleteMedia(id: string): Promise<void> {
 export const storeMedia = saveMedia;
 
 /**
- * Find media by content hash
+ * Find media by content hash using O(1) index lookup
+ * Returns null if not found
  */
 export async function findMediaByContentHash(contentHash: string): Promise<Media | null> {
   try {
     const client = getRedisClient();
-    const keys: string[] = [];
-    let cursor = '0';
     
-    do {
-      const result = await client.scan(cursor, { match: 'media:*', count: 100 });
-      cursor = result[0];
-      keys.push(...result[1]);
-    } while (cursor !== '0');
+    // O(1) lookup via content hash index
+    const mediaId = await client.get(`${CONTENT_HASH_PREFIX}${contentHash}`);
     
-    for (const key of keys) {
-      const media = await getMedia(key.replace('media:', ''));
-      if (media && media.contentHash === contentHash) {
-        return media;
-      }
+    if (!mediaId) {
+      return null;
     }
     
-    return null;
+    // Retrieve the media record
+    return await getMedia(mediaId as string);
   } catch (error) {
     console.error('[MEDIA_KV] Failed to find media by content hash:', error);
     throw new Error(`Failed to find media by content hash: ${error instanceof Error ? error.message : 'Unknown error'}`);
