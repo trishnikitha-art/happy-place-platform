@@ -99,6 +99,9 @@ export async function POST(request: Request) {
   // TRANSACTIONAL VARIABLES: Declare before try block for error handling access
   let stagingKeys: string[] = [];
   let isProduction = process.env.NODE_ENV === 'production';
+  let deploymentTransactionId = `WBDEP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  
+  console.log('[DEPLOY API] TRANSACTION_ID', { deploymentTransactionId });
   
   // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
   if (process.env.NODE_ENV === 'development') {
@@ -214,6 +217,10 @@ export async function POST(request: Request) {
       const authorityFile = join(process.cwd(), "src/config/projects.v1.json");
       const projectsData = JSON.parse(readFileSync(authorityFile, "utf-8"));
       
+      // Read current services.v1.json for service card assignments
+      const servicesFile = join(process.cwd(), "src/config/services.v1.json");
+      const servicesData = JSON.parse(readFileSync(servicesFile, "utf-8"));
+      
       // Scan for all staging keys and group by transaction ID
       let cursor = '0';
       const transactionGroups = new Map<string, string[]>(); // transactionId -> keys
@@ -328,9 +335,71 @@ export async function POST(request: Request) {
       fileContent = JSON.stringify(projectsData, null, 2);
       console.log('[DEPLOY API] PRODUCTION_MERGE_COMPLETE', { stagingKeysApplied: appliedCount, transactionCount: transactionGroups.size });
       
-      projectsData.generatedAt = new Date().toISOString();
-      fileContent = JSON.stringify(projectsData, null, 2);
-      console.log('[DEPLOY API] PRODUCTION_MERGE_COMPLETE', { stagingKeysApplied: stagingKeys.length });
+      // CRITICAL FIX: Merge service card assignments from Redis into services.v1.json
+      console.log('[DEPLOY API] MERGING_SERVICE_CARD_ASSIGNMENTS');
+      const { getAllServiceCardAssignments } = await import('@/lib/assignment-store');
+      const assignments = await getAllServiceCardAssignments();
+      
+      let servicesUpdatedCount = 0;
+      for (const assignment of assignments) {
+        const serviceIndex = servicesData.services.findIndex((s: any) => s.slug === assignment.serviceSlug);
+        if (serviceIndex !== -1) {
+          servicesData.services[serviceIndex].cardMediaId = assignment.mediaId;
+          servicesUpdatedCount++;
+          console.log('[DEPLOY API] APPLIED_SERVICE_ASSIGNMENT', { 
+            serviceSlug: assignment.serviceSlug, 
+            mediaId: assignment.mediaId 
+          });
+        }
+      }
+      
+      servicesData.generatedAt = new Date().toISOString();
+      
+      // Store services.v1.json content for separate GitHub commit
+      const servicesFileContent = JSON.stringify(servicesData, null, 2);
+      
+      // Commit services.v1.json to GitHub
+      const servicesFilePath = "website/src/config/services.v1.json";
+      const servicesGetFileUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/${servicesFilePath}`;
+      
+      console.log('[DEPLOY API] COMMITTING_SERVICES_JSON', { servicesFilePath });
+      
+      const servicesGetResponse = await fetchWithRetry(servicesGetFileUrl, {
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }, 'get services file SHA');
+      
+      let servicesCurrentSha = null;
+      if (servicesGetResponse.ok) {
+        const servicesFileData = await servicesGetResponse.json();
+        servicesCurrentSha = servicesFileData.sha;
+      }
+      
+      const servicesCommitBody = {
+        message: `Workbench: service card assignments\n\n${reason}\n\nTransaction ID: ${deploymentTransactionId}`,
+        content: Buffer.from(servicesFileContent).toString('base64'),
+        branch: 'main',
+        sha: servicesCurrentSha || undefined,
+      };
+      
+      const servicesCommitResponse = await fetchWithRetry(servicesGetFileUrl, {
+        method: 'PUT',
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Content-Type': 'application/vnd.github.v3+json',
+        },
+        body: JSON.stringify(servicesCommitBody),
+      }, 'services GitHub commit');
+      
+      if (!servicesCommitResponse.ok) {
+        console.error('[DEPLOY API] SERVICES_COMMIT_FAILED', { status: servicesCommitResponse.status });
+        // Continue with projects commit - services failure is not fatal
+      } else {
+        console.log('[DEPLOY API] SERVICES_COMMIT_SUCCESS');
+      }
+      
     } else {
       // Development: Read current projects.v1.json directly
       const authorityFile = join(process.cwd(), "src/config/projects.v1.json");
@@ -382,10 +451,6 @@ export async function POST(request: Request) {
         { status: getFileResponse.status }
       );
     }
-
-    // Generate deployment transaction ID
-    const deploymentTransactionId = `WBDEP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    console.log('[DEPLOY API] TRANSACTION_ID', { deploymentTransactionId });
 
     // Commit the file to GitHub
     const commitMessage = `Workbench: accept media changes\n\n${reason}\n\nTransaction ID: ${deploymentTransactionId}`;
