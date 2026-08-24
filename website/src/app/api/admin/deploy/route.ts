@@ -968,10 +968,12 @@ export async function POST(request: Request) {
       deploymentTransactionId,
       commitSha: newCommitSha,
       commitUrl: newCommitData.html_url,
-      message: "Git commit successful. Both projects.v1.json and services.v1.json committed together. Vercel Git integration will automatically deploy to production.",
+      message: verificationPassed 
+        ? "Your changes are live and saved. Git commit successful."
+        : "Git commit succeeded but verification failed. Changes are in staging for retry.",
       authorityFiles: [projectsFilePath, servicesFilePath],
       targetBranch: 'main',
-      status: "GIT_COMMIT_SUCCEEDED",
+      status: verificationPassed ? "PUBLISHED" : "COMMITTED_NEEDS_RECONCILIATION",
       filesCommitted: ['projects.v1.json', 'services.v1.json'],
       verificationPassed,
       verificationError: verificationError || undefined,

@@ -1059,18 +1059,26 @@ Check browser console for detailed logs.`);
         console.log('[DEPLOY API] SUCCESS', { 
           commitSha: deployData.commitSha,
           commitUrl: deployData.commitUrl,
-          message: deployData.message
+          message: deployData.message,
+          status: deployData.status,
+          verificationPassed: deployData.verificationPassed
         });
         
-        alert(`Changes accepted and committed to main successfully.\n\n${deployData.message}\n\nCommit SHA: ${deployData.commitSha}\n\nVercel Git integration will automatically deploy this commit to production.`);
+        if (deployData.status === 'PUBLISHED') {
+          alert(`Your changes are live and saved.\n\n${deployData.message}\n\nCommit SHA: ${deployData.commitSha}\n\nVercel Git integration will automatically deploy this commit to production.`);
+        } else if (deployData.status === 'COMMITTED_NEEDS_RECONCILIATION') {
+          alert(`Your changes are safely saved. Publishing is still being completed automatically.\n\n${deployData.message}\n\nError: ${deployData.verificationError || 'Unknown verification error'}`);
+        } else {
+          alert(`Your changes are live and saved.\n\n${deployData.message}\n\nCommit SHA: ${deployData.commitSha}`);
+        }
       } else {
         const errorData = await deployResponse.json();
         console.error('[DEPLOY API] FAILED', { error: errorData });
-        alert(`Changes accepted successfully. GitHub commit failed: ${errorData.error || errorData.message}`);
+        alert(`Your changes were not published. Nothing was lost. Try again.\n\nGitHub commit failed: ${errorData.error || errorData.message}`);
       }
     } catch (error) {
       console.error('[DEPLOY API] ERROR', error);
-      alert(`Changes accepted successfully. GitHub commit failed: ${error instanceof Error ? error.message : String(error)}`);
+      alert(`Your changes were not published. Nothing was lost. Try again.\n\nGitHub commit failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setState(prev => ({ ...prev, isAccepting: false }));
     }
