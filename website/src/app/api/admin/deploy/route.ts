@@ -318,24 +318,23 @@ export async function POST(request: Request) {
         cursor = result[0];
         
         for (const key of result[1]) {
-          // Parse key format: workbench-staging:{transactionId}:project:{projectId}:{field}
-          // OR legacy format: workbench-staging:project:{projectId}:{field}
+          // Parse key format: ONLY accept transactional format: workbench-staging:{txId}:project:{projectId}:{field}
           const parts = key.split(':');
           
-          if (parts.length >= 5 && parts[1].startsWith('WBDEP-')) {
-            // New transactional format
+          // ONLY accept new transactional format
+          if (parts.length >= 5 && (parts[1].startsWith('WBDEP-') || parts[1].startsWith('tx-'))) {
             const transactionId = parts[1];
             if (!transactionGroups.has(transactionId)) {
               transactionGroups.set(transactionId, []);
             }
             transactionGroups.get(transactionId)!.push(key);
-          } else if (parts.length >= 4) {
-            // Legacy format - treat as single transaction
-            const transactionId = 'legacy-' + key;
-            if (!transactionGroups.has(transactionId)) {
-              transactionGroups.set(transactionId, []);
-            }
-            transactionGroups.get(transactionId)!.push(key);
+          }
+          // Skip legacy formats - enforce single staging protocol
+          else {
+            console.warn('[DEPLOY API] LEGACY_STAGING_KEY_SKIPPED', { 
+              key, 
+              reason: 'Legacy format no longer supported. Use transactional format: workbench-staging:{txId}:project:{projectId}:{field}'
+            });
           }
         }
       } while (cursor !== '0');
@@ -391,7 +390,7 @@ export async function POST(request: Request) {
           
           let projectId: string;
           let field: string;
-          let mutationType: string;
+          let mutationType: string | null = null;
           
           // New transactional format: workbench-staging:{txId}:project:{projectId}:{field}
           if (parts.length >= 5 && (parts[1].startsWith('WBDEP-') || parts[1].startsWith('tx-')) && parts[2] === 'project') {
@@ -413,17 +412,21 @@ export async function POST(request: Request) {
             }
             continue; // Skip project logic
           }
-          // Legacy format: workbench-staging:project:{projectId}:{field}
-          else if (parts[1] === 'project') {
-            projectId = parts[2];
-            field = parts[3];
-            mutationType = 'project';
-          } 
-          // Very old format without 'project' prefix
+          // Legacy format detected - reject to enforce single staging protocol
           else {
-            projectId = parts[2];
-            field = parts[3];
-            mutationType = 'project';
+            console.warn('[DEPLOY API] LEGACY_STAGING_FORMAT_REJECTED', { 
+              key, 
+              transactionId,
+              format: parts.join(':'),
+              reason: 'Legacy staging format no longer supported. Use transactional format: workbench-staging:{txId}:project:{projectId}:{field}'
+            });
+            continue; // Skip legacy keys
+          }
+          
+          // Only process if we have a valid mutationType
+          if (!mutationType) {
+            console.warn('[DEPLOY API] UNKNOWN_MUTATION_TYPE', { key, parts });
+            continue;
           }
           
           const projectIndex = projectsData.projects.findIndex((p: any) => p.id === projectId);
