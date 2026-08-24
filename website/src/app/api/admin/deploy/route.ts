@@ -119,6 +119,7 @@ export async function POST(request: Request) {
   let isProduction = process.env.NODE_ENV === 'production';
   let deploymentTransactionId: string = ''; // Will be set from request body
   let transaction: DeploymentTransaction | null = null;
+  let transactionOwner: string = ''; // Ownership token for lifecycle verification
   
   console.log('[DEPLOY API] REQUEST_RECEIVED');
   
@@ -552,9 +553,9 @@ export async function POST(request: Request) {
     }
     
     // CLAIM TRANSACTION for deployment (prepared → committing)
-    const claimToken = `claim-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    transaction = await claimDeploymentTransaction(deploymentTransactionId, claimToken);
-    console.log('[DEPLOY API] TRANSACTION_CLAIMED', { transactionId: deploymentTransactionId, owner: claimToken });
+    transactionOwner = `claim-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    transaction = await claimDeploymentTransaction(deploymentTransactionId, transactionOwner);
+    console.log('[DEPLOY API] TRANSACTION_CLAIMED', { transactionId: deploymentTransactionId, owner: transactionOwner });
     
     // Step 2: Get current tree SHA from the commit
     const commitUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/git/commits/${currentCommitSha}`;
@@ -963,7 +964,7 @@ export async function POST(request: Request) {
     
     // MARK TRANSACTION AS COMMITTED (committing → committed)
     // This happens AFTER the external commit point because Redis state is coordination, not atomic
-    transaction = await commitDeploymentTransaction(deploymentTransactionId, newCommitSha, newCommitData.html_url);
+    transaction = await commitDeploymentTransaction(deploymentTransactionId, newCommitSha, newCommitData.html_url, transactionOwner);
     console.log('[DEPLOY API] TRANSACTION_COMMITTED', { transactionId: deploymentTransactionId, commitSha: newCommitSha });
     
     // Step 7: Verify the commit contains both files (post-commit verification, NOT a commit gate)
@@ -1072,7 +1073,7 @@ export async function POST(request: Request) {
       
       // MARK TRANSACTION AS CONSUMED (committed → consumed)
       if (transaction) {
-        transaction = await consumeDeploymentTransaction(deploymentTransactionId);
+        transaction = await consumeDeploymentTransaction(deploymentTransactionId, transactionOwner);
         console.log('[DEPLOY API] TRANSACTION_CONSUMED', { transactionId: deploymentTransactionId });
       }
     } else if (isProduction && redis && stagingKeys.length > 0 && !verificationPassed) {

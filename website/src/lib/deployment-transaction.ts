@@ -118,6 +118,15 @@ const STATE_TRANSITION_SCRIPT = `
     return {err = 'ILLEGAL_TRANSITION: ' .. currentState .. ' -> ' .. newState}
   end
   
+  -- OWNER VERIFICATION: Only the owner who claimed can perform subsequent transitions
+  if parsed.owner and parsed.owner ~= '' then
+    if newState == 'committing' or newState == 'committed' or newState == 'consumed' then
+      if owner ~= parsed.owner then
+        return {err = 'OWNER_MISMATCH: Transaction owned by ' .. parsed.owner .. ', but attempt by ' .. owner}
+      end
+    end
+  end
+  
   -- prepared → committing: atomic claim check
   if currentState == 'prepared' and newState == 'committing' then
     if parsed.owner and parsed.owner ~= owner then
@@ -265,23 +274,28 @@ export async function claimDeploymentTransaction(
  * @param transactionId - Transaction ID
  * @param commitSha - Git commit SHA
  * @param commitUrl - Git commit URL
+ * @param owner - Owner token for ownership verification
  * @returns Updated transaction
  */
 export async function commitDeploymentTransaction(
   transactionId: string,
   commitSha: string,
-  commitUrl: string
+  commitUrl: string,
+  owner?: string
 ): Promise<DeploymentTransaction> {
   const key = `${TRANSACTION_PREFIX}${transactionId}`;
   const client = getRedisClient();
   
-  console.log('[DEPLOYMENT_TRANSACTION] COMMITTING', { transactionId, commitSha });
+  console.log('[DEPLOYMENT_TRANSACTION] COMMITTING', { transactionId, commitSha, owner });
   
   try {
     const current = await client.get<DeploymentTransaction>(key);
     if (!current) {
       throw new Error(`Transaction not found: ${transactionId}`);
     }
+    
+    // Use current owner if not provided (for backward compatibility)
+    const effectiveOwner = owner || current.owner;
     
     const updated: DeploymentTransaction = {
       ...current,
@@ -297,17 +311,21 @@ export async function commitDeploymentTransaction(
       [
         transactionId,
         'committed',
-        current.owner || '',
+        effectiveOwner || '',
         current.parentCommitSha || '',
         JSON.stringify(updated),
       ]
     );
     
     if (result && typeof result === 'object' && 'err' in result) {
-      throw new Error(`Failed to commit transaction: ${(result as any).err}`);
+      const err = (result as any).err;
+      if (err.includes('OWNER_MISMATCH')) {
+        throw new Error(`Ownership verification failed: ${err}`);
+      }
+      throw new Error(`Failed to commit transaction: ${err}`);
     }
     
-    console.log('[DEPLOYMENT_TRANSACTION] COMMITTED', { transactionId, commitSha });
+    console.log('[DEPLOYMENT_TRANSACTION] COMMITTED', { transactionId, commitSha, owner: effectiveOwner });
     return updated;
   } catch (error) {
     console.error('[DEPLOYMENT_TRANSACTION] COMMIT_FAILED', { transactionId, commitSha, error });
@@ -318,19 +336,26 @@ export async function commitDeploymentTransaction(
 /**
  * Mark transaction as consumed after staging cleanup (committed → consumed)
  * @param transactionId - Transaction ID
+ * @param owner - Owner token for ownership verification
  * @returns Updated transaction
  */
-export async function consumeDeploymentTransaction(transactionId: string): Promise<DeploymentTransaction> {
+export async function consumeDeploymentTransaction(
+  transactionId: string,
+  owner?: string
+): Promise<DeploymentTransaction> {
   const key = `${TRANSACTION_PREFIX}${transactionId}`;
   const client = getRedisClient();
   
-  console.log('[DEPLOYMENT_TRANSACTION] CONSUMING', { transactionId });
+  console.log('[DEPLOYMENT_TRANSACTION] CONSUMING', { transactionId, owner });
   
   try {
     const current = await client.get<DeploymentTransaction>(key);
     if (!current) {
       throw new Error(`Transaction not found: ${transactionId}`);
     }
+    
+    // Use current owner if not provided (for backward compatibility)
+    const effectiveOwner = owner || current.owner;
     
     const updated: DeploymentTransaction = {
       ...current,
@@ -344,17 +369,21 @@ export async function consumeDeploymentTransaction(transactionId: string): Promi
       [
         transactionId,
         'consumed',
-        current.owner || '',
+        effectiveOwner || '',
         current.parentCommitSha || '',
         JSON.stringify(updated),
       ]
     );
     
     if (result && typeof result === 'object' && 'err' in result) {
-      throw new Error(`Failed to consume transaction: ${(result as any).err}`);
+      const err = (result as any).err;
+      if (err.includes('OWNER_MISMATCH')) {
+        throw new Error(`Ownership verification failed: ${err}`);
+      }
+      throw new Error(`Failed to consume transaction: ${err}`);
     }
     
-    console.log('[DEPLOYMENT_TRANSACTION] CONSUMED', { transactionId });
+    console.log('[DEPLOYMENT_TRANSACTION] CONSUMED', { transactionId, owner: effectiveOwner });
     return updated;
   } catch (error) {
     console.error('[DEPLOYMENT_TRANSACTION] CONSUME_FAILED', { transactionId, error });
