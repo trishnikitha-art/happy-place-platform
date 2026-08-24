@@ -30,7 +30,6 @@ jobs:
 
   oauth-tests:
     runs-on: ubuntu-latest
-    needs: build
     defaults:
       run:
         working-directory: website

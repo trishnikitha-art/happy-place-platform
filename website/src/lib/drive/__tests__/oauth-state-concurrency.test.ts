@@ -16,11 +16,16 @@ import {
   StateInfrastructureError,
 } from '../oauth-state-manager';
 
-// Mock cookie store for testing
+// Mock cookie store for testing with stateful binding
 const mockCookieStore = {
-  get: (name: string) => ({ value: null }),
-  set: (name: string, value: string, options: any) => {},
-  delete: (name: string) => {},
+  _bindings: new Map<string, string>(),
+  get: (name: string) => ({ value: mockCookieStore._bindings.get(name) || null }),
+  set: (name: string, value: string, options: any) => {
+    mockCookieStore._bindings.set(name, value);
+  },
+  delete: (name: string) => {
+    mockCookieStore._bindings.delete(name);
+  },
 };
 
 describe('OAuth State Concurrency', () => {
@@ -30,11 +35,11 @@ describe('OAuth State Concurrency', () => {
       const state = await createState(mockCookieStore as any);
       expect(state).toBeTruthy();
 
-      // Simulate concurrent consumption
+      // Simulate concurrent consumption with cookie store injection
       const consumePromises = [
-        consumeState(state),
-        consumeState(state),
-        consumeState(state),
+        consumeState(state, mockCookieStore as any),
+        consumeState(state, mockCookieStore as any),
+        consumeState(state, mockCookieStore as any),
       ];
 
       const results = await Promise.all(consumePromises);
@@ -49,15 +54,15 @@ describe('OAuth State Concurrency', () => {
       expect(state).toBeTruthy();
 
       // First consume should succeed
-      const firstConsume = await consumeState(state);
+      const firstConsume = await consumeState(state, mockCookieStore as any);
       expect(firstConsume).toBe(true);
 
       // Second consume (replay) should fail
-      const secondConsume = await consumeState(state);
+      const secondConsume = await consumeState(state, mockCookieStore as any);
       expect(secondConsume).toBe(false);
 
       // Validation should return STATE_REPLAYED
-      const validation = await validateState(state);
+      const validation = await validateState(state, mockCookieStore as any);
       expect(validation).toBe(StateValidationResult.STATE_REPLAYED);
     });
   });
@@ -73,14 +78,14 @@ describe('OAuth State Concurrency', () => {
       expect(state).toBeTruthy();
 
       // Validate immediately (should be valid)
-      const validation = await validateState(state);
+      const validation = await validateState(state, mockCookieStore as any);
       expect(validation).toBe(StateValidationResult.STATE_VALID);
 
       // Consume state
-      await consumeState(state);
+      await consumeState(state, mockCookieStore as any);
 
       // After consumption, validation should return STATE_REPLAYED
-      const postConsumeValidation = await validateState(state);
+      const postConsumeValidation = await validateState(state, mockCookieStore as any);
       expect(postConsumeValidation).toBe(StateValidationResult.STATE_REPLAYED);
     });
   });
