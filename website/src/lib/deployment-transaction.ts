@@ -78,7 +78,30 @@ export interface DeploymentTransaction {
 const TRANSACTION_PREFIX = 'deployment-transaction:';
 
 /**
+ * Atomic Lua script for transaction creation (create-if-absent)
+ * Returns existing transaction if already exists, creates new if absent
+ * Creation is NOT a state transition - it's atomic initialization
+ */
+const CREATE_TRANSACTION_SCRIPT = `
+  local key = KEYS[1]
+  local transactionData = ARGV[1]
+  
+  local current = redis.call('GET', key)
+  
+  -- If transaction already exists, return it (idempotent creation)
+  if current then
+    return {ok = 'EXISTS', data = current}
+  end
+  
+  -- Create new transaction atomically
+  redis.call('SET', key, transactionData)
+  redis.call('EXPIRE', key, 86400) -- 24 hour TTL
+  return {ok = 'CREATED'}
+`;
+
+/**
  * Atomic Lua script for state transition enforcement
+ * Only operates on existing transactions - rejects if transaction doesn't exist
  * Prevents illegal transitions and concurrent claims
  */
 const STATE_TRANSITION_SCRIPT = `
@@ -91,14 +114,9 @@ const STATE_TRANSITION_SCRIPT = `
   
   local current = redis.call('GET', key)
   
-  -- New transaction: allow if key doesn't exist
+  -- REJECT if transaction doesn't exist (creation is separate)
   if not current then
-    if newState ~= 'prepared' then
-      return {err = 'INVALID_INITIAL_STATE: Must start with prepared'}
-    end
-    redis.call('SET', key, transactionData)
-    redis.call('EXPIRE', key, 86400) -- 24 hour TTL
-    return {ok = 'CREATED'}
+    return {err = 'TRANSACTION_NOT_FOUND: Use createDeploymentTransaction first'}
   end
   
   local parsed = cjson.decode(current)
@@ -158,13 +176,14 @@ const STATE_TRANSITION_SCRIPT = `
 `;
 
 /**
- * Create a new deployment transaction in prepared state
+ * Create a new deployment transaction in prepared state (atomic create-if-absent)
+ * Returns existing transaction if already exists (idempotent creation)
  * @param transactionId - Unique transaction ID
  * @param stagingKeys - Staging keys to clean up after commit
  * @param files - Authority files in this transaction
  * @param reason - Deployment reason
  * @param parentCommitSha - Expected parent commit for concurrent safety
- * @returns Created transaction
+ * @returns Created or existing transaction
  */
 export async function createDeploymentTransaction(
   transactionId: string,
@@ -190,19 +209,20 @@ export async function createDeploymentTransaction(
   
   try {
     const result = await client.eval(
-      STATE_TRANSITION_SCRIPT,
+      CREATE_TRANSACTION_SCRIPT,
       [key],
-      [
-        transactionId,
-        'prepared',
-        '', // no owner for prepared state
-        parentCommitSha || '',
-        JSON.stringify(transaction),
-      ]
+      [JSON.stringify(transaction)]
     );
     
     if (result && typeof result === 'object' && 'err' in result) {
       throw new Error(`Failed to create transaction: ${(result as any).err}`);
+    }
+    
+    // If transaction already existed, return it (idempotent)
+    if (result && typeof result === 'object' && 'ok' in result && (result as any).ok === 'EXISTS') {
+      const existing = JSON.parse((result as any).data) as DeploymentTransaction;
+      console.log('[DEPLOYMENT_TRANSACTION] RETURNED_EXISTING', { transactionId, state: existing.state });
+      return existing;
     }
     
     console.log('[DEPLOYMENT_TRANSACTION] CREATED', { transactionId });
@@ -231,7 +251,7 @@ export async function claimDeploymentTransaction(
   try {
     const current = await client.get<DeploymentTransaction>(key);
     if (!current) {
-      throw new Error(`Transaction not found: ${transactionId}`);
+      throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
     }
     
     const updated: DeploymentTransaction = {
@@ -257,6 +277,9 @@ export async function claimDeploymentTransaction(
       const err = (result as any).err;
       if (err.includes('ALREADY_CLAIMED')) {
         throw new Error(`Transaction already claimed by another process: ${transactionId}`);
+      }
+      if (err.includes('TRANSACTION_NOT_FOUND')) {
+        throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
       }
       throw new Error(`Failed to claim transaction: ${err}`);
     }
@@ -291,7 +314,7 @@ export async function commitDeploymentTransaction(
   try {
     const current = await client.get<DeploymentTransaction>(key);
     if (!current) {
-      throw new Error(`Transaction not found: ${transactionId}`);
+      throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
     }
     
     // Use current owner if not provided (for backward compatibility)
@@ -322,6 +345,9 @@ export async function commitDeploymentTransaction(
       if (err.includes('OWNER_MISMATCH')) {
         throw new Error(`Ownership verification failed: ${err}`);
       }
+      if (err.includes('TRANSACTION_NOT_FOUND')) {
+        throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
+      }
       throw new Error(`Failed to commit transaction: ${err}`);
     }
     
@@ -351,7 +377,7 @@ export async function consumeDeploymentTransaction(
   try {
     const current = await client.get<DeploymentTransaction>(key);
     if (!current) {
-      throw new Error(`Transaction not found: ${transactionId}`);
+      throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
     }
     
     // Use current owner if not provided (for backward compatibility)
@@ -379,6 +405,9 @@ export async function consumeDeploymentTransaction(
       const err = (result as any).err;
       if (err.includes('OWNER_MISMATCH')) {
         throw new Error(`Ownership verification failed: ${err}`);
+      }
+      if (err.includes('TRANSACTION_NOT_FOUND')) {
+        throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
       }
       throw new Error(`Failed to consume transaction: ${err}`);
     }
@@ -409,7 +438,9 @@ export async function failDeploymentTransaction(
   try {
     const current = await client.get<DeploymentTransaction>(key);
     if (!current) {
-      throw new Error(`Transaction not found: ${transactionId}`);
+      console.warn('[DEPLOYMENT_TRANSACTION] FAIL_TRANSACTION_NOT_FOUND', { transactionId, failureReason });
+      // If transaction doesn't exist, we can't fail it - this is acceptable for cleanup scenarios
+      throw new Error(`Transaction not found: ${transactionId}. Cannot fail non-existent transaction.`);
     }
     
     const updated: DeploymentTransaction = {
@@ -433,7 +464,11 @@ export async function failDeploymentTransaction(
     );
     
     if (result && typeof result === 'object' && 'err' in result) {
-      throw new Error(`Failed to fail transaction: ${(result as any).err}`);
+      const err = (result as any).err;
+      if (err.includes('TRANSACTION_NOT_FOUND')) {
+        throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
+      }
+      throw new Error(`Failed to fail transaction: ${err}`);
     }
     
     console.log('[DEPLOYMENT_TRANSACTION] FAILED', { transactionId, failureReason, retryCount: updated.retryCount });
