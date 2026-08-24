@@ -15,14 +15,11 @@
  */
 
 import { cookies } from 'next/headers';
+import crypto from 'crypto';
 
-// Edge-compatible UUID v4 generator
+// Cryptographically secure UUID v4 generator
 function randomUUID(): string {
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
-    const r = Math.random() * 16 | 0;
-    const v = c === 'x' ? r : (r & 0x3 | 0x8);
-    return v.toString(16);
-  });
+  return crypto.randomUUID();
 }
 
 export interface WorkbenchCredentials {
@@ -32,7 +29,17 @@ export interface WorkbenchCredentials {
 }
 
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
-const WORKBENCH_PASSWORD = process.env.WORKBENCH_PASSWORD || 'admin'; // Environment variable for admin password
+
+// Fail closed: require explicit WORKBENCH_PASSWORD in production
+const WORKBENCH_PASSWORD = process.env.WORKBENCH_PASSWORD;
+
+function isPasswordConfigured(): boolean {
+  if (process.env.NODE_ENV === 'production') {
+    return WORKBENCH_PASSWORD !== undefined && WORKBENCH_PASSWORD !== '';
+  }
+  // Development: allow unconfigured (but warn)
+  return true;
+}
 
 export class WorkbenchSession {
   private static instance: WorkbenchSession;
@@ -50,6 +57,12 @@ export class WorkbenchSession {
    * Authenticate user with password
    */
   async authenticate(password: string): Promise<boolean> {
+    // Fail closed in production if password not configured
+    if (!isPasswordConfigured()) {
+      console.error('[WORKBENCH_SESSION] AUTHENTICATION_BLOCKED: Password not configured');
+      return false;
+    }
+
     if (password === WORKBENCH_PASSWORD) {
       const sessionId = randomUUID();
       const expiresAt = Date.now() + SESSION_DURATION;
