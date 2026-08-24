@@ -132,14 +132,14 @@ export async function POST(request: Request) {
       
       await redis.set(stagingKey, mediaId);
       
-      // Store transaction metadata
-      const transactionKey = `${WORKBENCH_STAGING_PREFIX}${transactionId}:meta`;
-      await redis.set(transactionKey, JSON.stringify({
-        createdAt: new Date().toISOString(),
-        state: 'prepared',
-        mutations: [stagingKey],
-        type: 'service-card',
-      }));
+      // Create authoritative deployment transaction record (single source of truth)
+      const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
+      await createDeploymentTransaction(
+        transactionId,
+        [stagingKey],
+        ['brand.v1.json'],
+        `Brand hero assignment`
+      );
       
       console.log('[BRAND HERO] STAGED_IN_KV', { mediaId, stagingKey, transactionId });
       

@@ -370,10 +370,9 @@ export async function POST(request: Request) {
       
       let appliedCount = 0;
       for (const [transactionId, keys] of sortedTransactions) {
-        // Get transaction metadata if available
-        const metaKey = `${WORKBENCH_STAGING_PREFIX}${transactionId}:meta`;
-        const meta = await redis.get(metaKey);
-        const transactionState = meta ? (JSON.parse(meta as string) as any).state : 'unknown';
+        // Get authoritative transaction state from deployment-transaction library
+        const deploymentTransaction = await getDeploymentTransaction(transactionId);
+        const transactionState = deploymentTransaction?.state || 'unknown';
         
         console.log('[DEPLOY API] PROCESSING_TRANSACTION', { transactionId, state: transactionState, keyCount: keys.length });
         
@@ -382,7 +381,7 @@ export async function POST(request: Request) {
           const value = await redis.get(key);
           if (!value) continue;
           
-          // Skip metadata keys
+          // Skip metadata keys (now deprecated - using deployment-transaction instead)
           if (key.endsWith(':meta')) continue;
           
           // Parse key format

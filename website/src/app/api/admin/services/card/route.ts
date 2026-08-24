@@ -156,14 +156,14 @@ export async function POST(request: Request) {
       
       await redis.set(stagingKey, mediaId);
       
-      // Store transaction metadata
-      const transactionKey = `${WORKBENCH_STAGING_PREFIX}${transactionId}:meta`;
-      await redis.set(transactionKey, JSON.stringify({
-        createdAt: new Date().toISOString(),
-        state: 'prepared',
-        mutations: [stagingKey],
-        type: 'service-card',
-      }));
+      // Create authoritative deployment transaction record (single source of truth)
+      const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
+      await createDeploymentTransaction(
+        transactionId,
+        [stagingKey],
+        ['services.v1.json'],
+        `Service card assignment: ${serviceSlug}`
+      );
       
       console.log('[SERVICES CARD] STAGED_IN_KV', { serviceSlug, mediaId, stagingKey, transactionId });
       
