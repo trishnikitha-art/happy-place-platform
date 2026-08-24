@@ -183,6 +183,7 @@ export async function listMediaIds(): Promise<string[]> {
 /**
  * Save media to KV
  * Stores media record and maintains content hash index for O(1) deduplication
+ * Uses atomic Lua script to ensure media record and index remain consistent
  */
 export async function saveMedia(media: Media): Promise<void> {
   try {
@@ -196,13 +197,30 @@ export async function saveMedia(media: Media): Promise<void> {
     
     const client = getRedisClient();
     
-    // Store media record
-    await client.set(`${MEDIA_PREFIX}${media.id}`, JSON.stringify(media));
+    // Use atomic Lua script to maintain media record + index consistency
+    const saveScript = `
+      local mediaKey = KEYS[1]
+      local contentHashKey = KEYS[2]
+      local mediaId = ARGV[1]
+      local contentHash = ARGV[2]
+      local mediaJson = ARGV[3]
+      
+      -- Set media record
+      redis.call('SET', mediaKey, mediaJson)
+      
+      -- Update content hash index if content hash present
+      if contentHash and contentHash ~= '' then
+        redis.call('SET', contentHashKey, mediaId)
+      end
+      
+      return 'OK'
+    `;
     
-    // Index by content hash for O(1) deduplication
-    if (media.contentHash) {
-      await client.set(`${CONTENT_HASH_PREFIX}${media.contentHash}`, media.id);
-    }
+    await client.eval(
+      saveScript,
+      [`${MEDIA_PREFIX}${media.id}`, `${CONTENT_HASH_PREFIX}${media.contentHash || ''}`],
+      [media.id, media.contentHash || '', JSON.stringify(media)]
+    );
   } catch (error) {
     console.error('[MEDIA_KV] Failed to save media:', error);
     throw new Error(`Failed to save media ${media.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -212,21 +230,44 @@ export async function saveMedia(media: Media): Promise<void> {
 /**
  * Delete media from KV
  * Also removes content hash index entry
+ * Uses atomic Lua script to ensure media record and index are deleted together
  */
 export async function deleteMedia(id: string): Promise<void> {
   try {
     const client = getRedisClient();
     
-    // Get media record to retrieve content hash for index cleanup
-    const media = await getMedia(id);
+    // Use atomic Lua script to delete media record and index together
+    const deleteScript = `
+      local mediaKey = KEYS[1]
+      
+      -- Get current media record to extract content hash
+      local mediaJson = redis.call('GET', mediaKey)
+      local contentHash = nil
+      
+      if mediaJson then
+        local parsed = cjson.decode(mediaJson)
+        if parsed.contentHash then
+          contentHash = parsed.contentHash
+        end
+      end
+      
+      -- Delete media record
+      redis.call('DEL', mediaKey)
+      
+      -- Delete content hash index if content hash was present
+      if contentHash and contentHash ~= '' then
+        local actualContentHashKey = 'content_hash:' .. contentHash
+        redis.call('DEL', actualContentHashKey)
+      end
+      
+      return 'OK'
+    `;
     
-    // Delete media record
-    await client.del(`${MEDIA_PREFIX}${id}`);
-    
-    // Delete content hash index entry
-    if (media && media.contentHash) {
-      await client.del(`${CONTENT_HASH_PREFIX}${media.contentHash}`);
-    }
+    await client.eval(
+      deleteScript,
+      [`${MEDIA_PREFIX}${id}`],
+      []
+    );
   } catch (error) {
     console.error('[MEDIA_KV] Failed to delete media:', error);
     throw new Error(`Failed to delete media ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -240,7 +281,7 @@ export const storeMedia = saveMedia;
 
 /**
  * Find media by content hash using O(1) index lookup
- * Returns null if not found
+ * Returns null if not found or if index points to non-existent media (stale index)
  */
 export async function findMediaByContentHash(contentHash: string): Promise<Media | null> {
   try {
@@ -254,7 +295,34 @@ export async function findMediaByContentHash(contentHash: string): Promise<Media
     }
     
     // Retrieve the media record
-    return await getMedia(mediaId as string);
+    const media = await getMedia(mediaId as string);
+    
+    // Fail closed if index points to non-existent media (stale index)
+    if (!media) {
+      console.error('[MEDIA_KV] STALE_INDEX_ENTRY: content_hash index points to non-existent media', {
+        contentHash,
+        mediaId,
+        reason: 'Index is stale - media record was deleted but index was not cleaned up'
+      });
+      // Clean up stale index entry
+      await client.del(`${CONTENT_HASH_PREFIX}${contentHash}`);
+      return null;
+    }
+    
+    // Verify the content hash actually matches (defensive check)
+    if (media.contentHash !== contentHash) {
+      console.error('[MEDIA_KV] INDEX_MISMATCH: content_hash index points to media with different hash', {
+        contentHash,
+        mediaId,
+        actualMediaHash: media.contentHash,
+        reason: 'Index corruption - cleanup required'
+      });
+      // Clean up corrupted index entry
+      await client.del(`${CONTENT_HASH_PREFIX}${contentHash}`);
+      return null;
+    }
+    
+    return media;
   } catch (error) {
     console.error('[MEDIA_KV] Failed to find media by content hash:', error);
     throw new Error(`Failed to find media by content hash: ${error instanceof Error ? error.message : 'Unknown error'}`);

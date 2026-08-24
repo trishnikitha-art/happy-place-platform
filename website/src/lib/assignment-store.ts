@@ -327,13 +327,11 @@ export async function storeServiceCardAssignment(
     
     const newRevision = await client.eval(
       casScript,
-      {
-        keys: [key],
-        arguments: [
-          expectedRevision !== undefined ? String(expectedRevision) : 'nil',
-          JSON.stringify(assignment),
-        ],
-      }
+      [key],
+      [
+        expectedRevision !== undefined ? String(expectedRevision) : 'nil',
+        JSON.stringify(assignment),
+      ]
     ) as number;
     
     console.log('[ASSIGNMENT_WRITE] SET_SUCCESS', {

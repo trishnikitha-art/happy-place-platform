@@ -113,13 +113,26 @@ export async function uploadToBlob(
     const existingMetadata = await getBlobMetadataByContentHash(contentHash);
     
     if (existingMetadata) {
-      console.log('[BLOB_STORAGE] Blob already exists, reusing URL:', existingMetadata.url);
-      return {
-        url: existingMetadata.url, // Return actual persisted Blob URL
-        uploadedAt: existingMetadata.uploadedAt,
-        alreadyExisted: true,
-        contentHash,
-      };
+      // Authority boundary: verify physical bytes before trusting existing metadata
+      // Redis metadata is a locator, not cryptographic proof of identity
+      const hashMatches = await verifyBlobHash(existingMetadata.url, contentHash);
+      
+      if (!hashMatches) {
+        console.error('[BLOB_STORAGE] EXISTING_METADATA_INVALID: Physical bytes do not match recorded hash', {
+          contentHash,
+          blobUrl: existingMetadata.url,
+          reason: 'Existing Redis metadata points to Blob with wrong physical bytes - metadata is poisoned'
+        });
+        // Fall through to upload new Blob - metadata will be overwritten
+      } else {
+        console.log('[BLOB_STORAGE] Blob already exists with verified physical bytes, reusing URL:', existingMetadata.url);
+        return {
+          url: existingMetadata.url, // Return actual persisted Blob URL
+          uploadedAt: existingMetadata.uploadedAt,
+          alreadyExisted: true,
+          contentHash,
+        };
+      }
     }
     
     // Generate content-addressed filename to prevent Blob key collisions
@@ -196,7 +209,21 @@ export async function uploadToBlob(
           throw new Error(`Blob recovery failed: missing or invalid size for ${contentAddressedFilename}`);
         }
         
-        // Recreate metadata from recovered Blob information
+        // CRITICAL: Verify physical bytes match expected content hash
+        // This is cryptographic proof of identity, not just filename convention
+        const hashMatches = await verifyBlobHash(blobHead.url, contentHash);
+        
+        if (!hashMatches) {
+          console.error('[BLOB_STORAGE] RECOVERY_FAILED: Physical bytes do not match expected content hash', {
+            contentHash,
+            blobUrl: blobHead.url,
+            filename: contentAddressedFilename,
+            reason: 'Cryptographic identity proof failed - Blob bytes do not match expected hash'
+          });
+          throw new Error(`Blob recovery failed: physical bytes do not match expected content hash ${contentHash}`);
+        }
+        
+        // Only after physical verification succeeds, recreate metadata
         const recoveredMetadata: BlobMetadata = {
           url: blobHead.url,
           filename: contentAddressedFilename,
@@ -216,6 +243,7 @@ export async function uploadToBlob(
           contentHash,
           url: blobHead.url,
           filename: contentAddressedFilename,
+          verification: 'physical_hash_verified',
         });
         
         return {
