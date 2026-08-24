@@ -28,6 +28,15 @@ const nextConfig: NextConfig = {
         pathname: '/api/drive/files/**',
       },
     ],
+    // Allow Vercel Blob storage for media assets
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '*.public.blob.vercel-storage.com',
+        port: '',
+        pathname: '/**',
+      },
+    ],
   },
   // Allow browser preview for development
   allowedDevOrigins: ['127.0.0.1'],

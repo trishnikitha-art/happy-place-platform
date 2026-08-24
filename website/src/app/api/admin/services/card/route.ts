@@ -15,8 +15,22 @@ import { storeServiceCardAssignment, getServiceCardAssignment } from "@/lib/assi
 import { getAllServices } from "@/lib/registries";
 import { getMediaByIdAsync } from "@/lib/media";
 import { isDriveReference, isPublishedMediaAsset } from "@/types/media";
+import { Redis } from '@upstash/redis';
 
 export const runtime = 'nodejs';
+
+const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
+
+function getRedisClient(): Redis | null {
+  try {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    if (!url || !token) return null;
+    return new Redis({ url, token });
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   console.log('[DND SERVER 1] REQUEST_RECEIVED');
@@ -126,6 +140,38 @@ export async function POST(request: Request) {
       mediaId,
       lifecycleState: media.lifecycleState,
     });
+
+    // STAGE assignment in Redis for deployment (not direct to assignment store)
+    // This prevents Redis/Git split-brain - promotion happens only after Git succeeds
+    const redis = getRedisClient();
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    if (isProduction && redis) {
+      const transactionId = `tx-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${transactionId}:service:${serviceSlug}`;
+      
+      await redis.set(stagingKey, mediaId);
+      
+      // Store transaction metadata
+      const transactionKey = `${WORKBENCH_STAGING_PREFIX}${transactionId}:meta`;
+      await redis.set(transactionKey, JSON.stringify({
+        createdAt: new Date().toISOString(),
+        state: 'prepared',
+        mutations: [stagingKey],
+        type: 'service-card',
+      }));
+      
+      console.log('[SERVICES CARD] STAGED_IN_KV', { serviceSlug, mediaId, stagingKey, transactionId });
+      
+      return NextResponse.json({ 
+        success: true, 
+        serviceSlug, 
+        mediaId,
+        staged: true,
+        persistence: 'kv',
+        transactionId
+      });
+    }
 
     // CAS ENFORCEMENT: Read current assignment to obtain expected revision
     const currentAssignment = await getServiceCardAssignment(serviceSlug);

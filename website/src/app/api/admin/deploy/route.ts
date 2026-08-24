@@ -122,10 +122,11 @@ export async function POST(request: Request) {
   
   console.log('[DEPLOY API] TRANSACTION_ID', { deploymentTransactionId });
   
-  // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
-  if (process.env.NODE_ENV === 'development') {
-    // Proceed without authentication
-  } else {
+  // SECURITY: Require authentication in production
+  // Development bypass requires explicit DRIVE_AUTH_BYPASS=true
+  const isDevBypass = process.env.DRIVE_AUTH_BYPASS === 'true';
+  
+  if (process.env.NODE_ENV !== 'development' || !isDevBypass) {
     // Check Workbench authentication
     const isAuthenticated = await workbenchSession.isAuthenticated();
     if (!isAuthenticated) {
@@ -134,6 +135,11 @@ export async function POST(request: Request) {
         { status: 401 }
       );
     }
+  } else {
+    console.warn('[DEPLOY API] DEV_MODE_BYPASS_ACTIVE', { 
+      reason: 'DRIVE_AUTH_BYPASS=true',
+      securityNote: 'This bypass is for development only'
+    });
   }
 
   try {
@@ -357,21 +363,39 @@ export async function POST(request: Request) {
           
           let projectId: string;
           let field: string;
+          let mutationType: string;
           
           // New transactional format: workbench-staging:{txId}:project:{projectId}:{field}
           if (parts.length >= 5 && parts[1].startsWith('tx-') && parts[2] === 'project') {
             projectId = parts[3];
             field = parts[4];
+            mutationType = 'project';
           } 
+          // New transactional format: workbench-staging:{txId}:service:{serviceSlug}
+          else if (parts.length >= 4 && parts[1].startsWith('tx-') && parts[2] === 'service') {
+            const serviceSlug = parts[3];
+            const serviceIndex = servicesData.services.findIndex((s: any) => s.slug === serviceSlug);
+            if (serviceIndex !== -1) {
+              servicesData.services[serviceIndex].cardMediaId = value;
+              console.log('[DEPLOY API] APPLIED_SERVICE_ASSIGNMENT', { 
+                serviceSlug, 
+                mediaId: value,
+                transactionId 
+              });
+            }
+            continue; // Skip project logic
+          }
           // Legacy format: workbench-staging:project:{projectId}:{field}
           else if (parts[1] === 'project') {
             projectId = parts[2];
             field = parts[3];
+            mutationType = 'project';
           } 
           // Very old format without 'project' prefix
           else {
             projectId = parts[2];
             field = parts[3];
+            mutationType = 'project';
           }
           
           const projectIndex = projectsData.projects.findIndex((p: any) => p.id === projectId);
@@ -405,25 +429,8 @@ export async function POST(request: Request) {
       fileContent = JSON.stringify(projectsData, null, 2);
       console.log('[DEPLOY API] PRODUCTION_MERGE_COMPLETE', { stagingKeysApplied: appliedCount, transactionCount: transactionGroups.size });
       
-      // CRITICAL FIX: Merge service card assignments from Redis into services.v1.json
-      console.log('[DEPLOY API] MERGING_SERVICE_CARD_ASSIGNMENTS');
-      const { getAllServiceCardAssignments } = await import('@/lib/assignment-store');
-      const assignments = await getAllServiceCardAssignments();
-      
-      let servicesUpdatedCount = 0;
-      let servicesCommitSha = null;
-      for (const assignment of assignments) {
-        const serviceIndex = servicesData.services.findIndex((s: any) => s.slug === assignment.serviceSlug);
-        if (serviceIndex !== -1) {
-          servicesData.services[serviceIndex].cardMediaId = assignment.mediaId;
-          servicesUpdatedCount++;
-          console.log('[DEPLOY API] APPLIED_SERVICE_ASSIGNMENT', { 
-            serviceSlug: assignment.serviceSlug, 
-            mediaId: assignment.mediaId 
-          });
-        }
-      }
-      
+      // NOTE: Service card assignments are now merged from staging, not from assignment store
+      // This prevents Redis/Git split-brain - only staged assignments are committed
       servicesData.generatedAt = new Date().toISOString();
       
       // Store services.v1.json content for atomic Git commit
@@ -877,21 +884,46 @@ export async function POST(request: Request) {
         console.error('[DEPLOY_API] VERIFY_TREE_REQUEST_FAILED', { status: verifyTreeResponse.status });
       } else {
         const verifyTreeData = await verifyTreeResponse.json();
-        const projectsFileInTree = verifyTreeData.tree.find((item: any) => item.path === projectsFilePath);
-        const servicesFileInTree = verifyTreeData.tree.find((item: any) => item.path === servicesFilePath);
+        
+        // FIX: Check if files exist by fetching them directly, not just checking tree
+        // The tree might be recursive and not show files at top level
+        const projectsFileResponse = await fetchWithRetry(
+          `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/${projectsFilePath}?ref=${newCommitSha}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${githubToken}`,
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          },
+          'verify projects file'
+        );
+        
+        const servicesFileResponse = await fetchWithRetry(
+          `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/${servicesFilePath}?ref=${newCommitSha}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${githubToken}`,
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          },
+          'verify services file'
+        );
+        
+        const projectsFilePresent = projectsFileResponse.ok;
+        const servicesFilePresent = servicesFileResponse.ok;
         
         console.log('[DEPLOY API] VERIFICATION_RESULT', {
-          projectsFilePresent: !!projectsFileInTree,
-          servicesFilePresent: !!servicesFileInTree,
-          projectsFileSha: projectsFileInTree?.sha,
-          servicesFileSha: servicesFileInTree?.sha
+          projectsFilePresent,
+          servicesFilePresent,
+          projectsFileStatus: projectsFileResponse.status,
+          servicesFileStatus: servicesFileResponse.status
         });
         
-        if (!projectsFileInTree || !servicesFileInTree) {
-          verificationError = `Files missing from tree: projects=${!!projectsFileInTree}, services=${!!servicesFileInTree}`;
+        if (!projectsFilePresent || !servicesFilePresent) {
+          verificationError = `Files missing in commit: projects=${projectsFilePresent}, services=${servicesFilePresent}`;
           console.error('[DEPLOY API] VERIFICATION_FILES_MISSING', { 
-            projectsFilePresent: !!projectsFileInTree,
-            servicesFilePresent: !!servicesFileInTree 
+            projectsFilePresent,
+            servicesFilePresent 
           });
         } else {
           verificationPassed = true;
@@ -909,7 +941,7 @@ export async function POST(request: Request) {
 
     // TRANSACTIONAL FIX: Only delete staging keys after durable commit verification
     // This prevents data loss if commit fails
-    if (isProduction && redis && stagingKeys.length > 0) {
+    if (isProduction && redis && stagingKeys.length > 0 && verificationPassed) {
       console.log('[DEPLOY API] CLEARING_STAGING_KEYS_AFTER_COMMIT', { count: stagingKeys.length });
       
       for (const key of stagingKeys) {
@@ -924,6 +956,11 @@ export async function POST(request: Request) {
         transaction = await consumeDeploymentTransaction(deploymentTransactionId);
         console.log('[DEPLOY API] TRANSACTION_CONSUMED', { transactionId: deploymentTransactionId });
       }
+    } else if (isProduction && redis && stagingKeys.length > 0 && !verificationPassed) {
+      console.warn('[DEPLOY API] STAGING_KEYS_PRESERVED_DUE_TO_VERIFICATION_FAILURE', { 
+        stagingKeysCount: stagingKeys.length,
+        verificationError 
+      });
     }
 
     return NextResponse.json({ 
