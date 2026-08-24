@@ -818,8 +818,88 @@ export async function POST(request: Request) {
     const newCommitSha = newCommitData.sha;
     console.log('[DEPLOY API] NEW_COMMIT_CREATED', { sha: newCommitSha });
     
-    // Step 6: Update branch ref to point to new commit
-    console.log('[DEPLOY API] UPDATING_BRANCH_REF');
+    // Step 6: CAS verification - re-read current SHA before updating
+    console.log('[DEPLOY API] CAS_VERIFICATION_CHECK');
+    
+    const casRefResponse = await fetchWithRetry(refUrl, {
+      headers: {
+        'Authorization': `Bearer ${githubToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    }, 'CAS verification - re-read current SHA');
+    
+    if (!casRefResponse.ok) {
+      const errorText = await casRefResponse.text();
+      console.error('[DEPLOY API] CAS_VERIFICATION_FAILED', { status: casRefResponse.status, error: errorText });
+      
+      // MARK TRANSACTION AS FAILED
+      if (transaction) {
+        await failDeploymentTransaction(deploymentTransactionId, `CAS verification failed: ${errorText}`);
+      }
+      
+      return NextResponse.json(
+        { 
+          error: "CAS verification failed",
+          message: "Unable to verify current branch state before update",
+          details: errorText,
+          forensic: {
+            deploymentTransactionId,
+            expectedParent: currentCommitSha,
+            status: casRefResponse.status,
+            error: "CAS_VERIFICATION_FAILED"
+          }
+        },
+        { status: 500 }
+      );
+    }
+    
+    const casRefData = await casRefResponse.json();
+    const casCurrentSha = casRefData.object.sha;
+    
+    console.log('[DEPLOY API] CAS_VERIFICATION_RESULT', { 
+      originalParent: currentCommitSha,
+      currentParent: casCurrentSha,
+      casPassed: currentCommitSha === casCurrentSha
+    });
+    
+    // CAS violation check - if branch moved, fail explicitly
+    if (currentCommitSha !== casCurrentSha) {
+      console.error('[DEPLOY API] CAS_VIOLATION_DETECTED', { 
+        originalParent: currentCommitSha,
+        currentParent: casCurrentSha,
+        deploymentTransactionId
+      });
+      
+      // MARK TRANSACTION AS FAILED
+      if (transaction) {
+        await failDeploymentTransaction(deploymentTransactionId, `CAS violation: branch moved from ${currentCommitSha} to ${casCurrentSha} during deployment`);
+      }
+      
+      return NextResponse.json(
+        { 
+          error: "Concurrent deployment detected",
+          message: "Branch was modified by another deployment. Please retry your deployment.",
+          details: {
+            expectedParent: currentCommitSha,
+            actualParent: casCurrentSha,
+            casViolation: true
+          },
+          forensic: {
+            deploymentTransactionId,
+            expectedParent: currentCommitSha,
+            actualParent: casCurrentSha,
+            status: 409,
+            error: "CAS_VIOLATION",
+            stagingKeysPreserved: isProduction && stagingKeys.length > 0,
+            stagingKeysCount: stagingKeys.length
+          }
+        },
+        { status: 409 }
+      );
+    }
+    
+    // Step 7: Update branch ref to point to new commit (CAS protected)
+    console.log('[DEPLOY API] UPDATING_BRANCH_REF_WITH_CAS');
     
     const updateRefResponse = await fetchWithRetry(refUrl, {
       method: 'PATCH',
@@ -829,13 +909,20 @@ export async function POST(request: Request) {
       },
       body: JSON.stringify({
         sha: newCommitSha,
-        force: false, // No force push - this prevents overwriting concurrent changes
+        force: false, // No force push - this prevents overwriting concurrent changes (CAS)
       }),
     }, 'update branch ref');
     
     if (!updateRefResponse.ok) {
       const errorText = await updateRefResponse.text();
-      console.error('[DEPLOY API] UPDATE_REF_FAILED', { status: updateRefResponse.status });
+      console.error('[DEPLOY API] UPDATE_REF_FAILED', { 
+        status: updateRefResponse.status,
+        errorText,
+        currentCommitSha,
+        newCommitSha,
+        casEnforced: true,
+        force: false
+      });
       
       // MARK TRANSACTION AS FAILED
       if (transaction) {
@@ -855,11 +942,12 @@ export async function POST(request: Request) {
             expectedParent: currentCommitSha,
             status: updateRefResponse.status,
             error: "UPDATE_REF_FAILED",
+            casEnforced: true,
             stagingKeysPreserved: isProduction && stagingKeys.length > 0,
             stagingKeysCount: stagingKeys.length
           }
         },
-        { status: updateRefResponse.status }
+        { status: 409 }
       );
     }
     
