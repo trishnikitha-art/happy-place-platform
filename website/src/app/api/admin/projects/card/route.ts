@@ -58,7 +58,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { projectId, mediaId } = body;
+    const { projectId, mediaId, transactionId } = body;
 
     if (!projectId || !mediaId) {
       return NextResponse.json(
@@ -67,7 +67,7 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log('[CARD UPDATE] REQUEST_RECEIVED', { projectId, mediaId });
+    console.log('[CARD UPDATE] REQUEST_RECEIVED', { projectId, mediaId, transactionId });
 
     // Use KV for production persistence to avoid EROFS errors
     const redis = getRedisClient();
@@ -75,26 +75,29 @@ export async function POST(request: Request) {
     
     if (isProduction && redis) {
       // Production: Store in KV staging area with transaction ID
-      const transactionId = `tx-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${transactionId}:project:${projectId}:hero`;
+      // Use provided transaction ID or generate new one for compatibility
+      const effectiveTransactionId = transactionId || `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:hero`;
       await redis.set(stagingKey, mediaId);
       
-      // Store transaction metadata
-      const transactionKey = `${WORKBENCH_STAGING_PREFIX}${transactionId}:meta`;
-      await redis.set(transactionKey, JSON.stringify({
-        createdAt: new Date().toISOString(),
-        state: 'prepared',
-        mutations: [stagingKey],
-      }));
+      // Create authoritative deployment transaction record (single source of truth)
+      const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
+      await createDeploymentTransaction(
+        effectiveTransactionId,
+        [stagingKey],
+        ['projects.v1.json'],
+        `Project card assignment: ${projectId}`
+      );
       
-      console.log('[CARD UPDATE] STAGED_IN_KV', { projectId, mediaId, stagingKey, transactionId });
+      console.log('[CARD UPDATE] STAGED_IN_KV', { projectId, mediaId, stagingKey, transactionId: effectiveTransactionId });
       
       return NextResponse.json({ 
         success: true, 
         projectId, 
         mediaId,
         staged: true,
-        persistence: 'kv'
+        persistence: 'kv',
+        transactionId: effectiveTransactionId
       });
     }
 

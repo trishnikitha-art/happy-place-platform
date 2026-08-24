@@ -443,30 +443,49 @@ export async function POST(request: Request) {
     // 5. Check for existing record with matching content hash (deduplication in KV)
     console.log('[MEDIA_INGEST] DEDUPLICATION stage started', { requestId });
     const existingMedia = await findMediaByContentHash(contentHash);
+    let needsUpgrade = false;
+    
     if (existingMedia) {
       console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - existing KV record', {
         requestId,
         existingMediaId: existingMedia.id,
       });
       
-      // CRITICAL: Run assignment reconciliation even for deduplicated media
-      // This ensures DriveReference assignments are repaired when re-ingesting the same content
-      const reconciliationResult = await reconcileDriveAssignments(
-        existingMedia.id,
-        driveId, // Use actual Drive file ID for provenance, not Shared Drive ID
-        requestId
-      );
+      // P0-B FIX: Upgrade existing records if they lack responsive variants or only have 480px
+      needsUpgrade = !existingMedia.variants?.responsive || 
+        (existingMedia.variants?.responsive?.length === 1 && 
+         existingMedia.variants.responsive[0].width === 480);
       
-      return NextResponse.json({
-        success: true,
-        action: 'existing',
-        media: existingMedia,
-        requestId,
-        idempotent: true,
-        deduplicationSource: 'kv',
-        assignmentReconciled: reconciliationResult.reconciled,
-        assignmentsUpdated: reconciliationResult.updated,
-      });
+      if (needsUpgrade && sharpAvailable) {
+        console.log('[MEDIA_INGEST] UPGRADING_EXISTING_RECORD', {
+          requestId,
+          existingMediaId: existingMedia.id,
+          hasResponsive: !!existingMedia.variants?.responsive,
+          responsiveCount: existingMedia.variants?.responsive?.length,
+        });
+        
+        // Continue with variant generation to upgrade the existing record
+        // Don't return early - fall through to variant generation logic below
+      } else {
+        // CRITICAL: Run assignment reconciliation even for deduplicated media
+        // This ensures DriveReference assignments are repaired when re-ingesting the same content
+        const reconciliationResult = await reconcileDriveAssignments(
+          existingMedia.id,
+          driveId, // Use actual Drive file ID for provenance, not Shared Drive ID
+          requestId
+        );
+        
+        return NextResponse.json({
+          success: true,
+          action: 'existing',
+          media: existingMedia,
+          requestId,
+          idempotent: true,
+          deduplicationSource: 'kv',
+          assignmentReconciled: reconciliationResult.reconciled,
+          assignmentsUpdated: reconciliationResult.updated,
+        });
+      }
     }
     
     console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - new record', { requestId });
@@ -617,8 +636,30 @@ export async function POST(request: Request) {
     // - source is 'local' (not 'google-drive')
     // - drive field is removed (no Drive dependency)
     // - provenance tracks the Drive origin for lineage
-    const webpVariant = variants.find((v) => v.format === 'webp');
-    const avifVariant = variants.find((v) => v.format === 'avif');
+    
+    // P0-A FIX: Preserve ALL generated renditions in responsive array
+    // Sort variants by width to get largest for top-level webp/avif
+    const sortedVariants = [...variants].sort((a, b) => (b.width || 0) - (a.width || 0));
+    const webpVariant = sortedVariants.find((v) => v.format === 'webp');
+    const avifVariant = sortedVariants.find((v) => v.format === 'avif');
+    
+    // Build responsive array grouped by width
+    const responsiveVariants: Array<{ width: number; webp: string; avif: string }> = [];
+    const uniqueWidths = [...new Set(variants.map(v => v.width))].sort((a, b) => a - b);
+    
+    for (const width of uniqueWidths) {
+      const webpAtWidth = variants.find(v => v.format === 'webp' && v.width === width);
+      const avifAtWidth = variants.find(v => v.format === 'avif' && v.width === width);
+      
+      if (webpAtWidth || avifAtWidth) {
+        responsiveVariants.push({
+          width,
+          webp: webpAtWidth?.src || '',
+          avif: avifAtWidth?.src || '',
+        });
+      }
+    }
+    
     const orientation = determineOrientation(metadata.width || 1920, metadata.height || 1080);
     
     const mediaRecord: Media = {
@@ -641,6 +682,7 @@ export async function POST(request: Request) {
         avif: avifVariant?.src || '',
         thumbnail: thumbUpload?.url || originalUpload?.url || '',
         blur: blurDataURL,
+        responsive: responsiveVariants,
       },
       alt: driveFile.name,
       description: driveFile.description,
@@ -671,10 +713,59 @@ export async function POST(request: Request) {
     console.log('[MEDIA_INGEST] MEDIA_PERSIST stage started', {
       requestId,
       mediaId,
+      upgradeMode: !!existingMedia && needsUpgrade,
     });
 
     // 9. Store Media record in KV (canonical authority)
-    await storeMedia(mediaRecord);
+    // P0-B FIX: If upgrading existing record, update it with new responsive variants
+    if (existingMedia && needsUpgrade) {
+      console.log('[MEDIA_INGEST] UPGRADING_EXISTING_MEDIA_RECORD', {
+        requestId,
+        existingMediaId: existingMedia.id,
+        newResponsiveCount: responsiveVariants.length,
+      });
+      
+      // Update existing record with new responsive variants
+      const upgradedMedia: Media = {
+        ...existingMedia,
+        variants: {
+          ...existingMedia.variants,
+          responsive: responsiveVariants,
+          // Update top-level webp/avif to largest renditions
+          webp: webpVariant?.src || existingMedia.variants.webp,
+          avif: avifVariant?.src || existingMedia.variants.avif,
+        },
+        updatedAt: new Date().toISOString(),
+      };
+      
+      await storeMedia(upgradedMedia);
+      
+      console.log('[MEDIA_INGEST] MEDIA_UPGRADE succeeded', {
+        requestId,
+        mediaId: upgradedMedia.id,
+      });
+      
+      // CRITICAL: Run assignment reconciliation after upgrade
+      const reconciliationResult = await reconcileDriveAssignments(
+        upgradedMedia.id,
+        driveId,
+        requestId
+      );
+      
+      return NextResponse.json({
+        success: true,
+        action: 'upgraded',
+        media: upgradedMedia,
+        requestId,
+        idempotent: true,
+        upgradeSource: 'responsive_variants',
+        assignmentReconciled: reconciliationResult.reconciled,
+        assignmentsUpdated: reconciliationResult.updated,
+      });
+    } else {
+      // New media record
+      await storeMedia(mediaRecord);
+    }
     
     console.log('[MEDIA_INGEST] MEDIA_PERSIST stage succeeded', {
       requestId,

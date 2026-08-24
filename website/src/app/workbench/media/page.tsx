@@ -988,32 +988,31 @@ Check browser console for detailed logs.`);
       })),
     });
 
-    // Track success/failure and transaction IDs
+    // Track success/failure
     let successCount = 0;
     let failureCount = 0;
-    const transactionIds: string[] = [];
 
-    // Process all pending assignments
+    // Generate single transaction ID for entire confirmation batch
+    const deploymentTransactionId = `WBDEP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    console.log('[DND] DEPLOYMENT_TRANSACTION_GENERATED', { deploymentTransactionId });
+
+    // Process all pending assignments with shared transaction ID
     for (const { slot, asset } of state.pendingAssignments.values()) {
       try {
         console.log('[DND] SLOT_ASSIGNMENT_PERSIST', {
           slotId: slot.id,
           assetId: asset.id,
           slotName: slot.slotName,
+          transactionId: deploymentTransactionId,
         });
         
-        const result = await assignAssetToSlot(asset, slot);
+        const result = await assignAssetToSlot(asset, slot, deploymentTransactionId);
         successCount++;
-        
-        // Collect transaction ID if staging was used
-        if (result && result.transactionId) {
-          transactionIds.push(result.transactionId);
-        }
         
         console.log('[DND] SLOT_ASSIGNMENT_SUCCESS', {
           slotId: slot.id,
           assetId: asset.id,
-          transactionId: result?.transactionId,
+          transactionId: deploymentTransactionId,
         });
       } catch (error) {
         failureCount++;
@@ -1058,7 +1057,7 @@ Check browser console for detailed logs.`);
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
           reason: `Workbench media changes accepted (${successCount} assignments)`,
-          transactionIds: transactionIds.length > 0 ? transactionIds : undefined
+          transactionIds: [deploymentTransactionId]
         }),
       });
 
@@ -1356,11 +1355,11 @@ Check browser console for detailed logs.`);
     });
   };
 
-  const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot, requestId?: string) => {
+  const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot, transactionId?: string) => {
     const slotId = slot.id;
 
     console.log('[WB_FORENSIC] ASSIGNMENT_API_REQUEST', {
-      requestId,
+      requestId: transactionId,
       slotId,
       assetId: asset.id,
       mediaId: asset.id,
@@ -1369,7 +1368,7 @@ Check browser console for detailed logs.`);
     });
 
     console.log('[DND] API_REQUEST', {
-      requestId,
+      requestId: transactionId,
       slotId,
       assetId: asset.id,
       mediaId: asset.id,
@@ -1383,7 +1382,7 @@ Check browser console for detailed logs.`);
 
       if (slotId === 'homepage-hero-slot' || slotId === 'hero-background') {
         endpoint = '/api/admin/brand/hero';
-        requestBody = { mediaId: asset.id };
+        requestBody = { mediaId: asset.id, transactionId };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1391,7 +1390,7 @@ Check browser console for detailed logs.`);
         });
       } else if (slotId === 'homepage-owner-portrait-slot' || slotId === 'about-owner-portrait-slot') {
         endpoint = '/api/admin/brand/portrait';
-        requestBody = { mediaId: asset.id };
+        requestBody = { mediaId: asset.id, transactionId };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1411,7 +1410,7 @@ Check browser console for detailed logs.`);
         // Extract service slug from slot ID (e.g., homepage-service-card-slot-painting -> painting)
         const serviceSlug = slotId.replace('homepage-service-card-slot-', '');
         endpoint = '/api/admin/services/card';
-        requestBody = { serviceSlug, mediaId: asset.id };
+        requestBody = { serviceSlug, mediaId: asset.id, transactionId };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1421,7 +1420,7 @@ Check browser console for detailed logs.`);
         // Extract project ID from slot ID (e.g., our-work-project-card-exterior-painting-001 -> exterior-painting-001)
         const projectId = slotId.replace('our-work-project-card-', '');
         endpoint = '/api/admin/projects/card';
-        requestBody = { projectId, mediaId: asset.id };
+        requestBody = { projectId, mediaId: asset.id, transactionId };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1431,7 +1430,7 @@ Check browser console for detailed logs.`);
         // Extract project ID from service project card slot
         const projectId = slotId.split('-project-card-')[1];
         endpoint = '/api/admin/projects/card';
-        requestBody = { projectId, mediaId: asset.id };
+        requestBody = { projectId, mediaId: asset.id, transactionId };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1524,7 +1523,7 @@ Check browser console for detailed logs.`);
       }
 
       console.log('[DND] API_RESPONSE', {
-        requestId,
+        requestId: transactionId,
         endpoint,
         status: response.status,
         ok: response.ok,
@@ -1534,7 +1533,7 @@ Check browser console for detailed logs.`);
       if (!response.ok) {
         const errorText = await response.text();
         console.log('[DND] SLOT_ASSIGNMENT_FAILURE', {
-          requestId,
+          requestId: transactionId,
           slotId,
           assetId: asset.id,
           status: response.status,
@@ -1562,7 +1561,7 @@ Check browser console for detailed logs.`);
       }
 
       console.log('[WB_FORENSIC] ASSIGNMENT_API_SUCCESS', {
-        requestId,
+        requestId: transactionId,
         slotId,
         assetId: asset.id,
         endpoint,
@@ -1572,7 +1571,7 @@ Check browser console for detailed logs.`);
 
       const responseBody = await response.json();
       console.log('[DND] API_RESPONSE_BODY', {
-        requestId,
+        requestId: transactionId,
         slotId,
         assetId: asset.id,
         responseBody,

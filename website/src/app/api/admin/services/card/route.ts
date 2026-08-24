@@ -61,11 +61,12 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { serviceSlug, mediaId } = body;
+    const { serviceSlug, mediaId, transactionId } = body;
 
     console.log('[DND SERVER 2] IDENTIFIER_VALIDATION', {
       serviceSlug,
       mediaId,
+      transactionId,
     });
 
     if (!serviceSlug) {
@@ -157,21 +158,22 @@ export async function POST(request: Request) {
     const isProduction = process.env.NODE_ENV === 'production';
     
     if (isProduction && redis) {
-      const transactionId = generateTransactionId();
-      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${transactionId}:service:${serviceSlug}`;
+      // Use provided transaction ID or generate new one for compatibility
+      const effectiveTransactionId = transactionId || generateTransactionId();
+      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${serviceSlug}`;
       
       await redis.set(stagingKey, mediaId);
       
       // Create authoritative deployment transaction record (single source of truth)
       const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
       await createDeploymentTransaction(
-        transactionId,
+        effectiveTransactionId,
         [stagingKey],
         ['services.v1.json'],
         `Service card assignment: ${serviceSlug}`
       );
       
-      console.log('[SERVICES CARD] STAGED_IN_KV', { serviceSlug, mediaId, stagingKey, transactionId });
+      console.log('[SERVICES CARD] STAGED_IN_KV', { serviceSlug, mediaId, stagingKey, transactionId: effectiveTransactionId });
       
       return NextResponse.json({ 
         success: true, 
@@ -179,7 +181,7 @@ export async function POST(request: Request) {
         mediaId,
         staged: true,
         persistence: 'kv',
-        transactionId
+        transactionId: effectiveTransactionId
       });
     }
 

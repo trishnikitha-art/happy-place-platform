@@ -60,11 +60,12 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { mediaId } = body;
+    const { mediaId, transactionId } = body;
 
     console.log('[BRAND PORTRAIT] IDENTIFIER_VALIDATION', {
       requestId,
       mediaId,
+      transactionId,
     });
 
     if (!mediaId) {
@@ -133,28 +134,29 @@ export async function POST(request: Request) {
     const isProduction = process.env.NODE_ENV === 'production';
     
     if (isProduction && redis) {
-      const transactionId = generateTransactionId();
-      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${transactionId}:service:brand-portrait`;
+      // Use provided transaction ID or generate new one for compatibility
+      const effectiveTransactionId = transactionId || generateTransactionId();
+      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:brand-portrait`;
       
       await redis.set(stagingKey, mediaId);
       
       // Create authoritative deployment transaction record (single source of truth)
       const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
       await createDeploymentTransaction(
-        transactionId,
+        effectiveTransactionId,
         [stagingKey],
         ['brand.v1.json'],
         `Brand portrait assignment`
       );
       
-      console.log('[BRAND PORTRAIT] STAGED_IN_KV', { mediaId, stagingKey, transactionId });
+      console.log('[BRAND PORTRAIT] STAGED_IN_KV', { mediaId, stagingKey, transactionId: effectiveTransactionId });
       
       return NextResponse.json({ 
         success: true, 
         mediaId,
         staged: true,
         persistence: 'kv',
-        transactionId
+        transactionId: effectiveTransactionId
       });
     }
 
