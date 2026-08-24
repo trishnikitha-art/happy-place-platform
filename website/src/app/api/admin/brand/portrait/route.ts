@@ -11,9 +11,23 @@
 
 import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
-import { storeServiceCardAssignment, getServiceCardAssignment } from "@/lib/assignment-store";
+import { getServiceCardAssignment } from "@/lib/assignment-store";
 import { getMediaByIdAsync } from "@/lib/media";
 import { isDriveReference, isPublishedMediaAsset } from "@/types/media";
+import { Redis } from '@upstash/redis';
+
+const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
+
+function getRedisClient(): Redis | null {
+  try {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    if (!url || !token) return null;
+    return new Redis({ url, token });
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   const requestId = `portrait-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -103,7 +117,38 @@ export async function POST(request: Request) {
       lifecycleState: media.lifecycleState,
     });
 
-    // CAS ENFORCEMENT: Read current assignment to obtain expected revision
+    // STAGE assignment in Redis for deployment (not direct to assignment store)
+    // This prevents Redis/Git split-brain - promotion happens only after Git succeeds
+    const redis = getRedisClient();
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    if (isProduction && redis) {
+      const transactionId = `tx-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${transactionId}:service:brand-portrait`;
+      
+      await redis.set(stagingKey, mediaId);
+      
+      // Store transaction metadata
+      const transactionKey = `${WORKBENCH_STAGING_PREFIX}${transactionId}:meta`;
+      await redis.set(transactionKey, JSON.stringify({
+        createdAt: new Date().toISOString(),
+        state: 'prepared',
+        mutations: [stagingKey],
+        type: 'service-card',
+      }));
+      
+      console.log('[BRAND PORTRAIT] STAGED_IN_KV', { mediaId, stagingKey, transactionId });
+      
+      return NextResponse.json({ 
+        success: true, 
+        mediaId,
+        staged: true,
+        persistence: 'kv',
+        transactionId
+      });
+    }
+
+    // Development: Use assignment store directly
     const currentAssignment = await getServiceCardAssignment('brand-portrait', requestId);
     const expectedRevision = currentAssignment?.revision;
     
@@ -113,7 +158,7 @@ export async function POST(request: Request) {
       currentMediaId: currentAssignment?.mediaId,
     });
 
-    // Store assignment in persistent store using brand-portrait as serviceSlug
+    const { storeServiceCardAssignment } = await import('@/lib/assignment-store');
     const assignment = {
       serviceSlug: 'brand-portrait',
       mediaId,
