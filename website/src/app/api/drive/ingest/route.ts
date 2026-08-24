@@ -70,7 +70,7 @@ async function reconcileDriveAssignments(
           updatedAt: new Date().toISOString(),
         };
         
-        await storeServiceCardAssignment(updatedAssignment, requestId);
+        await storeServiceCardAssignment(updatedAssignment, undefined, requestId);
         updates.push(assignment.serviceSlug);
         
         console.log('[ASSIGNMENT_RECONCILIATION] UPDATED', {
@@ -442,35 +442,33 @@ export async function POST(request: Request) {
     
     // 5. Check for existing record with matching content hash (deduplication in KV)
     console.log('[MEDIA_INGEST] DEDUPLICATION stage started', { requestId });
-    const existingMediaId = await findMediaByContentHash(contentHash);
-    if (existingMediaId) {
-      const existingMedia = await getMedia(existingMediaId);
-      if (existingMedia) {
-        console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - existing KV record', {
-          requestId,
-          existingMediaId: existingMedia.id,
-        });
-        
-        // CRITICAL: Run assignment reconciliation even for deduplicated media
-        // This ensures DriveReference assignments are repaired when re-ingesting the same content
-        const reconciliationResult = await reconcileDriveAssignments(
-          existingMedia.id,
-          driveId, // Use actual Drive file ID for provenance, not Shared Drive ID
-          requestId
-        );
-        
-        return NextResponse.json({
-          success: true,
-          action: 'existing',
-          media: existingMedia,
-          requestId,
-          idempotent: true,
-          deduplicationSource: 'kv',
-          assignmentReconciled: reconciliationResult.reconciled,
-          assignmentsUpdated: reconciliationResult.updated,
-        });
-      }
+    const existingMedia = await findMediaByContentHash(contentHash);
+    if (existingMedia) {
+      console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - existing KV record', {
+        requestId,
+        existingMediaId: existingMedia.id,
+      });
+      
+      // CRITICAL: Run assignment reconciliation even for deduplicated media
+      // This ensures DriveReference assignments are repaired when re-ingesting the same content
+      const reconciliationResult = await reconcileDriveAssignments(
+        existingMedia.id,
+        driveId, // Use actual Drive file ID for provenance, not Shared Drive ID
+        requestId
+      );
+      
+      return NextResponse.json({
+        success: true,
+        action: 'existing',
+        media: existingMedia,
+        requestId,
+        idempotent: true,
+        deduplicationSource: 'kv',
+        assignmentReconciled: reconciliationResult.reconciled,
+        assignmentsUpdated: reconciliationResult.updated,
+      });
     }
+    
     console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - new record', { requestId });
     
     // 6. Generate stable identifiers

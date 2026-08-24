@@ -135,7 +135,7 @@ export async function POST(request: Request) {
       source: 'workbench' as const,
     };
 
-    await storeServiceCardAssignment(assignment);
+    await storeServiceCardAssignment(assignment, undefined);
 
     console.log('[DND SERVER 4] ASSIGNMENT_STORED', {
       serviceSlug,

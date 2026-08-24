@@ -13,6 +13,9 @@
  * Constitutional Architecture:
  * - Production: Pulls from KV staging area, merges into projects.v1.json, commits to GitHub
  * - Development: Reads local projects.v1.json and commits to GitHub
+ * 
+ * TRANSACTIONAL FIX: Staging keys are only deleted after GitHub commit succeeds
+ * This prevents data loss if GitHub commit fails.
  */
 
 import { NextResponse } from "next/server";
@@ -24,6 +27,62 @@ import { Redis } from '@upstash/redis';
 export const runtime = 'nodejs';
 
 const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
+
+// GitHub API retry configuration
+const GITHUB_MAX_RETRIES = 3;
+const GITHUB_RETRY_DELAY_MS = 1000; // 1 second base delay
+const GITHUB_RETRY_BACKOFF_MULTIPLIER = 2; // Exponential backoff
+
+/**
+ * GitHub API fetch with retry logic and exponential backoff
+ * Handles network timeouts and transient GitHub API failures
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  operation: string
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= GITHUB_MAX_RETRIES; attempt++) {
+    try {
+      console.log(`[GITHUB_RETRY] ${operation} attempt ${attempt}/${GITHUB_MAX_RETRIES}`, { url });
+      
+      const response = await fetch(url, options);
+      
+      // If successful, return the response
+      if (response.ok) {
+        console.log(`[GITHUB_RETRY] ${operation} succeeded on attempt ${attempt}`);
+        return response;
+      }
+      
+      // If not a retryable error, return immediately
+      if (response.status >= 400 && response.status < 500) {
+        console.log(`[GITHUB_RETRY] ${operation} failed with non-retryable status ${response.status}`);
+        return response;
+      }
+      
+      // For 5xx errors, retry with backoff
+      lastError = new Error(`GitHub API returned ${response.status}: ${response.statusText}`);
+      console.warn(`[GITHUB_RETRY] ${operation} failed with ${response.status}, will retry`);
+      
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      console.warn(`[GITHUB_RETRY] ${operation} failed with network error: ${lastError.message}, will retry`);
+    }
+    
+    // Don't wait after the last attempt
+    if (attempt < GITHUB_MAX_RETRIES) {
+      const delay = GITHUB_RETRY_DELAY_MS * Math.pow(GITHUB_RETRY_BACKOFF_MULTIPLIER, attempt - 1);
+      console.log(`[GITHUB_RETRY] Waiting ${delay}ms before retry...`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+    }
+  }
+  
+  // All retries exhausted
+  console.error(`[GITHUB_RETRY] ${operation} failed after ${GITHUB_MAX_RETRIES} attempts`);
+  throw lastError || new Error(`${operation} failed after ${GITHUB_MAX_RETRIES} retries`);
+}
 
 function getRedisClient(): Redis | null {
   try {
@@ -37,6 +96,10 @@ function getRedisClient(): Redis | null {
 }
 
 export async function POST(request: Request) {
+  // TRANSACTIONAL VARIABLES: Declare before try block for error handling access
+  let stagingKeys: string[] = [];
+  let isProduction = process.env.NODE_ENV === 'production';
+  
   // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
   if (process.env.NODE_ENV === 'development') {
     // Proceed without authentication
@@ -86,12 +149,12 @@ export async function POST(request: Request) {
     const repoUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}`;
     console.log('[DEPLOY API] VERIFYING_REPOSITORY', { repoUrl });
     
-    const repoResponse = await fetch(repoUrl, {
+    const repoResponse = await fetchWithRetry(repoUrl, {
       headers: {
         'Authorization': `Bearer ${githubToken}`,
         'Accept': 'application/vnd.github.v3+json',
       },
-    });
+    }, 'repository verification');
 
     if (!repoResponse.ok) {
       const errorText = await repoResponse.text();
@@ -142,7 +205,6 @@ export async function POST(request: Request) {
 
     // In production, merge KV staging changes into projects.v1.json
     let fileContent: string;
-    const isProduction = process.env.NODE_ENV === 'production';
     const redis = getRedisClient();
     
     if (isProduction && redis) {
@@ -153,7 +215,6 @@ export async function POST(request: Request) {
       const projectsData = JSON.parse(readFileSync(authorityFile, "utf-8"));
       
       // Scan for all staging keys
-      const stagingKeys: string[] = [];
       let cursor = '0';
       do {
         const result = await redis.scan(cursor, { match: `${WORKBENCH_STAGING_PREFIX}*`, count: 100 });
@@ -196,8 +257,8 @@ export async function POST(request: Request) {
         
         console.log('[DEPLOY API] APPLIED_STAGING_CHANGE', { projectId, field, key });
         
-        // Clear staging key after applying
-        await redis.del(key);
+        // TRANSACTIONAL FIX: Staging deletion deferred until after GitHub commit succeeds
+        // This prevents data loss if GitHub commit fails
       }
       
       projectsData.generatedAt = new Date().toISOString();
@@ -221,12 +282,12 @@ export async function POST(request: Request) {
     
     console.log('[DEPLOY API] GETTING_CURRENT_FILE_SHA', { filePath });
     
-    const getFileResponse = await fetch(getFileUrl, {
+    const getFileResponse = await fetchWithRetry(getFileUrl, {
       headers: {
         'Authorization': `Bearer ${githubToken}`,
         'Accept': 'application/vnd.github.v3+json',
       },
-    });
+    }, 'get current file SHA');
 
     let currentFileSha = null;
     if (getFileResponse.ok) {
@@ -285,14 +346,14 @@ export async function POST(request: Request) {
       contentBytes: fileContentBase64.length 
     });
 
-    const commitResponse = await fetch(getFileUrl, {
+    const commitResponse = await fetchWithRetry(getFileUrl, {
       method: 'PUT',
       headers: {
         'Authorization': `Bearer ${githubToken}`,
         'Content-Type': 'application/vnd.github.v3+json',
       },
       body: JSON.stringify(commitBody),
-    });
+    }, 'GitHub commit');
 
     if (!commitResponse.ok) {
       const errorText = await commitResponse.text();
@@ -308,10 +369,11 @@ export async function POST(request: Request) {
       });
       
       // Classify the commit failure
+      // TRANSACTIONAL FIX: Staging keys are preserved for retry
       return NextResponse.json(
         { 
           error: "Failed to commit to GitHub",
-          message: "GitHub commit failed - Workbench changes were NOT persisted to repository",
+          message: "GitHub commit failed - Workbench changes were NOT persisted to repository. Staging keys are preserved for retry.",
           details: errorText,
           forensic: {
             deploymentTransactionId,
@@ -321,7 +383,9 @@ export async function POST(request: Request) {
             branch: 'main',
             hasSha: !!currentFileSha,
             status: commitResponse.status,
-            error: "GITHUB_COMMIT_FAILED"
+            error: "GITHUB_COMMIT_FAILED",
+            stagingKeysPreserved: isProduction && stagingKeys.length > 0,
+            stagingKeysCount: stagingKeys.length
           }
         },
         { status: commitResponse.status }
@@ -337,6 +401,19 @@ export async function POST(request: Request) {
       commitUrl: commitData.commit.html_url
     });
 
+    // TRANSACTIONAL FIX: Only delete staging keys after GitHub commit succeeds
+    // This prevents data loss if GitHub commit fails
+    if (isProduction && redis && stagingKeys.length > 0) {
+      console.log('[DEPLOY API] CLEARING_STAGING_KEYS_AFTER_COMMIT', { count: stagingKeys.length });
+      
+      for (const key of stagingKeys) {
+        await redis.del(key);
+        console.log('[DEPLOY_API] STAGING_KEY_CLEARED', { key });
+      }
+      
+      console.log('[DEPLOY API] STAGING_KEYS_CLEARED_COMPLETE');
+    }
+
     return NextResponse.json({ 
       success: true,
       deploymentTransactionId,
@@ -350,10 +427,13 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('[DEPLOY API] ERROR', error);
+    // TRANSACTIONAL FIX: Staging keys are preserved on error for retry
     return NextResponse.json(
       { 
         error: "Failed to commit to GitHub",
-        message: error instanceof Error ? error.message : String(error)
+        message: error instanceof Error ? error.message : String(error),
+        stagingKeysPreserved: isProduction && stagingKeys.length > 0,
+        stagingKeysCount: stagingKeys.length
       },
       { status: 500 }
     );

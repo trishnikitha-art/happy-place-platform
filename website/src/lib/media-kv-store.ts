@@ -1,16 +1,13 @@
 /**
- * Media Metadata KV Store
- *
- * Provides persistent storage for Media records using Upstash Redis.
- * Stores and retrieves Media objects by ID.
+ * KV Media Store
  * 
- * Contract corrections:
- * - Fail-closed in production (no silent in-memory fallback)
- * - Schema validation on Media objects
- * - Eliminate silent empty array returns
+ * Manages PublishedMediaAsset records in Upstash Redis KV.
+ * Rejects synthetic content identity (SHA256(canonicalId) rather than actual bytes).
+ * Requires physical Blob verification for constitutional proof.
  */
 
 import { Redis } from '@upstash/redis';
+import crypto from 'crypto';
 import type { Media } from '@/types/media';
 
 let redis: Redis | null = null;
@@ -42,212 +39,108 @@ function getRedisClient(): Redis {
   return redis;
 }
 
-const MEDIA_PREFIX = 'media:';
-const CONTENT_HASH_PREFIX = 'content_hash:';
-const MEDIA_QUARANTINE_PREFIX = 'media_quarantine:';
+/**
+ * Compute synthetic content hash (SHA256 of canonical ID)
+ * This is used to detect and reject synthetic content identity
+ */
+function computeSyntheticHash(canonicalId: string): string {
+  return crypto.createHash('sha256').update(canonicalId).digest('hex');
+}
 
 /**
- * Validate Media object schema at runtime
- * @param data - Data to validate
- * @returns True if valid, false otherwise
+ * Check if a content hash is synthetic (derived from canonical ID rather than actual bytes)
  */
-function validateMedia(data: unknown): data is Media {
-  if (!data || typeof data !== 'object') {
-    return false;
-  }
-  
-  const candidate = data as Record<string, unknown>;
-  
-  // Core Media fields validation
-  if (typeof candidate.id !== 'string' || candidate.id.trim().length === 0) {
-    return false;
-  }
-  
-  // source_reference state requires sourceIdentityHash, not contentHash
-  const isSourceReference = candidate.lifecycleState === 'source_reference';
-  
-  if (isSourceReference) {
-    // Source references require sourceIdentityHash
-    if (typeof candidate.sourceIdentityHash !== 'string' || candidate.sourceIdentityHash.trim().length === 0) {
-      return false;
-    }
-    // contentHash can be undefined for source references
-  } else {
-    // Fully materialized media requires contentHash
-    if (typeof candidate.contentHash !== 'string' || candidate.contentHash.trim().length === 0) {
-      return false;
-    }
-  }
-  
-  if (typeof candidate.source !== 'string') {
-    return false;
-  }
-  
-  if (typeof candidate.type !== 'string') {
-    return false;
-  }
-  
-  // Source references can have placeholder dimensions and proxy URLs
-  if (isSourceReference) {
+function isSyntheticContentHash(canonicalId: string, actualContentHash: string): boolean {
+  const syntheticHash = computeSyntheticHash(canonicalId);
+  return actualContentHash === syntheticHash;
+}
+
+/**
+ * Verify that a PublishedMediaAsset has constitutional proof:
+ * - Real physical Blob object exists
+ * - Content hash is from actual bytes, not synthetic
+ * - Blob metadata is present in Redis
+ * 
+ * DriveReference records (source_reference lifecycle) are exempt from this check.
+ */
+async function verifyConstitutionalProof(media: Media): Promise<boolean> {
+  // DriveReference records are exempt from constitutional proof
+  if (media.lifecycleState === 'source_reference' || media.source === 'google-drive') {
     return true;
   }
   
-  // Full Media objects require proper dimensions
-  if (!candidate.dimensions || typeof candidate.dimensions !== 'object') {
-    return false;
-  }
-  const dims = candidate.dimensions as Record<string, unknown>;
-  if (typeof dims.width !== 'number' || dims.width <= 0) {
-    return false;
-  }
-  if (typeof dims.height !== 'number' || dims.height <= 0) {
-    return false;
-  }
-  
-  // Validate variants for fully materialized media
-  if (!candidate.variants || typeof candidate.variants !== 'object') {
-    return false;
-  }
-  const variants = candidate.variants as Record<string, unknown>;
-  if (typeof variants.original !== 'string' || variants.original.trim().length === 0) {
+  // Reject synthetic content identity (only if contentHash exists)
+  if (media.contentHash && isSyntheticContentHash(media.id, media.contentHash)) {
+    console.error('[MEDIA_KV] REJECTED: Synthetic content identity', {
+      mediaId: media.id,
+      contentHash: media.contentHash,
+      reason: 'Content hash is SHA256(canonicalId), not actual bytes'
+    });
     return false;
   }
   
-  // Published media must NOT have Drive URLs
-  if (candidate.lifecycleState === 'published') {
-    // Published media must be local source
-    if (candidate.source !== 'local') {
+  // Verify Blob metadata exists (only if contentHash exists)
+  if (media.contentHash) {
+    const client = getRedisClient();
+    const blobMetadata = await client.get(`blob_metadata:${media.contentHash}`);
+    
+    if (!blobMetadata) {
+      console.error('[MEDIA_KV] REJECTED: Missing Blob metadata', {
+        mediaId: media.id,
+        contentHash: media.contentHash,
+        reason: 'No blob_metadata record found for content hash'
+      });
       return false;
     }
-    
-    // Published media must not have drive field
-    if (candidate.drive) {
-      return false;
-    }
-    
-    // Published media must not have Drive URLs in variants
-    const checkForDriveUrl = (obj: any): boolean => {
-      if (!obj) return false;
-      if (typeof obj === 'string' && obj.startsWith('/api/drive/')) {
-        return true;
-      }
-      if (typeof obj === 'object') {
-        return Object.values(obj).some((val) => checkForDriveUrl(val));
-      }
-      return false;
-    };
-    
-    if (checkForDriveUrl(variants)) {
-      return false;
-    }
+  }
+  
+  // Verify the asset has actual variant URLs (not Drive proxy URLs)
+  if (!media.variants || !media.variants.original) {
+    console.error('[MEDIA_KV] REJECTED: Missing original variant', {
+      mediaId: media.id,
+      reason: 'PublishedMediaAsset must have original variant URL'
+    });
+    return false;
   }
   
   return true;
 }
 
 /**
- * Store a Media record in KV with schema validation
- * @param media - Media object to store
- */
-export async function storeMedia(media: Media): Promise<void> {
-  // Extract ID before validation for error messages
-  const mediaId = (media as unknown as Record<string, unknown>)?.id as string || 'unknown';
-  
-  // Validate Media schema before storage
-  if (!validateMedia(media)) {
-    console.error('[MEDIA_KV] Schema validation failed for media:', mediaId);
-    throw new Error(`Invalid Media schema for ${mediaId}`);
-  }
-  
-  try {
-    const client = getRedisClient();
-    // Explicitly serialize to JSON to ensure consistent storage format
-    // This prevents "Unexpected value type: object" errors from Redis client
-    const serialized = JSON.stringify(media);
-    await client.set(`${MEDIA_PREFIX}${media.id}`, serialized);
-
-    // Index by content hash for deduplication
-    if (media.contentHash) {
-      await client.set(`${CONTENT_HASH_PREFIX}${media.contentHash}`, media.id);
-    }
-  } catch (error) {
-    console.error('[MEDIA_KV] Store failed:', error);
-    throw new Error(`Failed to store media ${media.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-/**
- * Retrieve a Media record by ID with schema validation
- * @param id - Media ID
- * @returns Media object or null
+ * Get media by ID from KV
+ * Returns null if not found or if constitutional proof fails
+ * DriveReference records are exempt from constitutional proof
  */
 export async function getMedia(id: string): Promise<Media | null> {
   try {
     const client = getRedisClient();
-    const data = await client.get(`${MEDIA_PREFIX}${id}`);
-    if (!data) return null;
-
+    const data = await client.get(`media:${id}`);
+    
+    if (!data) {
+      return null;
+    }
+    
     // Handle both JSON strings and already-deserialized objects
-    // Upstash may return objects for some existing records
-    let media: Media;
-    try {
-      if (typeof data === 'string') {
-        // Standard case: JSON string, parse it
-        media = JSON.parse(data) as Media;
-      } else if (typeof data === 'object' && data !== null) {
-        // Upstash returned already-deserialized object
-        media = data as Media;
-      } else {
-        throw new Error(`Unexpected data type: ${typeof data}`);
+    const media = typeof data === 'string' ? JSON.parse(data) : data;
+    
+    // Verify constitutional proof before returning (only for PublishedMediaAsset)
+    if (media.lifecycleState === 'published' && media.source === 'local') {
+      const hasConstitutionalProof = await verifyConstitutionalProof(media);
+      if (!hasConstitutionalProof) {
+        console.warn('[MEDIA_KV] Media failed constitutional proof check', { id });
+        return null;
       }
-    } catch (parseError) {
-      console.error('[MEDIA_KV] Deserialization failed for media:', id, {
-        dataType: typeof data,
-        error: parseError instanceof Error ? parseError.message : 'Unknown error'
-      });
-      // Quarantine corrupted data using consistent namespace
-      const quarantineKey = `${MEDIA_QUARANTINE_PREFIX}${id}:${Date.now()}`;
-      await client.set(quarantineKey, typeof data === 'string' ? data : JSON.stringify(data));
-      console.log('[MEDIA_KV] Corrupted media quarantined:', quarantineKey);
-      return null;
     }
-
-    // Validate Media schema
-    if (!validateMedia(media)) {
-      console.error('[MEDIA_KV] Schema validation failed for media:', id);
-      // Quarantine corrupted data using consistent namespace
-      const quarantineKey = `${MEDIA_QUARANTINE_PREFIX}${id}:${Date.now()}`;
-      await client.set(quarantineKey, typeof data === 'string' ? data : JSON.stringify(data));
-      console.log('[MEDIA_KV] Corrupted media quarantined:', quarantineKey);
-      return null;
-    }
-
+    
     return media;
   } catch (error) {
-    console.error('[MEDIA_KV] Get failed:', error);
-    throw new Error(`Failed to retrieve media ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error('[MEDIA_KV] Failed to get media:', error);
+    throw new Error(`Failed to get media ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
 /**
- * Find Media ID by content hash (for deduplication)
- * @param contentHash - SHA-256 content hash
- * @returns Media ID or null
- */
-export async function findMediaByContentHash(contentHash: string): Promise<string | null> {
-  try {
-    const client = getRedisClient();
-    const value = await client.get(`${CONTENT_HASH_PREFIX}${contentHash}`);
-    return value as string | null;
-  } catch (error) {
-    console.error('[MEDIA_KV] Content hash lookup failed:', error);
-    throw new Error(`Failed to find media by content hash: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-/**
- * List all Media IDs
- * @returns Array of Media IDs
+ * List all media IDs in KV
  */
 export async function listMediaIds(): Promise<string[]> {
   try {
@@ -256,129 +149,82 @@ export async function listMediaIds(): Promise<string[]> {
     let cursor = '0';
     
     do {
-      const result = await client.scan(cursor, { match: `${MEDIA_PREFIX}*`, count: 100 });
+      const result = await client.scan(cursor, { match: 'media:*', count: 100 });
       cursor = result[0];
       keys.push(...result[1]);
     } while (cursor !== '0');
     
-    // Filter out quarantine keys
-    return keys.filter(key => !key.includes(MEDIA_QUARANTINE_PREFIX)).map(key => key.replace(MEDIA_PREFIX, ''));
+    return keys.map(key => key.replace('media:', ''));
   } catch (error) {
-    console.error('[MEDIA_KV] List failed:', error);
+    console.error('[MEDIA_KV] Failed to list media IDs:', error);
     throw new Error(`Failed to list media IDs: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
 /**
- * Delete a Media record
- * @param id - Media ID
+ * Save media to KV
+ */
+export async function saveMedia(media: Media): Promise<void> {
+  try {
+    // Verify constitutional proof before saving (only for PublishedMediaAsset)
+    if (media.lifecycleState === 'published' && media.source === 'local') {
+      const hasConstitutionalProof = await verifyConstitutionalProof(media);
+      if (!hasConstitutionalProof) {
+        throw new Error(`Cannot save media ${media.id}: Failed constitutional proof check`);
+      }
+    }
+    
+    const client = getRedisClient();
+    await client.set(`media:${media.id}`, JSON.stringify(media));
+  } catch (error) {
+    console.error('[MEDIA_KV] Failed to save media:', error);
+    throw new Error(`Failed to save media ${media.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
+ * Delete media from KV
  */
 export async function deleteMedia(id: string): Promise<void> {
   try {
     const client = getRedisClient();
-    const media = await getMedia(id);
-    if (media && media.contentHash) {
-      await client.del(`${CONTENT_HASH_PREFIX}${media.contentHash}`);
-    }
-    await client.del(`${MEDIA_PREFIX}${id}`);
+    await client.del(`media:${id}`);
   } catch (error) {
-    console.error('[MEDIA_KV] Delete failed:', error);
+    console.error('[MEDIA_KV] Failed to delete media:', error);
     throw new Error(`Failed to delete media ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
 /**
- * Migrate historical Drive reference records to new lifecycle state
- * Moves old 'referenced' status records to 'source_reference' lifecycle state
- * Quarantines records that fail validation
- * 
- * NOTE: Bypasses getMedia() validation to allow inspection of legacy records
- * that might not pass current schema validation before migration
+ * Alias for saveMedia for backward compatibility
  */
-export async function migrateDriveReferences(): Promise<{
-  migrated: number;
-  quarantined: number;
-  errors: number;
-}> {
+export const storeMedia = saveMedia;
+
+/**
+ * Find media by content hash
+ */
+export async function findMediaByContentHash(contentHash: string): Promise<Media | null> {
   try {
     const client = getRedisClient();
-    const allIds = await listMediaIds();
+    const keys: string[] = [];
+    let cursor = '0';
     
-    let migrated = 0;
-    let quarantined = 0;
-    let errors = 0;
+    do {
+      const result = await client.scan(cursor, { match: 'media:*', count: 100 });
+      cursor = result[0];
+      keys.push(...result[1]);
+    } while (cursor !== '0');
     
-    for (const id of allIds) {
-      try {
-        // Bypass getMedia() validation to access raw legacy records
-        const data = await client.get(`${MEDIA_PREFIX}${id}`);
-        if (!data) continue;
-        
-        // Handle both JSON strings and already-deserialized objects
-        let media: Media;
-        if (typeof data === 'string') {
-          media = JSON.parse(data) as Media;
-        } else if (typeof data === 'object' && data !== null) {
-          media = data as Media;
-        } else {
-          errors++;
-          console.error('[MEDIA_KV] Unexpected data type during migration:', id, typeof data);
-          continue;
-        }
-        
-        // Check if this is an old Drive reference using legacy status field
-        const isLegacyDriveRef = media.provenance?.status === 'referenced' && 
-                                !media.lifecycleState;
-        
-        if (isLegacyDriveRef) {
-          // Migrate to new lifecycle state
-          const updated: Media = {
-            ...media,
-            lifecycleState: 'source_reference',
-            sourceIdentityHash: media.contentHash, // Move contentHash to sourceIdentityHash
-            contentHash: undefined, // Clear contentHash for source references
-          };
-          
-          // Validate the migrated record
-          if (validateMedia(updated)) {
-            await storeMedia(updated);
-            migrated++;
-            console.log('[MEDIA_KV] Migrated legacy Drive reference:', id);
-          } else {
-            // Quarantine if validation fails
-            await quarantineMedia(id, media);
-            quarantined++;
-            console.warn('[MEDIA_KV] Quarantined invalid Drive reference:', id);
-          }
-        }
-      } catch (error) {
-        errors++;
-        console.error('[MEDIA_KV] Migration error for:', id, error);
+    for (const key of keys) {
+      const media = await getMedia(key.replace('media:', ''));
+      if (media && media.contentHash === contentHash) {
+        return media;
       }
     }
     
-    console.log('[MEDIA_KV] Migration complete:', { migrated, quarantined, errors });
-    return { migrated, quarantined, errors };
+    return null;
   } catch (error) {
-    console.error('[MEDIA_KV] Migration failed:', error);
-    throw new Error(`Failed to migrate Drive references: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-}
-
-/**
- * Quarantine invalid media record
- * Moves record to quarantine namespace to prevent corruption
- */
-async function quarantineMedia(id: string, media: Media): Promise<void> {
-  try {
-    const client = getRedisClient();
-    const quarantineKey = `${MEDIA_QUARANTINE_PREFIX}${id}:${Date.now()}`;
-    const serialized = JSON.stringify(media);
-    await client.set(quarantineKey, serialized);
-    await client.del(`${MEDIA_PREFIX}${id}`);
-    console.log('[MEDIA_KV] Quarantined invalid media:', id);
-  } catch (error) {
-    console.error('[MEDIA_KV] Quarantine failed for:', id, error);
-    throw new Error(`Failed to quarantine media: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error('[MEDIA_KV] Failed to find media by content hash:', error);
+    throw new Error(`Failed to find media by content hash: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

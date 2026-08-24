@@ -11,7 +11,7 @@
  * - Eliminate race conditions in idempotency
  */
 
-import { put } from '@vercel/blob';
+import { put, head } from '@vercel/blob';
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 
@@ -144,9 +144,54 @@ export async function uploadToBlob(
         };
       }
       
-      // If metadata doesn't exist but blob does, this is a consistency issue
-      console.error('[BLOB_STORAGE] Blob exists but metadata missing for:', contentHash);
-      throw new Error(`Blob exists but metadata missing for content hash: ${contentHash}`);
+      // If metadata doesn't exist but blob does, recover metadata from Blob storage
+      console.log('[BLOB_STORAGE] Blob exists but metadata missing, recovering from Blob storage:', contentHash);
+      
+      // Recover metadata by deterministically generating the content-addressed filename
+      const hashPrefix = contentHash.substring(0, 12);
+      const filenameParts = filename.split('.');
+      const extension = filenameParts.length > 1 ? filenameParts.pop() : 'bin';
+      const baseName = filenameParts.join('.');
+      const contentAddressedFilename = `${baseName}-${hashPrefix}.${extension}`;
+      
+      try {
+        // Use Vercel Blob SDK to recover metadata from existing Blob
+        const blobHead = await head(contentAddressedFilename);
+        
+        // Recreate metadata from recovered Blob information
+        const recoveredMetadata: BlobMetadata = {
+          url: blobHead.url,
+          filename: contentAddressedFilename,
+          contentType: blobHead.contentType || contentType,
+          uploadedAt: typeof blobHead.uploadedAt === 'string' 
+            ? blobHead.uploadedAt 
+            : new Date().toISOString(),
+          contentHash,
+          byteSize: blobHead.size || 0,
+        };
+        
+        // Store recovered metadata in Redis
+        const client = getRedisClient();
+        await client.set(`blob_metadata:${contentHash}`, JSON.stringify(recoveredMetadata));
+        
+        console.log('[BLOB_STORAGE] Recovered and stored metadata for existing Blob:', {
+          contentHash,
+          url: blobHead.url,
+          filename: contentAddressedFilename,
+        });
+        
+        return {
+          url: blobHead.url,
+          uploadedAt: typeof blobHead.uploadedAt === 'string' 
+            ? blobHead.uploadedAt 
+            : new Date().toISOString(),
+          alreadyExisted: true,
+          contentHash,
+        };
+      } catch (headError) {
+        console.error('[BLOB_STORAGE] Failed to recover Blob metadata:', headError);
+        throw new Error(`Blob exists but metadata recovery failed for content hash: ${contentHash}`);
+      }
     }
     
     console.error('[BLOB_STORAGE] Upload failed:', error);

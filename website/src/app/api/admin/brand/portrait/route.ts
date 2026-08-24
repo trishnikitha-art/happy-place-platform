@@ -111,7 +111,7 @@ export async function POST(request: Request) {
       source: 'workbench' as const,
     };
 
-    await storeServiceCardAssignment(assignment, requestId);
+    await storeServiceCardAssignment(assignment, undefined, requestId);
 
     console.log('[BRAND PORTRAIT] ASSIGNMENT_STORED', {
       requestId,

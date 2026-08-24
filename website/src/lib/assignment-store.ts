@@ -215,11 +215,16 @@ async function generateEvidenceHash(payload: ServiceCardAssignment): Promise<str
 }
 
 /**
- * Store a service card assignment
+ * Store a service card assignment with CAS (Compare-And-Swap) semantics
  * @param assignment - Assignment to store
+ * @param expectedRevision - Optional expected revision for CAS (rejects if current revision doesn't match)
  * @param requestId - Optional request ID for correlation
  */
-export async function storeServiceCardAssignment(assignment: ServiceCardAssignment, requestId?: string): Promise<void> {
+export async function storeServiceCardAssignment(
+  assignment: ServiceCardAssignment, 
+  expectedRevision?: number,
+  requestId?: string
+): Promise<void> {
   const operationId = requestId || `store-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const key = `${ASSIGNMENT_PREFIX}${assignment.serviceSlug}`;
   
@@ -284,6 +289,7 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
     serviceSlug: assignment.serviceSlug,
     mediaId: assignment.mediaId,
     key,
+    expectedRevision,
   });
   
   try {
@@ -292,6 +298,18 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
     // Get current assignment for optimistic concurrency
     const currentAssignment = await client.get<ServiceCardAssignment>(key);
     const currentRevision = currentAssignment?.revision || 0;
+    
+    // CAS: Check expected revision if provided
+    if (expectedRevision !== undefined && currentRevision !== expectedRevision) {
+      console.error('[ASSIGNMENT_WRITE] CAS_FAILURE: Revision mismatch', {
+        operationId,
+        serviceSlug: assignment.serviceSlug,
+        expectedRevision,
+        currentRevision,
+        casError: 'Assignment was modified by another process',
+      });
+      throw new Error(`CAS_FAILURE: Expected revision ${expectedRevision}, but current revision is ${currentRevision}`);
+    }
     
     // Increment revision
     const newRevision = currentRevision + 1;
@@ -308,12 +326,12 @@ export async function storeServiceCardAssignment(assignment: ServiceCardAssignme
       key,
       mediaId: assignment.mediaId,
       revision: newRevision,
+      previousRevision: currentRevision,
+      casCheck: expectedRevision !== undefined ? 'CAS_VERIFIED' : 'NO_CAS_EXPECTED',
     });
     
-    // Removed expensive read-after-write verification
-    // Redis operations are atomic; if set succeeded, the data is stored
-    // Concurrency handling: last-write-wins with revision tracking
-    // Future enhancement: add expectedRevision parameter for strict concurrency control
+    // CAS implemented: expectedRevision parameter provides strict concurrency control
+    // Last-write-wins still applies when expectedRevision is not provided
     
   } catch (error) {
     console.error('[ASSIGNMENT_WRITE] FAILURE', {
