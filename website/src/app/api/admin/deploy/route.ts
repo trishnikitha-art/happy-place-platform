@@ -39,7 +39,8 @@ import {
   failDeploymentTransaction,
   getDeploymentTransaction,
   isTransactionTerminal,
-  type DeploymentTransaction
+  type DeploymentTransaction,
+  type TransactionState
 } from "@/lib/deployment-transaction";
 
 export const runtime = 'nodejs';
@@ -371,10 +372,28 @@ export async function POST(request: Request) {
       let appliedCount = 0;
       for (const [transactionId, keys] of sortedTransactions) {
         // Get authoritative transaction state from deployment-transaction library
-        const deploymentTransaction = await getDeploymentTransaction(transactionId);
-        const transactionState = deploymentTransaction?.state || 'unknown';
+        // Fallback to 'prepared' if transaction record doesn't exist (transition period compatibility)
+        let deploymentTransaction: DeploymentTransaction | null = null;
+        let transactionState: TransactionState = 'prepared';
         
-        console.log('[DEPLOY API] PROCESSING_TRANSACTION', { transactionId, state: transactionState, keyCount: keys.length });
+        try {
+          deploymentTransaction = await getDeploymentTransaction(transactionId);
+          transactionState = deploymentTransaction?.state || 'prepared';
+        } catch (error) {
+          console.warn('[DEPLOY API] TRANSACTION_LOOKUP_FAILED', { 
+            transactionId, 
+            error: error instanceof Error ? error.message : String(error),
+            fallback: 'Using prepared state'
+          });
+          transactionState = 'prepared';
+        }
+        
+        console.log('[DEPLOY API] PROCESSING_TRANSACTION', { 
+          transactionId, 
+          state: transactionState, 
+          keyCount: keys.length,
+          hasDeploymentRecord: !!deploymentTransaction
+        });
         
         // Apply all mutations in this transaction
         for (const key of keys) {
