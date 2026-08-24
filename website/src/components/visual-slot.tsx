@@ -52,6 +52,7 @@ export function VisualSlot({
 }: VisualSlotProps) {
   const elementRef = useRef<HTMLDivElement>(null);
   const [isWorkbenchMode, setIsWorkbenchMode] = useState(false);
+  const lastDragOverLogRef = useRef<number>(0);
 
   // UNCONDITIONAL LOG - will appear in iframe console if component renders
   console.log('[SLOT-RENDER]', id);
@@ -261,11 +262,16 @@ export function VisualSlot({
     // Force cursor to show as valid drop target
     e.dataTransfer.effectAllowed = 'copy';
     
-    console.log('[VS_FORENSIC] DRAGOVER_ACTIVE', {
-      slotId: id,
-      isWorkbenchMode,
-      timestamp: Date.now(),
-    });
+    // Throttle logging to prevent performance issues
+    const now = Date.now();
+    if (now - lastDragOverLogRef.current > 100) { // Log at most once per 100ms
+      console.log('[VS_FORENSIC] DRAGOVER_ACTIVE', {
+        slotId: id,
+        isWorkbenchMode,
+        timestamp: now,
+      });
+      lastDragOverLogRef.current = now;
+    }
   };
 
   const handleDrop = (e: React.DragEvent) => {
