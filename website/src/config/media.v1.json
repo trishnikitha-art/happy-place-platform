@@ -1,12 +1,12 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-24T15:58:15.716Z",
+  "generatedAt": "2026-08-24T16:00:21.641Z",
   "media": [
     {
       "id": "fences-001-hero",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash-fences-001-hero",
+      "contentHash": "802ccc84e0637b56cdf517cc6ca39168e71681d24d523eaa5e7a255b3f10433a",
       "driveId": "fences-001-master",
       "filename": "FENCE BUILD.jpg",
       "type": "image",
@@ -68,7 +68,7 @@
       "id": "fences-001-before",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash-fences-001-before",
+      "contentHash": "802ccc84e0637b56cdf517cc6ca39168e71681d24d523eaa5e7a255b3f10433a",
       "driveId": "drive-c266e5096e43",
       "filename": "FENCE BEFORE.jpg",
       "type": "image",
@@ -152,7 +152,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "42ec1482fa6e1eda73bd1bdbe831a42e998be6147ffdf6a453ce82749fd61ea1"
+      "contentHash": "d2824f848e00a433307b704281ef1380408ab5fcf9edd92e9f7f46caf2d9128f"
     },
     {
       "id": "fences-001-matching",
@@ -197,13 +197,13 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "421a5978b21afdc5ee0f44f6198297d939d3152e036fdcbda1e2ec1f71a8f885"
+      "contentHash": "d2824f848e00a433307b704281ef1380408ab5fcf9edd92e9f7f46caf2d9128f"
     },
     {
       "id": "builtins-001-hero",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash-builtins-001-hero",
+      "contentHash": "ae917cfeb9ceb14394c7632e6073d3cd26ee6593029481c43cba785e005691ed",
       "driveId": "builtins-001-master",
       "filename": "FINISHEDCARPENTRY.png",
       "type": "image",
@@ -287,13 +287,13 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "f428ceb6c3f436cff98634b5d05443ae6a88adaef8c47d9a0b1b5ef55673e830"
+      "contentHash": "4dbea1df879f0a54aba9c32c63edf0f0027f55789f169ec2a09f80f891519bad"
     },
     {
       "id": "repairs-001-hero",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash-repairs-001-hero",
+      "contentHash": "dc88f6260c4ea3830894f17e7933cdc145a10b0ecdde018cfe71ed56c7db767a",
       "driveId": "repairs-001-master",
       "filename": "TRIMREPAIR.png",
       "type": "image",
@@ -377,7 +377,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "807af444c6240419ef4e8da242ed0c173f8ccbadf6254ef3b5e19b05559d9cd4"
+      "contentHash": "52fb74e290da1a967aefa31118dfe79bec5c5f16109eb7351b4dec46ec2ffa2e"
     },
     {
       "id": "repairs-001-floor",
@@ -422,7 +422,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "1252b43109895a82fd777574ebefb719b54a3902604def0e6943aa1e125faa2d"
+      "contentHash": "e051518487e49cb0a989d7712400294600dee44d087fbccbc6915c9e8f597691"
     },
     {
       "id": "repairs-001-gutter",
@@ -467,13 +467,13 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "2c5825163f457673cfb3278f1f9eaa4a8c1b8d625c60b6e84f0c89de556e4a34"
+      "contentHash": "489d6e150e51aa78bbf87bcd9611c4b42cce1f482969aa0c679deafa2da32df7"
     },
     {
       "id": "outdoor-living-001-hero",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash-outdoor-living-001-hero",
+      "contentHash": "0d412c4c9b40d5416cde4681b7f9df706c0354b1518609527ee0c31ac07a4aa7",
       "driveId": "painting-001-master",
       "filename": "IMG_0535.JPG",
       "type": "image",
@@ -559,7 +559,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "f25513b1c562b31ef06940cbb4f5f06d89160edd4b4a7d7f2f039a8eb6b5be38"
+      "contentHash": "872f28df8a83b72d320eff700d6bea1a553156df6ffe37aa48c8c0b443ff20ca"
     },
     {
       "id": "outdoor-living-001-3",
@@ -605,7 +605,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "3fb3261cf720face3bb8b27cf8cd5b72244854c18218d987d424072229220e84"
+      "contentHash": "9d867371a9fb84f90e64c1f61991a0469107a9c3f69669d1ddce092fc0d541c9"
     },
     {
       "id": "outdoor-living-001-4",
@@ -651,7 +651,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "19d1dd8e67e486e2be2f5eb703cd5c11168122de4da90d1f13c7eec62a4613e8"
+      "contentHash": "e9de72e40f6d1ad5620387198e0d36eeb6931145410bea75eab34107ce7da9ca"
     },
     {
       "id": "outdoor-living-001-5",
@@ -697,7 +697,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "4f75f5c18eb05b619a753c0925bc54ca0fb2fbcce1009fa4d063574a54ef8d68"
+      "contentHash": "a7ffdcffaae5a6f858aa7b331e4cdd6b926c4733d833984ebacac5552c83a4a8"
     },
     {
       "id": "outdoor-living-001-6",
@@ -743,7 +743,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "f5167d53adb3d2be3b3cbeeccc0cfa8c7cf3191cf2729f6352959698f56597d7"
+      "contentHash": "c89b1a8bf9a10aac0227032c8d5419f3357b57fbc052ee22606642bf1f5cc0cc"
     },
     {
       "id": "bathroom-remodeling-001-hero",
@@ -788,7 +788,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "12a9af409684c0a5f17ed3fda34fc3748695aeb1ed0c9cab43f983cd54928ac8"
+      "contentHash": "104aee1cbe39ca22ac438cd6053c42eb65a753fd73681100e14b9ed1dc970a8d"
     },
     {
       "id": "brand-featured",
@@ -832,7 +832,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "a2c25dd5ed5221bd1e12e3475a8c19208d7f000bf0611948214c74205ba5553d"
+      "contentHash": "b80f586dbaa049d8900595cda5e7b2ffb07ce2f73d92d4c4db7eb5d858376ca2"
     },
     {
       "id": "brand-hero",
@@ -878,7 +878,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "4365b40fcd213ac18370fc10c449e97d3960104ca070e0e78faa3f4b2f12ed04"
+      "contentHash": "a6d46b0115772e90a125828f753a2035ab0aa81eeae40e36edfffb86b873f594"
     },
     {
       "id": "brand-portrait",
@@ -924,7 +924,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "fc511466a1d437e69b15f7506c099a4be35f8938db3790853318e7b4493f0b74"
+      "contentHash": "eecbf99794e531e35a4f17a1c331d3e583124abbd0d3ae213d1d1588dd6df4fb"
     },
     {
       "id": "repairs-001-floor0",
@@ -970,7 +970,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "c977985eb8d1a245e893217c926baf1934637800a0560767f0f814fe7b7d2c7b"
+      "contentHash": "757f5b1b4e69dd56b38b63645a8699a838a1d2eb572361e074e5792f4ce3c264"
     },
     {
       "id": "repairs-001-img0544",
@@ -1015,7 +1015,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "f934a09907f4d9bee6e1a1413f8891ea159d43979bc29efc2655acb2cbfa5e98"
+      "contentHash": "d65fdffc28f842195cd5a7fb192ba316480343e3f598d6e9027f9cbe339779dc"
     },
     {
       "id": "repairs-001-img0546",
@@ -1060,7 +1060,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "6b33d395ba1a5569d739e49f8e2a13de4d123d8a9dc7efad8314f331120bf592"
+      "contentHash": "8f5183d8389469e044f3775236ca903b01f154333151707ece6aca1ff29bd781"
     },
     {
       "id": "pergolas-001-hero",
@@ -1105,7 +1105,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "0fe2399f2f3b90bad4e935aa13065ff0e94f77c1d9908c06074ba0c34c6a150f"
+      "contentHash": "57b84a974acbebeb30d1bb2ba45139e31405a7bf38ddfa0c98247b0de0c5a06b"
     },
     {
       "id": "pergolas-001-before",
@@ -1150,7 +1150,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "3c8087ada1b8d0165bedd53e88b3bae069e6bfded5a9a1e5308997c1a7a65131"
+      "contentHash": "f8a835afbe43e1c4787fb5235b24c8fac661905b49c5a00bae7bf22ea2d80b67"
     },
     {
       "id": "pergolas-001-after",
@@ -1195,7 +1195,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "04d5d34452e9064d0e6f8c9bcaf9715ab56809d423444c42a895af3c5a0e7d02"
+      "contentHash": "57b84a974acbebeb30d1bb2ba45139e31405a7bf38ddfa0c98247b0de0c5a06b"
     }
   ]
 }
