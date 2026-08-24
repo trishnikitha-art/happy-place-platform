@@ -53,7 +53,7 @@ async function reconcileDriveAssignments(
   requestId: string
 ): Promise<ReconciliationResult> {
   try {
-    const { getAllServiceCardAssignments, storeServiceCardAssignment } = await import('@/lib/assignment-store');
+    const { getAllServiceCardAssignments, storeServiceCardAssignment, getServiceCardAssignment } = await import('@/lib/assignment-store');
     const assignments = await getAllServiceCardAssignments();
     
     const driveReferenceId = driveSourceId;
@@ -63,6 +63,10 @@ async function reconcileDriveAssignments(
       // Check if assignment references this Drive source
       if (assignment.mediaId === `drive-${driveReferenceId}` || 
           assignment.mediaId === `drive-ref-${driveReferenceId}`) {
+        // Read current assignment to obtain expected revision for CAS
+        const currentAssignment = await getServiceCardAssignment(assignment.serviceSlug, requestId);
+        const expectedRevision = currentAssignment?.revision;
+        
         // Update assignment to point to the new PublishedMediaAsset
         const updatedAssignment = {
           ...assignment,
@@ -70,7 +74,7 @@ async function reconcileDriveAssignments(
           updatedAt: new Date().toISOString(),
         };
         
-        await storeServiceCardAssignment(updatedAssignment, undefined, requestId);
+        await storeServiceCardAssignment(updatedAssignment, expectedRevision, requestId);
         updates.push(assignment.serviceSlug);
         
         console.log('[ASSIGNMENT_RECONCILIATION] UPDATED', {
