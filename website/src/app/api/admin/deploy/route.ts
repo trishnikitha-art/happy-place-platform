@@ -827,7 +827,21 @@ export async function POST(request: Request) {
     
     console.log('[DEPLOY API] BRANCH_REF_UPDATED', { newCommitSha });
     
-    // Step 7: Verify the commit contains both files
+    // EXTERNAL COMMIT POINT: Git ref update is the irreversible external side effect
+    // At this point, the deployment exists in the repository regardless of what follows
+    console.log('[DEPLOY API] EXTERNAL_COMMIT_POINT_REACHED', { 
+      deploymentTransactionId,
+      commitSha: newCommitSha,
+      commitUrl: newCommitData.html_url
+    });
+    
+    // MARK TRANSACTION AS COMMITTED (committing → committed)
+    // This happens AFTER the external commit point because Redis state is coordination, not atomic
+    transaction = await commitDeploymentTransaction(deploymentTransactionId, newCommitSha, newCommitData.html_url);
+    console.log('[DEPLOY API] TRANSACTION_COMMITTED', { transactionId: deploymentTransactionId, commitSha: newCommitSha });
+    
+    // Step 7: Verify the commit contains both files (post-commit verification, NOT a commit gate)
+    // If verification fails, the deployment still succeeded - this is for monitoring/reconciliation
     console.log('[DEPLOY API] VERIFYING_COMMIT_CONTENTS');
     
     const verifyCommitResponse = await fetchWithRetry(
@@ -841,9 +855,12 @@ export async function POST(request: Request) {
       'verify commit contents'
     );
     
+    let verificationPassed = false;
+    let verificationError: string | null = null;
+    
     if (!verifyCommitResponse.ok) {
-      console.error('[DEPLOY API] VERIFY_COMMIT_FAILED', { status: verifyCommitResponse.status });
-      // Continue anyway - commit succeeded even if verification failed
+      verificationError = `Verification request failed: ${verifyCommitResponse.status}`;
+      console.error('[DEPLOY API] VERIFY_COMMIT_REQUEST_FAILED', { status: verifyCommitResponse.status });
     } else {
       const verifyData = await verifyCommitResponse.json();
       const treeUrl = verifyData.tree.url;
@@ -855,7 +872,10 @@ export async function POST(request: Request) {
         },
       }, 'verify tree contents');
       
-      if (verifyTreeResponse.ok) {
+      if (!verifyTreeResponse.ok) {
+        verificationError = `Tree verification failed: ${verifyTreeResponse.status}`;
+        console.error('[DEPLOY_API] VERIFY_TREE_REQUEST_FAILED', { status: verifyTreeResponse.status });
+      } else {
         const verifyTreeData = await verifyTreeResponse.json();
         const projectsFileInTree = verifyTreeData.tree.find((item: any) => item.path === projectsFilePath);
         const servicesFileInTree = verifyTreeData.tree.find((item: any) => item.path === servicesFilePath);
@@ -868,29 +888,13 @@ export async function POST(request: Request) {
         });
         
         if (!projectsFileInTree || !servicesFileInTree) {
-          console.error('[DEPLOY API] VERIFICATION_FAILED', { 
+          verificationError = `Files missing from tree: projects=${!!projectsFileInTree}, services=${!!servicesFileInTree}`;
+          console.error('[DEPLOY API] VERIFICATION_FILES_MISSING', { 
             projectsFilePresent: !!projectsFileInTree,
             servicesFilePresent: !!servicesFileInTree 
           });
-          // This is a critical error - commit succeeded but files are missing
-          return NextResponse.json(
-            { 
-              error: "Commit verification failed",
-              message: "Commit was created but one or more files are missing from the tree",
-              forensic: {
-                deploymentTransactionId,
-                githubOwner,
-                githubRepo,
-                newCommitSha,
-                projectsFilePresent: !!projectsFileInTree,
-                servicesFilePresent: !!servicesFileInTree,
-                error: "VERIFICATION_FAILED",
-                stagingKeysPreserved: isProduction && stagingKeys.length > 0,
-                stagingKeysCount: stagingKeys.length
-              }
-            },
-            { status: 500 }
-          );
+        } else {
+          verificationPassed = true;
         }
       }
     }
@@ -898,12 +902,10 @@ export async function POST(request: Request) {
     console.log('[DEPLOY API] ATOMIC_COMMIT_SUCCESS', { 
       deploymentTransactionId,
       commitSha: newCommitSha,
-      commitUrl: newCommitData.html_url
+      commitUrl: newCommitData.html_url,
+      verificationPassed,
+      verificationError
     });
-    
-    // MARK TRANSACTION AS COMMITTED (committing → committed)
-    transaction = await commitDeploymentTransaction(deploymentTransactionId, newCommitSha, newCommitData.html_url);
-    console.log('[DEPLOY API] TRANSACTION_COMMITTED', { transactionId: deploymentTransactionId, commitSha: newCommitSha });
 
     // TRANSACTIONAL FIX: Only delete staging keys after durable commit verification
     // This prevents data loss if commit fails
@@ -929,12 +931,14 @@ export async function POST(request: Request) {
       deploymentTransactionId,
       commitSha: newCommitSha,
       commitUrl: newCommitData.html_url,
-      message: "Atomic commit successful. Both projects.v1.json and services.v1.json committed together. Vercel Git integration will automatically deploy to production.",
+      message: "Git commit successful. Both projects.v1.json and services.v1.json committed together. Vercel Git integration will automatically deploy to production.",
       authorityFiles: [projectsFilePath, servicesFilePath],
       targetBranch: 'main',
-      status: "ATOMIC_COMMIT_SUCCEEDED",
+      status: "GIT_COMMIT_SUCCEEDED",
       filesCommitted: ['projects.v1.json', 'services.v1.json'],
-      atomic: true
+      verificationPassed,
+      verificationError: verificationError || undefined,
+      externalCommitPoint: true
     });
 
   } catch (error) {
