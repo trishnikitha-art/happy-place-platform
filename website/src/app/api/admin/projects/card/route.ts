@@ -74,10 +74,20 @@ export async function POST(request: Request) {
     const isProduction = process.env.NODE_ENV === 'production';
     
     if (isProduction && redis) {
-      // Production: Store in KV staging area
-      const stagingKey = `${WORKBENCH_STAGING_PREFIX}project:${projectId}:hero`;
+      // Production: Store in KV staging area with transaction ID
+      const transactionId = `tx-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${transactionId}:project:${projectId}:hero`;
       await redis.set(stagingKey, mediaId);
-      console.log('[CARD UPDATE] STAGED_IN_KV', { projectId, mediaId, stagingKey });
+      
+      // Store transaction metadata
+      const transactionKey = `${WORKBENCH_STAGING_PREFIX}${transactionId}:meta`;
+      await redis.set(transactionKey, JSON.stringify({
+        createdAt: new Date().toISOString(),
+        state: 'prepared',
+        mutations: [stagingKey],
+      }));
+      
+      console.log('[CARD UPDATE] STAGED_IN_KV', { projectId, mediaId, stagingKey, transactionId });
       
       return NextResponse.json({ 
         success: true, 

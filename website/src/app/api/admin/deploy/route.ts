@@ -214,52 +214,103 @@ export async function POST(request: Request) {
       const authorityFile = join(process.cwd(), "src/config/projects.v1.json");
       const projectsData = JSON.parse(readFileSync(authorityFile, "utf-8"));
       
-      // Scan for all staging keys
+      // Scan for all staging keys and group by transaction ID
       let cursor = '0';
+      const transactionGroups = new Map<string, string[]>(); // transactionId -> keys
+      
       do {
         const result = await redis.scan(cursor, { match: `${WORKBENCH_STAGING_PREFIX}*`, count: 100 });
         cursor = result[0];
-        stagingKeys.push(...result[1]);
+        
+        for (const key of result[1]) {
+          // Parse key format: workbench-staging:{transactionId}:project:{projectId}:{field}
+          // OR legacy format: workbench-staging:project:{projectId}:{field}
+          const parts = key.split(':');
+          
+          if (parts.length >= 5 && parts[1].startsWith('tx-')) {
+            // New transactional format
+            const transactionId = parts[1];
+            if (!transactionGroups.has(transactionId)) {
+              transactionGroups.set(transactionId, []);
+            }
+            transactionGroups.get(transactionId)!.push(key);
+          } else if (parts.length >= 4) {
+            // Legacy format - treat as single transaction
+            const transactionId = 'legacy-' + key;
+            if (!transactionGroups.has(transactionId)) {
+              transactionGroups.set(transactionId, []);
+            }
+            transactionGroups.get(transactionId)!.push(key);
+          }
+        }
       } while (cursor !== '0');
       
-      console.log('[DEPLOY API] FOUND_STAGING_KEYS', { count: stagingKeys.length });
+      console.log('[DEPLOY API] FOUND_TRANSACTION_GROUPS', { transactionCount: transactionGroups.size });
       
-      // Apply staging changes to projects data
-      for (const key of stagingKeys) {
-        const value = await redis.get(key);
-        if (!value) continue;
+      // Apply staging changes by transaction (newest first by timestamp)
+      const sortedTransactions = Array.from(transactionGroups.entries())
+        .sort((a, b) => {
+          // Try to get transaction metadata to determine order
+          const aMetaKey = `${WORKBENCH_STAGING_PREFIX}${a[0]}:meta`;
+          const bMetaKey = `${WORKBENCH_STAGING_PREFIX}${b[0]}:meta`;
+          // Simplified: use transaction ID timestamp as ordering
+          return a[0].localeCompare(b[0]);
+        });
+      
+      let appliedCount = 0;
+      for (const [transactionId, keys] of sortedTransactions) {
+        // Get transaction metadata if available
+        const metaKey = `${WORKBENCH_STAGING_PREFIX}${transactionId}:meta`;
+        const meta = await redis.get(metaKey);
+        const transactionState = meta ? (JSON.parse(meta as string) as any).state : 'unknown';
         
-        // Parse key format: workbench-staging:project:{projectId}:{field}
-        const parts = key.split(':');
-        if (parts.length < 4) continue;
+        console.log('[DEPLOY API] PROCESSING_TRANSACTION', { transactionId, state: transactionState, keyCount: keys.length });
         
-        const projectId = parts[2];
-        const field = parts[3]; // 'hero', 'gallery', 'before', 'after'
-        
-        const projectIndex = projectsData.projects.findIndex((p: any) => p.id === projectId);
-        if (projectIndex === -1) {
-          console.log('[DEPLOY API] STAGING_PROJECT_NOT_FOUND', { projectId, key });
-          continue;
+        // Apply all mutations in this transaction
+        for (const key of keys) {
+          const value = await redis.get(key);
+          if (!value) continue;
+          
+          // Skip metadata keys
+          if (key.endsWith(':meta')) continue;
+          
+          // Parse key format
+          const parts = key.split(':');
+          if (parts.length < 4) continue;
+          
+          const projectId = parts[2];
+          const field = parts[3]; // 'hero', 'gallery', 'before', 'after'
+          
+          const projectIndex = projectsData.projects.findIndex((p: any) => p.id === projectId);
+          if (projectIndex === -1) {
+            console.log('[DEPLOY API] STAGING_PROJECT_NOT_FOUND', { projectId, key });
+            continue;
+          }
+          
+          if (!projectsData.projects[projectIndex].media) {
+            projectsData.projects[projectIndex].media = {};
+          }
+          
+          if (field === 'hero') {
+            if (value) projectsData.projects[projectIndex].media.hero = value;
+          } else if (field === 'gallery') {
+            const galleryArray = Array.isArray(value) ? value : (value ? [value] : []);
+            projectsData.projects[projectIndex].media.gallery = galleryArray;
+          } else if (field === 'before' || field === 'after') {
+            if (value) projectsData.projects[projectIndex].media[field] = value;
+          }
+          
+          console.log('[DEPLOY API] APPLIED_STAGING_CHANGE', { projectId, field, key, transactionId });
+          appliedCount++;
         }
         
-        if (!projectsData.projects[projectIndex].media) {
-          projectsData.projects[projectIndex].media = {};
-        }
-        
-        if (field === 'hero') {
-          if (value) projectsData.projects[projectIndex].media.hero = value;
-        } else if (field === 'gallery') {
-          const galleryArray = Array.isArray(value) ? value : (value ? [value] : []);
-          projectsData.projects[projectIndex].media.gallery = galleryArray;
-        } else if (field === 'before' || field === 'after') {
-          if (value) projectsData.projects[projectIndex].media[field] = value;
-        }
-        
-        console.log('[DEPLOY API] APPLIED_STAGING_CHANGE', { projectId, field, key });
-        
-        // TRANSACTIONAL FIX: Staging deletion deferred until after GitHub commit succeeds
-        // This prevents data loss if GitHub commit fails
+        // Track all keys in this transaction for cleanup
+        stagingKeys.push(...keys);
       }
+      
+      projectsData.generatedAt = new Date().toISOString();
+      fileContent = JSON.stringify(projectsData, null, 2);
+      console.log('[DEPLOY API] PRODUCTION_MERGE_COMPLETE', { stagingKeysApplied: appliedCount, transactionCount: transactionGroups.size });
       
       projectsData.generatedAt = new Date().toISOString();
       fileContent = JSON.stringify(projectsData, null, 2);
