@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-18T15:41:41.600Z",
+  "generatedAt": "2026-08-24T19:20:35.676Z",
   "services": [
     {
       "id": "decks",
@@ -367,7 +367,8 @@
           "measurementType": "length",
           "measurementUnit": "feet"
         }
-      ]
+      ],
+      "cardMediaId": "fences-001-hero"
     },
     {
       "id": "bathrooms",
@@ -533,7 +534,7 @@
           ]
         }
       ],
-      "cardMediaId": "outdoor-living-001-6"
+      "cardMediaId": "c65e27844063e63ad2c300f88a9e7479"
     },
     {
       "id": "finish-carpentry",
@@ -646,7 +647,8 @@
           ],
           "required": true
         }
-      ]
+      ],
+      "cardMediaId": "repairs-001-hero"
     },
     {
       "id": "pergolas",
@@ -888,7 +890,7 @@
           ]
         }
       ],
-      "cardMediaId": "repairs-001-drywall"
+      "cardMediaId": "2a1d4ae6e3b81282259174af113bac3c"
     }
   ]
 }
