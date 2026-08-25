@@ -359,6 +359,25 @@ export async function POST(request: Request) {
         targetTransactionIds 
       });
       
+      // FAIL-CLOSED: Reject deployment if no staging keys found for this transaction
+      // This prevents the "successful acceptance with zero applied mutations" seam
+      if (filteredTransactionGroups.size === 0 && targetTransactionIds.length > 0) {
+        console.error('[DEPLOY API] NO_STAGING_KEYS_FOUND', { 
+          targetTransactionIds,
+          totalTransactionGroups: transactionGroups.size,
+          deploymentTransactionId 
+        });
+        return NextResponse.json({
+          error: "No staging keys found",
+          message: "Workbench reported acceptance but deployment found no staging keys for this transaction. Transaction may be fragmented or keys use legacy format.",
+          forensic: {
+            targetTransactionIds,
+            totalTransactionGroups: transactionGroups.size,
+            deploymentTransactionId
+          }
+        }, { status: 400 });
+      }
+      
       // Apply staging changes by transaction (newest first by timestamp)
       const sortedTransactions = Array.from(filteredTransactionGroups.entries())
         .sort((a, b) => {
@@ -478,6 +497,26 @@ export async function POST(request: Request) {
       projectsData.generatedAt = new Date().toISOString();
       fileContent = JSON.stringify(projectsData, null, 2);
       console.log('[DEPLOY API] PRODUCTION_MERGE_COMPLETE', { stagingKeysApplied: appliedCount, transactionCount: transactionGroups.size });
+      
+      // FAIL-CLOSED: Reject deployment if zero mutations were applied
+      // This prevents the "successful acceptance with zero applied mutations" seam
+      if (appliedCount === 0 && transactionGroups.size > 0) {
+        console.error('[DEPLOY API] ZERO_MUTATIONS_APPLIED', { 
+          transactionCount: transactionGroups.size,
+          stagingKeys: stagingKeys.length,
+          deploymentTransactionId 
+        });
+        return NextResponse.json({
+          error: "No mutations applied",
+          message: "Workbench reported acceptance but deployment found zero valid staging keys. Transaction may be fragmented.",
+          forensic: {
+            transactionCount: transactionGroups.size,
+            stagingKeys: stagingKeys.length,
+            deploymentTransactionId,
+            transactionIds: targetTransactionIds
+          }
+        }, { status: 400 });
+      }
       
       // NOTE: Service card assignments are now merged from staging, not from assignment store
       // This prevents Redis/Git split-brain - only staged assignments are committed

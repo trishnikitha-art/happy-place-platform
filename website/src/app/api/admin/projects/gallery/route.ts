@@ -47,23 +47,18 @@ function getRedisClient(): Redis | null {
 }
 
 export async function POST(request: Request) {
-  // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
-  if (process.env.NODE_ENV === 'development') {
-    // Proceed without authentication
-  } else {
-    // Check Workbench authentication
-    const isAuthenticated = await workbenchSession.isAuthenticated();
-    if (!isAuthenticated) {
-      return NextResponse.json(
-        { error: "Unauthorized", message: "Workbench authentication required" },
-        { status: 401 }
-      );
-    }
+  // SECURITY: Require Workbench authentication
+  const isAuthenticated = await workbenchSession.isAuthenticated();
+  if (!isAuthenticated) {
+    return NextResponse.json(
+      { error: "Unauthorized", message: "Workbench authentication required" },
+      { status: 401 }
+    );
   }
 
   try {
     const body = await request.json();
-    const { projectId, galleryIndex, mediaId, operation = 'replace' } = body;
+    const { projectId, galleryIndex, mediaId, operation = 'replace', transactionId } = body;
 
     if (!projectId || !mediaId) {
       return NextResponse.json(
@@ -79,7 +74,7 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log('[GALLERY POST] REQUEST_RECEIVED', { projectId, galleryIndex, mediaId, operation });
+    console.log('[GALLERY POST] REQUEST_RECEIVED', { projectId, galleryIndex, mediaId, operation, transactionId });
 
     // Validate mediaId exists in authoritative media sources
     const mediaExists = getMediaById(mediaId) || await getMediaByIdAsync(mediaId);
@@ -96,34 +91,40 @@ export async function POST(request: Request) {
     const isProduction = process.env.NODE_ENV === 'production';
     
     if (isProduction && redis) {
-      // Production: Store in KV staging area
-      const stagingKey = `${WORKBENCH_STAGING_PREFIX}project:${projectId}:gallery`;
-      const currentGallery = await redis.get<(string | null)[]>(stagingKey) || [];
+      // Production: Use transactional staging format
+      const effectiveTransactionId = transactionId || `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:gallery`;
       
-      if (operation === 'add') {
-        currentGallery.push(mediaId);
-      } else {
-        if (galleryIndex < 0 || galleryIndex >= currentGallery.length) {
-          return NextResponse.json(
-            { error: "Gallery index out of bounds" },
-            { status: 400 }
-          );
-        }
-        currentGallery[galleryIndex] = mediaId;
-      }
+      // Store as array with the single mediaId at the specified index
+      const galleryArray = [mediaId];
+      await redis.set(stagingKey, JSON.stringify(galleryArray));
       
-      await redis.set(stagingKey, currentGallery);
-      console.log('[GALLERY POST] STAGED_IN_KV', { projectId, operation, mediaId, stagingKey });
+      // Create authoritative deployment transaction record
+      const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
+      await createDeploymentTransaction(
+        effectiveTransactionId,
+        [stagingKey],
+        ['projects.v1.json'],
+        `Project gallery assignment: ${projectId} (index ${galleryIndex})`
+      );
+      
+      console.log('[GALLERY POST] STAGED_IN_KV', { 
+        projectId, 
+        operation, 
+        mediaId, 
+        stagingKey, 
+        transactionId: effectiveTransactionId 
+      });
       
       return NextResponse.json({ 
         success: true, 
         projectId, 
         operation,
-        galleryIndex: operation === 'add' ? currentGallery.length - 1 : galleryIndex,
+        galleryIndex,
         mediaId,
-        galleryLength: currentGallery.length,
         staged: true,
-        persistence: 'kv'
+        persistence: 'kv',
+        transactionId: effectiveTransactionId
       });
     }
 
@@ -175,7 +176,7 @@ export async function POST(request: Request) {
     
     writeFileSync(projectsPath, JSON.stringify(projectsData, null, 2));
 
-    console.log('[GALLERY POST] DEV_WRITE_SUCCESS', { projectId, operation, mediaId });
+    console.log('[GALLERY POST] DEV_WRITE_SUCCESS', { projectId, operation, mediaId, transactionId });
 
     return NextResponse.json({ 
       success: true, 
@@ -185,7 +186,8 @@ export async function POST(request: Request) {
       mediaId,
       galleryLength: gallery.length,
       staged: false,
-      persistence: 'filesystem'
+      persistence: 'filesystem',
+      transactionId
     });
   } catch (error) {
     console.error('[GALLERY POST] ERROR', error);

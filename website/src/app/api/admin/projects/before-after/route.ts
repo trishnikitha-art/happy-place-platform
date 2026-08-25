@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'fs';
 import path from 'path';
 import { Redis } from '@upstash/redis';
+import { workbenchSession } from '@/lib/workbench-session';
 
 export const runtime = 'nodejs';
 
@@ -18,6 +19,7 @@ interface BeforeAfterRequest {
   projectId: string;
   side: 'before' | 'after';
   mediaId: string;
+  transactionId?: string;
 }
 
 function getRedisClient(): Redis | null {
@@ -32,11 +34,20 @@ function getRedisClient(): Redis | null {
 }
 
 export async function POST(request: NextRequest) {
+  // SECURITY: Require Workbench authentication
+  const isAuthenticated = await workbenchSession.isAuthenticated();
+  if (!isAuthenticated) {
+    return NextResponse.json(
+      { error: "Unauthorized", message: "Workbench authentication required" },
+      { status: 401 }
+    );
+  }
+
   try {
     const body: BeforeAfterRequest = await request.json();
-    const { projectId, side, mediaId } = body;
+    const { projectId, side, mediaId, transactionId } = body;
 
-    console.log('[BEFORE-AFTER API] REQUEST', { projectId, side, mediaId });
+    console.log('[BEFORE-AFTER API] REQUEST', { projectId, side, mediaId, transactionId });
 
     if (!projectId || !side || !mediaId) {
       return NextResponse.json(
@@ -57,10 +68,21 @@ export async function POST(request: NextRequest) {
     const isProduction = process.env.NODE_ENV === 'production';
     
     if (isProduction && redis) {
-      // Production: Store in KV staging area
-      const stagingKey = `${WORKBENCH_STAGING_PREFIX}project:${projectId}:${side}`;
+      // Production: Use transactional staging format
+      const effectiveTransactionId = transactionId || `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:${side}`;
       await redis.set(stagingKey, mediaId);
-      console.log('[BEFORE-AFTER API] STAGED_IN_KV', { projectId, side, mediaId, stagingKey });
+      
+      // Create authoritative deployment transaction record
+      const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
+      await createDeploymentTransaction(
+        effectiveTransactionId,
+        [stagingKey],
+        ['projects.v1.json'],
+        `Project before/after assignment: ${projectId} (${side})`
+      );
+      
+      console.log('[BEFORE-AFTER API] STAGED_IN_KV', { projectId, side, mediaId, stagingKey, transactionId: effectiveTransactionId });
       
       return NextResponse.json({
         success: true,
@@ -68,12 +90,13 @@ export async function POST(request: NextRequest) {
         side,
         mediaId,
         staged: true,
-        persistence: 'kv'
+        persistence: 'kv',
+        transactionId: effectiveTransactionId
       });
     }
 
     // Development: Write to local filesystem
-    console.log('[BEFORE-AFTER API] DEV_MODE', { projectId, side, mediaId });
+    console.log('[BEFORE-AFTER API] DEV_MODE', { projectId, side, mediaId, transactionId });
 
     const projectsContent = fs.readFileSync(PROJECTS_PATH, 'utf-8');
     const projects = JSON.parse(projectsContent);
@@ -117,7 +140,8 @@ export async function POST(request: NextRequest) {
       side,
       mediaId,
       staged: false,
-      persistence: 'filesystem'
+      persistence: 'filesystem',
+      transactionId
     });
   } catch (error) {
     console.error('[BEFORE-AFTER API] ERROR', error);

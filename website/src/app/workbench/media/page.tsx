@@ -1400,7 +1400,7 @@ Check browser console for detailed logs.`);
         // Extract project ID from slot ID (e.g., homepage-featured-project-exterior-painting-001 -> exterior-painting-001)
         const projectId = slotId.replace('homepage-featured-project-', '');
         endpoint = '/api/admin/projects/card';
-        requestBody = { projectId, mediaId: asset.id };
+        requestBody = { projectId, mediaId: asset.id, transactionId };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1440,7 +1440,7 @@ Check browser console for detailed logs.`);
         // Extract service slug from slot ID (e.g., services-painting-related-service-card-fences -> fences)
         const serviceSlug = slotId.split('-related-service-card-')[1];
         endpoint = '/api/admin/services/card';
-        requestBody = { serviceSlug, mediaId: asset.id };
+        requestBody = { serviceSlug, mediaId: asset.id, transactionId };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1450,7 +1450,7 @@ Check browser console for detailed logs.`);
         // Extract service slug from slot ID (e.g., services-page-service-card-painting -> painting)
         const serviceSlug = slotId.replace('services-page-service-card-', '');
         endpoint = '/api/admin/services/card';
-        requestBody = { serviceSlug, mediaId: asset.id };
+        requestBody = { serviceSlug, mediaId: asset.id, transactionId };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1464,7 +1464,7 @@ Check browser console for detailed logs.`);
         const galleryIndex = parseInt(idPart.substring(lastHyphenIndex + 1), 10);
         console.log('[DND 8] GALLERY_SLOT_PARSED', { slotId, projectId, galleryIndex });
         endpoint = '/api/admin/projects/gallery';
-        requestBody = { projectId, galleryIndex, mediaId: asset.id };
+        requestBody = { projectId, galleryIndex, mediaId: asset.id, transactionId };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1474,7 +1474,7 @@ Check browser console for detailed logs.`);
         // Extract project ID from slot ID (e.g., project-hero-fences-001 -> fences-001)
         const projectId = slotId.replace('project-hero-', '');
         endpoint = '/api/admin/projects/card';
-        requestBody = { projectId, mediaId: asset.id };
+        requestBody = { projectId, mediaId: asset.id, transactionId };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1488,7 +1488,7 @@ Check browser console for detailed logs.`);
         const galleryIndex = parseInt(idPart.substring(lastHyphenIndex + 1), 10);
         console.log('[DND 8] PROJECT_GALLERY_SLOT_PARSED', { slotId, projectId, galleryIndex });
         endpoint = '/api/admin/projects/gallery';
-        requestBody = { projectId, galleryIndex, mediaId: asset.id };
+        requestBody = { projectId, galleryIndex, mediaId: asset.id, transactionId };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1498,7 +1498,7 @@ Check browser console for detailed logs.`);
         // Extract project ID from slot ID (e.g., slider-left-fences-001 -> fences-001)
         const projectId = slotId.replace('slider-left-', '');
         endpoint = '/api/admin/projects/before-after';
-        requestBody = { projectId, side: 'before', mediaId: asset.id };
+        requestBody = { projectId, side: 'before', mediaId: asset.id, transactionId };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1508,7 +1508,7 @@ Check browser console for detailed logs.`);
         // Extract project ID from slot ID (e.g., slider-right-fences-001 -> fences-001)
         const projectId = slotId.replace('slider-right-', '');
         endpoint = '/api/admin/projects/before-after';
-        requestBody = { projectId, side: 'after', mediaId: asset.id };
+        requestBody = { projectId, side: 'after', mediaId: asset.id, transactionId };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
