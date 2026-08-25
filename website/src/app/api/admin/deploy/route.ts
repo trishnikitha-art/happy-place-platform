@@ -294,9 +294,10 @@ export async function POST(request: Request) {
       id: repoData.id
     });
 
-    // In production, merge KV staging changes into projects.v1.json
+    // In production, merge KV staging changes into projects.v1.json, services.v1.json, and brand.v1.json
     let fileContent: string;
     let servicesFileContent: string = '';
+    let brandFileContent: string = '';
     const redis = getRedisClient();
     
     if (isProduction && redis) {
@@ -309,6 +310,10 @@ export async function POST(request: Request) {
       // Read current services.v1.json for service card assignments
       const servicesFile = join(process.cwd(), "src/config/services.v1.json");
       const servicesData = JSON.parse(readFileSync(servicesFile, "utf-8"));
+      
+      // Read current brand.v1.json for brand assignments
+      const brandFile = join(process.cwd(), "src/config/brand.v1.json");
+      const brandData = JSON.parse(readFileSync(brandFile, "utf-8"));
       
       // PROCESS SPECIFIC TRANSACTIONS ONLY (transaction isolation)
       // Scan for all staging keys and group by transaction ID
@@ -439,6 +444,25 @@ export async function POST(request: Request) {
           // New transactional format: workbench-staging:{txId}:service:{serviceSlug}
           else if (parts.length >= 4 && (parts[1].startsWith('WBDEP-') || parts[1].startsWith('tx-')) && parts[2] === 'service') {
             const serviceSlug = parts[3];
+            
+            // Check if this is a brand assignment (brand-hero or brand-portrait)
+            if (serviceSlug === 'brand-hero') {
+              brandData.homepageHero.mediaId = value;
+              console.log('[DEPLOY API] APPLIED_BRAND_HERO_ASSIGNMENT', { 
+                mediaId: value,
+                transactionId 
+              });
+              continue;
+            } else if (serviceSlug === 'brand-portrait') {
+              brandData.ownerPortrait.mediaId = value;
+              console.log('[DEPLOY API] APPLIED_BRAND_PORTRAIT_ASSIGNMENT', { 
+                mediaId: value,
+                transactionId 
+              });
+              continue;
+            }
+            
+            // Regular service card assignment
             const serviceIndex = servicesData.services.findIndex((s: any) => s.slug === serviceSlug);
             if (serviceIndex !== -1) {
               servicesData.services[serviceIndex].cardMediaId = value;
@@ -526,6 +550,11 @@ export async function POST(request: Request) {
       servicesFileContent = JSON.stringify(servicesData, null, 2);
       console.log('[DEPLOY API] SERVICES_CONTENT_PREPARED', { length: servicesFileContent.length });
       
+      // Store brand.v1.json content for atomic Git commit
+      brandData.generatedAt = new Date().toISOString();
+      brandFileContent = JSON.stringify(brandData, null, 2);
+      console.log('[DEPLOY API] BRAND_CONTENT_PREPARED', { length: brandFileContent.length });
+      
     } else {
       // Development: Read local authority files
       const authorityFile = join(process.cwd(), "src/config/projects.v1.json");
@@ -536,22 +565,29 @@ export async function POST(request: Request) {
       const servicesFile = join(process.cwd(), "src/config/services.v1.json");
       const servicesData = JSON.parse(readFileSync(servicesFile, "utf-8"));
       servicesFileContent = JSON.stringify(servicesData, null, 2);
+      
+      // Also read brand.v1.json in dev mode
+      const brandFile = join(process.cwd(), "src/config/brand.v1.json");
+      const brandData = JSON.parse(readFileSync(brandFile, "utf-8"));
+      brandFileContent = JSON.stringify(brandData, null, 2);
     }
 
     // =====================================================================
     // ATOMIC GIT COMMIT USING GIT DATA API
     // =====================================================================
-    // This creates a SINGLE commit containing BOTH files atomically.
+    // This creates a SINGLE commit containing ALL authority files atomically.
     // If any step fails, main branch is NOT updated.
     // =====================================================================
     
     const projectsFilePath = "website/src/config/projects.v1.json";
     const servicesFilePath = "website/src/config/services.v1.json";
+    const brandFilePath = "website/src/config/brand.v1.json";
     
     console.log('[DEPLOY API] ATOMIC_COMMIT_INITIATED', { 
       deploymentTransactionId,
       projectsFile: projectsFilePath,
-      servicesFile: servicesFilePath
+      servicesFile: servicesFilePath,
+      brandFile: brandFilePath
     });
     
     // Step 1: Get current commit SHA (branch head)
@@ -602,7 +638,7 @@ export async function POST(request: Request) {
       transaction = await createDeploymentTransaction(
         deploymentTransactionId,
         stagingKeys,
-        ['website/src/config/projects.v1.json', 'website/src/config/services.v1.json'],
+        ['website/src/config/projects.v1.json', 'website/src/config/services.v1.json', 'website/src/config/brand.v1.json'],
         reason,
         currentCommitSha
       );
@@ -657,11 +693,12 @@ export async function POST(request: Request) {
     const currentTreeSha = commitData.tree.sha;
     console.log('[DEPLOY API] CURRENT_TREE_SHA', { currentTreeSha });
     
-    // Step 3: Create blobs for both files
+    // Step 3: Create blobs for all three files
     console.log('[DEPLOY API] CREATING_BLOBS');
     
     const projectsBlobBase64 = Buffer.from(fileContent).toString('base64');
     const servicesBlobBase64 = Buffer.from(servicesFileContent).toString('base64');
+    const brandBlobBase64 = Buffer.from(brandFileContent).toString('base64');
     
     // Create projects.v1.json blob
     const projectsBlobResponse = await fetchWithRetry(
@@ -759,7 +796,55 @@ export async function POST(request: Request) {
     const servicesBlobSha = servicesBlobData.sha;
     console.log('[DEPLOY API] SERVICES_BLOB_CREATED', { sha: servicesBlobSha });
     
-    // Step 4: Create new tree with both files
+    // Create brand.v1.json blob
+    const brandBlobResponse = await fetchWithRetry(
+      `https://api.github.com/repos/${githubOwner}/${githubRepo}/git/blobs`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Content-Type': 'application/vnd.github.v3+json',
+        },
+        body: JSON.stringify({
+          content: brandBlobBase64,
+          encoding: 'base64',
+        }),
+      },
+      'create brand blob'
+    );
+    
+    if (!brandBlobResponse.ok) {
+      const errorText = await brandBlobResponse.text();
+      console.error('[DEPLOY API] CREATE_BRAND_BLOB_FAILED', { status: brandBlobResponse.status });
+      
+      // MARK TRANSACTION AS FAILED
+      if (transaction) {
+        await failDeploymentTransaction(deploymentTransactionId, `Failed to create brand blob: ${errorText}`);
+      }
+      
+      return NextResponse.json(
+        { 
+          error: "Failed to create brand blob",
+          details: errorText,
+          forensic: {
+            deploymentTransactionId,
+            githubOwner,
+            githubRepo,
+            status: brandBlobResponse.status,
+            error: "CREATE_BRAND_BLOB_FAILED",
+            stagingKeysPreserved: isProduction && stagingKeys.length > 0,
+            stagingKeysCount: stagingKeys.length
+          }
+        },
+        { status: brandBlobResponse.status }
+      );
+    }
+    
+    const brandBlobData = await brandBlobResponse.json();
+    const brandBlobSha = brandBlobData.sha;
+    console.log('[DEPLOY API] BRAND_BLOB_CREATED', { sha: brandBlobSha });
+    
+    // Step 4: Create new tree with all three files
     console.log('[DEPLOY API] CREATING_NEW_TREE');
     
     const treeResponse = await fetchWithRetry(
@@ -784,6 +869,12 @@ export async function POST(request: Request) {
               mode: '100644',
               type: 'blob',
               sha: servicesBlobSha,
+            },
+            {
+              path: brandFilePath,
+              mode: '100644',
+              type: 'blob',
+              sha: brandBlobSha,
             },
           ],
         }),
@@ -1086,21 +1177,36 @@ export async function POST(request: Request) {
           'verify services file'
         );
         
+        const brandFileResponse = await fetchWithRetry(
+          `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/${brandFilePath}?ref=${newCommitSha}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${githubToken}`,
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          },
+          'verify brand file'
+        );
+        
         const projectsFilePresent = projectsFileResponse.ok;
         const servicesFilePresent = servicesFileResponse.ok;
+        const brandFilePresent = brandFileResponse.ok;
         
         console.log('[DEPLOY API] VERIFICATION_RESULT', {
           projectsFilePresent,
           servicesFilePresent,
+          brandFilePresent,
           projectsFileStatus: projectsFileResponse.status,
-          servicesFileStatus: servicesFileResponse.status
+          servicesFileStatus: servicesFileResponse.status,
+          brandFileStatus: brandFileResponse.status
         });
         
-        if (!projectsFilePresent || !servicesFilePresent) {
-          verificationError = `Files missing in commit: projects=${projectsFilePresent}, services=${servicesFilePresent}`;
+        if (!projectsFilePresent || !servicesFilePresent || !brandFilePresent) {
+          verificationError = `Files missing in commit: projects=${projectsFilePresent}, services=${servicesFilePresent}, brand=${brandFilePresent}`;
           console.error('[DEPLOY API] VERIFICATION_FILES_MISSING', { 
             projectsFilePresent,
-            servicesFilePresent 
+            servicesFilePresent,
+            brandFilePresent
           });
         } else {
           verificationPassed = true;
@@ -1148,7 +1254,7 @@ export async function POST(request: Request) {
       message: verificationPassed 
         ? "Your changes are live and saved. Git commit successful."
         : "Git commit succeeded but verification failed. Changes are in staging for retry.",
-      authorityFiles: [projectsFilePath, servicesFilePath],
+      authorityFiles: [projectsFilePath, servicesFilePath, brandFilePath],
       targetBranch: 'main',
       status: verificationPassed ? "PUBLISHED" : "COMMITTED_NEEDS_RECONCILIATION",
       filesCommitted: ['projects.v1.json', 'services.v1.json'],
