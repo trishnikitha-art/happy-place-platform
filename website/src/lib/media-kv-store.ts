@@ -365,8 +365,10 @@ export async function findMediaByContentHash(contentHash: string): Promise<Media
       return null;
     }
     
-    // Retrieve the media record
-    const media = await getMedia(mediaId as string);
+    // P0 FIX: Use getMediaRecordRaw for deduplication inspection
+    // This allows the deduplication path to see poisoned records that the constitutional proof gate would reject
+    // The ingestion path needs to distinguish between DriveReference (upgrade) vs PublishedMediaAsset (deduplicate)
+    const media = await getMediaRecordRaw(mediaId as string);
     
     // Fail closed if index points to non-existent media (stale index)
     if (!media) {
@@ -392,6 +394,15 @@ export async function findMediaByContentHash(contentHash: string): Promise<Media
       await client.del(`${CONTENT_HASH_PREFIX}${contentHash}`);
       return null;
     }
+    
+    console.log('[MEDIA_KV] DEDUPLICATION_LOOKUP_COMPLETED', {
+      contentHash,
+      mediaId,
+      lifecycleState: media.lifecycleState,
+      source: media.source,
+      hasDrive: !!media.drive,
+      isDriveReference: media.lifecycleState === 'source_reference'
+    });
     
     return media;
   } catch (error) {

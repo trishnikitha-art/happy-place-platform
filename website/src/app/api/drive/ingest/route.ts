@@ -37,23 +37,26 @@ interface ReconciliationResult {
   updated: string[];
   error?: string;
   incomplete?: boolean; // P0 FIX: Signal when some assignments could not be reconciled due to media lookup failures
+  repaired: boolean; // P0 FIX: Signal when poisoned PublishedMediaAsset records were repaired
 }
 
 /**
  * Reconcile DriveReference assignments to PublishedMediaAsset assignments
  * Called after materialization to repair poisoned drive-* / drive-ref-* assignments
- * 
+ *
  * CONSTITUTIONAL FIX: Uses authoritative drive.fileId from DriveReference records
  * instead of ID format assumptions, making reconciliation deterministic for legacy records.
- * 
+ *
  * @param publishedMediaId - The new PublishedMediaAsset ID
  * @param driveFileId - The authoritative Drive file ID from Google Drive
+ * @param contentHash - The content hash of the newly materialized asset
  * @param requestId - Correlation ID
  * @returns Reconciliation result with updated service slugs
  */
 async function reconcileDriveAssignments(
   publishedMediaId: string,
   driveFileId: string,
+  contentHash: string,
   requestId: string
 ): Promise<ReconciliationResult> {
   try {
@@ -61,7 +64,8 @@ async function reconcileDriveAssignments(
     const assignments = await getAllServiceCardAssignments();
     
     const updates: string[] = [];
-    
+    let repairedCount = 0; // P0 FIX: Track when poisoned PublishedMediaAsset records are repaired
+
     for (const assignment of assignments) {
       // Check if assignment references this Drive source by looking up the DriveReference
       // CONSTITUTIONAL FIX: Use authoritative drive.fileId, not ID format assumptions
@@ -69,9 +73,21 @@ async function reconcileDriveAssignments(
       
       try {
         // P0 FIX: Use getMediaRecordRaw instead of getMedia to bypass public proof gate
-        // This allows reconciliation to inspect authoritative records even when the public proof gate would reject them
+        // This allows reconciliation to inspect authoritative records even when the public proof gate rejects them
         const media = await getMediaRecordRaw(assignment.mediaId);
-        if (media && media.lifecycleState === 'source_reference' && media.drive) {
+        
+        if (!media) {
+          console.warn('[ASSIGNMENT_RECONCILIATION] MEDIA_NOT_FOUND', {
+            requestId,
+            serviceSlug: assignment.serviceSlug,
+            mediaId: assignment.mediaId,
+            reason: 'Assignment points to non-existent media record'
+          });
+          continue;
+        }
+        
+        // P0 FIX: Handle DriveReference reconciliation
+        if (media.lifecycleState === 'source_reference' && media.drive) {
           // Authoritative check: Does this DriveReference point to the same Drive file?
           if (media.drive.fileId === driveFileId) {
             isDriveReference = true;
@@ -82,6 +98,38 @@ async function reconcileDriveAssignments(
               driveFileId: media.drive.fileId,
               targetDriveFileId: driveFileId,
             });
+          }
+        }
+        
+        // P0 FIX: Detect poisoned PublishedMediaAsset records
+        // These are published/local records that may have synthetic content identity or missing Blob metadata
+        // Production evidence shows brand-hero, fences-001-hero, repairs-001-hero are in this state
+        if (media.lifecycleState === 'published' && media.source === 'local') {
+          // Check if this is the same content hash as the newly materialized asset
+          // If yes, this assignment can be upgraded to point to the new asset
+          if (media.contentHash === contentHash) {
+            console.log('[ASSIGNMENT_RECONCILIATION] PUBLISHED_ASSET_SAME_CONTENT', {
+              requestId,
+              serviceSlug: assignment.serviceSlug,
+              oldMediaId: assignment.mediaId,
+              newMediaId: publishedMediaId,
+              contentHash,
+              reason: 'Same content hash - assignment is already pointing at correct asset or duplicate'
+            });
+            // Consider this reconciled since it's the same content
+            isDriveReference = true;
+            repairedCount++; // P0 FIX: Track that we repaired a poisoned record
+          } else {
+            console.log('[ASSIGNMENT_RECONCILIATION] PUBLISHED_ASSET_DIFFERENT_CONTENT', {
+              requestId,
+              serviceSlug: assignment.serviceSlug,
+              oldMediaId: assignment.mediaId,
+              oldContentHash: media.contentHash,
+              newContentHash: contentHash,
+              reason: 'Assignment points to different PublishedMediaAsset - manual repair may be needed'
+            });
+            // This is a poisoned/legacy assignment that doesn't match the new asset
+            // Don't mark as reconciled - it needs manual intervention
           }
         }
       } catch (error) {
@@ -125,12 +173,14 @@ async function reconcileDriveAssignments(
       requestId,
       count: updates.length,
       services: updates,
+      repairedCount,
     });
-    
+
     return {
       reconciled: updates.length > 0,
       updated: updates,
       incomplete: true, // P0 FIX: Signal when some assignments could not be reconciled due to media lookup failures
+      repaired: repairedCount > 0, // P0 FIX: Signal when poisoned PublishedMediaAsset records were found and processed
     };
   } catch (error) {
     console.error('[ASSIGNMENT_RECONCILIATION] FAILED', {
@@ -142,6 +192,7 @@ async function reconcileDriveAssignments(
       reconciled: false,
       updated: [],
       error: error instanceof Error ? error.message : 'Unknown error',
+      repaired: false,
     };
   }
 }
@@ -526,6 +577,7 @@ export async function POST(request: Request) {
           const reconciliationResult = await reconcileDriveAssignments(
             existingMedia.id,
             driveId, // Use authoritative Drive file ID for provenance reconciliation
+            contentHash,
             requestId
           );
           
@@ -820,6 +872,7 @@ export async function POST(request: Request) {
       const reconciliationResult = await reconcileDriveAssignments(
         upgradedMedia.id,
         driveId, // Use authoritative Drive file ID for provenance reconciliation
+        contentHash,
         requestId
       );
       
@@ -853,11 +906,12 @@ export async function POST(request: Request) {
 
     // 10. Reconcile DriveReference assignments to PublishedMediaAsset assignments
     // This is authoritative - if reconciliation fails, report it in the response
-    let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [] };
+    let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false };
     if (driveId) {
       reconciliationResult = await reconcileDriveAssignments(
         mediaId,
         driveId, // Use authoritative Drive file ID for provenance reconciliation
+        contentHash,
         requestId
       );
     }
