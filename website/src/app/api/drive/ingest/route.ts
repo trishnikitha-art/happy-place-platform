@@ -36,6 +36,7 @@ interface ReconciliationResult {
   reconciled: boolean;
   updated: string[];
   error?: string;
+  incomplete?: boolean; // P0 FIX: Signal when some assignments could not be reconciled due to media lookup failures
 }
 
 /**
@@ -82,19 +83,16 @@ async function reconcileDriveAssignments(
           }
         }
       } catch (error) {
-        // If we can't look up the media, fall back to legacy ID format check
-        console.warn('[ASSIGNMENT_RECONCILIATION] MEDIA_LOOKUP_FAILED, using legacy check', {
+        // P0 FIX: Fail closed on media lookup failure - do not use legacy ID format assumptions
+        console.error('[ASSIGNMENT_RECONCILIATION] MEDIA_LOOKUP_FAILED - FAILING CLOSED', {
           requestId,
           serviceSlug: assignment.serviceSlug,
           mediaId: assignment.mediaId,
           error: error instanceof Error ? error.message : 'Unknown error',
+          reason: 'Cannot perform authoritative reconciliation without media record. Legacy ID format assumptions are forbidden.',
         });
-        
-        // Legacy fallback: ID format assumptions
-        if (assignment.mediaId === `drive-${driveFileId}` || 
-            assignment.mediaId === `drive-ref-${driveFileId}`) {
-          isDriveReference = true;
-        }
+        // Do not fall back to legacy ID format check - fail closed instead
+        continue;
       }
       
       if (isDriveReference) {
@@ -130,6 +128,7 @@ async function reconcileDriveAssignments(
     return {
       reconciled: updates.length > 0,
       updated: updates,
+      incomplete: true, // P0 FIX: Signal when some assignments could not be reconciled due to media lookup failures
     };
   } catch (error) {
     console.error('[ASSIGNMENT_RECONCILIATION] FAILED', {

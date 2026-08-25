@@ -460,6 +460,7 @@ export async function POST(request: Request) {
                 mediaId: value,
                 transactionId 
               });
+              appliedCount++; // P0 FIX: Count brand mutations toward mutation total
               continue;
             } else if (serviceSlug === 'brand-portrait') {
               brandData.ownerPortrait.mediaId = value;
@@ -467,6 +468,7 @@ export async function POST(request: Request) {
                 mediaId: value,
                 transactionId 
               });
+              appliedCount++; // P0 FIX: Count brand mutations toward mutation total
               continue;
             }
             
@@ -479,6 +481,7 @@ export async function POST(request: Request) {
                 mediaId: value,
                 transactionId 
               });
+              appliedCount++; // P0 FIX: Count service mutations toward mutation total
             }
             continue; // Skip project logic
           }
