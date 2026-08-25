@@ -333,7 +333,18 @@ export async function getPublishedMediaAssets(): Promise<VisualAsset[]> {
   try {
     // Load all media records from KV that are published (materialized from Drive or other sources)
     const { listMediaIds } = await import('./media-kv-store');
-    const mediaIds = await listMediaIds();
+    let mediaIds: string[] = [];
+    
+    try {
+      mediaIds = await listMediaIds();
+    } catch (error) {
+      // KV unavailable - log warning and return empty array
+      console.warn('[VISUAL_ASSET_REGISTRY] KV unavailable for published media assets', {
+        error: error instanceof Error ? error.message : 'Unknown error',
+        fallback: 'Returning empty published assets array'
+      });
+      return [];
+    }
     
     // Load all service card assignments for usage slot reconstruction
     const { getAllServiceCardAssignments } = await import('./assignment-store');

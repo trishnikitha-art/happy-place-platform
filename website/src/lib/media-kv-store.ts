@@ -17,7 +17,7 @@ let redis: Redis | null = null;
 const MEDIA_PREFIX = 'media:';
 const CONTENT_HASH_PREFIX = 'content_hash:';
 
-function getRedisClient(): Redis {
+function getRedisClient(): Redis | null {
   if (!redis) {
     let url = process.env.KV_REST_API_URL;
     let token = process.env.KV_REST_API_TOKEN;
@@ -36,7 +36,8 @@ function getRedisClient(): Redis {
     }
     
     if (!url || !token) {
-      throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
+      console.warn('[MEDIA_KV] KV credentials not configured, returning null client');
+      return null;
     }
     
     redis = new Redis({ url, token });
@@ -87,6 +88,10 @@ async function verifyConstitutionalProof(media: Media): Promise<boolean> {
   // Verify Blob metadata exists (only if contentHash exists)
   if (media.contentHash) {
     const client = getRedisClient();
+    if (!client) {
+      console.warn('[MEDIA_KV] KV unavailable for constitutional proof check', { mediaId: media.id });
+      return false;
+    }
     const blobMetadata = await client.get(`blob_metadata:${media.contentHash}`);
     
     if (!blobMetadata) {
@@ -133,6 +138,11 @@ async function verifyConstitutionalProof(media: Media): Promise<boolean> {
 export async function getMedia(id: string): Promise<Media | null> {
   try {
     const client = getRedisClient();
+    if (!client) {
+      console.warn('[MEDIA_KV] KV unavailable for getMedia', { id });
+      return null;
+    }
+    
     const data = await client.get(`media:${id}`);
     
     if (!data) {
@@ -164,6 +174,11 @@ export async function getMedia(id: string): Promise<Media | null> {
 export async function listMediaIds(): Promise<string[]> {
   try {
     const client = getRedisClient();
+    if (!client) {
+      console.warn('[MEDIA_KV] KV unavailable for listMediaIds');
+      return [];
+    }
+    
     const keys: string[] = [];
     let cursor = '0';
     
@@ -196,6 +211,10 @@ export async function saveMedia(media: Media): Promise<void> {
     }
     
     const client = getRedisClient();
+    if (!client) {
+      console.warn('[MEDIA_KV] KV unavailable for saveMedia', { mediaId: media.id });
+      throw new Error('KV credentials not configured - cannot save media');
+    }
     
     // Use atomic Lua script to maintain media record + index consistency
     const saveScript = `
@@ -235,6 +254,10 @@ export async function saveMedia(media: Media): Promise<void> {
 export async function deleteMedia(id: string): Promise<void> {
   try {
     const client = getRedisClient();
+    if (!client) {
+      console.warn('[MEDIA_KV] KV unavailable for deleteMedia', { id });
+      throw new Error('KV credentials not configured - cannot delete media');
+    }
     
     // Use atomic Lua script to delete media record and index together
     const deleteScript = `
@@ -286,6 +309,10 @@ export const storeMedia = saveMedia;
 export async function findMediaByContentHash(contentHash: string): Promise<Media | null> {
   try {
     const client = getRedisClient();
+    if (!client) {
+      console.warn('[MEDIA_KV] KV unavailable for findMediaByContentHash', { contentHash });
+      return null;
+    }
     
     // O(1) lookup via content hash index
     const mediaId = await client.get(`${CONTENT_HASH_PREFIX}${contentHash}`);

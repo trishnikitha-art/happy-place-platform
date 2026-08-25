@@ -17,7 +17,7 @@ import crypto from 'crypto';
 
 let redis: Redis | null = null;
 
-function getRedisClient(): Redis {
+function getRedisClient(): Redis | null {
   if (!redis) {
     let url = process.env.KV_REST_API_URL;
     let token = process.env.KV_REST_API_TOKEN;
@@ -36,7 +36,8 @@ function getRedisClient(): Redis {
     }
     
     if (!url || !token) {
-      throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
+      console.warn('[BLOB_STORAGE] KV credentials not configured, returning null client');
+      return null;
     }
     
     redis = new Redis({ url, token });
@@ -160,6 +161,10 @@ export async function uploadToBlob(
     };
     
     const client = getRedisClient();
+    if (!client) {
+      console.warn('[BLOB_STORAGE] KV unavailable for metadata storage', { contentHash });
+      throw new Error('KV credentials not configured - cannot store blob metadata');
+    }
     await client.set(`blob_metadata:${contentHash}`, JSON.stringify(metadata));
     
     console.log('[BLOB_STORAGE] New blob uploaded and metadata stored:', {
@@ -237,6 +242,10 @@ export async function uploadToBlob(
         
         // Store recovered metadata in Redis
         const client = getRedisClient();
+        if (!client) {
+          console.warn('[BLOB_STORAGE] KV unavailable for metadata recovery', { contentHash });
+          throw new Error('KV credentials not configured - cannot store recovered blob metadata');
+        }
         await client.set(`blob_metadata:${contentHash}`, JSON.stringify(recoveredMetadata));
         
         console.log('[BLOB_STORAGE] Recovered and stored metadata for existing Blob:', {
@@ -272,6 +281,10 @@ export async function uploadToBlob(
 export async function getBlobMetadataByContentHash(contentHash: string): Promise<BlobMetadata | null> {
   try {
     const client = getRedisClient();
+    if (!client) {
+      console.warn('[BLOB_STORAGE] KV unavailable for getBlobMetadataByContentHash', { contentHash });
+      return null;
+    }
     const data = await client.get(`blob_metadata:${contentHash}`);
     if (!data) return null;
     

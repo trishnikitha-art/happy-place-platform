@@ -563,6 +563,17 @@ export async function POST(request: Request) {
       brandFileContent = JSON.stringify(brandData, null, 2);
       console.log('[DEPLOY API] BRAND_CONTENT_PREPARED', { length: brandFileContent.length });
       
+    } else if (isProduction && !redis) {
+      console.error('[DEPLOY API] REDIS_UNAVAILABLE_IN_PRODUCTION', {
+        error: 'KV_REST_API_URL and KV_REST_API_TOKEN not configured',
+        impact: 'Cannot read staging area or deploy changes in production',
+        recommendation: 'Configure Vercel environment variables: KV_REST_API_URL and KV_REST_API_TOKEN'
+      });
+      return NextResponse.json({
+        error: "Redis unavailable in production",
+        message: "KV credentials not configured. Cannot access staging area for deployment.",
+        recommendation: "Configure Vercel environment variables: KV_REST_API_URL and KV_REST_API_TOKEN"
+      }, { status: 503 });
     } else {
       // Development: Read local authority files
       const authorityFile = join(process.cwd(), "src/config/projects.v1.json");
