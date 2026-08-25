@@ -43,7 +43,13 @@ const CACHE = path.join(ROOT, "generated", "rebuild-cache.json");
 const DRIVE_CACHE = path.join(ROOT, "generated", "drive-cache");
 
 const PIPELINE_VERSION = "1.0.0";
+// P0 FIX: Use shared media constants for rendition contract consistency
+// These must match /api/drive/ingest and media-constants.ts
 const WIDTHS = [480, 768, 1080, 1600, 2000];
+const THUMBNAIL_WIDTH = 480;
+const THUMBNAIL_QUALITY = 70;
+const WEBP_QUALITY = 80;
+const AVIF_QUALITY = 75;
 
 const KNOWN = [
   "Decks", "Pergolas", "Fencing", "Kitchen Remodel", "Bathroom Remodel", "Trim",
@@ -454,14 +460,14 @@ export async function runPipeline(options = {}) {
         for (const fmt of ["avif", "webp"]) {
           const outName = `${baseName}-${vw}.${fmt}`;
           await sharp(buffer).resize({ width: vw, withoutEnlargement: true })
-            [fmt === "avif" ? "avif" : "webp"]({ quality: fmt === "avif" ? 55 : 72 })
+            [fmt === "avif" ? "avif" : "webp"]({ quality: fmt === "avif" ? AVIF_QUALITY : WEBP_QUALITY })
             .toFile(path.join(destDir, outName));
           variants.push({ width: vw, format: fmt, src: `/images/projects/${slug}/${outName}` });
         }
       }
       // thumbnail + blur
       const thumbName = `${baseName}-thumb.webp`;
-      await sharp(buffer).resize(480).webp({ quality: 70 }).toFile(path.join(destDir, thumbName));
+      await sharp(buffer).resize(THUMBNAIL_WIDTH).webp({ quality: THUMBNAIL_QUALITY }).toFile(path.join(destDir, thumbName));
       const blurBuf = await sharp(buffer).resize(16).webp({ quality: 40 }).toBuffer();
       const blurDataURL = `data:image/webp;base64,${blurBuf.toString("base64")}`;
       const src = variants.find((v) => v.format === "webp")?.src ?? null;
@@ -688,14 +694,14 @@ async function main() {
         for (const fmt of ["avif", "webp"]) {
           const outName = `${baseName}-${vw}.${fmt}`;
           await sharp(buffer).resize({ width: vw, withoutEnlargement: true })
-            [fmt === "avif" ? "avif" : "webp"]({ quality: fmt === "avif" ? 55 : 72 })
+            [fmt === "avif" ? "avif" : "webp"]({ quality: fmt === "avif" ? AVIF_QUALITY : WEBP_QUALITY })
             .toFile(path.join(destDir, outName));
           variants.push({ width: vw, format: fmt, src: `/images/projects/${slug}/${outName}` });
         }
       }
       // thumbnail + blur
       const thumbName = `${baseName}-thumb.webp`;
-      await sharp(buffer).resize(480).webp({ quality: 70 }).toFile(path.join(destDir, thumbName));
+      await sharp(buffer).resize(THUMBNAIL_WIDTH).webp({ quality: THUMBNAIL_QUALITY }).toFile(path.join(destDir, thumbName));
       const blurBuf = await sharp(buffer).resize(16).webp({ quality: 40 }).toBuffer();
       const blurDataURL = `data:image/webp;base64,${blurBuf.toString("base64")}`;
       const src = variants.find((v) => v.format === "webp")?.src ?? null;

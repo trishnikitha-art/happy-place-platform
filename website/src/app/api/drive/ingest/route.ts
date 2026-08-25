@@ -28,6 +28,7 @@ import { workbenchSession } from '@/lib/workbench-session';
 import { storeMedia, findMediaByContentHash, getMedia, getMediaRecordRaw } from '@/lib/media-kv-store';
 import crypto from 'crypto';
 import type { Media, MediaRole } from '@/types/media';
+import { RESPONSIVE_WIDTHS, THUMBNAIL_WIDTH, THUMBNAIL_QUALITY, WEBP_QUALITY, AVIF_QUALITY } from '@/lib/media-constants';
 
 /**
  * Assignment reconciliation result
@@ -251,8 +252,131 @@ interface IngestRequest {
   roles?: MediaRole[];
 }
 
-// Configuration matching the existing image pipeline
-const WIDTHS = [480, 768, 1080, 1600, 2000];
+/**
+ * P0 FIX: Authoritative contract for media materialization completeness
+ * Exported for use by verification endpoints
+ */
+ * 
+ * A PublishedMediaAsset is considered complete ONLY when it has:
+ * - Actual source bytes (contentHash from real bytes, not synthetic)
+ * - Original/master stored in Blob
+ * - Thumbnail
+ * - Blur placeholder
+ * - Responsive WebP at every required width
+ * - Responsive AVIF at every required width
+ * - Valid public URLs for all renditions
+ * - Blob metadata/proof
+ * - source: 'local'
+ * - lifecycleState: 'published'
+ * - No Drive dependency in the public asset
+ * 
+ * This is the NON-NEGOTIABLE contract for media readiness.
+ * Any asset failing this check must be re-materialized.
+ */
+function isMediaMaterializationComplete(media: Media): boolean {
+  // Must be a PublishedMediaAsset
+  if (media.lifecycleState !== 'published' || media.source !== 'local') {
+    console.log('[MATERIALIZATION_CHECK] FAILED: Not a PublishedMediaAsset', {
+      mediaId: media.id,
+      lifecycleState: media.lifecycleState,
+      source: media.source,
+    });
+    return false;
+  }
+
+  // Must have content hash (and it must not be synthetic)
+  if (!media.contentHash) {
+    console.log('[MATERIALIZATION_CHECK] FAILED: Missing content hash', { mediaId: media.id });
+    return false;
+  }
+
+  // Check for synthetic content identity
+  const crypto = require('crypto');
+  const syntheticHash = crypto.createHash('sha256').update(media.id).digest('hex');
+  if (media.contentHash === syntheticHash) {
+    console.log('[MATERIALIZATION_CHECK] FAILED: Synthetic content identity', {
+      mediaId: media.id,
+      contentHash: media.contentHash,
+    });
+    return false;
+  }
+
+  // Must have variants
+  if (!media.variants) {
+    console.log('[MATERIALIZATION_CHECK] FAILED: Missing variants', { mediaId: media.id });
+    return false;
+  }
+
+  // Must have original
+  if (!media.variants.original) {
+    console.log('[MATERIALIZATION_CHECK] FAILED: Missing original', { mediaId: media.id });
+    return false;
+  }
+
+  // Must have thumbnail
+  if (!media.variants.thumbnail) {
+    console.log('[MATERIALIZATION_CHECK] FAILED: Missing thumbnail', { mediaId: media.id });
+    return false;
+  }
+
+  // Must have blur
+  if (!media.variants.blur) {
+    console.log('[MATERIALIZATION_CHECK] FAILED: Missing blur', { mediaId: media.id });
+    return false;
+  }
+
+  // Must have responsive variants
+  if (!media.variants.responsive || !Array.isArray(media.variants.responsive)) {
+    console.log('[MATERIALIZATION_CHECK] FAILED: Missing or invalid responsive variants', {
+      mediaId: media.id,
+      responsive: media.variants.responsive,
+    });
+    return false;
+  }
+
+  // Must have WebP and AVIF at every required width
+  const imageWidth = media.dimensions?.width || 1920;
+  const requiredWidths = RESPONSIVE_WIDTHS.filter(w => w <= imageWidth);
+
+  for (const width of requiredWidths) {
+    const responsiveEntry = media.variants.responsive.find(r => r.width === width);
+    if (!responsiveEntry) {
+      console.log('[MATERIALIZATION_CHECK] FAILED: Missing responsive entry for width', {
+        mediaId: media.id,
+        width,
+      });
+      return false;
+    }
+
+    if (!responsiveEntry.webp) {
+      console.log('[MATERIALIZATION_CHECK] FAILED: Missing WebP for width', {
+        mediaId: media.id,
+        width,
+      });
+      return false;
+    }
+
+    if (!responsiveEntry.avif) {
+      console.log('[MATERIALIZATION_CHECK] FAILED: Missing AVIF for width', {
+        mediaId: media.id,
+        width,
+      });
+      return false;
+    }
+  }
+
+  // Must not have Drive dependency
+  if (media.drive) {
+    console.log('[MATERIALIZATION_CHECK] FAILED: Has Drive dependency', { mediaId: media.id });
+    return false;
+  }
+
+  console.log('[MATERIALIZATION_CHECK] PASSED: Media is complete', { mediaId: media.id });
+  return true;
+}
+
+// Export for use by verification endpoints
+export { isMediaMaterializationComplete };
 
 /**
  * Generate a stable media ID from content hash (deterministic)
@@ -556,19 +680,17 @@ export async function POST(request: Request) {
         // Don't return early - fall through to variant generation logic below
       } else if (existingMedia.lifecycleState === 'published' && existingMedia.source === 'local') {
         // Only PublishedMediaAsset can be deduplicated
-        // P0-B FIX: Upgrade existing records if they lack responsive variants or only have 480px
-        needsUpgrade = !existingMedia.variants?.responsive || 
-          (existingMedia.variants?.responsive?.length === 1 && 
-           existingMedia.variants.responsive[0].width === 480);
-        
+        // P0 FIX: Use authoritative completeness check instead of narrow responsive logic
+        const isComplete = isMediaMaterializationComplete(existingMedia);
+        needsUpgrade = !isComplete;
+
         if (needsUpgrade && sharpAvailable) {
-          console.log('[MEDIA_INGEST] UPGRADING_EXISTING_PUBLISHED_ASSET', {
+          console.log('[MEDIA_INGEST] UPGRADING_INCOMPLETE_PUBLISHED_ASSET', {
             requestId,
             existingMediaId: existingMedia.id,
-            hasResponsive: !!existingMedia.variants?.responsive,
-            responsiveCount: existingMedia.variants?.responsive?.length,
+            reason: 'Asset fails materialization completeness check',
           });
-          
+
           // Continue with variant generation to upgrade the existing record
           // Don't return early - fall through to variant generation logic below
         } else {
@@ -650,7 +772,7 @@ export async function POST(request: Request) {
     
     const width = metadata.width || 1920;
     const height = metadata.height || 1080;
-    const validWidths = WIDTHS.filter((w) => w <= width);
+    const validWidths = RESPONSIVE_WIDTHS.filter((w) => w <= width);
     if (!validWidths.length) validWidths.push(width);
     
     // Upload original
@@ -690,7 +812,7 @@ export async function POST(request: Request) {
         
         const variantBuffer = await sharp(fileBuffer)
           .resize({ width: vw, withoutEnlargement: true })
-          [fmt === 'avif' ? 'avif' : 'webp']({ quality: fmt === 'avif' ? 55 : 72 })
+          [fmt === 'avif' ? 'avif' : 'webp']({ quality: fmt === 'avif' ? AVIF_QUALITY : WEBP_QUALITY })
           .toBuffer();
         
         const variantUpload = await uploadToBlob(variantBuffer, variantFilename, variantContentType);
@@ -721,7 +843,7 @@ export async function POST(request: Request) {
     let blurDataURL = '';
     
     const thumbFilename = generateBlobFilename(mediaId, 'thumb', 'webp');
-    const thumbBuffer = await sharp(fileBuffer).resize(480).webp({ quality: 70 }).toBuffer();
+    const thumbBuffer = await sharp(fileBuffer).resize(THUMBNAIL_WIDTH).webp({ quality: THUMBNAIL_QUALITY }).toBuffer();
     thumbUpload = await uploadToBlob(thumbBuffer, thumbFilename, 'image/webp');
     if (thumbUpload.alreadyExisted) {
       blobIdempotencyStats.reusedUploads++;

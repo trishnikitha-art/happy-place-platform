@@ -744,11 +744,120 @@ export async function POST(request: Request) {
       // NOTE: Service card assignments are now merged from staging, not from assignment store
       // This prevents Redis/Git split-brain - only staged assignments are committed
       servicesData.generatedAt = new Date().toISOString();
-      
+
+      // P0 FIX: Verify all media IDs are materially complete before deployment
+      // This prevents deploying assignments to incomplete/poisoned media assets
+      console.log('[DEPLOY API] VERIFYING_MEDIA_MATERIALIZATION', { deploymentTransactionId });
+
+      const mediaIdsToVerify = new Set<string>();
+
+      // Collect media IDs from service card assignments
+      servicesData.services.forEach((service: any) => {
+        if (service.cardMediaId) {
+          mediaIdsToVerify.add(service.cardMediaId);
+        }
+      });
+
+      // Collect media IDs from brand assignments
+      if (brandData.homepageHero?.mediaId) {
+        mediaIdsToVerify.add(brandData.homepageHero.mediaId);
+      }
+      if (brandData.ownerPortrait?.mediaId) {
+        mediaIdsToVerify.add(brandData.ownerPortrait.mediaId);
+      }
+
+      // Collect media IDs from project assignments
+      projectsData.projects.forEach((project: any) => {
+        if (project.hero?.mediaId) {
+          mediaIdsToVerify.add(project.hero.mediaId);
+        }
+        if (project.gallery) {
+          project.gallery.forEach((galleryItem: any) => {
+            if (galleryItem.mediaId) {
+              mediaIdsToVerify.add(galleryItem.mediaId);
+            }
+          });
+        }
+      });
+
+      console.log('[DEPLOY API] MEDIA_VERIFICATION_COUNT', {
+        deploymentTransactionId,
+        mediaIdsCount: mediaIdsToVerify.size,
+      });
+
+      // Import the completeness check function
+      const { isMediaMaterializationComplete } = await import('@/app/api/drive/ingest/route');
+      const { getMedia } = await import('@/lib/media');
+
+      const incompleteMediaIds: string[] = [];
+
+      for (const mediaId of mediaIdsToVerify) {
+        try {
+          const media = await getMedia(mediaId);
+          if (!media) {
+            console.error('[DEPLOY API] MEDIA_NOT_FOUND', { deploymentTransactionId, mediaId });
+            incompleteMediaIds.push(mediaId);
+            continue;
+          }
+
+          const isComplete = isMediaMaterializationComplete(media);
+          if (!isComplete) {
+            console.error('[DEPLOY API] MEDIA_INCOMPLETE', {
+              deploymentTransactionId,
+              mediaId,
+              lifecycleState: media.lifecycleState,
+              source: media.source,
+            });
+            incompleteMediaIds.push(mediaId);
+          }
+        } catch (error) {
+          console.error('[DEPLOY API] MEDIA_VERIFICATION_ERROR', {
+            deploymentTransactionId,
+            mediaId,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+          incompleteMediaIds.push(mediaId);
+        }
+      }
+
+      if (incompleteMediaIds.length > 0) {
+        console.error('[DEPLOY API] DEPLOYMENT_REJECTED_INCOMPLETE_MEDIA', {
+          deploymentTransactionId,
+          incompleteCount: incompleteMediaIds.length,
+          incompleteMediaIds,
+        });
+
+        // MARK TRANSACTION AS FAILED
+        if (transaction) {
+          await failDeploymentTransaction(
+            deploymentTransactionId,
+            `Deployment rejected: ${incompleteMediaIds.length} media assets are incomplete and cannot be deployed`
+          );
+        }
+
+        return NextResponse.json(
+          {
+            error: "Deployment rejected: Incomplete media assets",
+            message: `${incompleteMediaIds.length} media assets fail materialization completeness check and cannot be deployed. Re-materialize these assets before deployment.`,
+            incompleteMediaIds,
+            forensic: {
+              deploymentTransactionId,
+              incompleteCount: incompleteMediaIds.length,
+            },
+          },
+          { status: 400 }
+        );
+      }
+
+      console.log('[DEPLOY API] MEDIA_VERIFICATION_PASSED', {
+        deploymentTransactionId,
+        verifiedCount: mediaIdsToVerify.size,
+      });
+
       // Store services.v1.json content for atomic Git commit
       servicesFileContent = JSON.stringify(servicesData, null, 2);
       console.log('[DEPLOY API] SERVICES_CONTENT_PREPARED', { length: servicesFileContent.length });
-      
+
       // Store brand.v1.json content for atomic Git commit
       brandData.generatedAt = new Date().toISOString();
       brandFileContent = JSON.stringify(brandData, null, 2);
