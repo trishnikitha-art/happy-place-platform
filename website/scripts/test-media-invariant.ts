@@ -201,6 +201,50 @@ export async function runMediaInvariantTests(): Promise<InvariantTestResult[]> {
     });
   }
 
+  // Test 5: No synthetic content identity (contentHash must be from actual bytes, not SHA256 of ID)
+  try {
+    const crypto = await import('crypto');
+    const testMediaIds = ['outdoor-living-001-6', 'builtins-001-secondary', 'repairs-001-drywall'];
+    let syntheticCount = 0;
+    
+    for (const mediaId of testMediaIds) {
+      const media = await getMediaByIdAsync(mediaId);
+      if (media && media.contentHash) {
+        const syntheticHash = crypto.createHash('sha256').update(media.id).digest('hex');
+        const isSynthetic = media.contentHash === syntheticHash;
+        
+        if (isSynthetic) {
+          syntheticCount++;
+          console.error('[MEDIA_INVARIANT_TEST] Media has synthetic content identity:', {
+            mediaId,
+            contentHash: media.contentHash,
+            syntheticHash,
+          });
+        }
+      }
+    }
+    
+    if (syntheticCount > 0) {
+      results.push({
+        testName: 'No synthetic content identity',
+        state: 'FAIL',
+        details: `${syntheticCount} out of ${testMediaIds.length} test media IDs have synthetic content hashes (SHA256 of ID instead of actual bytes)`,
+      });
+    } else {
+      results.push({
+        testName: 'No synthetic content identity',
+        state: 'PASS',
+        details: `All ${testMediaIds.length} test media IDs have real content hashes (from actual bytes, not synthetic ID-based hashes)`,
+      });
+    }
+  } catch (error) {
+    results.push({
+      testName: 'No synthetic content identity',
+      state: 'FAIL',
+      details: `Test failed with error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+    });
+  }
+
   // Print results
   console.log('[MEDIA_INVARIANT_TEST] Test Results:');
   results.forEach(result => {

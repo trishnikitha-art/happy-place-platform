@@ -19,17 +19,6 @@ import { Redis } from '@upstash/redis';
 
 export const runtime = 'nodejs';
 
-function getRedisClient(): Redis | null {
-  try {
-    const url = process.env.KV_REST_API_URL;
-    const token = process.env.KV_REST_API_TOKEN;
-    if (!url || !token) return null;
-    return new Redis({ url, token });
-  } catch {
-    return null;
-  }
-}
-
 const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
 
 function getRedisClient(): Redis | null {
