@@ -19,6 +19,17 @@ import { Redis } from '@upstash/redis';
 
 export const runtime = 'nodejs';
 
+function getRedisClient(): Redis | null {
+  try {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    if (!url || !token) return null;
+    return new Redis({ url, token });
+  } catch {
+    return null;
+  }
+}
+
 const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
 
 function getRedisClient(): Redis | null {
@@ -209,6 +220,21 @@ export async function POST(request: Request) {
       serviceSlug,
       mediaId,
     });
+
+    // CRITICAL: Also write to KV staging area for deployment API discovery
+    // Deployment API expects: workbench-staging:{txId}:service:{serviceSlug}
+    const stagingKey = `workbench-staging:${effectiveTransactionId}:service:${serviceSlug}`;
+    const redis = getRedisClient();
+    if (redis) {
+      await redis.set(stagingKey, mediaId);
+      console.log('[SERVICES CARD] STAGING_AREA_WRITE', {
+        stagingKey,
+        mediaId,
+        transactionId: effectiveTransactionId
+      });
+    } else {
+      console.warn('[SERVICES CARD] REDIS_UNAVAILABLE - staging write skipped');
+    }
 
     // Read back to verify
     const storedAssignment = await getServiceCardAssignment(serviceSlug);

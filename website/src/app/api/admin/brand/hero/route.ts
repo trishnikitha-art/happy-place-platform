@@ -16,8 +16,6 @@ import { getMediaByIdAsync } from "@/lib/media";
 import { isDriveReference, isPublishedMediaAsset } from "@/types/media";
 import { Redis } from '@upstash/redis';
 
-const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
-
 function getRedisClient(): Redis | null {
   try {
     const url = process.env.KV_REST_API_URL;
@@ -184,6 +182,21 @@ export async function POST(request: Request) {
       requestId,
       mediaId,
     });
+
+    // CRITICAL: Also write to KV staging area for deployment API discovery
+    // Deployment API expects: workbench-staging:{txId}:service:{serviceSlug}
+    const stagingKey = `workbench-staging:${requestId}:service:brand-hero`;
+    const redis = getRedisClient();
+    if (redis) {
+      await redis.set(stagingKey, mediaId);
+      console.log('[BRAND HERO] STAGING_AREA_WRITE', {
+        stagingKey,
+        mediaId,
+        requestId
+      });
+    } else {
+      console.warn('[BRAND HERO] REDIS_UNAVAILABLE - staging write skipped');
+    }
 
     // Read back to verify
     const storedAssignment = await getServiceCardAssignment('brand-hero', requestId);
