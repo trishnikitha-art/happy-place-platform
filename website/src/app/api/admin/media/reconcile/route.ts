@@ -42,6 +42,7 @@ interface ReconciliationReport {
   errors: string[];
   contentHashIndexRebuilt: boolean;
   danglingIndexes: string[];
+  incompleteCanonicalCount?: number; // P0 FIX: Count canonical records that are incomplete
 }
 
 function getRedisClient(): Redis | null {
@@ -173,6 +174,23 @@ export async function POST(request: Request) {
             // Check against canonical authority
             const canonical = canonicalRecords.get(mediaId);
             if (canonical) {
+              // P0 FIX: Verify canonical static record is materially complete before using it
+              // Do not replace runtime record with incomplete static authority
+              const { isMediaMaterializationComplete } = await import('@/app/api/drive/ingest/route');
+              const isCanonicalComplete = isMediaMaterializationComplete(canonical);
+
+              if (!isCanonicalComplete) {
+                console.error('[MEDIA_RECONCILE] CANONICAL_INCOMPLETE - DANGEROUS REPLACEMENT BLOCKED', {
+                  requestId,
+                  mediaId,
+                  reason: 'Canonical static record is incomplete - would replace runtime with incomplete authority'
+                });
+                report.incompleteCanonicalCount = (report.incompleteCanonicalCount || 0) + 1;
+                // Preserve runtime record - do not overwrite with incomplete static authority
+                report.preservedRecords.push(mediaId);
+                continue;
+              }
+
               // Compare hashes
               if (media.contentHash !== canonical.contentHash) {
                 report.staleRecords++;

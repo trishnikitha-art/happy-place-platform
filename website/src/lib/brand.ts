@@ -85,19 +85,54 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
           mediaId: assignment.mediaId,
         };
       } else {
-        console.error('[PUBLIC_MEDIA_GATE] BRAND_HERO_REJECTED', { 
-          requestId, 
-          mediaId: assignment.mediaId 
+        console.error('[PUBLIC_MEDIA_GATE] BRAND_HERO_REJECTED', {
+          requestId,
+          mediaId: assignment.mediaId
         });
         // Reject assignment if it doesn't resolve to PublishedMediaAsset
-        return manifest.homepageHero;
+        // P0 FIX: Do NOT fall back to static without independent verification
+        // Static authority may contain incomplete media that also fails public proof
       }
     }
   } catch (error) {
     console.error('[PUBLIC_READER] ASSIGNMENT_LOAD_FAILED', { requestId, error });
   }
-  
-  console.log('[PUBLIC_READER] FALLBACK_TO_STATIC', { requestId });
+
+  // P0 FIX: Static fallback must also pass public media gate
+  // Do not render static media merely because it exists in authority JSON
+  if (manifest.homepageHero.mediaId) {
+    console.log('[PUBLIC_READER] STATIC_FALLBACK_VERIFYING', { requestId, mediaId: manifest.homepageHero.mediaId });
+    try {
+      const { resolvePublicMedia } = await import('@/lib/media');
+      const resolvedMedia = await resolvePublicMedia(manifest.homepageHero.mediaId);
+
+      if (resolvedMedia) {
+        console.log('[PUBLIC_MEDIA_GATE] STATIC_HERO_APPROVED', {
+          requestId,
+          mediaId: manifest.homepageHero.mediaId
+        });
+        return manifest.homepageHero;
+      } else {
+        console.error('[PUBLIC_MEDIA_GATE] STATIC_HERO_REJECTED', {
+          requestId,
+          mediaId: manifest.homepageHero.mediaId
+        });
+        // Return null mediaId to render nothing rather than invalid media
+        return {
+          ...manifest.homepageHero,
+          mediaId: null,
+        };
+      }
+    } catch (error) {
+      console.error('[PUBLIC_READER] STATIC_VERIFICATION_FAILED', { requestId, error });
+      return {
+        ...manifest.homepageHero,
+        mediaId: null,
+      };
+    }
+  }
+
+  console.log('[PUBLIC_READER] STATIC_FALLBACK_NO_MEDIAID', { requestId });
   return manifest.homepageHero;
 }
 
@@ -137,19 +172,53 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
           mediaId: assignment.mediaId,
         };
       } else {
-        console.error('[PUBLIC_MEDIA_GATE] BRAND_PORTRAIT_REJECTED', { 
-          requestId, 
-          mediaId: assignment.mediaId 
+        console.error('[PUBLIC_MEDIA_GATE] BRAND_PORTRAIT_REJECTED', {
+          requestId,
+          mediaId: assignment.mediaId
         });
         // Reject assignment if it doesn't resolve to PublishedMediaAsset
-        return manifest.ownerPortrait;
+        // P0 FIX: Do NOT fall back to static without independent verification
       }
     }
   } catch (error) {
     console.error('[BRAND] Failed to load runtime assignment for portrait:', { requestId, error });
   }
-  
-  console.log('[BRAND] Falling back to static configuration', { requestId });
+
+  // P0 FIX: Static fallback must also pass public media gate
+  // Do not render static media merely because it exists in authority JSON
+  if (manifest.ownerPortrait.mediaId) {
+    console.log('[BRAND] STATIC_FALLBACK_VERIFYING', { requestId, mediaId: manifest.ownerPortrait.mediaId });
+    try {
+      const { resolvePublicMedia } = await import('@/lib/media');
+      const resolvedMedia = await resolvePublicMedia(manifest.ownerPortrait.mediaId);
+
+      if (resolvedMedia) {
+        console.log('[PUBLIC_MEDIA_GATE] STATIC_PORTRAIT_APPROVED', {
+          requestId,
+          mediaId: manifest.ownerPortrait.mediaId
+        });
+        return manifest.ownerPortrait;
+      } else {
+        console.error('[PUBLIC_MEDIA_GATE] STATIC_PORTRAIT_REJECTED', {
+          requestId,
+          mediaId: manifest.ownerPortrait.mediaId
+        });
+        // Return null mediaId to render nothing rather than invalid media
+        return {
+          ...manifest.ownerPortrait,
+          mediaId: null,
+        };
+      }
+    } catch (error) {
+      console.error('[BRAND] STATIC_VERIFICATION_FAILED', { requestId, error });
+      return {
+        ...manifest.ownerPortrait,
+        mediaId: null,
+      };
+    }
+  }
+
+  console.log('[BRAND] STATIC_FALLBACK_NO_MEDIAID', { requestId });
   return manifest.ownerPortrait;
 }
 

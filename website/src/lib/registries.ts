@@ -62,30 +62,112 @@ export function getAllServices(): Service[] {
  */
 export async function getAllServicesWithAssignments(): Promise<Service[]> {
   const services = getAllServices();
-  
+
   try {
     const { getServiceCardAssignment } = await import('@/lib/assignment-store');
-    
+
     // Apply runtime assignments to each service
     const servicesWithAssignments = await Promise.all(
       services.map(async (service) => {
         const assignment = await getServiceCardAssignment(service.slug);
         // Runtime assignment takes precedence over static configuration
         if (assignment) {
-          return {
-            ...service,
-            cardMediaId: assignment.mediaId,
-          };
+          // P0 FIX: Verify runtime assignment passes public media gate
+          const { resolvePublicMedia } = await import('@/lib/media');
+          const resolvedMedia = await resolvePublicMedia(assignment.mediaId);
+
+          if (resolvedMedia) {
+            console.log('[REGISTRY] RUNTIME_ASSIGNMENT_APPROVED', {
+              serviceSlug: service.slug,
+              mediaId: assignment.mediaId
+            });
+            return {
+              ...service,
+              cardMediaId: assignment.mediaId,
+            };
+          } else {
+            console.error('[PUBLIC_MEDIA_GATE] RUNTIME_ASSIGNMENT_REJECTED', {
+              serviceSlug: service.slug,
+              mediaId: assignment.mediaId
+            });
+            // Reject runtime assignment - fall through to static verification
+          }
+        }
+
+        // P0 FIX: Static fallback must also pass public media gate
+        if (service.cardMediaId) {
+          const { resolvePublicMedia } = await import('@/lib/media');
+          const resolvedMedia = await resolvePublicMedia(service.cardMediaId);
+
+          if (resolvedMedia) {
+            console.log('[PUBLIC_MEDIA_GATE] STATIC_ASSIGNMENT_APPROVED', {
+              serviceSlug: service.slug,
+              mediaId: service.cardMediaId
+            });
+            return service;
+          } else {
+            console.error('[PUBLIC_MEDIA_GATE] STATIC_ASSIGNMENT_REJECTED', {
+              serviceSlug: service.slug,
+              mediaId: service.cardMediaId
+            });
+            // Return service with null mediaId to render nothing
+            return {
+              ...service,
+              cardMediaId: null,
+            };
+          }
+        }
+
+        return service;
+      })
+    );
+
+    return sortByOrder(servicesWithAssignments);
+  } catch (error) {
+    // If assignment store fails, return static services with verification
+    console.error('[REGISTRY] Failed to apply runtime assignments:', error);
+
+    // P0 FIX: Even on assignment store failure, verify static media passes public gate
+    const servicesWithVerification = await Promise.all(
+      services.map(async (service) => {
+        if (service.cardMediaId) {
+          try {
+            const { resolvePublicMedia } = await import('@/lib/media');
+            const resolvedMedia = await resolvePublicMedia(service.cardMediaId);
+
+            if (resolvedMedia) {
+              console.log('[PUBLIC_MEDIA_GATE] STATIC_FALLBACK_APPROVED', {
+                serviceSlug: service.slug,
+                mediaId: service.cardMediaId
+              });
+              return service;
+            } else {
+              console.error('[PUBLIC_MEDIA_GATE] STATIC_FALLBACK_REJECTED', {
+                serviceSlug: service.slug,
+                mediaId: service.cardMediaId
+              });
+              return {
+                ...service,
+                cardMediaId: null,
+              };
+            }
+          } catch (verifyError) {
+            console.error('[REGISTRY] Static verification failed:', {
+              serviceSlug: service.slug,
+              mediaId: service.cardMediaId,
+              error: verifyError
+            });
+            return {
+              ...service,
+              cardMediaId: null,
+            };
+          }
         }
         return service;
       })
     );
-    
-    return sortByOrder(servicesWithAssignments);
-  } catch (error) {
-    // If assignment store fails, return static services
-    console.error('[REGISTRY] Failed to apply runtime assignments:', error);
-    return services;
+
+    return sortByOrder(servicesWithVerification);
   }
 }
 
