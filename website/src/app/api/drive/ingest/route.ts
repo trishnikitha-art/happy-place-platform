@@ -42,27 +42,62 @@ interface ReconciliationResult {
  * Reconcile DriveReference assignments to PublishedMediaAsset assignments
  * Called after materialization to repair poisoned drive-* / drive-ref-* assignments
  * 
+ * CONSTITUTIONAL FIX: Uses authoritative drive.fileId from DriveReference records
+ * instead of ID format assumptions, making reconciliation deterministic for legacy records.
+ * 
  * @param publishedMediaId - The new PublishedMediaAsset ID
- * @param driveSourceId - The original Drive source ID
+ * @param driveFileId - The authoritative Drive file ID from Google Drive
  * @param requestId - Correlation ID
  * @returns Reconciliation result with updated service slugs
  */
 async function reconcileDriveAssignments(
   publishedMediaId: string,
-  driveSourceId: string,
+  driveFileId: string,
   requestId: string
 ): Promise<ReconciliationResult> {
   try {
     const { getAllServiceCardAssignments, storeServiceCardAssignment, getServiceCardAssignment } = await import('@/lib/assignment-store');
     const assignments = await getAllServiceCardAssignments();
     
-    const driveReferenceId = driveSourceId;
     const updates: string[] = [];
     
     for (const assignment of assignments) {
-      // Check if assignment references this Drive source
-      if (assignment.mediaId === `drive-${driveReferenceId}` || 
-          assignment.mediaId === `drive-ref-${driveReferenceId}`) {
+      // Check if assignment references this Drive source by looking up the DriveReference
+      // CONSTITUTIONAL FIX: Use authoritative drive.fileId, not ID format assumptions
+      let isDriveReference = false;
+      
+      try {
+        const media = await getMedia(assignment.mediaId);
+        if (media && media.lifecycleState === 'source_reference' && media.drive) {
+          // Authoritative check: Does this DriveReference point to the same Drive file?
+          if (media.drive.fileId === driveFileId) {
+            isDriveReference = true;
+            console.log('[ASSIGNMENT_RECONCILIATION] DRIVE_REFERENCE_MATCH', {
+              requestId,
+              serviceSlug: assignment.serviceSlug,
+              mediaId: assignment.mediaId,
+              driveFileId: media.drive.fileId,
+              targetDriveFileId: driveFileId,
+            });
+          }
+        }
+      } catch (error) {
+        // If we can't look up the media, fall back to legacy ID format check
+        console.warn('[ASSIGNMENT_RECONCILIATION] MEDIA_LOOKUP_FAILED, using legacy check', {
+          requestId,
+          serviceSlug: assignment.serviceSlug,
+          mediaId: assignment.mediaId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        
+        // Legacy fallback: ID format assumptions
+        if (assignment.mediaId === `drive-${driveFileId}` || 
+            assignment.mediaId === `drive-ref-${driveFileId}`) {
+          isDriveReference = true;
+        }
+      }
+      
+      if (isDriveReference) {
         // Read current assignment to obtain expected revision for CAS
         const currentAssignment = await getServiceCardAssignment(assignment.serviceSlug, requestId);
         const expectedRevision = currentAssignment?.revision;
@@ -453,42 +488,66 @@ export async function POST(request: Request) {
       console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - existing KV record', {
         requestId,
         existingMediaId: existingMedia.id,
+        existingLifecycleState: existingMedia.lifecycleState,
+        existingSource: existingMedia.source,
       });
       
-      // P0-B FIX: Upgrade existing records if they lack responsive variants or only have 480px
-      needsUpgrade = !existingMedia.variants?.responsive || 
-        (existingMedia.variants?.responsive?.length === 1 && 
-         existingMedia.variants.responsive[0].width === 480);
-      
-      if (needsUpgrade && sharpAvailable) {
-        console.log('[MEDIA_INGEST] UPGRADING_EXISTING_RECORD', {
+      // CONSTITUTIONAL FIX: DriveReference must NEVER be upgraded in place
+      // Always materialize DriveReference into new PublishedMediaAsset
+      if (existingMedia.lifecycleState === 'source_reference' || existingMedia.source === 'google-drive') {
+        console.log('[MEDIA_INGEST] DRIVE_REFERENCE_DETECTED - forcing materialization', {
           requestId,
           existingMediaId: existingMedia.id,
-          hasResponsive: !!existingMedia.variants?.responsive,
-          responsiveCount: existingMedia.variants?.responsive?.length,
+          reason: 'DriveReference cannot be upgraded in place, must materialize to PublishedMediaAsset',
         });
-        
-        // Continue with variant generation to upgrade the existing record
+        // Continue with full materialization to create new PublishedMediaAsset
         // Don't return early - fall through to variant generation logic below
-      } else {
-        // CRITICAL: Run assignment reconciliation even for deduplicated media
-        // This ensures DriveReference assignments are repaired when re-ingesting the same content
-        const reconciliationResult = await reconcileDriveAssignments(
-          existingMedia.id,
-          driveId, // Use actual Drive file ID for provenance, not Shared Drive ID
-          requestId
-        );
+      } else if (existingMedia.lifecycleState === 'published' && existingMedia.source === 'local') {
+        // Only PublishedMediaAsset can be deduplicated
+        // P0-B FIX: Upgrade existing records if they lack responsive variants or only have 480px
+        needsUpgrade = !existingMedia.variants?.responsive || 
+          (existingMedia.variants?.responsive?.length === 1 && 
+           existingMedia.variants.responsive[0].width === 480);
         
-        return NextResponse.json({
-          success: true,
-          action: 'existing',
-          media: existingMedia,
+        if (needsUpgrade && sharpAvailable) {
+          console.log('[MEDIA_INGEST] UPGRADING_EXISTING_PUBLISHED_ASSET', {
+            requestId,
+            existingMediaId: existingMedia.id,
+            hasResponsive: !!existingMedia.variants?.responsive,
+            responsiveCount: existingMedia.variants?.responsive?.length,
+          });
+          
+          // Continue with variant generation to upgrade the existing record
+          // Don't return early - fall through to variant generation logic below
+        } else {
+          // CRITICAL: Run assignment reconciliation even for deduplicated media
+          // This ensures DriveReference assignments are repaired when re-ingesting the same content
+          const reconciliationResult = await reconcileDriveAssignments(
+            existingMedia.id,
+            driveId, // Use authoritative Drive file ID for provenance reconciliation
+            requestId
+          );
+          
+          return NextResponse.json({
+            success: true,
+            action: 'existing',
+            media: existingMedia,
+            requestId,
+            idempotent: true,
+            deduplicationSource: 'kv',
+            assignmentReconciled: reconciliationResult.reconciled,
+            assignmentsUpdated: reconciliationResult.updated,
+          });
+        }
+      } else {
+        // Unknown lifecycle state - log warning but continue with materialization
+        console.warn('[MEDIA_INGEST] UNKNOWN_LIFECYCLE_STATE - forcing materialization', {
           requestId,
-          idempotent: true,
-          deduplicationSource: 'kv',
-          assignmentReconciled: reconciliationResult.reconciled,
-          assignmentsUpdated: reconciliationResult.updated,
+          existingMediaId: existingMedia.id,
+          lifecycleState: existingMedia.lifecycleState,
+          source: existingMedia.source,
         });
+        // Continue with full materialization
       }
     }
     
@@ -711,6 +770,8 @@ export async function POST(request: Request) {
         august3_driveId: driveId,
         // Store Shared Drive context separately for corpus/metadata
         sharedDriveId: driveIdParameter || undefined,
+        // CONSTITUTIONAL FIX: Store authoritative Drive file ID for reconciliation
+        driveFileId: driveId,
       },
     };
 
@@ -721,9 +782,9 @@ export async function POST(request: Request) {
     });
 
     // 9. Store Media record in KV (canonical authority)
-    // P0-B FIX: If upgrading existing record, update it with new responsive variants
-    if (existingMedia && needsUpgrade) {
-      console.log('[MEDIA_INGEST] UPGRADING_EXISTING_MEDIA_RECORD', {
+    // CONSTITUTIONAL FIX: Only upgrade PublishedMediaAsset, never DriveReference
+    if (existingMedia && needsUpgrade && existingMedia.lifecycleState === 'published' && existingMedia.source === 'local') {
+      console.log('[MEDIA_INGEST] UPGRADING_EXISTING_PUBLISHED_ASSET', {
         requestId,
         existingMediaId: existingMedia.id,
         newResponsiveCount: responsiveVariants.length,
@@ -740,6 +801,11 @@ export async function POST(request: Request) {
           avif: avifVariant?.src || existingMedia.variants.avif,
         },
         updatedAt: new Date().toISOString(),
+        // CONSTITUTIONAL FIX: Ensure provenance includes driveFileId for reconciliation
+        provenance: {
+          ...existingMedia.provenance,
+          driveFileId: driveId,
+        },
       };
       
       await storeMedia(upgradedMedia);
@@ -752,7 +818,7 @@ export async function POST(request: Request) {
       // CRITICAL: Run assignment reconciliation after upgrade
       const reconciliationResult = await reconcileDriveAssignments(
         upgradedMedia.id,
-        driveId,
+        driveId, // Use authoritative Drive file ID for provenance reconciliation
         requestId
       );
       
@@ -767,8 +833,16 @@ export async function POST(request: Request) {
         assignmentsUpdated: reconciliationResult.updated,
       });
     } else {
-      // New media record
+      // New media record or DriveReference (always create new PublishedMediaAsset)
       await storeMedia(mediaRecord);
+      
+      console.log('[MEDIA_INGEST] NEW_MEDIA_PERSIST succeeded', {
+        requestId,
+        mediaId,
+        lifecycleState: mediaRecord.lifecycleState,
+        source: mediaRecord.source,
+        wasDriveReference: existingMedia?.lifecycleState === 'source_reference',
+      });
     }
     
     console.log('[MEDIA_INGEST] MEDIA_PERSIST stage succeeded', {
@@ -782,7 +856,7 @@ export async function POST(request: Request) {
     if (driveId) {
       reconciliationResult = await reconcileDriveAssignments(
         mediaId,
-        driveId, // Use actual Drive file ID for provenance, not Shared Drive ID
+        driveId, // Use authoritative Drive file ID for provenance reconciliation
         requestId
       );
     }

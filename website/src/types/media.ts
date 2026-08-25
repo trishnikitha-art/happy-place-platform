@@ -146,6 +146,18 @@ export interface PublishedMediaAsset extends BaseMedia {
   lifecycleState: 'published'; // Only published state allowed (REQUIRED)
   dimensions: MediaDimensions; // Non-zero dimensions (REQUIRED)
   variants: MediaVariants; // At least one valid rendition (REQUIRED)
+  provenance?: {
+    august3_driveId?: string;
+    sharedDriveId?: string;
+    driveFileId?: string; // CONSTITUTIONAL FIX: Authoritative Drive file ID for reconciliation
+    match_type?: string;
+    confidence?: string;
+    drive_canonical?: boolean;
+    physical_deployment?: boolean;
+    status?: string;
+    current_authority?: boolean;
+    preserved_at?: string;
+  };
 }
 
 /**
@@ -219,6 +231,7 @@ export interface Media extends BaseMedia {
   provenance?: {
     august3_driveId?: string;
     sharedDriveId?: string; // Shared Drive context (corpus/metadata, not file identity)
+    driveFileId?: string; // CONSTITUTIONAL FIX: Authoritative Drive file ID for reconciliation
     match_type?: string;
     confidence?: string;
     drive_canonical?: boolean;
