@@ -92,6 +92,7 @@ export default function MediaWorkbench() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const assetsRef = useRef<VisualAsset[]>([]);
   const registeredSlotsRef = useRef<RegisteredSlot[]>([]);
+  const deploymentInProgressRef = useRef<boolean>(false); // Prevent deployment stacking
 
   // Keep assetsRef in sync with state.assets (avoids stale closure in message listener)
   useEffect(() => {
@@ -971,12 +972,18 @@ Check browser console for detailed logs.`);
   const confirmAssignment = async () => {
     if (state.pendingAssignments.size === 0) return;
     if (state.isAccepting) return; // Prevent double-click
+    if (deploymentInProgressRef.current) {
+      console.log('[DEPLOY TRIGGER] DEPLOYMENT_ALREADY_IN_PROGRESS - blocking duplicate');
+      alert('A deployment is already in progress. Please wait for it to complete.');
+      return;
+    }
 
     console.log('[WB_FORENSIC] CONFIRM_STARTED', {
       count: state.pendingAssignments.size,
       timestamp: Date.now(),
     });
 
+    deploymentInProgressRef.current = true;
     setState(prev => ({ ...prev, isAccepting: true }));
 
     console.log('[DND] CONFIRMING_ASSIGNMENTS', {
@@ -1035,19 +1042,6 @@ Check browser console for detailed logs.`);
 
     // Clear all pending assignments after successful processing
     setState(prev => ({ ...prev, pendingAssignments: new Map() }));
-    
-    // Force iframe refresh to pick up authority changes
-    console.log('[DND] SLOT_REFRESH', {
-      iframeExists: !!iframeRef.current,
-    });
-    
-    if (iframeRef.current) {
-      console.log('[DND] IFRAME_REFRESH_TRIGGERED');
-      // Send refresh message to iframe for immediate slot update
-      if (iframeRef.current.contentWindow) {
-        iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
-      }
-    }
 
     // Commit to GitHub after successful assignment persistence
     console.log('[DEPLOY API] COMMITTING_TO_GITHUB');
@@ -1071,6 +1065,20 @@ Check browser console for detailed logs.`);
           verificationPassed: deployData.verificationPassed
         });
         
+        // Force iframe refresh AFTER deployment succeeds to pick up actual deployed changes
+        console.log('[DND] SLOT_REFRESH_AFTER_DEPLOY', {
+          iframeExists: !!iframeRef.current,
+          commitSha: deployData.commitSha,
+        });
+        
+        if (iframeRef.current) {
+          console.log('[DND] IFRAME_REFRESH_TRIGGERED');
+          // Send refresh message to iframe for immediate slot update
+          if (iframeRef.current.contentWindow) {
+            iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
+          }
+        }
+        
         if (deployData.status === 'PUBLISHED') {
           alert(`Your changes are live and saved.\n\n${deployData.message}\n\nCommit SHA: ${deployData.commitSha}\n\nVercel Git integration will automatically deploy this commit to production.`);
         } else if (deployData.status === 'COMMITTED_NEEDS_RECONCILIATION') {
@@ -1088,12 +1096,14 @@ Check browser console for detailed logs.`);
       alert(`Your changes were not published. Nothing was lost. Try again.\n\nGitHub commit failed: ${error instanceof Error ? error.message : String(error)}`);
     } finally {
       setState(prev => ({ ...prev, isAccepting: false }));
+      deploymentInProgressRef.current = false; // Allow new deployments
     }
   };
 
   const cancelAssignment = () => {
     console.log('[DND CONFIRM] CANCEL_ASSIGNMENTS');
     setState(prev => ({ ...prev, pendingAssignments: new Map() }));
+    deploymentInProgressRef.current = false; // Clear deployment flag on cancel
   };
 
   const handleSlotAssignment = (slotId: string, assetId: string) => {
