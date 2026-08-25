@@ -18,12 +18,29 @@
  */
 import type { Media, MediaManifest } from "@/types/media";
 import { isDriveReference, isMaterializingMedia, isPublishedMediaAsset, isStaleMedia } from "@/types/media";
+import crypto from 'crypto';
 
 // Re-export type guards for convenience
 export { isDriveReference, isMaterializingMedia, isPublishedMediaAsset, isStaleMedia };
 import { getProjectsByServiceSlug } from "@/lib/projects";
 import type { Project } from "@/types/projects";
 import { loadAuthority, clearAuthorityCache, findById, sortByOrder } from "./authority-loader";
+
+/**
+ * Compute synthetic content hash (SHA256 of canonical ID)
+ * This is used to detect and reject synthetic content identity
+ */
+function computeSyntheticHash(canonicalId: string): string {
+  return crypto.createHash('sha256').update(canonicalId).digest('hex');
+}
+
+/**
+ * Check if a content hash is synthetic (derived from canonical ID rather than actual bytes)
+ */
+function isSyntheticContentHash(canonicalId: string, actualContentHash: string): boolean {
+  const syntheticHash = computeSyntheticHash(canonicalId);
+  return actualContentHash === syntheticHash;
+}
 
 // Load media manifest using shared AuthorityLoader
 export function loadMediaManifest(): MediaManifest {
@@ -43,12 +60,26 @@ export function getMediaManifest(): MediaManifest {
 
 /**
  * Get media by ID from media.v1.json (static) or KV (dynamic Drive records)
+ * 
+ * CONSTITUTIONAL PROOF: Rejects synthetic content identity from static authority
+ * Static records with synthetic contentHash (SHA256(canonicalId)) are rejected
+ * to prevent back-door approval of invalid media
  */
 export function getMediaById(id: string): Media | null {
   // First check static media.v1.json (existing HP images)
   const manifest = loadMediaManifest();
   const staticMedia = findById(manifest.media, id);
   if (staticMedia) {
+    // CONSTITUTIONAL CHECK: Reject synthetic content identity from static authority
+    // This prevents the seam where KV rejects synthetic records but static authority accepts them
+    if (staticMedia.contentHash && isSyntheticContentHash(id, staticMedia.contentHash)) {
+      console.error('[MEDIA] STATIC_AUTHORITY_REJECTED: Synthetic content identity', {
+        mediaId: id,
+        contentHash: staticMedia.contentHash,
+        reason: 'Static authority cannot contain synthetic content identity (SHA256(canonicalId))'
+      });
+      return null;
+    }
     return staticMedia;
   }
 
@@ -181,6 +212,51 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
       hasContentHash: typeof media.contentHash === 'string' && media.contentHash.length > 0,
       hasValidDimensions: media.dimensions.width > 0 && media.dimensions.height > 0,
       hasDrive: !!media.drive
+    });
+    return null;
+  }
+
+  // REJECT: Synthetic content identity (contentHash === SHA256(canonicalId))
+  // This must be checked even for PublishedMediaAsset to prevent synthetic back doors
+  if (media.contentHash && isSyntheticContentHash(id, media.contentHash)) {
+    console.error('[PUBLIC_MEDIA_GATE] REJECTED: Synthetic content identity', {
+      mediaId: id,
+      contentHash: media.contentHash,
+      reason: 'Content hash is SHA256(canonicalId), not actual bytes'
+    });
+    return null;
+  }
+
+  // REJECT: Missing physical Blob metadata for published local assets
+  // PublishedMediaAsset with source: 'local' must have proof of physical bytes
+  if (media.source === 'local' && media.contentHash) {
+    try {
+      const { getBlobMetadataByContentHash } = await import('@/lib/blob-storage');
+      const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
+      if (!blobMetadata) {
+        console.error('[PUBLIC_MEDIA_GATE] REJECTED: Missing Blob metadata', {
+          mediaId: id,
+          contentHash: media.contentHash,
+          reason: 'No blob_metadata record found for content hash'
+        });
+        return null;
+      }
+    } catch (error) {
+      console.error('[PUBLIC_MEDIA_GATE] BLOB_VERIFICATION_ERROR', {
+        mediaId: id,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      // Fail closed if Blob verification infrastructure fails
+      return null;
+    }
+  }
+
+  // REJECT: Missing public variant URLs
+  // PublishedMediaAsset must have public URLs for presentation
+  if (!media.variants || Object.keys(media.variants).length === 0) {
+    console.error('[PUBLIC_MEDIA_GATE] REJECTED: No public variant URLs', {
+      mediaId: id,
+      variants: media.variants
     });
     return null;
   }

@@ -265,7 +265,11 @@ export async function uploadToBlob(
   }
 }
 
-async function getBlobMetadataByContentHash(contentHash: string): Promise<BlobMetadata | null> {
+/**
+ * Get Blob metadata by content hash (for verification)
+ * This is exported for use by the media proof gate
+ */
+export async function getBlobMetadataByContentHash(contentHash: string): Promise<BlobMetadata | null> {
   try {
     const client = getRedisClient();
     const data = await client.get(`blob_metadata:${contentHash}`);
