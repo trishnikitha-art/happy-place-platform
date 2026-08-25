@@ -25,7 +25,7 @@ import { NextResponse } from 'next/server';
 import { driveDiscovery } from '@/lib/drive/drive-discovery';
 import { driveSession } from '@/lib/drive/drive-session';
 import { workbenchSession } from '@/lib/workbench-session';
-import { storeMedia, findMediaByContentHash, getMedia } from '@/lib/media-kv-store';
+import { storeMedia, findMediaByContentHash, getMedia, getMediaRecordRaw } from '@/lib/media-kv-store';
 import crypto from 'crypto';
 import type { Media, MediaRole } from '@/types/media';
 
@@ -68,7 +68,9 @@ async function reconcileDriveAssignments(
       let isDriveReference = false;
       
       try {
-        const media = await getMedia(assignment.mediaId);
+        // P0 FIX: Use getMediaRecordRaw instead of getMedia to bypass public proof gate
+        // This allows reconciliation to inspect authoritative records even when the public proof gate would reject them
+        const media = await getMediaRecordRaw(assignment.mediaId);
         if (media && media.lifecycleState === 'source_reference' && media.drive) {
           // Authoritative check: Does this DriveReference point to the same Drive file?
           if (media.drive.fileId === driveFileId) {

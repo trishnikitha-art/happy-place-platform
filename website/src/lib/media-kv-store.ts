@@ -169,6 +169,50 @@ export async function getMedia(id: string): Promise<Media | null> {
 }
 
 /**
+ * Get media record by ID from KV WITHOUT constitutional proof verification
+ * This is used for reconciliation/repair operations to inspect authoritative records
+ * even when the public proof gate would reject them (e.g., poisoned records, missing Blob metadata)
+ * 
+ * CRITICAL: This function bypasses the constitutional proof gate.
+ * It should ONLY be used for repair/reconciliation operations, never for public presentation.
+ * 
+ * @param id - Media ID to retrieve
+ * @returns Media record or null if not found
+ */
+export async function getMediaRecordRaw(id: string): Promise<Media | null> {
+  try {
+    const client = getRedisClient();
+    if (!client) {
+      console.warn('[MEDIA_KV] KV unavailable for getMediaRecordRaw', { id });
+      return null;
+    }
+    
+    const data = await client.get(`media:${id}`);
+    
+    if (!data) {
+      return null;
+    }
+    
+    // Handle both JSON strings and already-deserialized objects
+    const media = typeof data === 'string' ? JSON.parse(data) : data;
+    
+    // NO constitutional proof verification - return raw authoritative record
+    // This allows reconciliation to inspect DriveReference records and poisoned PublishedMediaAsset records
+    console.log('[MEDIA_KV] RAW_MEDIA_RECORD_RETRIEVED', { 
+      id, 
+      lifecycleState: media.lifecycleState, 
+      source: media.source,
+      hasDrive: !!media.drive 
+    });
+    
+    return media;
+  } catch (error) {
+    console.error('[MEDIA_KV] Failed to get raw media record:', error);
+    throw new Error(`Failed to get raw media record ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
  * List all media IDs in KV
  */
 export async function listMediaIds(): Promise<string[]> {

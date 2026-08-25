@@ -75,6 +75,11 @@ async function explicitTokenRefresh(
   console.log('[OAUTH_MANAGER] Explicit token refresh for authorization:', authorizationId);
   
   try {
+    // P0 FIX: Preserve existing refresh token before refresh
+    // Google may not return a new refresh token on successful refresh
+    const existingCredentials = oauth2Client.credentials;
+    const existingRefreshToken = existingCredentials.refresh_token as string;
+    
     // Request refresh from Google
     await oauth2Client.refreshAccessToken();
     
@@ -87,11 +92,22 @@ async function explicitTokenRefresh(
     }
     
     const expiryDate = (credentials.expiry_date as number) || Date.now() + 3600 * 1000;
-    const refreshToken = (credentials.refresh_token as string);
+    
+    // P0 FIX: Use returned refresh token if present, otherwise preserve existing refresh token
+    // Google may not return a new refresh token on successful refresh - this is normal
+    const newRefreshToken = (credentials.refresh_token as string);
+    const refreshToken = newRefreshToken || existingRefreshToken;
     
     if (!refreshToken || typeof refreshToken !== 'string') {
-      throw new Error('Token refresh returned invalid refresh_token');
+      throw new Error('Token refresh failed: no valid refresh token available (neither returned by Google nor preserved from existing credentials)');
     }
+    
+    console.log('[OAUTH_MANAGER] Token refresh details', {
+      authorizationId,
+      newRefreshTokenProvided: !!newRefreshToken,
+      existingRefreshTokenPreserved: !newRefreshToken && !!existingRefreshToken,
+      expiryDate: new Date(expiryDate).toISOString()
+    });
     
     // Persist encrypted credentials with explicit ownership
     await updateAuthorizationAfterRefresh(
