@@ -255,8 +255,7 @@ interface IngestRequest {
 /**
  * P0 FIX: Authoritative contract for media materialization completeness
  * Exported for use by verification endpoints
- */
- * 
+ *
  * A PublishedMediaAsset is considered complete ONLY when it has:
  * - Actual source bytes (contentHash from real bytes, not synthetic)
  * - Original/master stored in Blob
@@ -291,7 +290,6 @@ function isMediaMaterializationComplete(media: Media): boolean {
   }
 
   // Check for synthetic content identity
-  const crypto = require('crypto');
   const syntheticHash = crypto.createHash('sha256').update(media.id).digest('hex');
   if (media.contentHash === syntheticHash) {
     console.log('[MATERIALIZATION_CHECK] FAILED: Synthetic content identity', {

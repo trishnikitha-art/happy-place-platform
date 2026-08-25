@@ -13,7 +13,7 @@
 
 import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
-import { getMedia } from "@/lib/media";
+import { getMediaByIdAsync } from "@/lib/media";
 
 export const runtime = 'nodejs';
 
@@ -42,7 +42,7 @@ export async function GET(request: Request) {
   console.log('[MEDIA_VERIFY] VERIFICATION_REQUEST', { requestId, mediaId });
 
   try {
-    const media = await getMedia(mediaId);
+    const media = await getMediaByIdAsync(mediaId);
 
     if (!media) {
       console.log('[MEDIA_VERIFY] MEDIA_NOT_FOUND', { requestId, mediaId });
