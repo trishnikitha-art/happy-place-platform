@@ -325,11 +325,19 @@ export async function POST(request: Request) {
         cursor = result[0];
         
         for (const key of result[1]) {
-          // Parse key format: ONLY accept transactional format: workbench-staging:{txId}:project:{projectId}:{field}
+          // Parse key format: accept both transactional formats:
+          // - workbench-staging:{txId}:project:{projectId}:{field} (5 parts)
+          // - workbench-staging:{txId}:service:{serviceSlug} (4 parts)
           const parts = key.split(':');
           
-          // ONLY accept new transactional format
-          if (parts.length >= 5 && (parts[1].startsWith('WBDEP-') || parts[1].startsWith('tx-'))) {
+          // MUST start with workbench-staging prefix
+          if (parts[0] !== 'workbench-staging') {
+            console.warn('[DEPLOY API] INVALID_STAGING_KEY_PREFIX', { key });
+            continue;
+          }
+          
+          // Accept new transactional format (4 or 5 parts)
+          if (parts.length >= 4 && (parts[1].startsWith('WBDEP-') || parts[1].startsWith('tx-'))) {
             const transactionId = parts[1];
             if (!transactionGroups.has(transactionId)) {
               transactionGroups.set(transactionId, []);
@@ -340,7 +348,7 @@ export async function POST(request: Request) {
           else {
             console.warn('[DEPLOY API] LEGACY_STAGING_KEY_SKIPPED', { 
               key, 
-              reason: 'Legacy format no longer supported. Use transactional format: workbench-staging:{txId}:project:{projectId}:{field}'
+              reason: 'Legacy format no longer supported. Use transactional format: workbench-staging:{txId}:project:{projectId}:{field} or workbench-staging:{txId}:service:{serviceSlug}'
             });
           }
         }
@@ -441,7 +449,7 @@ export async function POST(request: Request) {
             field = parts[4];
             mutationType = 'project';
           } 
-          // New transactional format: workbench-staging:{txId}:service:{serviceSlug}
+          // New transactional format: workbench-staging:{txId}:service:{serviceSlug} (4 parts)
           else if (parts.length >= 4 && (parts[1].startsWith('WBDEP-') || parts[1].startsWith('tx-')) && parts[2] === 'service') {
             const serviceSlug = parts[3];
             
@@ -480,7 +488,7 @@ export async function POST(request: Request) {
               key, 
               transactionId,
               format: parts.join(':'),
-              reason: 'Legacy staging format no longer supported. Use transactional format: workbench-staging:{txId}:project:{projectId}:{field}'
+              reason: 'Legacy staging format no longer supported. Use transactional format: workbench-staging:{txId}:project:{projectId}:{field} or workbench-staging:{txId}:service:{serviceSlug}'
             });
             continue; // Skip legacy keys
           }

@@ -93,7 +93,7 @@ export default async function HomePage() {
     try {
       const assignment = await getServiceCardAssignment(service.slug);
       if (assignment?.mediaId) {
-        // Resolve media object through public media gate (rejects Drive references)
+        // Resolve media object through public media gate (rejects Drive references, synthetic content, missing Blob metadata)
         const mediaObject = await resolvePublicMedia(assignment.mediaId);
         
         console.log('[PUBLIC_MEDIA_GATE] SERVICE_CARD_RESOLUTION', {
@@ -103,10 +103,30 @@ export default async function HomePage() {
           resolvedMediaId: mediaObject?.id ?? null,
         });
         
-        serviceCardAssignments.set(service.slug, {
-          mediaId: assignment.mediaId,
-          mediaObject,
-        });
+        // CRITICAL FIX: Runtime assignment is only authoritative if its media record passes resolvePublicMedia()
+        // If the runtime assignment points to a rejected/missing media record, discard that runtime candidate
+        // Fall back to the service's authoritative cardMediaId from static configuration
+        if (mediaObject) {
+          serviceCardAssignments.set(service.slug, {
+            mediaId: assignment.mediaId,
+            mediaObject,
+          });
+        } else {
+          console.log('[PUBLIC_MEDIA_GATE] RUNTIME_ASSIGNMENT_REJECTED_FALLING_BACK_TO_STATIC', {
+            serviceSlug: service.slug,
+            rejectedRuntimeMediaId: assignment.mediaId,
+            staticCardMediaId: service.cardMediaId,
+          });
+          
+          // Fall back to authoritative static configuration
+          if (service.cardMediaId) {
+            const staticMediaObject = getMediaById(service.cardMediaId);
+            serviceCardAssignments.set(service.slug, {
+              mediaId: service.cardMediaId,
+              mediaObject: staticMediaObject,
+            });
+          }
+        }
       }
     } catch (error) {
       // During static build, KV fetches may fail - this is expected
