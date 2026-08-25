@@ -121,10 +121,20 @@ export function generateSessionId(): string {
 }
 
 /**
- * Create session record with atomic index registration
+ * Create session record with atomic authorization verification
  *
- * Registers session in authorization's session index using Redis Lua transaction
- * Ensures session record and index are written atomically
+ * CRITICAL: Atomically verifies authorization exists and is active before creating session
+ * Prevents resurrection race where session could be created for just-revoked authorization
+ * 
+ * Uses Redis Lua transaction for atomic authorization verification + session + index write
+ * 
+ * Transaction boundary:
+ * 1. Verify authorization exists
+ * 2. Verify authorization.status === 'active'
+ * 3. Create session record
+ * 4. Register in authorization's session index
+ * 
+ * If authorization is missing or revoked, session creation fails atomically
  */
 export async function createSession(
   authorizationId: string,
@@ -146,16 +156,29 @@ export async function createSession(
   try {
     const client = getRedisClient();
 
-    // Redis Lua script for atomic session + index write
+    // Redis Lua script for atomic authorization verification + session + index write
     const luaScript = `
-      local session_key = KEYS[1]
-      local index_key = KEYS[2]
+      local auth_key = KEYS[1]
+      local session_key = KEYS[2]
+      local index_key = KEYS[3]
       local session_data = ARGV[1]
       local session_id = ARGV[2]
       local session_ttl = ARGV[3]
       local index_ttl = ARGV[4]
 
-      -- Store session record
+      -- Verify authorization exists
+      local auth_data = redis.call('GET', auth_key)
+      if not auth_data then
+        return 0  -- Authorization not found
+      end
+
+      -- Verify authorization is active
+      local auth = cjson.decode(auth_data)
+      if auth.status ~= 'active' then
+        return 0  -- Authorization not active (revoked or other non-active state)
+      end
+
+      -- Authorization is active: create session atomically
       redis.call('SET', session_key, session_data)
       redis.call('EXPIRE', session_key, session_ttl)
 
@@ -163,16 +186,20 @@ export async function createSession(
       redis.call('SADD', index_key, session_id)
       redis.call('EXPIRE', index_key, index_ttl)
 
-      return 1
+      return 1  -- Success
     `;
 
-    await client.eval(
+    const result = await client.eval(
       luaScript,
-      [`${SESSION_PREFIX}${sessionId}`, `${AUTH_SESSIONS_PREFIX}${authorizationId}`],
+      [`drive:auth:${authorizationId}`, `${SESSION_PREFIX}${sessionId}`, `${AUTH_SESSIONS_PREFIX}${authorizationId}`],
       [JSON.stringify(record), sessionId, SESSION_TTL_SECONDS.toString(), SESSION_INDEX_TTL_SECONDS.toString()]
     );
 
-    console.log('[SESSION_STORE] Session created atomically:', sessionId);
+    if (result === 0) {
+      throw new Error(`Authorization ${authorizationId} not found or not active - session creation rejected`);
+    }
+
+    console.log('[SESSION_STORE] Session created with atomic authorization verification:', sessionId);
     return record;
   } catch (error) {
     console.error('[SESSION_STORE] Create failed:', error);

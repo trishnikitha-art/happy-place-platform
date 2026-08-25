@@ -173,9 +173,13 @@ export async function GET(request: Request) {
       return NextResponse.redirect(url);
     }
 
-    // refresh_token is optional for some flows but required for offline access
-    if (!tokenData.refresh_token && !tokenData.scope?.includes('offline')) {
-      console.warn('[DRIVE OAUTH FORENSIC] Token response missing refresh_token (offline access may not work)');
+    // FAIL CLOSED: refresh_token is required for durable Drive authority
+    // authorize route explicitly requests access_type=offline and prompt=consent
+    // Google must provide refresh_token or the authorization should be rejected
+    if (!tokenData.refresh_token || typeof tokenData.refresh_token !== 'string') {
+      console.error('[DRIVE OAUTH FORENSIC] Token response missing or invalid refresh_token - cannot establish durable Drive authority');
+      const url = new URL('/workbench/media', request.url);
+      return NextResponse.redirect(url);
     }
 
     // Calculate expiry date
@@ -233,13 +237,14 @@ export async function GET(request: Request) {
     }
     
     // Persist authorization through oauth-credential-store
+    // refresh_token is guaranteed non-empty due to fail-closed validation above
     const authorization = await upsertAuthorization(
       googleSubject,
       email,
       tokenData.scope ? tokenData.scope.split(' ') : [],
       tokenData.access_token,
       expiryDate,
-      tokenData.refresh_token || ''
+      tokenData.refresh_token
     );
 
     console.log('[DRIVE OAUTH FORENSIC] Authorization persisted:', authorization.id);

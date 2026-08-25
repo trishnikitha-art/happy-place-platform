@@ -53,41 +53,56 @@ export async function createOAuthClient(credentials: DriveCredentials, authoriza
 
   console.log('[OAUTH_MANAGER] OAuth2Client created for authorization:', authorizationId);
 
-  // Set up explicit token refresh handler with authorizationId parameter
-  // This callback will only be invoked during request context, not background
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  oauth2Client.on('tokens', async (tokens: any) => {
-    console.log('[OAUTH_MANAGER] Token refresh event for authorization:', authorizationId, {
-      hasAccessToken: !!tokens.access_token,
-      hasRefreshToken: !!tokens.refresh_token,
-      expiryDate: tokens.expiry_date,
-    });
-    
-    try {
-      // AuthorizationId is explicitly passed, no need to call cookies()
-      const authorization = await getAuthorization(authorizationId);
-      if (authorization && authorization.status === 'active') {
-        // Update authorization with refreshed tokens
-        await updateAuthorizationAfterRefresh(
-          authorization.id,
-          tokens.access_token as string,
-          (tokens.expiry_date as number) || Date.now() + 3600 * 1000,
-          tokens.refresh_token as string
-        );
-        
-        console.log('[OAUTH_MANAGER] Authorization updated successfully:', authorizationId);
-        return;
-      }
-      
-      console.log('[OAUTH_MANAGER] Authorization not found or inactive:', authorizationId);
-    } catch (error) {
-      console.error('[OAUTH_MANAGER] Failed to update authorization after refresh:', authorizationId, error);
-      // Token refresh failure is explicit, not swallowed
-      throw new Error(`Token refresh failed for authorization ${authorizationId}: ${error instanceof Error ? error.message : String(error)}`);
-    }
-  });
-
   return oauth2Client;
+}
+
+/**
+ * Explicit token refresh with persistence ownership
+ * 
+ * CRITICAL: This function owns the entire refresh operation:
+ * 1. Request refresh from Google
+ * 2. Validate returned tokens
+ * 3. Persist encrypted credentials to authorization store
+ * 4. Return success or throw explicit error
+ * 
+ * Does not depend on EventEmitter callback - this is the authoritative refresh path.
+ * If persistence fails, the refresh operation fails explicitly.
+ */
+async function explicitTokenRefresh(
+  oauth2Client: InstanceType<typeof google.auth.OAuth2>,
+  authorizationId: string
+): Promise<void> {
+  console.log('[OAUTH_MANAGER] Explicit token refresh for authorization:', authorizationId);
+  
+  try {
+    // Request refresh from Google
+    const tokens = await oauth2Client.refreshAccessToken();
+    
+    // Validate returned tokens
+    if (!tokens.access_token || typeof tokens.access_token !== 'string') {
+      throw new Error('Token refresh returned invalid access_token');
+    }
+    
+    const expiryDate = (tokens.expiry_date as number) || Date.now() + 3600 * 1000;
+    const refreshToken = (tokens.refresh_token as string) || oauth2Client.credentials.refresh_token;
+    
+    if (!refreshToken || typeof refreshToken !== 'string') {
+      throw new Error('Token refresh returned invalid refresh_token');
+    }
+    
+    // Persist encrypted credentials with explicit ownership
+    await updateAuthorizationAfterRefresh(
+      authorizationId,
+      tokens.access_token,
+      expiryDate,
+      refreshToken
+    );
+    
+    console.log('[OAUTH_MANAGER] Explicit token refresh succeeded:', authorizationId);
+  } catch (error) {
+    console.error('[OAUTH_MANAGER] Explicit token refresh failed:', authorizationId, error);
+    throw new Error(`Explicit token refresh failed for authorization ${authorizationId}: ${error instanceof Error ? error.message : String(error)}`);
+  }
 }
 
 /**
@@ -138,47 +153,49 @@ export async function getOAuthClient(authorizationId?: string): Promise<Instance
   // Proactive token refresh if near expiry (within 5 minutes)
   if (credentials.expiry_date && credentials.expiry_date - Date.now() < 5 * 60 * 1000) {
     console.log('[OAUTH_MANAGER] Token near expiry, proactive refresh for authorization:', effectiveAuthorizationId);
-    try {
-      await oauth2Client.refreshAccessToken();
-      console.log('[OAUTH_MANAGER] Proactive refresh successful for authorization:', effectiveAuthorizationId);
-    } catch (error) {
-      console.error('[OAUTH_MANAGER] Proactive refresh failed for authorization:', effectiveAuthorizationId, error);
-      // Proactive refresh failure is explicit, not swallowed
-      throw new Error(`Proactive token refresh failed for authorization ${effectiveAuthorizationId}: ${error instanceof Error ? error.message : String(error)}`);
-    }
+    await explicitTokenRefresh(oauth2Client, effectiveAuthorizationId);
+    console.log('[OAUTH_MANAGER] Proactive refresh successful for authorization:', effectiveAuthorizationId);
   }
 
   // Ensure token is valid with error handling
   try {
     const tokens = await oauth2Client.getAccessToken();
     if (!tokens.token) {
-      await oauth2Client.refreshAccessToken();
+      await explicitTokenRefresh(oauth2Client, effectiveAuthorizationId);
     }
   } catch (error) {
-    console.error('[OAUTH_MANAGER] Token refresh failed for authorization:', effectiveAuthorizationId, error);
+    console.error('[OAUTH_MANAGER] Token validation failed, attempting explicit refresh:', effectiveAuthorizationId, error);
     
-    // Classify error type with explicit semantics
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    const isPermanentFailure = errorMessage.includes('invalid_grant') || 
-                                errorMessage.includes('revoked') ||
-                                errorMessage.includes('Token has been revoked');
-    
-    if (isPermanentFailure) {
-      console.log('[OAUTH_MANAGER] Permanent authorization failure, revoking authorization:', effectiveAuthorizationId);
+    // Attempt explicit refresh as recovery
+    try {
+      await explicitTokenRefresh(oauth2Client, effectiveAuthorizationId);
+      console.log('[OAUTH_MANAGER] Recovery refresh succeeded:', effectiveAuthorizationId);
+    } catch (refreshError) {
+      console.error('[OAUTH_MANAGER] Recovery refresh failed:', effectiveAuthorizationId, refreshError);
       
-      // Use authoritative revocation path
-      await revokeAuthorizationWithSessions(effectiveAuthorizationId);
-      console.log('[OAUTH_MANAGER] Authorization revoked:', effectiveAuthorizationId);
+      // Classify error type with explicit semantics
+      const errorMessage = refreshError instanceof Error ? refreshError.message : String(refreshError);
+      const isPermanentFailure = errorMessage.includes('invalid_grant') || 
+                                  errorMessage.includes('revoked') ||
+                                  errorMessage.includes('Token has been revoked');
       
-      // Clear session cookie
-      const cookieStore = await cookies();
-      cookieStore.delete('drive_session_id');
-      
-      throw new Error('OAuth authorization failed. Please re-authenticate with Google Drive.');
-    } else {
-      // Transient failure - explicit error, not swallowed
-      console.log('[OAUTH_MANAGER] Transient token refresh failure for authorization:', effectiveAuthorizationId);
-      throw new Error(`Token refresh failed (transient) for authorization ${effectiveAuthorizationId}: ${errorMessage}`);
+      if (isPermanentFailure) {
+        console.log('[OAUTH_MANAGER] Permanent authorization failure, revoking authorization:', effectiveAuthorizationId);
+        
+        // Use authoritative revocation path
+        await revokeAuthorizationWithSessions(effectiveAuthorizationId);
+        console.log('[OAUTH_MANAGER] Authorization revoked:', effectiveAuthorizationId);
+        
+        // Clear session cookie
+        const cookieStore = await cookies();
+        cookieStore.delete('drive_session_id');
+        
+        throw new Error('OAuth authorization failed. Please re-authenticate with Google Drive.');
+      } else {
+        // Transient failure - explicit error, not swallowed
+        console.log('[OAUTH_MANAGER] Transient token refresh failure for authorization:', effectiveAuthorizationId);
+        throw new Error(`Token refresh failed (transient) for authorization ${effectiveAuthorizationId}: ${errorMessage}`);
+      }
     }
   }
 

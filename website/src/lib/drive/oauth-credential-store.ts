@@ -278,9 +278,11 @@ export async function upsertAuthorization(
 
     if (existingAuth) {
       if (existingAuth.status === 'revoked') {
-        // Revoked authorization: create new authorization
-        console.log('[AUTH_STORE] Existing authorization revoked, creating new authorization');
-        auth = await createNewAuthorization(
+        // Revoked authorization: create new authorization with atomic subject acquisition
+        // CRITICAL: Use atomic subject acquisition even for revoked reauthorization
+        // to prevent concurrent duplicate creation after revocation
+        console.log('[AUTH_STORE] Existing authorization revoked, creating new authorization with atomic subject acquisition');
+        auth = await createNewAuthorizationWithAtomicSubject(
           googleSubject,
           email,
           scopes,
