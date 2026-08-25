@@ -8,7 +8,7 @@
     "build": "node scripts/graph-edge-generator.js && node scripts/constitutional-projection-generator.js && next build",
     "start": "next start",
     "lint": "eslint",
-    "test": "jest --testPathIgnorePatterns=oauth",
+    "test": "jest",
     "test:compiler": "jest --testPathPattern=compiler",
     "test:media-invariant": "tsx scripts/test-media-invariant.ts",
     "test:oauth": "jest --testPathPatterns=oauth",
@@ -52,6 +52,7 @@
     "jest": "^30.4.2",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.12",
+    "ts-node": "^10.9.2",
     "tsx": "^4.19.2",
     "typescript": "^5"
   }
