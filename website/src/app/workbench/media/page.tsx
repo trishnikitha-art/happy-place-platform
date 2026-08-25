@@ -1065,22 +1065,76 @@ Check browser console for detailed logs.`);
           verificationPassed: deployData.verificationPassed
         });
         
-        // Force iframe refresh AFTER deployment succeeds to pick up actual deployed changes
-        console.log('[DND] SLOT_REFRESH_AFTER_DEPLOY', {
-          iframeExists: !!iframeRef.current,
-          commitSha: deployData.commitSha,
-        });
-        
-        if (iframeRef.current) {
-          console.log('[DND] IFRAME_REFRESH_TRIGGERED');
-          // Send refresh message to iframe for immediate slot update
-          if (iframeRef.current.contentWindow) {
-            iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
+        // Handle COMMITTED_DEPLOYING status - poll for actual Vercel deployment
+        if (deployData.status === 'COMMITTED_DEPLOYING') {
+          console.log('[DEPLOY API] WAITING_FOR_VERCEL_DEPLOYMENT', { commitSha: deployData.commitSha });
+          
+          // Poll deployment status with exponential backoff
+          let deploymentReady = false;
+          let pollAttempts = 0;
+          const maxPollAttempts = 30; // 30 seconds max wait
+          const pollInterval = 1000; // 1 second initial interval
+          
+          while (!deploymentReady && pollAttempts < maxPollAttempts) {
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+            pollAttempts++;
+            
+            try {
+              const statusResponse = await fetch(`/api/admin/deploy/status?commitSha=${deployData.commitSha}`);
+              if (statusResponse.ok) {
+                const statusData = await statusResponse.json();
+                console.log('[DEPLOY API] STATUS_POLL', { 
+                  attempt: pollAttempts, 
+                  status: statusData.status,
+                  vercelStatus: statusData.vercelStatus 
+                });
+                
+                if (statusData.status === 'PUBLISHED' || statusData.vercelStatus === 'success') {
+                  deploymentReady = true;
+                  console.log('[DEPLOY API] VERCEL_DEPLOYMENT_READY', { 
+                    commitSha: deployData.commitSha,
+                    vercelStatus: statusData.vercelStatus 
+                  });
+                }
+              }
+            } catch (error) {
+              console.error('[DEPLOY API] STATUS_POLL_FAILED', { attempt: pollAttempts, error });
+            }
           }
-        }
-        
-        if (deployData.status === 'PUBLISHED') {
-          alert(`Your changes are live and saved.\n\n${deployData.message}\n\nCommit SHA: ${deployData.commitSha}\n\nVercel Git integration will automatically deploy this commit to production.`);
+          
+          if (deploymentReady) {
+            // Force iframe refresh AFTER Vercel deployment succeeds
+            console.log('[DND] SLOT_REFRESH_AFTER_VERCEL_DEPLOY', {
+              iframeExists: !!iframeRef.current,
+              commitSha: deployData.commitSha,
+            });
+            
+            if (iframeRef.current) {
+              console.log('[DND] IFRAME_REFRESH_TRIGGERED');
+              if (iframeRef.current.contentWindow) {
+                iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
+              }
+            }
+            
+            alert(`Your changes are live and saved.\n\n${deployData.message}\n\nCommit SHA: ${deployData.commitSha}\n\nVercel deployment completed successfully.`);
+          } else {
+            alert(`Your changes are safely committed to GitHub.\n\n${deployData.message}\n\nCommit SHA: ${deployData.commitSha}\n\nVercel deployment is still in progress. Refresh the page in a few moments to see changes.`);
+          }
+        } else if (deployData.status === 'PUBLISHED') {
+          // Directly published (shouldn't happen with new logic, but handle for compatibility)
+          console.log('[DND] SLOT_REFRESH_ALREADY_PUBLISHED', {
+            iframeExists: !!iframeRef.current,
+            commitSha: deployData.commitSha,
+          });
+          
+          if (iframeRef.current) {
+            console.log('[DND] IFRAME_REFRESH_TRIGGERED');
+            if (iframeRef.current.contentWindow) {
+              iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
+            }
+          }
+          
+          alert(`Your changes are live and saved.\n\n${deployData.message}\n\nCommit SHA: ${deployData.commitSha}`);
         } else if (deployData.status === 'COMMITTED_NEEDS_RECONCILIATION') {
           alert(`Your changes are safely saved. Publishing is still being completed automatically.\n\n${deployData.message}\n\nError: ${deployData.verificationError || 'Unknown verification error'}`);
         } else {

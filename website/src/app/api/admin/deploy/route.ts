@@ -6,6 +6,9 @@
  * POST /api/admin/deploy
  * Body: { reason?: string }
  * 
+ * GET /api/admin/deploy/status?commitSha={sha}
+ * Returns deployment status for a specific commit (Vercel readiness check)
+ * 
  * Requires Workbench authentication.
  * Uses GitHub Git Data API to create a SINGLE atomic commit containing both
  * projects.v1.json and services.v1.json. This ensures true atomicity - either
@@ -21,6 +24,12 @@
  * - Single Git commit contains BOTH projects.v1.json and services.v1.json
  * - If any step fails, main branch is NOT updated
  * - No split-brain state where only one file is committed
+ * 
+ * DEPLOYMENT STATE FIX:
+ * - Git commit ≠ Vercel deployment ≠ live website
+ * - Returns COMMITTED_DEPLOYING after Git commit, not PUBLISHED
+ * - Requires client to poll status endpoint for actual Vercel readiness
+ * - Only transitions to PUBLISHED when Vercel confirms deployment
  * 
  * TRANSACTIONAL FIX: Staging keys are only deleted after GitHub commit succeeds
  * This prevents data loss if GitHub commit fails.
@@ -44,6 +53,97 @@ import {
 } from "@/lib/deployment-transaction";
 
 export const runtime = 'nodejs';
+
+/**
+ * GET endpoint: Check deployment status for a specific commit
+ * Used by Workbench to poll for Vercel deployment readiness
+ */
+export async function GET(request: Request) {
+  const { searchParams } = new URL(request.url);
+  const commitSha = searchParams.get('commitSha');
+  
+  if (!commitSha) {
+    return NextResponse.json(
+      { error: "Missing commitSha parameter" },
+      { status: 400 }
+    );
+  }
+  
+  console.log('[DEPLOY API] STATUS_CHECK', { commitSha });
+  
+  // Check GitHub commit status
+  const githubToken = process.env.GITHUB_TOKEN;
+  const githubOwner = process.env.GITHUB_REPO_OWNER || 'trishnikitha-art';
+  const githubRepo = process.env.GITHUB_REPO_NAME || 'happy-place-platform';
+  
+  if (!githubToken) {
+    return NextResponse.json(
+      { error: "GitHub credentials not configured" },
+      { status: 503 }
+    );
+  }
+  
+  try {
+    // Get commit status from GitHub
+    const commitUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/commits/${commitSha}`;
+    const commitResponse = await fetch(commitUrl, {
+      headers: {
+        'Authorization': `Bearer ${githubToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+    
+    if (!commitResponse.ok) {
+      return NextResponse.json(
+        { error: "Commit not found", commitSha },
+        { status: 404 }
+      );
+    }
+    
+    const commitData = await commitResponse.json();
+    
+    // Check for Vercel deployment status via combined status
+    const statusUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/commits/${commitSha}/status`;
+    const statusResponse = await fetch(statusUrl, {
+      headers: {
+        'Authorization': `Bearer ${githubToken}`,
+        'Accept': 'application/vnd.github.v3+json',
+      },
+    });
+    
+    let vercelStatus = 'unknown';
+    let vercelContext = null;
+    
+    if (statusResponse.ok) {
+      const statusData = await statusResponse.json();
+      // Look for Vercel status check
+      const vercelCheck = statusData.statuses?.find((s: any) => 
+        s.context === 'vercel/deployment' || s.context === 'deploy/netlify'
+      );
+      
+      if (vercelCheck) {
+        vercelStatus = vercelCheck.state; // 'success', 'pending', 'failure'
+        vercelContext = vercelCheck.context;
+      }
+    }
+    
+    return NextResponse.json({
+      commitSha,
+      commitUrl: commitData.html_url,
+      status: vercelStatus === 'success' ? 'PUBLISHED' : 'COMMITTED_DEPLOYING',
+      vercelStatus,
+      vercelContext,
+      timestamp: commitData.commit?.committer?.date,
+    });
+    
+  } catch (error) {
+    console.error('[DEPLOY API] STATUS_CHECK_FAILED', error);
+    return NextResponse.json(
+      { error: "Failed to check deployment status" },
+      { status: 500 }
+    );
+  }
+}
 
 const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
 
@@ -123,6 +223,94 @@ export async function POST(request: Request) {
   let transactionOwner: string = ''; // Ownership token for lifecycle verification
   
   console.log('[DEPLOY API] REQUEST_RECEIVED');
+  
+  // GET endpoint: Check deployment status for a specific commit
+  if (request.method === 'GET') {
+    const { searchParams } = new URL(request.url);
+    const commitSha = searchParams.get('commitSha');
+    
+    if (!commitSha) {
+      return NextResponse.json(
+        { error: "Missing commitSha parameter" },
+        { status: 400 }
+      );
+    }
+    
+    console.log('[DEPLOY API] STATUS_CHECK', { commitSha });
+    
+    // Check GitHub commit status
+    const githubToken = process.env.GITHUB_TOKEN;
+    const githubOwner = process.env.GITHUB_REPO_OWNER || 'trishnikitha-art';
+    const githubRepo = process.env.GITHUB_REPO_NAME || 'happy-place-platform';
+    
+    if (!githubToken) {
+      return NextResponse.json(
+        { error: "GitHub credentials not configured" },
+        { status: 503 }
+      );
+    }
+    
+    try {
+      // Get commit status from GitHub
+      const commitUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/commits/${commitSha}`;
+      const commitResponse = await fetch(commitUrl, {
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      });
+      
+      if (!commitResponse.ok) {
+        return NextResponse.json(
+          { error: "Commit not found", commitSha },
+          { status: 404 }
+        );
+      }
+      
+      const commitData = await commitResponse.json();
+      
+      // Check for Vercel deployment status via combined status
+      const statusUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/commits/${commitSha}/status`;
+      const statusResponse = await fetch(statusUrl, {
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      });
+      
+      let vercelStatus = 'unknown';
+      let vercelContext = null;
+      
+      if (statusResponse.ok) {
+        const statusData = await statusResponse.json();
+        // Look for Vercel status check
+        const vercelCheck = statusData.statuses?.find((s: any) => 
+          s.context === 'vercel/deployment' || s.context === 'deploy/netlify'
+        );
+        
+        if (vercelCheck) {
+          vercelStatus = vercelCheck.state; // 'success', 'pending', 'failure'
+          vercelContext = vercelCheck.context;
+        }
+      }
+      
+      return NextResponse.json({
+        commitSha,
+        commitUrl: commitData.html_url,
+        status: vercelStatus === 'success' ? 'PUBLISHED' : 'COMMITTED_DEPLOYING',
+        vercelStatus,
+        vercelContext,
+        timestamp: commitData.commit?.committer?.date,
+      });
+      
+    } catch (error) {
+      console.error('[DEPLOY API] STATUS_CHECK_FAILED', error);
+      return NextResponse.json(
+        { error: "Failed to check deployment status" },
+        { status: 500 }
+      );
+    }
+  }
   
   // SECURITY: Require authentication in production
   // Development bypass requires explicit DRIVE_AUTH_BYPASS=true
@@ -1278,8 +1466,8 @@ export async function POST(request: Request) {
         : "Git commit succeeded but verification failed. Changes are in staging for retry.",
       authorityFiles: [projectsFilePath, servicesFilePath, brandFilePath],
       targetBranch: 'main',
-      status: verificationPassed ? "PUBLISHED" : "COMMITTED_NEEDS_RECONCILIATION",
-      filesCommitted: ['projects.v1.json', 'services.v1.json'],
+      status: verificationPassed ? "COMMITTED_DEPLOYING" : "COMMITTED_NEEDS_RECONCILIATION",
+      filesCommitted: ['projects.v1.json', 'services.v1.json', 'brand.v1.json'],
       verificationPassed,
       verificationError: verificationError || undefined,
       externalCommitPoint: true
