@@ -157,9 +157,16 @@ export async function POST(request: Request) {
     const effectiveTransactionId = transactionId || generateTransactionId();
     const isProduction = process.env.NODE_ENV === 'production';
 
+    console.log('[SERVICES CARD] ENVIRONMENT_CHECK', {
+      isProduction,
+      redisAvailable: !!redis,
+      NODE_ENV: process.env.NODE_ENV,
+      transactionId: effectiveTransactionId
+    });
+
     // STAGE assignment in Redis for deployment (not direct to assignment store)
     // This prevents Redis/Git split-brain - promotion happens only after Git succeeds
-    if (isProduction && redis) {
+    if (redis) {
       const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${serviceSlug}`;
 
       await redis.set(stagingKey, mediaId);
@@ -182,6 +189,13 @@ export async function POST(request: Request) {
         staged: true,
         persistence: 'kv',
         transactionId: effectiveTransactionId
+      });
+    } else {
+      console.warn('[SERVICES CARD] REDIS_UNAVAILABLE - falling back to direct assignment store', {
+        serviceSlug,
+        mediaId,
+        transactionId: effectiveTransactionId,
+        reason: 'KV credentials not configured or Redis unavailable'
       });
     }
 
@@ -213,8 +227,9 @@ export async function POST(request: Request) {
     // CRITICAL: Also write to KV staging area for deployment API discovery
     // Deployment API expects: workbench-staging:{txId}:service:{serviceSlug}
     const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${serviceSlug}`;
-    if (redis) {
-      await redis.set(stagingKey, mediaId);
+    const stagingRedis = getRedisClient();
+    if (stagingRedis) {
+      await stagingRedis.set(stagingKey, mediaId);
       console.log('[SERVICES CARD] STAGING_AREA_WRITE', {
         stagingKey,
         mediaId,
