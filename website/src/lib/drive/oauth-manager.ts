@@ -76,15 +76,18 @@ async function explicitTokenRefresh(
   
   try {
     // Request refresh from Google
-    const tokens = await oauth2Client.refreshAccessToken();
+    await oauth2Client.refreshAccessToken();
+    
+    // Get refreshed credentials from the client
+    const credentials = oauth2Client.credentials;
     
     // Validate returned tokens
-    if (!tokens.access_token || typeof tokens.access_token !== 'string') {
+    if (!credentials.access_token || typeof credentials.access_token !== 'string') {
       throw new Error('Token refresh returned invalid access_token');
     }
     
-    const expiryDate = (tokens.expiry_date as number) || Date.now() + 3600 * 1000;
-    const refreshToken = (tokens.refresh_token as string) || oauth2Client.credentials.refresh_token;
+    const expiryDate = (credentials.expiry_date as number) || Date.now() + 3600 * 1000;
+    const refreshToken = (credentials.refresh_token as string);
     
     if (!refreshToken || typeof refreshToken !== 'string') {
       throw new Error('Token refresh returned invalid refresh_token');
@@ -93,7 +96,7 @@ async function explicitTokenRefresh(
     // Persist encrypted credentials with explicit ownership
     await updateAuthorizationAfterRefresh(
       authorizationId,
-      tokens.access_token,
+      credentials.access_token,
       expiryDate,
       refreshToken
     );
