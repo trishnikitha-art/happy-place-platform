@@ -63,12 +63,16 @@ export function getMediaById(id: string): Media | null {
 
 /**
  * Async version that checks KV directly (for dynamic loading)
- * 
+ *
  * AUTHORITY PRECEDENCE: Runtime KV first, static authority as fallback
- * 
+ *
  * This ensures that materialized PublishedMediaAsset records take precedence
  * over static canonical records. Static authority serves as fallback for
  * legacy compatibility when runtime records are not available.
+ *
+ * FAIL-CLOSED SEMANTICS:
+ * - KV returns null (record does not exist) → static fallback is legitimate
+ * - KV throws infrastructure error → FAIL CLOSED (do not silently fall back)
  */
 export async function getMediaByIdAsync(id: string): Promise<Media | null> {
   // FIRST: Check KV store for runtime PublishedMediaAsset records
@@ -77,12 +81,24 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
     const { getMedia } = await import('@/lib/media-kv-store');
     const dynamicMedia = await getMedia(id);
     if (dynamicMedia) {
-      // Cache it for future synchronous access
-      dynamicMediaCache.push(dynamicMedia);
+      // Cache it for future synchronous access (deduplicate by ID)
+      const existingIndex = dynamicMediaCache.findIndex(m => m.id === id);
+      if (existingIndex >= 0) {
+        dynamicMediaCache[existingIndex] = dynamicMedia;
+      } else {
+        dynamicMediaCache.push(dynamicMedia);
+      }
       return dynamicMedia;
     }
+    // KV returned null (record does not exist) - static fallback is legitimate
   } catch (error) {
-    console.log('[MEDIA] KV lookup failed:', error);
+    // KV infrastructure error - FAIL CLOSED
+    // Do not silently fall back to static authority on infrastructure failure
+    console.error('[MEDIA] KV infrastructure error - FAILING CLOSED:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      mediaId: id,
+    });
+    throw new Error(`KV infrastructure error: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 
   // SECOND: Fall back to static media.v1.json for legacy compatibility
