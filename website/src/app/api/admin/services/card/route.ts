@@ -152,18 +152,18 @@ export async function POST(request: Request) {
       lifecycleState: media.lifecycleState,
     });
 
+    // Initialize shared Redis client and transaction ID before branching
+    const redis = getRedisClient();
+    const effectiveTransactionId = transactionId || generateTransactionId();
+    const isProduction = process.env.NODE_ENV === 'production';
+
     // STAGE assignment in Redis for deployment (not direct to assignment store)
     // This prevents Redis/Git split-brain - promotion happens only after Git succeeds
-    const redis = getRedisClient();
-    const isProduction = process.env.NODE_ENV === 'production';
-    
     if (isProduction && redis) {
-      // Use provided transaction ID or generate new one for compatibility
-      const effectiveTransactionId = transactionId || generateTransactionId();
       const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${serviceSlug}`;
-      
+
       await redis.set(stagingKey, mediaId);
-      
+
       // Create authoritative deployment transaction record (single source of truth)
       const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
       await createDeploymentTransaction(
@@ -172,12 +172,12 @@ export async function POST(request: Request) {
         ['services.v1.json'],
         `Service card assignment: ${serviceSlug}`
       );
-      
+
       console.log('[SERVICES CARD] STAGED_IN_KV', { serviceSlug, mediaId, stagingKey, transactionId: effectiveTransactionId });
-      
-      return NextResponse.json({ 
-        success: true, 
-        serviceSlug, 
+
+      return NextResponse.json({
+        success: true,
+        serviceSlug,
         mediaId,
         staged: true,
         persistence: 'kv',
@@ -188,7 +188,7 @@ export async function POST(request: Request) {
     // CAS ENFORCEMENT: Read current assignment to obtain expected revision
     const currentAssignment = await getServiceCardAssignment(serviceSlug);
     const expectedRevision = currentAssignment?.revision;
-    
+
     console.log('[SERVICES CARD] CAS_READ', {
       serviceSlug,
       currentRevision: expectedRevision,
@@ -212,8 +212,7 @@ export async function POST(request: Request) {
 
     // CRITICAL: Also write to KV staging area for deployment API discovery
     // Deployment API expects: workbench-staging:{txId}:service:{serviceSlug}
-    const stagingKey = `workbench-staging:${effectiveTransactionId}:service:${serviceSlug}`;
-    const redis = getRedisClient();
+    const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${serviceSlug}`;
     if (redis) {
       await redis.set(stagingKey, mediaId);
       console.log('[SERVICES CARD] STAGING_AREA_WRITE', {

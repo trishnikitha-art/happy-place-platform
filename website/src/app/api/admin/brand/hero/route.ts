@@ -16,6 +16,8 @@ import { getMediaByIdAsync } from "@/lib/media";
 import { isDriveReference, isPublishedMediaAsset } from "@/types/media";
 import { Redis } from '@upstash/redis';
 
+const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
+
 function getRedisClient(): Redis | null {
   try {
     const url = process.env.KV_REST_API_URL;
@@ -126,18 +128,18 @@ export async function POST(request: Request) {
       lifecycleState: media.lifecycleState,
     });
 
+    // Initialize shared Redis client and transaction ID before branching
+    const redis = getRedisClient();
+    const effectiveTransactionId = transactionId || generateTransactionId();
+    const isProduction = process.env.NODE_ENV === 'production';
+
     // STAGE assignment in Redis for deployment (not direct to assignment store)
     // This prevents Redis/Git split-brain - promotion happens only after Git succeeds
-    const redis = getRedisClient();
-    const isProduction = process.env.NODE_ENV === 'production';
-    
     if (isProduction && redis) {
-      // Use provided transaction ID or generate new one for compatibility
-      const effectiveTransactionId = transactionId || generateTransactionId();
       const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:brand-hero`;
-      
+
       await redis.set(stagingKey, mediaId);
-      
+
       // Create authoritative deployment transaction record (single source of truth)
       const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
       await createDeploymentTransaction(
@@ -146,11 +148,11 @@ export async function POST(request: Request) {
         ['brand.v1.json'],
         `Brand hero assignment`
       );
-      
+
       console.log('[BRAND HERO] STAGED_IN_KV', { mediaId, stagingKey, transactionId: effectiveTransactionId });
-      
-      return NextResponse.json({ 
-        success: true, 
+
+      return NextResponse.json({
+        success: true,
         mediaId,
         staged: true,
         persistence: 'kv',
@@ -161,7 +163,7 @@ export async function POST(request: Request) {
     // Development: Use assignment store directly
     const currentAssignment = await getServiceCardAssignment('brand-hero', requestId);
     const expectedRevision = currentAssignment?.revision;
-    
+
     console.log('[BRAND HERO] CAS_READ', {
       requestId,
       currentRevision: expectedRevision,
@@ -185,14 +187,14 @@ export async function POST(request: Request) {
 
     // CRITICAL: Also write to KV staging area for deployment API discovery
     // Deployment API expects: workbench-staging:{txId}:service:{serviceSlug}
-    const stagingKey = `workbench-staging:${requestId}:service:brand-hero`;
-    const redis = getRedisClient();
+    const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:brand-hero`;
     if (redis) {
       await redis.set(stagingKey, mediaId);
       console.log('[BRAND HERO] STAGING_AREA_WRITE', {
         stagingKey,
         mediaId,
-        requestId
+        requestId,
+        transactionId: effectiveTransactionId
       });
     } else {
       console.warn('[BRAND HERO] REDIS_UNAVAILABLE - staging write skipped');
