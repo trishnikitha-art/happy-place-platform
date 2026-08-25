@@ -33,11 +33,14 @@ const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 // Fail closed: require explicit WORKBENCH_PASSWORD in production
 const WORKBENCH_PASSWORD = process.env.WORKBENCH_PASSWORD;
 
+// Development fallback for backwards compatibility
+const DEV_FALLBACK_PASSWORD = 'admin';
+
 function isPasswordConfigured(): boolean {
   if (process.env.NODE_ENV === 'production') {
     return WORKBENCH_PASSWORD !== undefined && WORKBENCH_PASSWORD !== '';
   }
-  // Development: allow unconfigured (but warn)
+  // Development: allow unconfigured (uses fallback)
   return true;
 }
 
@@ -63,7 +66,10 @@ export class WorkbenchSession {
       return false;
     }
 
-    if (password === WORKBENCH_PASSWORD) {
+    // Use configured password or development fallback
+    const effectivePassword = WORKBENCH_PASSWORD || DEV_FALLBACK_PASSWORD;
+
+    if (password === effectivePassword) {
       const sessionId = randomUUID();
       const expiresAt = Date.now() + SESSION_DURATION;
       
