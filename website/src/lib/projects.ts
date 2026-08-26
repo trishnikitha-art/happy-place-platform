@@ -9,6 +9,8 @@
 
 import { Project, ProjectsManifest, ProjectService, ProjectStatus } from "@/types/projects";
 import { loadAuthority, clearAuthorityCache, queryProjects, findById, findBySlug, filterFeatured, filterHomepageEligible, filterHeroEligible, filterNonArchived } from "./authority-loader";
+import { resolvePublicMedia } from "./media";
+import type { Media } from "@/types/media";
 
 // Load the canonical projects manifest using shared AuthorityLoader
 export function loadProjectsManifest(): ProjectsManifest {
@@ -29,6 +31,44 @@ export function loadProjectsManifest(): ProjectsManifest {
 export function getAllProjects(): Project[] {
   const manifest = loadProjectsManifest();
   return manifest.projects;
+}
+
+/**
+ * P1 FIX: Resolve project media through public media gate
+ * This prevents callers from bypassing the public media gate by calling getMediaById directly
+ * Returns a project with all media IDs resolved to validated Media objects
+ */
+export async function getProjectWithResolvedMedia(project: Project): Promise<Project> {
+  const resolveMedia = async (mediaId: string | undefined): Promise<Media | undefined> => {
+    if (!mediaId) return undefined;
+    return await resolvePublicMedia(mediaId);
+  };
+
+  const resolveMediaArray = async (mediaIds: string[]): Promise<Media[]> => {
+    const resolved = await Promise.all(mediaIds.map(resolveMedia));
+    return resolved.filter((m): m is Media => m !== undefined);
+  };
+
+  return {
+    ...project,
+    media: {
+      ...project.media,
+      heroMedia: await resolveMedia(project.media.hero),
+      beforeMedia: await resolveMedia(project.media.before),
+      afterMedia: await resolveMedia(project.media.after),
+      galleryMedia: await resolveMediaArray(project.media.gallery),
+      detailsMedia: project.media.details ? await resolveMediaArray(project.media.details) : undefined,
+      progressMedia: project.media.progress ? await resolveMediaArray(project.media.progress) : undefined,
+    },
+  };
+}
+
+/**
+ * P1 FIX: Resolve media for multiple projects
+ * This prevents callers from bypassing the public media gate by calling getMediaById directly
+ */
+export async function getProjectsWithResolvedMedia(projects: Project[]): Promise<Project[]> {
+  return await Promise.all(projects.map(getProjectWithResolvedMedia));
 }
 
 /**

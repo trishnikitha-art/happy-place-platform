@@ -9,7 +9,7 @@ import { BlueprintGrid } from "@/components/blueprint-grid";
 import { StarRating } from "@/components/star-rating";
 import { CraftCard } from "@/components/ui/card";
 import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
-import { getAllProjects, getProjectBySlug } from "@/lib/projects";
+import { getAllProjects, getProjectBySlug, getProjectWithResolvedMedia } from "@/lib/projects";
 import { getMediaById } from "@/lib/media";
 import { getReviewById } from "@/lib/reviews";
 import { Container, Section, SectionHeading } from "@/components/section";
@@ -28,7 +28,9 @@ export async function generateMetadata({
   const { slug } = await params;
   const project = getProjectBySlug(slug);
   if (!project) return {};
-  const heroMedia = project.media?.hero ? getMediaById(project.media.hero) : null;
+  // P1 FIX: Use pre-validated heroMedia from getProjectWithResolvedMedia (passed public media gate)
+  const projectWithMedia = await getProjectWithResolvedMedia(project);
+  const heroMedia = projectWithMedia.media.heroMedia;
   const ogImagePath = heroMedia?.variants?.web || heroMedia?.variants?.original;
   return {
     title: project.title,
@@ -47,11 +49,11 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
   const project = getProjectBySlug(slug);
   if (!project) notFound();
   
-  // Load gallery photos from media authority
-  const galleryMediaIds = project.media?.gallery || [];
-  const photos = galleryMediaIds
-    .map(id => getMediaById(id))
-    .filter(m => m !== null && (m.variants?.web || m.variants?.original)) as Media[];
+  // P1 FIX: Resolve project media through public media gate to prevent bypass
+  const projectWithMedia = await getProjectWithResolvedMedia(project);
+  
+  // P1 FIX: Use pre-validated galleryMedia from getProjectWithResolvedMedia (passed public media gate)
+  const photos = projectWithMedia.media.galleryMedia || [];
   
   // Load customer review if available
   const reviewId = project.reviews?.[0];
@@ -59,7 +61,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
   
   return (
     <>
-      <ProjectSpotlight project={project} variant="full" />
+      <ProjectSpotlight project={projectWithMedia} variant="full" />
       
       {/* PROJECT OVERVIEW — owned concerns hang off Project (object-first, no new systems) */}
       <Section className="bg-linen">

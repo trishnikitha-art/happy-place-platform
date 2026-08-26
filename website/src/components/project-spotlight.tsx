@@ -4,7 +4,6 @@ import Image from "next/image";
 import Link from "next/link";
 import { Wrench, Lightbulb, Package, CheckCircle2 } from "lucide-react";
 import type { Project } from "@/types/projects";
-import { getMediaById } from "@/lib/media";
 import { Container, Section } from "@/components/section";
 import { CraftCard } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -36,22 +35,20 @@ export function ProjectSpotlight({
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
-  const heroMediaId = project.media?.hero;
-  const heroMedia = heroMediaId ? getMediaById(heroMediaId) : null;
+  // P1 FIX: Use pre-validated media objects from project.media (passed public media gate)
+  // This prevents bypassing the public media gate by calling getMediaById directly
+  const heroMedia = project.media.heroMedia;
   const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original;
   const heroAlt = heroMedia?.alt || project.title;
 
-  // Get gallery media
-  const galleryMediaIds = project.media?.gallery || [];
-  const galleryMedia = galleryMediaIds
-    .map(id => getMediaById(id))
-    .filter(m => m !== null && (m.variants?.web || m.variants?.original));
+  // P1 FIX: Use pre-validated galleryMedia from project.media (passed public media gate)
+  const galleryMedia = project.media.galleryMedia || [];
 
   // Prepare lightbox images
   const lightboxImages = galleryMedia.map(m => ({
-    src: m!.variants!.web || m!.variants!.original!,
-    alt: m!.alt,
-    blurDataURL: m!.variants?.blur
+    src: m.variants!.web || m.variants!.original!,
+    alt: m.alt,
+    blurDataURL: m.variants?.blur
   }));
 
   // Surface-aware text colors for non-card elements

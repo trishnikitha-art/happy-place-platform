@@ -34,7 +34,9 @@ const siteUrl = "https://happyplacecarpentry.com";
 
 export async function generateMetadata(): Promise<Metadata> {
   const heroBrand = await getHomepageHero();
-  const heroMedia = heroBrand?.mediaId ? getMediaById(heroBrand.mediaId) : null;
+  // P1 FIX: Use pre-validated resolvedMedia from brand function (passed public media gate)
+  // This prevents bypassing the public media gate by calling getMediaById directly
+  const heroMedia = heroBrand?.resolvedMedia || null;
   const ogImageUrl = heroMedia?.variants?.web || `${siteUrl}/brand/logo.png`;
 
   return {
@@ -54,7 +56,9 @@ export default async function HomePage() {
   const hasReviews = stats.count > 0;
   const [taylor, lanie] = company.owners;
   const ownerBrand = await getOwnerPortrait();    // owner portrait from Brand Authority (now async for runtime assignment)
-  const ownerMedia = ownerBrand?.mediaId ? getMediaById(ownerBrand.mediaId) : null;
+  // P1 FIX: Use pre-validated resolvedMedia from brand function (passed public media gate)
+  // This prevents bypassing the public media gate by calling getMediaById directly
+  const ownerMedia = ownerBrand?.resolvedMedia || null;
   
   // Use responsive variants if available to select best quality
   const ownerResponsiveVariants = ownerMedia?.variants?.responsive;

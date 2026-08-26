@@ -14,7 +14,6 @@
 import * as React from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
-import { getMediaById } from "@/lib/media";
 import type { Project } from "@/types/projects";
 import { CraftCard } from "@/components/ui/card";
 import { VisualSlot } from "@/components/visual-slot";
@@ -45,15 +44,12 @@ export function BeforeAfterSlider({
   project: Project;
   className?: string;
 }) {
-  // Check if project has both before and after media
-  if (!project.media.before || !project.media.after) {
-    return null; // Hide gracefully if missing before/after
-  }
+  // P1 FIX: Use pre-validated media objects from project.media (passed public media gate)
+  // This prevents bypassing the public media gate by calling getMediaById directly
+  const beforeMedia = project.media.beforeMedia;
+  const afterMedia = project.media.afterMedia;
 
-  const beforeMedia = getMediaById(project.media.before);
-  const afterMedia = getMediaById(project.media.after);
-
-  // Hide if media not found
+  // Hide if media not found or not validated
   if (!beforeMedia || !afterMedia) {
     return null;
   }

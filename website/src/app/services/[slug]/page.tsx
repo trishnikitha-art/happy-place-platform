@@ -10,7 +10,7 @@ import { getServiceBySlug, getNonArchivedServices } from "@/lib/registries"; // 
 import { getServiceGallery } from "@/lib/galleries";
 import { PlaceholderSection } from "@/components/placeholder-section";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
-import { getProjectById } from "@/lib/projects";
+import { getProjectById, getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib/projects";
 import { getMediaById, resolvePublicMedia } from "@/lib/media";
 import { VisualSlot } from "@/components/visual-slot";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
@@ -89,6 +89,11 @@ export default async function ServicePage({ params }: ServicePageProps) {
 
   // Get featured project for this service
   const featuredProject = serviceGallery.projects[0] || null;
+  // P1 FIX: Resolve project media through public media gate to prevent bypass
+  const featuredProjectWithMedia = featuredProject ? await getProjectWithResolvedMedia(featuredProject) : null;
+  
+  // P1 FIX: Resolve all project gallery media through public media gate to prevent bypass
+  const projectsWithResolvedMedia = await getProjectsWithResolvedMedia(serviceGallery.projects);
 
   return (
     <>
@@ -117,15 +122,15 @@ export default async function ServicePage({ params }: ServicePageProps) {
           <Container>
             <SectionHeading
               eyebrow={<span className="text-honey">Featured Project</span>}
-              title={<span className="text-text-on-dark">{featuredProject.title}</span>}
-              description={<span className="measure text-text-on-dark/90">{featuredProject.story?.outcome || "See our latest work in this service area."}</span>}
+              title={<span className="text-text-on-dark">{featuredProjectWithMedia?.title || featuredProject?.title}</span>}
+              description={<span className="measure text-text-on-dark/90">{featuredProjectWithMedia?.story?.outcome || featuredProject?.story?.outcome || "See our latest work in this service area."}</span>}
             />
             <div className="mt-8">
-              {featuredProject.media.before && featuredProject.media.after && (
-                <BeforeAfterSlider project={featuredProject} />
+              {featuredProjectWithMedia?.media.beforeMedia && featuredProjectWithMedia?.media.afterMedia && (
+                <BeforeAfterSlider project={featuredProjectWithMedia} />
               )}
               <Link
-                href={`/projects/${featuredProject.slug || featuredProject.id}`}
+                href={`/projects/${featuredProjectWithMedia?.slug || featuredProjectWithMedia?.id || featuredProject?.slug || featuredProject?.id}`}
                 className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-honey hover:text-honey-hover transition-colors"
               >
                 View Full Project →
@@ -144,10 +149,11 @@ export default async function ServicePage({ params }: ServicePageProps) {
             description={<span className="text-text-on-dark/90">{`Browse our completed ${service.name.toLowerCase()} projects across the Mid-Willamette Valley.`}</span>}
           />
           <div className="mt-8">
-            {serviceGallery.projects.length > 0 ? (
+            {projectsWithResolvedMedia.length > 0 ? (
               <div className="columns-1 gap-6 space-y-6 sm:columns-2 lg:columns-3">
-                {serviceGallery.projects.slice(0, 6).map((project) => {
-                  const projectHeroMedia = project.media.hero ? getMediaById(project.media.hero) : null;
+                {projectsWithResolvedMedia.slice(0, 6).map((project) => {
+                  // P1 FIX: Use pre-validated heroMedia from getProjectWithResolvedMedia (passed public media gate)
+                  const projectHeroMedia = project.media.heroMedia;
                   const projectHeroSrc = projectHeroMedia?.variants?.web || projectHeroMedia?.variants?.original;
                   return (
                     <Link key={project.id} href={`/projects/${project.slug || project.id}`} className="block break-inside-avoid mb-6">

@@ -13,10 +13,13 @@
  * from becoming mixed with company branding over time.
  */
 
+import type { Media } from './media';
+
 export interface BrandAsset {
   id: string;
   mediaId: string | null;
   alt: string;
+  resolvedMedia?: Media; // P1 FIX: Pre-validated media object (passed public media gate)
 }
 
 export interface BrandHero {
@@ -27,6 +30,7 @@ export interface BrandHero {
     gradient: boolean;
     overlay: boolean;
   };
+  resolvedMedia?: Media; // P1 FIX: Pre-validated media object (passed public media gate)
 }
 
 export interface BrandOwnerPortrait {
@@ -34,6 +38,7 @@ export interface BrandOwnerPortrait {
   mediaId: string | null;
   alt: string;
   names: string[];
+  resolvedMedia?: Media; // P1 FIX: Pre-validated media object (passed public media gate)
 }
 
 export interface BrandManifest {

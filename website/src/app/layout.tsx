@@ -50,7 +50,9 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const heroBrand = await getHomepageHero();
-  const heroMedia = heroBrand?.mediaId ? getMediaById(heroBrand.mediaId) : null;
+  // P1 FIX: Use pre-validated resolvedMedia from brand function (passed public media gate)
+  // This prevents bypassing the public media gate by calling getMediaById directly
+  const heroMedia = heroBrand?.resolvedMedia || null;
   const ogImageUrl = heroMedia?.variants?.web || `${siteUrl}/brand/logo.png`;
   const logoUrl = `${siteUrl}/brand/logo.png`;
 

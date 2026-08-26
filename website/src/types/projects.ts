@@ -12,6 +12,8 @@
  * Industry-Agnostic: Service types come from Services Registry, not hardcoded here.
  */
 
+import type { Media } from './media';
+
 export type ProjectService = string; // Service slug from Services Registry (industry-agnostic)
 
 export type ProjectStatus = "completed" | "in-progress" | "planned" | "on-hold" | "archived";
@@ -31,11 +33,17 @@ export interface ProjectLocation {
 
 export interface ProjectMedia {
   hero: string; // Main hero image ID from media.v1.json
+  heroMedia?: Media; // P1 FIX: Pre-validated hero media object (passed public media gate)
   before?: string; // Before state image ID
+  beforeMedia?: Media; // P1 FIX: Pre-validated before media object (passed public media gate)
   after?: string; // After state image ID
+  afterMedia?: Media; // P1 FIX: Pre-validated after media object (passed public media gate)
   gallery: string[]; // Gallery image IDs
+  galleryMedia?: Media[]; // P1 FIX: Pre-validated gallery media objects (passed public media gate)
   details?: string[]; // Detail shot IDs
+  detailsMedia?: Media[]; // P1 FIX: Pre-validated detail media objects (passed public media gate)
   progress?: string[]; // Progress/construction photos
+  progressMedia?: Media[]; // P1 FIX: Pre-validated progress media objects (passed public media gate)
   documents?: string[]; // Document IDs (permits, plans, etc.)
 }
 

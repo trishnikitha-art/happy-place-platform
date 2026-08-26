@@ -8,7 +8,6 @@ import { CraftCard } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { Review } from "@/types/reviews";
 import { getProjectById } from "@/lib/projects";
-import { getMediaById } from "@/lib/media";
 
 interface ReviewCardProps {
   review: Review;
@@ -47,9 +46,12 @@ export function ReviewCard({ review }: ReviewCardProps) {
   // Review Authority: Reviews should only reference projectId, never image IDs
   // The UI automatically displays hero image, gallery, location, project page, before/after
   // from Project Authority via Media Authority
+  // P1 FIX: Reviews don't have pre-validated media - this is a data limitation
+  // For now, we accept the bypass here but this should be fixed by adding
+  // resolvedMedia to Review objects or passing pre-validated projects
   const project = review.projectId ? getProjectById(review.projectId) : null;
-  const hasProjectPhoto = project && project.media.hero;
-  const projectHeroMedia = hasProjectPhoto ? getMediaById(project.media.hero) : null;
+  const hasProjectPhoto = project && project.media.heroMedia;
+  const projectHeroMedia = hasProjectPhoto ? project.media.heroMedia : null;
   const projectHeroSrc = projectHeroMedia?.variants?.original || projectHeroMedia?.variants?.webp || projectHeroMedia?.variants?.avif;
 
   // Moderation state badges

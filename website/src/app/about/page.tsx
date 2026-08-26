@@ -19,7 +19,9 @@ export default async function AboutPage() {
   const company = getCompany();
   const cities = getAllCities();
   const ownerBrand = await getOwnerPortrait();
-  const ownerMedia = ownerBrand?.mediaId ? getMediaById(ownerBrand.mediaId) : null;
+  // P1 FIX: Use pre-validated resolvedMedia from brand function (passed public media gate)
+  // This prevents bypassing the public media gate by calling getMediaById directly
+  const ownerMedia = ownerBrand?.resolvedMedia || null;
   const ownerSrc = ownerMedia?.variants?.web || ownerMedia?.variants?.original;
   
   return (

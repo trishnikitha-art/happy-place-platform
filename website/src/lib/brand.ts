@@ -79,10 +79,12 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
           mediaId: assignment.mediaId,
           resolvedMediaId: resolvedMedia.id 
         });
-        // Return hero with runtime mediaId (only if it passed public media gate)
+        // P1 FIX: Return the full resolved Media object, not just mediaId
+        // This ensures callers cannot bypass the public media gate by calling getMediaById directly
         return {
           ...manifest.homepageHero,
           mediaId: assignment.mediaId,
+          resolvedMedia, // Attach the validated media object
         };
       } else {
         console.error('[PUBLIC_MEDIA_GATE] BRAND_HERO_REJECTED', {
@@ -137,10 +139,12 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
           mediaId: assignment.mediaId,
           resolvedMediaId: resolvedMedia.id 
         });
-        // Return portrait with runtime mediaId (only if it passed public media gate)
+        // P1 FIX: Return the full resolved Media object, not just mediaId
+        // This ensures callers cannot bypass the public media gate by calling getMediaById directly
         return {
           ...manifest.ownerPortrait,
           mediaId: assignment.mediaId,
+          resolvedMedia, // Attach the validated media object
         };
       } else {
         console.error('[PUBLIC_MEDIA_GATE] BRAND_PORTRAIT_REJECTED', {
