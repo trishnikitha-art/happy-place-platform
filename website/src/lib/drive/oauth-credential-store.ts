@@ -744,15 +744,59 @@ export async function isAccessTokenExpired(authId: string): Promise<boolean> {
 
 /**
  * Update last used timestamp
+ * 
+ * P0 FIX: Make atomic against authorization revocation to prevent subject index resurrection
+ * Uses Redis Lua script to prevent race where:
+ * - Request A: getAuthorization(active)
+ * - Request B: revokeAuthorization() (sets status=revoked, deletes subject index)
+ * - Request A: updateLastUsed() re-establishes subject index via storeAuthorization()
  */
 export async function updateLastUsed(authId: string): Promise<void> {
   try {
-    const auth = await getAuthorization(authId);
-    if (auth) {
-      auth.lastUsedAt = new Date().toISOString();
-      await storeAuthorization(auth);
+    const client = getRedisClient();
+    const now = new Date().toISOString();
+
+    // Redis Lua script for atomic last used update with status verification
+    const luaScript = `
+      local auth_key = KEYS[1]
+      local new_last_used = ARGV[1]
+      local auth_ttl = ARGV[2]
+      
+      -- Get current authorization data
+      local auth_data = redis.call('GET', auth_key)
+      if not auth_data then
+        return 0  -- Authorization not found
+      end
+      
+      local auth = cjson.decode(auth_data)
+      
+      -- Verify authorization is still active
+      if auth.status ~= 'active' then
+        return 0  -- Authorization not active (revoked), prevent update
+      end
+      
+      -- Authorization still active: update last used atomically
+      auth.lastUsedAt = new_last_used
+      redis.call('SET', auth_key, cjson.encode(auth))
+      redis.call('EXPIRE', auth_key, auth_ttl)
+      
+      return 1  -- Success
+    `;
+
+    const result = await client.eval(
+      luaScript,
+      [`${AUTH_PREFIX}${authId}`],
+      [now, AUTH_TTL_SECONDS.toString()]
+    );
+
+    if (result === 0) {
+      console.warn('[AUTH_STORE] Last used update rejected: authorization no longer active', authId);
+      return;
     }
+
+    console.log('[AUTH_STORE] Last used updated atomically:', authId);
   } catch (error) {
     console.error('[AUTH_STORE] Last used update failed:', error);
+    throw new Error(`Failed to update last used for authorization ${authId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
