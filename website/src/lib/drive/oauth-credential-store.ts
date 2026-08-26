@@ -452,6 +452,12 @@ async function createNewAuthorizationWithAtomicSubject(
 /**
  * Update authorization after token refresh
  * 
+ * P0 FIX: Make refresh conditional on status === 'active' to prevent overwriting revocation
+ * Uses Redis Lua script to prevent race where:
+ * - Request A: getAuthorization(active)
+ * - Request B: revokeAuthorization() (sets status = revoked, deletes subject index)
+ * - Request A: updateAuthorizationAfterRefresh() overwrites revocation
+ *
  * Encrypts new access token and optionally new refresh token
  * Persists with updated timestamps
  */
@@ -480,21 +486,56 @@ export async function updateAuthorizationAfterRefresh(
       refreshTokenEnvelope = existingEnvelope;
     }
     
-    // Update record
-    auth.encryptedAccessToken = JSON.stringify(accessTokenEnvelope);
-    auth.accessTokenExpiresAt = new Date(accessTokenExpiresAt).toISOString();
-    auth.encryptedRefreshToken = JSON.stringify(refreshTokenEnvelope);
-    auth.lastRefreshAt = new Date().toISOString();
-    auth.lastUsedAt = new Date().toISOString();
-    auth.updatedAt = new Date().toISOString();
+    const now = new Date();
+    const updatedAuth = {
+      ...auth,
+      encryptedAccessToken: JSON.stringify(accessTokenEnvelope),
+      accessTokenExpiresAt: new Date(accessTokenExpiresAt).toISOString(),
+      encryptedRefreshToken: JSON.stringify(refreshTokenEnvelope),
+      lastRefreshAt: now.toISOString(),
+      lastUsedAt: now.toISOString(),
+      updatedAt: now.toISOString(),
+    };
     
-    // Update authorization record directly without rewriting subject index
-    // Subject index remains unchanged during refresh
+    // Redis Lua script for atomic authorization update with status verification
+    const luaScript = `
+      local auth_key = KEYS[1]
+      local updated_auth_data = ARGV[1]
+      local auth_ttl = ARGV[2]
+      
+      -- Get current authorization data
+      local current_auth_data = redis.call('GET', auth_key)
+      if not current_auth_data then
+        return 0  -- Authorization not found
+      end
+      
+      local current_auth = cjson.decode(current_auth_data)
+      
+      -- Verify authorization is still active
+      if current_auth.status ~= 'active' then
+        return 0  -- Authorization not active (revoked), prevent overwriting
+      end
+      
+      -- Authorization still active: update atomically
+      redis.call('SET', auth_key, updated_auth_data)
+      redis.call('EXPIRE', auth_key, auth_ttl)
+      
+      return 1  -- Success
+    `;
+
     const client = getRedisClient();
-    await client.set(`${AUTH_PREFIX}${auth.id}`, auth);
-    await client.expire(`${AUTH_PREFIX}${auth.id}`, AUTH_TTL_SECONDS);
+    const result = await client.eval(
+      luaScript,
+      [`${AUTH_PREFIX}${authId}`],
+      [JSON.stringify(updatedAuth), AUTH_TTL_SECONDS.toString()]
+    );
+
+    if (result === 0) {
+      console.warn('[AUTH_STORE] Authorization refresh rejected: authorization no longer active', authId);
+      throw new Error(`Authorization ${authId} is not active - refresh rejected`);
+    }
     
-    console.log('[AUTH_STORE] Authorization updated after refresh:', authId);
+    console.log('[AUTH_STORE] Authorization updated after refresh with status verification:', authId);
   } catch (error) {
     console.error('[AUTH_STORE] Update failed:', error);
     throw new Error(`Failed to update authorization ${authId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -534,19 +575,80 @@ export async function revokeAuthorization(id: string): Promise<void> {
 /**
  * Revoke authorization and all associated sessions
  *
- * Combined operation for authorization-wide revocation
- * Calls revokeAuthorization and revokeAllSessionsForAuthorization
+ * P0 FIX: Make revocation one atomic Redis transaction to prevent race conditions
+ * Uses Redis Lua script to prevent gap where:
+ * - authorization revoked
+ * - sessions still exist (gap between operations)
+ * - stale refresh could resurrect
+ *
+ * Atomic boundary:
+ * 1. Set authorization status = revoked
+ * 2. Delete subject index
+ * 3. Delete session index
+ * 4. Delete all session records
+ * 
+ * All in one transaction - no gap for resurrection
  */
 export async function revokeAuthorizationWithSessions(id: string): Promise<void> {
   try {
-    // Revoke authorization
-    await revokeAuthorization(id);
+    // First get the authorization to extract googleSubject (non-atomic read)
+    const auth = await getAuthorization(id);
+    if (!auth) {
+      console.warn('[AUTH_STORE] Authorization not found for revocation:', id);
+      return;
+    }
 
-    // Revoke all associated sessions
-    const { revokeAllSessionsForAuthorization } = await import('./session-store');
-    await revokeAllSessionsForAuthorization(id);
+    const client = getRedisClient();
+    
+    // Redis Lua script for atomic authorization + session revocation
+    const luaScript = `
+      local auth_key = KEYS[1]
+      local subject_index_key = KEYS[2]
+      local session_index_key = KEYS[3]
+      local session_prefix = ARGV[1]
+      local auth_ttl = ARGV[2]
+      
+      -- Get current authorization data
+      local auth_data = redis.call('GET', auth_key)
+      if not auth_data then
+        return 0  -- Authorization not found
+      end
+      
+      local auth = cjson.decode(auth_data)
+      
+      -- Set authorization status to revoked
+      auth.status = 'revoked'
+      auth.updatedAt = redis.call('TIME')[1]
+      redis.call('SET', auth_key, cjson.encode(auth))
+      redis.call('EXPIRE', auth_key, auth_ttl)
+      
+      -- Delete subject index (prevents reauthorization)
+      redis.call('DEL', subject_index_key)
+      
+      -- Get all session IDs from session index
+      local session_ids = redis.call('SMEMBERS', session_index_key)
+      
+      -- Delete session index
+      redis.call('DEL', session_index_key)
+      
+      -- Delete all session records
+      for i, session_id in ipairs(session_ids) do
+        local session_key = session_prefix .. session_id
+        redis.call('DEL', session_key)
+      end
+      
+      -- Return count of revoked sessions
+      return #session_ids
+    `;
 
-    console.log('[AUTH_STORE] Authorization and sessions revoked:', id);
+    const result = await client.eval(
+      luaScript,
+      [`drive:auth:${id}`, `${AUTH_SUBJECT_PREFIX}${auth.googleSubject}`, `drive:auth:sessions:${id}`],
+      [`drive:session:`, AUTH_TTL_SECONDS.toString()]
+    );
+
+    const revokedCount = result as number;
+    console.log('[AUTH_STORE] Authorization and sessions revoked atomically:', id, 'sessions:', revokedCount);
   } catch (error) {
     console.error('[AUTH_STORE] Revoke with sessions failed:', error);
     throw new Error(`Failed to revoke authorization with sessions ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);

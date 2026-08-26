@@ -209,27 +209,70 @@ export async function createSession(
 
 /**
  * Retrieve session record by ID
+ * 
+ * P0 FIX: Verify linked authorization is still active to prevent resurrection race
+ * Uses atomic Lua script to prevent TOCTOU vulnerability where:
+ * - Request A: getSession() (authorization active)
+ * - Request B: revokeAuthorization() + revokeAllSessionsForAuthorization()
+ * - Request A: resurrects session via updateSessionLastSeen()
  */
 export async function getSession(id: string): Promise<BrowserSessionRecord | null> {
   try {
     const client = getRedisClient();
-    const record = await client.get<BrowserSessionRecord>(`${SESSION_PREFIX}${id}`);
-    
-    if (!record) {
+
+    // Redis Lua script for atomic session retrieval + authorization status verification
+    const luaScript = `
+      local session_key = KEYS[1]
+      local auth_key = KEYS[2]
+      
+      -- Get session data
+      local session_data = redis.call('GET', session_key)
+      if not session_data then
+        return {0, nil}  -- Session not found
+      end
+      
+      local session = cjson.decode(session_data)
+      
+      -- Check if session is expired or revoked
+      if session.revokedAt or session.expiresAt < redis.call('TIME')[1] then
+        return {0, nil}  -- Session expired or revoked
+      end
+      
+      -- Get authorization data
+      local auth_data = redis.call('GET', auth_key)
+      if not auth_data then
+        return {0, nil}  -- Authorization not found
+      end
+      
+      local auth = cjson.decode(auth_data)
+      
+      -- Verify authorization is still active
+      if auth.status ~= 'active' then
+        return {0, nil}  -- Authorization not active (revoked)
+      end
+      
+      -- Session and authorization both valid
+      return {1, session_data}
+    `;
+
+    const result = await client.eval(
+      luaScript,
+      [`${SESSION_PREFIX}${id}`],
+      []
+    );
+
+    if (!result || Array.isArray(result) && result[0] === 0) {
       return null;
     }
+
+    const sessionData = Array.isArray(result) ? result[1] : result;
     
-    if (!validateSessionRecord(record)) {
+    if (!validateSessionRecord(sessionData)) {
       console.error('[SESSION_STORE] Invalid session record:', id);
       return null;
     }
     
-    // Check if session is expired or revoked
-    if (record.revokedAt || new Date(record.expiresAt) < new Date()) {
-      return null;
-    }
-    
-    return record;
+    return sessionData as BrowserSessionRecord;
   } catch (error) {
     console.error('[SESSION_STORE] Get failed:', error);
     throw new Error(`Failed to retrieve session ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -239,20 +282,83 @@ export async function getSession(id: string): Promise<BrowserSessionRecord | nul
 /**
  * Update session last seen timestamp
  * 
+ * P0 FIX: Make atomic against authorization revocation to prevent resurrection race
+ * Uses Redis Lua script to prevent TOCTOU where:
+ * - Request A: getSession() (authorization active)
+ * - Request B: revokeAuthorization() + revokeAllSessionsForAuthorization()
+ * - Request A: updateSessionLastSeen() resurrects session
+ * 
  * Also renews the authorization session index TTL
  */
 export async function updateSessionLastSeen(id: string): Promise<void> {
   try {
-    const record = await getSession(id);
-    if (record) {
-      record.lastSeenAt = new Date().toISOString();
-      const client = getRedisClient();
-      await client.set(`${SESSION_PREFIX}${id}`, record);
-      await client.expire(`${SESSION_PREFIX}${id}`, SESSION_TTL_SECONDS);
-      
-      // Renew authorization session index TTL to safety TTL
-      await client.expire(`${AUTH_SESSIONS_PREFIX}${record.authorizationId}`, SESSION_INDEX_TTL_SECONDS);
+    const client = getRedisClient();
+    const now = new Date().toISOString();
+
+    // First get the session to extract authorization ID (non-atomic read)
+    const session = await client.get<BrowserSessionRecord>(`${SESSION_PREFIX}${id}`);
+    if (!session) {
+      return;
     }
+
+    // Redis Lua script for atomic session update + authorization status verification
+    const luaScript = `
+      local session_key = KEYS[1]
+      local auth_key = KEYS[2]
+      local index_key = KEYS[3]
+      local new_last_seen = ARGV[1]
+      local session_ttl = ARGV[2]
+      local index_ttl = ARGV[3]
+      
+      -- Get session data
+      local session_data = redis.call('GET', session_key)
+      if not session_data then
+        return 0  -- Session not found
+      end
+      
+      local session = cjson.decode(session_data)
+      
+      -- Check if session is expired or revoked
+      if session.revokedAt or session.expiresAt < redis.call('TIME')[1] then
+        return 0  -- Session expired or revoked
+      end
+      
+      -- Get authorization data
+      local auth_data = redis.call('GET', auth_key)
+      if not auth_data then
+        return 0  -- Authorization not found
+      end
+      
+      local auth = cjson.decode(auth_data)
+      
+      -- Verify authorization is still active
+      if auth.status ~= 'active' then
+        return 0  -- Authorization not active (revoked)
+      end
+      
+      -- Authorization still active: update session atomically
+      session.lastSeenAt = new_last_seen
+      redis.call('SET', session_key, cjson.encode(session))
+      redis.call('EXPIRE', session_key, session_ttl)
+      
+      -- Renew authorization session index TTL
+      redis.call('EXPIRE', index_key, index_ttl)
+      
+      return 1  -- Success
+    `;
+
+    const result = await client.eval(
+      luaScript,
+      [`${SESSION_PREFIX}${id}`, `drive:auth:${session.authorizationId}`, `${AUTH_SESSIONS_PREFIX}${session.authorizationId}`],
+      [now, SESSION_TTL_SECONDS.toString(), SESSION_INDEX_TTL_SECONDS.toString()]
+    );
+
+    if (result === 0) {
+      console.warn('[SESSION_STORE] Session update rejected: session or authorization no longer active', id);
+      return;
+    }
+
+    console.log('[SESSION_STORE] Session last seen updated atomically:', id);
   } catch (error) {
     console.error('[SESSION_STORE] Last seen update failed:', error);
     throw new Error(`Failed to update session last seen ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
