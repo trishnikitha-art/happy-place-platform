@@ -14,6 +14,8 @@
  * Industry-Agnostic: Service types come from Services Registry, not hardcoded here.
  */
 
+import type { Media } from './media';
+
 export enum ReviewProvider {
   Manual = "manual",
   Google = "google",
@@ -116,6 +118,7 @@ export interface Review {
   
   // Future-ready features
   photos?: string[]; // Array of media IDs for review photos
+  photosMedia?: Media[]; // P0 FIX: Pre-validated media objects (passed public media gate)
   projectAssociation?: string; // Project ID for contextual linking
   verificationIndicator?: boolean; // Badge for verified purchases/projects
 

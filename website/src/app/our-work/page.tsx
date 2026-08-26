@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { getAllProjects, getFeaturedProjects } from "@/lib/projects";
+import { getAllProjects, getFeaturedProjects, getProjectsWithResolvedMedia } from "@/lib/projects";
 import { getCompany } from "@/lib/company";
 import OurWorkClient from "./OurWorkClient";
 
@@ -10,11 +10,16 @@ export const metadata: Metadata = {
   alternates: { canonical: "/our-work" },
 };
 
-export default function OurWorkPage() {
+export default async function OurWorkPage() {
   const company = getCompany();
   const allProjects = getAllProjects().filter(p => !p.archived);
   const featuredProjects = getFeaturedProjects();
+  
+  // P0 FIX: Resolve project media through public media gate before passing to client
+  // This prevents client-side getMediaById() bypass
+  const allProjectsWithMedia = await getProjectsWithResolvedMedia(allProjects);
+  const featuredProjectsWithMedia = await getProjectsWithResolvedMedia(featuredProjects);
 
-  return <OurWorkClient company={company} allProjects={allProjects} featuredProjects={featuredProjects} />;
+  return <OurWorkClient company={company} allProjects={allProjectsWithMedia} featuredProjects={featuredProjectsWithMedia} />;
 }
 

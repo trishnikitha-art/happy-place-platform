@@ -7,7 +7,6 @@ import { CTASection } from "@/components/cta-section";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { CraftCard } from "@/components/ui/card";
-import { getMediaById } from "@/lib/media";
 import { getServiceBySlug } from "@/lib/registries";
 import { ProjectLightbox } from "@/components/project-lightbox";
 import { BlueprintGrid } from "@/components/blueprint-grid";
@@ -140,8 +139,9 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
           />
           <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
             {allProjects.map((project, i) => {
-              const heroMediaId = project.media.hero;
-              const heroMedia = heroMediaId ? getMediaById(heroMediaId) : null;
+              // P0 FIX: Use pre-validated heroMedia from server-side resolution (passed public media gate)
+              // This prevents client-side getMediaById() bypass
+              const heroMedia = project.media.heroMedia;
               
               // Use responsive variants if available to select best quality
               const responsiveVariants = heroMedia?.variants?.responsive;
@@ -216,45 +216,43 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
           />
           <div className="gallery-grid mt-10 columns-2 gap-4 space-y-4 md:columns-3 lg:columns-4">
             {allProjects.map((project, projectIndex) => {
-              const galleryMediaIds = project.media?.gallery || [];
-              const galleryPhotos = galleryMediaIds
-                .map(id => getMediaById(id))
-                .filter(m => m !== null && (m.variants?.web || m.variants?.original));
+              // P0 FIX: Use pre-validated galleryMedia from server-side resolution (passed public media gate)
+              // This prevents client-side getMediaById() bypass
+              const galleryPhotos = project.media.galleryMedia || [];
               
               return galleryPhotos.map((photo, photoIndex) => {
                 // Use responsive variants if available to select best quality
-                const responsiveVariants = photo!.variants?.responsive;
+                const responsiveVariants = photo.variants?.responsive;
                 const hasResponsiveVariants = responsiveVariants && responsiveVariants.length > 0;
-                const src = photo! 
+                const src = photo 
                   ? (hasResponsiveVariants 
                       ? responsiveVariants[responsiveVariants.length - 1].webp 
-                      : (photo!.variants.web || photo!.variants.original || photo!.variants.thumbnail))
+                      : (photo.variants.web || photo.variants.original || photo.variants.thumbnail))
                   : null;
                 if (!src) return null;
-                const mediaId = photo!.id;
+                const mediaId = photo.id;
                 
                 return (
                   <button
                     key={`${project.id}-${photoIndex}`}
                     className="group relative block aspect-[4/3] overflow-hidden cursor-pointer break-inside-avoid mb-4"
                     onClick={() => {
+                      // P0 FIX: Use pre-validated galleryMedia from server-side resolution (passed public media gate)
+                      // This prevents client-side getMediaById() bypass
                       const allGalleryImages = allProjects.flatMap(p => {
-                        const pGalleryIds = p.media?.gallery || [];
-                        return pGalleryIds
-                          .map(id => getMediaById(id))
-                          .filter(m => m !== null && (m.variants?.web || m.variants?.original))
-                          .map(m => {
-                            // Use highest quality variant for lightbox
-                            const responsiveVariants = m!.variants?.responsive;
-                            const highestQuality = responsiveVariants && responsiveVariants.length > 0
-                              ? responsiveVariants[responsiveVariants.length - 1].webp
-                              : (m!.variants.web || m!.variants.original || m!.variants.thumbnail!);
-                            return {
-                              src: highestQuality,
-                              alt: m!.alt,
-                              blurDataURL: m!.variants?.blur
-                            };
-                          });
+                        const pGalleryMedia = p.media.galleryMedia || [];
+                        return pGalleryMedia.map(m => {
+                          // Use highest quality variant for lightbox
+                          const responsiveVariants = m.variants?.responsive;
+                          const highestQuality = responsiveVariants && responsiveVariants.length > 0
+                            ? responsiveVariants[responsiveVariants.length - 1].webp
+                            : (m.variants.web || m.variants.original || m.variants.thumbnail!);
+                          return {
+                            src: highestQuality,
+                            alt: m.alt,
+                            blurDataURL: m.variants?.blur
+                          };
+                        });
                       });
                       const globalIndex = allGalleryImages.findIndex(img => img.src === src);
                       openLightbox(allGalleryImages, globalIndex);

@@ -14,6 +14,8 @@
 
 import { Review, ReviewsManifest, ReviewService, ReviewAggregate, ReviewProvider } from "@/types/reviews";
 import { loadAuthority, clearAuthorityCache, findById, filterFeatured, filterByField } from "./authority-loader";
+import { resolvePublicMedia } from "./media";
+import type { Media } from "@/types/media";
 
 export type { ReviewService };
 
@@ -87,6 +89,15 @@ export async function getFeaturedReviews(): Promise<Review[]> {
 }
 
 /**
+ * P0 FIX: Get featured reviews with resolved media through public media gate
+ * This prevents bypassing the public media gate by calling getMediaById directly
+ */
+export async function getFeaturedReviewsWithResolvedMedia(): Promise<Review[]> {
+  const reviews = await getFeaturedReviews();
+  return await getReviewsWithResolvedMedia(reviews);
+}
+
+/**
  * Get reviews by service
  */
 export async function getReviewsByService(service: ReviewService): Promise<Review[]> {
@@ -135,6 +146,36 @@ export async function getLatestReviews(limit?: number): Promise<Review[]> {
 export async function getReviewById(id: string): Promise<Review | null> {
   const reviews = await getAllReviews();
   return findById(reviews, id);
+}
+
+/**
+ * P0 FIX: Resolve review media through public media gate
+ * This prevents bypassing the public media gate by calling getMediaById directly
+ * Returns a review with all media IDs resolved to validated Media objects
+ */
+export async function getReviewWithResolvedMedia(review: Review): Promise<Review> {
+  const resolveMedia = async (mediaId: string | undefined): Promise<Media | undefined> => {
+    if (!mediaId) return undefined;
+    return await resolvePublicMedia(mediaId);
+  };
+
+  const resolveMediaArray = async (mediaIds: string[]): Promise<Media[]> => {
+    const resolved = await Promise.all(mediaIds.map(resolveMedia));
+    return resolved.filter((m): m is Media => m !== undefined);
+  };
+
+  return {
+    ...review,
+    photosMedia: review.photos ? await resolveMediaArray(review.photos) : undefined,
+  };
+}
+
+/**
+ * P0 FIX: Resolve media for multiple reviews
+ * This prevents bypassing the public media gate by calling getMediaById directly
+ */
+export async function getReviewsWithResolvedMedia(reviews: Review[]): Promise<Review[]> {
+  return await Promise.all(reviews.map(getReviewWithResolvedMedia));
 }
 
 /**

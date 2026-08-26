@@ -11,6 +11,7 @@ import { getProjectById } from "@/lib/projects";
 
 interface ReviewCardProps {
   review: Review;
+  projectWithMedia?: Project; // P0 FIX: Pass pre-validated project to avoid getMediaById bypass
 }
 
 /**
@@ -36,7 +37,7 @@ interface ReviewCardProps {
  * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
  * Card text always uses light register tokens regardless of page background.
  */
-export function ReviewCard({ review }: ReviewCardProps) {
+export function ReviewCard({ review, projectWithMedia }: ReviewCardProps) {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -46,10 +47,8 @@ export function ReviewCard({ review }: ReviewCardProps) {
   // Review Authority: Reviews should only reference projectId, never image IDs
   // The UI automatically displays hero image, gallery, location, project page, before/after
   // from Project Authority via Media Authority
-  // P1 FIX: Reviews don't have pre-validated media - this is a data limitation
-  // For now, we accept the bypass here but this should be fixed by adding
-  // resolvedMedia to Review objects or passing pre-validated projects
-  const project = review.projectId ? getProjectById(review.projectId) : null;
+  // P0 FIX: Use pre-validated projectWithMedia if provided, otherwise fall back to current data limitation
+  const project = projectWithMedia || (review.projectId ? getProjectById(review.projectId) : null);
   const hasProjectPhoto = project && project.media.heroMedia;
   const projectHeroMedia = hasProjectPhoto ? project.media.heroMedia : null;
   const projectHeroSrc = projectHeroMedia?.variants?.original || projectHeroMedia?.variants?.webp || projectHeroMedia?.variants?.avif;
@@ -175,17 +174,16 @@ export function ReviewCard({ review }: ReviewCardProps) {
       )}
 
       {/* Photos slot (future) */}
-      {review.photos && review.photos.length > 0 && (
+      {review.photosMedia && review.photosMedia.length > 0 && (
         <div className="mt-4 grid grid-cols-2 gap-2">
-          {review.photos.slice(0, 4).map((photoId, i) => {
-            const photoMedia = getMediaById(photoId);
-            const photoSrc = photoMedia?.variants?.web || photoMedia?.variants?.original;
+          {review.photosMedia.slice(0, 4).map((photo, i) => {
+            const photoSrc = photo.variants?.web || photo.variants?.original;
             if (!photoSrc) return null;
             return (
               <div key={i} className="relative aspect-square overflow-hidden rounded-lg">
                 <Image
                   src={photoSrc}
-                  alt={photoMedia?.alt || `Review photo ${i + 1}`}
+                  alt={photo.alt || `Review photo ${i + 1}`}
                   fill
                   className="object-cover"
                   sizes="(max-width: 768px) 50vw, 25vw"

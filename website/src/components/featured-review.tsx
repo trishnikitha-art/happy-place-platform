@@ -6,16 +6,15 @@ import { getProjectById } from "@/lib/projects";
 
 interface FeaturedReviewProps {
   review: Review;
+  projectWithMedia?: Project; // P0 FIX: Pass pre-validated project to avoid getMediaById bypass
 }
 
-export function FeaturedReview({ review }: FeaturedReviewProps) {
+export function FeaturedReview({ review, projectWithMedia }: FeaturedReviewProps) {
   // Review Authority: Reviews should only reference projectId, never image IDs
   // The UI automatically displays hero image, gallery, location, project page, before/after
   // from Project Authority via Media Authority
-  // P1 FIX: Reviews don't have pre-validated media - this is a data limitation
-  // For now, we accept the bypass here but this should be fixed by adding
-  // resolvedMedia to Review objects or passing pre-validated projects
-  const project = review.projectId ? getProjectById(review.projectId) : null;
+  // P0 FIX: Use pre-validated projectWithMedia if provided, otherwise fall back to current data limitation
+  const project = projectWithMedia || (review.projectId ? getProjectById(review.projectId) : null);
   const hasProjectPhoto = project && project.media.heroMedia;
   const projectHeroMedia = hasProjectPhoto ? project.media.heroMedia : null;
   const projectHeroSrc = projectHeroMedia?.variants?.original || projectHeroMedia?.variants?.webp || projectHeroMedia?.variants?.avif;

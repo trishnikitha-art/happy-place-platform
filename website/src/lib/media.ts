@@ -95,19 +95,25 @@ export function getMediaById(id: string): Media | null {
 /**
  * Async version that checks KV directly (for dynamic loading)
  *
- * AUTHORITY PRECEDENCE: Runtime KV first, static authority as fallback
+ * AUTHORITY MODEL: KV is the ONLY authority for runtime PublishedMediaAsset
+ * Static files are projections for backup/audit only, not competing authorities
  *
- * This ensures that materialized PublishedMediaAsset records take precedence
- * over static canonical records. Static authority serves as fallback for
- * legacy compatibility when runtime records are not available.
+ * This ensures runtime-only authority - no static fallback to prevent resurrection
+ * of deleted/rejected records. Static files can only be used for explicit
+ * bootstrap/recovery operations with authorization.
  *
  * FAIL-CLOSED SEMANTICS:
- * - KV returns null (record does not exist) → static fallback is legitimate
- * - KV throws infrastructure error → FAIL CLOSED (do not silently fall back)
+ * - KV returns null (record does not exist) → FAIL CLOSED (no static fallback)
+ * - KV throws infrastructure error → FAIL CLOSED (no silent authority bypass)
+ *
+ * BOOTSTRAP/RECOVERY:
+ * - Static → KV import is ONLY allowed during explicit bootstrap/recovery operations
+ * - Requires explicit authorization and cannot resurrect deleted records
+ * - Must be performed through admin API with audit trail
  */
 export async function getMediaByIdAsync(id: string): Promise<Media | null> {
   // FIRST: Check KV store for runtime PublishedMediaAsset records
-  // Runtime authority (materialized assets) takes precedence
+  // Runtime authority (materialized assets) is the ONLY authority
   try {
     const { getMedia } = await import('@/lib/media-kv-store');
     const dynamicMedia = await getMedia(id);

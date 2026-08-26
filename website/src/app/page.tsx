@@ -15,7 +15,7 @@ import { PencilLine } from "@/components/pencil-line";
 import { BlueprintGrid } from "@/components/blueprint-grid";
 import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
 import { getNonArchivedServices } from "@/lib/registries";
-import { getFeaturedReviews, getReviewStats } from "@/lib/reviews";
+import { getFeaturedReviews, getFeaturedReviewsWithResolvedMedia, getReviewsWithResolvedMedia, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
 import { getHomepageHero } from "@/lib/brand";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
@@ -23,6 +23,7 @@ import { NewsletterSignup } from "@/components/newsletter-signup";
 import { getOwnerPortrait } from "@/lib/brand";
 import { getMediaById, resolvePublicMedia } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
+import { getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib/projects";
 import { VisualSlot } from "@/components/visual-slot";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
 import type { Media } from "@/types/media";
@@ -51,7 +52,8 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function HomePage() {
   const company = getCompany();
-  const topReviews = (await getFeaturedReviews()).slice(0, 3);
+  // P0 FIX: Resolve review media through public media gate to prevent bypass
+  const topReviews = (await getFeaturedReviewsWithResolvedMedia()).slice(0, 3);
   const stats = await getReviewStats();
   const hasReviews = stats.count > 0;
   const [taylor, lanie] = company.owners;
@@ -70,6 +72,8 @@ export default async function HomePage() {
     : undefined;
   const allServices = getNonArchivedServices();      // data-driven services from registry
   const featuredProjects = getFeaturedProjects(); // featured projects from Projects Authority
+  // P0 FIX: Resolve project media through public media gate to prevent bypass
+  const featuredProjectsWithMedia = await getProjectsWithResolvedMedia(featuredProjects);
   
   // Get hero from Brand Authority with runtime assignment
   const homepageHero = await getHomepageHero();
@@ -87,7 +91,7 @@ export default async function HomePage() {
     : null; // P1 FIX: No legacy /images/ fallback - fail closed
   
   // Get exterior painting project for featured transformation (has before/after media)
-  const paintingProject = featuredProjects.find(p => p.id === 'exterior-painting-001');
+  const paintingProject = featuredProjectsWithMedia.find(p => p.id === 'exterior-painting-001');
   
   // Group services for homepage display (show homepageEligible services first)
   const homepageServices = allServices.filter(s => s.homepageEligible);
@@ -118,33 +122,30 @@ export default async function HomePage() {
             mediaObject,
           });
         } else {
-          console.log('[PUBLIC_MEDIA_GATE] RUNTIME_ASSIGNMENT_REJECTED_FALLING_BACK_TO_STATIC', {
+          console.log('[PUBLIC_MEDIA_GATE] RUNTIME_ASSIGNMENT_REJECTED - FAILING_CLOSED', {
             serviceSlug: service.slug,
             rejectedRuntimeMediaId: assignment.mediaId,
-            staticCardMediaId: service.cardMediaId,
           });
           
-          // Fall back to authoritative static configuration
-          if (service.cardMediaId) {
-            const staticMediaObject = getMediaById(service.cardMediaId);
-            serviceCardAssignments.set(service.slug, {
-              mediaId: service.cardMediaId,
-              mediaObject: staticMediaObject,
-            });
-          }
+          // P0 FIX: No static fallback - fail closed to prevent authority bypass
+          // Static configuration cannot resurrect rejected runtime assignments
+          serviceCardAssignments.set(service.slug, {
+            mediaId: service.cardMediaId,
+            mediaObject: null, // No image if runtime assignment rejected
+          });
         }
       }
     } catch (error) {
-      // During static build, KV fetches may fail - this is expected
-      // Fall back to static configuration (cardMediaId from services.v1.json)
-      console.log('[HOMEPAGE] Runtime assignment unavailable, using static config:', service.slug);
-      if (service.cardMediaId) {
-        const mediaObject = getMediaById(service.cardMediaId);
-        serviceCardAssignments.set(service.slug, {
-          mediaId: service.cardMediaId,
-          mediaObject,
-        });
-      }
+      // P0 FIX: KV fetch failure - fail closed to prevent authority bypass
+      // Do not fall back to static configuration during build failures
+      console.error('[HOMEPAGE] RUNTIME_ASSIGNMENT_FETCH_FAILED - FAILING_CLOSED', {
+        serviceSlug: service.slug,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      serviceCardAssignments.set(service.slug, {
+        mediaId: service.cardMediaId,
+        mediaObject: null, // No image if KV unavailable
+      });
     }
   }
 
@@ -295,9 +296,9 @@ export default async function HomePage() {
               descriptionColor="text-primary"
             />
             <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 auto-rows-[200px]">
-              {featuredProjects.slice(0, 4).map((project, i) => {
-                const heroMediaId = project.media.hero;
-                const heroMedia = heroMediaId ? getMediaById(heroMediaId) : null;
+              {featuredProjectsWithMedia.slice(0, 4).map((project, i) => {
+                // P0 FIX: Use pre-validated heroMedia from getProjectWithResolvedMedia (passed public media gate)
+                const heroMedia = project.media.heroMedia;
                 const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original;
                 if (!heroSrc) return null;
                 
