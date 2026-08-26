@@ -14,7 +14,7 @@
 import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
 import { getMediaByIdAsync } from "@/lib/media";
-import { isPubliclyComplete } from "@/lib/media-contracts";
+import { isPubliclyComplete, isMaterializationComplete } from "@/lib/media-contracts";
 
 export const runtime = 'nodejs';
 
@@ -32,6 +32,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const mediaId = searchParams.get('mediaId');
+  const checkMaterializationOnly = searchParams.get('materializationOnly') === 'true';
 
   if (!mediaId) {
     return NextResponse.json(
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
     );
   }
 
-  console.log('[MEDIA_VERIFY] VERIFICATION_REQUEST', { requestId, mediaId });
+  console.log('[MEDIA_VERIFY] VERIFICATION_REQUEST', { requestId, mediaId, checkMaterializationOnly });
 
   try {
     const media = await getMediaByIdAsync(mediaId);
@@ -53,8 +54,12 @@ export async function GET(request: Request) {
       );
     }
 
-    // Use public completeness contract (shape + real hash + Blob proof)
-    const complete = await isPubliclyComplete(media);
+    // Use appropriate completeness contract
+    // - materializationOnly: shape + real hash (no Blob proof)
+    // - default: shape + real hash + Blob proof (public completeness)
+    const complete = checkMaterializationOnly
+      ? isMaterializationComplete(media)
+      : await isPubliclyComplete(media);
 
     console.log('[MEDIA_VERIFY] VERIFICATION_RESULT', {
       requestId,

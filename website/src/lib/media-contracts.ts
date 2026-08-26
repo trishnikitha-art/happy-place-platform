@@ -160,3 +160,16 @@ export async function isPubliclyComplete(media: Media): Promise<boolean> {
 export function needsMaterialization(media: Media): boolean {
   return !hasMaterializationShape(media) || !hasRealContentHash(media);
 }
+
+/**
+ * Materialization Completeness (Non-Blob Context)
+ *
+ * Checks if a media asset has correct materialization shape and real content hash.
+ * This is the same as !needsMaterialization() but expressed positively.
+ *
+ * Used by verification endpoints that need to check materialization before Blob proof.
+ * For public presentation with Blob proof, use isPubliclyComplete() instead.
+ */
+export function isMaterializationComplete(media: Media): boolean {
+  return hasMaterializationShape(media) && hasRealContentHash(media);
+}

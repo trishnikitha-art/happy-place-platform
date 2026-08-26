@@ -26,7 +26,7 @@ import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { hasMaterializationShape, hasRealContentHash } from '@/lib/media-contracts';
+import { isMaterializationComplete } from '@/lib/media-contracts';
 
 interface ReconciliationReport {
   dryRun: boolean;
@@ -152,8 +152,8 @@ export async function POST(request: Request) {
           report.preservedRecords.push(mediaId);
           console.log('[MEDIA_RECONCILE] PRESERVED_DRIVE_REFERENCE', { requestId, mediaId });
         } else if (media.lifecycleState === 'published' && media.source === 'local') {
-          // PublishedMediaAsset - check for synthetic hash
-          if (media.contentHash && !hasRealContentHash(media)) {
+          // PublishedMediaAsset - check for synthetic hash via materialization completeness
+          if (media.contentHash && !isMaterializationComplete(media)) {
             report.syntheticRecords++;
             report.removedRecords.push(mediaId);
             console.log('[MEDIA_RECONCILE] DETECTED_SYNTHETIC', { requestId, mediaId, contentHash: media.contentHash });
@@ -168,7 +168,7 @@ export async function POST(request: Request) {
             if (canonical) {
               // P0 FIX: Verify canonical static record is materially complete before using it
               // Do not replace runtime record with incomplete static authority
-              const isCanonicalComplete = hasMaterializationShape(canonical) && hasRealContentHash(canonical);
+              const isCanonicalComplete = isMaterializationComplete(canonical);
 
               if (!isCanonicalComplete) {
                 console.error('[MEDIA_RECONCILE] CANONICAL_INCOMPLETE - DANGEROUS REPLACEMENT BLOCKED', {

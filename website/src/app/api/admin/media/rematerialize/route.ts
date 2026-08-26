@@ -27,7 +27,7 @@
 import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
 import { loadMediaManifest } from "@/lib/media";
-import { hasMaterializationShape, hasRealContentHash, isPubliclyComplete } from "@/lib/media-contracts";
+import { isMaterializationComplete, isPubliclyComplete } from "@/lib/media-contracts";
 import { storeMedia, getMediaRecordRaw } from "@/lib/media-kv-store";
 import { uploadToBlob, getBlobMetadataByContentHash } from "@/lib/blob-storage";
 import crypto from 'crypto';
@@ -393,7 +393,7 @@ export async function POST(request: Request) {
       const result = await rematerializeMediaRecord(media, dryRun, requestId);
 
       if (result.success) {
-        if (media.contentHash && hasRealContentHash(media) && hasMaterializationShape(media)) {
+        if (isMaterializationComplete(media)) {
           report.successfulRematerializations.push(media.id);
         } else {
           report.skippedRecords++;

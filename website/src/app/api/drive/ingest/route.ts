@@ -29,7 +29,7 @@ import { storeMedia, findMediaByContentHash, getMedia, getMediaRecordRaw } from 
 import crypto from 'crypto';
 import type { Media, MediaRole } from '@/types/media';
 import { RESPONSIVE_WIDTHS, THUMBNAIL_WIDTH, THUMBNAIL_QUALITY, WEBP_QUALITY, AVIF_QUALITY } from '@/lib/media-constants';
-import { hasMaterializationShape, hasRealContentHash } from '@/lib/media-contracts';
+import { needsMaterialization } from '@/lib/media-contracts';
 
 /**
  * Assignment reconciliation result
@@ -252,35 +252,6 @@ interface IngestRequest {
   projectId?: string;
   roles?: MediaRole[];
 }
-
-/**
- * Materialization completeness check for Drive ingest context
- *
- * This checks shape + real content hash (no Blob proof since Blob upload happens during ingest).
- * Used to determine if an existing asset needs re-materialization.
- *
- * For public presentation, use isPubliclyComplete from media-contracts.ts instead.
- */
-function isMediaMaterializationComplete(media: Media): boolean {
-  const hasShape = hasMaterializationShape(media);
-  const hasRealHash = hasRealContentHash(media);
-
-  if (!hasShape) {
-    console.log('[MATERIALIZATION_CHECK] FAILED: Missing required shape', { mediaId: media.id });
-    return false;
-  }
-
-  if (!hasRealHash) {
-    console.log('[MATERIALIZATION_CHECK] FAILED: Synthetic content hash', { mediaId: media.id });
-    return false;
-  }
-
-  console.log('[MATERIALIZATION_CHECK] PASSED: Media has correct shape and real hash', { mediaId: media.id });
-  return true;
-}
-
-// Export for use by verification endpoints
-export { isMediaMaterializationComplete };
 
 /**
  * Generate a stable media ID from content hash (deterministic)
@@ -584,8 +555,8 @@ export async function POST(request: Request) {
         // Don't return early - fall through to variant generation logic below
       } else if (existingMedia.lifecycleState === 'published' && existingMedia.source === 'local') {
         // Only PublishedMediaAsset can be deduplicated
-        // P0 FIX: Use authoritative completeness check instead of narrow responsive logic
-        const isComplete = isMediaMaterializationComplete(existingMedia);
+        // P0 FIX: Use authoritative completeness check from media-contracts.ts
+        const isComplete = !needsMaterialization(existingMedia);
         needsUpgrade = !isComplete;
 
         if (needsUpgrade && sharpAvailable) {
