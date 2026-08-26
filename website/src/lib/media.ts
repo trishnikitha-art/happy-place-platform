@@ -121,25 +121,23 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
       }
       return dynamicMedia;
     }
-    // KV returned null (record does not exist) - static fallback is legitimate
-  } catch (error) {
-    // KV infrastructure error - FAIL CLOSED
-    // Do not silently fall back to static authority on infrastructure failure
-    console.error('[MEDIA] KV infrastructure error - FAILING CLOSED:', {
-      error: error instanceof Error ? error.message : 'Unknown error',
-      mediaId: id,
-    });
-    throw new Error(`KV infrastructure error: ${error instanceof Error ? error.message : 'Unknown error'}`);
-  }
-
-  // SECOND: Fall back to static media.v1.json for legacy compatibility
-  // Static authority is fallback when runtime records are not available
-  const staticMedia = getMediaById(id);
-  if (staticMedia) {
-    return staticMedia;
-  }
-
+  // KV returned null (record does not exist) - fail closed
+  // P0 FIX: No static fallback to prevent authority bypass and resurrection
+  console.log('[MEDIA] KV_MEDIA_NOT_FOUND - FAILING_CLOSED', { mediaId: id });
   return null;
+} catch (error) {
+  // KV infrastructure error - FAIL CLOSED
+  // Do not silently fall back to static authority on infrastructure failure
+  console.error('[MEDIA] KV infrastructure error - FAILING CLOSED:', {
+    error: error instanceof Error ? error.message : 'Unknown error',
+    mediaId: id,
+  });
+  throw new Error(`KV infrastructure error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+}
+
+// P0 FIX: Static fallback removed - KV is the ONLY authority
+// Return null if KV does not have the record (fail closed)
+return null;
 }
 
 /**

@@ -95,45 +95,16 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
       }
     }
   } catch (error) {
-    console.error('[PUBLIC_READER] ASSIGNMENT_LOAD_FAILED', { requestId, error });
+    console.error('[PUBLIC_READER] ASSIGNMENT_LOAD_FAILED - FAILING CLOSED', { requestId, error });
   }
 
-  // P0 FIX: Static fallback must also pass public media gate
-  // Do not render static media merely because it exists in authority JSON
-  if (manifest.homepageHero.mediaId) {
-    console.log('[PUBLIC_READER] STATIC_FALLBACK_VERIFYING', { requestId, mediaId: manifest.homepageHero.mediaId });
-    try {
-      const { resolvePublicMedia } = await import('@/lib/media');
-      const resolvedMedia = await resolvePublicMedia(manifest.homepageHero.mediaId);
-
-      if (resolvedMedia) {
-        console.log('[PUBLIC_MEDIA_GATE] STATIC_HERO_APPROVED', {
-          requestId,
-          mediaId: manifest.homepageHero.mediaId
-        });
-        return manifest.homepageHero;
-      } else {
-        console.error('[PUBLIC_MEDIA_GATE] STATIC_HERO_REJECTED', {
-          requestId,
-          mediaId: manifest.homepageHero.mediaId
-        });
-        // Return null mediaId to render nothing rather than invalid media
-        return {
-          ...manifest.homepageHero,
-          mediaId: null,
-        };
-      }
-    } catch (error) {
-      console.error('[PUBLIC_READER] STATIC_VERIFICATION_FAILED', { requestId, error });
-      return {
-        ...manifest.homepageHero,
-        mediaId: null,
-      };
-    }
-  }
-
-  console.log('[PUBLIC_READER] STATIC_FALLBACK_NO_MEDIAID', { requestId });
-  return manifest.homepageHero;
+  // P0 FIX: No static fallback - return null mediaId if no runtime assignment
+  // This prevents authority bypass and resurrection of deleted/rejected media
+  console.log('[PUBLIC_READER] NO_RUNTIME_ASSIGNMENT - RETURNING_NULL_MEDIAID', { requestId });
+  return {
+    ...manifest.homepageHero,
+    mediaId: null, // No image without runtime assignment
+  };
 }
 
 /**
@@ -181,45 +152,15 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
       }
     }
   } catch (error) {
-    console.error('[BRAND] Failed to load runtime assignment for portrait:', { requestId, error });
+    console.error('[BRAND] ASSIGNMENT_LOAD_FAILED - FAILING CLOSED', { requestId, error });
   }
 
-  // P0 FIX: Static fallback must also pass public media gate
-  // Do not render static media merely because it exists in authority JSON
-  if (manifest.ownerPortrait.mediaId) {
-    console.log('[BRAND] STATIC_FALLBACK_VERIFYING', { requestId, mediaId: manifest.ownerPortrait.mediaId });
-    try {
-      const { resolvePublicMedia } = await import('@/lib/media');
-      const resolvedMedia = await resolvePublicMedia(manifest.ownerPortrait.mediaId);
-
-      if (resolvedMedia) {
-        console.log('[PUBLIC_MEDIA_GATE] STATIC_PORTRAIT_APPROVED', {
-          requestId,
-          mediaId: manifest.ownerPortrait.mediaId
-        });
-        return manifest.ownerPortrait;
-      } else {
-        console.error('[PUBLIC_MEDIA_GATE] STATIC_PORTRAIT_REJECTED', {
-          requestId,
-          mediaId: manifest.ownerPortrait.mediaId
-        });
-        // Return null mediaId to render nothing rather than invalid media
-        return {
-          ...manifest.ownerPortrait,
-          mediaId: null,
-        };
-      }
-    } catch (error) {
-      console.error('[BRAND] STATIC_VERIFICATION_FAILED', { requestId, error });
-      return {
-        ...manifest.ownerPortrait,
-        mediaId: null,
-      };
-    }
-  }
-
-  console.log('[BRAND] STATIC_FALLBACK_NO_MEDIAID', { requestId });
-  return manifest.ownerPortrait;
+  // P0 FIX: No static fallback - return null mediaId if no runtime assignment
+  console.log('[BRAND] NO_RUNTIME_ASSIGNMENT - RETURNING_NULL_MEDIAID', { requestId });
+  return {
+    ...manifest.ownerPortrait,
+    mediaId: null, // No image without runtime assignment
+  };
 }
 
 /**

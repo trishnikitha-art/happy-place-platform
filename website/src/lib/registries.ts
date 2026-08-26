@@ -58,7 +58,8 @@ export function getAllServices(): Service[] {
 
 /**
  * Get all services with runtime assignments applied
- * This combines static configuration with persistent runtime assignments
+ * P0 FIX: Assignments are runtime-only - static files are projections for backup/audit
+ * Static fallback removed to prevent authority inversion and resurrection
  */
 export async function getAllServicesWithAssignments(): Promise<Service[]> {
   const services = getAllServices();
@@ -66,11 +67,12 @@ export async function getAllServicesWithAssignments(): Promise<Service[]> {
   try {
     const { getServiceCardAssignment } = await import('@/lib/assignment-store');
 
-    // Apply runtime assignments to each service
+    // Apply runtime assignments to each service (runtime-only authority)
     const servicesWithAssignments = await Promise.all(
       services.map(async (service) => {
         const assignment = await getServiceCardAssignment(service.slug);
-        // Runtime assignment takes precedence over static configuration
+        
+        // Runtime assignment is the ONLY authority - no static fallback
         if (assignment) {
           // P0 FIX: Verify runtime assignment passes public media gate
           const { resolvePublicMedia } = await import('@/lib/media');
@@ -90,23 +92,13 @@ export async function getAllServicesWithAssignments(): Promise<Service[]> {
               serviceSlug: service.slug,
               mediaId: assignment.mediaId
             });
-            // Reject runtime assignment - fall through to static verification
+            // P0 FIX: FAIL CLOSED - no static fallback to prevent authority bypass
+            return service; // Return service without cardMediaId (no image)
           }
         }
 
-        // P0 FIX: Static fallback must also pass public media gate
-        if (service.cardMediaId) {
-          const { resolvePublicMedia } = await import('@/lib/media');
-          const resolvedMedia = await resolvePublicMedia(service.cardMediaId);
-
-          if (resolvedMedia) {
-            console.log('[PUBLIC_MEDIA_GATE] STATIC_ASSIGNMENT_APPROVED', {
-              serviceSlug: service.slug,
-              mediaId: service.cardMediaId
-            });
-            return service;
-          } else {
-            console.error('[PUBLIC_MEDIA_GATE] STATIC_ASSIGNMENT_REJECTED', {
+        // P0 FIX: No static fallback - return service without cardMediaId if no runtime assignment
+        return service;
               serviceSlug: service.slug,
               mediaId: service.cardMediaId
             });
@@ -124,50 +116,18 @@ export async function getAllServicesWithAssignments(): Promise<Service[]> {
 
     return sortByOrder(servicesWithAssignments);
   } catch (error) {
-    // If assignment store fails, return static services with verification
-    console.error('[REGISTRY] Failed to apply runtime assignments:', error);
-
-    // P0 FIX: Even on assignment store failure, verify static media passes public gate
-    const servicesWithVerification = await Promise.all(
-      services.map(async (service) => {
-        if (service.cardMediaId) {
-          try {
-            const { resolvePublicMedia } = await import('@/lib/media');
-            const resolvedMedia = await resolvePublicMedia(service.cardMediaId);
-
-            if (resolvedMedia) {
-              console.log('[PUBLIC_MEDIA_GATE] STATIC_FALLBACK_APPROVED', {
-                serviceSlug: service.slug,
-                mediaId: service.cardMediaId
-              });
-              return service;
-            } else {
-              console.error('[PUBLIC_MEDIA_GATE] STATIC_FALLBACK_REJECTED', {
-                serviceSlug: service.slug,
-                mediaId: service.cardMediaId
-              });
-              return {
-                ...service,
-                cardMediaId: null,
-              };
-            }
-          } catch (verifyError) {
-            console.error('[REGISTRY] Static verification failed:', {
-              serviceSlug: service.slug,
-              mediaId: service.cardMediaId,
-              error: verifyError
-            });
-            return {
-              ...service,
-              cardMediaId: null,
-            };
-          }
-        }
-        return service;
-      })
-    );
-
-    return sortByOrder(servicesWithVerification);
+    // P0 FIX: Assignment store failure - FAIL CLOSED, no static fallback
+    console.error('[REGISTRY] ASSIGNMENT_STORE_FAILED - FAILING CLOSED', {
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    
+    // Return services without cardMediaId (no authority bypass)
+    const servicesWithoutAssignments = services.map(service => ({
+      ...service,
+      cardMediaId: null // Remove any static assignment to prevent authority bypass
+    }));
+    
+    return sortByOrder(servicesWithoutAssignments);
   }
 }
 
