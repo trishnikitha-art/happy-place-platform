@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-24T16:00:21.641Z",
+  "generatedAt": "2026-08-26T17:34:56.727Z",
   "media": [
     {
       "id": "fences-001-hero",
@@ -1196,6 +1196,182 @@
       "lifecycleState": "published",
       "source": "local",
       "contentHash": "57b84a974acbebeb30d1bb2ba45139e31405a7bf38ddfa0c98247b0de0c5a06b"
+    },
+    {
+      "id": "c148cedee481f1e3a5fa13d85efbac1c",
+      "contentHash": "c148cedee481f1e3a5fa13d85efbac1c676d6f71912324ddc33c77cca73cfacd",
+      "source": "local",
+      "lifecycleState": "published",
+      "filename": "HP005_DoorReplacement_After.jpeg",
+      "type": "image",
+      "orientation": "portrait",
+      "dimensions": {
+        "width": 1536,
+        "height": 2048
+      },
+      "variants": {
+        "original": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c148cedee481f1e3a5fa13d85efbac1c-original-c148cedee481.jpeg",
+        "web": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c148cedee481f1e3a5fa13d85efbac1c-1080-3b4cecd294da.webp",
+        "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c148cedee481f1e3a5fa13d85efbac1c-1080-3b4cecd294da.webp",
+        "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c148cedee481f1e3a5fa13d85efbac1c-1080-ae3b306a08ca.avif",
+        "thumbnail": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c148cedee481f1e3a5fa13d85efbac1c-thumb-cf7710f2ca8f.webp",
+        "blur": "data:image/webp;base64,UklGRoQAAABXRUJQVlA4IHgAAADQAwCdASoQABUAPu1mqk4ppaOiMAgBMB2JZQC/OBjbvp2ZUuvVmkgA/ta305HhDefzz8FWUKFDi1MN/nt81NOa5uB7r0wELbjsvxe7vOTRzsgC7ictHAdbXBkocuAP6bvEDO8o9BlNtilq/5AT9PNAoocsSDzAAAA=",
+        "responsive": [
+          {
+            "width": 480,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c148cedee481f1e3a5fa13d85efbac1c-480-9ed0a62134a9.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c148cedee481f1e3a5fa13d85efbac1c-480-d3f1e9e45706.avif"
+          },
+          {
+            "width": 768,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c148cedee481f1e3a5fa13d85efbac1c-768-679d4f942f35.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c148cedee481f1e3a5fa13d85efbac1c-768-0014b4087c4f.avif"
+          },
+          {
+            "width": 1080,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c148cedee481f1e3a5fa13d85efbac1c-1080-3b4cecd294da.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c148cedee481f1e3a5fa13d85efbac1c-1080-ae3b306a08ca.avif"
+          }
+        ]
+      },
+      "alt": "HP005_DoorReplacement_After.jpeg",
+      "tags": [],
+      "roles": [
+        "gallery"
+      ],
+      "order": 0,
+      "createdAt": "2026-08-03T05:49:34.061Z",
+      "updatedAt": "2026-08-03T05:49:57.661Z",
+      "uploadedAt": "2026-08-26T17:34:39.318Z",
+      "fileSize": 864125,
+      "format": "jpeg",
+      "colorSpace": "srgb",
+      "provenance": {
+        "drive_canonical": true,
+        "current_authority": true,
+        "status": "published",
+        "preserved_at": "2026-08-26T17:34:39.318Z",
+        "august3_driveId": "1jtwWr_Lzja1FfcQjrsP9cdoStGfTmiLZ",
+        "sharedDriveId": "0ALeA98MLc-s_Uk9PVA",
+        "driveFileId": "1jtwWr_Lzja1FfcQjrsP9cdoStGfTmiLZ"
+      }
+    },
+    {
+      "id": "8151ae20b8c6b889b35dbd5571fa4d84",
+      "contentHash": "8151ae20b8c6b889b35dbd5571fa4d84674ea8ab69fd4d21c933ed4c40d389f1",
+      "source": "local",
+      "lifecycleState": "published",
+      "filename": "HP007_SidingRotRepair_After.jpeg",
+      "type": "image",
+      "orientation": "portrait",
+      "dimensions": {
+        "width": 1536,
+        "height": 2048
+      },
+      "variants": {
+        "original": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-original-8151ae20b8c6.jpeg",
+        "web": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-1080-93a3c6b3011d.webp",
+        "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-1080-93a3c6b3011d.webp",
+        "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-1080-c5374549cd1d.avif",
+        "thumbnail": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-thumb-b29c84f53aa5.webp",
+        "blur": "data:image/webp;base64,UklGRnAAAABXRUJQVlA4IGQAAADwAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JZACdABmUblYVwXKNgUsoAP0BMvPbrtPHz88xXovMUzd1xf6wFj2i2hMh5uWpFQ6j7VS1h00drJ1/Qr1L977vW2PCdMkQ+Oxf4AAA",
+        "responsive": [
+          {
+            "width": 480,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-480-84261b6562d6.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-480-cbd62f7d8273.avif"
+          },
+          {
+            "width": 768,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-768-8a8ab83b878b.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-768-0c3edcdbee1a.avif"
+          },
+          {
+            "width": 1080,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-1080-93a3c6b3011d.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-1080-c5374549cd1d.avif"
+          }
+        ]
+      },
+      "alt": "HP007_SidingRotRepair_After.jpeg",
+      "tags": [],
+      "roles": [
+        "gallery"
+      ],
+      "order": 0,
+      "createdAt": "2026-08-03T01:48:00.414Z",
+      "updatedAt": "2026-08-03T01:49:56.946Z",
+      "uploadedAt": "2026-08-26T02:39:29.968Z",
+      "fileSize": 973358,
+      "format": "jpeg",
+      "colorSpace": "srgb",
+      "provenance": {
+        "drive_canonical": true,
+        "current_authority": true,
+        "status": "published",
+        "preserved_at": "2026-08-26T02:39:29.968Z",
+        "august3_driveId": "1VWD-1jtrmb2DGj1eijW-EYIG46RgxDHe",
+        "sharedDriveId": "0ALeA98MLc-s_Uk9PVA",
+        "driveFileId": "1VWD-1jtrmb2DGj1eijW-EYIG46RgxDHe"
+      }
+    },
+    {
+      "id": "f3272a08fa5696f588d0780b26d34381",
+      "contentHash": "f3272a08fa5696f588d0780b26d343814d8aa93095f24d8ed57cca9db91317f3",
+      "source": "local",
+      "lifecycleState": "published",
+      "filename": "HP001_DrywallRepair_WallDamage_After.jpg",
+      "type": "image",
+      "orientation": "portrait",
+      "dimensions": {
+        "width": 1536,
+        "height": 2048
+      },
+      "variants": {
+        "original": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/f3272a08fa5696f588d0780b26d34381-original-f3272a08fa56.jpg",
+        "web": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/f3272a08fa5696f588d0780b26d34381-480-1b3fee147cb6.webp",
+        "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/f3272a08fa5696f588d0780b26d34381-1080-7b9730a0097a.webp",
+        "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/f3272a08fa5696f588d0780b26d34381-1080-de3160d955b5.avif",
+        "thumbnail": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/f3272a08fa5696f588d0780b26d34381-thumb-f6d152c887bd.webp",
+        "blur": "data:image/webp;base64,UklGRooAAABXRUJQVlA4IH4AAADQAwCdASoQABUAPu1iqU2ppaQiMAgBMB2JZQCdACDBt2Qvh6RxungA4bUmYJfFrud+Qn0xbu+VyCz6QQE+XLGppH1v+S/lE6R1CMc9Cm2C3U5g6uwIy+zNy4STDxnCTa6dMMyg8ZxRe9aS/2HPmuBIwGKEmA8A/A3UsO/wAAA=",
+        "responsive": [
+          {
+            "width": 480,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/f3272a08fa5696f588d0780b26d34381-480-1b3fee147cb6.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/f3272a08fa5696f588d0780b26d34381-480-013ca3d5efc2.avif"
+          },
+          {
+            "width": 768,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/f3272a08fa5696f588d0780b26d34381-768-2dc390a2fe2b.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/f3272a08fa5696f588d0780b26d34381-768-ac3677270af9.avif"
+          },
+          {
+            "width": 1080,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/f3272a08fa5696f588d0780b26d34381-1080-7b9730a0097a.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/f3272a08fa5696f588d0780b26d34381-1080-de3160d955b5.avif"
+          }
+        ]
+      },
+      "alt": "HP001_DrywallRepair_WallDamage_After.jpg",
+      "tags": [],
+      "roles": [
+        "gallery"
+      ],
+      "order": 0,
+      "createdAt": "2026-08-03T00:51:26.455Z",
+      "updatedAt": "2026-08-25T00:05:57.801Z",
+      "uploadedAt": "2026-08-23T19:52:34.543Z",
+      "fileSize": 678165,
+      "format": "jpeg",
+      "colorSpace": "srgb",
+      "provenance": {
+        "drive_canonical": true,
+        "current_authority": true,
+        "status": "published",
+        "preserved_at": "2026-08-23T19:52:34.543Z",
+        "august3_driveId": "1F3lJ9v4c5dCogj5UEc-Yhpyi-RDYHLl5",
+        "sharedDriveId": "0ALeA98MLc-s_Uk9PVA"
+      }
     }
   ]
 }
