@@ -39,6 +39,38 @@ jobs:
         with:
           node-version: 20
       - run: npm install
+      - name: Validate required secrets are present
+        run: |
+          echo "Validating required GitHub Actions secrets..."
+          required_secrets=("KV_REST_API_URL" "KV_REST_API_TOKEN" "ENCRYPTION_KEY" "GOOGLE_CLIENT_ID" "GOOGLE_CLIENT_SECRET" "GOOGLE_REDIRECT_URI")
+          missing_secrets=()
+          for secret in "${required_secrets[@]}"; do
+            if [ -z "${!secret}" ]; then
+              missing_secrets+=("$secret")
+            fi
+          done
+          if [ ${#missing_secrets[@]} -gt 0 ]; then
+            echo "❌ ERROR: Missing required GitHub Actions secrets:"
+            for secret in "${missing_secrets[@]}"; do
+              echo "   - $secret"
+            done
+            echo ""
+            echo "To fix this, add the missing secrets in your GitHub repository:"
+            echo "  1. Go to Settings → Secrets and variables → Actions"
+            echo "  2. Click 'New repository secret'"
+            echo "  3. Add each missing secret with its value from your Vercel environment"
+            echo ""
+            echo "These secrets must match your Vercel production environment."
+            exit 1
+          fi
+          echo "✅ All required secrets are present"
+        env:
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
       - name: Run OAuth tests with Redis, encryption, and Google credentials
         run: npm run test:oauth
         env:

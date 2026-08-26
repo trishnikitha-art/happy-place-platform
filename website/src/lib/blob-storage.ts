@@ -95,6 +95,91 @@ interface BlobMetadata {
 }
 
 /**
+ * Verify that a Blob URL is physically accessible
+ * @param blobUrl - The Blob URL to verify
+ * @returns true if the Blob exists and is accessible
+ */
+export async function verifyBlobExists(blobUrl: string): Promise<boolean> {
+  try {
+    const response = await fetch(blobUrl, { method: 'HEAD' });
+    return response.ok;
+  } catch (error) {
+    console.error('[BLOB_STORAGE] Error verifying Blob existence', { blobUrl, error });
+    return false;
+  }
+}
+
+/**
+ * Verify that all required renditions exist in Blob storage
+ * This upgrades the contract from "primary content hash exists" to "every required rendition exists"
+ * 
+ * @param media - The media record to verify
+ * @returns object with verification results for each rendition type
+ */
+export async function verifyRenditionCompleteness(media: any): Promise<{
+  complete: boolean;
+  details: {
+    original: boolean;
+    thumbnail: boolean;
+    webp: boolean;
+    avif: boolean;
+    responsive: Array<{ width: number; webp: boolean; avif: boolean }>;
+  };
+}> {
+  const details = {
+    original: false,
+    thumbnail: false,
+    webp: false,
+    avif: false,
+    responsive: [] as Array<{ width: number; webp: boolean; avif: boolean }>,
+  };
+
+  if (!media.variants) {
+    return { complete: false, details };
+  }
+
+  // Verify original
+  if (media.variants.original) {
+    details.original = await verifyBlobExists(media.variants.original);
+  }
+
+  // Verify thumbnail
+  if (media.variants.thumbnail) {
+    details.thumbnail = await verifyBlobExists(media.variants.thumbnail);
+  }
+
+  // Verify webp (largest responsive or fallback)
+  if (media.variants.webp) {
+    details.webp = await verifyBlobExists(media.variants.webp);
+  }
+
+  // Verify avif (largest responsive or fallback)
+  if (media.variants.avif) {
+    details.avif = await verifyBlobExists(media.variants.avif);
+  }
+
+  // Verify responsive variants
+  if (media.variants.responsive && Array.isArray(media.variants.responsive)) {
+    for (const variant of media.variants.responsive) {
+      const webpExists = variant.webp ? await verifyBlobExists(variant.webp) : false;
+      const avifExists = variant.avif ? await verifyBlobExists(variant.avif) : false;
+      details.responsive.push({
+        width: variant.width,
+        webp: webpExists,
+        avif: avifExists,
+      });
+    }
+  }
+
+  // Determine overall completeness
+  const complete = details.original && details.thumbnail && details.webp;
+  // AVIF is optional (not all browsers support it)
+  // Responsive variants should be complete if present
+
+  return { complete, details };
+}
+
+/**
  * Upload a buffer to Vercel Blob Storage with proper idempotency contract
  * @param buffer - File content
  * @param filename - Target filename

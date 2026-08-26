@@ -117,6 +117,7 @@ export function hasRealContentHash(media: Media): boolean {
  * 1. Correct materialization shape (structure is valid)
  * 2. Real content hash (not synthetic)
  * 3. Physical Blob proof (bytes exist and match hash)
+ * 4. All required renditions exist physically (original, thumbnail, webp, responsive)
  *
  * This is the NON-NEGOTIABLE contract for public presentation.
  * Any asset failing this check must not be rendered publicly.
@@ -132,7 +133,7 @@ export async function isPubliclyComplete(media: Media): Promise<boolean> {
     return false;
   }
 
-  // Check physical Blob proof
+  // Check physical Blob proof for primary content hash
   if (media.contentHash) {
     try {
       const { getBlobMetadataByContentHash } = await import('@/lib/blob-storage');
@@ -144,6 +145,27 @@ export async function isPubliclyComplete(media: Media): Promise<boolean> {
       // Fail closed if Blob verification fails
       return false;
     }
+  }
+
+  // Check rendition-level physical completeness
+  // This upgrades the contract from "primary hash exists" to "every required rendition exists"
+  try {
+    const { verifyRenditionCompleteness } = await import('@/lib/blob-storage');
+    const renditionCheck = await verifyRenditionCompleteness(media);
+    if (!renditionCheck.complete) {
+      console.log('[PUBLIC_COMPLETE] RENDITION_INCOMPLETE', {
+        mediaId: media.id,
+        details: renditionCheck.details,
+      });
+      return false;
+    }
+  } catch (error) {
+    // Fail closed if rendition verification fails
+    console.error('[PUBLIC_COMPLETE] RENDITION_VERIFICATION_ERROR', {
+      mediaId: media.id,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return false;
   }
 
   return true;

@@ -34,6 +34,8 @@ import crypto from 'crypto';
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import sharp from 'sharp';
+import { DriveDiscovery } from '@/lib/drive/drive-discovery';
+import { DriveSession } from '@/lib/drive/drive-session';
 
 export const runtime = 'nodejs';
 
@@ -162,13 +164,56 @@ function determineOrientation(width: number, height: number): 'landscape' | 'por
 }
 
 /**
+ * Resolve source bytes from Drive using preserved Drive provenance
+ */
+async function resolveDriveSourceBytes(driveFileId: string, requestId: string): Promise<Buffer | null> {
+  try {
+    console.log('[REMATERIALIZATION] Resolving Drive source bytes:', {
+      requestId,
+      driveFileId,
+    });
+
+    const driveSession = new DriveSession();
+    const isAuthenticated = await driveSession.isAuthenticated();
+
+    if (!isAuthenticated) {
+      console.error('[REMATERIALIZATION] Drive not authenticated', { requestId, driveFileId });
+      return null;
+    }
+
+    const driveDiscovery = new DriveDiscovery();
+    const fileBytes = await driveDiscovery.downloadFile(driveFileId);
+
+    if (!fileBytes) {
+      console.error('[REMATERIALIZATION] Failed to download Drive file', { requestId, driveFileId });
+      return null;
+    }
+
+    console.log('[REMATERIALIZATION] Drive source bytes resolved:', {
+      requestId,
+      driveFileId,
+      size: fileBytes.length,
+    });
+
+    return fileBytes;
+  } catch (error) {
+    console.error('[REMATERIALIZATION] Drive source resolution error:', {
+      requestId,
+      driveFileId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    return null;
+  }
+}
+
+/**
  * Rematerialize a single media record
  */
 async function rematerializeMediaRecord(
   media: any,
   dryRun: boolean,
   requestId: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<{ success: boolean; error?: string; updatedMediaId?: string }> {
   console.log('[REMATERIALIZATION] Processing record:', {
     requestId,
     mediaId: media.id,
@@ -179,7 +224,7 @@ async function rematerializeMediaRecord(
   const isComplete = await isPubliclyComplete(media);
   if (isComplete) {
     console.log('[REMATERIALIZATION] SKIP: Already publicly complete', { requestId, mediaId: media.id });
-    return { success: true };
+    return { success: true, updatedMediaId: media.id };
   }
 
   // Resolve source bytes
@@ -192,14 +237,23 @@ async function rematerializeMediaRecord(
     sourceLocation = 'photo-intake';
     console.log('[REMATERIALIZATION] Source bytes found in photo-intake', { requestId, mediaId: media.filename });
   } else if (media.provenance?.august3_driveId) {
-    // TODO: Implement Drive ingestion from authoritative Drive file ID
-    // This requires OAuth session and file download
-    console.log('[REMATERIALIZATION] Source bytes in Drive (not yet implemented)', {
-      requestId,
-      mediaId: media.id,
-      driveId: media.provenance.august3_driveId,
-    });
-    return { success: false, error: 'Drive source bytes not yet implemented' };
+    // Resolve from Drive using preserved Drive provenance ID
+    sourceBytes = await resolveDriveSourceBytes(media.provenance.august3_driveId, requestId);
+    if (sourceBytes) {
+      sourceLocation = 'drive';
+      console.log('[REMATERIALIZATION] Source bytes resolved from Drive', {
+        requestId,
+        mediaId: media.id,
+        driveId: media.provenance.august3_driveId,
+      });
+    } else {
+      console.error('[REMATERIALIZATION] Drive source resolution failed', {
+        requestId,
+        mediaId: media.id,
+        driveId: media.provenance.august3_driveId,
+      });
+      return { success: false, error: 'Drive source resolution failed - file may not exist or authentication expired' };
+    }
   } else {
     console.error('[REMATERIALIZE] NO SOURCE BYTES', {
       requestId,
@@ -223,17 +277,27 @@ async function rematerializeMediaRecord(
   });
 
   // Check if hash matches existing (deduplication)
+  // P0 FIX: Only skip if the existing asset is actually publicly complete
+  // Don't trust matching hash alone - prove all renditions exist
   if (media.contentHash && media.contentHash === contentHash) {
-    console.log('[REMATERIALIZATION] SKIP: Content hash matches existing (deduplication)', {
-      requestId,
-      mediaId: media.id,
-    });
-    return { success: true };
+    const existingIsComplete = await isPubliclyComplete(media);
+    if (existingIsComplete) {
+      console.log('[REMATERIALIZATION] SKIP: Content hash matches existing and asset is publicly complete', {
+        requestId,
+        mediaId: media.id,
+      });
+      return { success: true, updatedMediaId: media.id };
+    } else {
+      console.log('[REMATERIALIZATION] PROCEED: Content hash matches but asset is incomplete, rematerializing', {
+        requestId,
+        mediaId: media.id,
+      });
+    }
   }
 
   if (dryRun) {
     console.log('[REMATERIALIZE DRY RUN] Would rematerialize:', { requestId, mediaId: media.id });
-    return { success: true };
+    return { success: true, updatedMediaId: media.id };
   }
 
   // Generate renditions
@@ -322,6 +386,20 @@ async function rematerializeMediaRecord(
     // Store updated media
     await storeMedia(updatedMedia);
 
+    // P0 FIX: Verify the newly persisted record passes the public completeness contract
+    // This now includes rendition-level physical completeness verification
+    const newMediaRecord = await getMediaRecordRaw(mediaId);
+    const isNewMediaComplete = newMediaRecord ? await isPubliclyComplete(newMediaRecord) : false;
+
+    if (!isNewMediaComplete) {
+      console.error('[REMATERIALIZATION] POST-PERSISTENCE VERIFICATION FAILED', {
+        requestId,
+        mediaId: media.id,
+        contentHash,
+      });
+      return { success: false, error: 'Post-persistence completeness verification failed' };
+    }
+
     console.log('[REMATERIALIZATION] SUCCESS', {
       requestId,
       mediaId: media.id,
@@ -329,7 +407,7 @@ async function rematerializeMediaRecord(
       sourceLocation,
     });
 
-    return { success: true };
+    return { success: true, updatedMediaId: mediaId };
   } catch (error) {
     console.error('[REMATERIALIZATION] FAILED', {
       requestId,
@@ -393,9 +471,16 @@ export async function POST(request: Request) {
       const result = await rematerializeMediaRecord(media, dryRun, requestId);
 
       if (result.success) {
-        if (isMaterializationComplete(media)) {
-          report.successfulRematerializations.push(media.id);
+        // P0 FIX: Check the newly materialized record, not the old canonical record
+        if (result.updatedMediaId) {
+          const newMediaRecord = await getMediaRecordRaw(result.updatedMediaId);
+          if (newMediaRecord && isMaterializationComplete(newMediaRecord)) {
+            report.successfulRematerializations.push(result.updatedMediaId);
+          } else {
+            report.skippedRecords++;
+          }
         } else {
+          // Deduplication skip (hash matched and asset was already complete)
           report.skippedRecords++;
         }
       } else {
