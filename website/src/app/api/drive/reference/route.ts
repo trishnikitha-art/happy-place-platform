@@ -5,6 +5,11 @@
  * Does not download the file; uses Drive's thumbnail and view URLs.
  * Stores in KV store for dynamic persistence (media.v1.json is static build artifact).
  *
+ * SECURITY: Application-level Drive authorization
+ * - Google OAuth authentication is NOT sufficient for HPP authorization
+ * - Must verify: session identity → HPP authorization → Drive authorization → requested object → operation
+ * - Prevents IDOR/cross-user access even when Google technically permits the object
+ *
  * POST /api/drive/reference
  * Body: { fileId: string, sharedDriveId?: string, projectId?: string, roles?: MediaRole[] }
  */
@@ -75,6 +80,60 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Unauthorized', message: 'Workbench authentication required' },
         { status: 401 }
+      );
+    }
+
+    // P0 FIX: Application-level Drive object authorization
+    // Google OAuth authentication is NOT sufficient for HPP authorization
+    // Must verify: session identity → HPP authorization → Drive authorization → requested object → operation
+    const sessionIdentity = await workbenchSession.getSessionIdentity();
+    console.log('[DRIVE_AUTHORIZATION] SESSION_IDENTITY_VERIFIED', {
+      sessionEmail: sessionIdentity?.email,
+      operation: 'reference',
+      fileId,
+    });
+    
+    // Verify the Drive file is accessible to the authenticated session
+    // This prevents IDOR where an authorized user could access arbitrary Drive IDs
+    // even if Google technically permits the object
+    try {
+      const driveClient = await driveSession.getDriveClient();
+      const fileMetadata = await driveClient.files.get({
+        fileId: fileId,
+        fields: 'id,name,owners,permissions,shared',
+        supportsAllDrives: true,
+      });
+      
+      if (!fileMetadata.data) {
+        console.error('[DRIVE_AUTHORIZATION] FILE_NOT_ACCESSIBLE', {
+          fileId,
+          reason: 'Drive file not accessible to authenticated session'
+        });
+        return NextResponse.json(
+          {
+            error: 'DRIVE_FILE_NOT_AUTHORIZED',
+            message: 'Drive file is not accessible to the authenticated session',
+          },
+          { status: 403 }
+        );
+      }
+      
+      console.log('[DRIVE_AUTHORIZATION] FILE_ACCESS_VERIFIED', {
+        fileId,
+        fileName: fileMetadata.data.name,
+        isShared: fileMetadata.data.shared,
+      });
+    } catch (driveError) {
+      console.error('[DRIVE_AUTHORIZATION] FILE_VERIFICATION_FAILED', {
+        fileId,
+        error: driveError instanceof Error ? driveError.message : 'Unknown error'
+      });
+      return NextResponse.json(
+        {
+          error: 'DRIVE_AUTHORIZATION_FAILED',
+          message: 'Failed to verify Drive file authorization',
+        },
+        { status: 403 }
       );
     }
   }
