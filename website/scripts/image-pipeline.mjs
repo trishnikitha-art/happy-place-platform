@@ -43,8 +43,12 @@ const CACHE = path.join(ROOT, "generated", "rebuild-cache.json");
 const DRIVE_CACHE = path.join(ROOT, "generated", "drive-cache");
 
 const PIPELINE_VERSION = "1.0.0";
-// P0 FIX: Use shared media constants for rendition contract consistency
-// These must match /api/drive/ingest and media-constants.ts
+// NOTE: These constants MUST match /api/drive/ingest and media-constants.ts
+// The filesystem pipeline uses these constants independently because:
+// 1. This is a Node.js .mjs script (no TypeScript import)
+// 2. media-constants.ts is TypeScript and requires build pipeline
+// 3. These values must be kept in sync manually or via shared config
+// Any change here must be mirrored in media-constants.ts and /api/drive/ingest/route.ts
 const WIDTHS = [480, 768, 1080, 1600, 2000];
 const THUMBNAIL_WIDTH = 480;
 const THUMBNAIL_QUALITY = 70;
