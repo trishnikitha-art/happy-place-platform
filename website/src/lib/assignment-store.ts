@@ -49,7 +49,7 @@ const ASSIGNMENT_QUARANTINE_PREFIX = 'service-card-assignment-quarantine:';
 
 export interface ServiceCardAssignment {
   serviceSlug: string;
-  mediaId: string;
+  mediaId: string; // Empty string indicates fail-closed state (no image)
   updatedAt: string;
   source: 'workbench';
   revision?: number;

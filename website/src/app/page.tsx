@@ -102,7 +102,7 @@ export default async function HomePage() {
   for (const service of homepageServices) {
     try {
       const assignment = await getServiceCardAssignment(service.slug);
-      if (assignment?.mediaId) {
+      if (assignment?.mediaId && assignment.mediaId !== '') { // Check for non-empty mediaId
         // Resolve media object through public media gate (rejects Drive references, synthetic content, missing Blob metadata)
         const mediaObject = await resolvePublicMedia(assignment.mediaId);
         
@@ -134,6 +134,12 @@ export default async function HomePage() {
             mediaObject: null,
           });
         }
+      } else {
+        // No assignment or empty mediaId (fail-closed state)
+        serviceCardAssignments.set(service.slug, {
+          mediaId: null,
+          mediaObject: null,
+        });
       }
     } catch (error) {
       // P0 FIX: KV fetch failure - fail closed to prevent authority bypass

@@ -35,6 +35,7 @@ import crypto from 'crypto';
 import type { Media, MediaRole } from '@/types/media';
 import { RESPONSIVE_WIDTHS, THUMBNAIL_WIDTH, THUMBNAIL_QUALITY, WEBP_QUALITY, AVIF_QUALITY } from '@/lib/media-constants';
 import { needsMaterialization } from '@/lib/media-contracts';
+import { applyStateTransition, isValidTransition } from '@/lib/materialization-state-machine';
 
 /**
  * Assignment reconciliation result
@@ -899,69 +900,173 @@ export async function POST(request: Request) {
       upgradeMode: !!existingMedia && needsUpgrade,
     });
 
-    // 9. Store Media record in KV (canonical authority)
-    // CONSTITUTIONAL FIX: Only upgrade PublishedMediaAsset, never DriveReference
-    if (existingMedia && needsUpgrade && existingMedia.lifecycleState === 'published' && existingMedia.source === 'local') {
-      console.log('[MEDIA_INGEST] UPGRADING_EXISTING_PUBLISHED_ASSET', {
-        requestId,
-        existingMediaId: existingMedia.id,
-        newResponsiveCount: responsiveVariants.length,
-      });
-      
-      // Update existing record with new responsive variants
-      const upgradedMedia: Media = {
-        ...existingMedia,
-        variants: {
-          ...existingMedia.variants,
-          responsive: responsiveVariants,
-          // Update top-level webp/avif to largest renditions
-          webp: webpVariant?.src || existingMedia.variants.webp,
-          avif: avifVariant?.src || existingMedia.variants.avif,
-        },
-        updatedAt: new Date().toISOString(),
-        // CONSTITUTIONAL FIX: Ensure provenance includes driveFileId for reconciliation
-        provenance: {
-          ...existingMedia.provenance,
-          driveFileId: driveId,
-        },
-      };
-      
-      await storeMedia(upgradedMedia);
-      
-      console.log('[MEDIA_INGEST] MEDIA_UPGRADE succeeded', {
-        requestId,
-        mediaId: upgradedMedia.id,
-      });
-      
-      // CRITICAL: Run assignment reconciliation after upgrade
-      const reconciliationResult = await reconcileDriveAssignments(
-        upgradedMedia.id,
-        driveId, // Use authoritative Drive file ID for provenance reconciliation
-        contentHash,
-        requestId
-      );
-      
-      return NextResponse.json({
-        success: true,
-        action: 'upgraded',
-        media: upgradedMedia,
-        requestId,
-        idempotent: true,
-        upgradeSource: 'responsive_variants',
-        assignmentReconciled: reconciliationResult.reconciled,
-        assignmentsUpdated: reconciliationResult.updated,
-      });
-    } else {
-      // New media record or DriveReference (always create new PublishedMediaAsset)
-      await storeMedia(mediaRecord);
-      
-      console.log('[MEDIA_INGEST] NEW_MEDIA_PERSIST succeeded', {
+    // P1-7: Materialization state machine - validate state transition
+    const targetState = 'published' as const;
+    const currentState = existingMedia?.lifecycleState as any || 'source_reference';
+    const operation = needsUpgrade ? 'upgrade' : 'materialize';
+    
+    const transitionValidation = isValidTransition(currentState, targetState, operation);
+    if (!transitionValidation.allowed) {
+      console.error('[MEDIA_INGEST] STATE_TRANSITION_BLOCKED', {
         requestId,
         mediaId,
-        lifecycleState: mediaRecord.lifecycleState,
-        source: mediaRecord.source,
-        wasDriveReference: existingMedia?.lifecycleState === 'source_reference',
+        currentState,
+        targetState,
+        operation,
+        reason: transitionValidation.reason,
       });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'STATE_TRANSITION_BLOCKED',
+          stage: 'MEDIA_PERSIST',
+          message: 'Invalid state transition',
+          details: transitionValidation.reason,
+          requiresRollback: transitionValidation.requiresRollback,
+          requestId,
+        },
+        { status: 409 }
+      );
+    }
+
+    // 9. Store Media record in KV (canonical authority)
+    // P1-7: Materialization atomicity - wrap KV write in recovery logic
+    let kvWriteSuccess = false;
+    try {
+      // CONSTITUTIONAL FIX: Only upgrade PublishedMediaAsset, never DriveReference
+      if (existingMedia && needsUpgrade && existingMedia.lifecycleState === 'published' && existingMedia.source === 'local') {
+        console.log('[MEDIA_INGEST] UPGRADING_EXISTING_PUBLISHED_ASSET', {
+          requestId,
+          existingMediaId: existingMedia.id,
+          newResponsiveCount: responsiveVariants.length,
+        });
+        
+        // Apply state transition
+        const upgradedMedia = applyStateTransition(existingMedia, targetState, operation);
+        if (!upgradedMedia) {
+          throw new Error('State transition failed');
+        }
+        
+        // Update with new responsive variants
+        const finalUpgradedMedia: Media = {
+          ...upgradedMedia,
+          variants: {
+            ...upgradedMedia.variants,
+            responsive: responsiveVariants,
+            // Update top-level webp/avif to largest renditions
+            webp: webpVariant?.src || upgradedMedia.variants.webp,
+            avif: avifVariant?.src || upgradedMedia.variants.avif,
+          },
+          updatedAt: new Date().toISOString(),
+          // CONSTITUTIONAL FIX: Ensure provenance includes driveFileId for reconciliation
+          provenance: {
+            ...upgradedMedia.provenance,
+            driveFileId: driveId,
+          },
+        };
+        
+        await storeMedia(finalUpgradedMedia);
+        kvWriteSuccess = true;
+        
+        console.log('[MEDIA_INGEST] MEDIA_UPGRADE succeeded', {
+          requestId,
+          mediaId: finalUpgradedMedia.id,
+        });
+        
+        // CRITICAL: Run assignment reconciliation after upgrade
+        const reconciliationResult = await reconcileDriveAssignments(
+          finalUpgradedMedia.id,
+          driveId, // Use authoritative Drive file ID for provenance reconciliation
+          contentHash,
+          requestId
+        );
+        
+        return NextResponse.json({
+          success: true,
+          action: 'upgraded',
+          media: finalUpgradedMedia,
+          requestId,
+          idempotent: true,
+          upgradeSource: 'responsive_variants',
+          assignmentReconciled: reconciliationResult.reconciled,
+          assignmentsUpdated: reconciliationResult.updated,
+        });
+      } else {
+        // New media record or DriveReference (always create new PublishedMediaAsset)
+        // Apply state transition
+        const finalMediaRecord = applyStateTransition(
+          { ...mediaRecord, lifecycleState: currentState },
+          targetState,
+          operation
+        );
+        
+        if (!finalMediaRecord) {
+          throw new Error('State transition failed');
+        }
+        
+        await storeMedia(finalMediaRecord);
+        kvWriteSuccess = true;
+        
+        console.log('[MEDIA_INGEST] NEW_MEDIA_PERSIST succeeded', {
+          requestId,
+          mediaId,
+          lifecycleState: finalMediaRecord.lifecycleState,
+          source: finalMediaRecord.source,
+          wasDriveReference: existingMedia?.lifecycleState === 'source_reference',
+        });
+      }
+    } catch (kvError) {
+      console.error('[MEDIA_INGEST] KV_WRITE_FAILED', {
+        requestId,
+        mediaId,
+        error: kvError instanceof Error ? kvError.message : 'Unknown error',
+      });
+      
+      // P1-7: Materialization recovery - KV write failed but Blob upload succeeded
+      // This is a recoverable state: Blob exists but KV record is missing
+      // Trigger recovery to reconstruct KV record from Blob
+      console.log('[MEDIA_INGEST] ATTEMPTING_KV_RECOVERY', { requestId, mediaId });
+      
+      try {
+        const { repairIncompleteKvRecord } = await import('@/lib/materialization-recovery');
+        const repaired = await repairIncompleteKvRecord(mediaRecord);
+        
+        if (repaired) {
+          console.log('[MEDIA_INGEST] KV_RECOVERY_SUCCEEDED', { requestId, mediaId });
+          kvWriteSuccess = true;
+        } else {
+          console.error('[MEDIA_INGEST] KV_RECOVERY_FAILED', { requestId, mediaId });
+        }
+      } catch (recoveryError) {
+        console.error('[MEDIA_INGEST] KV_RECOVERY_ERROR', {
+          requestId,
+          mediaId,
+          error: recoveryError instanceof Error ? recoveryError.message : 'Unknown error',
+        });
+      }
+      
+      // If recovery also failed, return error
+      if (!kvWriteSuccess) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'KV_PERSIST_FAILED',
+            stage: 'MEDIA_PERSIST',
+            message: 'Failed to store media record in KV and recovery failed',
+            retryable: true,
+            details: kvError instanceof Error ? kvError.message : 'Unknown error',
+            requestId,
+            forensic: {
+              blobUploadCompleted: true,
+              kvWriteFailed: true,
+              recoveryAttempted: true,
+              mediaId,
+              contentHash,
+            },
+          },
+          { status: 500 }
+        );
+      }
     }
     
     console.log('[MEDIA_INGEST] MEDIA_PERSIST stage succeeded', {
