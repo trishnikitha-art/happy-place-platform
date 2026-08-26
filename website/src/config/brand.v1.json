@@ -1,9 +1,9 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-25T19:06:41.114Z",
+  "generatedAt": "2026-08-26T14:26:56.895Z",
   "homepageHero": {
     "id": "brand-hero-001",
-    "mediaId": "f3272a08fa5696f588d0780b26d34381",
+    "mediaId": "brand-hero",
     "alt": "Happy Place Carpentry - Building decks, fences, and custom carpentry across Oregon's Mid-Willamette Valley",
     "fallback": {
       "gradient": true,
