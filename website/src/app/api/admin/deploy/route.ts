@@ -792,7 +792,7 @@ export async function POST(request: Request) {
       });
 
       // Import the completeness check function
-      const { isPubliclyComplete, isMaterializationComplete } = await import('@/lib/media-contracts');
+      const { isPubliclyComplete } = await import('@/lib/media-contracts');
       const { getMediaByIdAsync } = await import('@/lib/media');
 
       const incompleteMediaIds: string[] = [];
@@ -806,10 +806,9 @@ export async function POST(request: Request) {
             continue;
           }
 
-          // TEMPORARY: Use materialization completeness instead of public completeness
-          // This allows deployment with structurally complete assets while we sort out Drive rematerialization
-          // TODO: Revert to isPubliclyComplete() after Drive rematerialization is working
-          const isComplete = isMaterializationComplete(media);
+          // Verify full public completeness (shape + real hash + physical Blob proof)
+          // This is the constitutional barrier - no incomplete media may be deployed
+          const isComplete = isPubliclyComplete(media);
           if (!isComplete) {
             console.error('[DEPLOY API] MEDIA_INCOMPLETE', {
               deploymentTransactionId,
