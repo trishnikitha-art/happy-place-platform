@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-26T17:34:56.727Z",
+  "generatedAt": "2026-08-26T17:43:36.782Z",
   "media": [
     {
       "id": "fences-001-hero",
@@ -1371,6 +1371,123 @@
         "preserved_at": "2026-08-23T19:52:34.543Z",
         "august3_driveId": "1F3lJ9v4c5dCogj5UEc-Yhpyi-RDYHLl5",
         "sharedDriveId": "0ALeA98MLc-s_Uk9PVA"
+      }
+    },
+    {
+      "id": "2a1d4ae6e3b81282259174af113bac3c",
+      "contentHash": "2a1d4ae6e3b81282259174af113bac3c49508bbf62ad8f354e4d24a1210ff7e5",
+      "source": "local",
+      "lifecycleState": "published",
+      "filename": "HP016_ExteriorPainting_HouseRefresh_Before.jpg",
+      "type": "image",
+      "orientation": "portrait",
+      "dimensions": {
+        "width": 1536,
+        "height": 2048
+      },
+      "variants": {
+        "original": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2a1d4ae6e3b81282259174af113bac3c-original-2a1d4ae6e3b8.jpg",
+        "web": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2a1d4ae6e3b81282259174af113bac3c-480-417e87171d85.webp",
+        "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2a1d4ae6e3b81282259174af113bac3c-1080-fa2ae9186bfd.webp",
+        "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2a1d4ae6e3b81282259174af113bac3c-1080-84f2426114fe.avif",
+        "thumbnail": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2a1d4ae6e3b81282259174af113bac3c-thumb-3e8838eb7d4b.webp",
+        "blur": "data:image/webp;base64,UklGRpAAAABXRUJQVlA4IIQAAABQBACdASoQABUAPu1iqU2ppaOiMAgBMB2JbACdMoR3ACnGMNhjrELfDzjoAP52ahI/f3jTJ8nWtGOAKyz2+qJx31TBWHLO1Kzn9ZtzLq0WVUofXvVuE0VTlYt8/xTXDN9rnrXRvUpBRxOiALBuKeFz0w7m+sKBWfcJ7cw2fGpCZdAAAAA=",
+        "responsive": [
+          {
+            "width": 480,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2a1d4ae6e3b81282259174af113bac3c-480-417e87171d85.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2a1d4ae6e3b81282259174af113bac3c-480-18a77a899c26.avif"
+          },
+          {
+            "width": 768,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2a1d4ae6e3b81282259174af113bac3c-768-066ecc33819b.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2a1d4ae6e3b81282259174af113bac3c-768-924ccbfc8f27.avif"
+          },
+          {
+            "width": 1080,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2a1d4ae6e3b81282259174af113bac3c-1080-fa2ae9186bfd.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2a1d4ae6e3b81282259174af113bac3c-1080-84f2426114fe.avif"
+          }
+        ]
+      },
+      "alt": "HP016_ExteriorPainting_HouseRefresh_Before.jpg",
+      "tags": [],
+      "roles": [
+        "gallery"
+      ],
+      "order": 0,
+      "createdAt": "2026-08-03T21:11:50.180Z",
+      "updatedAt": "2026-08-25T02:13:11.369Z",
+      "uploadedAt": "2026-08-24T11:33:21.956Z",
+      "fileSize": 1470465,
+      "format": "jpeg",
+      "colorSpace": "srgb",
+      "provenance": {
+        "drive_canonical": true,
+        "current_authority": true,
+        "status": "published",
+        "preserved_at": "2026-08-24T11:33:21.956Z",
+        "august3_driveId": "1A7eiHXERSZ-7eq8Hdl0F6P67DZM_qVda",
+        "sharedDriveId": "0ALeA98MLc-s_Uk9PVA"
+      }
+    },
+    {
+      "id": "a6d9b68b55547787bc22087d17c0f421",
+      "contentHash": "a6d9b68b55547787bc22087d17c0f421ec5dce6844a08194258a84eb55227903",
+      "source": "local",
+      "lifecycleState": "published",
+      "filename": "HP016_BathroomDrywallRepair_Before.jpg",
+      "type": "image",
+      "orientation": "portrait",
+      "dimensions": {
+        "width": 1536,
+        "height": 2048
+      },
+      "variants": {
+        "original": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/a6d9b68b55547787bc22087d17c0f421-original-a6d9b68b5554.jpg",
+        "web": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/a6d9b68b55547787bc22087d17c0f421-1080-36a1f2d6a616.webp",
+        "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/a6d9b68b55547787bc22087d17c0f421-1080-36a1f2d6a616.webp",
+        "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/a6d9b68b55547787bc22087d17c0f421-1080-8ffde48868cd.avif",
+        "thumbnail": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/a6d9b68b55547787bc22087d17c0f421-thumb-b6bec0667119.webp",
+        "blur": "data:image/webp;base64,UklGRpYAAABXRUJQVlA4IIoAAACQBACdASoQABUAPu1iqU2ppaOiMAgBMB2JQBOmUBcAAXVtBrl8lUEfDL+sI4AA/tO/SOZVaI4NTHRa7pnzqJgLP5DywttReEWufc9UXpqhwbnImHmrA4e9WMhqLEw5P5sgi2sEVWjf/ItM3GHHW7xu5g34I/bcmIWfCGGT0O/7SirSPKsRsUf1dAA=",
+        "responsive": [
+          {
+            "width": 480,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/a6d9b68b55547787bc22087d17c0f421-480-ce448f0ba44a.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/a6d9b68b55547787bc22087d17c0f421-480-2e1256905af1.avif"
+          },
+          {
+            "width": 768,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/a6d9b68b55547787bc22087d17c0f421-768-418f00095af7.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/a6d9b68b55547787bc22087d17c0f421-768-804115c3d3c2.avif"
+          },
+          {
+            "width": 1080,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/a6d9b68b55547787bc22087d17c0f421-1080-36a1f2d6a616.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/a6d9b68b55547787bc22087d17c0f421-1080-8ffde48868cd.avif"
+          }
+        ]
+      },
+      "alt": "HP016_BathroomDrywallRepair_Before.jpg",
+      "tags": [],
+      "roles": [
+        "gallery"
+      ],
+      "order": 0,
+      "createdAt": "2026-08-03T21:07:19.615Z",
+      "updatedAt": "2026-08-03T21:07:59.177Z",
+      "uploadedAt": "2026-08-25T19:07:17.559Z",
+      "fileSize": 936789,
+      "format": "jpeg",
+      "colorSpace": "srgb",
+      "provenance": {
+        "drive_canonical": true,
+        "current_authority": true,
+        "status": "published",
+        "preserved_at": "2026-08-25T19:07:17.559Z",
+        "august3_driveId": "15heZucYxiRdXQPfiwEWGxnvwretie-K2",
+        "sharedDriveId": "0ALeA98MLc-s_Uk9PVA",
+        "driveFileId": "15heZucYxiRdXQPfiwEWGxnvwretie-K2"
       }
     }
   ]
