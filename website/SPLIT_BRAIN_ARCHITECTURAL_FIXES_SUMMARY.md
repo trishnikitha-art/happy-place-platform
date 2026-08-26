@@ -132,7 +132,111 @@
 
 ## Remaining Work
 
-None - all identified architectural flaws have been addressed.
+**CRITICAL GAPS IDENTIFIED (Post-Audit Review):**
+
+The initial assessment was incomplete. The following critical gaps remain:
+
+### 🔴 CRITICAL: KV Recovery/Bootstrap Authority Undefined
+- **Issue:** "KV is primary" is insufficient - what happens when KV is empty, corrupted, lost, migrated, or a new deployment/environment is created?
+- **Missing:** Explicit KV → projection → restore/reconciliation mechanism
+- **Risk:** If static is only a projection, there's no bootstrap authority for new environments or KV recovery
+- **Required:** Define how KV is initially populated, how it survives deployment, how it's restored, and whether static → KV import is ever allowed
+
+### 🔴 CRITICAL: Repository-Wide Resurrection Path Search Incomplete
+- **Issue:** "Resurrection paths eliminated" was asserted, not proven through comprehensive search
+- **Missing:** Search for resurrection paths in: canonical-media-graph.json, .generated/*projection*, assignment loaders, deployment APIs, migration scripts, seed scripts, reconciliation scripts, startup initialization, cron jobs, repair utilities, ingestion/materialization, admin APIs
+- **Risk:** Unknown resurrection paths may exist in unexamined code
+- **Required:** Invariant: No code path may create/restore authoritative KV state from older/lower-authority representation without explicitly authorized migration/reconciliation
+
+### 🔴 CRITICAL: Review Media Gate Bypass Remains (P1-3 INCOMPLETE)
+- **Issue:** Report claimed "all public-facing components use pre-validated media objects" but admitted "Review components accept bypass"
+- **Missing:** Review components can still bypass the public media gate
+- **Risk:** Drive references and invalid media can render publicly through review components
+- **Required:** Fix Review components to use pre-validated media or explicitly mark P1-3 as OPEN SECURITY ISSUE
+
+### 🔴 CRITICAL: Application-Level Drive Object Authorization Missing
+- **Issue:** "IDOR mitigated because Google Drive enforces access control" is insufficient
+- **Missing:** Application-level validation: session identity → Drive authorization → requested Drive object → operation being performed → resulting HPP authority
+- **Risk:** Google may authorize the request while the application authorizes an unintended object transition
+- **Required:** Explicit authorization for /ingest, /reference, /thumbnail, folder traversal, Shared Drive selection, materialization, assignment
+
+### 🔴 CRITICAL: Shared Drive Root Query Needs Verification
+- **Issue:** Changed `trashed = false` to `trashed = false and parents is null` - this may describe orphaned/unparented items, not Shared Drive root children
+- **Missing:** Runtime verification against actual Shared Drive behavior
+- **Risk:** Query may return incorrect results for Shared Drive root listings
+- **Required:** Verify Shared Drive root listing constrains corpora, driveId, includeItemsFromAllDrives, and appropriate parent/root identifier
+
+### 🔴 CRITICAL: DriveListContext Control Unproven
+- **Issue:** Adding DriveListContext is good, but no proof it actually controls the Google API query
+- **Missing:** Verification that context controls: corpora, driveId, includeItemsFromAllDrives, supportsAllDrives, parent constraint, pagination token, search query, ordering
+- **Risk:** Beautifully typed context may be partially ignored downstream
+- **Required:** Prove DriveListContext parameters flow through to actual Google API calls
+
+### 🔴 CRITICAL: Cross-Store Materialization Not Demonstrably Atomic
+- **Issue:** "automatic assignment update" and "atomic operations" claimed, but workflow crosses separate systems (Drive → download → hash → Blob → PublishedMediaAsset KV → DriveReference KV → Assignment KV)
+- **Missing:** Explicit idempotency + reconciliation semantics for cross-system transitions
+- **Risk:** Crash points: Blob uploaded but process crashes, or PublishedMediaAsset created but Assignment update fails
+- **Required:** Demonstrate idempotency and recovery for each cross-system transition
+
+### 🔴 CRITICAL: KV/Blob Consistency Model Undefined
+- **Issue:** "KV is single source of truth" but published media physically exists in Blob storage
+- **Missing:** Definition of what Blob is (authoritative bytes? derived artifact? cache? immutable content-addressed store?)
+- **Risk:** KV may authorize nonexistent asset if Blob object is missing
+- **Required:** Public media gate must distinguish authorized metadata from actually retrievable media
+
+### 🔴 CRITICAL: KV Namespace/Environment Isolation Unproven
+- **Issue:** "KV is primary" - which KV? local, preview, production, branch-specific, Vercel environment-specific?
+- **Missing:** Explicit deployment environment → KV namespace → media authority mapping
+- **Risk:** Preview deployment could accidentally read Production KV (catastrophic boundary violation)
+- **Required:** Explicit environment isolation with no accidental cross-environment authority
+
+### 🔴 CRITICAL: Fail-Closed Failure Modes Not Distinguished
+- **Issue:** "KV error = no output" doesn't distinguish between: not authorized, not found, KV unavailable, projection stale, Blob unavailable, corrupt record
+- **Risk:** Fail-closed becomes indistinguishable from data loss
+- **Required:** Explicit failure mode classification for operational debugging
+
+### 🟠 HIGH: OAuth Scope/Origin Claims Need Updating
+- **Issue:** Previous claim "Only read-only Drive scopes are requested" is no longer literally true after adding openid/profile/email
+- **Missing:** Reassessment of exact requested scopes, stored scopes, scope validation after callback, incremental authorization needs
+- **Required:** Clarify "Drive access remains read-only; identity scopes are additionally requested"
+
+### 🟠 HIGH: Git/Vercel/KV Consistency Asserted Not Proven
+- **Issue:** "Git commit ≠ Vercel deployment ≠ runtime state reconciled" claimed but not proven
+- **Missing:** Integration test proving: After deployment X, deployed code, runtime KV state, Blob state, and projected Git state satisfy declared authority invariants
+- **Risk:** Separate systems may diverge despite transactional deployment API
+- **Required:** Integration tests for cross-system consistency
+
+## Corrected Status
+
+**P0 (Critical):**
+- ✅ Dual-authority resurrection problem (PARTIAL - static fallbacks eliminated, but resurrection paths not comprehensively searched)
+- ⚠️ Application-level IDOR protection (INSUFFICIENT - need application-level Drive object authorization)
+
+**P1 (High Priority):**
+- ⚠️ Public media gate coverage (INCOMPLETE - Review components still bypass)
+- ✅ Legacy /images/ path bypass (RESOLVED)
+- ✅ Dual-path authority system (RESOLVED)
+- ✅ Assignment authority contradiction (RESOLVED)
+
+**P2 (Medium Priority):**
+- ⚠️ DriveReference → PublishedMediaAsset transition atomicity (CLAIMED - not demonstrably atomic across separate systems)
+- ✅ Incomplete deletion cascade (RESOLVED)
+- ⚠️ Git commit ≠ Vercel deployment ≠ runtime state (CLAIMED - not proven with integration tests)
+- ✅ Drive revision tracking (RESOLVED)
+- ✅ Assignment migration non-atomicity (RESOLVED)
+- ✅ Legacy /images/ paths (RESOLVED)
+
+**NEW CRITICAL ISSUES:**
+- 🔴 KV recovery/bootstrap authority undefined
+- 🔴 Repository-wide resurrection path search incomplete
+- 🔴 Review media gate bypass remains
+- 🔴 Application-level Drive object authorization missing
+- 🔴 Shared Drive root query needs verification
+- 🔴 DriveListContext control unproven
+- 🔴 Cross-store materialization not demonstrably atomic
+- 🔴 KV/Blob consistency model undefined
+- 🔴 KV namespace/environment isolation unproven
+- 🔴 Fail-closed failure modes not distinguished
 
 ---
 
