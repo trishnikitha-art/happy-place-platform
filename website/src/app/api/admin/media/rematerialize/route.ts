@@ -230,37 +230,55 @@ async function rematerializeMediaRecord(
   // Resolve source bytes
   let sourceBytes: Buffer | null = null;
   let sourceLocation: 'photo-intake' | 'drive' | 'none' = 'none';
+  let driveSourceId: string | null = null;
 
   // Try photo-intake first
   if (hasSourceBytesInPhotoIntake(media.filename)) {
     sourceBytes = readSourceBytesFromPhotoIntake(media.filename);
     sourceLocation = 'photo-intake';
     console.log('[REMATERIALIZATION] Source bytes found in photo-intake', { requestId, mediaId: media.filename });
-  } else if (media.provenance?.august3_driveId) {
-    // Resolve from Drive using preserved Drive provenance ID
-    sourceBytes = await resolveDriveSourceBytes(media.provenance.august3_driveId, requestId);
-    if (sourceBytes) {
-      sourceLocation = 'drive';
-      console.log('[REMATERIALIZATION] Source bytes resolved from Drive', {
-        requestId,
-        mediaId: media.id,
-        driveId: media.provenance.august3_driveId,
-      });
-    } else {
-      console.error('[REMATERIALIZATION] Drive source resolution failed', {
-        requestId,
-        mediaId: media.id,
-        driveId: media.provenance.august3_driveId,
-      });
-      return { success: false, error: 'Drive source resolution failed - file may not exist or authentication expired' };
-    }
   } else {
-    console.error('[REMATERIALIZE] NO SOURCE BYTES', {
-      requestId,
-      mediaId: media.id,
-      filename: media.filename,
-    });
-    return { success: false, error: 'No source bytes available' };
+    // P0 FIX: Check both Drive provenance representations with explicit precedence
+    // Precedence: provenance.august3_driveId (canonical) → driveId (legacy top-level)
+    driveSourceId = media.provenance?.august3_driveId || media.driveId || null;
+    
+    if (driveSourceId) {
+      console.log('[REMATERIALIZATION] Attempting Drive source resolution', {
+        requestId,
+        mediaId: media.id,
+        driveSourceId,
+        hasProvenanceId: !!media.provenance?.august3_driveId,
+        hasTopLevelId: !!media.driveId,
+        source: media.provenance?.august3_driveId ? 'provenance.august3_driveId' : 'driveId',
+      });
+      
+      // Resolve from Drive using Drive provenance ID
+      sourceBytes = await resolveDriveSourceBytes(driveSourceId, requestId);
+      if (sourceBytes) {
+        sourceLocation = 'drive';
+        console.log('[REMATERIALIZATION] Source bytes resolved from Drive', {
+          requestId,
+          mediaId: media.id,
+          driveId: driveSourceId,
+        });
+      } else {
+        console.error('[REMATERIALIZATION] Drive source resolution failed', {
+          requestId,
+          mediaId: media.id,
+          driveId: driveSourceId,
+        });
+        return { success: false, error: 'Drive source resolution failed - file may not exist or authentication expired' };
+      }
+    } else {
+      console.error('[REMATERIALIZE] NO SOURCE BYTES', {
+        requestId,
+        mediaId: media.id,
+        filename: media.filename,
+        hasProvenance: !!media.provenance,
+        hasDriveId: !!media.driveId,
+      });
+      return { success: false, error: 'No source bytes available - neither photo-intake nor Drive provenance found' };
+    }
   }
 
   if (!sourceBytes) {
@@ -448,17 +466,65 @@ export async function POST(request: Request) {
       errors: [],
     };
 
-    // Load canonical media authority
-    const manifest = loadMediaManifest();
-    const canonicalRecords = new Map<string, any>();
-    manifest.media.forEach((m: any) => {
-      canonicalRecords.set(m.id, m);
-    });
+    // P0 FIX: Enumerate the same runtime authority that deployment validates
+    // Previously used loadMediaManifest() (static), now uses KV (runtime)
+    // This ensures rematerialization repairs the exact records deployment checks
+    const runtimeRecords = new Map<string, any>();
+    
+    // Enumerate all runtime media records from KV
+    const { getMediaRecordRaw } = await import('@/lib/media-kv-store');
+    const { Redis: RedisClient } = await import('@upstash/redis');
+    
+    let redis: any = null;
+    try {
+      const redisUrl = process.env.KV_REST_API_URL;
+      const redisToken = process.env.KV_REST_API_TOKEN;
+      
+      if (redisUrl && redisToken) {
+        redis = new RedisClient({
+          url: redisUrl,
+          token: redisToken,
+        });
+        
+        // Scan for all media keys
+        const keys = await redis.keys('media:*');
+        console.log('[REMATERIALIZE] Found runtime media keys:', { requestId, count: keys.length });
+        
+        for (const key of keys) {
+          try {
+            const record = await getMediaRecordRaw(key.replace('media:', ''));
+            if (record) {
+              runtimeRecords.set(record.id, record);
+            }
+          } catch (error) {
+            console.error('[REMATERIALIZE] Failed to load runtime record:', { requestId, key, error });
+          }
+        }
+      } else {
+        console.warn('[REMATERIALIZE] Redis credentials not available, falling back to static manifest', { requestId });
+        // Fallback to static manifest if Redis not available
+        const manifest = loadMediaManifest();
+        manifest.media.forEach((m: any) => {
+          runtimeRecords.set(m.id, m);
+        });
+      }
+    } catch (error) {
+      console.error('[REMATERIALIZE] Failed to enumerate runtime records, falling back to static manifest:', { requestId, error });
+      // Fallback to static manifest on error
+      const manifest = loadMediaManifest();
+      manifest.media.forEach((m: any) => {
+        runtimeRecords.set(m.id, m);
+      });
+    } finally {
+      if (redis) {
+        await redis.quit();
+      }
+    }
 
     // Determine which records to process
     const recordsToProcess = mediaIds
-      ? mediaIds.map(id => canonicalRecords.get(id)).filter(Boolean)
-      : Array.from(canonicalRecords.values());
+      ? mediaIds.map(id => runtimeRecords.get(id)).filter(Boolean)
+      : Array.from(runtimeRecords.values());
 
     report.totalRecords = recordsToProcess.length;
 

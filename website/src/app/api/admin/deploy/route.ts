@@ -767,15 +767,21 @@ export async function POST(request: Request) {
       }
 
       // Collect media IDs from project assignments
+      // P0 FIX: Use correct projects.v1.json schema (project.media.*)
+      // Schema: project.media.hero, project.media.before, project.media.after, project.media.gallery[]
       projectsData.projects.forEach((project: any) => {
-        if (project.hero?.mediaId) {
-          mediaIdsToVerify.add(project.hero.mediaId);
+        if (project.media?.hero) {
+          mediaIdsToVerify.add(project.media.hero);
         }
-        if (project.gallery) {
-          project.gallery.forEach((galleryItem: any) => {
-            if (galleryItem.mediaId) {
-              mediaIdsToVerify.add(galleryItem.mediaId);
-            }
+        if (project.media?.before) {
+          mediaIdsToVerify.add(project.media.before);
+        }
+        if (project.media?.after) {
+          mediaIdsToVerify.add(project.media.after);
+        }
+        if (project.media?.gallery && Array.isArray(project.media.gallery)) {
+          project.media.gallery.forEach((galleryId: string) => {
+            mediaIdsToVerify.add(galleryId);
           });
         }
       });
