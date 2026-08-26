@@ -73,7 +73,9 @@ export default async function HomePage() {
   
   // Get hero from Brand Authority with runtime assignment
   const homepageHero = await getHomepageHero();
-  const heroMedia = homepageHero?.mediaId ? getMediaById(homepageHero.mediaId) : null;
+  // P1 FIX: Use pre-validated resolvedMedia from brand function (passed public media gate)
+  // This prevents bypassing the public media gate by calling getMediaById directly
+  const heroMedia = homepageHero?.resolvedMedia || null;
   
   // Use responsive variants if available to select best quality
   const heroResponsiveVariants = heroMedia?.variants?.responsive;
@@ -81,8 +83,8 @@ export default async function HomePage() {
   const heroSrc = heroMedia 
     ? (hasHeroResponsiveVariants 
         ? heroResponsiveVariants[heroResponsiveVariants.length - 1].webp 
-        : (heroMedia.variants?.web || heroMedia.variants?.original || '/images/hero-background-enhanced.jpg'))
-    : '/images/hero-background-enhanced.jpg';
+        : (heroMedia.variants?.web || heroMedia.variants?.original))
+    : null; // P1 FIX: No legacy /images/ fallback - fail closed
   
   // Get exterior painting project for featured transformation (has before/after media)
   const paintingProject = featuredProjects.find(p => p.id === 'exterior-painting-001');
@@ -161,7 +163,7 @@ export default async function HomePage() {
           component="HomepageHero"
           className="absolute inset-0 z-0"
         >
-          {heroMedia ? (
+          {heroMedia && heroSrc ? (
             <Image
               src={heroSrc}
               alt={heroMedia.alt || "Happy Place Carpentry - Professional carpentry services"}
@@ -171,17 +173,7 @@ export default async function HomePage() {
               className="object-cover"
               style={{ filter: "brightness(0.7)" }}
             />
-          ) : (
-            <Image
-              src="/images/hero-background-enhanced.jpg"
-              alt="Photograph of a completed deck project showing quality carpentry work with warm wood tones and clean construction"
-              fill
-              priority
-              sizes="100vw"
-              className="object-cover"
-              style={{ filter: "brightness(0.7)" }}
-            />
-          )}
+          ) : null}
         </VisualSlot>
         <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/40 via-black/20 to-black/60 pointer-events-none" aria-hidden="true" />
 
