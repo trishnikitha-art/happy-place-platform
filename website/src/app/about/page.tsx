@@ -5,7 +5,6 @@ import { CTASection } from "@/components/cta-section";
 import { HappyBrandSignature } from "@/components/happy-brand-signature";
 import { getCompany } from "@/lib/company";
 import { getOwnerPortrait } from "@/lib/brand";
-import { getMediaById } from "@/lib/media";
 import { getAllCities } from "@/lib/registries";
 import { VisualSlot } from "@/components/visual-slot";
 

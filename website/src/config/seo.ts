@@ -1,12 +1,9 @@
 import type { SeoMeta } from "@/types";
-import { getMediaById } from "@/lib/media";
 
 /**
  * Site-wide SEO defaults. Per-page metadata extends these via the Next Metadata API.
- * ogImage resolves through Media Authority (media.v1.json) — never hardcoded.
+ * ogImage uses fallback path — per-page metadata should use resolvePublicMedia() for dynamic resolution.
  */
-const _featuredMedia = getMediaById("brand-featured");
-
 export const seo: {
   siteUrl: string;
   siteName: string;
@@ -22,6 +19,6 @@ export const seo: {
   description:
     "Licensed Oregon carpentry contractor (CCB# 254240) building decks, fences, pergolas, bathrooms, and custom work across Benton, Linn, Marion & Polk Counties.",
   keywords: ["carpenter", "deck builder", "fence installer", "bathroom remodel", "Oregon contractor", "Willamette Valley"],
-  ogImage: _featuredMedia?.variants?.web || "/images/projects/featured/featured-480.webp",
+  ogImage: "/images/projects/featured/featured-480.webp", // Fallback - per-page metadata should use resolvePublicMedia()
   twitter: "@happyplacecarp",
 };

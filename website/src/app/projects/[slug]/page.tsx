@@ -10,7 +10,6 @@ import { StarRating } from "@/components/star-rating";
 import { CraftCard } from "@/components/ui/card";
 import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
 import { getAllProjects, getProjectBySlug, getProjectWithResolvedMedia } from "@/lib/projects";
-import { getMediaById } from "@/lib/media";
 import { getReviewById } from "@/lib/reviews";
 import { Container, Section, SectionHeading } from "@/components/section";
 import type { Media } from "@/types/media";

@@ -11,7 +11,7 @@ import { getServiceGallery } from "@/lib/galleries";
 import { PlaceholderSection } from "@/components/placeholder-section";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { getProjectById, getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib/projects";
-import { getMediaById, resolvePublicMedia } from "@/lib/media";
+import { resolvePublicMedia } from "@/lib/media";
 import { VisualSlot } from "@/components/visual-slot";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
 import type { Media } from "@/types/media";
