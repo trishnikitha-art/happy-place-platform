@@ -220,6 +220,12 @@ export async function getSession(id: string): Promise<BrowserSessionRecord | nul
   try {
     const client = getRedisClient();
 
+    // First get the session to extract authorization ID (non-atomic read)
+    const session = await client.get<BrowserSessionRecord>(`${SESSION_PREFIX}${id}`);
+    if (!session) {
+      return null;
+    }
+
     // Redis Lua script for atomic session retrieval + authorization status verification
     const luaScript = `
       local session_key = KEYS[1]
@@ -257,7 +263,7 @@ export async function getSession(id: string): Promise<BrowserSessionRecord | nul
 
     const result = await client.eval(
       luaScript,
-      [`${SESSION_PREFIX}${id}`],
+      [`${SESSION_PREFIX}${id}`, `drive:auth:${session.authorizationId}`],
       []
     );
 
