@@ -516,9 +516,8 @@ export async function POST(request: Request) {
         runtimeRecords.set(m.id, m);
       });
     } finally {
-      if (redis) {
-        await redis.quit();
-      }
+      // Upstash Redis client doesn't have quit() method
+      // Connection is managed automatically
     }
 
     // Determine which records to process
