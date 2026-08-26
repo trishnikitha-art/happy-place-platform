@@ -4,15 +4,22 @@
  * Calls the /api/admin/media/reconcile endpoint to clean up poisoned runtime KV authority.
  * This removes synthetic content identity records and reconciles with canonical static authority.
  *
+ * P0 FIX: Use native fetch instead of http module (HTTPS compatible)
+ * P0 FIX: Add Workbench authentication support (session cookie or admin token)
+ *
  * Usage:
- *   node scripts/reconcile-runtime-media.mjs [--dry-run] [--verbose]
+ *   node scripts/reconcile-runtime-media.mjs [--dry-run] [--execute] [--verbose]
  *
  * Options:
- *   --dry-run: Analyze and report without making changes
+ *   --dry-run: Analyze and report without making changes (default)
+ *   --execute: Apply changes (requires explicit flag)
  *   --verbose: Show detailed reconciliation output
+ *
+ * Authentication:
+ *   Requires either:
+ *   - WORKBENCH_SESSION_COOKIE environment variable (session cookie from Workbench login)
+ *   - Or manual execution with browser authentication
  */
-
-const http = require('http');
 
 const API_BASE = process.env.VERCEL_URL 
   ? `https://${process.env.VERCEL_URL}` 
@@ -29,64 +36,57 @@ async function reconcileMedia({ dryRun = true, verbose = false }) {
 
   const requestBody = JSON.stringify({ dryRun });
 
-  return new Promise((resolve, reject) => {
-    const options = {
+  const headers = {
+    'Content-Type': 'application/json',
+  };
+
+  // Add Workbench session cookie if available
+  const sessionCookie = process.env.WORKBENCH_SESSION_COOKIE;
+  if (sessionCookie) {
+    headers['Cookie'] = sessionCookie;
+    console.log('[RECONCILE] Using session cookie for authentication');
+  } else {
+    console.warn('[RECONCILE] No WORKBENCH_SESSION_COOKIE - request may fail authentication');
+    console.warn('[RECONCILE] Set environment variable or run from authenticated browser context');
+  }
+
+  try {
+    const response = await fetch(RECONCILE_ENDPOINT, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(requestBody),
-      },
-    };
-
-    const req = http.request(RECONCILE_ENDPOINT, options, (res) => {
-      let data = '';
-
-      res.on('data', (chunk) => {
-        data += chunk;
-      });
-
-      res.on('end', () => {
-        try {
-          const response = JSON.parse(data);
-          
-          if (res.statusCode === 200) {
-            console.log('[RECONCILE] SUCCESS');
-            console.log('[RECONCILE] Report:', JSON.stringify(response.report, null, 2));
-            
-            if (verbose) {
-              console.log('');
-              console.log('[RECONCILE] DETAILED REPORT:');
-              console.log('- Total records scanned:', response.report.totalRecords);
-              console.log('- Synthetic records found:', response.report.syntheticRecords);
-              console.log('- Stale records replaced:', response.report.replacedRecords.length);
-              console.log('- Valid records preserved:', response.report.validRecords);
-              console.log('- DriveReference records preserved:', response.report.driveReferenceRecords);
-              console.log('- Content hash index rebuilt:', response.report.contentHashIndexRebuilt);
-              console.log('- Dangling indexes cleaned:', response.report.danglingIndexes.length);
-            }
-            
-            resolve(response);
-          } else {
-            console.error('[RECONCILE] FAILED');
-            console.error('[RECONCILE] Status:', res.statusCode);
-            console.error('[RECONCILE] Response:', data);
-            reject(new Error(`Reconciliation failed with status ${res.statusCode}`));
-          }
-        } catch (error) {
-          console.error('[RECONCILE] JSON PARSE ERROR:', error);
-          reject(error);
-        }
-      });
+      headers,
+      body: requestBody,
     });
 
-    req.on('error', (error) => {
-      console.error('[RECONCILE] REQUEST ERROR:', error);
-      reject(error);
-    });
+    const data = await response.json();
 
-    req.write(requestBody);
-    req.end();
-  });
+    if (response.ok) {
+      console.log('[RECONCILE] SUCCESS');
+      console.log('[RECONCILE] Report:', JSON.stringify(data.report, null, 2));
+
+      if (verbose) {
+        console.log('');
+        console.log('[RECONCILE] DETAILED REPORT:');
+        console.log('- Total records scanned:', data.report.totalRecords);
+        console.log('- Synthetic records found:', data.report.syntheticRecords);
+        console.log('- Stale records replaced:', data.report.replacedRecords.length);
+        console.log('- Valid records preserved:', data.report.validRecords);
+        console.log('- DriveReference records preserved:', data.report.driveReferenceRecords);
+        console.log('- Incomplete canonical records blocked:', data.report.incompleteCanonicalCount || 0);
+        console.log('- Content hash index rebuilt:', data.report.contentHashIndexRebuilt);
+        console.log('- Dangling indexes cleaned:', data.report.danglingIndexes.length);
+      }
+
+      return data;
+    } else {
+      console.error('[RECONCILE] FAILED');
+      console.error('[RECONCILE] Status:', response.status);
+      console.error('[RECONCILE] Response:', data);
+      throw new Error(`Reconciliation failed with status ${response.status}: ${data.error || data.message || 'Unknown error'}`);
+    }
+  } catch (error) {
+    console.error('[RECONCILE] REQUEST ERROR:', error);
+    throw error;
+  }
 }
 
 async function main() {
