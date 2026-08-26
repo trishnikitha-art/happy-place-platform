@@ -42,11 +42,18 @@ jobs:
       - name: Validate required secrets are present
         run: |
           echo "Validating required GitHub Actions secrets..."
-          required_secrets=("KV_REST_API_URL" "KV_REST_API_TOKEN" "ENCRYPTION_KEY" "GOOGLE_CLIENT_ID" "GOOGLE_CLIENT_SECRET" "GOOGLE_REDIRECT_URI")
+          required_secrets=("KV_REST_API_URL" "KV_REST_API_TOKEN" "GOOGLE_CLIENT_ID" "GOOGLE_CLIENT_SECRET" "GOOGLE_REDIRECT_URI")
+          optional_secrets=("ENCRYPTION_KEY")
           missing_secrets=()
+          missing_optional=()
           for secret in "${required_secrets[@]}"; do
             if [ -z "${!secret}" ]; then
               missing_secrets+=("$secret")
+            fi
+          done
+          for secret in "${optional_secrets[@]}"; do
+            if [ -z "${!secret}" ]; then
+              missing_optional+=("$secret")
             fi
           done
           if [ ${#missing_secrets[@]} -gt 0 ]; then
@@ -62,6 +69,15 @@ jobs:
             echo ""
             echo "These secrets must match your Vercel production environment."
             exit 1
+          fi
+          if [ ${#missing_optional[@]} -gt 0 ]; then
+            echo "⚠️  WARNING: Missing optional GitHub Actions secrets:"
+            for secret in "${missing_optional[@]}"; do
+              echo "   - $secret"
+            done
+            echo ""
+            echo "OAuth tests require ENCRYPTION_KEY for full authorization encryption verification."
+            echo "Tests will run with reduced coverage without this secret."
           fi
           echo "✅ All required secrets are present"
         env:
