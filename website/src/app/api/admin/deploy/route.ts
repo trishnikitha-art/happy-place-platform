@@ -482,10 +482,11 @@ export async function POST(request: Request) {
       id: repoData.id
     });
 
-    // In production, merge KV staging changes into projects.v1.json, services.v1.json, and brand.v1.json
+    // In production, merge KV staging changes into projects.v1.json, services.v1.json, brand.v1.json, and media.v1.json
     let fileContent: string;
     let servicesFileContent: string = '';
     let brandFileContent: string = '';
+    let mediaFileContent: string = '';
     const redis = getRedisClient();
     
     if (isProduction && redis) {
@@ -502,6 +503,10 @@ export async function POST(request: Request) {
       // Read current brand.v1.json for brand assignments
       const brandFile = join(process.cwd(), "src/config/brand.v1.json");
       const brandData = JSON.parse(readFileSync(brandFile, "utf-8"));
+      
+      // Read current media.v1.json for media record merging
+      const mediaFile = join(process.cwd(), "src/config/media.v1.json");
+      const mediaData = JSON.parse(readFileSync(mediaFile, "utf-8"));
       
       // PROCESS SPECIFIC TRANSACTIONS ONLY (transaction isolation)
       // Scan for all staging keys and group by transaction ID
@@ -862,6 +867,66 @@ export async function POST(request: Request) {
         verifiedCount: mediaIdsToVerify.size,
       });
 
+      // P0 FIX: Merge new PublishedMediaAsset records from KV into media.v1.json
+      // This ensures Drive-ingested media records are persisted to static canonical authority
+      // Without this, assignments reference media IDs that exist only in KV, causing render failures
+      // when KV is unavailable or rejects the record during runtime resolution
+      console.log('[DEPLOY API] MERGING_MEDIA_RECORDS_FROM_KV', { deploymentTransactionId });
+
+      const { getMedia } = await import('@/lib/media-kv-store');
+      const mediaIdsInStatic = new Set(mediaData.media.map((m: any) => m.id));
+      let mediaRecordsMerged = 0;
+
+      for (const mediaId of mediaIdsToVerify) {
+        // Skip if already in static media.v1.json
+        if (mediaIdsInStatic.has(mediaId)) {
+          continue;
+        }
+
+        try {
+          // Fetch from KV
+          const kvMedia = await getMedia(mediaId);
+          if (!kvMedia) {
+            console.warn('[DEPLOY API] MEDIA_NOT_IN_KV', { mediaId, reason: 'Skipping merge - not found in KV' });
+            continue;
+          }
+
+          // Verify it's a PublishedMediaAsset (should already be verified by completeness check)
+          if (kvMedia.lifecycleState !== 'published') {
+            console.warn('[DEPLOY API] MEDIA_NOT_PUBLISHED', { mediaId, lifecycleState: kvMedia.lifecycleState, reason: 'Skipping merge - not published' });
+            continue;
+          }
+
+          // Merge into media.v1.json
+          mediaData.media.push(kvMedia);
+          mediaIdsInStatic.add(mediaId);
+          mediaRecordsMerged++;
+
+          console.log('[DEPLOY API] MEDIA_RECORD_MERGED', { mediaId, filename: kvMedia.filename });
+        } catch (error) {
+          console.error('[DEPLOY API] MEDIA_MERGE_ERROR', {
+            mediaId,
+            error: error instanceof Error ? error.message : 'Unknown error',
+          });
+          // Continue with other media IDs - don't fail entire deployment for merge errors
+        }
+      }
+
+      if (mediaRecordsMerged > 0) {
+        mediaData.generatedAt = new Date().toISOString();
+        console.log('[DEPLOY API] MEDIA_MERGE_COMPLETE', {
+          deploymentTransactionId,
+          mediaRecordsMerged,
+          totalMediaRecords: mediaData.media.length,
+        });
+      } else {
+        console.log('[DEPLOY API] NO_NEW_MEDIA_RECORDS_TO_MERGE', { deploymentTransactionId });
+      }
+
+      // Store media.v1.json content for atomic Git commit
+      mediaFileContent = JSON.stringify(mediaData, null, 2);
+      console.log('[DEPLOY API] MEDIA_CONTENT_PREPARED', { length: mediaFileContent.length });
+
       // Store services.v1.json content for atomic Git commit
       servicesFileContent = JSON.stringify(servicesData, null, 2);
       console.log('[DEPLOY API] SERVICES_CONTENT_PREPARED', { length: servicesFileContent.length });
@@ -897,6 +962,11 @@ export async function POST(request: Request) {
       const brandFile = join(process.cwd(), "src/config/brand.v1.json");
       const brandData = JSON.parse(readFileSync(brandFile, "utf-8"));
       brandFileContent = JSON.stringify(brandData, null, 2);
+      
+      // Also read media.v1.json in dev mode
+      const mediaFile = join(process.cwd(), "src/config/media.v1.json");
+      const mediaData = JSON.parse(readFileSync(mediaFile, "utf-8"));
+      mediaFileContent = JSON.stringify(mediaData, null, 2);
     }
 
     // =====================================================================
@@ -909,12 +979,14 @@ export async function POST(request: Request) {
     const projectsFilePath = "website/src/config/projects.v1.json";
     const servicesFilePath = "website/src/config/services.v1.json";
     const brandFilePath = "website/src/config/brand.v1.json";
+    const mediaFilePath = "website/src/config/media.v1.json";
     
     console.log('[DEPLOY API] ATOMIC_COMMIT_INITIATED', { 
       deploymentTransactionId,
       projectsFile: projectsFilePath,
       servicesFile: servicesFilePath,
-      brandFile: brandFilePath
+      brandFile: brandFilePath,
+      mediaFile: mediaFilePath
     });
     
     // Step 1: Get current commit SHA (branch head)
@@ -965,7 +1037,7 @@ export async function POST(request: Request) {
       transaction = await createDeploymentTransaction(
         deploymentTransactionId,
         stagingKeys,
-        ['website/src/config/projects.v1.json', 'website/src/config/services.v1.json', 'website/src/config/brand.v1.json'],
+        ['website/src/config/projects.v1.json', 'website/src/config/services.v1.json', 'website/src/config/brand.v1.json', 'website/src/config/media.v1.json'],
         reason,
         currentCommitSha
       );
@@ -1020,12 +1092,13 @@ export async function POST(request: Request) {
     const currentTreeSha = commitData.tree.sha;
     console.log('[DEPLOY API] CURRENT_TREE_SHA', { currentTreeSha });
     
-    // Step 3: Create blobs for all three files
+    // Step 3: Create blobs for all four files
     console.log('[DEPLOY API] CREATING_BLOBS');
     
     const projectsBlobBase64 = Buffer.from(fileContent).toString('base64');
     const servicesBlobBase64 = Buffer.from(servicesFileContent).toString('base64');
     const brandBlobBase64 = Buffer.from(brandFileContent).toString('base64');
+    const mediaBlobBase64 = Buffer.from(mediaFileContent).toString('base64');
     
     // Create projects.v1.json blob
     const projectsBlobResponse = await fetchWithRetry(
@@ -1171,7 +1244,55 @@ export async function POST(request: Request) {
     const brandBlobSha = brandBlobData.sha;
     console.log('[DEPLOY API] BRAND_BLOB_CREATED', { sha: brandBlobSha });
     
-    // Step 4: Create new tree with all three files
+    // Create media.v1.json blob
+    const mediaBlobResponse = await fetchWithRetry(
+      `https://api.github.com/repos/${githubOwner}/${githubRepo}/git/blobs`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Content-Type': 'application/vnd.github.v3+json',
+        },
+        body: JSON.stringify({
+          content: mediaBlobBase64,
+          encoding: 'base64',
+        }),
+      },
+      'create media blob'
+    );
+    
+    if (!mediaBlobResponse.ok) {
+      const errorText = await mediaBlobResponse.text();
+      console.error('[DEPLOY API] CREATE_MEDIA_BLOB_FAILED', { status: mediaBlobResponse.status });
+      
+      // MARK TRANSACTION AS FAILED
+      if (transaction) {
+        await failDeploymentTransaction(deploymentTransactionId, `Failed to create media blob: ${errorText}`);
+      }
+      
+      return NextResponse.json(
+        { 
+          error: "Failed to create media blob",
+          details: errorText,
+          forensic: {
+            deploymentTransactionId,
+            githubOwner,
+            githubRepo,
+            status: mediaBlobResponse.status,
+            error: "CREATE_MEDIA_BLOB_FAILED",
+            stagingKeysPreserved: isProduction && stagingKeys.length > 0,
+            stagingKeysCount: stagingKeys.length
+          }
+        },
+        { status: mediaBlobResponse.status }
+      );
+    }
+    
+    const mediaBlobData = await mediaBlobResponse.json();
+    const mediaBlobSha = mediaBlobData.sha;
+    console.log('[DEPLOY API] MEDIA_BLOB_CREATED', { sha: mediaBlobSha });
+    
+    // Step 4: Create new tree with all four files
     console.log('[DEPLOY API] CREATING_NEW_TREE');
     
     const treeResponse = await fetchWithRetry(
@@ -1202,6 +1323,12 @@ export async function POST(request: Request) {
               mode: '100644',
               type: 'blob',
               sha: brandBlobSha,
+            },
+            {
+              path: mediaFilePath,
+              mode: '100644',
+              type: 'blob',
+              sha: mediaBlobSha,
             },
           ],
         }),
