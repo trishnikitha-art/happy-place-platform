@@ -230,7 +230,7 @@ async function rematerializeMediaRecord(
   // Resolve source bytes
   let sourceBytes: Buffer | null = null;
   let sourceLocation: 'photo-intake' | 'drive' | 'none' = 'none';
-  let driveSourceId: string | null = null;
+  let driveSourceId: string | null = null; // Capture this for provenance preservation
 
   // Try photo-intake first
   if (hasSourceBytesInPhotoIntake(media.filename)) {
@@ -238,18 +238,28 @@ async function rematerializeMediaRecord(
     sourceLocation = 'photo-intake';
     console.log('[REMATERIALIZATION] Source bytes found in photo-intake', { requestId, mediaId: media.filename });
   } else {
-    // P0 FIX: Check both Drive provenance representations with explicit precedence
-    // Precedence: provenance.august3_driveId (canonical) → driveId (legacy top-level)
-    driveSourceId = media.provenance?.august3_driveId || media.driveId || null;
+    // P0 FIX: Merge runtime record with static provenance for source location ONLY
+    // Runtime records are the repair authority, but many poisoned records have hasDrive: false
+    // Static authority (media.v1.json) retains Drive IDs for canonical records
+    // Use static authority ONLY to recover source location, never copy content
+    const staticManifest = loadMediaManifest();
+    const staticRecord = staticManifest.media.find((m: any) => m.id === media.id);
+    
+    // Determine Drive source ID with precedence:
+    // 1. Runtime record drive.driveId (if present and valid)
+    // 2. Runtime record provenance.august3_driveId (if present)
+    // 3. Runtime record provenance.driveFileId (if present)
+    // 4. Static manifest driveId (legacy top-level, fallback for poisoned runtime records)
+    // 5. Static manifest drive.fileId (if drive object exists)
+    driveSourceId = media.drive?.driveId || media.provenance?.august3_driveId || media.provenance?.driveFileId || (staticRecord as any)?.driveId || staticRecord?.drive?.fileId || null;
     
     if (driveSourceId) {
-      console.log('[REMATERIALIZATION] Attempting Drive source resolution', {
+      const source = media.drive?.driveId ? 'runtime.driveId' : media.provenance?.august3_driveId ? 'runtime.provenance' : media.provenance?.driveFileId ? 'runtime.driveFileId' : (staticRecord as any)?.driveId ? 'static.driveId' : staticRecord?.drive?.fileId ? 'static.drive.fileId' : 'unknown';
+      console.log('[REMATERIALIZATION] Using Drive source from provenance bridge:', {
         requestId,
         mediaId: media.id,
         driveSourceId,
-        hasProvenanceId: !!media.provenance?.august3_driveId,
-        hasTopLevelId: !!media.driveId,
-        source: media.provenance?.august3_driveId ? 'provenance.august3_driveId' : 'driveId',
+        source,
       });
       
       // Resolve from Drive using Drive provenance ID
@@ -270,12 +280,14 @@ async function rematerializeMediaRecord(
         return { success: false, error: 'Drive source resolution failed - file may not exist or authentication expired' };
       }
     } else {
-      console.error('[REMATERIALIZE] NO SOURCE BYTES', {
+      console.error('[REMATERIALIZATION] NO SOURCE BYTES', {
         requestId,
         mediaId: media.id,
         filename: media.filename,
         hasProvenance: !!media.provenance,
-        hasDriveId: !!media.driveId,
+        hasDriveId: !!media.drive?.driveId,
+        hasStaticDriveId: !!(staticRecord as any)?.driveId,
+        hasStaticDriveFileId: !!staticRecord?.drive?.fileId,
       });
       return { success: false, error: 'No source bytes available - neither photo-intake nor Drive provenance found' };
     }
@@ -377,12 +389,14 @@ async function rematerializeMediaRecord(
     const avifVariant = sortedVariants.find((v) => v.avif);
 
     // Create updated media record
+    // P0 FIX: Preserve Drive provenance metadata for audit/rematerialization
+    // while removing runtime Drive dependency from the public asset
     const updatedMedia = {
       ...media,
       contentHash,
       source: 'local',
       lifecycleState: 'published',
-      drive: undefined, // Remove Drive dependency
+      drive: undefined, // Remove runtime Drive dependency
       variants: {
         original: originalUpload.url,
         web: webpVariant?.webp || originalUpload.url,
@@ -394,6 +408,8 @@ async function rematerializeMediaRecord(
       },
       provenance: {
         ...media.provenance,
+        // Preserve the authoritative Drive file ID used for this materialization
+        driveFileId: driveSourceId || media.provenance?.driveFileId || media.provenance?.august3_driveId,
         drive_canonical: false,
         current_authority: true,
         status: 'published',
@@ -490,7 +506,24 @@ export async function POST(request: Request) {
         const keys = await redis.keys('media:*');
         console.log('[REMATERIALIZE] Found runtime media keys:', { requestId, count: keys.length });
         
-        for (const key of keys) {
+        // P0 FIX: Filter to repairable candidates only
+        // Exclude: quarantine records, drive-* synthetic IDs, drive-ref-* records
+        // Only process: canonical PublishedMediaAsset records with potential for repair
+        const repairableKeys = keys.filter((key: string) => {
+          const mediaId = key.replace('media:', '');
+          // Exclude quarantine records
+          if (mediaId.startsWith('quarantine:')) return false;
+          // Exclude Drive reference records
+          if (mediaId.startsWith('drive-')) return false;
+          // Exclude Drive reference variant records
+          if (mediaId.startsWith('drive-ref-')) return false;
+          // Include only canonical records (no special prefixes)
+          return true;
+        });
+        
+        console.log('[REMATERIALIZE] Filtered to repairable candidates:', { requestId, count: repairableKeys.length });
+        
+        for (const key of repairableKeys) {
           try {
             const record = await getMediaRecordRaw(key.replace('media:', ''));
             if (record) {
@@ -501,20 +534,18 @@ export async function POST(request: Request) {
           }
         }
       } else {
-        console.warn('[REMATERIALIZE] Redis credentials not available, falling back to static manifest', { requestId });
-        // Fallback to static manifest if Redis not available
-        const manifest = loadMediaManifest();
-        manifest.media.forEach((m: any) => {
-          runtimeRecords.set(m.id, m);
-        });
+        console.error('[REMATERIALIZE] Redis credentials not available - cannot proceed without runtime authority', { requestId });
+        return NextResponse.json(
+          { error: 'Redis credentials not available', message: 'Cannot rematerialize without runtime KV authority' },
+          { status: 500 }
+        );
       }
     } catch (error) {
-      console.error('[REMATERIALIZE] Failed to enumerate runtime records, falling back to static manifest:', { requestId, error });
-      // Fallback to static manifest on error
-      const manifest = loadMediaManifest();
-      manifest.media.forEach((m: any) => {
-        runtimeRecords.set(m.id, m);
-      });
+      console.error('[REMATERIALIZE] Failed to enumerate runtime records:', { requestId, error });
+      return NextResponse.json(
+        { error: 'Failed to enumerate runtime records', message: String(error) },
+        { status: 500 }
+      );
     } finally {
       // Upstash Redis client doesn't have quit() method
       // Connection is managed automatically
