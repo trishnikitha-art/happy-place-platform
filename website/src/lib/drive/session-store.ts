@@ -240,26 +240,10 @@ export async function getSession(id: string): Promise<BrowserSessionRecord | nul
       local session = cjson.decode(session_data)
       
       -- Check if session is expired or revoked
-      -- Convert ISO timestamp to Unix seconds for comparison with Redis TIME
-      local expires_at_unix = 0
-      if session.expiresAt then
-        -- Parse ISO timestamp: YYYY-MM-DDTHH:MM:SS.sssZ
-        local year, month, day, hour, min, sec = session.expiresAt:match('(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)')
-        if year and month and day and hour and min and sec then
-          expires_at_unix = os.time({
-            year = tonumber(year),
-            month = tonumber(month),
-            day = tonumber(day),
-            hour = tonumber(hour),
-            min = tonumber(min),
-            sec = tonumber(sec)
-          })
-        end
-      end
-      
-      local current_time = redis.call('TIME')[1]
-      
-      if session.revokedAt or (expires_at_unix > 0 and expires_at_unix < current_time) then
+      -- Use Redis TTL as the authoritative expiration check
+      -- ISO timestamp parsing removed to avoid Lua sandbox incompatibility
+      local ttl = redis.call('TTL', session_key)
+      if session.revokedAt or ttl < 0 then
         return {0, nil}  -- Session expired or revoked
       end
       
@@ -344,7 +328,9 @@ export async function updateSessionLastSeen(id: string): Promise<void> {
       local session = cjson.decode(session_data)
       
       -- Check if session is expired or revoked
-      if session.revokedAt or session.expiresAt < redis.call('TIME')[1] then
+      -- Use Redis TTL as the authoritative expiration check
+      local ttl = redis.call('TTL', session_key)
+      if session.revokedAt or ttl < 0 then
         return 0  -- Session expired or revoked
       end
       
@@ -394,16 +380,78 @@ export async function updateSessionLastSeen(id: string): Promise<void> {
  * Revoke session
  * 
  * Marks session as revoked
+ * 
+ * P0 FIX: Make atomic against authorization revocation to prevent resurrection race
+ * Uses Redis Lua script to prevent TOCTOU where:
+ * - Request A: getSession() (authorization active)
+ * - Request B: revokeAuthorization() + revokeAllSessionsForAuthorization()
+ * - Request A: revokeSession() resurrects session
  */
 export async function revokeSession(id: string): Promise<void> {
   try {
-    const record = await getSession(id);
-    if (record) {
-      record.revokedAt = new Date().toISOString();
-      const client = getRedisClient();
-      await client.set(`${SESSION_PREFIX}${id}`, record);
-      console.log('[SESSION_STORE] Session revoked:', id);
+    const client = getRedisClient();
+    const now = new Date().toISOString();
+
+    // First get the session to extract authorization ID (non-atomic read)
+    const session = await client.get<BrowserSessionRecord>(`${SESSION_PREFIX}${id}`);
+    if (!session) {
+      return;
     }
+
+    // Redis Lua script for atomic session revocation + authorization status verification
+    const luaScript = `
+      local session_key = KEYS[1]
+      local auth_key = KEYS[2]
+      local revoked_at = ARGV[1]
+      local session_ttl = ARGV[2]
+      
+      -- Get session data
+      local session_data = redis.call('GET', session_key)
+      if not session_data then
+        return 0  -- Session not found
+      end
+      
+      local session = cjson.decode(session_data)
+      
+      -- Check if session is expired or revoked
+      local ttl = redis.call('TTL', session_key)
+      if session.revokedAt or ttl < 0 then
+        return 0  -- Session already expired or revoked
+      end
+      
+      -- Get authorization data
+      local auth_data = redis.call('GET', auth_key)
+      if not auth_data then
+        return 0  -- Authorization not found
+      end
+      
+      local auth = cjson.decode(auth_data)
+      
+      -- Verify authorization is still active
+      if auth.status ~= 'active' then
+        return 0  -- Authorization not active (revoked), prevent session resurrection
+      end
+      
+      -- Authorization still active: revoke session atomically
+      session.revokedAt = revoked_at
+      redis.call('SET', session_key, cjson.encode(session))
+      redis.call('EXPIRE', session_key, session_ttl)
+      
+      return 1  -- Success
+    `;
+
+    const result = await client.eval(
+      luaScript,
+      [`${SESSION_PREFIX}${id}`, `drive:auth:${session.authorizationId}`],
+      [now, SESSION_TTL_SECONDS.toString()]
+    );
+
+    if (result === 0) {
+      console.warn('[SESSION_STORE] Session revocation rejected: session or authorization no longer active', id);
+      return;
+    }
+
+    console.log('[SESSION_STORE] Session revoked atomically:', id);
   } catch (error) {
     console.error('[SESSION_STORE] Revoke failed:', error);
     throw new Error(`Failed to revoke session ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -530,25 +578,9 @@ export async function renewSession(id: string): Promise<void> {
       local session = cjson.decode(session_data)
       
       -- Check if session is expired or revoked
-      -- Convert ISO timestamp to Unix seconds for comparison with Redis TIME
-      local expires_at_unix = 0
-      if session.expiresAt then
-        local year, month, day, hour, min, sec = session.expiresAt:match('(%d+)-(%d+)-(%d+)T(%d+):(%d+):(%d+)')
-        if year and month and day and hour and min and sec then
-          expires_at_unix = os.time({
-            year = tonumber(year),
-            month = tonumber(month),
-            day = tonumber(day),
-            hour = tonumber(hour),
-            min = tonumber(min),
-            sec = tonumber(sec)
-          })
-        end
-      end
-      
-      local current_time = redis.call('TIME')[1]
-      
-      if session.revokedAt or (expires_at_unix > 0 and expires_at_unix < current_time) then
+      -- Use Redis TTL as the authoritative expiration check
+      local ttl = redis.call('TTL', session_key)
+      if session.revokedAt or ttl < 0 then
         return 0  -- Session expired or revoked
       end
       
