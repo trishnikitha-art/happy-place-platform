@@ -16,6 +16,59 @@
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 
+/**
+ * P1-9: KV environment isolation
+ * Each environment (production, preview, development, test) has a distinct namespace
+ * to prevent cross-environment data access and isolation violations.
+ */
+type Environment = 'production' | 'preview' | 'development' | 'test';
+
+function getEnvironment(): Environment {
+  const vercelEnv = process.env.VERCEL_ENV;
+  const nodeEnv = process.env.NODE_ENV;
+  
+  // Vercel production
+  if (vercelEnv === 'production') {
+    return 'production';
+  }
+  
+  // Vercel preview
+  if (vercelEnv === 'preview') {
+    return 'preview';
+  }
+  
+  // Local development
+  if (nodeEnv === 'development') {
+    return 'development';
+  }
+  
+  // Test environment
+  if (nodeEnv === 'test') {
+    return 'test';
+  }
+  
+  // Default to development for safety
+  return 'development';
+}
+
+/**
+ * Get KV namespace prefix for current environment
+ * This ensures isolation between production, preview, development, and test
+ */
+function getKvNamespace(): string {
+  const env = getEnvironment();
+  return `hpp:${env}:`;
+}
+
+/**
+ * Apply namespace prefix to KV key
+ * Prevents cross-environment key collisions
+ */
+function namespacedKey(key: string): string {
+  const namespace = getKvNamespace();
+  return `${namespace}${key}`;
+}
+
 let redis: Redis | null = null;
 
 function getRedisClient(): Redis {
@@ -45,7 +98,7 @@ function getRedisClient(): Redis {
   return redis;
 }
 
-// Redis namespace
+// Redis namespace (P1-9: Environment isolation applied)
 const SESSION_PREFIX = 'drive:session:';
 const AUTH_SESSIONS_PREFIX = 'drive:auth:sessions:';
 
@@ -191,7 +244,7 @@ export async function createSession(
 
     const result = await client.eval(
       luaScript,
-      [`drive:auth:${authorizationId}`, `${SESSION_PREFIX}${sessionId}`, `${AUTH_SESSIONS_PREFIX}${authorizationId}`],
+      [namespacedKey(`drive:auth:${authorizationId}`), namespacedKey(`${SESSION_PREFIX}${sessionId}`), namespacedKey(`${AUTH_SESSIONS_PREFIX}${authorizationId}`)],
       [JSON.stringify(record), sessionId, SESSION_TTL_SECONDS.toString(), SESSION_INDEX_TTL_SECONDS.toString()]
     );
 
@@ -221,7 +274,7 @@ export async function getSession(id: string): Promise<BrowserSessionRecord | nul
     const client = getRedisClient();
 
     // First get the session to extract authorization ID (non-atomic read)
-    const session = await client.get<BrowserSessionRecord>(`${SESSION_PREFIX}${id}`);
+    const session = await client.get<BrowserSessionRecord>(namespacedKey(`${SESSION_PREFIX}${id}`));
     if (!session) {
       return null;
     }
@@ -266,7 +319,7 @@ export async function getSession(id: string): Promise<BrowserSessionRecord | nul
 
     const result = await client.eval(
       luaScript,
-      [`${SESSION_PREFIX}${id}`, `drive:auth:${session.authorizationId}`],
+      [namespacedKey(`${SESSION_PREFIX}${id}`), namespacedKey(`drive:auth:${session.authorizationId}`)],
       []
     );
 
@@ -305,7 +358,7 @@ export async function updateSessionLastSeen(id: string): Promise<void> {
     const now = new Date().toISOString();
 
     // First get the session to extract authorization ID (non-atomic read)
-    const session = await client.get<BrowserSessionRecord>(`${SESSION_PREFIX}${id}`);
+    const session = await client.get<BrowserSessionRecord>(namespacedKey(`${SESSION_PREFIX}${id}`));
     if (!session) {
       return;
     }
@@ -360,7 +413,7 @@ export async function updateSessionLastSeen(id: string): Promise<void> {
 
     const result = await client.eval(
       luaScript,
-      [`${SESSION_PREFIX}${id}`, `drive:auth:${session.authorizationId}`, `${AUTH_SESSIONS_PREFIX}${session.authorizationId}`],
+      [namespacedKey(`${SESSION_PREFIX}${id}`), namespacedKey(`drive:auth:${session.authorizationId}`), namespacedKey(`${AUTH_SESSIONS_PREFIX}${session.authorizationId}`)],
       [now, SESSION_TTL_SECONDS.toString(), SESSION_INDEX_TTL_SECONDS.toString()]
     );
 
@@ -393,7 +446,7 @@ export async function revokeSession(id: string): Promise<void> {
     const now = new Date().toISOString();
 
     // First get the session to extract authorization ID (non-atomic read)
-    const session = await client.get<BrowserSessionRecord>(`${SESSION_PREFIX}${id}`);
+    const session = await client.get<BrowserSessionRecord>(namespacedKey(`${SESSION_PREFIX}${id}`));
     if (!session) {
       return;
     }
@@ -442,7 +495,7 @@ export async function revokeSession(id: string): Promise<void> {
 
     const result = await client.eval(
       luaScript,
-      [`${SESSION_PREFIX}${id}`, `drive:auth:${session.authorizationId}`],
+      [namespacedKey(`${SESSION_PREFIX}${id}`), namespacedKey(`drive:auth:${session.authorizationId}`)],
       [now, SESSION_TTL_SECONDS.toString()]
     );
 
@@ -498,8 +551,8 @@ export async function revokeAllSessionsForAuthorization(authorizationId: string)
 
     const result = await client.eval(
       luaScript,
-      [`${AUTH_SESSIONS_PREFIX}${authorizationId}`],
-      [`${SESSION_PREFIX}`]
+      [namespacedKey(`${AUTH_SESSIONS_PREFIX}${authorizationId}`)],
+      [namespacedKey(`${SESSION_PREFIX}`)]
     );
 
     const revokedCount = result as number;
@@ -522,10 +575,10 @@ export async function deleteSession(id: string): Promise<void> {
     const record = await getSession(id);
     if (record) {
       const client = getRedisClient();
-      await client.del(`${SESSION_PREFIX}${id}`);
+      await client.del(namespacedKey(`${SESSION_PREFIX}${id}`));
 
       // Remove from authorization's session index
-      await client.srem(`${AUTH_SESSIONS_PREFIX}${record.authorizationId}`, id);
+      await client.srem(namespacedKey(`${AUTH_SESSIONS_PREFIX}${record.authorizationId}`), id);
 
       console.log('[SESSION_STORE] Session deleted:', id);
     }
@@ -554,7 +607,7 @@ export async function renewSession(id: string): Promise<void> {
     const expiresAt = new Date(now.getTime() + SESSION_TTL_SECONDS * 1000);
 
     // First get the session to extract authorization ID (non-atomic read)
-    const session = await client.get<BrowserSessionRecord>(`${SESSION_PREFIX}${id}`);
+    const session = await client.get<BrowserSessionRecord>(namespacedKey(`${SESSION_PREFIX}${id}`));
     if (!session) {
       return;
     }
@@ -611,7 +664,7 @@ export async function renewSession(id: string): Promise<void> {
 
     const result = await client.eval(
       luaScript,
-      [`${SESSION_PREFIX}${id}`, `drive:auth:${session.authorizationId}`, `${AUTH_SESSIONS_PREFIX}${session.authorizationId}`],
+      [namespacedKey(`${SESSION_PREFIX}${id}`), namespacedKey(`drive:auth:${session.authorizationId}`), namespacedKey(`${AUTH_SESSIONS_PREFIX}${session.authorizationId}`)],
       [expiresAt.toISOString(), now.toISOString(), SESSION_TTL_SECONDS.toString(), SESSION_INDEX_TTL_SECONDS.toString()]
     );
 

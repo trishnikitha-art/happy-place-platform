@@ -20,6 +20,59 @@ import { encrypt, decrypt, type EncryptionEnvelope } from './encryption';
 // Re-export encryption utilities for oauth-manager
 export { decrypt, type EncryptionEnvelope };
 
+/**
+ * P1-9: KV environment isolation
+ * Each environment (production, preview, development, test) has a distinct namespace
+ * to prevent cross-environment data access and isolation violations.
+ */
+type Environment = 'production' | 'preview' | 'development' | 'test';
+
+function getEnvironment(): Environment {
+  const vercelEnv = process.env.VERCEL_ENV;
+  const nodeEnv = process.env.NODE_ENV;
+  
+  // Vercel production
+  if (vercelEnv === 'production') {
+    return 'production';
+  }
+  
+  // Vercel preview
+  if (vercelEnv === 'preview') {
+    return 'preview';
+  }
+  
+  // Local development
+  if (nodeEnv === 'development') {
+    return 'development';
+  }
+  
+  // Test environment
+  if (nodeEnv === 'test') {
+    return 'test';
+  }
+  
+  // Default to development for safety
+  return 'development';
+}
+
+/**
+ * Get KV namespace prefix for current environment
+ * This ensures isolation between production, preview, development, and test
+ */
+function getKvNamespace(): string {
+  const env = getEnvironment();
+  return `hpp:${env}:`;
+}
+
+/**
+ * Apply namespace prefix to KV key
+ * Prevents cross-environment key collisions
+ */
+function namespacedKey(key: string): string {
+  const namespace = getKvNamespace();
+  return `${namespace}${key}`;
+}
+
 let redis: Redis | null = null;
 
 function getRedisClient(): Redis {
@@ -49,7 +102,7 @@ function getRedisClient(): Redis {
   return redis;
 }
 
-// Redis namespace
+// Redis namespace (P1-9: Environment isolation applied)
 const AUTH_PREFIX = 'drive:auth:';
 const AUTH_SUBJECT_PREFIX = 'drive:auth:subject:';
 
@@ -183,7 +236,7 @@ export async function storeAuthorization(record: GoogleAuthorizationRecord): Pro
 
     await client.eval(
       luaScript,
-      [`${AUTH_PREFIX}${record.id}`, `${AUTH_SUBJECT_PREFIX}${record.googleSubject}`],
+      [namespacedKey(`${AUTH_PREFIX}${record.id}`), namespacedKey(`${AUTH_SUBJECT_PREFIX}${record.googleSubject}`)],
       [JSON.stringify(record), record.id, AUTH_TTL_SECONDS.toString()]
     );
 
@@ -200,7 +253,7 @@ export async function storeAuthorization(record: GoogleAuthorizationRecord): Pro
 export async function getAuthorization(id: string): Promise<GoogleAuthorizationRecord | null> {
   try {
     const client = getRedisClient();
-    const record = await client.get<GoogleAuthorizationRecord>(`${AUTH_PREFIX}${id}`);
+    const record = await client.get<GoogleAuthorizationRecord>(namespacedKey(`${AUTH_PREFIX}${id}`));
     
     if (!record) {
       return null;
@@ -227,7 +280,7 @@ export async function getAuthorization(id: string): Promise<GoogleAuthorizationR
 export async function findAuthorizationBySubject(googleSubject: string): Promise<GoogleAuthorizationRecord | null> {
   try {
     const client = getRedisClient();
-    const authId = await client.get<string>(`${AUTH_SUBJECT_PREFIX}${googleSubject}`);
+    const authId = await client.get<string>(namespacedKey(`${AUTH_SUBJECT_PREFIX}${googleSubject}`));
 
     if (!authId) {
       console.log('[AUTH_STORE] No authorization found for subject:', googleSubject.substring(0, 8) + '...');
@@ -238,7 +291,7 @@ export async function findAuthorizationBySubject(googleSubject: string): Promise
     if (!auth) {
       console.error('[AUTH_STORE] Subject index corrupted, authorization not found:', authId);
       // Clean up corrupted index
-      await client.del(`${AUTH_SUBJECT_PREFIX}${googleSubject}`);
+      await client.del(namespacedKey(`${AUTH_SUBJECT_PREFIX}${googleSubject}`));
       return null;
     }
 
@@ -333,7 +386,7 @@ export async function upsertAuthorization(
         const client = getRedisClient();
         const result = await client.eval(
           luaScript,
-          [`${AUTH_PREFIX}${existingAuth.id}`],
+          [namespacedKey(`${AUTH_PREFIX}${existingAuth.id}`)],
           [JSON.stringify(existingAuth), AUTH_TTL_SECONDS.toString()]
         );
 
@@ -468,7 +521,7 @@ async function createNewAuthorizationWithAtomicSubject(
 
   const result = await client.eval(
     luaScript,
-    [`${AUTH_PREFIX}${id}`, `${AUTH_SUBJECT_PREFIX}${googleSubject}`],
+    [namespacedKey(`${AUTH_PREFIX}${id}`), namespacedKey(`${AUTH_SUBJECT_PREFIX}${googleSubject}`)],
     [JSON.stringify(auth), id, AUTH_TTL_SECONDS.toString()]
   );
 
@@ -559,7 +612,7 @@ export async function updateAuthorizationAfterRefresh(
     const client = getRedisClient();
     const result = await client.eval(
       luaScript,
-      [`${AUTH_PREFIX}${authId}`],
+      [namespacedKey(`${AUTH_PREFIX}${authId}`)],
       [JSON.stringify(updatedAuth), AUTH_TTL_SECONDS.toString()]
     );
 
@@ -630,7 +683,7 @@ export async function revokeAuthorization(id: string): Promise<void> {
 
     const result = await client.eval(
       luaScript,
-      [`drive:auth:${id}`, `${AUTH_SUBJECT_PREFIX}${auth.googleSubject}`],
+      [namespacedKey(`drive:auth:${id}`), namespacedKey(`${AUTH_SUBJECT_PREFIX}${auth.googleSubject}`)],
       [AUTH_TTL_SECONDS.toString()]
     );
 
@@ -717,8 +770,8 @@ export async function revokeAuthorizationWithSessions(id: string): Promise<void>
 
     const result = await client.eval(
       luaScript,
-      [`drive:auth:${id}`, `${AUTH_SUBJECT_PREFIX}${auth.googleSubject}`, `drive:auth:sessions:${id}`],
-      [`drive:session:`, AUTH_TTL_SECONDS.toString()]
+      [namespacedKey(`drive:auth:${id}`), namespacedKey(`${AUTH_SUBJECT_PREFIX}${auth.googleSubject}`), namespacedKey(`drive:auth:sessions:${id}`)],
+      [namespacedKey(`drive:session:`), AUTH_TTL_SECONDS.toString()]
     );
 
     const revokedCount = result as number;
@@ -741,11 +794,11 @@ export async function deleteAuthorization(id: string): Promise<void> {
     const auth = await getAuthorization(id);
     if (auth) {
       const client = getRedisClient();
-      await client.del(`${AUTH_PREFIX}${id}`);
-      await client.del(`${AUTH_SUBJECT_PREFIX}${auth.googleSubject}`);
+      await client.del(namespacedKey(`${AUTH_PREFIX}${id}`));
+      await client.del(namespacedKey(`${AUTH_SUBJECT_PREFIX}${auth.googleSubject}`));
 
       // Clean up session index
-      await client.del(`drive:auth:sessions:${id}`);
+      await client.del(namespacedKey(`drive:auth:sessions:${id}`));
 
       console.log('[AUTH_STORE] Authorization deleted:', id);
     }
@@ -859,7 +912,7 @@ export async function updateLastUsed(authId: string): Promise<void> {
 
     const result = await client.eval(
       luaScript,
-      [`${AUTH_PREFIX}${authId}`],
+      [namespacedKey(`${AUTH_PREFIX}${authId}`)],
       [now, AUTH_TTL_SECONDS.toString()]
     );
 

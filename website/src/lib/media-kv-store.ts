@@ -11,9 +11,62 @@ import crypto from 'crypto';
 import type { Media } from '@/types/media';
 import { verifyBlobHash } from '@/lib/blob-storage';
 
+/**
+ * P1-9: KV environment isolation
+ * Each environment (production, preview, development, test) has a distinct namespace
+ * to prevent cross-environment data access and isolation violations.
+ */
+type Environment = 'production' | 'preview' | 'development' | 'test';
+
+function getEnvironment(): Environment {
+  const vercelEnv = process.env.VERCEL_ENV;
+  const nodeEnv = process.env.NODE_ENV;
+  
+  // Vercel production
+  if (vercelEnv === 'production') {
+    return 'production';
+  }
+  
+  // Vercel preview
+  if (vercelEnv === 'preview') {
+    return 'preview';
+  }
+  
+  // Local development
+  if (nodeEnv === 'development') {
+    return 'development';
+  }
+  
+  // Test environment
+  if (nodeEnv === 'test') {
+    return 'test';
+  }
+  
+  // Default to development for safety
+  return 'development';
+}
+
+/**
+ * Get KV namespace prefix for current environment
+ * This ensures isolation between production, preview, development, and test
+ */
+function getKvNamespace(): string {
+  const env = getEnvironment();
+  return `hpp:${env}:`;
+}
+
+/**
+ * Apply namespace prefix to KV key
+ * Prevents cross-environment key collisions
+ */
+function namespacedKey(key: string): string {
+  const namespace = getKvNamespace();
+  return `${namespace}${key}`;
+}
+
 let redis: Redis | null = null;
 
-// KV key prefixes
+// KV key prefixes (P1-9: Environment isolation applied)
 const MEDIA_PREFIX = 'media:';
 const CONTENT_HASH_PREFIX = 'content_hash:';
 
@@ -143,7 +196,7 @@ export async function getMedia(id: string): Promise<Media | null> {
       return null;
     }
     
-    const data = await client.get(`media:${id}`);
+    const data = await client.get(namespacedKey(`media:${id}`));
     
     if (!data) {
       return null;
@@ -187,7 +240,7 @@ export async function getMediaRecordRaw(id: string): Promise<Media | null> {
       return null;
     }
     
-    const data = await client.get(`media:${id}`);
+    const data = await client.get(namespacedKey(`media:${id}`));
     
     if (!data) {
       return null;
@@ -227,12 +280,13 @@ export async function listMediaIds(): Promise<string[]> {
     let cursor = '0';
     
     do {
-      const result = await client.scan(cursor, { match: `${MEDIA_PREFIX}*`, count: 100 });
+      const result = await client.scan(cursor, { match: namespacedKey(`${MEDIA_PREFIX}*`), count: 100 });
       cursor = result[0];
       keys.push(...result[1]);
     } while (cursor !== '0');
     
-    return keys.map(key => key.replace(MEDIA_PREFIX, ''));
+    const namespace = getKvNamespace();
+    return keys.map(key => key.replace(namespace + MEDIA_PREFIX, ''));
   } catch (error) {
     console.error('[MEDIA_KV] Failed to list media IDs:', error);
     throw new Error(`Failed to list media IDs: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -281,7 +335,7 @@ export async function saveMedia(media: Media): Promise<void> {
     
     await client.eval(
       saveScript,
-      [`${MEDIA_PREFIX}${media.id}`, `${CONTENT_HASH_PREFIX}${media.contentHash || ''}`],
+      [namespacedKey(`${MEDIA_PREFIX}${media.id}`), namespacedKey(`${CONTENT_HASH_PREFIX}${media.contentHash || ''}`)],
       [media.id, media.contentHash || '', JSON.stringify(media)]
     );
   } catch (error) {
@@ -306,6 +360,7 @@ export async function deleteMedia(id: string): Promise<void> {
     // Use atomic Lua script to delete media record and index together
     const deleteScript = `
       local mediaKey = KEYS[1]
+      local contentHashPrefix = KEYS[2]
       
       -- Get current media record to extract content hash
       local mediaJson = redis.call('GET', mediaKey)
@@ -323,7 +378,7 @@ export async function deleteMedia(id: string): Promise<void> {
       
       -- Delete content hash index if content hash was present
       if contentHash and contentHash ~= '' then
-        local actualContentHashKey = 'content_hash:' .. contentHash
+        local actualContentHashKey = contentHashPrefix .. contentHash
         redis.call('DEL', actualContentHashKey)
       end
       
@@ -332,7 +387,7 @@ export async function deleteMedia(id: string): Promise<void> {
     
     await client.eval(
       deleteScript,
-      [`${MEDIA_PREFIX}${id}`],
+      [namespacedKey(`${MEDIA_PREFIX}${id}`), namespacedKey(CONTENT_HASH_PREFIX)],
       []
     );
   } catch (error) {
@@ -359,7 +414,7 @@ export async function findMediaByContentHash(contentHash: string): Promise<Media
     }
     
     // O(1) lookup via content hash index
-    const mediaId = await client.get(`${CONTENT_HASH_PREFIX}${contentHash}`);
+    const mediaId = await client.get(namespacedKey(`${CONTENT_HASH_PREFIX}${contentHash}`));
     
     if (!mediaId) {
       return null;
