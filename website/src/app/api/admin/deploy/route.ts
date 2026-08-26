@@ -876,6 +876,7 @@ export async function POST(request: Request) {
       const { getMedia } = await import('@/lib/media-kv-store');
       const mediaIdsInStatic = new Set(mediaData.media.map((m: any) => m.id));
       let mediaRecordsMerged = 0;
+      const mergeFailures: { mediaId: string; reason: string }[] = [];
 
       for (const mediaId of mediaIdsToVerify) {
         // Skip if already in static media.v1.json
@@ -887,13 +888,15 @@ export async function POST(request: Request) {
           // Fetch from KV
           const kvMedia = await getMedia(mediaId);
           if (!kvMedia) {
-            console.warn('[DEPLOY API] MEDIA_NOT_IN_KV', { mediaId, reason: 'Skipping merge - not found in KV' });
+            console.error('[DEPLOY API] MEDIA_NOT_IN_KV', { mediaId, reason: 'Merge failed - not found in KV' });
+            mergeFailures.push({ mediaId, reason: 'Media ID not found in KV' });
             continue;
           }
 
           // Verify it's a PublishedMediaAsset (should already be verified by completeness check)
           if (kvMedia.lifecycleState !== 'published') {
-            console.warn('[DEPLOY API] MEDIA_NOT_PUBLISHED', { mediaId, lifecycleState: kvMedia.lifecycleState, reason: 'Skipping merge - not published' });
+            console.error('[DEPLOY API] MEDIA_NOT_PUBLISHED', { mediaId, lifecycleState: kvMedia.lifecycleState, reason: 'Merge failed - not published' });
+            mergeFailures.push({ mediaId, reason: `Media lifecycleState is ${kvMedia.lifecycleState}, not published` });
             continue;
           }
 
@@ -908,8 +911,39 @@ export async function POST(request: Request) {
             mediaId,
             error: error instanceof Error ? error.message : 'Unknown error',
           });
-          // Continue with other media IDs - don't fail entire deployment for merge errors
+          mergeFailures.push({ mediaId, reason: `KV fetch error: ${error instanceof Error ? error.message : 'Unknown error'}` });
         }
+      }
+
+      // FAIL-CLOSED: Reject deployment if any media merge failed
+      // This prevents split-brain where services.v1.json references IDs not in media.v1.json
+      if (mergeFailures.length > 0) {
+        console.error('[DEPLOY API] DEPLOYMENT_REJECTED_MEDIA_MERGE_FAILURES', {
+          deploymentTransactionId,
+          failureCount: mergeFailures.length,
+          mergeFailures,
+        });
+
+        // MARK TRANSACTION AS FAILED
+        if (transaction) {
+          await failDeploymentTransaction(
+            deploymentTransactionId,
+            `Deployment rejected: ${mergeFailures.length} media records failed to merge from KV into media.v1.json`
+          );
+        }
+
+        return NextResponse.json(
+          {
+            error: "Deployment rejected: Media merge failures",
+            message: `${mergeFailures.length} media records could not be merged from KV into media.v1.json. This would create split-brain state where services.v1.json references media IDs not present in media.v1.json.`,
+            mergeFailures,
+            forensic: {
+              deploymentTransactionId,
+              failureCount: mergeFailures.length,
+            },
+          },
+          { status: 400 }
+        );
       }
 
       if (mediaRecordsMerged > 0) {
