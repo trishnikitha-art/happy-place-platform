@@ -26,6 +26,7 @@ import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import { hasMaterializationShape, hasRealContentHash } from '@/lib/media-contracts';
 
 interface ReconciliationReport {
   dryRun: boolean;
@@ -54,15 +55,6 @@ function getRedisClient(): Redis | null {
   } catch {
     return null;
   }
-}
-
-function computeSyntheticHash(canonicalId: string): string {
-  return crypto.createHash('sha256').update(canonicalId).digest('hex');
-}
-
-function isSyntheticContentHash(canonicalId: string, actualContentHash: string): boolean {
-  const syntheticHash = computeSyntheticHash(canonicalId);
-  return actualContentHash === syntheticHash;
 }
 
 export async function POST(request: Request) {
@@ -161,7 +153,7 @@ export async function POST(request: Request) {
           console.log('[MEDIA_RECONCILE] PRESERVED_DRIVE_REFERENCE', { requestId, mediaId });
         } else if (media.lifecycleState === 'published' && media.source === 'local') {
           // PublishedMediaAsset - check for synthetic hash
-          if (media.contentHash && isSyntheticContentHash(mediaId, media.contentHash)) {
+          if (media.contentHash && !hasRealContentHash(media)) {
             report.syntheticRecords++;
             report.removedRecords.push(mediaId);
             console.log('[MEDIA_RECONCILE] DETECTED_SYNTHETIC', { requestId, mediaId, contentHash: media.contentHash });
@@ -176,8 +168,7 @@ export async function POST(request: Request) {
             if (canonical) {
               // P0 FIX: Verify canonical static record is materially complete before using it
               // Do not replace runtime record with incomplete static authority
-              const { isMediaMaterializationComplete } = await import('@/app/api/drive/ingest/route');
-              const isCanonicalComplete = isMediaMaterializationComplete(canonical);
+              const isCanonicalComplete = hasMaterializationShape(canonical) && hasRealContentHash(canonical);
 
               if (!isCanonicalComplete) {
                 console.error('[MEDIA_RECONCILE] CANONICAL_INCOMPLETE - DANGEROUS REPLACEMENT BLOCKED', {

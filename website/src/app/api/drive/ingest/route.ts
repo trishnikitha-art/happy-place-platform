@@ -29,6 +29,7 @@ import { storeMedia, findMediaByContentHash, getMedia, getMediaRecordRaw } from 
 import crypto from 'crypto';
 import type { Media, MediaRole } from '@/types/media';
 import { RESPONSIVE_WIDTHS, THUMBNAIL_WIDTH, THUMBNAIL_QUALITY, WEBP_QUALITY, AVIF_QUALITY } from '@/lib/media-constants';
+import { hasMaterializationShape, hasRealContentHash } from '@/lib/media-contracts';
 
 /**
  * Assignment reconciliation result
@@ -253,123 +254,28 @@ interface IngestRequest {
 }
 
 /**
- * P0 FIX: Authoritative contract for media materialization completeness
- * Exported for use by verification endpoints
+ * Materialization completeness check for Drive ingest context
  *
- * A PublishedMediaAsset is considered complete ONLY when it has:
- * - Actual source bytes (contentHash from real bytes, not synthetic)
- * - Original/master stored in Blob
- * - Thumbnail
- * - Blur placeholder
- * - Responsive WebP at every required width
- * - Responsive AVIF at every required width
- * - Valid public URLs for all renditions
- * - Blob metadata/proof
- * - source: 'local'
- * - lifecycleState: 'published'
- * - No Drive dependency in the public asset
- * 
- * This is the NON-NEGOTIABLE contract for media readiness.
- * Any asset failing this check must be re-materialized.
+ * This checks shape + real content hash (no Blob proof since Blob upload happens during ingest).
+ * Used to determine if an existing asset needs re-materialization.
+ *
+ * For public presentation, use isPubliclyComplete from media-contracts.ts instead.
  */
 function isMediaMaterializationComplete(media: Media): boolean {
-  // Must be a PublishedMediaAsset
-  if (media.lifecycleState !== 'published' || media.source !== 'local') {
-    console.log('[MATERIALIZATION_CHECK] FAILED: Not a PublishedMediaAsset', {
-      mediaId: media.id,
-      lifecycleState: media.lifecycleState,
-      source: media.source,
-    });
+  const hasShape = hasMaterializationShape(media);
+  const hasRealHash = hasRealContentHash(media);
+
+  if (!hasShape) {
+    console.log('[MATERIALIZATION_CHECK] FAILED: Missing required shape', { mediaId: media.id });
     return false;
   }
 
-  // Must have content hash (and it must not be synthetic)
-  if (!media.contentHash) {
-    console.log('[MATERIALIZATION_CHECK] FAILED: Missing content hash', { mediaId: media.id });
+  if (!hasRealHash) {
+    console.log('[MATERIALIZATION_CHECK] FAILED: Synthetic content hash', { mediaId: media.id });
     return false;
   }
 
-  // Check for synthetic content identity
-  const syntheticHash = crypto.createHash('sha256').update(media.id).digest('hex');
-  if (media.contentHash === syntheticHash) {
-    console.log('[MATERIALIZATION_CHECK] FAILED: Synthetic content identity', {
-      mediaId: media.id,
-      contentHash: media.contentHash,
-    });
-    return false;
-  }
-
-  // Must have variants
-  if (!media.variants) {
-    console.log('[MATERIALIZATION_CHECK] FAILED: Missing variants', { mediaId: media.id });
-    return false;
-  }
-
-  // Must have original
-  if (!media.variants.original) {
-    console.log('[MATERIALIZATION_CHECK] FAILED: Missing original', { mediaId: media.id });
-    return false;
-  }
-
-  // Must have thumbnail
-  if (!media.variants.thumbnail) {
-    console.log('[MATERIALIZATION_CHECK] FAILED: Missing thumbnail', { mediaId: media.id });
-    return false;
-  }
-
-  // Must have blur
-  if (!media.variants.blur) {
-    console.log('[MATERIALIZATION_CHECK] FAILED: Missing blur', { mediaId: media.id });
-    return false;
-  }
-
-  // Must have responsive variants
-  if (!media.variants.responsive || !Array.isArray(media.variants.responsive)) {
-    console.log('[MATERIALIZATION_CHECK] FAILED: Missing or invalid responsive variants', {
-      mediaId: media.id,
-      responsive: media.variants.responsive,
-    });
-    return false;
-  }
-
-  // Must have WebP and AVIF at every required width
-  const imageWidth = media.dimensions?.width || 1920;
-  const requiredWidths = RESPONSIVE_WIDTHS.filter(w => w <= imageWidth);
-
-  for (const width of requiredWidths) {
-    const responsiveEntry = media.variants.responsive.find(r => r.width === width);
-    if (!responsiveEntry) {
-      console.log('[MATERIALIZATION_CHECK] FAILED: Missing responsive entry for width', {
-        mediaId: media.id,
-        width,
-      });
-      return false;
-    }
-
-    if (!responsiveEntry.webp) {
-      console.log('[MATERIALIZATION_CHECK] FAILED: Missing WebP for width', {
-        mediaId: media.id,
-        width,
-      });
-      return false;
-    }
-
-    if (!responsiveEntry.avif) {
-      console.log('[MATERIALIZATION_CHECK] FAILED: Missing AVIF for width', {
-        mediaId: media.id,
-        width,
-      });
-      return false;
-    }
-  }
-
-  // Must not have Drive dependency
-  if (media.drive) {
-    console.log('[MATERIALIZATION_CHECK] FAILED: Has Drive dependency', { mediaId: media.id });
-    return false;
-  }
-
-  console.log('[MATERIALIZATION_CHECK] PASSED: Media is complete', { mediaId: media.id });
+  console.log('[MATERIALIZATION_CHECK] PASSED: Media has correct shape and real hash', { mediaId: media.id });
   return true;
 }
 

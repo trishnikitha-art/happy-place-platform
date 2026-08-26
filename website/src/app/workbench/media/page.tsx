@@ -434,9 +434,9 @@ export default function MediaWorkbench() {
           if (existingAsset) {
             console.log('[DND] DRIVE_ALREADY_MATERIALIZED', { requestId, assetId: existingAsset.id });
 
-            // P0 FIX: Verify existing asset is materially complete before using it
-            // If it's incomplete (missing renditions, synthetic hash, etc.), re-materialize it
-            const isComplete = await verifyMediaMaterializationComplete(existingAsset.id);
+            // P0 FIX: Verify existing asset is publicly complete before using it
+            // If it's incomplete (missing renditions, synthetic hash, no Blob proof), re-materialize it
+            const isComplete = await verifyMediaPublicComplete(existingAsset.id);
             if (!isComplete) {
               console.log('[DND] DRIVE_ASSET_INCOMPLETE - RE-MATERIALIZING', {
                 requestId,
@@ -1357,10 +1357,11 @@ Check browser console for detailed logs.`);
   };
 
   /**
-   * P0 FIX: Verify media materialization completeness before using an asset
-   * Calls an API endpoint that uses the authoritative completeness check
+   * P0 FIX: Verify media public completeness before using an asset
+   * Calls an API endpoint that uses the authoritative public completeness contract
+   * (shape + real hash + Blob proof)
    */
-  const verifyMediaMaterializationComplete = async (mediaId: string): Promise<boolean> => {
+  const verifyMediaPublicComplete = async (mediaId: string): Promise<boolean> => {
     try {
       const response = await fetch(`/api/admin/media/verify-complete?mediaId=${encodeURIComponent(mediaId)}`);
       if (response.ok) {

@@ -786,7 +786,7 @@ export async function POST(request: Request) {
       });
 
       // Import the completeness check function
-      const { isMediaMaterializationComplete } = await import('@/app/api/drive/ingest/route');
+      const { isPubliclyComplete } = await import('@/lib/media-contracts');
       const { getMediaByIdAsync } = await import('@/lib/media');
 
       const incompleteMediaIds: string[] = [];
@@ -800,7 +800,7 @@ export async function POST(request: Request) {
             continue;
           }
 
-          const isComplete = isMediaMaterializationComplete(media);
+          const isComplete = await isPubliclyComplete(media);
           if (!isComplete) {
             console.error('[DEPLOY API] MEDIA_INCOMPLETE', {
               deploymentTransactionId,
