@@ -17,6 +17,7 @@ export async function GET() {
     google_client_id: !!process.env.GOOGLE_CLIENT_ID,
     google_client_secret: !!process.env.GOOGLE_CLIENT_SECRET,
     google_redirect_uri: !!process.env.GOOGLE_REDIRECT_URI,
+    workbench_password: !!process.env.WORKBENCH_PASSWORD,
     vercel_env: process.env.VERCEL_ENV || 'unknown',
     node_env: process.env.NODE_ENV || 'unknown',
   };
