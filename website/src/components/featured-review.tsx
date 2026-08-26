@@ -3,6 +3,7 @@ import Link from "next/link";
 import { StarRating } from "@/components/star-rating";
 import type { Review } from "@/types/reviews";
 import { getProjectById } from "@/lib/projects";
+import type { Project } from "@/types/projects";
 
 interface FeaturedReviewProps {
   review: Review;

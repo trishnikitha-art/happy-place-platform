@@ -41,7 +41,7 @@ export function getAllProjects(): Project[] {
 export async function getProjectWithResolvedMedia(project: Project): Promise<Project> {
   const resolveMedia = async (mediaId: string | undefined): Promise<Media | undefined> => {
     if (!mediaId) return undefined;
-    return await resolvePublicMedia(mediaId);
+    return await resolvePublicMedia(mediaId) || undefined;
   };
 
   const resolveMediaArray = async (mediaIds: string[]): Promise<Media[]> => {

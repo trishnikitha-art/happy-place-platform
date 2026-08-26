@@ -300,7 +300,7 @@ describe('Fail-Closed Semantics Distinction', () => {
       // Legacy fallback must be prevented:
       // - No fallback to legacy media resolution
       // - No fallback to legacy assignment resolution
-      - No fallback to legacy Drive reference
+      // - No fallback to legacy Drive reference
       // - Fail closed instead
       
       const legacyFallbackPrevention = {

@@ -207,6 +207,25 @@ export class WorkbenchSession {
   }
 
   /**
+   * Get session identity for authorization purposes
+   * Returns session identity information for Drive/Drive object authorization
+   */
+  async getSessionIdentity(): Promise<{ sessionId: string; authenticated: boolean; email?: string } | null> {
+    const credentials = await this.getCredentials();
+    
+    if (!credentials || !credentials.authenticated) {
+      return null;
+    }
+    
+    return {
+      sessionId: credentials.sessionId,
+      authenticated: credentials.authenticated,
+      // Workbench sessions don't have email, this is for Drive authorization context
+      // Drive authorization uses googleSubject from Drive session
+    };
+  }
+
+  /**
    * Set opaque session ID in cookie (server-side data in Redis)
    */
   private async setSessionCookie(sessionId: string): Promise<void> {

@@ -169,7 +169,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                               page="OurWork"
                               section="Recent Projects"
                               slotName={`${project.title} Project Card`}
-                              currentMediaId={heroMediaId || null}
+                              currentMediaId={heroMedia?.id || null}
                               component="ProjectCard"
                             >
                               <Image

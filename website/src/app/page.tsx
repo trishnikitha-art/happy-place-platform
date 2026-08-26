@@ -98,7 +98,7 @@ export default async function HomePage() {
   
   // Load runtime assignments for service cards on server side (avoids client-side Redis access)
   // During static build, KV may be unavailable - fall back to static configuration
-  const serviceCardAssignments = new Map<string, { mediaId: string; mediaObject: Media | null }>();
+  const serviceCardAssignments = new Map<string, { mediaId: string | null; mediaObject: Media | null }>();
   for (const service of homepageServices) {
     try {
       const assignment = await getServiceCardAssignment(service.slug);
@@ -130,8 +130,8 @@ export default async function HomePage() {
           // P0 FIX: No static fallback - fail closed to prevent authority bypass
           // Static configuration cannot resurrect rejected runtime assignments
           serviceCardAssignments.set(service.slug, {
-            mediaId: service.cardMediaId,
-            mediaObject: null, // No image if runtime assignment rejected
+            mediaId: null, // No image if runtime assignment rejected
+            mediaObject: null,
           });
         }
       }
@@ -143,8 +143,8 @@ export default async function HomePage() {
         error: error instanceof Error ? error.message : 'Unknown error'
       });
       serviceCardAssignments.set(service.slug, {
-        mediaId: service.cardMediaId,
-        mediaObject: null, // No image if KV unavailable
+        mediaId: null, // No image if KV unavailable
+        mediaObject: null,
       });
     }
   }
@@ -317,7 +317,7 @@ export default async function HomePage() {
                       page="Homepage"
                       section="Featured Projects"
                       slotName={`${project.title} Featured Project`}
-                      currentMediaId={heroMediaId || null}
+                      currentMediaId={heroMedia?.id || null}
                       component="ProjectCard"
                     >
                       <img

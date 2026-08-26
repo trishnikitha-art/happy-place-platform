@@ -322,109 +322,6 @@ export async function POST(request: Request) {
     );
   }
 
-  // CRITICAL: Authentication bypass is DANGEROUS and should only be used with explicit consent
-  // This bypass requires both NODE_ENV=development AND explicit DRIVE_AUTH_BYPASS=true
-  const authBypassEnabled = process.env.NODE_ENV === 'development' && process.env.DRIVE_AUTH_BYPASS === 'true';
-  
-  if (authBypassEnabled) {
-    console.warn('[DRIVE INGEST API] AUTHENTICATION BYPASS ENABLED - DEVELOPMENT ONLY');
-  } else {
-    // Check Drive authentication
-    const isDriveAuthenticated = await driveSession.isAuthenticated();
-    if (!isDriveAuthenticated) {
-      return NextResponse.json(
-        { 
-          success: false,
-          error: 'DRIVE_AUTH_REQUIRED', 
-          stage: 'AUTH', 
-          message: 'Drive authentication required', 
-          retryable: false,
-          requestId,
-        },
-        { status: 401 }
-      );
-    }
-
-    // Check Workbench authentication
-    const isWorkbenchAuthenticated = await workbenchSession.isAuthenticated();
-    if (!isWorkbenchAuthenticated) {
-      return NextResponse.json(
-        { 
-          success: error: 'WORKBENCH_AUTH_REQUIRED', 
-          stage: 'AUTH', 
-          message: 'Workbench authentication required', 
-          retryable: false,
-          requestId,
-        },
-        { status: 401 }
-      );
-    }
-
-    // P0 FIX: Application-level Drive object authorization
-    // Google OAuth authentication is NOT sufficient for HPP authorization
-    // Must verify: session identity → HPP authorization → Drive authorization → requested object → operation
-    const sessionIdentity = await workbenchSession.getSessionIdentity();
-    console.log('[DRIVE_AUTHORIZATION] SESSION_IDENTITY_VERIFIED', {
-      requestId,
-      sessionEmail: sessionIdentity?.email,
-      operation: 'ingest',
-      driveId,
-    });
-    
-    // Verify the Drive file is accessible to the authenticated session
-    // This prevents IDOR where an authorized user could access arbitrary Drive IDs
-    // even if Google technically permits the object
-    try {
-      const driveClient = await driveSession.getDriveClient();
-      const fileMetadata = await driveClient.files.get({
-        fileId: driveId,
-        fields: 'id,name,owners,permissions,shared',
-        supportsAllDrives: true,
-      });
-      
-      if (!fileMetadata.data) {
-        console.error('[DRIVE_AUTHORIZATION] FILE_NOT_ACCESSIBLE', {
-          requestId,
-          driveId,
-          reason: 'Drive file not accessible to authenticated session'
-        });
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'DRIVE_FILE_NOT_AUTHORIZED',
-            stage: 'DRIVE_AUTHORIZATION',
-            message: 'Drive file is not accessible to the authenticated session',
-            requestId,
-          },
-          { status: 403 }
-        );
-      }
-      
-      console.log('[DRIVE_AUTHORIZATION] FILE_ACCESS_VERIFIED', {
-        requestId,
-        driveId,
-        fileName: fileMetadata.data.name,
-        isShared: fileMetadata.data.shared,
-      });
-    } catch (driveError) {
-      console.error('[DRIVE_AUTHORIZATION] FILE_VERIFICATION_FAILED', {
-        requestId,
-        driveId,
-        error: driveError instanceof Error ? driveError.message : 'Unknown error'
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'DRIVE_AUTHORIZATION_FAILED',
-          stage: 'DRIVE_AUTHORIZATION',
-          message: 'Failed to verify Drive file authorization',
-          requestId,
-        },
-        { status: 403 }
-      );
-    }
-  }
-
   try {
     const body: IngestRequest = await request.json();
     const { driveId, driveIdParameter, projectId, roles = ['gallery'] } = body;
@@ -452,6 +349,109 @@ export async function POST(request: Request) {
         },
         { status: 400 }
       );
+    }
+
+    // CRITICAL: Authentication bypass is DANGEROUS and should only be used with explicit consent
+    // This bypass requires both NODE_ENV=development AND explicit DRIVE_AUTH_BYPASS=true
+    const authBypassEnabled = process.env.NODE_ENV === 'development' && process.env.DRIVE_AUTH_BYPASS === 'true';
+    
+    if (authBypassEnabled) {
+      console.warn('[DRIVE INGEST API] AUTHENTICATION BYPASS ENABLED - DEVELOPMENT ONLY');
+    } else {
+      // Check Drive authentication
+      const isDriveAuthenticated = await driveSession.isAuthenticated();
+      if (!isDriveAuthenticated) {
+        return NextResponse.json(
+          { 
+            success: false,
+            error: 'DRIVE_AUTH_REQUIRED', 
+            stage: 'AUTH', 
+            message: 'Drive authentication required', 
+            retryable: false,
+            requestId,
+          },
+          { status: 401 }
+        );
+      }
+
+      // Check Workbench authentication
+      const isWorkbenchAuthenticated = await workbenchSession.isAuthenticated();
+      if (!isWorkbenchAuthenticated) {
+        return NextResponse.json(
+          { 
+            error: 'WORKBENCH_AUTH_REQUIRED', 
+            stage: 'AUTH', 
+            message: 'Workbench authentication required', 
+            retryable: false,
+            requestId,
+          },
+          { status: 401 }
+        );
+      }
+
+      // P0 FIX: Application-level Drive object authorization
+      // Google OAuth authentication is NOT sufficient for HPP authorization
+      // Must verify: session identity → HPP authorization → Drive authorization → requested object → operation
+      const sessionIdentity = await workbenchSession.getSessionIdentity();
+      console.log('[DRIVE_AUTHORIZATION] SESSION_IDENTITY_VERIFIED', {
+        requestId,
+        sessionEmail: sessionIdentity?.email,
+        operation: 'ingest',
+        driveId,
+      });
+      
+      // Verify the Drive file is accessible to the authenticated session
+      // This prevents IDOR where an authorized user could access arbitrary Drive IDs
+      // even if Google technically permits the object
+      try {
+        const driveClient = await driveSession.getDriveClient();
+        const fileMetadata = await driveClient.files.get({
+          fileId: driveId,
+          fields: 'id,name,owners,permissions,shared',
+          supportsAllDrives: true,
+        });
+        
+        if (!fileMetadata.data) {
+          console.error('[DRIVE_AUTHORIZATION] FILE_NOT_ACCESSIBLE', {
+            requestId,
+            driveId,
+            reason: 'Drive file not accessible to authenticated session'
+          });
+          return NextResponse.json(
+            {
+              success: false,
+              error: 'DRIVE_FILE_NOT_AUTHORIZED',
+              stage: 'DRIVE_AUTHORIZATION',
+              message: 'Drive file is not accessible to the authenticated session',
+              requestId,
+            },
+            { status: 403 }
+          );
+        }
+        
+        console.log('[DRIVE_AUTHORIZATION] FILE_ACCESS_VERIFIED', {
+          requestId,
+          driveId,
+          fileName: fileMetadata.data.name,
+          isShared: fileMetadata.data.shared,
+        });
+      } catch (driveError) {
+        console.error('[DRIVE_AUTHORIZATION] FILE_VERIFICATION_FAILED', {
+          requestId,
+          driveId,
+          error: driveError instanceof Error ? driveError.message : 'Unknown error'
+        });
+        return NextResponse.json(
+          {
+            success: false,
+            error: 'DRIVE_AUTHORIZATION_FAILED',
+            stage: 'DRIVE_AUTHORIZATION',
+            message: 'Failed to verify Drive file authorization',
+            requestId,
+          },
+          { status: 403 }
+        );
+      }
     }
 
     // 1. Get Drive file metadata

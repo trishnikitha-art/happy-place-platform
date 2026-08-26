@@ -99,18 +99,6 @@ export async function getAllServicesWithAssignments(): Promise<Service[]> {
 
         // P0 FIX: No static fallback - return service without cardMediaId if no runtime assignment
         return service;
-              serviceSlug: service.slug,
-              mediaId: service.cardMediaId
-            });
-            // Return service with null mediaId to render nothing
-            return {
-              ...service,
-              cardMediaId: null,
-            };
-          }
-        }
-
-        return service;
       })
     );
 

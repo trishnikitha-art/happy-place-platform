@@ -8,6 +8,7 @@ import { CraftCard } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { Review } from "@/types/reviews";
 import { getProjectById } from "@/lib/projects";
+import type { Project } from "@/types/projects";
 
 interface ReviewCardProps {
   review: Review;

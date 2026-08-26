@@ -74,7 +74,7 @@ export function ProjectSpotlight({
               page="ProjectDetail"
               section="Hero"
               slotName={`${project.title} Hero`}
-              currentMediaId={heroMediaId || null}
+              currentMediaId={heroMedia?.id || null}
               component="ProjectSpotlight"
             >
               <Image
@@ -169,7 +169,7 @@ export function ProjectSpotlight({
           page="ProjectDetail"
           section="Hero"
           slotName={`${project.title} Hero`}
-          currentMediaId={heroMediaId || null}
+          currentMediaId={heroMedia?.id || null}
           component="ProjectSpotlight"
         >
           <Image
