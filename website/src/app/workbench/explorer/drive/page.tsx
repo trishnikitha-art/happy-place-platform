@@ -16,6 +16,7 @@ interface DriveExplorerState {
   loading: boolean;
   error: string | null;
   currentFolderId: string;
+  activeDriveId: string | null; // Track active Shared Drive ID
   breadcrumb: { id: string; name: string }[];
   items: (DriveFolder | DriveFile)[];
   viewMode: 'grid' | 'list';
@@ -30,6 +31,7 @@ export default function DriveExplorerPage() {
     loading: true,
     error: null,
     currentFolderId: 'root',
+    activeDriveId: null, // Track active Shared Drive ID
     breadcrumb: [{ id: 'root', name: 'My Drive' }],
     items: [],
     viewMode: 'grid',
@@ -54,11 +56,29 @@ export default function DriveExplorerPage() {
 
       const structure = await response.json();
 
-      // Start at My Drive root
-      if (structure.myDrive) {
+      // Display available Shared Drives
+      if (structure.sharedDrives && structure.sharedDrives.length > 0) {
+        console.log('[DRIVE_EXPLORER] Shared Drives discovered:', structure.sharedDrives);
+        // Show Shared Drives as top-level items (user can select to enter one)
+        setState(prev => ({
+          ...prev,
+          items: structure.sharedDrives.map((drive: any) => ({
+            id: drive.id,
+            name: drive.name,
+            mimeType: 'application/vnd.google-apps.folder',
+            type: 'folder',
+            isFolder: true,
+            isSharedDrive: true,
+            driveId: drive.id,
+          } as DriveFolder)),
+          loading: false,
+        }));
+      } else if (structure.myDrive) {
+        // Start at My Drive root
         setState(prev => ({
           ...prev,
           currentFolderId: structure.myDrive.id,
+          activeDriveId: null, // My Drive has no active driveId
           breadcrumb: [{ id: structure.myDrive.id, name: structure.myDrive.name }],
         }));
         await loadChildren(structure.myDrive.id);
@@ -79,10 +99,15 @@ export default function DriveExplorerPage() {
     }
   };
 
-  const loadChildren = async (folderId: string, pageToken?: string) => {
+  const loadChildren = async (folderId: string, pageToken?: string, driveId?: string | null) => {
     try {
       const params = new URLSearchParams({ folderId });
       if (pageToken) params.set('pageToken', pageToken);
+      // Pass activeDriveId if in Shared Drive context (either from parameter or state)
+      const contextDriveId = driveId || state.activeDriveId;
+      if (contextDriveId) {
+        params.set('driveId', contextDriveId);
+      }
 
       const response = await fetch(`/api/drive/files?${params}`);
       if (!response.ok) {
@@ -110,35 +135,68 @@ export default function DriveExplorerPage() {
   };
 
   const navigateToFolder = async (folder: DriveFolder) => {
-    setState(prev => ({
-      ...prev,
-      currentFolderId: folder.id,
-      breadcrumb: [...prev.breadcrumb, { id: folder.id, name: folder.name }],
-      items: [],
-      nextPageToken: undefined,
-      loading: true,
-    }));
-    await loadChildren(folder.id);
+    // Handle Shared Drive selection
+    if ((folder as any).isSharedDrive) {
+      const sharedDriveId = (folder as any).driveId;
+      console.log('[DRIVE_EXPLORER] Entering Shared Drive:', { sharedDriveId, name: folder.name });
+      setState(prev => ({
+        ...prev,
+        currentFolderId: folder.id, // Shared Drive root ID
+        activeDriveId: sharedDriveId, // Set active Shared Drive ID
+        breadcrumb: [{ id: folder.id, name: folder.name }], // Reset breadcrumbs
+        items: [],
+        nextPageToken: undefined,
+        loading: true,
+      }));
+      await loadChildren(folder.id, undefined, sharedDriveId || undefined);
+    } else {
+      // Regular folder navigation - preserve activeDriveId
+      setState(prev => ({
+        ...prev,
+        currentFolderId: folder.id,
+        breadcrumb: [...prev.breadcrumb, { id: folder.id, name: folder.name }],
+        items: [],
+        nextPageToken: undefined,
+        loading: true,
+      }));
+      await loadChildren(folder.id, undefined, state.activeDriveId || undefined);
+    }
   };
 
   const navigateUp = (index: number) => {
     const newBreadcrumb = state.breadcrumb.slice(0, index + 1);
     const target = newBreadcrumb[newBreadcrumb.length - 1];
-    setState(prev => ({
-      ...prev,
-      currentFolderId: target.id,
-      breadcrumb: newBreadcrumb,
-      items: [],
-      nextPageToken: undefined,
-      loading: true,
-    }));
-    loadChildren(target.id);
+    
+    // If navigating back to root (My Drive or Shared Drive root), clear or preserve driveId
+    if (newBreadcrumb.length === 1) {
+      const isSharedDriveRoot = target.id === state.activeDriveId;
+      setState(prev => ({
+        ...prev,
+        currentFolderId: target.id,
+        activeDriveId: isSharedDriveRoot ? state.activeDriveId : null, // Preserve Shared Drive ID at root
+        breadcrumb: newBreadcrumb,
+        items: [],
+        nextPageToken: undefined,
+        loading: true,
+      }));
+      loadChildren(target.id, undefined, isSharedDriveRoot ? state.activeDriveId || undefined : undefined);
+    } else {
+      setState(prev => ({
+        ...prev,
+        currentFolderId: target.id,
+        breadcrumb: newBreadcrumb,
+        items: [],
+        nextPageToken: undefined,
+        loading: true,
+      }));
+      loadChildren(target.id, undefined, state.activeDriveId || undefined);
+    }
   };
 
   const loadMore = () => {
     if (state.nextPageToken && !state.loadingMore) {
       setState(prev => ({ ...prev, loadingMore: true }));
-      loadChildren(state.currentFolderId, state.nextPageToken);
+      loadChildren(state.currentFolderId, state.nextPageToken, state.activeDriveId || undefined);
     }
   };
 
@@ -146,14 +204,72 @@ export default function DriveExplorerPage() {
     setState(prev => ({ ...prev, selectedFile: file }));
   };
 
+  const handleSearch = async () => {
+    if (!state.searchQuery.trim()) {
+      // If search cleared, reload current folder
+      await loadChildren(state.currentFolderId, undefined, state.activeDriveId);
+      return;
+    }
+
+    try {
+      setState(prev => ({ ...prev, loading: true, error: null }));
+
+      const params = new URLSearchParams({ query: state.searchQuery });
+      // Include driveId for Shared Drive search scoping
+      if (state.activeDriveId) {
+        params.set('driveId', state.activeDriveId);
+      }
+
+      const response = await fetch(`/api/drive/search?${params}`);
+      if (!response.ok) {
+        throw new Error('Search failed');
+      }
+
+      const result = await response.json();
+
+      setState(prev => ({
+        ...prev,
+        items: result.items || [],
+        loading: false,
+      }));
+    } catch (err) {
+      console.error('Search failed:', err);
+      setState(prev => ({
+        ...prev,
+        error: 'Search failed',
+        loading: false,
+      }));
+    }
+  };
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (state.searchQuery.trim()) {
+        handleSearch();
+      }
+    }, 500);
+
+    return () => clearTimeout(timer);
+  }, [state.searchQuery, state.activeDriveId]);
+
   const useDriveAsset = async () => {
     if (!state.selectedFile) return;
 
     try {
+      const requestBody: { fileId: string; sharedDriveId?: string } = {
+        fileId: state.selectedFile.id,
+      };
+      
+      // Include sharedDriveId if in Shared Drive context
+      if (state.activeDriveId) {
+        requestBody.sharedDriveId = state.activeDriveId;
+      }
+
       const response = await fetch('/api/drive/reference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ driveId: state.selectedFile.id }),
+        body: JSON.stringify(requestBody),
       });
 
       const data = await response.json();
@@ -189,6 +305,28 @@ export default function DriveExplorerPage() {
 
       {/* Toolbar */}
       <div className="flex items-center gap-4 mb-6">
+        {/* My Drive button */}
+        {state.activeDriveId && (
+          <button
+            onClick={() => {
+              console.log('[DRIVE_EXPLORER] Switching to My Drive');
+              setState(prev => ({
+                ...prev,
+                currentFolderId: 'root',
+                activeDriveId: null,
+                breadcrumb: [{ id: 'root', name: 'My Drive' }],
+                items: [],
+                nextPageToken: undefined,
+                loading: true,
+              }));
+              loadDriveStructure();
+            }}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            My Drive
+          </button>
+        )}
+
         {/* Search */}
         <div className="flex-1 relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -196,7 +334,7 @@ export default function DriveExplorerPage() {
             type="text"
             value={state.searchQuery}
             onChange={(e) => setState(prev => ({ ...prev, searchQuery: e.target.value }))}
-            placeholder="Search files and folders..."
+            placeholder={state.activeDriveId ? `Search in Shared Drive...` : "Search files and folders..."}
             className="w-full pl-10 pr-4 py-2 bg-background border border-border rounded-lg"
           />
         </div>
@@ -273,7 +411,7 @@ export default function DriveExplorerPage() {
                     >
                       {file.thumbnailLink && file.mimeType?.startsWith('image/') ? (
                         <img
-                          src={`/api/drive/files/${file.id}/thumbnail`}
+                          src={state.activeDriveId ? `/api/drive/files/${file.id}/thumbnail?driveId=${state.activeDriveId}` : `/api/drive/files/${file.id}/thumbnail`}
                           alt={file.name}
                           className="w-full aspect-square object-cover rounded mb-2"
                         />
@@ -303,7 +441,7 @@ export default function DriveExplorerPage() {
                     >
                       {file.thumbnailLink && file.mimeType?.startsWith('image/') ? (
                         <img
-                          src={`/api/drive/files/${file.id}/thumbnail`}
+                          src={state.activeDriveId ? `/api/drive/files/${file.id}/thumbnail?driveId=${state.activeDriveId}` : `/api/drive/files/${file.id}/thumbnail`}
                           alt={file.name}
                           className="w-16 h-16 object-cover rounded"
                         />
