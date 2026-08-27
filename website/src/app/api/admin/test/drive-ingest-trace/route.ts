@@ -245,7 +245,15 @@ export async function GET(request: Request) {
         passed: 3 + (sharpAvailable ? 1 : 0) + (ingestResult?.success ? 1 : 0),
         failed: (!sharpAvailable ? 1 : 0) + (ingestResult && !ingestResult.success ? 1 : 0),
         testOnly: !ingestResult ? 1 : 0,
-      }
+      },
+      nextSteps: [
+        "Verify Blob objects exist at their URLs",
+        "Verify Blob metadata records exist in KV",
+        "Verify PublishedMediaAsset record exists in KV",
+        "Verify assignment can reference the media ID",
+        "Verify public media gate accepts the asset",
+        "Verify homepage/public resolution shows the photo",
+      ]
     };
 
     console.log('[DRIVE_INGEST_TRACE] TRACE_COMPLETE', { requestId, traceResult });
