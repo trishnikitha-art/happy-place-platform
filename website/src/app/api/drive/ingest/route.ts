@@ -603,22 +603,39 @@ export async function POST(request: Request) {
         sharpAvailable,
         sharpType: typeof sharp,
       });
+      
+      // Distinguish between "not a valid image" and "image format not supported by Sharp"
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const isFormatError = errorMessage.includes('Unsupported') || 
+                           errorMessage.includes('input buffer') ||
+                           errorMessage.includes('VipsJpeg') ||
+                           errorMessage.includes('VipsPng') ||
+                           errorMessage.includes('VipsWebP') ||
+                           errorMessage.includes('VipsAvif') ||
+                           errorMessage.includes('VipsHeif') ||
+                           errorMessage.includes('VipsTiff') ||
+                           errorMessage.includes('unknown');
+      
       return NextResponse.json(
         {
           success: false,
-          error: 'IMAGE_VALIDATION_FAILED',
+          error: isFormatError ? 'UNSUPPORTED_IMAGE_FORMAT' : 'IMAGE_VALIDATION_FAILED',
           stage: 'IMAGE_VALIDATION',
-          message: 'The selected file is not a valid image or is corrupted.',
+          message: isFormatError 
+            ? 'The selected file is an image format that cannot be processed by the current image decoder.'
+            : 'The selected file is not a valid image or is corrupted.',
           retryable: false,
-          details: error instanceof Error ? error.message : 'Unknown error',
+          details: errorMessage,
           requestId,
           forensic: {
             sharpAvailable,
             sharpType: typeof sharp,
             bufferSize: fileBuffer.length,
+            mimeType: driveFile.mimeType,
+            sharpFormat: metadata.format,
           },
         },
-        { status: 400 }
+        { status: isFormatError ? 415 : 400 }
       );
     }
 
