@@ -8,15 +8,19 @@
  * - For one-time migration from static file authority to KV authority
  * - Must be run with explicit admin authorization
  * 
+ * P0 FIX: Bootstrap now triggers rematerialization for local source files
+ * Static media.v1.json has local /images/ paths but no Blob objects
+ * Bootstrap now rematerializes from source bytes → Blob → KV authority
+ * This ensures constitutional proof chain is established before KV population
+ * 
  * TEST ID: kv-media-bootstrap
  * 
  * POST /api/admin/diagnostic/bootstrap-kv-media
  * 
  * Performs:
  * - Load media.v1.json (CONFIGURED)
- * - Iterate through all media records
- * - For each record: check if in KV, if not write to KV (EXECUTED)
- * - Verify records were written (POSTCONDITION_VERIFIED)
+ * - For each record: if not in KV, rematerialize from source (public/images) → Blob → KV (EXECUTED)
+ * - Verify records were written with proper Blob authority (POSTCONDITION_VERIFIED)
  * - Return evidence of bootstrap operation (PROVEN)
  * 
  * This is a one-time migration operation to populate KV with existing media records.
@@ -26,6 +30,12 @@
 import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
 import { loadMediaManifest } from "@/lib/media";
+import { saveMedia, getMediaRecordRaw } from "@/lib/media-kv-store";
+import { readFileSync, existsSync, readdirSync } from 'fs';
+import { join } from 'path';
+import crypto from 'crypto';
+import sharp from 'sharp';
+import { uploadToBlob, getBlobMetadataByContentHash } from '@/lib/blob-storage';
 
 interface EvidenceResult {
   testId: string;
@@ -99,6 +109,7 @@ export async function POST() {
     
     let bootstrapped = 0;
     let skipped = 0;
+    let rematerialized = 0;
     let failed = 0;
     const errors: Record<string, string> = {};
     
@@ -117,12 +128,80 @@ export async function POST() {
           continue;
         }
         
-        // Write to KV
-        await saveMedia(media);
-        bootstrapped++;
-        console.log('[KV_MEDIA_BOOTSTRAP_EVIDENCE] BOOTSTRAPPED', { 
+        // Rematerialize from source bytes
+        // Static media.v1.json has local /images/ paths but no Blob objects
+        // We need to establish the constitutional proof chain: source → Blob → KV
+        console.log('[KV_MEDIA_BOOTSTRAP_EVIDENCE] REMATERIALIZING_FROM_SOURCE', { 
           testId, 
-          mediaId: media.id 
+          mediaId: media.id,
+          filename: media.filename,
+          staticVariant: media.variants?.original
+        });
+        
+        // Check if source file exists in public/images
+        const sourcePath = join(process.cwd(), 'public', media.variants?.original || '');
+        if (!existsSync(sourcePath)) {
+          failed++;
+          errors[media.id] = `Source file not found: ${sourcePath}`;
+          console.error('[KV_MEDIA_BOOTSTRAP_EVIDENCE] SOURCE_FILE_NOT_FOUND', {
+            testId,
+            mediaId: media.id,
+            sourcePath,
+          });
+          continue;
+        }
+        
+        // Read source bytes
+        const sourceBytes = readFileSync(sourcePath);
+        const contentHash = crypto.createHash('sha256').update(sourceBytes).digest('hex');
+        
+        console.log('[KV_MEDIA_BOOTSTRAP_EVIDENCE] SOURCE_BYTES_READ', {
+          testId,
+          mediaId: media.id,
+          contentHash,
+          sourcePath,
+          byteSize: sourceBytes.length,
+        });
+        
+        // Upload to Blob
+        const { uploadToBlob } = await import('@/lib/blob-storage');
+        const originalExt = media.filename.split('.').pop() || 'webp';
+        const blobUpload = await uploadToBlob(sourceBytes, `${media.id}-original.${originalExt}`, `image/${originalExt}`);
+        
+        console.log('[KV_MEDIA_BOOTSTRAP_EVIDENCE] BLOB_UPLOAD_COMPLETE', {
+          testId,
+          mediaId: media.id,
+          blobUrl: blobUpload.url,
+          uploadedAt: blobUpload.uploadedAt,
+        });
+        
+        // Generate thumbnail
+        const image = sharp(sourceBytes);
+        const thumbBuffer = await image.resize(480).webp({ quality: 70 }).toBuffer();
+        const thumbUpload = await uploadToBlob(thumbBuffer, `${media.id}-thumb.webp`, 'image/webp');
+        
+        // Update media record with Blob URLs
+        const updatedMedia = {
+          ...media,
+          contentHash,
+          variants: {
+            ...media.variants,
+            original: blobUpload.url,
+            web: blobUpload.url,
+            webp: blobUpload.url,
+            thumbnail: thumbUpload.url,
+          },
+        };
+        
+        // Write to KV
+        await saveMedia(updatedMedia);
+        bootstrapped++;
+        rematerialized++;
+        console.log('[KV_MEDIA_BOOTSTRAP_EVIDENCE] BOOTSTRAPPED_WITH_BLOB_AUTHORITY', { 
+          testId, 
+          mediaId: media.id,
+          blobUrl: blobUpload.url,
+          thumbUrl: thumbUpload.url
         });
         
       } catch (error) {
@@ -220,6 +299,7 @@ export async function POST() {
         totalMediaCount: manifest.media.length,
         bootstrapped,
         skipped,
+        rematerialized,
         failed,
         verificationRate,
         verified,

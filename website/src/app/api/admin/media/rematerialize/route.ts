@@ -57,7 +57,72 @@ interface RematerializationRequest {
 }
 
 /**
- * Check if source bytes exist in photo-intake
+ * Check if source bytes exist in public/images (production variant of photo-intake)
+ */
+function hasSourceBytesInPublicImages(filename: string): boolean {
+  const publicPath = join(process.cwd(), 'public/images');
+  
+  // Simple recursive search for the filename
+  function searchDir(dir: string): boolean {
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.name === filename) {
+          return true;
+        }
+        if (entry.isDirectory()) {
+          if (searchDir(join(dir, entry.name))) {
+            return true;
+          }
+        }
+      }
+    } catch (error) {
+      // Skip directories we can't read
+    }
+    return false;
+  }
+  
+  return searchDir(publicPath);
+}
+
+/**
+ * Read source bytes from public/images (production variant of photo-intake)
+ */
+function readSourceBytesFromPublicImages(filename: string): Buffer | null {
+  const publicPath = join(process.cwd(), 'public/images');
+  
+  // Simple recursive search for the filename
+  function searchDir(dir: string): string | null {
+    try {
+      const entries = readdirSync(dir, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.name === filename) {
+          return join(dir, entry.name);
+        }
+        if (entry.isDirectory()) {
+          const found = searchDir(join(dir, entry.name));
+          if (found) return found;
+        }
+      }
+    } catch (error) {
+      // Skip directories we can't read
+    }
+    return null;
+  }
+  
+  const filePath = searchDir(publicPath);
+  if (!filePath) return null;
+  
+  try {
+    return readFileSync(filePath);
+  } catch (error) {
+    console.error('[REMATERIALIZATION] Failed to read source file:', filePath, error);
+    return null;
+  }
+}
+
+/**
+ * Check if source bytes exist in photo-intake (legacy support)
  */
 function hasSourceBytesInPhotoIntake(filename: string): boolean {
   const intakePath = join(process.cwd(), 'photo-intake');
@@ -86,7 +151,7 @@ function hasSourceBytesInPhotoIntake(filename: string): boolean {
 }
 
 /**
- * Read source bytes from photo-intake
+ * Read source bytes from photo-intake (legacy support)
  */
 function readSourceBytesFromPhotoIntake(filename: string): Buffer | null {
   const intakePath = join(process.cwd(), 'photo-intake');
@@ -229,11 +294,15 @@ async function rematerializeMediaRecord(
 
   // Resolve source bytes
   let sourceBytes: Buffer | null = null;
-  let sourceLocation: 'photo-intake' | 'drive' | 'none' = 'none';
+  let sourceLocation: 'public-images' | 'photo-intake' | 'drive' | 'none' = 'none';
   let driveSourceId: string | null = null; // Capture this for provenance preservation
 
-  // Try photo-intake first
-  if (hasSourceBytesInPhotoIntake(media.filename)) {
+  // Try public/images first (production variant of photo-intake)
+  if (hasSourceBytesInPublicImages(media.filename)) {
+    sourceBytes = readSourceBytesFromPublicImages(media.filename);
+    sourceLocation = 'public-images';
+    console.log('[REMATERIALIZATION] Source bytes found in public/images', { requestId, mediaId: media.filename });
+  } else if (hasSourceBytesInPhotoIntake(media.filename)) {
     sourceBytes = readSourceBytesFromPhotoIntake(media.filename);
     sourceLocation = 'photo-intake';
     console.log('[REMATERIALIZATION] Source bytes found in photo-intake', { requestId, mediaId: media.filename });
@@ -289,7 +358,7 @@ async function rematerializeMediaRecord(
         hasStaticDriveId: !!(staticRecord as any)?.driveId,
         hasStaticDriveFileId: !!staticRecord?.drive?.fileId,
       });
-      return { success: false, error: 'No source bytes available - neither photo-intake nor Drive provenance found' };
+      return { success: false, error: 'No source bytes available - neither public/images, photo-intake, nor Drive provenance found' };
     }
   }
 
