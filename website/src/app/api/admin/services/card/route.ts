@@ -190,7 +190,7 @@ export async function POST(request: Request) {
     // STAGE assignment in Redis for deployment (not direct to assignment store)
     // This prevents Redis/Git split-brain - promotion happens only after Git succeeds
     if (redis) {
-      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${serviceSlug}`;
+      const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${serviceSlug}`;
 
       await redis.set(stagingKey, mediaId);
 
@@ -214,74 +214,26 @@ export async function POST(request: Request) {
         transactionId: effectiveTransactionId
       });
     } else {
-      console.warn('[SERVICES CARD] REDIS_UNAVAILABLE - falling back to direct assignment store', {
+      // P0 FIX: Fail-closed when Redis is unavailable in production
+      // Prevents split-brain where UI accepts mutations but cannot stage them
+      console.error('[SERVICES CARD] REDIS_UNAVAILABLE - FAILING_CLOSED', {
         serviceSlug,
         mediaId,
         transactionId: effectiveTransactionId,
+        environment: process.env.NODE_ENV,
         reason: 'KV credentials not configured or Redis unavailable'
       });
+      
+      return NextResponse.json(
+        { 
+          error: "Redis unavailable", 
+          message: "Staging storage is unavailable. Cannot accept mutations without Redis staging.",
+          serviceSlug,
+          transactionId: effectiveTransactionId
+        },
+        { status: 503 }
+      );
     }
-
-    // CAS ENFORCEMENT: Read current assignment to obtain expected revision
-    const currentAssignment = await getServiceCardAssignment(serviceSlug);
-    const expectedRevision = currentAssignment?.revision;
-
-    console.log('[SERVICES CARD] CAS_READ', {
-      serviceSlug,
-      currentRevision: expectedRevision,
-      currentMediaId: currentAssignment?.mediaId,
-    });
-
-    // Store assignment in persistent store
-    const assignment = {
-      serviceSlug,
-      mediaId,
-      updatedAt: new Date().toISOString(),
-      source: 'workbench' as const,
-    };
-
-    await storeServiceCardAssignment(assignment, expectedRevision);
-
-    console.log('[DND SERVER 4] ASSIGNMENT_STORED', {
-      serviceSlug,
-      mediaId,
-    });
-
-    // CRITICAL: Also write to KV staging area for deployment API discovery
-    // Deployment API expects: hpp:{env}:workbench-staging:{txId}:service:{serviceSlug}
-    const stagingKey = getStagingKey(effectiveTransactionId);
-    const stagingRedis = getRedisClient();
-    if (stagingRedis) {
-      await stagingRedis.set(stagingKey, mediaId);
-      console.log('[SERVICES CARD] STAGING_AREA_WRITE', {
-        stagingKey,
-        mediaId,
-        transactionId: effectiveTransactionId
-      });
-    } else {
-      console.warn('[SERVICES CARD] REDIS_UNAVAILABLE - staging write skipped');
-    }
-
-    // Read back to verify
-    const storedAssignment = await getServiceCardAssignment(serviceSlug);
-    console.log('[DND SERVER 5] ASSIGNMENT_VERIFICATION', {
-      serviceSlug,
-      storedMediaId: storedAssignment?.mediaId,
-      matchesExpected: storedAssignment?.mediaId === mediaId,
-    });
-
-    console.log('[DND SERVER 6] RESPONSE', {
-      success: true,
-      serviceSlug,
-      mediaId,
-    });
-
-    return NextResponse.json({ 
-      success: true, 
-      serviceSlug, 
-      mediaId,
-      assignment 
-    });
   } catch (error) {
     console.error('[DND SERVER ERROR]', error);
     return NextResponse.json(

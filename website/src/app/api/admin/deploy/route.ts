@@ -147,6 +147,13 @@ export async function GET(request: Request) {
 
 const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
 
+// P0 FIX: Environment-isolated staging namespace
+// Prevents cross-environment contamination (production/preview/development)
+function getEnvironmentPrefix(): string {
+  const env = process.env.VERCEL_ENV || process.env.NODE_ENV || 'development';
+  return `hpp:${env}:`;
+}
+
 // GitHub API retry configuration
 const GITHUB_MAX_RETRIES = 3;
 const GITHUB_RETRY_DELAY_MS = 1000; // 1 second base delay
@@ -512,26 +519,27 @@ export async function POST(request: Request) {
       // Scan for all staging keys and group by transaction ID
       let cursor = '0';
       const transactionGroups = new Map<string, string[]>(); // transactionId -> keys
+      const envPrefix = getEnvironmentPrefix();
       
       do {
-        const result = await redis.scan(cursor, { match: `${WORKBENCH_STAGING_PREFIX}*`, count: 100 });
+        const result = await redis.scan(cursor, { match: `${envPrefix}${WORKBENCH_STAGING_PREFIX}*`, count: 100 });
         cursor = result[0];
         
         for (const key of result[1]) {
           // Parse key format: accept both transactional formats:
-          // - workbench-staging:{txId}:project:{projectId}:{field} (5 parts)
-          // - workbench-staging:{txId}:service:{serviceSlug} (4 parts)
+          // - hpp:{env}:workbench-staging:{txId}:project:{projectId}:{field} (6 parts)
+          // - hpp:{env}:workbench-staging:{txId}:service:{serviceSlug} (5 parts)
           const parts = key.split(':');
           
-          // MUST start with workbench-staging prefix
-          if (parts[0] !== 'workbench-staging') {
+          // MUST start with environment prefix and workbench-staging
+          if (parts[0] !== 'hpp' || parts[2] !== 'workbench-staging') {
             console.warn('[DEPLOY API] INVALID_STAGING_KEY_PREFIX', { key });
             continue;
           }
           
-          // Accept new transactional format (4 or 5 parts)
-          if (parts.length >= 4 && (parts[1].startsWith('WBDEP-') || parts[1].startsWith('tx-'))) {
-            const transactionId = parts[1];
+          // Accept new transactional format (5 or 6 parts with environment prefix)
+          if (parts.length >= 5 && (parts[3].startsWith('WBDEP-') || parts[3].startsWith('tx-'))) {
+            const transactionId = parts[3];
             if (!transactionGroups.has(transactionId)) {
               transactionGroups.set(transactionId, []);
             }
@@ -541,7 +549,7 @@ export async function POST(request: Request) {
           else {
             console.warn('[DEPLOY API] LEGACY_STAGING_KEY_SKIPPED', { 
               key, 
-              reason: 'Legacy format no longer supported. Use transactional format: workbench-staging:{txId}:project:{projectId}:{field} or workbench-staging:{txId}:service:{serviceSlug}'
+              reason: 'Legacy format no longer supported. Use transactional format: hpp:{env}:workbench-staging:{txId}:project:{projectId}:{field} or hpp:{env}:workbench-staging:{txId}:service:{serviceSlug}'
             });
           }
         }
@@ -588,8 +596,8 @@ export async function POST(request: Request) {
       const sortedTransactions = Array.from(filteredTransactionGroups.entries())
         .sort((a, b) => {
           // Try to get transaction metadata to determine order
-          const aMetaKey = `${WORKBENCH_STAGING_PREFIX}${a[0]}:meta`;
-          const bMetaKey = `${WORKBENCH_STAGING_PREFIX}${b[0]}:meta`;
+          const aMetaKey = `${envPrefix}${WORKBENCH_STAGING_PREFIX}${a[0]}:meta`;
+          const bMetaKey = `${envPrefix}${WORKBENCH_STAGING_PREFIX}${b[0]}:meta`;
           // Simplified: use transaction ID timestamp as ordering
           return a[0].localeCompare(b[0]);
         });
@@ -625,40 +633,43 @@ export async function POST(request: Request) {
           const value = await redis.get(key);
           if (!value) continue;
           
+          // Ensure value is a string
+          const stringValue = typeof value === 'string' ? value : String(value);
+          
           // Skip metadata keys (now deprecated - using deployment-transaction instead)
           if (key.endsWith(':meta')) continue;
           
-          // Parse key format
+          // Parse key format with environment prefix
           const parts = key.split(':');
-          if (parts.length < 4) continue;
+          if (parts.length < 5) continue; // Minimum: hpp:env:workbench-staging:txId:type
           
           let projectId: string;
           let field: string;
           let mutationType: string | null = null;
           
-          // New transactional format: workbench-staging:{txId}:project:{projectId}:{field}
-          if (parts.length >= 5 && (parts[1].startsWith('WBDEP-') || parts[1].startsWith('tx-')) && parts[2] === 'project') {
-            projectId = parts[3];
-            field = parts[4];
+          // New transactional format with environment: hpp:{env}:workbench-staging:{txId}:project:{projectId}:{field} (7 parts)
+          if (parts.length >= 7 && parts[2] === 'workbench-staging' && (parts[3].startsWith('WBDEP-') || parts[3].startsWith('tx-')) && parts[4] === 'project') {
+            projectId = parts[5];
+            field = parts[6];
             mutationType = 'project';
           } 
-          // New transactional format: workbench-staging:{txId}:service:{serviceSlug} (4 parts)
-          else if (parts.length >= 4 && (parts[1].startsWith('WBDEP-') || parts[1].startsWith('tx-')) && parts[2] === 'service') {
-            const serviceSlug = parts[3];
+          // New transactional format with environment: hpp:{env}:workbench-staging:{txId}:service:{serviceSlug} (6 parts)
+          else if (parts.length >= 6 && parts[2] === 'workbench-staging' && (parts[3].startsWith('WBDEP-') || parts[3].startsWith('tx-')) && parts[4] === 'service') {
+            const serviceSlug = parts[5];
             
             // Check if this is a brand assignment (brand-hero or brand-portrait)
             if (serviceSlug === 'brand-hero') {
-              brandData.homepageHero.mediaId = value;
+              brandData.homepageHero.mediaId = stringValue;
               console.log('[DEPLOY API] APPLIED_BRAND_HERO_ASSIGNMENT', { 
-                mediaId: value,
+                mediaId: stringValue,
                 transactionId 
               });
               appliedCount++; // P0 FIX: Count brand mutations toward mutation total
               continue;
             } else if (serviceSlug === 'brand-portrait') {
-              brandData.ownerPortrait.mediaId = value;
+              brandData.ownerPortrait.mediaId = stringValue;
               console.log('[DEPLOY API] APPLIED_BRAND_PORTRAIT_ASSIGNMENT', { 
-                mediaId: value,
+                mediaId: stringValue,
                 transactionId 
               });
               appliedCount++; // P0 FIX: Count brand mutations toward mutation total
@@ -668,10 +679,10 @@ export async function POST(request: Request) {
             // Regular service card assignment
             const serviceIndex = servicesData.services.findIndex((s: any) => s.slug === serviceSlug);
             if (serviceIndex !== -1) {
-              servicesData.services[serviceIndex].cardMediaId = value;
+              servicesData.services[serviceIndex].cardMediaId = stringValue;
               console.log('[DEPLOY API] APPLIED_SERVICE_ASSIGNMENT', { 
                 serviceSlug, 
-                mediaId: value,
+                mediaId: stringValue,
                 transactionId 
               });
               appliedCount++; // P0 FIX: Count service mutations toward mutation total
@@ -684,7 +695,7 @@ export async function POST(request: Request) {
               key, 
               transactionId,
               format: parts.join(':'),
-              reason: 'Legacy staging format no longer supported. Use transactional format: workbench-staging:{txId}:project:{projectId}:{field} or workbench-staging:{txId}:service:{serviceSlug}'
+              reason: 'Legacy staging format no longer supported. Use transactional format: hpp:{env}:workbench-staging:{txId}:project:{projectId}:{field} or hpp:{env}:workbench-staging:{txId}:service:{serviceSlug}'
             });
             continue; // Skip legacy keys
           }
@@ -750,50 +761,53 @@ export async function POST(request: Request) {
       // This prevents Redis/Git split-brain - only staged assignments are committed
       servicesData.generatedAt = new Date().toISOString();
 
-      // P0 FIX: Verify all media IDs are materially complete before deployment
-      // This prevents deploying assignments to incomplete/poisoned media assets
-      console.log('[DEPLOY API] VERIFYING_MEDIA_MATERIALIZATION', { deploymentTransactionId });
+      // P0 FIX: Transaction-scoped media verification
+      // Only verify media IDs that are part of THIS transaction's mutations
+      // Do NOT re-litigate existing production authority - that causes split-brain
+      console.log('[DEPLOY API] VERIFYING_TRANSACTION_MEDIA_MATERIALIZATION', { deploymentTransactionId });
 
       const mediaIdsToVerify = new Set<string>();
 
-      // Collect media IDs from service card assignments
-      servicesData.services.forEach((service: any) => {
-        if (service.cardMediaId) {
-          mediaIdsToVerify.add(service.cardMediaId);
-        }
-      });
+      // Collect ONLY media IDs from this transaction's staging mutations
+      // These are the new changes that need verification
+      for (const key of stagingKeys) {
+        const value = await redis.get(key);
+        if (!value) continue;
 
-      // Collect media IDs from brand assignments
-      if (brandData.homepageHero?.mediaId) {
-        mediaIdsToVerify.add(brandData.homepageHero.mediaId);
+        // Ensure value is a string
+        const stringValue = typeof value === 'string' ? value : String(value);
+
+        // Skip metadata keys
+        if (key.endsWith(':meta')) continue;
+
+        // Parse key format to extract media ID from value
+        const parts = key.split(':');
+        if (parts.length < 5) continue; // Minimum: hpp:env:workbench-staging:txId:type
+
+        // Service card assignments (6 parts): hpp:{env}:workbench-staging:{txId}:service:{serviceSlug}
+        if (parts.length >= 6 && parts[2] === 'workbench-staging' && parts[4] === 'service') {
+          const serviceSlug = parts[5];
+          // Only add if this is a media assignment (value is a media ID)
+          if (stringValue && stringValue.length > 10) { // Heuristic: media IDs are hashes > 10 chars
+            mediaIdsToVerify.add(stringValue);
+            console.log('[DEPLOY API] TRANSACTION_MEDIA_ID', { source: 'service', serviceSlug, mediaId: stringValue });
+          }
+        }
+        // Project assignments (7 parts): hpp:{env}:workbench-staging:{txId}:project:{projectId}:{field}
+        else if (parts.length >= 7 && parts[2] === 'workbench-staging' && parts[4] === 'project') {
+          const field = parts[6];
+          // Only add if this is a media assignment (value is a media ID)
+          if (stringValue && stringValue.length > 10) { // Heuristic: media IDs are hashes > 10 chars
+            mediaIdsToVerify.add(stringValue);
+            console.log('[DEPLOY API] TRANSACTION_MEDIA_ID', { source: 'project', field, mediaId: stringValue });
+          }
+        }
       }
-      if (brandData.ownerPortrait?.mediaId) {
-        mediaIdsToVerify.add(brandData.ownerPortrait.mediaId);
-      }
 
-      // Collect media IDs from project assignments
-      // P0 FIX: Use correct projects.v1.json schema (project.media.*)
-      // Schema: project.media.hero, project.media.before, project.media.after, project.media.gallery[]
-      projectsData.projects.forEach((project: any) => {
-        if (project.media?.hero) {
-          mediaIdsToVerify.add(project.media.hero);
-        }
-        if (project.media?.before) {
-          mediaIdsToVerify.add(project.media.before);
-        }
-        if (project.media?.after) {
-          mediaIdsToVerify.add(project.media.after);
-        }
-        if (project.media?.gallery && Array.isArray(project.media.gallery)) {
-          project.media.gallery.forEach((galleryId: string) => {
-            mediaIdsToVerify.add(galleryId);
-          });
-        }
-      });
-
-      console.log('[DEPLOY API] MEDIA_VERIFICATION_COUNT', {
+      console.log('[DEPLOY API] TRANSACTION_MEDIA_VERIFICATION_COUNT', {
         deploymentTransactionId,
-        mediaIdsCount: mediaIdsToVerify.size,
+        transactionMediaIdsCount: mediaIdsToVerify.size,
+        totalStagingKeys: stagingKeys.length,
       });
 
       // Import the completeness check function
