@@ -12,7 +12,7 @@
  */
 
 import { getMedia, getMediaRecordRaw, storeMedia, findMediaByContentHash } from './media-kv-store';
-import { verifyBlobHash, getBlobMetadataByContentHash } from './blob-storage';
+import { verifyBlobHash, verifyBlobExists, getBlobMetadataByContentHash } from './blob-storage';
 import { getAllServiceCardAssignments, storeServiceCardAssignment, getServiceCardAssignment } from './assignment-store';
 import type { Media } from '@/types/media';
 
@@ -150,6 +150,10 @@ export async function detectStaleAssignments(): Promise<{ serviceSlug: string; m
 /**
  * Repair incomplete KV record
  * Attempts to reconstruct KV record from Blob metadata
+ * 
+ * CRITICAL FIX: Must reconstruct ALL variant metadata, not just original
+ * Each variant (webp, avif, thumbnail, responsive) has its own content hash and Blob metadata
+ * Recovery must verify each variant's Blob exists and reconstruct the complete variants object
  */
 export async function repairIncompleteKvRecord(media: Media): Promise<boolean> {
   try {
@@ -158,37 +162,173 @@ export async function repairIncompleteKvRecord(media: Media): Promise<boolean> {
       return false;
     }
     
-    const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
-    if (!blobMetadata) {
-      console.error('[MATERIALIZATION_RECOVERY] Cannot repair: Blob metadata missing', { 
+    // Verify original Blob exists and is accessible
+    const originalBlobMetadata = await getBlobMetadataByContentHash(media.contentHash);
+    if (!originalBlobMetadata) {
+      console.error('[MATERIALIZATION_RECOVERY] Cannot repair: Original Blob metadata missing', { 
         mediaId: media.id,
         contentHash: media.contentHash 
       });
       return false;
     }
     
-    // Verify Blob hash matches content hash
-    const hashMatches = await verifyBlobHash(blobMetadata.url, media.contentHash);
-    if (!hashMatches) {
-      console.error('[MATERIALIZATION_RECOVERY] Cannot repair: Blob hash mismatch', {
+    // Verify original Blob hash matches content hash
+    const originalHashMatches = await verifyBlobHash(originalBlobMetadata.url, media.contentHash);
+    if (!originalHashMatches) {
+      console.error('[MATERIALIZATION_RECOVERY] Cannot repair: Original Blob hash mismatch', {
         mediaId: media.id,
         contentHash: media.contentHash,
-        blobUrl: blobMetadata.url,
+        blobUrl: originalBlobMetadata.url,
       });
       return false;
     }
     
-    // Repair the record by ensuring it has complete Blob metadata
+    // Reconstruct complete variants object with all renditions
+    // Start with existing variants as baseline
+    const repairedVariants = {
+      ...media.variants,
+      original: originalBlobMetadata.url || media.variants?.original,
+    };
+    
+    // Verify and repair thumbnail if present in record
+    if (media.variants?.thumbnail) {
+      // Extract content hash from thumbnail URL if it follows content-addressed pattern
+      // Or verify the existing thumbnail URL is accessible
+      try {
+        const thumbnailAccessible = await verifyBlobExists(media.variants.thumbnail);
+        if (!thumbnailAccessible) {
+          console.warn('[MATERIALIZATION_RECOVERY] Thumbnail Blob not accessible, clearing', {
+            mediaId: media.id,
+            thumbnailUrl: media.variants.thumbnail,
+          });
+          repairedVariants.thumbnail = originalBlobMetadata.url; // Fallback to original
+        }
+      } catch (error) {
+        console.warn('[MATERIALIZATION_RECOVERY] Thumbnail verification failed, using original as fallback', {
+          mediaId: media.id,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        repairedVariants.thumbnail = originalBlobMetadata.url;
+      }
+    }
+    
+    // Verify and repair webp variant if present
+    if (media.variants?.webp) {
+      try {
+        const webpAccessible = await verifyBlobExists(media.variants.webp);
+        if (!webpAccessible) {
+          console.warn('[MATERIALIZATION_RECOVERY] WebP Blob not accessible, clearing', {
+            mediaId: media.id,
+            webpUrl: media.variants.webp,
+          });
+          repairedVariants.webp = originalBlobMetadata.url; // Fallback to original
+        }
+      } catch (error) {
+        console.warn('[MATERIALIZATION_RECOVERY] WebP verification failed, using original as fallback', {
+          mediaId: media.id,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        repairedVariants.webp = originalBlobMetadata.url;
+      }
+    }
+    
+    // Verify and repair avif variant if present
+    if (media.variants?.avif) {
+      try {
+        const avifAccessible = await verifyBlobExists(media.variants.avif);
+        if (!avifAccessible) {
+          console.warn('[MATERIALIZATION_RECOVERY] AVIF Blob not accessible, clearing', {
+            mediaId: media.id,
+            avifUrl: media.variants.avif,
+          });
+          repairedVariants.avif = ''; // AVIF is optional, clear if not accessible
+        }
+      } catch (error) {
+        console.warn('[MATERIALIZATION_RECOVERY] AVIF verification failed, clearing (optional)', {
+          mediaId: media.id,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        repairedVariants.avif = '';
+      }
+    }
+    
+    // Verify and repair responsive variants if present
+    if (media.variants?.responsive && Array.isArray(media.variants.responsive)) {
+      const repairedResponsive: Array<{ width: number; webp: string; avif: string }> = [];
+      
+      for (const variant of media.variants.responsive) {
+        const repairedVariant = { width: variant.width, webp: '', avif: '' };
+        
+        // Verify webp at this width
+        if (variant.webp) {
+          try {
+            const webpAccessible = await verifyBlobExists(variant.webp);
+            if (webpAccessible) {
+              repairedVariant.webp = variant.webp;
+            } else {
+              console.warn('[MATERIALIZATION_RECOVERY] Responsive WebP not accessible, clearing', {
+                mediaId: media.id,
+                width: variant.width,
+                webpUrl: variant.webp,
+              });
+            }
+          } catch (error) {
+            console.warn('[MATERIALIZATION_RECOVERY] Responsive WebP verification failed', {
+              mediaId: media.id,
+              width: variant.width,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            });
+          }
+        }
+        
+        // Verify avif at this width
+        if (variant.avif) {
+          try {
+            const avifAccessible = await verifyBlobExists(variant.avif);
+            if (avifAccessible) {
+              repairedVariant.avif = variant.avif;
+            } else {
+              console.warn('[MATERIALIZATION_RECOVERY] Responsive AVIF not accessible, clearing', {
+                mediaId: media.id,
+                width: variant.width,
+                avifUrl: variant.avif,
+              });
+            }
+          } catch (error) {
+            console.warn('[MATERIALIZATION_RECOVERY] Responsive AVIF verification failed', {
+              mediaId: media.id,
+              width: variant.width,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            });
+          }
+        }
+        
+        // Only keep variant if at least webp is accessible
+        if (repairedVariant.webp) {
+          repairedResponsive.push(repairedVariant);
+        }
+      }
+      
+      repairedVariants.responsive = repairedResponsive;
+    }
+    
+    // Repair the record with complete variant metadata
     const repairedMedia: Media = {
       ...media,
-      variants: {
-        ...media.variants,
-        original: blobMetadata.url || media.variants?.original,
-      },
+      variants: repairedVariants,
     };
     
     await storeMedia(repairedMedia);
-    console.log('[MATERIALIZATION_RECOVERY] REPAIRED_KV_RECORD', { mediaId: media.id });
+    console.log('[MATERIALIZATION_RECOVERY] REPAIRED_KV_RECORD', { 
+      mediaId: media.id,
+      variantsRepaired: {
+        original: !!repairedVariants.original,
+        thumbnail: !!repairedVariants.thumbnail,
+        webp: !!repairedVariants.webp,
+        avif: !!repairedVariants.avif,
+        responsiveCount: repairedVariants.responsive?.length || 0,
+      }
+    });
     return true;
   } catch (error) {
     console.error('[MATERIALIZATION_RECOVERY] Failed to repair KV record:', error);
