@@ -38,7 +38,6 @@ export function ServiceCard({ service, runtimeCardMediaObject }: { service: Serv
     serviceSlug: service.slug,
     runtimeCardMediaId: runtimeCardMediaObject?.id ?? null,
     cardMediaFound: !!cardMedia,
-    cardMediaIdResolved: cardMedia?.id,
   });
 
   // Use provided cardMedia (already resolved through public media gate by server component)
@@ -55,16 +54,6 @@ export function ServiceCard({ service, runtimeCardMediaObject }: { service: Serv
         ? responsiveVariants[responsiveVariants.length - 1].webp 
         : (featuredMedia.variants?.web || featuredMedia.variants?.original))
     : null;
-
-  console.log('[FORENSIC] SERVICE_CARD_FINAL_IMAGE', {
-    renderRequestId,
-    serviceSlug: service.slug,
-    hasImage,
-    imageSrc,
-    hasResponsiveVariants,
-    selectedVariant: hasResponsiveVariants ? responsiveVariants[responsiveVariants.length - 1] : 'fallback',
-    mediaId: featuredMedia?.id,
-  });
 
   // Card text colors - always light register (cards are always light surfaces)
   const headingColor = "text-text";

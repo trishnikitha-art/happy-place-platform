@@ -6,6 +6,7 @@ import { CTASection } from "@/components/cta-section";
 import { Icon } from "@/components/icon";
 import { VisualSlot } from "@/components/visual-slot";
 import { getNonArchivedServices } from "@/lib/registries";
+import type { Media } from "@/types/media";
 
 export const metadata: Metadata = {
   title: "Services",
@@ -19,11 +20,27 @@ export const dynamic = 'force-dynamic';
 export default async function ServicesPage() {
   const services = getNonArchivedServices();
   
-  // P0 FIX: Resolve service card media on client-side to avoid static build collision with runtime authority
-  // Public media gate requires KV + Blob verification which cannot execute during static generation
-  const serviceCardAssignments = new Map<string, { mediaId: string | null }>();
+  // TEMPORARY: Use static media.v1.json for service cards until KV is bootstrapped
+  const serviceCardAssignments = new Map<string, { mediaId: string | null; mediaObject: Media | null }>();
   for (const service of services) {
-    serviceCardAssignments.set(service.slug, { mediaId: null });
+    try {
+      const { loadMediaManifest } = await import('@/lib/media');
+      const mediaManifest = loadMediaManifest();
+      const brandManifest = await import('@/lib/brand').then(m => m.loadBrandManifest());
+      const staticMediaId = brandManifest.homepageHero.mediaId;
+      if (staticMediaId) {
+        const staticMedia = mediaManifest.media.find(m => m.id === staticMediaId);
+        if (staticMedia && staticMedia.lifecycleState === 'published' && staticMedia.source === 'local') {
+          serviceCardAssignments.set(service.slug, {
+            mediaId: staticMediaId,
+            mediaObject: staticMedia,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('[SERVICES_PAGE] STATIC_MEDIA_LOAD_FAILED:', service.slug, error);
+      serviceCardAssignments.set(service.slug, { mediaId: null, mediaObject: null });
+    }
   }
   
   // Group services by category using a simple categorization
@@ -82,7 +99,7 @@ export default async function ServicesPage() {
                         currentMediaId={serviceCardAssignments.get(s.slug)?.mediaId || null}
                         component="ServiceCard"
                       >
-                        <ServiceCard service={s} runtimeCardMediaObject={null} />
+                        <ServiceCard service={s} runtimeCardMediaObject={serviceCardAssignments.get(s.slug)?.mediaObject || null} />
                       </VisualSlot>
                     </Link>
                   ))}

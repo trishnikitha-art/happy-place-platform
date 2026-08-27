@@ -100,6 +100,36 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
     console.error('[PUBLIC_READER] ASSIGNMENT_LOAD_FAILED - FAILING CLOSED', { requestId, error });
   }
 
+  // TEMPORARY FALLBACK: Try static media.v1.json if KV assignment failed
+  // This is temporary until KV is bootstrapped with media records
+  // Static media uses /images/ paths which bypass Blob authority
+  console.log('[PUBLIC_READER] TEMPORARY_FALLBACK_TO_STATIC', { requestId });
+  const staticMediaId = manifest.homepageHero.mediaId;
+  if (staticMediaId) {
+    try {
+      const { loadMediaManifest } = await import('@/lib/media');
+      const mediaManifest = loadMediaManifest();
+      const staticMedia = mediaManifest.media.find(m => m.id === staticMediaId);
+      
+      if (staticMedia && staticMedia.lifecycleState === 'published' && staticMedia.source === 'local') {
+        console.log('[PUBLIC_READER] TEMPORARY_STATIC_MEDIA_FOUND', { 
+          requestId, 
+          mediaId: staticMediaId,
+          lifecycleState: staticMedia.lifecycleState,
+          source: staticMedia.source,
+          note: 'Using static fallback until KV is bootstrapped'
+        });
+        return {
+          ...manifest.homepageHero,
+          mediaId: staticMediaId,
+          resolvedMedia: staticMedia,
+        };
+      }
+    } catch (error) {
+      console.error('[PUBLIC_READER] TEMPORARY_STATIC_MEDIA_LOAD_FAILED', { requestId, error });
+    }
+  }
+
   // P0 FIX: No static fallback - return null mediaId if no runtime assignment
   // This prevents authority bypass and resurrection of deleted/rejected media
   console.log('[PUBLIC_READER] NO_RUNTIME_ASSIGNMENT - RETURNING_NULL_MEDIAID', { requestId });
@@ -157,6 +187,35 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
     }
   } catch (error) {
     console.error('[BRAND] ASSIGNMENT_LOAD_FAILED - FAILING CLOSED', { requestId, error });
+  }
+
+  // TEMPORARY FALLBACK: Try static media.v1.json if KV assignment failed
+  // This is temporary until KV is bootstrapped with media records
+  console.log('[BRAND] TEMPORARY_FALLBACK_TO_STATIC', { requestId });
+  const staticMediaId = manifest.ownerPortrait.mediaId;
+  if (staticMediaId) {
+    try {
+      const { loadMediaManifest } = await import('@/lib/media');
+      const mediaManifest = loadMediaManifest();
+      const staticMedia = mediaManifest.media.find(m => m.id === staticMediaId);
+      
+      if (staticMedia && staticMedia.lifecycleState === 'published' && staticMedia.source === 'local') {
+        console.log('[BRAND] TEMPORARY_STATIC_MEDIA_FOUND', { 
+          requestId, 
+          mediaId: staticMediaId,
+          lifecycleState: staticMedia.lifecycleState,
+          source: staticMedia.source,
+          note: 'Using static fallback until KV is bootstrapped'
+        });
+        return {
+          ...manifest.ownerPortrait,
+          mediaId: staticMediaId,
+          resolvedMedia: staticMedia,
+        };
+      }
+    } catch (error) {
+      console.error('[BRAND] TEMPORARY_STATIC_MEDIA_LOAD_FAILED', { requestId, error });
+    }
   }
 
   // P0 FIX: No static fallback - return null mediaId if no runtime assignment
