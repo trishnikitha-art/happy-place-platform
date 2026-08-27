@@ -669,14 +669,27 @@ export async function POST(request: Request) {
           // Continue with variant generation to upgrade the existing record
           // Don't return early - fall through to variant generation logic below
         } else {
-          // CRITICAL: Run assignment reconciliation even for deduplicated media
+          // CRITICAL: Run assignment reconciliation for deduplicated media (optional, non-fatal)
           // This ensures DriveReference assignments are repaired when re-ingesting the same content
-          const reconciliationResult = await reconcileDriveAssignments(
-            existingMedia.id,
-            driveId, // Use authoritative Drive file ID for provenance reconciliation
-            contentHash,
-            requestId
-          );
+          // But materialization succeeds even if reconciliation fails
+          let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false };
+          if (driveId) {
+            try {
+              reconciliationResult = await reconcileDriveAssignments(
+                existingMedia.id,
+                driveId, // Use authoritative Drive file ID for provenance reconciliation
+                contentHash,
+                requestId
+              );
+            } catch (reconciliationError) {
+              console.warn('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION failed (non-fatal)', {
+                requestId,
+                mediaId: existingMedia.id,
+                error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
+                note: 'Materialization succeeded - reconciliation failure does not block authoritative media'
+              });
+            }
+          }
           
           return NextResponse.json({
             success: true,
@@ -687,6 +700,7 @@ export async function POST(request: Request) {
             deduplicationSource: 'kv',
             assignmentReconciled: reconciliationResult.reconciled,
             assignmentsUpdated: reconciliationResult.updated,
+            reconciliationNote: 'Assignment reconciliation is optional - media is authoritative regardless'
           });
         }
       } else {
@@ -1143,13 +1157,25 @@ export async function POST(request: Request) {
           mediaId: finalUpgradedMedia.id,
         });
         
-        // CRITICAL: Run assignment reconciliation after upgrade
-        const reconciliationResult = await reconcileDriveAssignments(
-          finalUpgradedMedia.id,
-          driveId, // Use authoritative Drive file ID for provenance reconciliation
-          contentHash,
-          requestId
-        );
+        // CRITICAL: Run assignment reconciliation after upgrade (optional, non-fatal)
+        let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false };
+        if (driveId) {
+          try {
+            reconciliationResult = await reconcileDriveAssignments(
+              finalUpgradedMedia.id,
+              driveId, // Use authoritative Drive file ID for provenance reconciliation
+              contentHash,
+              requestId
+            );
+          } catch (reconciliationError) {
+            console.warn('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION failed (non-fatal)', {
+              requestId,
+              mediaId: finalUpgradedMedia.id,
+              error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
+              note: 'Media upgrade succeeded - reconciliation failure does not block authoritative media'
+            });
+          }
+        }
         
         return NextResponse.json({
           success: true,
@@ -1160,6 +1186,7 @@ export async function POST(request: Request) {
           upgradeSource: 'responsive_variants',
           assignmentReconciled: reconciliationResult.reconciled,
           assignmentsUpdated: reconciliationResult.updated,
+          reconciliationNote: 'Assignment reconciliation is optional - media is authoritative regardless'
         });
       } else {
         // New media record or DriveReference (always create new PublishedMediaAsset)
@@ -1197,6 +1224,8 @@ export async function POST(request: Request) {
       // Trigger recovery to reconstruct KV record from Blob
       console.log('[MEDIA_INGEST] ATTEMPTING_KV_RECOVERY', { requestId, mediaId });
       
+      let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false };
+      
       try {
         const { repairIncompleteKvRecord } = await import('@/lib/materialization-recovery');
         const repaired = await repairIncompleteKvRecord(mediaRecord);
@@ -1204,6 +1233,25 @@ export async function POST(request: Request) {
         if (repaired) {
           console.log('[MEDIA_INGEST] KV_RECOVERY_SUCCEEDED', { requestId, mediaId });
           kvWriteSuccess = true;
+          
+          // Run reconciliation after recovery (optional, non-fatal)
+          if (driveId) {
+            try {
+              reconciliationResult = await reconcileDriveAssignments(
+                mediaId,
+                driveId,
+                contentHash,
+                requestId
+              );
+            } catch (reconciliationError) {
+              console.warn('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION failed (non-fatal)', {
+                requestId,
+                mediaId,
+                error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
+                note: 'Media recovery succeeded - reconciliation failure does not block authoritative media'
+              });
+            }
+          }
         } else {
           console.error('[MEDIA_INGEST] KV_RECOVERY_FAILED', { requestId, mediaId });
         }
@@ -1237,24 +1285,78 @@ export async function POST(request: Request) {
           { status: 500 }
         );
       }
+      
+      // KV write succeeded via recovery - run reconciliation (optional, non-fatal)
+      console.log('[MEDIA_INGEST] MEDIA_PERSIST stage succeeded (via recovery)', {
+        requestId,
+        mediaId,
+        recovery: true
+      });
+      
+      console.log('[MEDIA_INGEST] RESPONSE stage started', { requestId });
+      return NextResponse.json({
+        success: true,
+        action: 'created',
+        media: mediaRecord,
+        requestId,
+        idempotent: blobIdempotencyStats.newUploads === 0,
+        blobIdempotencyStats,
+        recovery: true,
+        assignmentReconciled: reconciliationResult.reconciled,
+        assignmentsUpdated: reconciliationResult.updated,
+      });
+    }
+    
+    // CRITICAL: Run assignment reconciliation (optional, non-fatal)
+    // New photos with no existing assignment should still become authoritative
+    console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION stage started', {
+      requestId,
+      mediaId,
+      driveId,
+      note: 'Reconciliation is optional - materialization succeeds even if no assignments exist'
+    });
+    
+    let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false };
+    if (driveId) {
+      try {
+        reconciliationResult = await reconcileDriveAssignments(
+          mediaId,
+          driveId, // Use authoritative Drive file ID for provenance reconciliation
+          contentHash,
+          requestId
+        );
+        console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION completed', {
+          requestId,
+          reconciled: reconciliationResult.reconciled,
+          updated: reconciliationResult.updated,
+          repaired: reconciliationResult.repaired,
+        });
+      } catch (reconciliationError) {
+        console.warn('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION failed (non-fatal)', {
+          requestId,
+          mediaId,
+          error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
+          note: 'Materialization succeeded - reconciliation failure does not block authoritative media creation'
+        });
+        reconciliationResult = {
+          reconciled: false,
+          updated: [],
+          repaired: false,
+          error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error'
+        };
+      }
+    } else {
+      console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION skipped', {
+        requestId,
+        mediaId,
+        reason: 'No driveId provided - cannot reconcile assignments'
+      });
     }
     
     console.log('[MEDIA_INGEST] MEDIA_PERSIST stage succeeded', {
       requestId,
       mediaId,
     });
-
-    // 10. Reconcile DriveReference assignments to PublishedMediaAsset assignments
-    // This is authoritative - if reconciliation fails, report it in the response
-    let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false };
-    if (driveId) {
-      reconciliationResult = await reconcileDriveAssignments(
-        mediaId,
-        driveId, // Use authoritative Drive file ID for provenance reconciliation
-        contentHash,
-        requestId
-      );
-    }
 
     console.log('[MEDIA_INGEST] RESPONSE stage started', { requestId });
     return NextResponse.json({
@@ -1268,20 +1370,20 @@ export async function POST(request: Request) {
       assignmentsUpdated: reconciliationResult.updated,
       reconciliationError: reconciliationResult.error,
     });
-  } catch (error) {
-    console.log('[MEDIA_INGEST_ERROR] unexpected error', { requestId });
-    console.error('[MEDIA_INGEST_ERROR]', error);
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'INGESTION_FAILED',
-        stage: 'unknown',
-        message: 'An unexpected error occurred during ingestion.',
-        retryable: false,
-        details: error instanceof Error ? error.message : 'Unknown error',
-        requestId,
-      },
-      { status: 500 }
-    );
-  }
+    } catch (error) {
+      console.log('[MEDIA_INGEST_ERROR] unexpected error', { requestId });
+      console.error('[MEDIA_INGEST_ERROR]', error);
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'INGESTION_FAILED',
+          stage: 'unknown',
+          message: 'An unexpected error occurred during ingestion.',
+          retryable: false,
+          details: error instanceof Error ? error.message : 'Unknown error',
+          requestId,
+        },
+        { status: 500 }
+      );
+    }
 }
