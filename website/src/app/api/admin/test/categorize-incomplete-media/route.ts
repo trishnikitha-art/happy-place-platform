@@ -8,12 +8,15 @@
  * - missing assignments → rebuild assignments through authoritative Workbench/deployment transaction path
  *
  * POST /api/admin/test/categorize-incomplete-media
+ *
+ * SECURITY: Requires Workbench authentication
  */
 
 import { NextResponse } from "next/server";
 import { detectIncompleteKvRecords } from "@/lib/materialization-recovery";
 import { getBlobMetadataByContentHash, verifyBlobExists } from "@/lib/blob-storage";
 import { getAllServiceCardAssignments } from "@/lib/assignment-store";
+import { workbenchSession } from "@/lib/workbench-session";
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -35,6 +38,24 @@ export async function POST(request: Request) {
   const requestId = `categorize-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   
   console.log('[MEDIA_CATEGORIZE] REQUEST_RECEIVED', { requestId });
+
+  // SECURITY: Require Workbench authentication
+  const isDevBypass = process.env.DRIVE_AUTH_BYPASS === 'true';
+  
+  if (process.env.NODE_ENV !== 'development' || !isDevBypass) {
+    const isAuthenticated = await workbenchSession.isAuthenticated();
+    if (!isAuthenticated) {
+      return NextResponse.json(
+        { error: "Unauthorized", message: "Workbench authentication required" },
+        { status: 401 }
+      );
+    }
+  } else {
+    console.warn('[MEDIA_CATEGORIZE] DEV_MODE_BYPASS_ACTIVE', { 
+      reason: 'DRIVE_AUTH_BYPASS=true',
+      securityNote: 'This bypass is for development only'
+    });
+  }
 
   try {
     // Detect incomplete records

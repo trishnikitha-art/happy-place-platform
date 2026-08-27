@@ -191,44 +191,48 @@ export async function repairIncompleteKvRecord(media: Media): Promise<boolean> {
     };
     
     // Verify and repair thumbnail if present in record
+    // CRITICAL: Do NOT fallback to original for missing thumbnail - that creates false completeness
+    // If thumbnail Blob is missing, clear the thumbnail field - the record remains incomplete
     if (media.variants?.thumbnail) {
-      // Extract content hash from thumbnail URL if it follows content-addressed pattern
-      // Or verify the existing thumbnail URL is accessible
       try {
         const thumbnailAccessible = await verifyBlobExists(media.variants.thumbnail);
         if (!thumbnailAccessible) {
-          console.warn('[MATERIALIZATION_RECOVERY] Thumbnail Blob not accessible, clearing', {
+          console.warn('[MATERIALIZATION_RECOVERY] Thumbnail Blob not accessible, clearing (record remains incomplete)', {
             mediaId: media.id,
             thumbnailUrl: media.variants.thumbnail,
+            reason: 'Thumbnail must be a separate thumbnail rendition, not original fallback'
           });
-          repairedVariants.thumbnail = originalBlobMetadata.url; // Fallback to original
+          repairedVariants.thumbnail = ''; // Clear - record remains incomplete without actual thumbnail
         }
       } catch (error) {
-        console.warn('[MATERIALIZATION_RECOVERY] Thumbnail verification failed, using original as fallback', {
+        console.warn('[MATERIALIZATION_RECOVERY] Thumbnail verification failed, clearing (record remains incomplete)', {
           mediaId: media.id,
           error: error instanceof Error ? error.message : 'Unknown error',
         });
-        repairedVariants.thumbnail = originalBlobMetadata.url;
+        repairedVariants.thumbnail = ''; // Clear - record remains incomplete
       }
     }
     
     // Verify and repair webp variant if present
+    // CRITICAL: Do NOT fallback to original for missing webp - that creates false completeness
+    // If webp Blob is missing, clear the webp field - the record remains incomplete
     if (media.variants?.webp) {
       try {
         const webpAccessible = await verifyBlobExists(media.variants.webp);
         if (!webpAccessible) {
-          console.warn('[MATERIALIZATION_RECOVERY] WebP Blob not accessible, clearing', {
+          console.warn('[MATERIALIZATION_RECOVERY] WebP Blob not accessible, clearing (record remains incomplete)', {
             mediaId: media.id,
             webpUrl: media.variants.webp,
+            reason: 'WebP must be a separate webp rendition, not original fallback'
           });
-          repairedVariants.webp = originalBlobMetadata.url; // Fallback to original
+          repairedVariants.webp = ''; // Clear - record remains incomplete without actual webp
         }
       } catch (error) {
-        console.warn('[MATERIALIZATION_RECOVERY] WebP verification failed, using original as fallback', {
+        console.warn('[MATERIALIZATION_RECOVERY] WebP verification failed, clearing (record remains incomplete)', {
           mediaId: media.id,
           error: error instanceof Error ? error.message : 'Unknown error',
         });
-        repairedVariants.webp = originalBlobMetadata.url;
+        repairedVariants.webp = ''; // Clear - record remains incomplete
       }
     }
     
