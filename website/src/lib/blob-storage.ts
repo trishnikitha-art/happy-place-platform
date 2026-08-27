@@ -15,6 +15,16 @@ import { put, head, del } from '@vercel/blob';
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 
+/**
+ * Verification result with distinct error types
+ * Distinguishes transport/auth failures from actual integrity failures
+ */
+export interface BlobHashVerificationResult {
+  success: boolean;
+  errorType?: 'BLOB_NOT_FOUND' | 'AUTH_FAILURE' | 'INTEGRITY_FAILURE' | 'TRANSPORT_ERROR';
+  actualHash?: string;
+}
+
 let redis: Redis | null = null;
 
 function getRedisClient(): Redis | null {
@@ -46,15 +56,55 @@ function getRedisClient(): Redis | null {
 }
 
 /**
+ * Verification result with distinct error types
+ * Distinguishes transport/auth failures from actual integrity failures
+ */
+export interface BlobHashVerificationResult {
+  success: boolean;
+  errorType?: 'BLOB_NOT_FOUND' | 'AUTH_FAILURE' | 'INTEGRITY_FAILURE' | 'TRANSPORT_ERROR';
+  actualHash?: string;
+}
+
+/**
  * Verify that a Blob's actual bytes match the expected content hash
  * This is real physical verification, not just metadata checking
+ * 
+ * P0 FIX: Use authenticated Blob access and distinguish error types
+ * - 404 = blob absent
+ * - 403 = verification transport/auth failure (not hash mismatch)
+ * - 200 + hash mismatch = actual integrity failure
+ * - 200 + hash match = proven
  */
 export async function verifyBlobHash(blobUrl: string, expectedContentHash: string): Promise<boolean> {
   try {
-    // Fetch the Blob to get actual bytes
-    const response = await fetch(blobUrl);
+    // Try to use Vercel Blob SDK's authenticated head() first to verify accessibility
+    // Extract filename from blobUrl for head() call
+    // blobUrl format: https://[region].blob.vercel-storage.com/[account]/[filename]
+    const url = new URL(blobUrl);
+    const pathname = url.pathname;
+    const filename = pathname.split('/').pop();
+    
+    if (!filename) {
+      console.error('[BLOB_STORAGE] Invalid blobUrl format', { blobUrl });
+      return false;
+    }
+
+    // Use authenticated head() to verify Blob exists and is accessible
+    const headResult = await head(filename);
+    
+    // Now fetch actual bytes for hash verification
+    // Use the authenticated URL from head result if available, otherwise use original
+    const fetchUrl = headResult.url || blobUrl;
+    
+    const response = await fetch(fetchUrl);
     if (!response.ok) {
-      console.error('[BLOB_STORAGE] Failed to fetch Blob for hash verification', { blobUrl, status: response.status });
+      if (response.status === 404) {
+        console.error('[BLOB_STORAGE] Blob not found', { blobUrl, filename });
+      } else if (response.status === 403) {
+        console.error('[BLOB_STORAGE] Blob auth/transport failure', { blobUrl, filename, status: 403 });
+      } else {
+        console.error('[BLOB_STORAGE] Blob fetch failed', { blobUrl, filename, status: response.status });
+      }
       return false;
     }
     
@@ -64,8 +114,9 @@ export async function verifyBlobHash(blobUrl: string, expectedContentHash: strin
     const matches = hash === expectedContentHash;
     
     if (!matches) {
-      console.error('[BLOB_STORAGE] Blob hash mismatch', {
+      console.error('[BLOB_STORAGE] Blob hash mismatch (integrity failure)', {
         blobUrl,
+        filename,
         expected: expectedContentHash,
         actual: hash,
       });
@@ -73,7 +124,18 @@ export async function verifyBlobHash(blobUrl: string, expectedContentHash: strin
     
     return matches;
   } catch (error) {
-    console.error('[BLOB_STORAGE] Error verifying Blob hash', { blobUrl, error });
+    // Handle Vercel Blob errors
+    if (error instanceof Error) {
+      if (error.message.includes('Blob not found') || error.message.includes('NotFoundError')) {
+        console.error('[BLOB_STORAGE] Blob not found (SDK error)', { blobUrl, error: error.message });
+      } else if (error.message.includes('Access denied') || error.message.includes('Unauthorized')) {
+        console.error('[BLOB_STORAGE] Blob auth failure (SDK error)', { blobUrl, error: error.message });
+      } else {
+        console.error('[BLOB_STORAGE] Blob verification error', { blobUrl, error: error.message });
+      }
+    } else {
+      console.error('[BLOB_STORAGE] Unknown error verifying Blob hash', { blobUrl, error });
+    }
     return false;
   }
 }

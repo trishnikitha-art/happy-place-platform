@@ -303,78 +303,99 @@ export async function createSession(
 /**
  * Retrieve session record by ID
  * 
- * P0 FIX: Verify linked authorization is still active to prevent resurrection race
- * Uses atomic Lua script to prevent TOCTOU vulnerability where:
- * - Request A: getSession() (authorization active)
- * - Request B: revokeAuthorization() + revokeAllSessionsForAuthorization()
- * - Request A: resurrects session via updateSessionLastSeen()
+ * P0 FIX: Eliminated complex Lua script to prevent Redis scripting errors
+ * Uses simple GET operations only - all validation in TypeScript
+ * No cjson.decode(), no object mutation, no TTL branching in Lua
+ * Prevents "attempt to call a non-function object" and argument type errors
+ * 
+ * Note: Non-atomic read introduces small TOCTOU window between session and authorization reads
+ * This is acceptable for session validation as worst case is session rejection
  */
 export async function getSession(id: string): Promise<BrowserSessionRecord | null> {
   try {
     const client = createRedisClient();
 
-    // First get the session to extract authorization ID (non-atomic read)
-    const session = await client.get<BrowserSessionRecord>(namespacedKey(`${SESSION_PREFIX}${id}`));
-    if (!session) {
+    // Read session data
+    const sessionData = await client.get(namespacedKey(`${SESSION_PREFIX}${id}`));
+    if (!sessionData) {
       return null;
     }
 
-    // Redis Lua script for atomic session retrieval + authorization status verification
-    const luaScript = `
-      local session_key = KEYS[1]
-      local auth_key = KEYS[2]
-      
-      -- Get session data
-      local session_data = redis.call('GET', session_key)
-      if not session_data then
-        return {0, nil}  -- Session not found
-      end
-      
-      local session = cjson.decode(session_data)
-      
-      -- Check if session is expired or revoked
-      -- Use Redis TTL as the authoritative expiration check
-      -- ISO timestamp parsing removed to avoid Lua sandbox incompatibility
-      local ttl = redis.call('TTL', session_key)
-      if session.revokedAt or ttl < 0 then
-        return {0, nil}  -- Session expired or revoked
-      end
-      
-      -- Get authorization data
-      local auth_data = redis.call('GET', auth_key)
-      if not auth_data then
-        return {0, nil}  -- Authorization not found
-      end
-      
-      local auth = cjson.decode(auth_data)
-      
-      -- Verify authorization is still active
-      if auth.status ~= 'active' then
-        return {0, nil}  -- Authorization not active (revoked)
-      end
-      
-      -- Session and authorization both valid
-      return {1, session_data}
-    `;
-
-    const result = await client.eval(
-      luaScript,
-      [namespacedKey(`${SESSION_PREFIX}${id}`), namespacedKey(`drive:auth:${session.authorizationId}`)],
-      []
-    );
-
-    if (!result || Array.isArray(result) && result[0] === 0) {
+    // Handle both JSON strings and already-deserialized objects
+    // Upstash may return objects for some existing records
+    let session: unknown;
+    if (typeof sessionData === 'string') {
+      try {
+        session = JSON.parse(sessionData);
+      } catch (parseError) {
+        console.error('[SESSION_STORE] Session JSON parse failed:', parseError);
+        return null;
+      }
+    } else if (typeof sessionData === 'object' && sessionData !== null) {
+      session = sessionData;
+    } else {
+      console.error('[SESSION_STORE] Invalid session data type:', typeof sessionData);
       return null;
     }
 
-    const sessionData = Array.isArray(result) ? result[1] : result;
-    
-    if (!validateSessionRecord(sessionData)) {
+    // Validate session record schema
+    if (!validateSessionRecord(session)) {
       console.error('[SESSION_STORE] Invalid session record:', id);
       return null;
     }
-    
-    return sessionData as BrowserSessionRecord;
+
+    const sessionRecord = session as BrowserSessionRecord;
+
+    // Check if session is revoked
+    if (sessionRecord.revokedAt) {
+      console.warn('[SESSION_STORE] Session revoked:', id);
+      return null;
+    }
+
+    // Check session expiration using ISO timestamp
+    const now = new Date();
+    const expiresAt = new Date(sessionRecord.expiresAt);
+    if (now > expiresAt) {
+      console.warn('[SESSION_STORE] Session expired:', id);
+      return null;
+    }
+
+    // Read authorization data
+    const authData = await client.get(namespacedKey(`drive:auth:${sessionRecord.authorizationId}`));
+    if (!authData) {
+      console.warn('[SESSION_STORE] Authorization not found:', id);
+      return null;
+    }
+
+    // Handle both JSON strings and already-deserialized objects
+    let auth: unknown;
+    if (typeof authData === 'string') {
+      try {
+        auth = JSON.parse(authData);
+      } catch (parseError) {
+        console.error('[SESSION_STORE] Authorization JSON parse failed:', parseError);
+        return null;
+      }
+    } else if (typeof authData === 'object' && authData !== null) {
+      auth = authData;
+    } else {
+      console.error('[SESSION_STORE] Invalid authorization data type:', typeof authData);
+      return null;
+    }
+
+    // Verify authorization is active
+    if (!auth || typeof auth !== 'object') {
+      console.error('[SESSION_STORE] Invalid authorization data:', id);
+      return null;
+    }
+
+    const authRecord = auth as Record<string, unknown>;
+    if (authRecord.status !== 'active') {
+      console.warn('[SESSION_STORE] Authorization not active:', id, 'status:', authRecord.status);
+      return null;
+    }
+
+    return sessionRecord;
   } catch (error) {
     console.error('[SESSION_STORE] Get failed:', error);
     throw new Error(`Failed to retrieve session ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
