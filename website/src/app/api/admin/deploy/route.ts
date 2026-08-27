@@ -119,7 +119,7 @@ export async function GET(request: Request) {
       const statusData = await statusResponse.json();
       // Look for Vercel status check
       const vercelCheck = statusData.statuses?.find((s: any) => 
-        s.context === 'vercel/deployment' || s.context === 'deploy/netlify'
+        s.context === 'vercel/deployment' || s.context === 'deploy/netlify' || s.context === 'Vercel'
       );
       
       if (vercelCheck) {
@@ -286,7 +286,7 @@ export async function POST(request: Request) {
         const statusData = await statusResponse.json();
         // Look for Vercel status check
         const vercelCheck = statusData.statuses?.find((s: any) => 
-          s.context === 'vercel/deployment' || s.context === 'deploy/netlify'
+          s.context === 'vercel/deployment' || s.context === 'deploy/netlify' || s.context === 'Vercel'
         );
         
         if (vercelCheck) {
