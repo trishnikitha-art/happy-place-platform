@@ -527,8 +527,8 @@ export async function POST(request: Request) {
         
         for (const key of result[1]) {
           // Parse key format: accept both transactional formats:
-          // - hpp:{env}:workbench-staging:{txId}:project:{projectId}:{field} (6 parts)
-          // - hpp:{env}:workbench-staging:{txId}:service:{serviceSlug} (5 parts)
+          // - hpp:{env}:workbench-staging:{txId}:project:{projectId}:{field} (7 parts)
+          // - hpp:{env}:workbench-staging:{txId}:service:{serviceSlug} (6 parts)
           const parts = key.split(':');
           
           // MUST start with environment prefix and workbench-staging
@@ -537,8 +537,8 @@ export async function POST(request: Request) {
             continue;
           }
           
-          // Accept new transactional format (5 or 6 parts with environment prefix)
-          if (parts.length >= 5 && (parts[3].startsWith('WBDEP-') || parts[3].startsWith('tx-'))) {
+          // Accept new transactional format (6 or 7 parts with environment prefix)
+          if (parts.length >= 6 && (parts[3].startsWith('WBDEP-') || parts[3].startsWith('tx-'))) {
             const transactionId = parts[3];
             if (!transactionGroups.has(transactionId)) {
               transactionGroups.set(transactionId, []);
