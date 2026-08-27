@@ -65,24 +65,13 @@ export async function POST(request: Request) {
   console.log('[KV_BOOTSTRAP] OPERATION_STARTED', { bootstrapId, performedAt });
   
   // AUTHORIZATION: Admin authentication required
-  // P0 EXCEPTION: Allow bootstrap with direct environment variable override for one-time migration
   const isAuthenticated = await workbenchSession.isAuthenticated();
-  const bootstrapOverride = process.env.ENABLE_KV_BOOTSTRAP_OVERRIDE === 'true';
-  
-  if (!isAuthenticated && !bootstrapOverride) {
+  if (!isAuthenticated) {
     console.error('[KV_BOOTSTRAP] AUTHENTICATION_FAILED', { bootstrapId });
     return NextResponse.json(
       { error: 'Unauthorized', message: 'Admin authentication required for KV bootstrap/recovery' },
       { status: 401 }
     );
-  }
-  
-  if (bootstrapOverride) {
-    console.log('[KV_BOOTSTRAP] BOOTSTRAP_OVERRIDE_ENABLED', { 
-      bootstrapId, 
-      environment: process.env.VERCEL_ENV || process.env.NODE_ENV,
-      reason: 'ENABLE_KV_BOOTSTRAP_OVERRIDE=true allows one-time migration without full session auth'
-    });
   }
   
   // Get session identity for audit trail

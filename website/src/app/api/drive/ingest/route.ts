@@ -141,6 +141,39 @@ async function reconcileDriveAssignments(
             // Don't mark as reconciled - it needs manual intervention
           }
         }
+        
+        // P0 FIX: Content hash lookup for identity reconciliation
+        // If assignment points to a media with missing Blob metadata but same content hash, repair it
+        if (media.lifecycleState === 'published' && media.source === 'local' && media.contentHash) {
+          const { findMediaByContentHash } = await import('@/lib/media-kv-store');
+          const matchingMedia = await findMediaByContentHash(contentHash);
+          
+          if (matchingMedia && matchingMedia.id !== assignment.mediaId) {
+            console.log('[ASSIGNMENT_RECONCILIATION] CONTENT_HASH_REPAIR_FOUND', {
+              requestId,
+              serviceSlug: assignment.serviceSlug,
+              oldMediaId: assignment.mediaId,
+              newMediaId: matchingMedia.id,
+              contentHash,
+              reason: 'Found complete media with same content hash - repairing assignment'
+            });
+            
+            // Update assignment to point to the complete media
+            const currentAssignment = await getServiceCardAssignment(assignment.serviceSlug, requestId);
+            const expectedRevision = currentAssignment?.revision;
+            
+            const updatedAssignment = {
+              ...assignment,
+              mediaId: matchingMedia.id,
+              updatedAt: new Date().toISOString(),
+            };
+            
+            await storeServiceCardAssignment(updatedAssignment, expectedRevision, requestId);
+            updates.push(assignment.serviceSlug);
+            repairedCount++;
+            isDriveReference = true;
+          }
+        }
       } catch (error) {
         // P0 FIX: Fail closed on media lookup failure - do not use legacy ID format assumptions
         console.error('[ASSIGNMENT_RECONCILIATION] MEDIA_LOOKUP_FAILED - FAILING CLOSED', {

@@ -338,12 +338,26 @@ export async function uploadToBlob(
       throw new Error('KV credentials not configured - cannot store blob metadata');
     }
     const namespace = getKvNamespace();
-    await client.set(`${namespace}blob_metadata:${contentHash}`, JSON.stringify(metadata));
+    const metadataKey = `${namespace}blob_metadata:${contentHash}`;
+    await client.set(metadataKey, JSON.stringify(metadata));
+    
+    // CRITICAL: Verify metadata was written and can be read back
+    const verifyMetadata = await client.get(metadataKey);
+    if (!verifyMetadata) {
+      console.error('[BLOB_STORAGE] METADATA_WRITE_VERIFICATION_FAILED', {
+        contentHash,
+        metadataKey,
+        reason: 'Metadata written but cannot be read back - KV write may have failed'
+      });
+      throw new Error('Blob metadata write verification failed');
+    }
     
     console.log('[BLOB_STORAGE] New blob uploaded and metadata stored:', {
       contentHash,
       url: blob.url,
       filename: contentAddressedFilename,
+      metadataKey,
+      verified: true,
     });
     
     return {
