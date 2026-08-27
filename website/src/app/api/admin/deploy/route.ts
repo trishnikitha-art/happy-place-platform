@@ -1727,7 +1727,7 @@ export async function POST(request: Request) {
       const promotionFailures: { serviceSlug: string; reason: string }[] = [];
 
       // Re-process staging keys to promote assignments to runtime KV
-      for (const key of authoritativeTransaction.stagingKeys) {
+      for (const key of transaction.stagingKeys) {
         const value = await redis.get(key);
         if (!value) continue;
 
