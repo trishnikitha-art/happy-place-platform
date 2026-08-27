@@ -172,7 +172,7 @@ async function verifyMaterializationState(media: Media): Promise<boolean> {
     return true;
   }
   
-  // PublishedMediaAsset must have content hash
+  // PublishedMediaAsset must have content hash AND Blob metadata for published state
   if (media.lifecycleState === 'published' && media.source === 'local') {
     if (!media.contentHash) {
       console.error('[MEDIA_KV] REJECTED: Published local media missing content hash', {
@@ -181,6 +181,21 @@ async function verifyMaterializationState(media: Media): Promise<boolean> {
       });
       return false;
     }
+    
+    // CRITICAL: Verify Blob metadata exists for published/local records
+    // A record cannot legitimately be published if its Blob object + Blob metadata do not exist
+    const client = createRedisClient();
+    const blobMetadata = await client.get(namespacedKey(`${BLOB_METADATA_PREFIX}${media.contentHash}`));
+    
+    if (!blobMetadata) {
+      console.error('[MEDIA_KV] REJECTED: Published local media missing Blob metadata', {
+        mediaId: media.id,
+        contentHash: media.contentHash,
+        reason: 'PublishedMediaAsset must have Blob metadata with Blob object proof'
+      });
+      return false;
+    }
+    
     return true;
   }
   
