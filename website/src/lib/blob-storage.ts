@@ -14,51 +14,7 @@
 import { put, head, del } from '@vercel/blob';
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
-
-/**
- * P1-9: KV environment isolation
- * Each environment (production, preview, development, test) has a distinct namespace
- * to prevent cross-environment data access and isolation violations.
- */
-type Environment = 'production' | 'preview' | 'development' | 'test';
-
-function getEnvironment(): Environment {
-  const vercelEnv = process.env.VERCEL_ENV;
-  const nodeEnv = process.env.NODE_ENV;
-  
-  // Vercel production
-  if (vercelEnv === 'production') {
-    return 'production';
-  }
-  
-  // Vercel preview
-  if (vercelEnv === 'preview') {
-    return 'preview';
-  }
-  
-  // Local development
-  if (nodeEnv === 'development') {
-    return 'development';
-  }
-  
-  // Test environment
-  if (nodeEnv === 'test') {
-    return 'test';
-  }
-  
-  // P0 FIX: Fail closed on unknown environment
-  // Unknown/missing environment must not silently default to development
-  // This prevents production-like execution from accidentally routing into development namespace
-  throw new Error(
-    `Unknown environment: VERCEL_ENV=${vercelEnv}, NODE_ENV=${nodeEnv}. ` +
-    'Environment must be explicitly configured. Cannot proceed with unsafe default.'
-  );
-}
-
-function getKvNamespace(): string {
-  const env = getEnvironment();
-  return `hpp:${env}:`;
-}
+import { getEnvironment, getKvNamespace } from '@/lib/environment';
 
 /**
  * Verification result with distinct error types

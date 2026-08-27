@@ -40,6 +40,7 @@ import { workbenchSession } from "@/lib/workbench-session";
 import { readFileSync } from "fs";
 import { join } from "path";
 import { Redis } from '@upstash/redis';
+import { getEnvironment, getKvNamespace } from '@/lib/environment';
 import {
   createDeploymentTransaction,
   claimDeploymentTransaction,
@@ -146,47 +147,6 @@ export async function GET(request: Request) {
 }
 
 const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
-
-// P0 FIX: Environment-isolated staging namespace
-// Prevents cross-environment contamination (production/preview/development)
-// Use the same environment detection logic as media-kv-store and blob-storage
-function getEnvironment(): 'production' | 'preview' | 'development' | 'test' {
-  const vercelEnv = process.env.VERCEL_ENV;
-  const nodeEnv = process.env.NODE_ENV;
-  
-  // Vercel production
-  if (vercelEnv === 'production') {
-    return 'production';
-  }
-  
-  // Vercel preview
-  if (vercelEnv === 'preview') {
-    return 'preview';
-  }
-  
-  // Local development
-  if (nodeEnv === 'development') {
-    return 'development';
-  }
-  
-  // Test environment
-  if (nodeEnv === 'test') {
-    return 'test';
-  }
-  
-  // P0 FIX: Fail closed on unknown environment
-  // Unknown/missing environment must not silently default to development
-  // This prevents production-like execution from accidentally routing into development namespace
-  throw new Error(
-    `Unknown environment: VERCEL_ENV=${vercelEnv}, NODE_ENV=${nodeEnv}. ` +
-    'Environment must be explicitly configured. Cannot proceed with unsafe default.'
-  );
-}
-
-function getEnvironmentPrefix(): string {
-  const env = getEnvironment();
-  return `hpp:${env}:`;
-}
 
 // GitHub API retry configuration
 const GITHUB_MAX_RETRIES = 3;
@@ -549,149 +509,115 @@ export async function POST(request: Request) {
       const mediaFile = join(process.cwd(), "src/config/media.v1.json");
       const mediaData = JSON.parse(readFileSync(mediaFile, "utf-8"));
       
-      // PROCESS SPECIFIC TRANSACTIONS ONLY (transaction isolation)
-      // Scan for all staging keys and group by transaction ID
-      let cursor = '0';
-      const transactionGroups = new Map<string, string[]>(); // transactionId -> keys
-      const envPrefix = getEnvironmentPrefix();
+      // CRITICAL: Read authoritative deployment transaction first
+      // This provides the canonical transaction identity and staging key references
+      const authoritativeTransaction = await getDeploymentTransaction(deploymentTransactionId);
       
-      // FILTER: Only process the specific transaction IDs provided (transaction isolation)
-      const targetTransactionIds = transactionIds || [deploymentTransactionId];
-      
-      console.log('[DEPLOY API] STAGING_SCAN_START', {
-        envPrefix,
-        targetTransactionIds,
-        deploymentTransactionId,
-        VERCEL_ENV: process.env.VERCEL_ENV,
-        NODE_ENV: process.env.NODE_ENV,
-      });
-      
-      do {
-        const result = await redis.scan(cursor, { match: `${envPrefix}${WORKBENCH_STAGING_PREFIX}*`, count: 100 });
-        cursor = result[0];
-        
-        console.log('[DEPLOY API] STAGING_SCAN_ITERATION', {
-          cursor,
-          keysFound: result[1].length,
-          matchPattern: `${envPrefix}${WORKBENCH_STAGING_PREFIX}*`,
-        });
-        
-        for (const key of result[1]) {
-          // Parse key format: accept both transactional formats:
-          // - hpp:{env}:workbench-staging:{txId}:project:{projectId}:{field} (7 parts)
-          // - hpp:{env}:workbench-staging:{txId}:service:{serviceSlug} (6 parts)
-          const parts = key.split(':');
-          
-          console.log('[DEPLOY API] STAGING_KEY_PARSED', {
-            key,
-            parts,
-            partsLength: parts.length,
-          });
-          
-          // MUST start with environment prefix and workbench-staging
-          if (parts[0] !== 'hpp' || parts[2] !== 'workbench-staging') {
-            console.warn('[DEPLOY API] INVALID_STAGING_KEY_PREFIX', { key });
-            continue;
-          }
-          
-          // Accept new transactional format (6 or 7 parts with environment prefix)
-          if (parts.length >= 6 && (parts[3].startsWith('WBDEP-') || parts[3].startsWith('tx-'))) {
-            const transactionId = parts[3];
-            if (!transactionGroups.has(transactionId)) {
-              transactionGroups.set(transactionId, []);
-            }
-            transactionGroups.get(transactionId)!.push(key);
-            console.log('[DEPLOY API] STAGING_KEY_ACCEPTED', {
-              key,
-              transactionId,
-              partsLength: parts.length,
-            });
-          }
-          // Skip legacy formats - enforce single staging protocol
-          else {
-            console.warn('[DEPLOY API] LEGACY_STAGING_KEY_SKIPPED', { 
-              key, 
-              reason: 'Legacy format no longer supported. Use transactional format: hpp:{env}:workbench-staging:{txId}:project:{projectId}:{field} or hpp:{env}:workbench-staging:{txId}:service:{serviceSlug}'
-            });
-          }
-        }
-      } while (cursor !== '0');
-      
-      console.log('[DEPLOY API] FOUND_TRANSACTION_GROUPS', { transactionCount: transactionGroups.size });
-      
-      const filteredTransactionGroups = new Map<string, string[]>();
-      
-      for (const [transactionId, keys] of transactionGroups) {
-        if (targetTransactionIds.includes(transactionId)) {
-          filteredTransactionGroups.set(transactionId, keys);
-        }
-      }
-      
-      for (const [transactionId, keys] of transactionGroups) {
-        if (targetTransactionIds.includes(transactionId)) {
-          filteredTransactionGroups.set(transactionId, keys);
-        }
-      }
-      
-      console.log('[DEPLOY API] FILTERED_TRANSACTION_GROUPS', { 
-        total: transactionGroups.size, 
-        filtered: filteredTransactionGroups.size,
-        targetTransactionIds 
-      });
-      
-      // FAIL-CLOSED: Reject deployment if no staging keys found for this transaction
-      // This prevents the "successful acceptance with zero applied mutations" seam
-      if (filteredTransactionGroups.size === 0 && targetTransactionIds.length > 0) {
-        console.error('[DEPLOY API] NO_STAGING_KEYS_FOUND', { 
-          targetTransactionIds,
-          totalTransactionGroups: transactionGroups.size,
-          deploymentTransactionId 
+      if (!authoritativeTransaction) {
+        console.error('[DEPLOY API] TRANSACTION_NOT_FOUND', {
+          deploymentTransactionId,
+          reason: 'Authoritative deployment transaction does not exist'
         });
         return NextResponse.json({
-          error: "No staging keys found",
-          message: "Workbench reported acceptance but deployment found no staging keys for this transaction. Transaction may be fragmented or keys use legacy format.",
-          forensic: {
-            targetTransactionIds,
-            totalTransactionGroups: transactionGroups.size,
-            deploymentTransactionId
-          }
+          error: "Transaction not found",
+          message: `Deployment transaction ${deploymentTransactionId} does not exist. Cannot proceed without authoritative transaction record.`,
+          deploymentTransactionId
+        }, { status: 404 });
+      }
+      
+      console.log('[DEPLOY API] AUTHORITATIVE_TRANSACTION_FOUND', {
+        deploymentTransactionId,
+        state: authoritativeTransaction.state,
+        stagingKeys: authoritativeTransaction.stagingKeys,
+        stagingKeysCount: authoritativeTransaction.stagingKeys.length,
+        files: authoritativeTransaction.files,
+        createdAt: authoritativeTransaction.createdAt,
+      });
+      
+      // CRITICAL: Verify transaction state allows deployment
+      if (authoritativeTransaction.state !== 'prepared') {
+        console.error('[DEPLOY API] INVALID_TRANSACTION_STATE', {
+          deploymentTransactionId,
+          currentState: authoritativeTransaction.state,
+          expectedState: 'prepared',
+          reason: 'Transaction is not in prepared state, cannot claim for deployment'
+        });
+        return NextResponse.json({
+          error: "Invalid transaction state",
+          message: `Transaction is in ${authoritativeTransaction.state} state, expected prepared. Cannot claim for deployment.`,
+          deploymentTransactionId,
+          currentState: authoritativeTransaction.state
         }, { status: 400 });
       }
       
+      // CRITICAL: Verify environment namespace matches
+      const expectedNamespace = getKvNamespace();
+      const transactionKeyMatchesNamespace = authoritativeTransaction.stagingKeys.some(key => key.startsWith(expectedNamespace));
+      
+      if (!transactionKeyMatchesNamespace) {
+        console.error('[DEPLOY API] TRANSACTION_ENVIRONMENT_MISMATCH', {
+          deploymentTransactionId,
+          expectedNamespace,
+          actualKeys: authoritativeTransaction.stagingKeys,
+          reason: 'Transaction staging keys do not match expected environment namespace'
+        });
+        return NextResponse.json({
+          error: "Transaction environment mismatch",
+          message: `Transaction staging keys do not match expected environment namespace ${expectedNamespace}`,
+          deploymentTransactionId,
+          expectedNamespace,
+          actualKeys: authoritativeTransaction.stagingKeys
+        }, { status: 400 });
+      }
+      
+      // CRITICAL: Verify each referenced staging key exists
+      const missingStagingKeys: string[] = [];
+      for (const stagingKey of authoritativeTransaction.stagingKeys) {
+        const exists = await redis.get(stagingKey);
+        if (!exists) {
+          missingStagingKeys.push(stagingKey);
+        }
+      }
+      
+      if (missingStagingKeys.length > 0) {
+        console.error('[DEPLOY API] STAGING_RECORDS_MISSING', {
+          deploymentTransactionId,
+          missingStagingKeys,
+          reason: 'Transaction references staging keys that do not exist'
+        });
+        return NextResponse.json({
+          error: "Staging records missing",
+          message: "Transaction references staging keys that do not exist in Redis",
+          deploymentTransactionId,
+          missingStagingKeys
+        }, { status: 400 });
+      }
+      
+      console.log('[DEPLOY API] STAGING_RECORDS_VERIFIED', {
+        deploymentTransactionId,
+        stagingKeysCount: authoritativeTransaction.stagingKeys.length,
+        allKeysPresent: true,
+        environment: getEnvironment(),
+      });
+      
+      // Use authoritative transaction staging keys
+      const transactionGroups = new Map<string, string[]>();
+      transactionGroups.set(deploymentTransactionId, authoritativeTransaction.stagingKeys);
+      
       // Apply staging changes by transaction (newest first by timestamp)
-      const sortedTransactions = Array.from(filteredTransactionGroups.entries())
+      const sortedTransactions = Array.from(transactionGroups.entries())
         .sort((a, b) => {
-          // Try to get transaction metadata to determine order
-          const aMetaKey = `${envPrefix}${WORKBENCH_STAGING_PREFIX}${a[0]}:meta`;
-          const bMetaKey = `${envPrefix}${WORKBENCH_STAGING_PREFIX}${b[0]}:meta`;
           // Simplified: use transaction ID timestamp as ordering
           return a[0].localeCompare(b[0]);
         });
       
       let appliedCount = 0;
       for (const [transactionId, keys] of sortedTransactions) {
-        // Get authoritative transaction state from deployment-transaction library
-        // Fallback to 'prepared' if transaction record doesn't exist (transition period compatibility)
-        let deploymentTransaction: DeploymentTransaction | null = null;
-        let transactionState: TransactionState = 'prepared';
-        
-        try {
-          deploymentTransaction = await getDeploymentTransaction(transactionId);
-          transactionState = deploymentTransaction?.state || 'prepared';
-        } catch (error) {
-          console.warn('[DEPLOY API] TRANSACTION_LOOKUP_FAILED', { 
-            transactionId, 
-            error: error instanceof Error ? error.message : String(error),
-            fallback: 'Using prepared state'
-          });
-          transactionState = 'prepared';
-        }
-        
         console.log('[DEPLOY API] PROCESSING_TRANSACTION', { 
           transactionId, 
-          state: transactionState, 
+          state: authoritativeTransaction.state, 
           keyCount: keys.length,
-          hasDeploymentRecord: !!deploymentTransaction
+          hasDeploymentRecord: true
         });
         
         // Apply all mutations in this transaction
@@ -818,7 +744,7 @@ export async function POST(request: Request) {
             transactionCount: transactionGroups.size,
             stagingKeys: stagingKeys.length,
             deploymentTransactionId,
-            transactionIds: targetTransactionIds
+            transactionIds
           }
         }, { status: 400 });
       }

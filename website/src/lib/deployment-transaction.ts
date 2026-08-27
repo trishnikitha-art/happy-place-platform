@@ -31,40 +31,7 @@
  */
 
 import { Redis } from '@upstash/redis';
-
-/**
- * P1-9: KV environment isolation
- * Each environment (production, preview, development, test) has a distinct namespace
- * to prevent cross-environment data access and isolation violations.
- */
-type Environment = 'production' | 'preview' | 'development' | 'test';
-
-function getEnvironment(): Environment {
-  const vercelEnv = process.env.VERCEL_ENV;
-  const nodeEnv = process.env.NODE_ENV;
-  
-  // Vercel production
-  if (vercelEnv === 'production') {
-    return 'production';
-  }
-  
-  // Vercel preview
-  if (vercelEnv === 'preview') {
-    return 'preview';
-  }
-  
-  // Development/test
-  if (nodeEnv === 'test') {
-    return 'test';
-  }
-  
-  return 'development';
-}
-
-function getKvNamespace(): string {
-  const env = getEnvironment();
-  return `hpp:${env}:`;
-}
+import { getEnvironment, getKvNamespace } from '@/lib/environment';
 
 /**
  * P0 FIX: Eliminate process-global mutable state
@@ -145,6 +112,8 @@ const CREATE_TRANSACTION_SCRIPT = `
  * Atomic Lua script for state transition enforcement
  * Only operates on existing transactions - rejects if transaction doesn't exist
  * Prevents illegal transitions and concurrent claims
+ * 
+ * CRITICAL: Atomically validates transaction identity before state transition
  */
 const STATE_TRANSITION_SCRIPT = `
   local key = KEYS[1]
@@ -163,6 +132,11 @@ const STATE_TRANSITION_SCRIPT = `
   
   local parsed = cjson.decode(current)
   local currentState = parsed.state
+  
+  -- CRITICAL: Validate transaction ID identity
+  if parsed.transactionId ~= transactionId then
+    return {err = 'TRANSACTION_ID_MISMATCH: Expected ' .. transactionId .. ', got ' .. parsed.transactionId}
+  end
   
   -- Legal transition matrix
   local legalTransitions = {

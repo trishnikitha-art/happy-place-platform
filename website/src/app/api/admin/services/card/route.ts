@@ -16,41 +16,11 @@ import { getAllServices } from "@/lib/registries";
 import { getMediaByIdAsync } from "@/lib/media";
 import { isDriveReference, isPublishedMediaAsset } from "@/types/media";
 import { Redis } from '@upstash/redis';
+import { getEnvironment, getKvNamespace } from '@/lib/environment';
 
 export const runtime = 'nodejs';
 
 const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
-
-// P1-9: KV environment isolation
-function getEnvironment(): 'production' | 'preview' | 'development' | 'test' {
-  const vercelEnv = process.env.VERCEL_ENV;
-  const nodeEnv = process.env.NODE_ENV;
-  
-  // Vercel production
-  if (vercelEnv === 'production') return 'production';
-  
-  // Vercel preview
-  if (vercelEnv === 'preview') return 'preview';
-  
-  // Local development
-  if (nodeEnv === 'development') return 'development';
-  
-  // Test environment
-  if (nodeEnv === 'test') return 'test';
-  
-  // P0 FIX: Fail closed on unknown environment
-  // Unknown/missing environment must not silently default to development
-  // This prevents production-like execution from accidentally routing into development namespace
-  throw new Error(
-    `Unknown environment: VERCEL_ENV=${vercelEnv}, NODE_ENV=${nodeEnv}. ` +
-    'Environment must be explicitly configured. Cannot proceed with unsafe default.'
-  );
-}
-
-function getKvNamespace(): string {
-  const env = getEnvironment();
-  return `hpp:${env}:`;
-}
 
 function getRedisClient(): Redis | null {
   try {
@@ -218,7 +188,7 @@ export async function POST(request: Request) {
 
       await redis.set(stagingKey, mediaId);
 
-      // CRITICAL: Verify the write succeeded by reading it back
+      // CRITICAL: Verify the write succeeded with exact identity verification
       const verifyWrite = await redis.get(stagingKey);
       if (!verifyWrite) {
         console.error('[SERVICES CARD] STAGING_WRITE_VERIFICATION_FAILED', {
@@ -236,11 +206,72 @@ export async function POST(request: Request) {
         );
       }
 
+      // CRITICAL: Verify exact transaction ID in staging key
+      if (!stagingKey.includes(effectiveTransactionId)) {
+        console.error('[SERVICES CARD] STAGING_KEY_TRANSACTION_ID_MISMATCH', {
+          stagingKey,
+          expectedTransactionId: effectiveTransactionId,
+          reason: 'Staging key does not contain expected transaction ID'
+        });
+        return NextResponse.json(
+          {
+            error: "Staging key transaction ID mismatch",
+            message: "Staging key does not contain expected transaction ID",
+            stagingKey,
+            expectedTransactionId: effectiveTransactionId
+          },
+          { status: 500 }
+        );
+      }
+
+      // CRITICAL: Verify exact namespace
+      const expectedNamespace = getKvNamespace();
+      if (!stagingKey.startsWith(expectedNamespace)) {
+        console.error('[SERVICES CARD] STAGING_KEY_NAMESPACE_MISMATCH', {
+          stagingKey,
+          expectedNamespace,
+          actualNamespace: stagingKey.split(':')[0] + ':' + stagingKey.split(':')[1] + ':',
+          reason: 'Staging key does not use expected namespace'
+        });
+        return NextResponse.json(
+          {
+            error: "Staging key namespace mismatch",
+            message: "Staging key does not use expected namespace",
+            stagingKey,
+            expectedNamespace
+          },
+          { status: 500 }
+        );
+      }
+
+      // CRITICAL: Verify exact payload
+      if (verifyWrite !== mediaId) {
+        console.error('[SERVICES CARD] STAGING_WRITE_PAYLOAD_MISMATCH', {
+          stagingKey,
+          expectedPayload: mediaId,
+          actualPayload: verifyWrite,
+          reason: 'Staging write verification returned different payload'
+        });
+        return NextResponse.json(
+          {
+            error: "Staging write payload mismatch",
+            message: "Staging write verification returned different payload",
+            stagingKey,
+            expectedPayload: mediaId,
+            actualPayload: verifyWrite
+          },
+          { status: 500 }
+        );
+      }
+
       console.log('[SERVICES CARD] STAGING_WRITE_VERIFIED', {
         stagingKey,
         writtenValue: verifyWrite,
         expectedValue: mediaId,
         valuesMatch: verifyWrite === mediaId,
+        transactionIdMatch: stagingKey.includes(effectiveTransactionId),
+        namespaceMatch: stagingKey.startsWith(expectedNamespace),
+        environment: getEnvironment(),
       });
 
       // Create authoritative deployment transaction record (single source of truth)
