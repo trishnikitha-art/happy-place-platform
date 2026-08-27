@@ -177,8 +177,28 @@ export async function getOAuthClient(authorizationId?: string): Promise<Instance
   }
 
   // Ensure token is valid with error handling
+  // CRITICAL FIX: Always call explicitTokenRefresh() to ensure persistence
+  // Google's getAccessToken() may internally refresh without calling our persistence path
+  const beforeExpiry = oauth2Client.credentials.expiry_date as number;
+  
   try {
     const tokens = await oauth2Client.getAccessToken();
+    const afterExpiry = oauth2Client.credentials.expiry_date as number;
+    
+    // Check if Google internally refreshed the token (expiry changed)
+    const wasInternallyRefreshed = afterExpiry > beforeExpiry;
+    
+    if (wasInternallyRefreshed) {
+      console.log('[OAUTH_MANAGER] INTERNAL_REFRESH_DETECTED, calling explicit persistence:', {
+        authorizationId: effectiveAuthorizationId,
+        beforeExpiry: new Date(beforeExpiry).toISOString(),
+        afterExpiry: new Date(afterExpiry).toISOString(),
+      });
+      
+      // Call explicit refresh to ensure persistence even though Google already refreshed
+      await explicitTokenRefresh(oauth2Client, effectiveAuthorizationId);
+    }
+    
     if (!tokens.token) {
       await explicitTokenRefresh(oauth2Client, effectiveAuthorizationId);
     }
