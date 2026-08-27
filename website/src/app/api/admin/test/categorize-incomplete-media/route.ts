@@ -73,7 +73,7 @@ export async function POST(request: Request) {
     const categorized: CategorizedRecord[] = [];
 
     for (const media of incompleteRecords) {
-      const category: CategorizedRecord['category'] = 'valid_blob';
+      let category: CategorizedRecord['category'] = 'valid_blob';
       const details = {
         hasBlobMetadata: false,
         blobAccessible: false,
