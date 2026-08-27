@@ -972,6 +972,12 @@ Check browser console for detailed logs.`);
       return direct.id;
     }
     
+    // Fallback: match against filename (for Drive file names being used as IDs)
+    const byFilename = assets.find(a => a.filename === rawId);
+    if (byFilename) {
+      return byFilename.id;
+    }
+    
     // Fallback: match against variant URLs (for legacy URL-based assetIds)
     const byVariant = assets.find(a =>
       Object.values(a.variants ?? {}).some(
