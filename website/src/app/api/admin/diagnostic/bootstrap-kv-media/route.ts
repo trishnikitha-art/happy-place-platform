@@ -138,8 +138,25 @@ export async function POST() {
           staticVariant: media.variants?.original
         });
         
-        // Check if source file exists in public/images
-        const sourcePath = join(process.cwd(), 'public', media.variants?.original || '');
+        // CRITICAL: Distinguish between local filesystem paths and Blob URLs
+        // Local paths: /images/projects/fences/FENCE BUILD-1080.webp
+        // Blob URLs: https://...public.blob.vercel-storage.com/...
+        const originalUrl = media.variants?.original || '';
+        
+        if (originalUrl.startsWith('http://') || originalUrl.startsWith('https://')) {
+          // This is a Blob URL - cannot be read as filesystem path
+          // Skip bootstrap for Blob-backed media - they should already have metadata
+          console.warn('[KV_MEDIA_BOOTSTRAP_EVIDENCE] BLOB_URL_NOT_FILESYSTEM', {
+            testId,
+            mediaId: media.id,
+            originalUrl,
+            reason: 'Blob URL cannot be read as filesystem path - skipping bootstrap'
+          });
+          continue;
+        }
+        
+        // Check if source file exists in public/images (local filesystem only)
+        const sourcePath = join(process.cwd(), 'public', originalUrl);
         if (!existsSync(sourcePath)) {
           failed++;
           errors[media.id] = `Source file not found: ${sourcePath}`;
@@ -147,6 +164,7 @@ export async function POST() {
             testId,
             mediaId: media.id,
             sourcePath,
+            originalUrl,
           });
           continue;
         }
