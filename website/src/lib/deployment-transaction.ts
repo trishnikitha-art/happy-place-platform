@@ -32,26 +32,60 @@
 
 import { Redis } from '@upstash/redis';
 
-let redis: Redis | null = null;
+/**
+ * P1-9: KV environment isolation
+ * Each environment (production, preview, development, test) has a distinct namespace
+ * to prevent cross-environment data access and isolation violations.
+ */
+type Environment = 'production' | 'preview' | 'development' | 'test';
 
-function getRedisClient(): Redis {
-  if (!redis) {
-    let url = process.env.KV_REST_API_URL;
-    let token = process.env.KV_REST_API_TOKEN;
-    
-    const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
-    const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
-    
-    if (!url && integrationUrl) url = integrationUrl;
-    if (!token && integrationToken) token = integrationToken;
-    
-    if (!url || !token) {
-      throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
-    }
-    
-    redis = new Redis({ url, token });
+function getEnvironment(): Environment {
+  const vercelEnv = process.env.VERCEL_ENV;
+  const nodeEnv = process.env.NODE_ENV;
+  
+  // Vercel production
+  if (vercelEnv === 'production') {
+    return 'production';
   }
-  return redis;
+  
+  // Vercel preview
+  if (vercelEnv === 'preview') {
+    return 'preview';
+  }
+  
+  // Development/test
+  if (nodeEnv === 'test') {
+    return 'test';
+  }
+  
+  return 'development';
+}
+
+function getKvNamespace(): string {
+  const env = getEnvironment();
+  return `hpp:${env}:`;
+}
+
+/**
+ * P0 FIX: Eliminate process-global mutable state
+ * Create fresh Redis client on each call to prevent identity leaks
+ */
+function getRedisClient(): Redis {
+  let url = process.env.KV_REST_API_URL;
+  let token = process.env.KV_REST_API_TOKEN;
+  
+  const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
+  const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
+  
+  if (!url && integrationUrl) url = integrationUrl;
+  if (!token && integrationToken) token = integrationToken;
+  
+  if (!url || !token) {
+    throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
+  }
+  
+  // Create fresh client on each call (no global cache)
+  return new Redis({ url, token });
 }
 
 export type TransactionState = 'prepared' | 'committing' | 'committed' | 'consumed' | 'failed';
@@ -76,6 +110,14 @@ export interface DeploymentTransaction {
 }
 
 const TRANSACTION_PREFIX = 'deployment-transaction:';
+
+/**
+ * Get namespaced transaction key
+ */
+function getTransactionKey(transactionId: string): string {
+  const namespace = getKvNamespace();
+  return `${namespace}${TRANSACTION_PREFIX}${transactionId}`;
+}
 
 /**
  * Atomic Lua script for transaction creation (create-if-absent)
@@ -192,7 +234,7 @@ export async function createDeploymentTransaction(
   reason?: string,
   parentCommitSha?: string
 ): Promise<DeploymentTransaction> {
-  const key = `${TRANSACTION_PREFIX}${transactionId}`;
+  const key = getTransactionKey(transactionId);
   const client = getRedisClient();
   
   const transaction: DeploymentTransaction = {
@@ -243,7 +285,7 @@ export async function claimDeploymentTransaction(
   transactionId: string,
   owner: string
 ): Promise<DeploymentTransaction> {
-  const key = `${TRANSACTION_PREFIX}${transactionId}`;
+  const key = getTransactionKey(transactionId);
   const client = getRedisClient();
   
   console.log('[DEPLOYMENT_TRANSACTION] CLAIMING', { transactionId, owner });
@@ -306,7 +348,7 @@ export async function commitDeploymentTransaction(
   commitUrl: string,
   owner?: string
 ): Promise<DeploymentTransaction> {
-  const key = `${TRANSACTION_PREFIX}${transactionId}`;
+  const key = getTransactionKey(transactionId);
   const client = getRedisClient();
   
   console.log('[DEPLOYMENT_TRANSACTION] COMMITTING', { transactionId, commitSha, owner });
@@ -369,7 +411,7 @@ export async function consumeDeploymentTransaction(
   transactionId: string,
   owner?: string
 ): Promise<DeploymentTransaction> {
-  const key = `${TRANSACTION_PREFIX}${transactionId}`;
+  const key = getTransactionKey(transactionId);
   const client = getRedisClient();
   
   console.log('[DEPLOYMENT_TRANSACTION] CONSUMING', { transactionId, owner });
@@ -430,7 +472,7 @@ export async function failDeploymentTransaction(
   transactionId: string,
   failureReason: string
 ): Promise<DeploymentTransaction> {
-  const key = `${TRANSACTION_PREFIX}${transactionId}`;
+  const key = getTransactionKey(transactionId);
   const client = getRedisClient();
   
   console.log('[DEPLOYMENT_TRANSACTION] FAILING', { transactionId, failureReason });
@@ -485,7 +527,7 @@ export async function failDeploymentTransaction(
  * @returns Transaction or null
  */
 export async function getDeploymentTransaction(transactionId: string): Promise<DeploymentTransaction | null> {
-  const key = `${TRANSACTION_PREFIX}${transactionId}`;
+  const key = getTransactionKey(transactionId);
   const client = getRedisClient();
   
   try {
@@ -528,7 +570,8 @@ export async function cleanupOldTransactions(olderThanHours: number = 24): Promi
   let cursor = '0';
   
   do {
-    const result = await client.scan(cursor, { match: `${TRANSACTION_PREFIX}*`, count: 100 });
+    const namespace = getKvNamespace();
+    const result = await client.scan(cursor, { match: `${namespace}${TRANSACTION_PREFIX}*`, count: 100 });
     cursor = result[0];
     keys.push(...result[1]);
   } while (cursor !== '0');

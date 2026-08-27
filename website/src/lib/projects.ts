@@ -37,30 +37,22 @@ export function getAllProjects(): Project[] {
  * P1 FIX: Resolve project media through public media gate
  * This prevents callers from bypassing the public media gate by calling getMediaById directly
  * Returns a project with all media IDs resolved to validated Media objects
- * FALLBACK: Uses static media.v1.json when KV is empty (temporary until KV bootstrap)
+ * NO FALLBACK: Fails honestly when KV authority is not available
  */
 export async function getProjectWithResolvedMedia(project: Project): Promise<Project> {
   const resolveMedia = async (mediaId: string | undefined): Promise<Media | undefined> => {
     if (!mediaId) return undefined;
     
-    // Try KV first
+    // Use KV public authority only - no static fallback
     const kvMedia = await resolvePublicMedia(mediaId);
     if (kvMedia) return kvMedia;
     
-    // FALLBACK: Try static media.v1.json if KV is empty
-    try {
-      const { loadMediaManifest } = await import('./media');
-      const mediaManifest = loadMediaManifest();
-      const staticMedia = mediaManifest.media.find(m => m.id === mediaId);
-      
-      if (staticMedia && staticMedia.lifecycleState === 'published' && staticMedia.source === 'local') {
-        console.log('[PROJECTS] STATIC_MEDIA_FALLBACK', { mediaId });
-        return staticMedia;
-      }
-    } catch (error) {
-      console.error('[PROJECTS] STATIC_MEDIA_LOAD_FAILED', { mediaId, error });
-    }
-    
+    // P0 FIX: Fail honestly when KV authority is not available
+    // Static fallback masks the actual failure of the constitutional authority
+    console.error('[PROJECTS] MEDIA_RESOLUTION_FAILED', { 
+      mediaId, 
+      reason: 'KV authority returned null' 
+    });
     return undefined;
   };
 

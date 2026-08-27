@@ -21,6 +21,24 @@ export const runtime = 'nodejs';
 
 const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
 
+/**
+ * P1-9: KV environment isolation
+ */
+function getEnvironment(): 'production' | 'preview' | 'development' | 'test' {
+  const vercelEnv = process.env.VERCEL_ENV;
+  const nodeEnv = process.env.NODE_ENV;
+  
+  if (vercelEnv === 'production') return 'production';
+  if (vercelEnv === 'preview') return 'preview';
+  if (nodeEnv === 'test') return 'test';
+  return 'development';
+}
+
+function getKvNamespace(): string {
+  const env = getEnvironment();
+  return `hpp:${env}:`;
+}
+
 function getRedisClient(): Redis | null {
   try {
     const url = process.env.KV_REST_API_URL;
@@ -30,6 +48,11 @@ function getRedisClient(): Redis | null {
   } catch {
     return null;
   }
+}
+
+function getStagingKey(transactionId: string): string {
+  const namespace = getKvNamespace();
+  return `${namespace}${WORKBENCH_STAGING_PREFIX}${transactionId}`;
 }
 
 function generateTransactionId(): string {
@@ -225,8 +248,8 @@ export async function POST(request: Request) {
     });
 
     // CRITICAL: Also write to KV staging area for deployment API discovery
-    // Deployment API expects: workbench-staging:{txId}:service:{serviceSlug}
-    const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${serviceSlug}`;
+    // Deployment API expects: hpp:{env}:workbench-staging:{txId}:service:{serviceSlug}
+    const stagingKey = getStagingKey(effectiveTransactionId);
     const stagingRedis = getRedisClient();
     if (stagingRedis) {
       await stagingRedis.set(stagingKey, mediaId);
