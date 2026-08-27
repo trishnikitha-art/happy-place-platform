@@ -15,6 +15,7 @@
     "images": "node scripts/image-pipeline.mjs",
     "qa:images": "node scripts/image-qa.mjs",
     "bootstrap:kv": "tsx scripts/bootstrap-kv-staging.ts",
+    "reconcile:hashes": "tsx scripts/reconcile-media-hashes.ts",
     "projections": "node scripts/constitutional-projection-generator.js",
     "graph-edges": "node scripts/graph-edge-generator.js"
   },
