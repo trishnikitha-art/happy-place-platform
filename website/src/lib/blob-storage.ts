@@ -16,6 +16,40 @@ import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 
 /**
+ * P1-9: KV environment isolation
+ * Each environment (production, preview, development, test) has a distinct namespace
+ * to prevent cross-environment data access and isolation violations.
+ */
+type Environment = 'production' | 'preview' | 'development' | 'test';
+
+function getEnvironment(): Environment {
+  const vercelEnv = process.env.VERCEL_ENV;
+  const nodeEnv = process.env.NODE_ENV;
+  
+  // Vercel production
+  if (vercelEnv === 'production') {
+    return 'production';
+  }
+  
+  // Vercel preview
+  if (vercelEnv === 'preview') {
+    return 'preview';
+  }
+  
+  // Development/test
+  if (nodeEnv === 'test') {
+    return 'test';
+  }
+  
+  return 'development';
+}
+
+function getKvNamespace(): string {
+  const env = getEnvironment();
+  return `hpp:${env}:`;
+}
+
+/**
  * Verification result with distinct error types
  * Distinguishes transport/auth failures from actual integrity failures
  */
@@ -303,7 +337,8 @@ export async function uploadToBlob(
       console.warn('[BLOB_STORAGE] KV unavailable for metadata storage', { contentHash });
       throw new Error('KV credentials not configured - cannot store blob metadata');
     }
-    await client.set(`blob_metadata:${contentHash}`, JSON.stringify(metadata));
+    const namespace = getKvNamespace();
+    await client.set(`${namespace}blob_metadata:${contentHash}`, JSON.stringify(metadata));
     
     console.log('[BLOB_STORAGE] New blob uploaded and metadata stored:', {
       contentHash,
@@ -384,7 +419,8 @@ export async function uploadToBlob(
           console.warn('[BLOB_STORAGE] KV unavailable for metadata recovery', { contentHash });
           throw new Error('KV credentials not configured - cannot store recovered blob metadata');
         }
-        await client.set(`blob_metadata:${contentHash}`, JSON.stringify(recoveredMetadata));
+        const namespace = getKvNamespace();
+        await client.set(`${namespace}blob_metadata:${contentHash}`, JSON.stringify(recoveredMetadata));
         
         console.log('[BLOB_STORAGE] Recovered and stored metadata for existing Blob:', {
           contentHash,
@@ -423,7 +459,8 @@ export async function getBlobMetadataByContentHash(contentHash: string): Promise
       console.warn('[BLOB_STORAGE] KV unavailable for getBlobMetadataByContentHash', { contentHash });
       return null;
     }
-    const data = await client.get(`blob_metadata:${contentHash}`);
+    const namespace = getKvNamespace();
+    const data = await client.get(`${namespace}blob_metadata:${contentHash}`);
     if (!data) return null;
     
     // Handle both JSON strings and already-deserialized objects

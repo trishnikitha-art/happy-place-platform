@@ -214,7 +214,7 @@ export async function POST() {
       dependency: 'KV Media Bootstrap',
       operation: 'bootstrap_media_to_kv',
       expectedInvariant: 'Media records migrated from static to KV authority',
-      observedResult: verificationRate >= 0.8 ? 'PROVEN' : 'FAILED',
+      observedResult: verificationRate >= 0.95 ? 'PROVEN' : 'FAILED',
       evidence: {
         totalMediaCount: manifest.media.length,
         bootstrapped,
