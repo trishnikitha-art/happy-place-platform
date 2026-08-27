@@ -388,14 +388,16 @@ export async function storeServiceCardAssignment(
   
   // CAS ENFORCEMENT: Reject undefined expectedRevision to prevent unconditional overwrites
   // Callers MUST read current state first and provide expected revision
+  // - Existing assignment: expectedRevision = current.revision
+  // - Missing assignment: expectedRevision = 0 (create)
   if (expectedRevision === undefined) {
     console.error('[ASSIGNMENT_WRITE] REJECTED: expectedRevision is required for CAS enforcement', {
       operationId,
       serviceSlug: assignment.serviceSlug,
       mediaId: assignment.mediaId,
-      validationError: 'expectedRevision is required to prevent lost updates',
+      validationError: 'expectedRevision is required to prevent lost updates (use 0 for create)',
     });
-    throw new Error(`CAS enforcement requires expectedRevision for ${assignment.serviceSlug}. Read current assignment first to obtain the revision.`);
+    throw new Error(`CAS enforcement requires expectedRevision for ${assignment.serviceSlug}. Read current assignment first to obtain the revision (use 0 for create).`);
   }
   
   try {
@@ -403,6 +405,11 @@ export async function storeServiceCardAssignment(
     
     // Use atomic Lua script for CAS - prevents lost updates
     // Script: GET current revision, compare with expected, SET if match
+    // CAS bootstrap semantics:
+    // - expectedRevision = 0 + key absent → create
+    // - expectedRevision = 0 + key present → reject (CAS failure)
+    // - expectedRevision > 0 + revision match → update
+    // - expectedRevision > 0 + revision mismatch → reject (CAS failure)
     const casScript = `
       local key = KEYS[1]
       local expectedRevision = tonumber(ARGV[1])

@@ -20,7 +20,7 @@
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { getServiceCardAssignment, storeServiceCardAssignment, type ServiceCardAssignment } from '@/lib/assignment-store';
-import { getMedia, getMediaRecordRaw } from '@/lib/media-kv-store';
+import { getMedia, getMediaRecordRaw, getBlobMetadata, verifyPublicMediaAuthority } from '@/lib/media-kv-store';
 import { verifyBlobHash } from '@/lib/blob-storage';
 
 export const dynamic = 'force-dynamic';
@@ -178,14 +178,7 @@ export async function POST(request: Request) {
     // STAGE 4: Verify Blob metadata exists in KV
     evidence.push({ stage: 'VERIFY_BLOB_METADATA', result: 'started' });
     
-    const { Redis } = await import('@upstash/redis');
-    const redis = new Redis({
-      url: process.env.KV_REST_API_URL,
-      token: process.env.KV_REST_API_TOKEN,
-    });
-    
-    const blobMetadataKey = `hpp:${process.env.VERCEL_ENV || 'development'}:blob_metadata:${targetMedia.contentHash}`;
-    const blobMetadata = await redis.get(blobMetadataKey);
+    const blobMetadata = await getBlobMetadata(targetMedia.contentHash);
     
     if (!blobMetadata) {
       evidence.push({
@@ -247,16 +240,46 @@ export async function POST(request: Request) {
       data: { hashVerified: true },
     });
 
-    // STAGE 6: CAS-based assignment migration
+    // STAGE 6: PRE-CAS public media gate verification
+    // Verify the public media authority would accept the target BEFORE mutating assignment
+    evidence.push({ stage: 'PRE_CAS_PUBLIC_MEDIA_GATE', result: 'started' });
+    
+    const preCasPublicAuthority = await verifyPublicMediaAuthority(targetMedia);
+    
+    if (!preCasPublicAuthority) {
+      evidence.push({
+        stage: 'PRE_CAS_PUBLIC_MEDIA_GATE',
+        result: 'rejected',
+        error: 'Public media authority rejected target media before CAS mutation',
+      });
+      return NextResponse.json({
+        success: false,
+        serviceSlug,
+        evidence,
+        error: 'Public media authority rejected target media (pre-CAS check)',
+      });
+    }
+
+    evidence.push({
+      stage: 'PRE_CAS_PUBLIC_MEDIA_GATE',
+      result: 'completed',
+      data: { publicMediaAuthorityPassed: true },
+    });
+
+    // STAGE 7: CAS-based assignment migration
+    // Only mutate after all preconditions pass
     evidence.push({ stage: 'CAS_ASSIGNMENT_MIGRATION', result: 'started' });
     
-    const expectedRevision = currentAssignment?.revision;
+    // CAS bootstrap semantics:
+    // - Existing assignment: expectedRevision = current.revision
+    // - Missing assignment: expectedRevision = 0 (create)
+    const expectedRevision = currentAssignment?.revision ?? 0;
     const newAssignment: ServiceCardAssignment = {
       serviceSlug,
       mediaId: targetMediaId,
       updatedAt: new Date().toISOString(),
       source: 'workbench',
-      revision: expectedRevision ? expectedRevision + 1 : 1,
+      revision: expectedRevision + 1,
     };
     
     await storeServiceCardAssignment(newAssignment, expectedRevision, 'reconciliation');
@@ -271,7 +294,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // STAGE 7: Re-read assignment to verify change
+    // STAGE 8: Re-read assignment to verify change
     evidence.push({ stage: 'VERIFY_ASSIGNMENT_UPDATE', result: 'started' });
     
     const updatedAssignment = await getServiceCardAssignment(serviceSlug, 'reconciliation');
@@ -299,30 +322,30 @@ export async function POST(request: Request) {
       });
     }
 
-    // STAGE 8: Verify public media gate would accept the new assignment
-    evidence.push({ stage: 'VERIFY_PUBLIC_MEDIA_GATE', result: 'started' });
+    // STAGE 9: POST-CAS public media gate verification
+    // Verify the public media authority still accepts the new assignment after mutation
+    evidence.push({ stage: 'POST_CAS_PUBLIC_MEDIA_GATE', result: 'started' });
     
-    const { resolvePublicMedia } = await import('@/lib/media');
-    const resolvedMedia = await resolvePublicMedia(targetMediaId);
+    const postCasPublicAuthority = await verifyPublicMediaAuthority(targetMedia);
     
-    if (!resolvedMedia) {
+    if (!postCasPublicAuthority) {
       evidence.push({
-        stage: 'VERIFY_PUBLIC_MEDIA_GATE',
-        result: 'rejected',
-        error: 'Public media gate rejected target media',
+        stage: 'POST_CAS_PUBLIC_MEDIA_GATE',
+        result: 'failed',
+        error: 'Public media authority rejected target media after CAS mutation - ASSIGNMENT_CHANGED_PUBLIC_PROOF_FAILED',
       });
       return NextResponse.json({
         success: false,
         serviceSlug,
         evidence,
-        error: 'Public media gate rejected target media',
+        error: 'ASSIGNMENT_CHANGED_PUBLIC_PROOF_FAILED - Public media authority rejected target media after CAS mutation',
       });
     }
 
     evidence.push({
-      stage: 'VERIFY_PUBLIC_MEDIA_GATE',
+      stage: 'POST_CAS_PUBLIC_MEDIA_GATE',
       result: 'completed',
-      data: { publicMediaGatePassed: true },
+      data: { publicMediaAuthorityPassed: true },
     });
 
     const report: ReconciliationReport = {
