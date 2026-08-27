@@ -1751,6 +1751,7 @@ export async function POST(request: Request) {
               serviceSlug,
               mediaId: stringValue,
               updatedAt: new Date().toISOString(),
+              source: 'workbench' as const,
               revision: expectedRevision ? expectedRevision + 1 : 1,
             };
 
