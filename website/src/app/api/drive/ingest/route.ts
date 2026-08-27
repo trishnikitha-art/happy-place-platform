@@ -782,28 +782,40 @@ export async function POST(request: Request) {
         reason: 'Blob upload succeeded but metadata write failed - this is a critical architectural break'
       });
       throw new Error('Blob metadata write verification failed after original upload');
-    } else {
-      console.log('[MEDIA_INGEST] BLOB_METADATA_VERIFIED', {
+    }
+    
+    // CRITICAL: Verify content hash consistency
+    if (originalBlobMetadata.contentHash !== originalUpload.contentHash) {
+      console.error('[MEDIA_INGEST] BLOB_CONTENT_HASH_MISMATCH', {
+        requestId,
+        uploadContentHash: originalUpload.contentHash,
+        metadataContentHash: originalBlobMetadata.contentHash,
+        reason: 'Stored metadata content hash does not match upload content hash - metadata is poisoned'
+      });
+      throw new Error('Blob content hash mismatch between upload and metadata');
+    }
+    
+    // CRITICAL: Verify URL consistency - metadata URL must match upload URL
+    if (originalBlobMetadata.url !== originalUpload.url) {
+      console.error('[MEDIA_INGEST] BLOB_URL_MISMATCH', {
         requestId,
         contentHash: originalUpload.contentHash,
-        metadataUrl: originalBlobMetadata.url,
         uploadUrl: originalUpload.url,
-        urlsMatch: originalBlobMetadata.url === originalUpload.url,
-        verified: true
+        metadataUrl: originalBlobMetadata.url,
+        reason: 'Blob upload returned different URL than stored metadata - possible stale metadata or namespace mismatch'
       });
-      
-      // Verify URL consistency - metadata URL must match upload URL
-      if (originalBlobMetadata.url !== originalUpload.url) {
-        console.error('[MEDIA_INGEST] BLOB_URL_MISMATCH', {
-          requestId,
-          contentHash: originalUpload.contentHash,
-          uploadUrl: originalUpload.url,
-          metadataUrl: originalBlobMetadata.url,
-          reason: 'Blob upload returned different URL than stored metadata - possible stale metadata or namespace mismatch'
-        });
-        throw new Error('Blob URL mismatch between upload and metadata');
-      }
+      throw new Error('Blob URL mismatch between upload and metadata');
     }
+    
+    console.log('[MEDIA_INGEST] BLOB_METADATA_VERIFIED', {
+      requestId,
+      contentHash: originalUpload.contentHash,
+      metadataUrl: originalBlobMetadata.url,
+      uploadUrl: originalUpload.url,
+      contentHashMatch: true,
+      urlsMatch: true,
+      verified: true
+    });
     
     // Generate and upload WebP/AVIF variants
     for (const vw of validWidths) {
@@ -855,17 +867,43 @@ export async function POST(request: Request) {
             reason: 'Variant upload succeeded but metadata write failed'
           });
           throw new Error(`Variant Blob metadata write verification failed for ${variantFilename}`);
-        } else {
-          console.log('[MEDIA_INGEST] VARIANT_BLOB_METADATA_VERIFIED', {
+        }
+        
+        // CRITICAL: Verify content hash consistency
+        if (variantBlobMetadata.contentHash !== variantUpload.contentHash) {
+          console.error('[MEDIA_INGEST] VARIANT_BLOB_CONTENT_HASH_MISMATCH', {
+            requestId,
+            variant: variantFilename,
+            uploadContentHash: variantUpload.contentHash,
+            metadataContentHash: variantBlobMetadata.contentHash,
+            reason: 'Stored metadata content hash does not match upload content hash - metadata is poisoned'
+          });
+          throw new Error(`Variant content hash mismatch for ${variantFilename}`);
+        }
+        
+        // CRITICAL: Verify URL consistency between upload and stored metadata
+        if (variantBlobMetadata.url !== variantUpload.url) {
+          console.error('[MEDIA_INGEST] VARIANT_BLOB_URL_MISMATCH', {
             requestId,
             variant: variantFilename,
             contentHash: variantUpload.contentHash,
-            metadataUrl: variantBlobMetadata.url,
             uploadUrl: variantUpload.url,
-            urlsMatch: variantBlobMetadata.url === variantUpload.url,
-            verified: true
+            metadataUrl: variantBlobMetadata.url,
+            reason: 'Variant upload returned different URL than stored metadata - possible stale metadata or namespace mismatch'
           });
+          throw new Error(`Variant Blob URL mismatch for ${variantFilename}`);
         }
+        
+        console.log('[MEDIA_INGEST] VARIANT_BLOB_METADATA_VERIFIED', {
+          requestId,
+          variant: variantFilename,
+          contentHash: variantUpload.contentHash,
+          metadataUrl: variantBlobMetadata.url,
+          uploadUrl: variantUpload.url,
+          contentHashMatch: true,
+          urlsMatch: true,
+          verified: true
+        });
       }
     }
     
@@ -898,16 +936,40 @@ export async function POST(request: Request) {
         reason: 'Thumbnail upload succeeded but metadata write failed'
       });
       throw new Error('Thumbnail Blob metadata write verification failed');
-    } else {
-      console.log('[MEDIA_INGEST] THUMBNAIL_BLOB_METADATA_VERIFIED', {
+    }
+    
+    // CRITICAL: Verify content hash consistency
+    if (thumbBlobMetadata.contentHash !== thumbUpload.contentHash) {
+      console.error('[MEDIA_INGEST] THUMBNAIL_BLOB_CONTENT_HASH_MISMATCH', {
+        requestId,
+        uploadContentHash: thumbUpload.contentHash,
+        metadataContentHash: thumbBlobMetadata.contentHash,
+        reason: 'Stored metadata content hash does not match upload content hash - metadata is poisoned'
+      });
+      throw new Error('Thumbnail content hash mismatch');
+    }
+    
+    // CRITICAL: Verify URL consistency between upload and stored metadata
+    if (thumbBlobMetadata.url !== thumbUpload.url) {
+      console.error('[MEDIA_INGEST] THUMBNAIL_BLOB_URL_MISMATCH', {
         requestId,
         contentHash: thumbUpload.contentHash,
-        metadataUrl: thumbBlobMetadata.url,
         uploadUrl: thumbUpload.url,
-        urlsMatch: thumbBlobMetadata.url === thumbUpload.url,
-        verified: true
+        metadataUrl: thumbBlobMetadata.url,
+        reason: 'Thumbnail upload returned different URL than stored metadata - possible stale metadata or namespace mismatch'
       });
+      throw new Error('Thumbnail Blob URL mismatch');
     }
+    
+    console.log('[MEDIA_INGEST] THUMBNAIL_BLOB_METADATA_VERIFIED', {
+      requestId,
+      contentHash: thumbUpload.contentHash,
+      metadataUrl: thumbBlobMetadata.url,
+      uploadUrl: thumbUpload.url,
+      contentHashMatch: true,
+      urlsMatch: true,
+      verified: true
+    });
     
     // Generate blur placeholder
     const blurBuffer = await sharp(fileBuffer).resize(16).webp({ quality: 40 }).toBuffer();

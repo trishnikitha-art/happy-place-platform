@@ -36,12 +36,23 @@ function getEnvironment(): Environment {
     return 'preview';
   }
   
-  // Development/test
+  // Local development
+  if (nodeEnv === 'development') {
+    return 'development';
+  }
+  
+  // Test environment
   if (nodeEnv === 'test') {
     return 'test';
   }
   
-  return 'development';
+  // P0 FIX: Fail closed on unknown environment
+  // Unknown/missing environment must not silently default to development
+  // This prevents production-like execution from accidentally routing into development namespace
+  throw new Error(
+    `Unknown environment: VERCEL_ENV=${vercelEnv}, NODE_ENV=${nodeEnv}. ` +
+    'Environment must be explicitly configured. Cannot proceed with unsafe default.'
+  );
 }
 
 function getKvNamespace(): string {
