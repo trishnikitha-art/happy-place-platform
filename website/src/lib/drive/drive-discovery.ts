@@ -414,6 +414,86 @@ export class DriveDiscovery {
 
     return [];
   }
+
+  /**
+   * Search with pagination support
+   * @param query - Search query string
+   * @param corpusId - Optional corpus ID to scope search
+   * @param pageToken - Optional page token for pagination
+   */
+  async search(query: string, corpusId?: string, pageToken?: string): Promise<DriveListResult> {
+    if (!(await isAuthenticated())) {
+      return { items: [] };
+    }
+
+    const drive = await getDriveClient();
+
+    try {
+      const params: Record<string, unknown> = {
+        q: `name contains '${query}' and trashed = false`,
+        fields: 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,parents),nextPageToken',
+        pageSize: 100,
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
+      };
+
+      // Scope search to specific corpus if provided
+      if (corpusId && corpusId !== 'root') {
+        params.corpora = 'drive';
+        params.driveId = corpusId;
+      } else {
+        params.corpora = 'user';
+      }
+
+      if (pageToken) {
+        params.pageToken = pageToken;
+      }
+
+      console.log('[Drive Discovery] search params:', {
+        query,
+        corpora: params.corpora,
+        driveId: params.driveId,
+        pageToken,
+      });
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (drive as any).files.list(params);
+
+      const items: (DriveFolder | DriveFile)[] = [];
+      if (response.data.files) {
+        for (const file of response.data.files) {
+          if (file.mimeType === 'application/vnd.google-apps.folder') {
+            items.push({
+              id: file.id,
+              name: file.name,
+              type: 'folder',
+              parent: file.parents?.[0],
+              modifiedTime: file.modifiedTime,
+            });
+          } else {
+            items.push({
+              id: file.id,
+              name: file.name,
+              mimeType: file.mimeType,
+              size: file.size ? parseInt(file.size, 10) : undefined,
+              modifiedTime: file.modifiedTime,
+              thumbnailLink: file.thumbnailLink,
+              webViewLink: file.webViewLink,
+              parent: file.parents?.[0],
+            });
+          }
+        }
+      }
+
+      return {
+        items,
+        nextPageToken: response.data.nextPageToken,
+      };
+    } catch (error) {
+      console.error(`Failed to search for "${query}":`, error);
+      return { items: [] };
+    }
+  }
 }
 
 // Per-request instance creation - no singleton

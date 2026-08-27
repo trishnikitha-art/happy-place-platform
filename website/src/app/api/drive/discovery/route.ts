@@ -10,6 +10,7 @@
 import { NextResponse } from 'next/server';
 import { driveDiscovery } from '@/lib/drive/drive-discovery';
 import { workbenchSession } from '@/lib/workbench-session';
+import { getAuthorizedCorpora } from '@/lib/drive/corpus-authorization';
 
 export const dynamic = 'force-dynamic';
 
@@ -32,8 +33,21 @@ export async function GET() {
   }
 
   try {
+    // P0 FIX: Verify authorized corpora before returning discovery
+    const authorizedCorpora = await getAuthorizedCorpora();
+    
     const structure = await driveDiscovery.discoverStructure();
-    return NextResponse.json(structure);
+    
+    // Filter structure to only include authorized corpora
+    const filteredStructure = {
+      ...structure,
+      myDrive: structure.myDrive,
+      sharedDrives: structure.sharedDrives?.filter(drive => 
+        authorizedCorpora.some(c => c.id === drive.id && c.authorized)
+      ) || [],
+    };
+    
+    return NextResponse.json(filteredStructure);
   } catch (error) {
     console.error('Drive discovery error:', error);
     return NextResponse.json(

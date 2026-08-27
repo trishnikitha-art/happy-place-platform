@@ -21,6 +21,7 @@ import { workbenchSession } from '@/lib/workbench-session';
 import { storeMedia, getMedia } from '@/lib/media-kv-store';
 import type { Media, MediaRole, MediaLifecycleState } from '@/types/media';
 import crypto from 'crypto';
+import { verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
 
 export const dynamic = 'force-dynamic';
 
@@ -107,46 +108,25 @@ export async function POST(request: Request) {
       // Verify the Drive file is accessible to the authenticated session
       // This prevents IDOR where an authorized user could access arbitrary Drive IDs
       // even if Google technically permits the object
-      try {
-        const driveClient = await driveSession.getDriveClient();
-        const fileMetadata = await driveClient.files.get({
-          fileId: fileId,
-          fields: 'id,name,owners,permissions,shared',
-          supportsAllDrives: true,
-        });
-        
-        if (!fileMetadata.data) {
-          console.error('[DRIVE_AUTHORIZATION] FILE_NOT_ACCESSIBLE', {
-            fileId,
-            reason: 'Drive file not accessible to authenticated session'
-          });
-          return NextResponse.json(
-            {
-              error: 'DRIVE_FILE_NOT_AUTHORIZED',
-              message: 'Drive file is not accessible to the authenticated session',
-            },
-            { status: 403 }
-          );
-        }
-        
-        console.log('[DRIVE_AUTHORIZATION] FILE_ACCESS_VERIFIED', {
+      const fileAuth = await verifyCorpusAuthorization(fileId, sharedDriveId);
+      if (!fileAuth.authorized) {
+        console.error('[DRIVE_AUTHORIZATION] FILE_NOT_AUTHORIZED', {
           fileId,
-          fileName: fileMetadata.data.name,
-          isShared: fileMetadata.data.shared,
-        });
-      } catch (driveError) {
-        console.error('[DRIVE_AUTHORIZATION] FILE_VERIFICATION_FAILED', {
-          fileId,
-          error: driveError instanceof Error ? driveError.message : 'Unknown error'
+          reason: fileAuth.reason,
         });
         return NextResponse.json(
           {
-            error: 'DRIVE_AUTHORIZATION_FAILED',
-            message: 'Failed to verify Drive file authorization',
+            error: 'DRIVE_FILE_NOT_AUTHORIZED',
+            message: fileAuth.reason || 'Drive file is not accessible to the authenticated session',
           },
           { status: 403 }
         );
       }
+      
+      console.log('[DRIVE_AUTHORIZATION] FILE_ACCESS_VERIFIED', {
+        fileId,
+        corpus: fileAuth.corpus,
+      });
     }
 
     // 1. Get Drive file metadata (using corrected API contract)

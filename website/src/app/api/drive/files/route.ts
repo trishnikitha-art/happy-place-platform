@@ -16,6 +16,7 @@ import { NextResponse } from 'next/server';
 import { driveDiscovery } from '@/lib/drive/drive-discovery';
 import { workbenchSession } from '@/lib/workbench-session';
 import { driveSession } from '@/lib/drive/drive-session';
+import { verifyFolderAuthorization, verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
 
 export const dynamic = 'force-dynamic';
 
@@ -67,46 +68,25 @@ export async function GET(request: Request) {
     // This prevents IDOR where an authorized user could list arbitrary folder IDs
     // even if Google technically permits the object
     if (folderId !== 'root') {
-      try {
-        const driveClient = await driveSession.getDriveClient();
-        const folderMetadata = await driveClient.files.get({
-          fileId: folderId,
-          fields: 'id,name,owners,permissions,shared',
-          supportsAllDrives: true,
-        });
-        
-        if (!folderMetadata.data) {
-          console.error('[DRIVE_AUTHORIZATION] FOLDER_NOT_ACCESSIBLE', {
-            folderId,
-            reason: 'Drive folder not accessible to authenticated session'
-          });
-          return NextResponse.json(
-            {
-              error: 'DRIVE_FOLDER_NOT_AUTHORIZED',
-              message: 'Drive folder is not accessible to the authenticated session',
-            },
-            { status: 403 }
-          );
-        }
-        
-        console.log('[DRIVE_AUTHORIZATION] FOLDER_ACCESS_VERIFIED', {
+      const folderAuth = await verifyFolderAuthorization(folderId);
+      if (!folderAuth.authorized) {
+        console.error('[DRIVE_AUTHORIZATION] FOLDER_NOT_AUTHORIZED', {
           folderId,
-          folderName: folderMetadata.data.name,
-          isShared: folderMetadata.data.shared,
-        });
-      } catch (driveError) {
-        console.error('[DRIVE_AUTHORIZATION] FOLDER_VERIFICATION_FAILED', {
-          folderId,
-          error: driveError instanceof Error ? driveError.message : 'Unknown error'
+          reason: folderAuth.reason,
         });
         return NextResponse.json(
           {
-            error: 'DRIVE_AUTHORIZATION_FAILED',
-            message: 'Failed to verify Drive folder authorization',
+            error: 'DRIVE_FOLDER_NOT_AUTHORIZED',
+            message: folderAuth.reason || 'Drive folder is not accessible to the authenticated session',
           },
           { status: 403 }
         );
       }
+      
+      console.log('[DRIVE_AUTHORIZATION] FOLDER_ACCESS_VERIFIED', {
+        folderId,
+        corpus: folderAuth.corpus,
+      });
     }
 
     const result = await driveDiscovery.listChildren(
