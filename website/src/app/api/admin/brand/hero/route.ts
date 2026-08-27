@@ -15,6 +15,7 @@ import { getServiceCardAssignment } from "@/lib/assignment-store";
 import { getMediaByIdAsync } from "@/lib/media";
 import { isDriveReference, isPublishedMediaAsset } from "@/types/media";
 import { Redis } from '@upstash/redis';
+import { getKvNamespace } from '@/lib/environment';
 
 const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
 
@@ -136,7 +137,7 @@ export async function POST(request: Request) {
     // STAGE assignment in Redis for deployment (not direct to assignment store)
     // This prevents Redis/Git split-brain - promotion happens only after Git succeeds
     if (isProduction && redis) {
-      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:brand-hero`;
+      const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:brand-hero`;
 
       await redis.set(stagingKey, mediaId);
 
@@ -159,6 +160,25 @@ export async function POST(request: Request) {
         transactionId: effectiveTransactionId
       });
     }
+
+    // P0 FIX: Fail-closed when Redis is unavailable in production
+    // Prevents split-brain where UI accepts mutations but cannot stage them
+    console.error('[BRAND HERO] REDIS_UNAVAILABLE - FAILING_CLOSED', {
+      mediaId,
+      transactionId: effectiveTransactionId,
+      environment: process.env.NODE_ENV,
+      reason: 'KV credentials not configured or Redis unavailable'
+    });
+
+    return NextResponse.json(
+      {
+        error: "Redis unavailable",
+        message: "Staging storage is unavailable. Cannot accept mutations without Redis staging.",
+        mediaId,
+        transactionId: effectiveTransactionId
+      },
+      { status: 503 }
+    );
 
     // Development: Use assignment store directly
     const currentAssignment = await getServiceCardAssignment('brand-hero', requestId);
@@ -187,7 +207,7 @@ export async function POST(request: Request) {
 
     // CRITICAL: Also write to KV staging area for deployment API discovery
     // Deployment API expects: workbench-staging:{txId}:service:{serviceSlug}
-    const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:brand-hero`;
+    const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:brand-hero`;
     if (redis) {
       await redis.set(stagingKey, mediaId);
       console.log('[BRAND HERO] STAGING_AREA_WRITE', {

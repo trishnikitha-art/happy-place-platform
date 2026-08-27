@@ -3,6 +3,7 @@ import fs from 'fs';
 import path from 'path';
 import { Redis } from '@upstash/redis';
 import { workbenchSession } from '@/lib/workbench-session';
+import { getKvNamespace } from '@/lib/environment';
 
 export const runtime = 'nodejs';
 
@@ -70,9 +71,9 @@ export async function POST(request: NextRequest) {
     if (isProduction && redis) {
       // Production: Use transactional staging format
       const effectiveTransactionId = transactionId || `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:${side}`;
+      const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:${side}`;
       await redis.set(stagingKey, mediaId);
-      
+
       // Create authoritative deployment transaction record
       const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
       await createDeploymentTransaction(
@@ -81,9 +82,9 @@ export async function POST(request: NextRequest) {
         ['projects.v1.json'],
         `Project before/after assignment: ${projectId} (${side})`
       );
-      
+
       console.log('[BEFORE-AFTER API] STAGED_IN_KV', { projectId, side, mediaId, stagingKey, transactionId: effectiveTransactionId });
-      
+
       return NextResponse.json({
         success: true,
         projectId,
@@ -94,6 +95,28 @@ export async function POST(request: NextRequest) {
         transactionId: effectiveTransactionId
       });
     }
+
+    // P0 FIX: Fail-closed when Redis is unavailable in production
+    // Prevents split-brain where UI accepts mutations but cannot stage them
+    console.error('[BEFORE-AFTER API] REDIS_UNAVAILABLE - FAILING_CLOSED', {
+      projectId,
+      side,
+      mediaId,
+      transactionId,
+      environment: process.env.NODE_ENV,
+      reason: 'KV credentials not configured or Redis unavailable'
+    });
+
+    return NextResponse.json(
+      {
+        error: "Redis unavailable",
+        message: "Staging storage is unavailable. Cannot accept mutations without Redis staging.",
+        projectId,
+        mediaId,
+        transactionId
+      },
+      { status: 503 }
+    );
 
     // Development: Write to local filesystem
     console.log('[BEFORE-AFTER API] DEV_MODE', { projectId, side, mediaId, transactionId });

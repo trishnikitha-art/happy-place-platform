@@ -30,6 +30,7 @@ import { join } from "path";
 import { workbenchSession } from "@/lib/workbench-session";
 import { getMediaByIdAsync } from "@/lib/media";
 import { Redis } from '@upstash/redis';
+import { getKvNamespace } from '@/lib/environment';
 
 export const runtime = 'nodejs';
 
@@ -93,12 +94,12 @@ export async function POST(request: Request) {
     if (isProduction && redis) {
       // Production: Use transactional staging format
       const effectiveTransactionId = transactionId || `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:gallery`;
-      
+      const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:gallery`;
+
       // Store as array with the single mediaId at the specified index
       const galleryArray = [mediaId];
       await redis.set(stagingKey, JSON.stringify(galleryArray));
-      
+
       // Create authoritative deployment transaction record
       const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
       await createDeploymentTransaction(
@@ -107,18 +108,18 @@ export async function POST(request: Request) {
         ['projects.v1.json'],
         `Project gallery assignment: ${projectId} (index ${galleryIndex})`
       );
-      
-      console.log('[GALLERY POST] STAGED_IN_KV', { 
-        projectId, 
-        operation, 
-        mediaId, 
-        stagingKey, 
-        transactionId: effectiveTransactionId 
+
+      console.log('[GALLERY POST] STAGED_IN_KV', {
+        projectId,
+        operation,
+        mediaId,
+        stagingKey,
+        transactionId: effectiveTransactionId
       });
-      
-      return NextResponse.json({ 
-        success: true, 
-        projectId, 
+
+      return NextResponse.json({
+        success: true,
+        projectId,
         operation,
         galleryIndex,
         mediaId,
@@ -127,6 +128,28 @@ export async function POST(request: Request) {
         transactionId: effectiveTransactionId
       });
     }
+
+    // P0 FIX: Fail-closed when Redis is unavailable in production
+    // Prevents split-brain where UI accepts mutations but cannot stage them
+    console.error('[GALLERY POST] REDIS_UNAVAILABLE - FAILING_CLOSED', {
+      projectId,
+      operation,
+      mediaId,
+      transactionId,
+      environment: process.env.NODE_ENV,
+      reason: 'KV credentials not configured or Redis unavailable'
+    });
+
+    return NextResponse.json(
+      {
+        error: "Redis unavailable",
+        message: "Staging storage is unavailable. Cannot accept mutations without Redis staging.",
+        projectId,
+        mediaId,
+        transactionId
+      },
+      { status: 503 }
+    );
 
     // Development: Write to local filesystem
     console.log('[GALLERY POST] DEV_MODE', { projectId, operation, mediaId });
@@ -231,7 +254,7 @@ export async function DELETE(request: Request) {
     const isProduction = process.env.NODE_ENV === 'production';
     
     if (isProduction && redis) {
-      const stagingKey = `${WORKBENCH_STAGING_PREFIX}project:${projectId}:gallery`;
+      const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}project:${projectId}:gallery`;
       const currentGallery = await redis.get<(string | null)[]>(stagingKey) || [];
       
       if (galleryIndex < 0 || galleryIndex >= currentGallery.length) {

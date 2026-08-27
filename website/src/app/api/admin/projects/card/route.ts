@@ -19,6 +19,7 @@ import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { workbenchSession } from "@/lib/workbench-session";
 import { Redis } from '@upstash/redis';
+import { getKvNamespace } from '@/lib/environment';
 
 export const runtime = 'nodejs';
 
@@ -77,9 +78,9 @@ export async function POST(request: Request) {
       // Production: Store in KV staging area with transaction ID
       // Use provided transaction ID or generate new one for compatibility
       const effectiveTransactionId = transactionId || `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const stagingKey = `${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:hero`;
+      const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:hero`;
       await redis.set(stagingKey, mediaId);
-      
+
       // Create authoritative deployment transaction record (single source of truth)
       const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
       await createDeploymentTransaction(
@@ -88,18 +89,39 @@ export async function POST(request: Request) {
         ['projects.v1.json'],
         `Project card assignment: ${projectId}`
       );
-      
+
       console.log('[CARD UPDATE] STAGED_IN_KV', { projectId, mediaId, stagingKey, transactionId: effectiveTransactionId });
-      
-      return NextResponse.json({ 
-        success: true, 
-        projectId, 
+
+      return NextResponse.json({
+        success: true,
+        projectId,
         mediaId,
         staged: true,
         persistence: 'kv',
         transactionId: effectiveTransactionId
       });
     }
+
+    // P0 FIX: Fail-closed when Redis is unavailable in production
+    // Prevents split-brain where UI accepts mutations but cannot stage them
+    console.error('[CARD UPDATE] REDIS_UNAVAILABLE - FAILING_CLOSED', {
+      projectId,
+      mediaId,
+      transactionId,
+      environment: process.env.NODE_ENV,
+      reason: 'KV credentials not configured or Redis unavailable'
+    });
+
+    return NextResponse.json(
+      {
+        error: "Redis unavailable",
+        message: "Staging storage is unavailable. Cannot accept mutations without Redis staging.",
+        projectId,
+        mediaId,
+        transactionId
+      },
+      { status: 503 }
+    );
 
     // Development: Write to local filesystem
     console.log('[CARD UPDATE] DEV_MODE', { projectId, mediaId });
