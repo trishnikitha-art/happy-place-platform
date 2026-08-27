@@ -20,18 +20,17 @@ import { getCompany } from "@/lib/company";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { NewsletterSignup } from "@/components/newsletter-signup";
 import { getOwnerPortrait } from "@/lib/brand";
-import { getMediaById } from "@/app/workbench/preview/main-media";
+import { getMediaByIdAsync } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 import { getHomepageHero } from "@/lib/brand";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
-import { getMediaByIdAsync } from "@/lib/media";
 import type { Media } from "@/types/media";
 
 const siteUrl = "https://happyplacecarpentry.com";
 
 export async function generateMetadata(): Promise<Metadata> {
   const heroBrand = await getHomepageHero();
-  const heroMedia = heroBrand?.mediaId ? getMediaById(heroBrand.mediaId) : null;
+  const heroMedia = heroBrand?.mediaId ? await getMediaByIdAsync(heroBrand.mediaId) : null;
   const ogImageUrl = heroMedia?.variants?.web || `${siteUrl}/brand/logo.png`;
 
   return {
@@ -51,7 +50,7 @@ export default async function HomePage() {
   const hasReviews = stats.count > 0;
   const [taylor, lanie] = company.owners;
   const ownerBrand = await getOwnerPortrait();    // owner portrait from Brand Authority (now async for runtime assignment)
-  const ownerMedia = ownerBrand?.mediaId ? getMediaById(ownerBrand.mediaId) : null;
+  const ownerMedia = ownerBrand?.mediaId ? await getMediaByIdAsync(ownerBrand.mediaId) : null;
   const ownerSrc = ownerMedia?.variants?.web || ownerMedia?.variants?.original;
   const allServices = getNonArchivedServices();      // data-driven services from registry
   const featuredProjects = getFeaturedProjects(); // featured projects from Projects Authority
@@ -61,12 +60,12 @@ export default async function HomePage() {
   
   // Get hero from Brand Authority with runtime assignment
   const homepageHero = await getHomepageHero();
-  const heroMedia = homepageHero?.mediaId ? getMediaById(homepageHero.mediaId) : null;
-  const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original || '/images/hero-background-enhanced.jpg';
+  const heroMedia = homepageHero?.mediaId ? await getMediaByIdAsync(homepageHero.mediaId) : null;
+  const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original || '/brand/logo.png';
   
   // Group services for homepage display (show homepageEligible services first)
   const homepageServices = allServices.filter(s => s.homepageEligible);
-  
+
   // Load runtime assignments for service cards on server side (avoids client-side Redis access)
   // For drive-prefixed IDs, resolve via async KV lookup
   const serviceCardAssignments = new Map<string, { mediaId: string; mediaObject: Media | null }>();
@@ -74,13 +73,8 @@ export default async function HomePage() {
     try {
       const assignment = await getServiceCardAssignment(service.slug);
       if (assignment?.mediaId) {
-        // Resolve media object - use async KV lookup for drive-prefixed IDs
-        let mediaObject: Media | null = null;
-        if (assignment.mediaId.startsWith('drive-')) {
-          mediaObject = await getMediaByIdAsync(assignment.mediaId);
-        } else {
-          mediaObject = getMediaById(assignment.mediaId);
-        }
+        // Resolve media object - use async KV lookup for all IDs (not just drive-prefixed)
+        const mediaObject = await getMediaByIdAsync(assignment.mediaId);
         
         console.log('[FORENSIC] SERVICE_CARD_MEDIA_RESOLUTION', {
           serviceSlug: service.slug,
@@ -100,13 +94,22 @@ export default async function HomePage() {
     }
   }
 
+  // Load project media for featured projects using KV authority
+  const featuredProjectsWithMedia = await Promise.all(
+    featuredProjects.slice(0, 4).map(async (project) => {
+      const heroMediaId = project.media.hero;
+      const heroMedia = heroMediaId ? await getMediaByIdAsync(heroMediaId) : null;
+      return { ...project, heroMedia };
+    })
+  );
+
   return (
     <>
       {/* HERO — full-width photograph with text overlay */}
       <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
         <WorkshopAtmosphere particleCount={20} />
         <Image
-          src={heroSrc}
+          src={heroSrc || '/brand/logo.png'}
           alt="Photograph of a completed deck project showing quality carpentry work with warm wood tones and clean construction"
           fill
           priority
@@ -224,10 +227,8 @@ export default async function HomePage() {
               descriptionColor="text-primary"
             />
             <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 auto-rows-[200px]">
-              {featuredProjects.slice(0, 4).map((project, i) => {
-                const heroMediaId = project.media.hero;
-                const heroMedia = heroMediaId ? getMediaById(heroMediaId) : null;
-                const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original;
+              {featuredProjectsWithMedia.map((project, i) => {
+                const heroSrc = project.heroMedia?.variants?.web || project.heroMedia?.variants?.original;
                 if (!heroSrc) return null;
                 
                 // Bento grid spans: first item spans 2 cols, 2 rows on desktop
