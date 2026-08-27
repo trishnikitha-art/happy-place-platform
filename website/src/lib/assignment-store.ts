@@ -46,8 +46,13 @@ function getEnvironment(): Environment {
     return 'test';
   }
   
-  // Default to development for safety
-  return 'development';
+  // P0 FIX: Fail closed on unknown environment
+  // Unknown/missing environment must not silently default to development
+  // This prevents production-like execution from accidentally routing into development namespace
+  throw new Error(
+    `Unknown environment: VERCEL_ENV=${vercelEnv}, NODE_ENV=${nodeEnv}. ` +
+    'Environment must be explicitly configured. Cannot proceed with unsafe default.'
+  );
 }
 
 /**

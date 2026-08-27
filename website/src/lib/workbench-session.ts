@@ -19,6 +19,128 @@ import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import { Redis } from '@upstash/redis';
 
+/**
+ * P1-9: KV environment isolation
+ * Each environment (production, preview, development, test) has a distinct namespace
+ * to prevent cross-environment data access and isolation violations.
+ */
+type Environment = 'production' | 'preview' | 'development' | 'test';
+
+function getEnvironment(): Environment {
+  const vercelEnv = process.env.VERCEL_ENV;
+  const nodeEnv = process.env.NODE_ENV;
+  
+  // Vercel production
+  if (vercelEnv === 'production') {
+    return 'production';
+  }
+  
+  // Vercel preview
+  if (vercelEnv === 'preview') {
+    return 'preview';
+  }
+  
+  // Local development
+  if (nodeEnv === 'development') {
+    return 'development';
+  }
+  
+  // Test environment
+  if (nodeEnv === 'test') {
+    return 'test';
+  }
+  
+  // P0 FIX: Fail closed on unknown environment
+  // Unknown/missing environment must not silently default to development
+  // This prevents production-like execution from accidentally routing into development namespace
+  throw new Error(
+    `Unknown environment: VERCEL_ENV=${vercelEnv}, NODE_ENV=${nodeEnv}. ` +
+    'Environment must be explicitly configured. Cannot proceed with unsafe default.'
+  );
+}
+
+/**
+ * Get KV namespace prefix for current environment
+ * This ensures isolation between production, preview, development, and test
+ */
+function getKvNamespace(): string {
+  const env = getEnvironment();
+  return `hpp:${env}:`;
+}
+
+/**
+ * Apply namespace prefix to KV key
+ * Prevents cross-environment key collisions
+ */
+function namespacedKey(key: string): string {
+  const namespace = getKvNamespace();
+  return `${namespace}${key}`;
+}
+
+/**
+ * Detect if we're in static build mode
+ * During static build, we can tolerate KV unavailability
+ * During runtime, KV is a required dependency
+ */
+function isStaticBuild(): boolean {
+  // Check if we're in Next.js build phase
+  // During build, NODE_ENV is 'production' but we're not actually running
+  const isBuilding = process.env.NEXT_PHASE === 'build';
+  return isBuilding;
+}
+
+class KvUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'KvUnavailableError';
+  }
+}
+
+/**
+ * KV Client Factory
+ * 
+ * Creates environment-bound Redis clients to prevent mutable process-global state.
+ * Each client is bound to the current environment namespace at creation time.
+ * This prevents identity leaks when environments change or credentials rotate.
+ */
+function createRedisClient(): Redis {
+  let url = process.env.KV_REST_API_URL;
+  let token = process.env.KV_REST_API_TOKEN;
+  
+  // Check integration-generated variables
+  const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
+  const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
+  const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
+  
+  // Use integration credentials if primary not set
+  if (!url && integrationUrl) {
+    url = integrationUrl;
+  }
+  if (!token && integrationToken) {
+    token = integrationToken;
+  }
+  
+  // During static build, KV may not be available - throw explicit error
+  // Runtime pages will handle this as a dependency failure
+  if (!url || !token) {
+    if (isStaticBuild()) {
+      throw new KvUnavailableError('KV credentials not available during static build');
+    }
+    throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
+  }
+  
+  // Create fresh client bound to current environment
+  const env = getEnvironment();
+  const client = new Redis({ url, token });
+  
+  console.log('[WORKBENCH_SESSION] Created environment-bound client', {
+    environment: env,
+    namespace: getKvNamespace(),
+  });
+  
+  return client;
+}
+
 // Cryptographically secure UUID v4 generator
 function randomUUID(): string {
   return crypto.randomUUID();
@@ -44,35 +166,6 @@ function isPasswordConfigured(): boolean {
   }
   // Development: allow unconfigured (uses fallback)
   return true;
-}
-
-let redis: Redis | null = null;
-
-function getRedisClient(): Redis {
-  if (!redis) {
-    let url = process.env.KV_REST_API_URL;
-    let token = process.env.KV_REST_API_TOKEN;
-    
-    // Check integration-generated variables
-    const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
-    const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
-    const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
-    
-    // Use integration credentials if primary not set
-    if (!url && integrationUrl) {
-      url = integrationUrl;
-    }
-    if (!token && integrationToken) {
-      token = integrationToken;
-    }
-    
-    if (!url || !token) {
-      throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
-    }
-    
-    redis = new Redis({ url, token });
-  }
-  return redis;
 }
 
 export class WorkbenchSession {
@@ -113,8 +206,8 @@ export class WorkbenchSession {
       };
       
       try {
-        const client = getRedisClient();
-        await client.set(`workbench_session:${sessionId}`, JSON.stringify(sessionData), {
+        const client = createRedisClient();
+        await client.set(namespacedKey(`workbench_session:${sessionId}`), JSON.stringify(sessionData), {
           ex: SESSION_DURATION / 1000, // Set TTL to match session duration
         });
         
@@ -144,8 +237,8 @@ export class WorkbenchSession {
     }
     
     try {
-      const client = getRedisClient();
-      const sessionData = await client.get(`workbench_session:${sessionId}`);
+      const client = createRedisClient();
+      const sessionData = await client.get(namespacedKey(`workbench_session:${sessionId}`));
       
       if (!sessionData) {
         // Session not found in Redis (expired or invalid)
@@ -184,8 +277,8 @@ export class WorkbenchSession {
     }
     
     try {
-      const client = getRedisClient();
-      const sessionData = await client.get(`workbench_session:${sessionId}`);
+      const client = createRedisClient();
+      const sessionData = await client.get(namespacedKey(`workbench_session:${sessionId}`));
       
       if (!sessionData) {
         return null;
@@ -254,8 +347,8 @@ export class WorkbenchSession {
     // Clear server-side session data if sessionId provided
     if (sessionId) {
       try {
-        const client = getRedisClient();
-        await client.del(`workbench_session:${sessionId}`);
+        const client = createRedisClient();
+        await client.del(namespacedKey(`workbench_session:${sessionId}`));
       } catch (error) {
         console.error('[WORKBENCH_SESSION] Failed to clear session from Redis:', error);
       }

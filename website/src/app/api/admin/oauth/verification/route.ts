@@ -78,7 +78,15 @@ export async function POST(request: Request) {
       );
     }
 
-    console.log('[OAUTH_VERIFICATION] Starting OAuth session path verification');
+    // ADMIN AUTHORIZATION NOTE:
+    // Workbench authentication currently provides administrative access.
+    // This assumes Workbench sessions are only granted to trusted administrators.
+    // If this assumption changes, explicit role-based authorization must be added.
+    // 
+    // Current model: Workbench password possession = administrative access
+    // Future model: Explicit role check (e.g., session.role === 'admin')
+
+    console.log('[OAUTH_VERIFICATION] Starting OAuth session path verification (admin access granted via Workbench authentication)');
 
     const result: OAuthVerificationResult = {
       configuration: {

@@ -13,6 +13,11 @@
  * 
  * A user must not be able to supply an arbitrary Drive file ID that Google
  * happens to permit and thereby bypass the application's corpus boundary.
+ * 
+ * SHARED DRIVE AUTHORIZATION:
+ * Shared Drives require explicit HPP configuration via environment variable.
+ * Google OAuth access is NOT sufficient for HPP authorization.
+ * Only explicitly configured Shared Drives are authorized.
  */
 
 import { driveSession } from './drive-session';
@@ -32,11 +37,35 @@ export interface CorpusAuthorizationResult {
 }
 
 /**
+ * Get explicitly configured HPP-authorized Shared Drive IDs
+ * 
+ * HPP authorization is separate from Google OAuth access.
+ * Only Shared Drives explicitly configured here are authorized.
+ * 
+ * Configuration via environment variable: HPP_AUTHORIZED_SHARED_DRIVES
+ * Format: comma-separated list of Shared Drive IDs
+ * Example: HPP_AUTHORIZED_SHARED_DRIVES=0AEd3EhGxxxxx,0AEd3EhGyyyyy
+ */
+function getAuthorizedSharedDriveIds(): string[] {
+  const configuredDrives = process.env.HPP_AUTHORIZED_SHARED_DRIVES;
+  if (!configuredDrives) {
+    return [];
+  }
+  
+  return configuredDrives
+    .split(',')
+    .map(id => id.trim())
+    .filter(id => id.length > 0);
+}
+
+/**
  * Get authorized Drive corpora for the current session
  * Returns the list of Drive corpora that the authenticated session is authorized to access
  * 
- * CRITICAL: This must NOT simply return all Google-accessible corpora.
- * This must enforce HPP application-level authorization, not just Google OAuth access.
+ * HPP AUTHORIZATION MODEL:
+ * - My Drive: Authorized by default for authenticated workbench users
+ * - Shared Drives: Only authorized if explicitly configured via HPP_AUTHORIZED_SHARED_DRIVES
+ * - Google OAuth access is NOT sufficient for HPP authorization
  */
 export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
   try {
@@ -60,8 +89,7 @@ export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
       fields: 'storageQuota,kind',
     });
 
-    // HPP AUTHORIZATION: Only authorize My Drive for authenticated workbench users
-    // Shared Drives require explicit HPP authorization (not just Google access)
+    // My Drive is authorized by default for authenticated workbench users
     const corpora: DriveCorpus[] = [
       {
         id: 'root',
@@ -71,9 +99,42 @@ export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
       },
     ];
 
-    // TODO: Implement explicit HPP Shared Drive authorization
-    // This should be based on HPP application configuration, not Google access
-    // For now, we do NOT automatically authorize Shared Drives
+    // Get explicitly configured HPP-authorized Shared Drive IDs
+    const authorizedSharedDriveIds = getAuthorizedSharedDriveIds();
+    
+    // Only if Shared Drives are explicitly configured, fetch and authorize them
+    if (authorizedSharedDriveIds.length > 0) {
+      const drivesResponse = await driveClient.drives.list({
+        pageSize: 100,
+      });
+
+      if (drivesResponse.data.drives) {
+        for (const drive of drivesResponse.data.drives) {
+          // Only authorize Shared Drives that are explicitly configured
+          if (authorizedSharedDriveIds.includes(drive.id)) {
+            corpora.push({
+              id: drive.id,
+              name: drive.name || drive.id,
+              type: 'shared_drive',
+              authorized: true,
+            });
+          } else {
+            // Shared Drive exists in Google but is NOT HPP-authorized
+            console.warn('[CORPUS_AUTHORIZATION] Shared Drive NOT authorized by HPP configuration:', {
+              driveId: drive.id,
+              driveName: drive.name,
+              reason: 'Not in HPP_AUTHORIZED_SHARED_DRIVES environment variable',
+            });
+          }
+        }
+      }
+    } else {
+      console.log('[CORPUS_AUTHORIZATION] No Shared Drives configured for HPP authorization', {
+        configuredCount: 0,
+        googleAccessibleCount: 'not_fetched',
+        reason: 'HPP_AUTHORIZED_SHARED_DRIVES environment variable not set',
+      });
+    }
 
     return corpora;
   } catch (error) {

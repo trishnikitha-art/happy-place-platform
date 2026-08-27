@@ -47,8 +47,13 @@ function getEnvironment(): Environment {
     return 'test';
   }
   
-  // Default to development for safety
-  return 'development';
+  // P0 FIX: Fail closed on unknown environment
+  // Unknown/missing environment must not silently default to development
+  // This prevents production-like execution from accidentally routing into development namespace
+  throw new Error(
+    `Unknown environment: VERCEL_ENV=${vercelEnv}, NODE_ENV=${nodeEnv}. ` +
+    'Environment must be explicitly configured. Cannot proceed with unsafe default.'
+  );
 }
 
 /**
@@ -69,33 +74,68 @@ function namespacedKey(key: string): string {
   return `${namespace}${key}`;
 }
 
-let redis: Redis | null = null;
+/**
+ * Detect if we're in static build mode
+ * During static build, we can tolerate KV unavailability
+ * During runtime, KV is a required dependency
+ */
+function isStaticBuild(): boolean {
+  // Check if we're in Next.js build phase
+  // During build, NODE_ENV is 'production' but we're not actually running
+  const isBuilding = process.env.NEXT_PHASE === 'build';
+  return isBuilding;
+}
 
-function getRedisClient(): Redis {
-  if (!redis) {
-    let url = process.env.KV_REST_API_URL;
-    let token = process.env.KV_REST_API_TOKEN;
-    
-    // Check integration-generated variables
-    const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
-    const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
-    const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
-    
-    // Use integration credentials if primary not set
-    if (!url && integrationUrl) {
-      url = integrationUrl;
-    }
-    if (!token && integrationToken) {
-      token = integrationToken;
-    }
-    
-    if (!url || !token) {
-      throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
-    }
-    
-    redis = new Redis({ url, token });
+class KvUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'KvUnavailableError';
   }
-  return redis;
+}
+
+/**
+ * KV Client Factory
+ * 
+ * Creates environment-bound Redis clients to prevent mutable process-global state.
+ * Each client is bound to the current environment namespace at creation time.
+ * This prevents identity leaks when environments change or credentials rotate.
+ */
+function createRedisClient(): Redis {
+  let url = process.env.KV_REST_API_URL;
+  let token = process.env.KV_REST_API_TOKEN;
+  
+  // Check integration-generated variables
+  const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
+  const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
+  const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
+  
+  // Use integration credentials if primary not set
+  if (!url && integrationUrl) {
+    url = integrationUrl;
+  }
+  if (!token && integrationToken) {
+    token = integrationToken;
+  }
+  
+  // During static build, KV may not be available - throw explicit error
+  // Runtime pages will handle this as a dependency failure
+  if (!url || !token) {
+    if (isStaticBuild()) {
+      throw new KvUnavailableError('KV credentials not available during static build');
+    }
+    throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
+  }
+  
+  // Create fresh client bound to current environment
+  const env = getEnvironment();
+  const client = new Redis({ url, token });
+  
+  console.log('[SESSION_STORE] Created environment-bound client', {
+    environment: env,
+    namespace: getKvNamespace(),
+  });
+  
+  return client;
 }
 
 // Redis namespace (P1-9: Environment isolation applied)
@@ -207,7 +247,7 @@ export async function createSession(
   };
 
   try {
-    const client = getRedisClient();
+    const client = createRedisClient();
 
     // Redis Lua script for atomic authorization verification + session + index write
     const luaScript = `
@@ -271,7 +311,7 @@ export async function createSession(
  */
 export async function getSession(id: string): Promise<BrowserSessionRecord | null> {
   try {
-    const client = getRedisClient();
+    const client = createRedisClient();
 
     // First get the session to extract authorization ID (non-atomic read)
     const session = await client.get<BrowserSessionRecord>(namespacedKey(`${SESSION_PREFIX}${id}`));
@@ -354,7 +394,7 @@ export async function getSession(id: string): Promise<BrowserSessionRecord | nul
  */
 export async function updateSessionLastSeen(id: string): Promise<void> {
   try {
-    const client = getRedisClient();
+    const client = createRedisClient();
     const now = new Date().toISOString();
 
     // First get the session to extract authorization ID (non-atomic read)
@@ -442,7 +482,7 @@ export async function updateSessionLastSeen(id: string): Promise<void> {
  */
 export async function revokeSession(id: string): Promise<void> {
   try {
-    const client = getRedisClient();
+    const client = createRedisClient();
     const now = new Date().toISOString();
 
     // First get the session to extract authorization ID (non-atomic read)
@@ -525,7 +565,7 @@ export async function revokeSession(id: string): Promise<void> {
  */
 export async function revokeAllSessionsForAuthorization(authorizationId: string): Promise<void> {
   try {
-    const client = getRedisClient();
+    const client = createRedisClient();
     
     // Redis Lua script for atomic session revocation with index barrier
     // Delete session index FIRST (atomic barrier), then revoke individual sessions
@@ -574,7 +614,7 @@ export async function deleteSession(id: string): Promise<void> {
   try {
     const record = await getSession(id);
     if (record) {
-      const client = getRedisClient();
+      const client = createRedisClient();
       await client.del(namespacedKey(`${SESSION_PREFIX}${id}`));
 
       // Remove from authorization's session index
@@ -602,7 +642,7 @@ export async function deleteSession(id: string): Promise<void> {
  */
 export async function renewSession(id: string): Promise<void> {
   try {
-    const client = getRedisClient();
+    const client = createRedisClient();
     const now = new Date();
     const expiresAt = new Date(now.getTime() + SESSION_TTL_SECONDS * 1000);
 
