@@ -28,7 +28,7 @@ function isProductionWriteBlocked(): boolean {
 }
 import { join } from "path";
 import { workbenchSession } from "@/lib/workbench-session";
-import { getMediaById, getMediaByIdAsync } from "@/lib/media";
+import { getMediaByIdAsync } from "@/lib/media";
 import { Redis } from '@upstash/redis';
 
 export const runtime = 'nodejs';
@@ -76,8 +76,8 @@ export async function POST(request: Request) {
 
     console.log('[GALLERY POST] REQUEST_RECEIVED', { projectId, galleryIndex, mediaId, operation, transactionId });
 
-    // Validate mediaId exists in authoritative media sources
-    const mediaExists = getMediaById(mediaId) || await getMediaByIdAsync(mediaId);
+    // Validate mediaId exists in authoritative KV media source
+    const mediaExists = await getMediaByIdAsync(mediaId);
     if (!mediaExists) {
       console.log('[GALLERY POST] INVALID_MEDIA_ID', { mediaId });
       return NextResponse.json(

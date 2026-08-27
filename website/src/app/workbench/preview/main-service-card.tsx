@@ -5,37 +5,33 @@ import type { Media } from "@/types/media";
 import { Icon } from "@/components/icon";
 import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
-import { getFeaturedServiceMedia } from "@/lib/media";
 
 /**
- * ServiceCard ΓÇö photo-led and dense (CEO review): one iconic image, title,
+ * ServiceCard — photo-led and dense (CEO review): one iconic image, title,
  * a one-line micro-proof stat, and a clear next step. No large empty areas.
  * 
  * Updated to use new Service type from registries (data-driven configuration).
  * 
  * Service cards use intent-based media lookups from Media Authority.
  * Receives runtimeCardMediaObject as prop from server component (already resolved).
- * Falls back to featured project media if no runtime assignment.
- * Falls back to intentional empty state when no images exist for that service.
  * 
  * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
  * Card text always uses light register tokens regardless of page background.
  */
 export function ServiceCard({ service, runtimeCardMediaObject }: { service: Service; runtimeCardMediaObject?: Media | null }) {
-  // Use runtime assignment if available, otherwise use featured project media
+  // Use runtime assignment if available
   const cardMedia = runtimeCardMediaObject || null;
-  const featuredMedia = cardMedia || getFeaturedServiceMedia(service.slug);
-  const hasImage = featuredMedia !== null;
+  const hasImage = cardMedia !== null;
   
   // Use responsive variants if available to select best quality
-  const responsiveVariants = featuredMedia?.variants?.responsive;
+  const responsiveVariants = cardMedia?.variants?.responsive;
   const hasResponsiveVariants = responsiveVariants && responsiveVariants.length > 0;
   
   // Select best variant: use highest resolution from responsive variants, otherwise fallback
   const imageSrc = hasImage 
     ? (hasResponsiveVariants 
         ? responsiveVariants[responsiveVariants.length - 1].webp 
-        : (featuredMedia.variants?.web || featuredMedia.variants?.original))
+        : (cardMedia.variants?.web || cardMedia.variants?.original))
     : null;
 
   // Card text colors - always light register (cards are always light surfaces)
@@ -51,7 +47,7 @@ export function ServiceCard({ service, runtimeCardMediaObject }: { service: Serv
             <>
               <Image
                 src={imageSrc}
-                alt={featuredMedia.alt || service.name}
+                alt={cardMedia.alt || service.name}
                 fill
                 sizes="(max-width: 768px) 50vw, 33vw"
                 className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"

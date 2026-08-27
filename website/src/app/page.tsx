@@ -21,7 +21,7 @@ import { getHomepageHero } from "@/lib/brand";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { NewsletterSignup } from "@/components/newsletter-signup";
 import { getOwnerPortrait } from "@/lib/brand";
-import { getMediaById, resolvePublicMedia } from "@/lib/media";
+import { resolvePublicMedia } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 import { getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib/projects";
 import { VisualSlot } from "@/components/visual-slot";

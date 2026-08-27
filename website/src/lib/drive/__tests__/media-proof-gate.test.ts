@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { resolvePublicMedia, getMediaById } from '@/lib/media';
+import { resolvePublicMedia, getStaticMediaForBootstrap } from '@/lib/media';
 
 // Mock the media-kv-store to return synthetic record
 jest.mock('@/lib/media-kv-store', () => ({
@@ -54,19 +54,15 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
       expect(result).toBeNull();
     });
 
-    it('should reject synthetic content identity from static fallback path', () => {
-      // This is the critical test - the fallback path currently bypasses proof checks
-      // The static authority might contain synthetic records, and getMediaById()
-      // returns them without constitutional verification
+    it('should reject synthetic content identity from static bootstrap path', () => {
+      // Static bootstrap should reject synthetic content identity
+      // getStaticMediaForBootstrap() is ONLY for explicit bootstrap/recovery operations
       
-      // If media.v1.json contains a synthetic record, getMediaById() should NOT return it
-      // OR the caller must verify it through resolvePublicMedia()
-      
-      // This test will initially FAIL, proving the constitutional contradiction
+      // If media.v1.json contains a synthetic record, getStaticMediaForBootstrap() should NOT return it
       expect(() => {
-        const staticMedia = getMediaById('brand-hero');
+        const staticMedia = getStaticMediaForBootstrap('brand-hero');
         if (staticMedia && staticMedia.contentHash === 'ae2b1fca596bf1268e37357044f8a8613b11a8c8') {
-          throw new Error('FAIL: Static authority returned synthetic content identity without proof verification');
+          throw new Error('FAIL: Static bootstrap returned synthetic content identity without proof verification');
         }
       }).not.toThrow();
     });

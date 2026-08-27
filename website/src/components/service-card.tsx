@@ -7,7 +7,7 @@ import type { Media } from "@/types/media";
 import { Icon } from "@/components/icon";
 import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
-import { getFeaturedServiceMedia, resolvePublicMedia } from "@/lib/media";
+import { resolvePublicMedia } from "@/lib/media";
 import { useState } from "react";
 
 /**
@@ -39,11 +39,10 @@ export function ServiceCard({ service, runtimeCardMediaObject }: { service: Serv
     runtimeCardMediaId: runtimeCardMediaObject?.id ?? null,
     cardMediaFound: !!cardMedia,
     cardMediaIdResolved: cardMedia?.id,
-    fallbackToFeatured: !cardMedia,
   });
 
-  // Fall back to featured project media
-  const featuredMedia = cardMedia || getFeaturedServiceMedia(service.slug);
+  // Use provided cardMedia (already resolved through public media gate by server component)
+  const featuredMedia = cardMedia;
   const hasImage = featuredMedia !== null;
   
   // Use responsive variants if available to select best quality

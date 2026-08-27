@@ -22,7 +22,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, ChevronRight, Loader2, List } from 'lucide-react';
 import { loadVisualAssetRegistry, addDriveAssetToRegistry, type VisualAsset } from '@/lib/visual-asset-registry';
-import { getMediaById, loadDynamicMedia } from '@/lib/media';
+import { getMediaByIdAsync } from '@/lib/media';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
 
@@ -673,8 +673,10 @@ export default function MediaWorkbench() {
       const staticRegistry = await loadVisualAssetRegistry();
       
       // Load dynamic media from KV (Drive records) - fail-closed if KV unavailable
+      let dynamicMediaList: any[] = [];
       try {
-        await loadDynamicMedia();
+        const { getPublishedMediaAssets } = await import('@/lib/visual-asset-registry');
+        dynamicMediaList = await getPublishedMediaAssets();
       } catch (error) {
         console.warn('[WORKBENCH] KV media authority unavailable - using static registry only:', error);
         // Continue with static registry - KV unavailability is not a Workbench blocking error
@@ -684,11 +686,7 @@ export default function MediaWorkbench() {
       const combinedRegistry = [...staticRegistry];
       
       // Add KV Drive records that aren't already in static registry
-      // Access the dynamic media cache from media.ts
-      const { getDynamicMediaCache } = await import('@/lib/media');
-      const dynamicCache = getDynamicMediaCache();
-      
-      for (const dynamicMedia of dynamicCache) {
+      for (const dynamicMedia of dynamicMediaList) {
         const exists = staticRegistry.some(a => a.id === dynamicMedia.id);
         if (!exists) {
           const driveAsset = await addDriveAssetToRegistry(dynamicMedia);
@@ -698,7 +696,7 @@ export default function MediaWorkbench() {
       
       console.log('[WORKBENCH] COMBINED_REGISTRY_LOADED', {
         staticCount: staticRegistry.length,
-        dynamicCount: dynamicCache.length,
+        dynamicCount: dynamicMediaList.length,
         combinedCount: combinedRegistry.length,
       });
       
@@ -961,9 +959,9 @@ Check browser console for detailed logs.`);
     }
   });
 
-  const getSlotMedia = (slot: RegisteredSlot) => {
+  const getSlotMedia = async (slot: RegisteredSlot) => {
     if (!slot.currentMediaId) return null;
-    return getMediaById(slot.currentMediaId);
+    return await getMediaByIdAsync(slot.currentMediaId);
   };
 
   // Compatibility fallback: resolve URL-based assetIds to canonical IDs
@@ -1332,7 +1330,8 @@ Check browser console for detailed logs.`);
 
         // Reload dynamic media from KV to pick up new PublishedMediaAsset
         try {
-          await loadDynamicMedia();
+          const { getPublishedMediaAssets } = await import('@/lib/visual-asset-registry');
+          await getPublishedMediaAssets();
         } catch (error) {
           console.warn('[DND] KV media authority unavailable - skipping dynamic reload:', error);
           // Continue without dynamic reload - KV unavailability is not a DND blocking error
@@ -1684,9 +1683,9 @@ Check browser console for detailed logs.`);
     }
   };
 
-  const handleSlotClick = (slot: RegisteredSlot) => {
+  const handleSlotClick = async (slot: RegisteredSlot) => {
     setState(prev => ({ ...prev, selectedSlot: slot }));
-    const media = getSlotMedia(slot);
+    const media = await getSlotMedia(slot);
     if (media) {
       const asset = state.assets.find(a => a.id === media.id);
       if (asset) {

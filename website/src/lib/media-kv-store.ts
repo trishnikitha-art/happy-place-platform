@@ -281,15 +281,6 @@ export async function verifyPublicMediaAuthority(media: Media): Promise<boolean>
 }
 
 /**
- * Verify constitutional proof for PublishedMediaAsset (legacy function for saveMedia)
- * Uses permissive materialization state verification for internal operations
- * TODO: Migrate saveMedia to use verifyMaterializationState explicitly
- */
-async function verifyConstitutionalProof(media: Media): Promise<boolean> {
-  return await verifyMaterializationState(media);
-}
-
-/**
  * Get media by ID from KV
  * Returns null if not found or if constitutional proof fails
  * DriveReference records are exempt from constitutional proof
@@ -412,11 +403,12 @@ export async function listMediaIds(): Promise<string[]> {
  */
 export async function saveMedia(media: Media): Promise<void> {
   try {
-    // Verify constitutional proof before saving (only for PublishedMediaAsset)
+    // Verify materialization state before saving (internal operations only)
+    // This is permissive for intermediate states during materialization
     if (media.lifecycleState === 'published' && media.source === 'local') {
-      const hasConstitutionalProof = await verifyConstitutionalProof(media);
-      if (!hasConstitutionalProof) {
-        throw new Error(`Cannot save media ${media.id}: Failed constitutional proof check`);
+      const hasValidState = await verifyMaterializationState(media);
+      if (!hasValidState) {
+        throw new Error(`Cannot save media ${media.id}: Failed materialization state check`);
       }
     }
     

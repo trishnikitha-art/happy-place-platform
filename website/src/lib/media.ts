@@ -1,20 +1,20 @@
 /**
  * Media Authority Adapter
  * 
- * NEW ARCHITECTURE: Media Authority (media.v1.json)
- * The new architecture uses media.v1.json as the single media database.
- * Components use intent-based adapters to access media by intent, not IDs.
+ * NEW ARCHITECTURE: Media Authority (media.v1.json + KV)
  * 
- * Legacy functions (heroBackground, ownerPortrait, servicePhoto, photoFor, etc.)
- * have been removed. Use Brand Authority for homepage hero and owner portraits.
- * Use Media Authority adapters for project media.
+ * AUTHORITY MODEL:
+ * - KV is the ONLY authority for runtime PublishedMediaAsset
+ * - Static files (media.v1.json) are projections for backup/audit only
+ * - No process-global caches (eliminates cross-request contamination)
+ * - No synchronous authority bypass (all runtime reads go through KV)
  * 
- * Architecture:
- *   Authority ΓåÆ Adapter ΓåÆ Component
+ * Static files can only be used for explicit bootstrap/recovery operations
+ * with authorization through admin API with audit trail.
  * 
- * Never:
- *   Component ΓåÆ JSON
- *   Component ΓåÆ Hardcoded IDs
+ * FAIL-CLOSED SEMANTICS:
+ * - KV returns null (record does not exist) → FAIL CLOSED
+ * - KV throws infrastructure error → FAIL CLOSED (no silent authority bypass)
  */
 import type { Media, MediaManifest } from "@/types/media";
 import { isDriveReference, isMaterializingMedia, isPublishedMediaAsset, isStaleMedia } from "@/types/media";
@@ -49,9 +49,9 @@ function computeSyntheticHash(canonicalId: string): string {
 /**
  * Check if a content hash is synthetic (derived from canonical ID rather than actual bytes)
  */
-function isSyntheticContentHash(canonicalId: string, actualContentHash: string): boolean {
-  const syntheticHash = computeSyntheticHash(canonicalId);
-  return actualContentHash === syntheticHash;
+function isSyntheticContentHash(canonicalId: string, contentHash: string): boolean {
+  const synthetic = computeSyntheticHash(canonicalId);
+  return contentHash === synthetic;
 }
 
 // Load media manifest using shared AuthorityLoader
@@ -71,76 +71,54 @@ export function getMediaManifest(): MediaManifest {
 }
 
 /**
- * Get media by ID from media.v1.json (static) or KV (dynamic Drive records)
+ * Load static media authority for bootstrap/recovery operations ONLY
  * 
- * CONSTITUTIONAL PROOF: Rejects synthetic content identity from static authority
- * Static records with synthetic contentHash (SHA256(canonicalId)) are rejected
- * to prevent back-door approval of invalid media
+ * AUTHORITY MODEL: Static files are projections for backup/audit only
+ * This function is ONLY for explicit bootstrap/recovery operations
+ * It must NOT be used as a runtime authority bypass
+ * 
+ * CONSTITUTIONAL CHECK: Reject synthetic content identity from static authority
  */
-export function getMediaById(id: string): Media | null {
-  // First check static media.v1.json (existing HP images)
+export function getStaticMediaForBootstrap(id: string): Media | null {
   const manifest = loadMediaManifest();
   const staticMedia = findById(manifest.media, id);
-  if (staticMedia) {
-    // CONSTITUTIONAL CHECK: Reject synthetic content identity from static authority
-    // This prevents the seam where KV rejects synthetic records but static authority accepts them
-    if (staticMedia.contentHash && isSyntheticContentHash(id, staticMedia.contentHash)) {
-      console.error('[MEDIA] STATIC_AUTHORITY_REJECTED: Synthetic content identity', {
-        mediaId: id,
-        contentHash: staticMedia.contentHash,
-        reason: 'Static authority cannot contain synthetic content identity (SHA256(canonicalId))'
-      });
-      return null;
-    }
-    return staticMedia;
+  if (!staticMedia) {
+    return null;
   }
-
-  // Check dynamic KV cache (Drive records preloaded via loadDynamicMedia)
-  const dynamicMedia = findById(dynamicMediaCache, id);
-  if (dynamicMedia) {
-    return dynamicMedia;
+  
+  // CONSTITUTIONAL CHECK: Reject synthetic content identity from static authority
+  if (staticMedia.contentHash && isSyntheticContentHash(id, staticMedia.contentHash)) {
+    console.error('[MEDIA] STATIC_AUTHORITY_REJECTED: Synthetic content identity', {
+      mediaId: id,
+      contentHash: staticMedia.contentHash,
+      reason: 'Static authority cannot contain synthetic content identity (SHA256(canonicalId))'
+    });
+    return null;
   }
-
-  return null;
+  return staticMedia;
 }
 
 /**
- * Async version that checks KV directly (for dynamic loading)
- *
+ * Async version that checks KV directly
+ * 
  * AUTHORITY MODEL: KV is the ONLY authority for runtime PublishedMediaAsset
  * Static files are projections for backup/audit only, not competing authorities
- *
- * This ensures runtime-only authority - no static fallback to prevent resurrection
- * of deleted/rejected records. Static files can only be used for explicit
- * bootstrap/recovery operations with authorization.
- *
+ * No process-global caches (eliminates cross-request contamination)
+ * 
  * FAIL-CLOSED SEMANTICS:
  * - KV returns null (record does not exist) → FAIL CLOSED (no static fallback)
  * - KV throws infrastructure error → FAIL CLOSED (no silent authority bypass)
- *
- * BOOTSTRAP/RECOVERY:
- * - Static → KV import is ONLY allowed during explicit bootstrap/recovery operations
- * - Requires explicit authorization and cannot resurrect deleted records
- * - Must be performed through admin API with audit trail
  */
 export async function getMediaByIdAsync(id: string): Promise<Media | null> {
-  // FIRST: Check KV store for runtime PublishedMediaAsset records
+  // Check KV store for runtime PublishedMediaAsset records
   // Runtime authority (materialized assets) is the ONLY authority
   try {
     const { getMedia } = await import('@/lib/media-kv-store');
     const dynamicMedia = await getMedia(id);
     if (dynamicMedia) {
-      // Cache it for future synchronous access (deduplicate by ID)
-      const existingIndex = dynamicMediaCache.findIndex(m => m.id === id);
-      if (existingIndex >= 0) {
-        dynamicMediaCache[existingIndex] = dynamicMedia;
-      } else {
-        dynamicMediaCache.push(dynamicMedia);
-      }
       return dynamicMedia;
     }
     // KV returned null (record does not exist) - fail closed
-    // P0 FIX: No static fallback to prevent authority bypass and resurrection
     console.log('[MEDIA] KV_MEDIA_NOT_FOUND - FAILING_CLOSED', { mediaId: id });
     return null;
   } catch (error) {
@@ -308,51 +286,6 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
 }
 
 /**
- * Preload dynamic media from KV into memory cache
- * Call this during app initialization or when Drive operations are expected
- * Fails closed in production (no silent in-memory fallback when KV unavailable)
- */
-export async function loadDynamicMedia(): Promise<void> {
-  try {
-    const { getPublishedMediaAssets } = await import('@/lib/visual-asset-registry');
-    const publishedAssets = await getPublishedMediaAssets();
-
-    console.log('[MEDIA] Loaded PublishedMediaAssets from KV:', publishedAssets.length);
-
-    // Cache the published assets for on-demand lookup
-    dynamicMediaCache.push(...publishedAssets);
-  } catch (error) {
-    // Check if this is a KV configuration error
-    if (error instanceof Error && error.message.includes('Missing required environment variables')) {
-      console.error('[MEDIA] KV not configured - fail-closed for production media authority:', error.message);
-      // Fail closed: KV unavailable is different from empty media authority
-      // Throw to prevent silent authority disconnect
-      throw new Error('KV_MEDIA_AUTHORITY_UNAVAILABLE: KV not configured for dynamic media');
-    }
-    console.error('[MEDIA] Failed to preload dynamic media (KV unavailable or misconfigured):', error);
-    // Fail closed for production media authority
-    throw new Error('KV_MEDIA_AUTHORITY_FAILURE: Failed to load dynamic media from KV');
-  }
-}
-
-/**
- * Get the dynamic media cache (for accessing Drive records)
- */
-export function getDynamicMediaCache(): Media[] {
-  return dynamicMediaCache;
-}
-
-/**
- * Clear dynamic media cache
- */
-export function clearDynamicMediaCache(): void {
-  dynamicMediaCache = [];
-}
-
-// In-memory cache for dynamic KV media
-let dynamicMediaCache: Media[] = [];
-
-/**
  * Clear media cache (useful for testing or hot reload)
  */
 export function clearMediaCache(): void {
@@ -421,7 +354,7 @@ export function getProjectMediaByRole(projectId: string, role: string): Media | 
  * 2. Newest completed project
  * 3. Null (intentional empty state)
  */
-export function getFeaturedServiceMedia(serviceSlug: string): Media | null {
+export async function getFeaturedServiceMedia(serviceSlug: string): Promise<Media | null> {
   const manifest = loadMediaManifest();
   
   // Get projects for this service from Projects Authority
@@ -453,5 +386,6 @@ export function getFeaturedServiceMedia(serviceSlug: string): Media | null {
   const heroMediaId = topProject.media.hero;
   if (!heroMediaId) return null;
   
-  return getMediaById(heroMediaId);
+  // Use async KV authority
+  return await getMediaByIdAsync(heroMediaId);
 }
