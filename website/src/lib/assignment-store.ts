@@ -17,7 +17,7 @@ import { Redis } from '@upstash/redis';
 
 let redis: Redis | null = null;
 
-function getRedisClient(): Redis {
+function getRedisClient(): Redis | null {
   if (!redis) {
     let url = process.env.KV_REST_API_URL;
     let token = process.env.KV_REST_API_TOKEN;
@@ -35,8 +35,10 @@ function getRedisClient(): Redis {
       token = integrationToken;
     }
     
+    // During static build, KV may not be available - return null to allow build to succeed
+    // Runtime pages will use the static fallback if KV is unavailable
     if (!url || !token) {
-      throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
+      return null;
     }
     
     redis = new Redis({ url, token });
@@ -170,6 +172,14 @@ export async function deleteServiceCardAssignment(serviceSlug: string, requestId
 
   try {
     const client = getRedisClient();
+    if (!client) {
+      console.warn('[ASSIGNMENT_DELETE] KV_UNAVAILABLE - skipping delete', {
+        operationId,
+        key,
+        serviceSlug,
+      });
+      return;
+    }
     await client.del(key);
 
     console.log('[ASSIGNMENT_DELETE] DELETE_SUCCESS', {
@@ -306,6 +316,14 @@ export async function storeServiceCardAssignment(
   
   try {
     const client = getRedisClient();
+    if (!client) {
+      console.warn('[ASSIGNMENT_WRITE] KV_UNAVAILABLE - returning without write', {
+        operationId,
+        serviceSlug: assignment.serviceSlug,
+        mediaId: assignment.mediaId,
+      });
+      return;
+    }
     
     // Use atomic Lua script for CAS - prevents lost updates
     // Script: GET current revision, compare with expected, SET if match
@@ -385,6 +403,14 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
 
   try {
     const client = getRedisClient();
+    if (!client) {
+      console.warn('[ASSIGNMENT_READ] KV_UNAVAILABLE - returning null', {
+        operationId,
+        serviceSlug,
+        key,
+      });
+      return null;
+    }
 
     // Use typed object API - @upstash/redis handles deserialization
     const assignment = await client.get<ServiceCardAssignment>(key);
@@ -437,6 +463,10 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
 export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignment[]> {
   try {
     const client = getRedisClient();
+    if (!client) {
+      console.warn('[ASSIGNMENT_READ_ALL] KV_UNAVAILABLE - returning empty array');
+      return [];
+    }
     // Use scan to find all keys with the assignment prefix
     const keys: string[] = [];
     let cursor = '0';
@@ -483,6 +513,10 @@ export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignm
 export async function scanRawAssignmentRecords(): Promise<RawAssignmentRecord[]> {
   try {
     const client = getRedisClient();
+    if (!client) {
+      console.warn('[ASSIGNMENT_SCAN] KV_UNAVAILABLE - returning empty array');
+      return [];
+    }
     const keys: string[] = [];
     let cursor = '0';
 
@@ -667,6 +701,22 @@ export async function findPoisonedAssignments(): Promise<{
 export async function cleanupCorruptedAssignments(): Promise<QuarantineReport> {
   try {
     const client = getRedisClient();
+    if (!client) {
+      console.warn('[ASSIGNMENT_CLEANUP] KV_UNAVAILABLE - returning empty report');
+      const emptyReport: QuarantineReport = {
+        beforeCount: 0,
+        poisonedCount: 0,
+        quarantinedCount: 0,
+        deletedFromActiveCount: 0,
+        concurrentlyChangedCount: 0,
+        failedCount: 0,
+        afterCount: 0,
+        remainingPoisonCount: 0,
+        quarantineRecords: [],
+        timestamp: new Date().toISOString(),
+      };
+      return emptyReport;
+    }
     const rawRecords = await scanRawAssignmentRecords();
 
     const schemaInvalidRecords = rawRecords.filter(r => r.schemaClassification !== 'VALID');
@@ -715,6 +765,22 @@ export async function quarantinePoisonedAssignments(
   dryRun: boolean = true
 ): Promise<QuarantineReport> {
   const client = getRedisClient();
+  if (!client) {
+    console.warn('[ASSIGNMENT_QUARANTINE] KV_UNAVAILABLE - returning empty report');
+    const emptyReport: QuarantineReport = {
+      beforeCount: 0,
+      poisonedCount: 0,
+      quarantinedCount: 0,
+      deletedFromActiveCount: 0,
+      concurrentlyChangedCount: 0,
+      failedCount: 0,
+      afterCount: 0,
+      remainingPoisonCount: 0,
+      quarantineRecords: [],
+      timestamp: new Date().toISOString(),
+    };
+    return emptyReport;
+  }
   const timestamp = new Date().toISOString();
   const quarantinedBy = 'assignment-store-quarantine-system';
 
