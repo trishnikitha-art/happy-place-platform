@@ -240,7 +240,7 @@ async function reconcileDriveAssignments(
 }
 
 // Import storage modules at top level (they are ES modules)
-import { uploadToBlob, generateBlobFilename } from '@/lib/blob-storage';
+import { uploadToBlob, generateBlobFilename, getBlobMetadataByContentHash } from '@/lib/blob-storage';
 
 // Try to load Sharp (important for production media processing)
 let sharp: any = null;
@@ -772,6 +772,39 @@ export async function POST(request: Request) {
       contentHash: originalUpload.contentHash,
     });
     
+    // CRITICAL: Verify Blob metadata was written for the uploaded content hash
+    const originalBlobMetadata = await getBlobMetadataByContentHash(originalUpload.contentHash);
+    if (!originalBlobMetadata) {
+      console.error('[MEDIA_INGEST] BLOB_METADATA_MISSING_AFTER_UPLOAD', {
+        requestId,
+        contentHash: originalUpload.contentHash,
+        url: originalUpload.url,
+        reason: 'Blob upload succeeded but metadata write failed - this is a critical architectural break'
+      });
+      throw new Error('Blob metadata write verification failed after original upload');
+    } else {
+      console.log('[MEDIA_INGEST] BLOB_METADATA_VERIFIED', {
+        requestId,
+        contentHash: originalUpload.contentHash,
+        metadataUrl: originalBlobMetadata.url,
+        uploadUrl: originalUpload.url,
+        urlsMatch: originalBlobMetadata.url === originalUpload.url,
+        verified: true
+      });
+      
+      // Verify URL consistency - metadata URL must match upload URL
+      if (originalBlobMetadata.url !== originalUpload.url) {
+        console.error('[MEDIA_INGEST] BLOB_URL_MISMATCH', {
+          requestId,
+          contentHash: originalUpload.contentHash,
+          uploadUrl: originalUpload.url,
+          metadataUrl: originalBlobMetadata.url,
+          reason: 'Blob upload returned different URL than stored metadata - possible stale metadata or namespace mismatch'
+        });
+        throw new Error('Blob URL mismatch between upload and metadata');
+      }
+    }
+    
     // Generate and upload WebP/AVIF variants
     for (const vw of validWidths) {
       for (const fmt of ['avif', 'webp']) {
@@ -810,6 +843,29 @@ export async function POST(request: Request) {
           alreadyExisted: variantUpload.alreadyExisted,
           contentHash: variantUpload.contentHash,
         });
+        
+        // CRITICAL: Verify Blob metadata was written for variant
+        const variantBlobMetadata = await getBlobMetadataByContentHash(variantUpload.contentHash);
+        if (!variantBlobMetadata) {
+          console.error('[MEDIA_INGEST] VARIANT_BLOB_METADATA_MISSING', {
+            requestId,
+            variant: variantFilename,
+            contentHash: variantUpload.contentHash,
+            url: variantUpload.url,
+            reason: 'Variant upload succeeded but metadata write failed'
+          });
+          throw new Error(`Variant Blob metadata write verification failed for ${variantFilename}`);
+        } else {
+          console.log('[MEDIA_INGEST] VARIANT_BLOB_METADATA_VERIFIED', {
+            requestId,
+            variant: variantFilename,
+            contentHash: variantUpload.contentHash,
+            metadataUrl: variantBlobMetadata.url,
+            uploadUrl: variantUpload.url,
+            urlsMatch: variantBlobMetadata.url === variantUpload.url,
+            verified: true
+          });
+        }
       }
     }
     
@@ -831,6 +887,27 @@ export async function POST(request: Request) {
       alreadyExisted: thumbUpload.alreadyExisted,
       contentHash: thumbUpload.contentHash,
     });
+    
+    // CRITICAL: Verify Blob metadata was written for thumbnail
+    const thumbBlobMetadata = await getBlobMetadataByContentHash(thumbUpload.contentHash);
+    if (!thumbBlobMetadata) {
+      console.error('[MEDIA_INGEST] THUMBNAIL_BLOB_METADATA_MISSING', {
+        requestId,
+        contentHash: thumbUpload.contentHash,
+        url: thumbUpload.url,
+        reason: 'Thumbnail upload succeeded but metadata write failed'
+      });
+      throw new Error('Thumbnail Blob metadata write verification failed');
+    } else {
+      console.log('[MEDIA_INGEST] THUMBNAIL_BLOB_METADATA_VERIFIED', {
+        requestId,
+        contentHash: thumbUpload.contentHash,
+        metadataUrl: thumbBlobMetadata.url,
+        uploadUrl: thumbUpload.url,
+        urlsMatch: thumbBlobMetadata.url === thumbUpload.url,
+        verified: true
+      });
+    }
     
     // Generate blur placeholder
     const blurBuffer = await sharp(fileBuffer).resize(16).webp({ quality: 40 }).toBuffer();
