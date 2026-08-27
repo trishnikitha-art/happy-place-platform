@@ -1716,10 +1716,107 @@ export async function POST(request: Request) {
       verificationError
     });
 
-    // TRANSACTIONAL FIX: Only delete staging keys after durable commit verification
-    // This prevents data loss if commit fails
+    // CRITICAL FIX: Promote staging assignments to authoritative runtime KV
+    // This is the missing connection between Workbench staging and public runtime
+    // Without this, assignments exist in Git but runtime KV cannot resolve them
+    if (isProduction && redis && verificationPassed) {
+      console.log('[DEPLOY API] PROMOTING_STAGING_TO_RUNTIME_KV', { deploymentTransactionId });
+
+      const { storeServiceCardAssignment, getServiceCardAssignment } = await import('@/lib/assignment-store');
+      let promotionCount = 0;
+      const promotionFailures: { serviceSlug: string; reason: string }[] = [];
+
+      // Re-process staging keys to promote assignments to runtime KV
+      for (const key of authoritativeTransaction.stagingKeys) {
+        const value = await redis.get(key);
+        if (!value) continue;
+
+        const stringValue = typeof value === 'string' ? value : String(value);
+        if (key.endsWith(':meta')) continue;
+
+        const parts = key.split(':');
+        if (parts.length < 6) continue;
+
+        // Service card assignments: hpp:{env}:workbench-staging:{txId}:service:{serviceSlug}
+        if (parts.length >= 6 && parts[2] === 'workbench-staging' && parts[4] === 'service') {
+          const serviceSlug = parts[5];
+
+          try {
+            // Read current assignment to get expected revision for CAS
+            const currentAssignment = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
+            const expectedRevision = currentAssignment?.revision;
+
+            // Create promoted assignment
+            const promotedAssignment = {
+              serviceSlug,
+              mediaId: stringValue,
+              updatedAt: new Date().toISOString(),
+              revision: expectedRevision ? expectedRevision + 1 : 1,
+            };
+
+            // Store in authoritative runtime KV
+            await storeServiceCardAssignment(promotedAssignment, expectedRevision, deploymentTransactionId);
+
+            console.log('[DEPLOY API] ASSIGNMENT_PROMOTED', {
+              serviceSlug,
+              mediaId: stringValue,
+              revision: promotedAssignment.revision,
+            });
+            promotionCount++;
+          } catch (error) {
+            console.error('[DEPLOY API] ASSIGNMENT_PROMOTION_FAILED', {
+              serviceSlug,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            });
+            promotionFailures.push({
+              serviceSlug,
+              reason: error instanceof Error ? error.message : 'Unknown error',
+            });
+          }
+        }
+      }
+
+      console.log('[DEPLOY API] PROMOTION_COMPLETE', {
+        deploymentTransactionId,
+        promotionCount,
+        failureCount: promotionFailures.length,
+      });
+
+      // FAIL-CLOSED: If promotion failed, reject deployment to prevent split-brain
+      if (promotionFailures.length > 0) {
+        console.error('[DEPLOY API] DEPLOYMENT_REJECTED_PROMOTION_FAILURES', {
+          deploymentTransactionId,
+          failureCount: promotionFailures.length,
+          promotionFailures,
+        });
+
+        // MARK TRANSACTION AS FAILED
+        if (transaction) {
+          await failDeploymentTransaction(
+            deploymentTransactionId,
+            `Deployment rejected: ${promotionFailures.length} assignments failed to promote to runtime KV`
+          );
+        }
+
+        return NextResponse.json(
+          {
+            error: "Deployment rejected: Assignment promotion failures",
+            message: `${promotionFailures.length} assignments could not be promoted to runtime KV. This would create split-brain state where Git has assignments but runtime KV does not.`,
+            promotionFailures,
+            forensic: {
+              deploymentTransactionId,
+              failureCount: promotionFailures.length,
+            },
+          },
+          { status: 400 }
+        );
+      }
+    }
+
+    // TRANSACTIONAL FIX: Only delete staging keys after durable commit verification AND promotion
+    // This prevents data loss if commit or promotion fails
     if (isProduction && redis && stagingKeys.length > 0 && verificationPassed) {
-      console.log('[DEPLOY API] CLEARING_STAGING_KEYS_AFTER_COMMIT', { count: stagingKeys.length });
+      console.log('[DEPLOY API] CLEARING_STAGING_KEYS_AFTER_COMMIT_AND_PROMOTION', { count: stagingKeys.length });
       
       for (const key of stagingKeys) {
         await redis.del(key);
