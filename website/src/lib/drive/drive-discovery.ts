@@ -158,11 +158,16 @@ export class DriveDiscovery {
       });
 
       if (response.data.drives) {
-        return response.data.drives.map((drive: { id: string; name: string }) => ({
+        const drives = response.data.drives.map((drive: { id: string; name: string }) => ({
           id: drive.id,
           name: drive.name,
           type: 'shared_drive',
         }));
+        
+        // Log each Shared Drive ID for production configuration
+        console.log('[DRIVE_DISCOVERY] Shared Drives discovered:', drives.map((d: any) => ({ id: d.id, name: d.name })));
+        
+        return drives;
       }
     } catch (error) {
       console.error('Failed to list Shared Drives:', error);
