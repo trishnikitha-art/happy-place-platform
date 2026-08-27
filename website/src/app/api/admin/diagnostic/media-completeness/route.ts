@@ -13,8 +13,8 @@
 import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
 import { Redis } from '@upstash/redis';
-import { isMaterializationComplete, isPubliclyComplete } from '@/lib/media-contracts';
-import { getBlobMetadataByContentHash } from '@/lib/blob-storage';
+import { hasMaterializationShape, hasRealContentHash, isPubliclyComplete } from '@/lib/media-contracts';
+import { getBlobMetadataByContentHash, verifyBlobExists } from '@/lib/blob-storage';
 
 interface MediaDiagnostic {
   id: string;
@@ -23,8 +23,10 @@ interface MediaDiagnostic {
   hasContentHash: boolean;
   hasShape: boolean;
   hasRealHash: boolean;
+  hasBlobObject: boolean;
   hasBlobMetadata: boolean;
   blobMetadataKeys: string[];
+  blobUrlAccessible: boolean;
   isPubliclyComplete: boolean;
   contentHash?: string;
   variants?: {
@@ -43,6 +45,8 @@ interface DiagnosticReport {
   completeRecords: number;
   incompleteRecords: number;
   missingBlobMetadata: number;
+  missingBlobObject: number;
+  blobObjectInaccessible: number;
   syntheticHashRecords: number;
   shapeErrors: number;
   details: MediaDiagnostic[];
@@ -89,6 +93,8 @@ export async function GET(request: Request) {
       completeRecords: 0,
       incompleteRecords: 0,
       missingBlobMetadata: 0,
+      missingBlobObject: 0,
+      blobObjectInaccessible: 0,
       syntheticHashRecords: 0,
       shapeErrors: 0,
       details: [],
@@ -131,25 +137,27 @@ export async function GET(request: Request) {
           hasContentHash: !!media.contentHash,
           hasShape: false,
           hasRealHash: false,
+          hasBlobObject: false,
           hasBlobMetadata: false,
           blobMetadataKeys: [],
+          blobUrlAccessible: false,
           isPubliclyComplete: false,
           contentHash: media.contentHash,
           variants: media.variants,
           issues: [],
         };
 
-        // Check shape
+        // Check shape independently (structure only, not hash)
         try {
-          diagnostic.hasShape = isMaterializationComplete(media);
+          diagnostic.hasShape = hasMaterializationShape(media);
         } catch (error) {
           diagnostic.issues.push(`Shape check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
           report.shapeErrors++;
         }
 
-        // Check for real hash
+        // Check for real hash independently (hash only, not structure)
         try {
-          diagnostic.hasRealHash = isMaterializationComplete(media);
+          diagnostic.hasRealHash = hasRealContentHash(media);
         } catch (error) {
           diagnostic.issues.push(`Hash check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
         }
@@ -159,13 +167,33 @@ export async function GET(request: Request) {
           report.syntheticHashRecords++;
         }
 
-        // Check Blob metadata
+        // Check Blob metadata existence
         if (media.contentHash) {
           try {
             const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
             if (blobMetadata) {
               diagnostic.hasBlobMetadata = true;
               diagnostic.blobMetadataKeys = Object.keys(blobMetadata);
+              
+              // CRITICAL: Verify actual Blob object existence (not just metadata)
+              // This is separate from metadata existence - metadata can exist without the object
+              if (blobMetadata.url) {
+                try {
+                  diagnostic.blobUrlAccessible = await verifyBlobExists(blobMetadata.url);
+                  if (diagnostic.blobUrlAccessible) {
+                    diagnostic.hasBlobObject = true;
+                  } else {
+                    diagnostic.issues.push('Blob URL not accessible - object may not exist');
+                    report.missingBlobObject++;
+                  }
+                } catch (error) {
+                  diagnostic.issues.push(`Blob object verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+                  report.blobObjectInaccessible++;
+                }
+              } else {
+                diagnostic.issues.push('Blob metadata exists but has no URL');
+                report.missingBlobObject++;
+              }
             } else {
               diagnostic.issues.push('Missing Blob metadata');
               report.missingBlobMetadata++;
