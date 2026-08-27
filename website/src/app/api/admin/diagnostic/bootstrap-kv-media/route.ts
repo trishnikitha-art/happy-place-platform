@@ -95,7 +95,7 @@ export async function POST() {
     });
     
     // STATE: CONFIGURED → EXECUTED
-    const { saveMedia, getMedia } = await import('@/lib/media-kv-store');
+    const { saveMedia, getMediaRecordRaw } = await import('@/lib/media-kv-store');
     
     let bootstrapped = 0;
     let skipped = 0;
@@ -104,8 +104,9 @@ export async function POST() {
     
     for (const media of manifest.media) {
       try {
-        // Check if already in KV
-        const existing = await getMedia(media.id);
+        // Check if already in KV using raw authority accessor
+        // getMediaRecordRaw() allows inspection of records that public proof rejects
+        const existing = await getMediaRecordRaw(media.id);
         if (existing) {
           skipped++;
           console.log('[KV_MEDIA_BOOTSTRAP_EVIDENCE] SKIPPED', { 
@@ -143,7 +144,7 @@ export async function POST() {
     
     for (const media of manifest.media) {
       try {
-        const inKV = await getMedia(media.id);
+        const inKV = await getMediaRecordRaw(media.id);
         if (inKV) {
           // Verify Blob authority for published local media
           if (inKV.lifecycleState === 'published' && inKV.source === 'local' && inKV.contentHash) {

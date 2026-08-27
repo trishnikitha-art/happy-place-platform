@@ -455,6 +455,28 @@ export async function POST(request: Request) {
       size: driveFile.size || 'unknown',
     });
 
+    // P0 FIX: Reject non-image files before downloading bytes
+    // Non-image Drive objects cannot enter the media materialization pipeline
+    if (!driveFile.mimeType?.startsWith('image/')) {
+      console.log('[MEDIA_INGEST] REJECTED - NOT AN IMAGE', {
+        requestId,
+        driveId,
+        mimeType: driveFile.mimeType,
+        fileName: driveFile.name,
+      });
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'NOT_AN_IMAGE',
+          stage: 'MIME_VALIDATION',
+          message: 'Only image files can be ingested into the media pipeline',
+          details: `File type: ${driveFile.mimeType}`,
+          requestId,
+        },
+        { status: 400 }
+      );
+    }
+
     // 2. Download file content from Drive
     console.log('[MEDIA_INGEST] DRIVE_DOWNLOAD stage started', { requestId });
     let fileBuffer: Buffer;

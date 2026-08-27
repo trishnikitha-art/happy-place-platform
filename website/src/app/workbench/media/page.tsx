@@ -2093,7 +2093,7 @@ Check browser console for detailed logs.`);
                                       : 'border-border hover:border-primary'
                                   } cursor-grab`}
                                 >
-                                  {file.thumbnailLink ? (
+                                  {file.thumbnailLink && file.mimeType?.startsWith('image/') ? (
                                     <img
                                       src={`/api/drive/files/${file.id}/thumbnail${state.driveCurrentDriveId ? `?driveId=${state.driveCurrentDriveId}` : ''}`}
                                       alt={file.name}
@@ -2136,7 +2136,7 @@ Check browser console for detailed logs.`);
                                       : 'border-border hover:border-primary'
                                   } cursor-grab`}
                                 >
-                                  {file.thumbnailLink ? (
+                                  {file.thumbnailLink && file.mimeType?.startsWith('image/') ? (
                                     <img
                                       src={`/api/drive/files/${file.id}/thumbnail${state.driveCurrentDriveId ? `?driveId=${state.driveCurrentDriveId}` : ''}`}
                                       alt={file.name}
