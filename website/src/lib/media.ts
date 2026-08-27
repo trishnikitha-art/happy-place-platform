@@ -138,7 +138,7 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
     error: error instanceof Error ? error.message : 'Unknown error',
     mediaId: id,
   });
-  throw new Error(`KV infrastructure error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  return null;
 }
 
 // P0 FIX: Static fallback removed - KV is the ONLY authority
