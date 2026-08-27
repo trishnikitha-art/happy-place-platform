@@ -170,23 +170,45 @@ async function verifyConstitutionalProof(media: Media): Promise<boolean> {
     return true;
   }
   
-  // Reject synthetic content identity (only if contentHash exists)
-  if (media.contentHash && isSyntheticContentHash(media.id, media.contentHash)) {
-    console.error('[MEDIA_KV] REJECTED: Synthetic content identity', {
+  // MaterializingMedia is exempt during materialization phase
+  // Not yet published, so constitutional proof not required
+  if (media.lifecycleState === 'materializing') {
+    return true;
+  }
+  
+  // Stale records are NEVER publicly assignable
+  if (media.lifecycleState === 'stale') {
+    console.error('[MEDIA_KV] REJECTED: Stale lifecycle state', {
       mediaId: media.id,
-      contentHash: media.contentHash,
-      reason: 'Content hash is SHA256(canonicalId), not actual bytes'
+      lifecycleState: media.lifecycleState,
+      reason: 'Stale records cannot be publicly assigned'
     });
     return false;
   }
   
-  // Verify Blob metadata exists (only if contentHash exists)
-  if (media.contentHash) {
-    const client = createRedisClient();
-    if (!client) {
-      console.warn('[MEDIA_KV] KV unavailable for constitutional proof check', { mediaId: media.id });
+  // PublishedMediaAsset MUST have complete constitutional proof
+  if (media.lifecycleState === 'published' && media.source === 'local') {
+    // Reject synthetic content identity
+    if (media.contentHash && isSyntheticContentHash(media.id, media.contentHash)) {
+      console.error('[MEDIA_KV] REJECTED: Synthetic content identity', {
+        mediaId: media.id,
+        contentHash: media.contentHash,
+        reason: 'Content hash is SHA256(canonicalId), not actual bytes'
+      });
       return false;
     }
+    
+    // Require contentHash for published records
+    if (!media.contentHash) {
+      console.error('[MEDIA_KV] REJECTED: Missing content hash', {
+        mediaId: media.id,
+        reason: 'PublishedMediaAsset must have content hash for constitutional proof'
+      });
+      return false;
+    }
+    
+    // Verify Blob metadata exists
+    const client = createRedisClient();
     const blobMetadata = await client.get(namespacedKey(`${BLOB_METADATA_PREFIX}${media.contentHash}`));
     
     if (!blobMetadata) {
@@ -222,7 +244,14 @@ async function verifyConstitutionalProof(media: Media): Promise<boolean> {
     }
   }
   
-  return true;
+  // Unknown state/source combinations are rejected
+  console.error('[MEDIA_KV] REJECTED: Unknown lifecycle/source combination', {
+    mediaId: media.id,
+    lifecycleState: media.lifecycleState,
+    source: media.source,
+    reason: 'Unrecognized state/source combination for constitutional proof'
+  });
+  return false;
 }
 
 /**
@@ -254,6 +283,12 @@ export async function getMedia(id: string): Promise<Media | null> {
         console.warn('[MEDIA_KV] Media failed constitutional proof check', { id });
         return null;
       }
+    }
+    
+    // Stale records are never returned
+    if (media.lifecycleState === 'stale') {
+      console.warn('[MEDIA_KV] Rejecting stale media record', { id });
+      return null;
     }
     
     return media;
@@ -351,10 +386,6 @@ export async function saveMedia(media: Media): Promise<void> {
     }
     
     const client = createRedisClient();
-    if (!client) {
-      console.warn('[MEDIA_KV] KV unavailable for saveMedia - returning without save', { mediaId: media.id });
-      return;
-    }
     
     // Use atomic Lua script to maintain media record + index consistency
     const saveScript = `
@@ -394,10 +425,6 @@ export async function saveMedia(media: Media): Promise<void> {
 export async function deleteMedia(id: string): Promise<void> {
   try {
     const client = createRedisClient();
-    if (!client) {
-      console.warn('[MEDIA_KV] KV unavailable for deleteMedia - returning without delete', { id });
-      return;
-    }
     
     // Use atomic Lua script to delete media record and index together
     const deleteScript = `

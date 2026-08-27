@@ -440,13 +440,33 @@ export default async function HomePage() {
         <Section className="relative bg-[#F1EDE6]">
           <div className="absolute inset-0 bg-gradient-to-br from-[#F1EDE6] via-[#EDE9E0] to-[#E9E5DC] opacity-100" aria-hidden="true" />
           <Container className="relative z-10 max-w-2xl">
-            <NewsletterSignup />
+            <VisualSlot
+              id="homepage-newsletter-slot"
+              route="/"
+              page="Homepage"
+              section="Newsletter"
+              slotName="Newsletter Section"
+              currentMediaId={null}
+              component="NewsletterSection"
+            >
+              <NewsletterSignup />
+            </VisualSlot>
           </Container>
         </Section>
       </ScrollReveal>
 
       <ScrollReveal>
-        <CTASection />
+        <VisualSlot
+          id="homepage-cta-slot"
+          route="/"
+          page="Homepage"
+          section="CTA"
+          slotName="CTA Section"
+          currentMediaId={null}
+          component="CTASection"
+        >
+          <CTASection />
+        </VisualSlot>
       </ScrollReveal>
     </>
   );

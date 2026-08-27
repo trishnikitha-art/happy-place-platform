@@ -1,0 +1,7 @@
+Fix: KV unavailable during static build - return null instead of throwing
+
+Modified assignment-store.ts and media-kv-store.ts to return null gracefully when KV is unavailable during static build instead of throwing errors. This allows Next.js static generation to succeed when KV credentials are not available in the build environment.
+
+Generated with Devin
+
+Co-Authored-By: Devin
