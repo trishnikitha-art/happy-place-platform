@@ -21,9 +21,7 @@ export const runtime = 'nodejs';
 
 const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
 
-/**
- * P1-9: KV environment isolation
- */
+// P1-9: KV environment isolation
 function getEnvironment(): 'production' | 'preview' | 'development' | 'test' {
   const vercelEnv = process.env.VERCEL_ENV;
   const nodeEnv = process.env.NODE_ENV;
@@ -50,9 +48,9 @@ function getRedisClient(): Redis | null {
   }
 }
 
-function getStagingKey(transactionId: string): string {
+function getStagingKey(transactionId: string, serviceSlug: string): string {
   const namespace = getKvNamespace();
-  return `${namespace}${WORKBENCH_STAGING_PREFIX}${transactionId}`;
+  return `${namespace}${WORKBENCH_STAGING_PREFIX}${transactionId}:service:${serviceSlug}`;
 }
 
 function generateTransactionId(): string {
