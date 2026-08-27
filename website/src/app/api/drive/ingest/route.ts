@@ -47,6 +47,7 @@ interface ReconciliationResult {
   error?: string;
   incomplete?: boolean; // P0 FIX: Signal when some assignments could not be reconciled due to media lookup failures
   repaired: boolean; // P0 FIX: Signal when poisoned PublishedMediaAsset records were repaired
+  brokenAssignments?: Array<{serviceSlug: string, mediaId: string}>; // P0 FIX: Track assignments pointing to nonexistent media (circular dependency)
 }
 
 /**
@@ -74,6 +75,7 @@ async function reconcileDriveAssignments(
     
     const updates: string[] = [];
     let repairedCount = 0; // P0 FIX: Track when poisoned PublishedMediaAsset records are repaired
+    const brokenAssignments: Array<{serviceSlug: string, mediaId: string}> = []; // Track assignments pointing to nonexistent media
 
     for (const assignment of assignments) {
       // Check if assignment references this Drive source by looking up the DriveReference
@@ -86,12 +88,14 @@ async function reconcileDriveAssignments(
         const media = await getMediaRecordRaw(assignment.mediaId);
         
         if (!media) {
-          console.warn('[ASSIGNMENT_RECONCILIATION] MEDIA_NOT_FOUND', {
+          console.warn('[ASSIGNMENT_RECONCILIATION] MEDIA_NOT_FOUND - BROKEN_ASSIGNMENT', {
             requestId,
             serviceSlug: assignment.serviceSlug,
             mediaId: assignment.mediaId,
-            reason: 'Assignment points to non-existent media record'
+            reason: 'Assignment points to non-existent media record - CIRCULAR DEPENDENCY',
+            note: 'Cannot repair without knowing intended Drive source. Manual repair required.'
           });
+          brokenAssignments.push({ serviceSlug: assignment.serviceSlug, mediaId: assignment.mediaId });
           continue;
         }
         
@@ -216,6 +220,7 @@ async function reconcileDriveAssignments(
       count: updates.length,
       services: updates,
       repairedCount,
+      brokenAssignments: brokenAssignments.length,
     });
 
     return {
@@ -223,6 +228,7 @@ async function reconcileDriveAssignments(
       updated: updates,
       incomplete: true, // P0 FIX: Signal when some assignments could not be reconciled due to media lookup failures
       repaired: repairedCount > 0, // P0 FIX: Signal when poisoned PublishedMediaAsset records were found and processed
+      brokenAssignments, // P0 FIX: Return assignments pointing to nonexistent media (circular dependency)
     };
   } catch (error) {
     console.error('[ASSIGNMENT_RECONCILIATION] FAILED', {
@@ -235,6 +241,7 @@ async function reconcileDriveAssignments(
       updated: [],
       error: error instanceof Error ? error.message : 'Unknown error',
       repaired: false,
+      brokenAssignments: [],
     };
   }
 }
@@ -689,7 +696,7 @@ export async function POST(request: Request) {
           // CRITICAL: Run assignment reconciliation for deduplicated media (optional, non-fatal)
           // This ensures DriveReference assignments are repaired when re-ingesting the same content
           // But materialization succeeds even if reconciliation fails
-          let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false };
+          let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
           if (driveId) {
             try {
               reconciliationResult = await reconcileDriveAssignments(
@@ -1175,7 +1182,7 @@ export async function POST(request: Request) {
         });
         
         // CRITICAL: Run assignment reconciliation after upgrade (optional, non-fatal)
-        let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false };
+        let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
         if (driveId) {
           try {
             reconciliationResult = await reconcileDriveAssignments(
@@ -1241,7 +1248,7 @@ export async function POST(request: Request) {
       // Trigger recovery to reconstruct KV record from Blob
       console.log('[MEDIA_INGEST] ATTEMPTING_KV_RECOVERY', { requestId, mediaId });
       
-      let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false };
+      let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
       
       try {
         const { repairIncompleteKvRecord } = await import('@/lib/materialization-recovery');
@@ -1333,7 +1340,7 @@ export async function POST(request: Request) {
       note: 'Reconciliation is optional - materialization succeeds even if no assignments exist'
     });
     
-    let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false };
+    let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
     if (driveId) {
       try {
         reconciliationResult = await reconcileDriveAssignments(
