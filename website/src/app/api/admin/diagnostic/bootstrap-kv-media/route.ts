@@ -136,28 +136,73 @@ export async function POST() {
     }
     
     // STATE: EXECUTED → POSTCONDITION_VERIFIED
-    // Verify a sample of bootstrapped records
+    // Verify ALL bootstrapped records, not just a sample
     let verified = 0;
-    const sampleSize = Math.min(5, bootstrapped);
-    const sampleIds = manifest.media.slice(0, sampleSize).map(m => m.id);
+    let failedVerification = 0;
+    const verificationErrors: Record<string, string> = {};
     
-    for (const mediaId of sampleIds) {
+    for (const media of manifest.media) {
       try {
-        const inKV = await getMedia(mediaId);
+        const inKV = await getMedia(media.id);
         if (inKV) {
+          // Verify Blob authority for published local media
+          if (inKV.lifecycleState === 'published' && inKV.source === 'local' && inKV.contentHash) {
+            const { getBlobMetadataByContentHash } = await import('@/lib/blob-storage');
+            const blobMetadata = await getBlobMetadataByContentHash(inKV.contentHash);
+            
+            if (!blobMetadata) {
+              failedVerification++;
+              verificationErrors[media.id] = 'Missing Blob metadata';
+              console.error('[KV_MEDIA_BOOTSTRAP_EVIDENCE] VERIFICATION_FAILED', {
+                testId,
+                mediaId: media.id,
+                reason: 'No blob_metadata record found for content hash'
+              });
+              continue;
+            }
+            
+            // Verify physical Blob hash if original variant exists
+            if (inKV.variants?.original) {
+              const { verifyBlobHash } = await import('@/lib/blob-storage');
+              const hashVerified = await verifyBlobHash(inKV.variants.original, inKV.contentHash);
+              
+              if (!hashVerified) {
+                failedVerification++;
+                verificationErrors[media.id] = 'Blob hash verification failed';
+                console.error('[KV_MEDIA_BOOTSTRAP_EVIDENCE] VERIFICATION_FAILED', {
+                  testId,
+                  mediaId: media.id,
+                  reason: 'Physical Blob bytes do not match content hash'
+                });
+                continue;
+              }
+            }
+          }
+          
           verified++;
+          console.log('[KV_MEDIA_BOOTSTRAP_EVIDENCE] VERIFICATION_PASSED', {
+            testId,
+            mediaId: media.id,
+            lifecycleState: inKV.lifecycleState,
+            source: inKV.source
+          });
+        } else {
+          failedVerification++;
+          verificationErrors[media.id] = 'Not found in KV after bootstrap';
         }
       } catch (error) {
-        console.error('[KV_MEDIA_BOOTSTRAP_EVIDENCE] VERIFICATION_FAILED', {
+        failedVerification++;
+        verificationErrors[media.id] = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[KV_MEDIA_BOOTSTRAP_EVIDENCE] VERIFICATION_ERROR', {
           testId,
-          mediaId,
+          mediaId: media.id,
           error: error instanceof Error ? error.message : 'Unknown error',
         });
       }
     }
     
     const endTime = new Date().toISOString();
-    const verificationRate = sampleSize > 0 ? verified / sampleSize : 1;
+    const verificationRate = manifest.media.length > 0 ? verified / manifest.media.length : 0;
     
     // STATE: POSTCONDITION_VERIFIED → PROVEN
     return NextResponse.json({
@@ -176,12 +221,12 @@ export async function POST() {
         skipped,
         failed,
         verificationRate,
-        sampleVerified: verified,
-        sampleSize,
-        errors: failed > 0 ? errors : undefined,
+        verified,
+        failedVerification,
+        verificationErrors: failedVerification > 0 ? verificationErrors : undefined,
       },
       cleanupStatus: 'not_required',
-      verdict: verificationRate >= 0.8 ? 'PROVEN' : 'FAILED',
+      verdict: verificationRate >= 0.95 ? 'PROVEN' : 'FAILED',
     });
     
   } catch (error) {

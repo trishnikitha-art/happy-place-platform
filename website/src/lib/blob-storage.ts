@@ -25,44 +25,35 @@ export interface BlobHashVerificationResult {
   actualHash?: string;
 }
 
-let redis: Redis | null = null;
-
-function getRedisClient(): Redis | null {
-  if (!redis) {
-    let url = process.env.KV_REST_API_URL;
-    let token = process.env.KV_REST_API_TOKEN;
-    
-    // Check integration-generated variables
-    const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
-    const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
-    const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
-    
-    // Use integration credentials if primary not set
-    if (!url && integrationUrl) {
-      url = integrationUrl;
-    }
-    if (!token && integrationToken) {
-      token = integrationToken;
-    }
-    
-    if (!url || !token) {
-      console.warn('[BLOB_STORAGE] KV credentials not configured, returning null client');
-      return null;
-    }
-    
-    redis = new Redis({ url, token });
-  }
-  return redis;
-}
-
 /**
- * Verification result with distinct error types
- * Distinguishes transport/auth failures from actual integrity failures
+ * P0 FIX: Eliminate process-global mutable state
+ * Create fresh Redis client on each call to prevent identity leaks
+ * and cross-request contamination
  */
-export interface BlobHashVerificationResult {
-  success: boolean;
-  errorType?: 'BLOB_NOT_FOUND' | 'AUTH_FAILURE' | 'INTEGRITY_FAILURE' | 'TRANSPORT_ERROR';
-  actualHash?: string;
+function getRedisClient(): Redis | null {
+  let url = process.env.KV_REST_API_URL;
+  let token = process.env.KV_REST_API_TOKEN;
+  
+  // Check integration-generated variables
+  const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
+  const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
+  const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
+  
+  // Use integration credentials if primary not set
+  if (!url && integrationUrl) {
+    url = integrationUrl;
+  }
+  if (!token && integrationToken) {
+    token = integrationToken;
+  }
+  
+  if (!url || !token) {
+    console.warn('[BLOB_STORAGE] KV credentials not configured, returning null client');
+    return null;
+  }
+  
+  // Create fresh client on each call (no global cache)
+  return new Redis({ url, token });
 }
 
 /**
