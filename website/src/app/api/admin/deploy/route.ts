@@ -149,8 +149,42 @@ const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
 
 // P0 FIX: Environment-isolated staging namespace
 // Prevents cross-environment contamination (production/preview/development)
+// Use the same environment detection logic as media-kv-store and blob-storage
+function getEnvironment(): 'production' | 'preview' | 'development' | 'test' {
+  const vercelEnv = process.env.VERCEL_ENV;
+  const nodeEnv = process.env.NODE_ENV;
+  
+  // Vercel production
+  if (vercelEnv === 'production') {
+    return 'production';
+  }
+  
+  // Vercel preview
+  if (vercelEnv === 'preview') {
+    return 'preview';
+  }
+  
+  // Local development
+  if (nodeEnv === 'development') {
+    return 'development';
+  }
+  
+  // Test environment
+  if (nodeEnv === 'test') {
+    return 'test';
+  }
+  
+  // P0 FIX: Fail closed on unknown environment
+  // Unknown/missing environment must not silently default to development
+  // This prevents production-like execution from accidentally routing into development namespace
+  throw new Error(
+    `Unknown environment: VERCEL_ENV=${vercelEnv}, NODE_ENV=${nodeEnv}. ` +
+    'Environment must be explicitly configured. Cannot proceed with unsafe default.'
+  );
+}
+
 function getEnvironmentPrefix(): string {
-  const env = process.env.VERCEL_ENV || process.env.NODE_ENV || 'development';
+  const env = getEnvironment();
   return `hpp:${env}:`;
 }
 
@@ -521,15 +555,38 @@ export async function POST(request: Request) {
       const transactionGroups = new Map<string, string[]>(); // transactionId -> keys
       const envPrefix = getEnvironmentPrefix();
       
+      // FILTER: Only process the specific transaction IDs provided (transaction isolation)
+      const targetTransactionIds = transactionIds || [deploymentTransactionId];
+      
+      console.log('[DEPLOY API] STAGING_SCAN_START', {
+        envPrefix,
+        targetTransactionIds,
+        deploymentTransactionId,
+        VERCEL_ENV: process.env.VERCEL_ENV,
+        NODE_ENV: process.env.NODE_ENV,
+      });
+      
       do {
         const result = await redis.scan(cursor, { match: `${envPrefix}${WORKBENCH_STAGING_PREFIX}*`, count: 100 });
         cursor = result[0];
+        
+        console.log('[DEPLOY API] STAGING_SCAN_ITERATION', {
+          cursor,
+          keysFound: result[1].length,
+          matchPattern: `${envPrefix}${WORKBENCH_STAGING_PREFIX}*`,
+        });
         
         for (const key of result[1]) {
           // Parse key format: accept both transactional formats:
           // - hpp:{env}:workbench-staging:{txId}:project:{projectId}:{field} (7 parts)
           // - hpp:{env}:workbench-staging:{txId}:service:{serviceSlug} (6 parts)
           const parts = key.split(':');
+          
+          console.log('[DEPLOY API] STAGING_KEY_PARSED', {
+            key,
+            parts,
+            partsLength: parts.length,
+          });
           
           // MUST start with environment prefix and workbench-staging
           if (parts[0] !== 'hpp' || parts[2] !== 'workbench-staging') {
@@ -544,6 +601,11 @@ export async function POST(request: Request) {
               transactionGroups.set(transactionId, []);
             }
             transactionGroups.get(transactionId)!.push(key);
+            console.log('[DEPLOY API] STAGING_KEY_ACCEPTED', {
+              key,
+              transactionId,
+              partsLength: parts.length,
+            });
           }
           // Skip legacy formats - enforce single staging protocol
           else {
@@ -557,9 +619,13 @@ export async function POST(request: Request) {
       
       console.log('[DEPLOY API] FOUND_TRANSACTION_GROUPS', { transactionCount: transactionGroups.size });
       
-      // FILTER: Only process the specific transaction IDs provided (transaction isolation)
-      const targetTransactionIds = transactionIds || [deploymentTransactionId];
       const filteredTransactionGroups = new Map<string, string[]>();
+      
+      for (const [transactionId, keys] of transactionGroups) {
+        if (targetTransactionIds.includes(transactionId)) {
+          filteredTransactionGroups.set(transactionId, keys);
+        }
+      }
       
       for (const [transactionId, keys] of transactionGroups) {
         if (targetTransactionIds.includes(transactionId)) {

@@ -26,10 +26,25 @@ function getEnvironment(): 'production' | 'preview' | 'development' | 'test' {
   const vercelEnv = process.env.VERCEL_ENV;
   const nodeEnv = process.env.NODE_ENV;
   
+  // Vercel production
   if (vercelEnv === 'production') return 'production';
+  
+  // Vercel preview
   if (vercelEnv === 'preview') return 'preview';
+  
+  // Local development
+  if (nodeEnv === 'development') return 'development';
+  
+  // Test environment
   if (nodeEnv === 'test') return 'test';
-  return 'development';
+  
+  // P0 FIX: Fail closed on unknown environment
+  // Unknown/missing environment must not silently default to development
+  // This prevents production-like execution from accidentally routing into development namespace
+  throw new Error(
+    `Unknown environment: VERCEL_ENV=${vercelEnv}, NODE_ENV=${nodeEnv}. ` +
+    'Environment must be explicitly configured. Cannot proceed with unsafe default.'
+  );
 }
 
 function getKvNamespace(): string {
@@ -190,7 +205,43 @@ export async function POST(request: Request) {
     if (redis) {
       const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${serviceSlug}`;
 
+      console.log('[SERVICES CARD] STAGING_WRITE_START', {
+        serviceSlug,
+        mediaId,
+        stagingKey,
+        transactionId: effectiveTransactionId,
+        namespace: getKvNamespace(),
+        environment: getEnvironment(),
+        VERCEL_ENV: process.env.VERCEL_ENV,
+        NODE_ENV: process.env.NODE_ENV,
+      });
+
       await redis.set(stagingKey, mediaId);
+
+      // CRITICAL: Verify the write succeeded by reading it back
+      const verifyWrite = await redis.get(stagingKey);
+      if (!verifyWrite) {
+        console.error('[SERVICES CARD] STAGING_WRITE_VERIFICATION_FAILED', {
+          stagingKey,
+          reason: 'Redis SET succeeded but GET returned null - write may have failed silently'
+        });
+        return NextResponse.json(
+          {
+            error: "Staging write verification failed",
+            message: "Redis SET succeeded but verification read failed",
+            stagingKey,
+            transactionId: effectiveTransactionId
+          },
+          { status: 500 }
+        );
+      }
+
+      console.log('[SERVICES CARD] STAGING_WRITE_VERIFIED', {
+        stagingKey,
+        writtenValue: verifyWrite,
+        expectedValue: mediaId,
+        valuesMatch: verifyWrite === mediaId,
+      });
 
       // Create authoritative deployment transaction record (single source of truth)
       const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
