@@ -15,35 +15,121 @@
 
 import { Redis } from '@upstash/redis';
 
-let redis: Redis | null = null;
+/**
+ * P1-9: KV environment isolation
+ * Each environment (production, preview, development, test) has a distinct namespace
+ * to prevent cross-environment data access and isolation violations.
+ */
+type Environment = 'production' | 'preview' | 'development' | 'test';
 
-function getRedisClient(): Redis | null {
-  if (!redis) {
-    let url = process.env.KV_REST_API_URL;
-    let token = process.env.KV_REST_API_TOKEN;
-    
-    // Check integration-generated variables
-    const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
-    const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
-    const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
-    
-    // Use integration credentials if primary not set
-    if (!url && integrationUrl) {
-      url = integrationUrl;
-    }
-    if (!token && integrationToken) {
-      token = integrationToken;
-    }
-    
-    // During static build, KV may not be available - return null to allow build to succeed
-    // Runtime pages will use the static fallback if KV is unavailable
-    if (!url || !token) {
-      return null;
-    }
-    
-    redis = new Redis({ url, token });
+function getEnvironment(): Environment {
+  const vercelEnv = process.env.VERCEL_ENV;
+  const nodeEnv = process.env.NODE_ENV;
+  
+  // Vercel production
+  if (vercelEnv === 'production') {
+    return 'production';
   }
-  return redis;
+  
+  // Vercel preview
+  if (vercelEnv === 'preview') {
+    return 'preview';
+  }
+  
+  // Local development
+  if (nodeEnv === 'development') {
+    return 'development';
+  }
+  
+  // Test environment
+  if (nodeEnv === 'test') {
+    return 'test';
+  }
+  
+  // Default to development for safety
+  return 'development';
+}
+
+/**
+ * Get KV namespace prefix for current environment
+ * This ensures isolation between production, preview, development, and test
+ */
+function getKvNamespace(): string {
+  const env = getEnvironment();
+  return `hpp:${env}:`;
+}
+
+/**
+ * Apply namespace prefix to KV key
+ * Prevents cross-environment key collisions
+ */
+function namespacedKey(key: string): string {
+  const namespace = getKvNamespace();
+  return `${namespace}${key}`;
+}
+
+/**
+ * Detect if we're in static build mode
+ * During static build, we can tolerate KV unavailability
+ * During runtime, KV is a required dependency
+ */
+function isStaticBuild(): boolean {
+  // Check if we're in Next.js build phase
+  // During build, NODE_ENV is 'production' but we're not actually running
+  const isBuilding = process.env.NEXT_PHASE === 'build';
+  return isBuilding;
+}
+
+class KvUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'KvUnavailableError';
+  }
+}
+
+/**
+ * KV Client Factory
+ * 
+ * Creates environment-bound Redis clients to prevent mutable process-global state.
+ * Each client is bound to the current environment namespace at creation time.
+ * This prevents identity leaks when environments change or credentials rotate.
+ */
+function createRedisClient(): Redis {
+  let url = process.env.KV_REST_API_URL;
+  let token = process.env.KV_REST_API_TOKEN;
+  
+  // Check integration-generated variables
+  const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
+  const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
+  const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
+  
+  // Use integration credentials if primary not set
+  if (!url && integrationUrl) {
+    url = integrationUrl;
+  }
+  if (!token && integrationToken) {
+    token = integrationToken;
+  }
+  
+  // During static build, KV may not be available - throw explicit error
+  // Runtime pages will handle this as a dependency failure
+  if (!url || !token) {
+    if (isStaticBuild()) {
+      throw new KvUnavailableError('KV credentials not available during static build');
+    }
+    throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
+  }
+  
+  // Create fresh client bound to current environment
+  const env = getEnvironment();
+  const client = new Redis({ url, token });
+  
+  console.log('[ASSIGNMENT_KV] Created environment-bound client', {
+    environment: env,
+    namespace: getKvNamespace(),
+  });
+  
+  return client;
 }
 
 const ASSIGNMENT_PREFIX = 'service-card-assignment:';
@@ -162,7 +248,7 @@ function validateServiceCardAssignment(data: unknown): data is ServiceCardAssign
  */
 export async function deleteServiceCardAssignment(serviceSlug: string, requestId?: string): Promise<void> {
   const operationId = requestId || `delete-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
+  const key = namespacedKey(`${ASSIGNMENT_PREFIX}${serviceSlug}`);
 
   console.log('[ASSIGNMENT_DELETE] DELETE_REQUEST', {
     operationId,
@@ -171,15 +257,7 @@ export async function deleteServiceCardAssignment(serviceSlug: string, requestId
   });
 
   try {
-    const client = getRedisClient();
-    if (!client) {
-      console.warn('[ASSIGNMENT_DELETE] KV_UNAVAILABLE - skipping delete', {
-        operationId,
-        key,
-        serviceSlug,
-      });
-      return;
-    }
+    const client = createRedisClient();
     await client.del(key);
 
     console.log('[ASSIGNMENT_DELETE] DELETE_SUCCESS', {
@@ -193,6 +271,7 @@ export async function deleteServiceCardAssignment(serviceSlug: string, requestId
       serviceSlug,
       error: error instanceof Error ? error.message : 'Unknown error',
     });
+    // Re-throw as error - this is a runtime dependency failure
     throw new Error(`Failed to delete assignment for ${serviceSlug}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
@@ -236,7 +315,7 @@ export async function storeServiceCardAssignment(
   requestId?: string
 ): Promise<void> {
   const operationId = requestId || `store-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  const key = `${ASSIGNMENT_PREFIX}${assignment.serviceSlug}`;
+  const key = namespacedKey(`${ASSIGNMENT_PREFIX}${assignment.serviceSlug}`);
   
   // REJECT: drive-prefixed IDs at write time (Drive references cannot become public assignments)
   // drive- and drive-ref- prefixes are reserved for DriveReference only
@@ -315,15 +394,7 @@ export async function storeServiceCardAssignment(
   }
   
   try {
-    const client = getRedisClient();
-    if (!client) {
-      console.warn('[ASSIGNMENT_WRITE] KV_UNAVAILABLE - returning without write', {
-        operationId,
-        serviceSlug: assignment.serviceSlug,
-        mediaId: assignment.mediaId,
-      });
-      return;
-    }
+    const client = createRedisClient();
     
     // Use atomic Lua script for CAS - prevents lost updates
     // Script: GET current revision, compare with expected, SET if match
@@ -393,7 +464,7 @@ export async function storeServiceCardAssignment(
  */
 export async function getServiceCardAssignment(serviceSlug: string, requestId?: string): Promise<ServiceCardAssignment | null> {
   const operationId = requestId || `get-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  const key = `${ASSIGNMENT_PREFIX}${serviceSlug}`;
+  const key = namespacedKey(`${ASSIGNMENT_PREFIX}${serviceSlug}`);
 
   console.log('[ASSIGNMENT_READ]', {
     operationId,
@@ -402,15 +473,7 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
   });
 
   try {
-    const client = getRedisClient();
-    if (!client) {
-      console.warn('[ASSIGNMENT_READ] KV_UNAVAILABLE - returning null', {
-        operationId,
-        serviceSlug,
-        key,
-      });
-      return null;
-    }
+    const client = createRedisClient();
 
     // Use typed object API - @upstash/redis handles deserialization
     const assignment = await client.get<ServiceCardAssignment>(key);
@@ -462,16 +525,12 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
  */
 export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignment[]> {
   try {
-    const client = getRedisClient();
-    if (!client) {
-      console.warn('[ASSIGNMENT_READ_ALL] KV_UNAVAILABLE - returning empty array');
-      return [];
-    }
+    const client = createRedisClient();
     // Use scan to find all keys with the assignment prefix
     const keys: string[] = [];
     let cursor = '0';
     do {
-      const result = await client.scan(cursor, { match: `${ASSIGNMENT_PREFIX}*`, count: 100 });
+      const result = await client.scan(cursor, { match: namespacedKey(`${ASSIGNMENT_PREFIX}*`), count: 100 });
       cursor = result[0];
       keys.push(...result[1]);
     } while (cursor !== '0');
@@ -512,17 +571,13 @@ export async function getAllServiceCardAssignments(): Promise<ServiceCardAssignm
  */
 export async function scanRawAssignmentRecords(): Promise<RawAssignmentRecord[]> {
   try {
-    const client = getRedisClient();
-    if (!client) {
-      console.warn('[ASSIGNMENT_SCAN] KV_UNAVAILABLE - returning empty array');
-      return [];
-    }
+    const client = createRedisClient();
     const keys: string[] = [];
     let cursor = '0';
 
     // Scan all assignment keys
     do {
-      const result = await client.scan(cursor, { match: `${ASSIGNMENT_PREFIX}*`, count: 100 });
+      const result = await client.scan(cursor, { match: namespacedKey(`${ASSIGNMENT_PREFIX}*`), count: 100 });
       cursor = result[0];
       keys.push(...result[1]);
     } while (cursor !== '0');
@@ -533,7 +588,7 @@ export async function scanRawAssignmentRecords(): Promise<RawAssignmentRecord[]>
     for (const key of keys) {
       try {
         const rawPayload = await client.get(key);
-        const serviceSlug = key.replace(ASSIGNMENT_PREFIX, '');
+        const serviceSlug = key.replace(namespacedKey(ASSIGNMENT_PREFIX), '');
 
         // Schema classification
         let schemaClassification: RawAssignmentRecord['schemaClassification'] = 'SCHEMA_INVALID';
@@ -700,23 +755,7 @@ export async function findPoisonedAssignments(): Promise<{
  */
 export async function cleanupCorruptedAssignments(): Promise<QuarantineReport> {
   try {
-    const client = getRedisClient();
-    if (!client) {
-      console.warn('[ASSIGNMENT_CLEANUP] KV_UNAVAILABLE - returning empty report');
-      const emptyReport: QuarantineReport = {
-        beforeCount: 0,
-        poisonedCount: 0,
-        quarantinedCount: 0,
-        deletedFromActiveCount: 0,
-        concurrentlyChangedCount: 0,
-        failedCount: 0,
-        afterCount: 0,
-        remainingPoisonCount: 0,
-        quarantineRecords: [],
-        timestamp: new Date().toISOString(),
-      };
-      return emptyReport;
-    }
+    const client = createRedisClient();
     const rawRecords = await scanRawAssignmentRecords();
 
     const schemaInvalidRecords = rawRecords.filter(r => r.schemaClassification !== 'VALID');
@@ -764,23 +803,7 @@ export async function quarantinePoisonedAssignments(
   }>,
   dryRun: boolean = true
 ): Promise<QuarantineReport> {
-  const client = getRedisClient();
-  if (!client) {
-    console.warn('[ASSIGNMENT_QUARANTINE] KV_UNAVAILABLE - returning empty report');
-    const emptyReport: QuarantineReport = {
-      beforeCount: 0,
-      poisonedCount: 0,
-      quarantinedCount: 0,
-      deletedFromActiveCount: 0,
-      concurrentlyChangedCount: 0,
-      failedCount: 0,
-      afterCount: 0,
-      remainingPoisonCount: 0,
-      quarantineRecords: [],
-      timestamp: new Date().toISOString(),
-    };
-    return emptyReport;
-  }
+  const client = createRedisClient();
   const timestamp = new Date().toISOString();
   const quarantinedBy = 'assignment-store-quarantine-system';
 
@@ -906,7 +929,7 @@ export async function quarantinePoisonedAssignments(
 
       // Generate stable evidence hash for deterministic quarantine key
       const evidenceHash = await generateEvidenceHash(originalAssignment);
-      const quarantineKey = `${ASSIGNMENT_QUARANTINE_PREFIX}${evidenceHash}`;
+      const quarantineKey = namespacedKey(`${ASSIGNMENT_QUARANTINE_PREFIX}${evidenceHash}`);
 
       // Classify chronology for gate classification
       let gateClassification: QuarantineRecord['gateClassification'] = 'UNKNOWN';

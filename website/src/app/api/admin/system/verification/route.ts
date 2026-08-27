@@ -23,10 +23,6 @@
 
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-
-const execAsync = promisify(exec);
 
 export const dynamic = 'force-dynamic';
 
@@ -39,6 +35,7 @@ interface VerificationResult {
     nodeEnv: string;
     vercelEnv: string;
     vercelUrl?: string;
+    deploymentSha?: string;
   };
   kv: {
     configured: boolean;
@@ -88,6 +85,7 @@ export async function GET(request: Request) {
         nodeEnv: process.env.NODE_ENV || 'unknown',
         vercelEnv: process.env.VERCEL_ENV || 'unknown',
         vercelUrl: process.env.VERCEL_URL || undefined,
+        deploymentSha: process.env.VERCEL_GIT_COMMIT_SHA || undefined,
       },
       kv: {
         configured: false,
@@ -112,16 +110,10 @@ export async function GET(request: Request) {
       },
     };
 
-    // Get Git information
-    try {
-      const gitHead = await execAsync('git rev-parse HEAD', { cwd: process.cwd() });
-      result.gitHead = gitHead.stdout.trim();
-      
-      const gitBranch = await execAsync('git branch --show-current', { cwd: process.cwd() });
-      result.gitBranch = gitBranch.stdout.trim();
-    } catch (error) {
-      console.error('[SYSTEM_VERIFICATION] Git verification failed:', error);
-    }
+    // Get Git information from deployment metadata
+    // Use Vercel deployment metadata instead of shell commands
+    result.gitHead = process.env.VERCEL_GIT_COMMIT_SHA || 'unknown';
+    result.gitBranch = process.env.VERCEL_GIT_COMMIT_REF || 'unknown';
 
     // Check KV configuration
     result.kv.configured = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
@@ -148,11 +140,12 @@ export async function GET(request: Request) {
     // Check Blob configuration
     result.blob.configured = !!process.env.BLOB_READ_WRITE_TOKEN;
     if (result.blob.configured) {
-      // Test Blob connectivity
+      // Test Blob connectivity using private access to avoid creating public objects
       try {
         const { put } = await import('@vercel/blob');
         const testKey = `verification-test-${Date.now()}`;
-        await put(testKey, new Blob(['test']), { access: 'public' });
+        // Use private access for verification test
+        await put(testKey, new Blob(['test']), { access: 'private' });
         const { del } = await import('@vercel/blob');
         await del(testKey);
         result.blob.connected = true;

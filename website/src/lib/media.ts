@@ -27,6 +27,18 @@ import type { Project } from "@/types/projects";
 import { loadAuthority, clearAuthorityCache, findById, sortByOrder } from "./authority-loader";
 
 /**
+ * Detect if we're in static build mode
+ * During static build, we can tolerate KV unavailability
+ * During runtime, KV is a required dependency
+ */
+function isStaticBuild(): boolean {
+  // Check if we're in Next.js build phase
+  // During build, NODE_ENV is 'production' but we're not actually running
+  const isBuilding = process.env.NEXT_PHASE === 'build';
+  return isBuilding;
+}
+
+/**
  * Compute synthetic content hash (SHA256 of canonical ID)
  * This is used to detect and reject synthetic content identity
  */
@@ -127,23 +139,26 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
       }
       return dynamicMedia;
     }
-  // KV returned null (record does not exist) - fail closed
-  // P0 FIX: No static fallback to prevent authority bypass and resurrection
-  console.log('[MEDIA] KV_MEDIA_NOT_FOUND - FAILING_CLOSED', { mediaId: id });
-  return null;
-} catch (error) {
-  // KV infrastructure error - FAIL CLOSED
-  // Do not silently fall back to static authority on infrastructure failure
-  console.error('[MEDIA] KV infrastructure error - FAILING CLOSED:', {
-    error: error instanceof Error ? error.message : 'Unknown error',
-    mediaId: id,
-  });
-  return null;
-}
-
-// P0 FIX: Static fallback removed - KV is the ONLY authority
-// Return null if KV does not have the record (fail closed)
-return null;
+    // KV returned null (record does not exist) - fail closed
+    // P0 FIX: No static fallback to prevent authority bypass and resurrection
+    console.log('[MEDIA] KV_MEDIA_NOT_FOUND - FAILING_CLOSED', { mediaId: id });
+    return null;
+  } catch (error) {
+    // KV infrastructure error - distinguish between static build and runtime
+    if (isStaticBuild()) {
+      // During static build, return null to allow build to succeed
+      console.log('[MEDIA] KV_UNAVAILABLE_DURING_STATIC_BUILD - returning null', {
+        mediaId: id,
+      });
+      return null;
+    }
+    // During runtime, this is a real dependency failure - fail closed with null
+    console.error('[MEDIA] KV_RUNTIME_DEPENDENCY_FAILURE - FAILING_CLOSED:', {
+      error: error instanceof Error ? error.message : 'Unknown error',
+      mediaId: id,
+    });
+    return null;
+  }
 }
 
 /**

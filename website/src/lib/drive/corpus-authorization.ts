@@ -34,6 +34,9 @@ export interface CorpusAuthorizationResult {
 /**
  * Get authorized Drive corpora for the current session
  * Returns the list of Drive corpora that the authenticated session is authorized to access
+ * 
+ * CRITICAL: This must NOT simply return all Google-accessible corpora.
+ * This must enforce HPP application-level authorization, not just Google OAuth access.
  */
 export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
   try {
@@ -49,8 +52,7 @@ export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
       return [];
     }
 
-    // For now, we authorize My Drive and any Shared Drives the user has access to
-    // In the future, this could be restricted to specific corpora based on HPP authorization
+    // Get Drive client
     const driveClient = await driveSession.getDriveClient();
     
     // Get My Drive info
@@ -58,11 +60,8 @@ export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
       fields: 'storageQuota,kind',
     });
 
-    // Get Shared Drives
-    const drivesResponse = await driveClient.drives.list({
-      pageSize: 100,
-    });
-
+    // HPP AUTHORIZATION: Only authorize My Drive for authenticated workbench users
+    // Shared Drives require explicit HPP authorization (not just Google access)
     const corpora: DriveCorpus[] = [
       {
         id: 'root',
@@ -72,16 +71,9 @@ export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
       },
     ];
 
-    if (drivesResponse.data.drives) {
-      for (const drive of drivesResponse.data.drives) {
-        corpora.push({
-          id: drive.id,
-          name: drive.name || drive.id,
-          type: 'shared_drive',
-          authorized: true,
-        });
-      }
-    }
+    // TODO: Implement explicit HPP Shared Drive authorization
+    // This should be based on HPP application configuration, not Google access
+    // For now, we do NOT automatically authorize Shared Drives
 
     return corpora;
   } catch (error) {
@@ -193,13 +185,8 @@ export async function verifyCorpusAuthorization(
 export async function verifyFolderAuthorization(
   folderId: string
 ): Promise<CorpusAuthorizationResult> {
-  // 'root' is always allowed (My Drive root)
-  if (folderId === 'root') {
-    return {
-      authorized: true,
-    };
-  }
-
+  // CRITICAL: 'root' must still require authentication
+  // 'root' means the authenticated user's My Drive root, not a magic bypass
   return verifyCorpusAuthorization(folderId);
 }
 

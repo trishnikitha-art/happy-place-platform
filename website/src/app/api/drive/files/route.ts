@@ -64,6 +64,32 @@ export async function GET(request: Request) {
 
     console.log('[Drive Files API] Request:', { folderId, driveId, pageToken });
 
+    // CRITICAL: Verify driveId and folderId consistency
+    // If driveId is supplied, verify the folder actually belongs to that corpus
+    // This prevents requesting objects from unauthorized corpora
+    if (driveId && folderId !== 'root') {
+      const corpusAuth = await verifyCorpusAuthorization(folderId, driveId);
+      if (!corpusAuth.authorized) {
+        console.error('[DRIVE_AUTHORIZATION] DRIVE_ID_FOLDER_ID_MISMATCH', {
+          folderId,
+          requestedDriveId: driveId,
+          reason: corpusAuth.reason,
+        });
+        return NextResponse.json(
+          {
+            error: 'DRIVE_ID_FOLDER_ID_MISMATCH',
+            message: corpusAuth.reason || 'Folder does not belong to the requested Drive corpus',
+          },
+          { status: 403 }
+        );
+      }
+      console.log('[DRIVE_AUTHORIZATION] DRIVE_ID_FOLDER_ID_CONSISTENT', {
+        folderId,
+        driveId,
+        corpus: corpusAuth.corpus,
+      });
+    }
+
     // P0 FIX: Verify folderId is accessible to the authenticated session
     // This prevents IDOR where an authorized user could list arbitrary folder IDs
     // even if Google technically permits the object

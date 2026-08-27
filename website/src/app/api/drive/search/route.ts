@@ -4,6 +4,10 @@
  * Searches within an authorized Drive corpus
  * Prevents cross-corpus search attacks
  *
+ * DESIGN DECISION: Search is corpus-scoped, not folder-scoped
+ * This implementation searches the entire selected corpus (My Drive or specific Shared Drive)
+ * rather than limiting to a folder subtree. This is intentional for UX flexibility.
+ *
  * SECURITY: Application-level Drive authorization
  * - Google OAuth authentication is NOT sufficient for HPP authorization
  * - Must verify: session identity → HPP authorization → Drive authorization → corpus → search

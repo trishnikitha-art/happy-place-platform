@@ -45,9 +45,13 @@ interface OAuthVerificationResult {
     driveSessionId?: string;
   };
   authorization: {
-    canCreateAuthorization: boolean;
-    canRetrieveAuthorization: boolean;
-    canRevokeAuthorization: boolean;
+    // Distinguish between capability and actual test execution
+    createAuthorizationCapability: boolean;
+    retrieveAuthorizationExecuted: boolean;
+    retrieveAuthorizationSuccess: boolean;
+    revokeAuthorizationCapability: boolean;
+    revokeAuthorizationExecuted: boolean;
+    revokeAuthorizationSuccess: boolean;
   };
   credentials: {
     canResolveCredentials: boolean;
@@ -93,9 +97,12 @@ export async function POST(request: Request) {
         driveAuthenticated: false,
       },
       authorization: {
-        canCreateAuthorization: false,
-        canRetrieveAuthorization: false,
-        canRevokeAuthorization: false,
+        createAuthorizationCapability: false,
+        retrieveAuthorizationExecuted: false,
+        retrieveAuthorizationSuccess: false,
+        revokeAuthorizationCapability: false,
+        revokeAuthorizationExecuted: false,
+        revokeAuthorizationSuccess: false,
       },
       credentials: {
         canResolveCredentials: false,
@@ -157,38 +164,35 @@ export async function POST(request: Request) {
 
     // Test authorization flow
     try {
-      // Test if we can retrieve authorization
+      // Test if we can retrieve authorization (actual execution test)
       if (result.session.driveAuthenticated) {
+        result.authorization.retrieveAuthorizationExecuted = true;
         const driveClient = await driveSession.getDriveClient();
-        result.authorization.canRetrieveAuthorization = !!driveClient;
+        result.authorization.retrieveAuthorizationSuccess = !!driveClient;
         result.credentials.canResolveCredentials = !!driveClient;
-        result.flow.resolveSession = 'success';
+        result.flow.resolveSession = result.authorization.retrieveAuthorizationSuccess ? 'success' : 'failed';
       } else {
         result.flow.resolveSession = 'no_drive_session';
       }
       
-      // Test authorization creation capability
-      result.authorization.canCreateAuthorization = result.redis.kvConnected && result.configuration.clientIdConfigured;
+      // Test authorization creation capability (configuration check only)
+      result.authorization.createAuthorizationCapability = result.redis.kvConnected && result.configuration.clientIdConfigured;
     } catch (error) {
+      result.authorization.retrieveAuthorizationExecuted = true;
+      result.authorization.retrieveAuthorizationSuccess = false;
       result.flow.resolveSession = error instanceof Error ? error.message : 'failed';
-      result.authorization.canCreateAuthorization = false;
+      result.authorization.createAuthorizationCapability = false;
     }
 
-    // Test session creation (simulated - actual OAuth requires browser flow)
+    // Session creation is configuration-dependent, not execution-tested here
     result.flow.createSession = result.redis.kvConnected ? 'kv_available' : 'kv_unavailable';
     result.flow.startOAuth = result.configuration.clientIdConfigured && result.configuration.redirectUriValid ? 'configuration_valid' : 'configuration_invalid';
     result.flow.handleCallback = result.redis.kvConnected ? 'kv_available' : 'kv_unavailable';
     result.flow.revokeSession = result.redis.kvConnected ? 'kv_available' : 'kv_unavailable';
 
-    // Test authorization revocation
-    try {
-      if (result.session.driveAuthenticated) {
-        // In a real test, we would revoke and verify
-        result.authorization.canRevokeAuthorization = true;
-      }
-    } catch (error) {
-      result.authorization.canRevokeAuthorization = false;
-    }
+    // Test authorization revocation (capability check, not actual execution)
+    // Actual revocation would break the current session
+    result.authorization.revokeAuthorizationCapability = result.redis.kvConnected && result.session.driveAuthenticated;
 
     return NextResponse.json({
       success: true,

@@ -64,41 +64,76 @@ function namespacedKey(key: string): string {
   return `${namespace}${key}`;
 }
 
-let redis: Redis | null = null;
+/**
+ * Detect if we're in static build mode
+ * During static build, we can tolerate KV unavailability
+ * During runtime, KV is a required dependency
+ */
+function isStaticBuild(): boolean {
+  // Check if we're in Next.js build phase
+  // During build, NODE_ENV is 'production' but we're not actually running
+  const isBuilding = process.env.NEXT_PHASE === 'build';
+  return isBuilding;
+}
+
+class KvUnavailableError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'KvUnavailableError';
+  }
+}
+
+/**
+ * KV Client Factory
+ * 
+ * Creates environment-bound Redis clients to prevent mutable process-global state.
+ * Each client is bound to the current environment namespace at creation time.
+ * This prevents identity leaks when environments change or credentials rotate.
+ */
+function createRedisClient(): Redis {
+  let url = process.env.KV_REST_API_URL;
+  let token = process.env.KV_REST_API_TOKEN;
+  
+  // Check integration-generated variables
+  const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
+  const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
+  const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
+  
+  // Use integration credentials if primary not set
+  if (!url && integrationUrl) {
+    url = integrationUrl;
+  }
+  if (!token && integrationToken) {
+    token = integrationToken;
+  }
+  
+  // During static build, KV may not be available - throw explicit error
+  // Runtime pages will handle this as a dependency failure
+  if (!url || !token) {
+    if (isStaticBuild()) {
+      throw new KvUnavailableError('KV credentials not available during static build');
+    }
+    throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
+  }
+  
+  // Create fresh client bound to current environment
+  const env = getEnvironment();
+  const client = new Redis({ url, token });
+  
+  console.log('[MEDIA_KV] Created environment-bound client', {
+    environment: env,
+    namespace: getKvNamespace(),
+  });
+  
+  return client;
+}
 
 // KV key prefixes (P1-9: Environment isolation applied)
 const MEDIA_PREFIX = 'media:';
 const CONTENT_HASH_PREFIX = 'content_hash:';
-
-function getRedisClient(): Redis | null {
-  if (!redis) {
-    let url = process.env.KV_REST_API_URL;
-    let token = process.env.KV_REST_API_TOKEN;
-    
-    // Check integration-generated variables
-    const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
-    const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
-    const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
-    
-    // Use integration credentials if primary not set
-    if (!url && integrationUrl) {
-      url = integrationUrl;
-    }
-    if (!token && integrationToken) {
-      token = integrationToken;
-    }
-    
-    // During static build, KV may not be available - return null to allow build to succeed
-    // Runtime pages will use the static fallback if KV is unavailable
-    if (!url || !token) {
-      console.warn('[MEDIA_KV] KV_UNAVAILABLE - returning null client for static build');
-      return null;
-    }
-    
-    redis = new Redis({ url, token });
-  }
-  return redis;
-}
+const BLOB_METADATA_PREFIX = 'blob_metadata:';
+const STALE_INDEX_PREFIX = 'stale_index:';
+const MEDIA_QUARANTINE_PREFIX = 'media_quarantine:';
 
 /**
  * Compute synthetic content hash (SHA256 of canonical ID)
@@ -142,12 +177,12 @@ async function verifyConstitutionalProof(media: Media): Promise<boolean> {
   
   // Verify Blob metadata exists (only if contentHash exists)
   if (media.contentHash) {
-    const client = getRedisClient();
+    const client = createRedisClient();
     if (!client) {
       console.warn('[MEDIA_KV] KV unavailable for constitutional proof check', { mediaId: media.id });
       return false;
     }
-    const blobMetadata = await client.get(`blob_metadata:${media.contentHash}`);
+    const blobMetadata = await client.get(namespacedKey(`${BLOB_METADATA_PREFIX}${media.contentHash}`));
     
     if (!blobMetadata) {
       console.error('[MEDIA_KV] REJECTED: Missing Blob metadata', {
@@ -192,7 +227,7 @@ async function verifyConstitutionalProof(media: Media): Promise<boolean> {
  */
 export async function getMedia(id: string): Promise<Media | null> {
   try {
-    const client = getRedisClient();
+    const client = createRedisClient();
     if (!client) {
       console.warn('[MEDIA_KV] KV unavailable for getMedia', { id });
       return null;
@@ -236,7 +271,7 @@ export async function getMedia(id: string): Promise<Media | null> {
  */
 export async function getMediaRecordRaw(id: string): Promise<Media | null> {
   try {
-    const client = getRedisClient();
+    const client = createRedisClient();
     if (!client) {
       console.warn('[MEDIA_KV] KV unavailable for getMediaRecordRaw', { id });
       return null;
@@ -272,7 +307,7 @@ export async function getMediaRecordRaw(id: string): Promise<Media | null> {
  */
 export async function listMediaIds(): Promise<string[]> {
   try {
-    const client = getRedisClient();
+    const client = createRedisClient();
     if (!client) {
       console.warn('[MEDIA_KV] KV unavailable for listMediaIds');
       return [];
@@ -310,7 +345,7 @@ export async function saveMedia(media: Media): Promise<void> {
       }
     }
     
-    const client = getRedisClient();
+    const client = createRedisClient();
     if (!client) {
       console.warn('[MEDIA_KV] KV unavailable for saveMedia - returning without save', { mediaId: media.id });
       return;
@@ -353,7 +388,7 @@ export async function saveMedia(media: Media): Promise<void> {
  */
 export async function deleteMedia(id: string): Promise<void> {
   try {
-    const client = getRedisClient();
+    const client = createRedisClient();
     if (!client) {
       console.warn('[MEDIA_KV] KV unavailable for deleteMedia - returning without delete', { id });
       return;
@@ -409,7 +444,7 @@ export const storeMedia = saveMedia;
  */
 export async function findMediaByContentHash(contentHash: string): Promise<Media | null> {
   try {
-    const client = getRedisClient();
+    const client = createRedisClient();
     if (!client) {
       console.warn('[MEDIA_KV] KV unavailable for findMediaByContentHash', { contentHash });
       return null;
@@ -435,7 +470,7 @@ export async function findMediaByContentHash(contentHash: string): Promise<Media
         reason: 'Index is stale - media record was deleted but index was not cleaned up'
       });
       // Clean up stale index entry
-      await client.del(`${CONTENT_HASH_PREFIX}${contentHash}`);
+      await client.del(namespacedKey(`${CONTENT_HASH_PREFIX}${contentHash}`));
       return null;
     }
     
@@ -448,7 +483,7 @@ export async function findMediaByContentHash(contentHash: string): Promise<Media
         reason: 'Index corruption - cleanup required'
       });
       // Clean up corrupted index entry
-      await client.del(`${CONTENT_HASH_PREFIX}${contentHash}`);
+      await client.del(namespacedKey(`${CONTENT_HASH_PREFIX}${contentHash}`));
       return null;
     }
     
