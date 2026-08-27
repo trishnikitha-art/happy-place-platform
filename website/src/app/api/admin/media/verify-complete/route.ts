@@ -48,10 +48,13 @@ export async function GET(request: Request) {
 
     if (!media) {
       console.log('[MEDIA_VERIFY] MEDIA_NOT_FOUND', { requestId, mediaId });
-      return NextResponse.json(
-        { complete: false, error: "Media not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({
+        complete: false,
+        mediaId,
+        error: "Media not found in KV",
+        lifecycleState: null,
+        source: null,
+      });
     }
 
     // Use appropriate completeness contract

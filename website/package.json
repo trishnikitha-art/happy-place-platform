@@ -14,6 +14,7 @@
     "test:oauth": "jest --testPathPatterns=oauth",
     "images": "node scripts/image-pipeline.mjs",
     "qa:images": "node scripts/image-qa.mjs",
+    "bootstrap:kv": "tsx scripts/bootstrap-kv-staging.ts",
     "projections": "node scripts/constitutional-projection-generator.js",
     "graph-edges": "node scripts/graph-edge-generator.js"
   },
@@ -48,7 +49,7 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^9",
-    "eslint-config-next": "16.2.10",
+    "eslint-config-next": "15.2.10",
     "jest": "^30.4.2",
     "tailwindcss": "^4",
     "ts-jest": "^29.4.12",

@@ -172,7 +172,39 @@ export async function GET(
 
     console.log('[MEDIA_PROXY_MEDIA_DOWNLOAD_STARTED]', { fileId, driveId });
 
-    // Download actual binary content using Drive API alt: 'media'
+    // Try thumbnail first, fall back to full media if thumbnail unavailable
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let thumbnailParams: any = {
+      fileId,
+      fields: 'thumbnailLink',
+      supportsAllDrives: true,
+    };
+
+    try {
+      const thumbnailResponse = await drive.files.get(thumbnailParams);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const thumbnailLink = (thumbnailResponse.data as any).thumbnailLink;
+      
+      if (thumbnailLink) {
+        console.log('[MEDIA_PROXY_THUMBNAIL_AVAILABLE]', { fileId, thumbnailLink });
+        
+        // Fetch thumbnail bytes
+        const thumbnailResponseBuffer = await fetch(thumbnailLink);
+        if (thumbnailResponseBuffer.ok) {
+          const thumbnailBuffer = await thumbnailResponseBuffer.arrayBuffer();
+          return new NextResponse(Buffer.from(thumbnailBuffer), {
+            headers: {
+              'Content-Type': 'image/jpeg',
+              'Cache-Control': 'private, max-age=3600',
+            },
+          });
+        }
+      }
+    } catch (thumbnailError) {
+      console.log('[MEDIA_PROXY_THUMBNAIL_UNAVAILABLE]', { fileId, error: thumbnailError instanceof Error ? thumbnailError.message : 'Unknown error' });
+    }
+
+    // Fallback to full media download
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const mediaParams: any = {
       fileId,
