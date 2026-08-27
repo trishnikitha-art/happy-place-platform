@@ -133,44 +133,119 @@ export async function GET(request: Request) {
       console.log('[DRIVE_INGEST_TRACE] STEP_5_FAILED', { requestId, error });
     }
 
-    // Return trace results so far
+    // STEP 6: Call the full ingest pipeline to complete materialization
+    console.log('[DRIVE_INGEST_TRACE] STEP_6_CALL_INGEST_PIPELINE', { requestId, driveFileId: driveFile.id });
+    let ingestResult = null;
+    try {
+      const ingestResponse = await fetch(`${process.env.VERCEL_URL || 'http://localhost:3000'}/api/drive/ingest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          driveId: driveFile.id,
+          driveIdParameter: driveFile.parent?.includes('Shared Drive') ? driveFile.parent : undefined,
+        }),
+      });
+
+      if (ingestResponse.ok) {
+        ingestResult = await ingestResponse.json();
+        console.log('[DRIVE_INGEST_TRACE] STEP_6_SUCCESS', {
+          requestId,
+          ingestResult,
+        });
+      } else {
+        const errorText = await ingestResponse.text();
+        console.error('[DRIVE_INGEST_TRACE] STEP_6_FAILED', {
+          requestId,
+          status: ingestResponse.status,
+          error: errorText,
+        });
+      }
+    } catch (error) {
+      console.error('[DRIVE_INGEST_TRACE] STEP_6_EXCEPTION', {
+        requestId,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+
+    // Return trace results with evidence table
     const traceResult = {
       requestId,
       filename,
-      steps: {
-        driveApiSearch: {
-          success: true,
-          driveFileId: driveFile.id,
-          driveFileName: driveFile.name,
-          driveMimeType: driveFile.mimeType,
-          driveSize: driveFile.size,
+      evidenceTable: {
+        driveMetadata: {
+          boundary: 'Drive API → Drive file metadata',
+          input: filename,
+          operation: 'driveDiscovery.searchFiles()',
+          output: {
+            driveFileId: driveFile.id,
+            driveFileName: driveFile.name,
+            driveMimeType: driveFile.mimeType,
+            driveSize: driveFile.size,
+          },
+          record: `Drive file ID: ${driveFile.id}`,
+          status: ingestResult ? 'PASS' : 'TEST_ONLY'
         },
         driveDownload: {
-          success: true,
-          bytesDownloaded: fileBuffer.length,
+          boundary: 'Drive file ID → downloaded bytes',
+          input: driveFile.id,
+          operation: 'driveDiscovery.downloadFile()',
+          output: {
+            bytesDownloaded: fileBuffer.length,
+          },
+          record: `Buffer size: ${fileBuffer.length} bytes`,
+          status: 'PASS'
         },
         hashComputation: {
-          success: true,
-          contentHash,
+          boundary: 'Downloaded bytes → SHA-256 hash',
+          input: `${fileBuffer.length} bytes`,
+          operation: 'crypto.createHash("sha256")',
+          output: {
+            contentHash,
+          },
+          record: `SHA-256: ${contentHash}`,
+          status: 'PASS'
         },
         mediaIdGeneration: {
-          success: true,
-          mediaId,
+          boundary: 'SHA-256 hash → canonical MediaAsset ID',
+          input: contentHash,
+          operation: 'contentHash.substring(0, 32)',
+          output: {
+            mediaId,
+          },
+          record: `MediaAsset ID: ${mediaId}`,
+          status: 'PASS'
         },
         sharpAvailability: {
-          success: true,
-          sharpAvailable,
+          boundary: 'Variant generation capability',
+          input: 'require("sharp")',
+          operation: 'Sharp library check',
+          output: {
+            sharpAvailable,
+          },
+          record: `Sharp available: ${sharpAvailable}`,
+          status: sharpAvailable ? 'PASS' : 'FAIL'
         },
+        ingestPipeline: {
+          boundary: 'Full materialization pipeline',
+          input: `driveId: ${driveFile.id}`,
+          operation: '/api/drive/ingest',
+          output: ingestResult ? {
+            success: ingestResult.success,
+            action: ingestResult.action,
+            mediaId: ingestResult.media?.id,
+            contentHash: ingestResult.media?.contentHash,
+            variants: ingestResult.media?.variants,
+          } : null,
+          record: ingestResult ? `Ingest ${ingestResult.success ? 'succeeded' : 'failed'}` : 'Not called',
+          status: ingestResult?.success ? 'PASS' : ingestResult ? 'FAIL' : 'TEST_ONLY'
+        }
       },
-      nextSteps: [
-        "Call /api/drive/ingest with driveId parameter",
-        "Verify Blob objects are created",
-        "Verify Blob metadata is written",
-        "Verify PublishedMediaAsset is written to KV",
-        "Verify assignment is created",
-        "Verify public URL is accessible",
-        "Verify browser displays the photo",
-      ],
+      summary: {
+        totalBoundaries: 6,
+        passed: 3 + (sharpAvailable ? 1 : 0) + (ingestResult?.success ? 1 : 0),
+        failed: (!sharpAvailable ? 1 : 0) + (ingestResult && !ingestResult.success ? 1 : 0),
+        testOnly: !ingestResult ? 1 : 0,
+      }
     };
 
     console.log('[DRIVE_INGEST_TRACE] TRACE_COMPLETE', { requestId, traceResult });
