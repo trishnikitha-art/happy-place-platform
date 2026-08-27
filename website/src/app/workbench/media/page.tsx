@@ -1008,9 +1008,10 @@ Check browser console for detailed logs.`);
       })),
     });
 
-    // Track success/failure
+    // Track success/failure and errors
     let successCount = 0;
     let failureCount = 0;
+    const failures: Array<{slotId: string, assetId: string, error: string}> = [];
 
     // Generate single transaction ID for entire confirmation batch
     const deploymentTransactionId = `WBDEP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
@@ -1027,29 +1028,44 @@ Check browser console for detailed logs.`);
         });
         
         const result = await assignAssetToSlot(asset, slot, deploymentTransactionId);
+        
+        // CRITICAL: Only log success and increment successCount after verifying persistence succeeded
+        // assignAssetToSlot throws on failure, so reaching this line means persistence succeeded
         successCount++;
         
         console.log('[DND] SLOT_ASSIGNMENT_SUCCESS', {
           slotId: slot.id,
           assetId: asset.id,
           transactionId: deploymentTransactionId,
+          result,
         });
       } catch (error) {
         failureCount++;
+        failures.push({
+          slotId: slot.id,
+          assetId: asset.id,
+          error: error instanceof Error ? error.message : String(error)
+        });
         console.error('[DND] SLOT_ASSIGNMENT_FAILED', {
           slotId: slot.id,
           assetId: asset.id,
           error: error instanceof Error ? error.message : String(error),
         });
-        alert(`Failed to assign ${asset.filename} to ${slot.slotName}: ${error instanceof Error ? error.message : String(error)}`);
+        // Do not alert here - collect all failures and report summary at end
       }
     }
 
     // Only proceed with deployment if all assignments succeeded
     if (failureCount > 0) {
-      console.log('[DEPLOY TRIGGER] SKIPPED_DUE_TO_FAILURES', { successCount, failureCount });
+      console.log('[DEPLOY TRIGGER] SKIPPED_DUE_TO_FAILURES', { successCount, failureCount, failures });
       setState(prev => ({ ...prev, isAccepting: false, pendingAssignments: new Map() }));
-      alert(`Acceptance incomplete: ${successCount} succeeded, ${failureCount} failed. Deployment cancelled.`);
+      
+      // Build detailed error message
+      const failureDetails = failures.map(f => 
+        `• ${f.slotId}: ${f.error}`
+      ).join('\n');
+      
+      alert(`Acceptance incomplete: ${successCount} succeeded, ${failureCount} failed. Deployment cancelled.\n\nFailed assignments:\n${failureDetails}`);
       return;
     }
 
@@ -1612,11 +1628,10 @@ Check browser console for detailed logs.`);
           body: JSON.stringify(requestBody),
         });
       } else if (slotId.includes('before') || slotId.includes('after')) {
-        alert('Before/after assignment not yet implemented. Needs projects.v1.json write endpoint');
-        return;
+        throw new Error('Before/after assignment not yet implemented. Needs projects.v1.json write endpoint');
       } else {
         console.log('[DND] UNSUPPORTED_SLOT_TYPE', { slotId });
-        return;
+        throw new Error(`Unsupported slot type: ${slotId}`);
       }
 
       console.log('[DND] API_RESPONSE', {
@@ -1653,8 +1668,9 @@ Check browser console for detailed logs.`);
           userMessage = `Assignment failed: ${response.status} - ${errorText}`;
         }
         
-        alert(userMessage);
-        return;
+        // CRITICAL: Throw error to signal failure to caller
+        // The caller will catch this and increment failureCount instead of successCount
+        throw new Error(userMessage);
       }
 
       console.log('[WB_FORENSIC] ASSIGNMENT_API_SUCCESS', {
