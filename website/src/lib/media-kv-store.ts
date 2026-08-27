@@ -498,6 +498,11 @@ export async function deleteMedia(id: string): Promise<void> {
 export const storeMedia = saveMedia;
 
 /**
+ * Alias for saveMedia for bootstrap operations
+ */
+export const setMedia = saveMedia;
+
+/**
  * Get Blob metadata by content hash
  * This is the authoritative accessor for Blob metadata
  * Uses environment namespace abstraction

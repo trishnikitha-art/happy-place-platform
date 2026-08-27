@@ -98,7 +98,7 @@ export async function GET() {
         test: async () => {
           // Test that public gate accepts valid published media
           // This requires a real valid media ID from the authority
-          const validMediaId = 'brand-hero'; // This should be a valid published media ID
+          const validMediaId = 'fences-001-hero'; // This should be a valid published media ID
           const result = await resolvePublicMedia(validMediaId);
           return {
             passed: result !== null && result.lifecycleState === 'published' && result.source === 'local',
