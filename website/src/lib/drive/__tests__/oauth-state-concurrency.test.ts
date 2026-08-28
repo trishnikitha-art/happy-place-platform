@@ -19,7 +19,10 @@ import {
 // Mock cookie store for testing with stateful binding
 const mockCookieStore = {
   _bindings: new Map<string, string>(),
-  get: (name: string) => ({ value: mockCookieStore._bindings.get(name) || null }),
+  get: (name: string) => {
+    const value = mockCookieStore._bindings.get(name);
+    return value ? { value } : undefined;
+  },
   set: (name: string, value: string, options: any) => {
     mockCookieStore._bindings.set(name, value);
   },

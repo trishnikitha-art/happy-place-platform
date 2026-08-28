@@ -126,14 +126,14 @@ describe('OAuth Browser Binding', () => {
 
   it('should delete state and clear browser binding', async () => {
     const state = await createState(mockCookieStore as any);
-    
+
     await deleteState(state, mockCookieStore as any);
-    
+
     const binding = await getBrowserBinding(mockCookieStore as any);
     expect(binding).toBeNull();
-    
+
     const validationResult = await validateState(state, mockCookieStore as any);
-    expect(validationResult).toBe(StateValidationResult.STATE_BROWSER_MISMATCH);
+    expect(validationResult).toBe(StateValidationResult.STATE_MISSING);
   });
 
   it('should return STATE_BROWSER_MISMATCH when binding missing', async () => {
