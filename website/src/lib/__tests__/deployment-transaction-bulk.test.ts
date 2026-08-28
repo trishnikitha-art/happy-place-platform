@@ -187,4 +187,42 @@ describe('Deployment Transaction Bulk Assignment', () => {
     expect(finalTx.stagingKeys).toContain(SLOT_D_KEY);
     expect(finalTx.stagingKeys).toContain(SLOT_E_KEY);
   });
+
+  it('should reject staging key addition to non-prepared transaction', async () => {
+    if (!hasKv) {
+      console.log('Skipping: KV not configured');
+      return;
+    }
+
+    const TRANSACTION_ID = `${TEST_TRANSACTION_PREFIX}STATEBARRIER-${Date.now()}`;
+    testTransactionIds.push(TRANSACTION_ID);
+
+    const SLOT_A_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:service:decks`;
+    const SLOT_B_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:service:fences`;
+
+    // Create transaction in prepared state
+    await createDeploymentTransaction(
+      TRANSACTION_ID,
+      [SLOT_A_KEY],
+      ['website/src/config/services.v1.json'],
+      'State barrier test'
+    );
+
+    // Manually transition to committing state (simulating deployment start)
+    const tx = await getDeploymentTransaction(TRANSACTION_ID);
+    if (tx) {
+      const { claimDeploymentTransaction } = await import('../deployment-transaction');
+      await claimDeploymentTransaction(TRANSACTION_ID, 'test-owner');
+    }
+
+    // Try to add another staging key while in committing state (should fail)
+    await expect(
+      createDeploymentTransaction(
+        TRANSACTION_ID,
+        [SLOT_B_KEY],
+        ['website/src/config/services.v1.json'],
+        'State barrier test'
+      )
+    ).rejects.toThrow('TRANSACTION_NOT_PREPENDED');
+  });
 });
