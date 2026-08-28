@@ -40,7 +40,7 @@ export async function POST(request: Request) {
       serviceSlug: 'brand-hero',
       mediaId: brandHeroMediaId,
       updatedAt: new Date().toISOString(),
-      source: 'bootstrap' as const,
+      source: 'workbench' as const, // Use workbench source for type compatibility
       revision: heroExpectedRevision + 1,
     };
 
@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       serviceSlug: 'brand-portrait',
       mediaId: brandPortraitMediaId,
       updatedAt: new Date().toISOString(),
-      source: 'bootstrap' as const,
+      source: 'workbench' as const, // Use workbench source for type compatibility
       revision: portraitExpectedRevision + 1,
     };
 
