@@ -1771,12 +1771,11 @@ export async function POST(request: Request) {
     if (isProduction && redis) {
       console.log('[DEPLOY API] PROMOTING_STAGING_TO_RUNTIME_KV', { deploymentTransactionId });
 
-      const { getServiceCardAssignment } = await import('@/lib/assignment-store');
-      const { atomicPromoteAssignments } = await import('@/lib/deployment-transaction');
+      const { storeServiceCardAssignment, getServiceCardAssignment } = await import('@/lib/assignment-store');
+      let promotionCount = 0;
+      const promotionFailures: { serviceSlug: string; reason: string }[] = [];
 
-      // Phase 1: Build complete promotion set with canonical identities and expected revisions
-      const promotionSet: Array<{ serviceSlug: string; mediaId: string; expectedRevision: number; updatedAt: string; source: string }> = [];
-      
+      // Re-process staging keys to promote assignments to runtime KV
       const promotionKeys = transaction?.stagingKeys || stagingKeys;
       for (const key of promotionKeys) {
         const value = await redis.get(key);
@@ -1798,64 +1797,78 @@ export async function POST(request: Request) {
                                       serviceSlug === 'brand-portrait-about' ? 'brand-portrait' :
                                       serviceSlug; // No mapping needed for other services
 
-          // P0 FIX: Read current assignment from CANONICAL runtime target, not staging alias
-          const currentAssignment = await getServiceCardAssignment(canonicalServiceSlug, deploymentTransactionId);
-          const expectedRevision = currentAssignment?.revision ?? 0;
+          try {
+            // P0 FIX: Read current assignment from CANONICAL runtime target, not staging alias
+            const currentAssignment = await getServiceCardAssignment(canonicalServiceSlug, deploymentTransactionId);
+            const expectedRevision = currentAssignment?.revision ?? 0;
 
-          promotionSet.push({
-            serviceSlug: canonicalServiceSlug,
-            mediaId: stringValue,
-            expectedRevision,
-            updatedAt: new Date().toISOString(),
-            source: 'workbench' as const,
-          });
+            const promotedAssignment = {
+              serviceSlug: canonicalServiceSlug,
+              mediaId: stringValue,
+              updatedAt: new Date().toISOString(),
+              source: 'workbench' as const,
+              revision: expectedRevision + 1, // Always increment
+            };
 
-          console.log('[DEPLOY API] PROMOTION_PRECHECK', {
-            originalServiceSlug: serviceSlug,
-            canonicalServiceSlug,
-            mediaId: stringValue,
-            expectedRevision,
-          });
+            // Store in authoritative runtime KV
+            await storeServiceCardAssignment(promotedAssignment, expectedRevision, deploymentTransactionId);
+
+            console.log('[DEPLOY API] ASSIGNMENT_PROMOTED', {
+              originalServiceSlug: serviceSlug,
+              canonicalServiceSlug,
+              mediaId: stringValue,
+              revision: promotedAssignment.revision,
+            });
+            promotionCount++;
+          } catch (error) {
+            console.error('[DEPLOY API] ASSIGNMENT_PROMOTION_FAILED', {
+              originalServiceSlug: serviceSlug,
+              canonicalServiceSlug,
+              error: error instanceof Error ? error.message : 'Unknown error',
+            });
+            promotionFailures.push({
+              serviceSlug: canonicalServiceSlug,
+              reason: error instanceof Error ? error.message : 'Unknown error',
+            });
+          }
         }
       }
 
-      // Phase 2: Atomic multi-assignment promotion
-      const promotionResult = await atomicPromoteAssignments(promotionSet, deploymentTransactionId);
+      console.log('[DEPLOY API] PROMOTION_COMPLETE', {
+        deploymentTransactionId,
+        promotionCount,
+        failureCount: promotionFailures.length,
+      });
 
-      if (!promotionResult.success) {
-        console.error('[DEPLOY API] ATOMIC_PROMOTION_FAILED', {
+      // FAIL-CLOSED: If promotion failed, reject deployment to prevent split-brain
+      if (promotionFailures.length > 0) {
+        console.error('[DEPLOY API] DEPLOYMENT_REJECTED_PROMOTION_FAILURES', {
           deploymentTransactionId,
-          error: promotionResult.error,
-          failedServiceSlug: promotionResult.failedServiceSlug,
+          failureCount: promotionFailures.length,
+          promotionFailures,
         });
 
         // MARK TRANSACTION AS FAILED (committing → failed is legal)
         if (transaction) {
           await failDeploymentTransaction(
             deploymentTransactionId,
-            `Atomic promotion failed: ${promotionResult.error}${promotionResult.failedServiceSlug ? ` (service: ${promotionResult.failedServiceSlug})` : ''}`
+            `Deployment rejected: ${promotionFailures.length} assignments failed to promote to runtime KV`
           );
         }
 
         return NextResponse.json(
           {
-            error: "Deployment rejected: Atomic assignment promotion failed",
-            message: "One or more assignments failed CAS validation during atomic promotion. All-or-nothing promotion succeeded.",
-            promotionError: promotionResult.error,
-            failedServiceSlug: promotionResult.failedServiceSlug,
+            error: "Deployment rejected: Assignment promotion failures",
+            message: `${promotionFailures.length} assignments could not be promoted to runtime KV. This would create split-brain state where Git has assignments but runtime KV does not.`,
+            promotionFailures,
             forensic: {
               deploymentTransactionId,
-              promotionSetSize: promotionSet.length,
+              failureCount: promotionFailures.length,
             },
           },
           { status: 400 }
         );
       }
-
-      console.log('[DEPLOY API] ATOMIC_PROMOTION_SUCCESS', {
-        deploymentTransactionId,
-        promotedCount: promotionResult.count,
-      });
     }
 
     // MARK TRANSACTION AS COMMITTED (committing → committed)
