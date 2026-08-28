@@ -962,7 +962,7 @@ Check browser console for detailed logs.`);
     if (!slot.currentMediaId) return null;
     // P0 FIX: Resolve media from already-loaded Workbench asset state instead of direct KV access
     // Browser must not access KV credentials directly - use server API boundary or local asset state
-    const media = assets.find(a => a.id === slot.currentMediaId);
+    const media = state.assets.find(a => a.id === slot.currentMediaId);
     return media || null;
   };
 
