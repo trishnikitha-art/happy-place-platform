@@ -11,6 +11,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/newsletter/thank-you" },
 };
 
+export const dynamic = 'force-dynamic';
+
 export default function NewsletterThankYouPage() {
   const company = getCompany();
 

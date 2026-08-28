@@ -9,6 +9,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/faq" },
 };
 
+export const dynamic = 'force-dynamic';
+
 export default function FaqPage() {
   const faqItems = getAllFaqs();
 

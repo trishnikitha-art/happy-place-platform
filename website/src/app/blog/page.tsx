@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/blog" },
 };
 
+export const dynamic = 'force-dynamic';
+
 // Placeholder blog data - will be replaced with actual markdown content system
 const blogPosts = [
   {

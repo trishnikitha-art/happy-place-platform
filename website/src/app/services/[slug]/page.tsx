@@ -46,6 +46,8 @@ export async function generateMetadata({ params }: ServicePageProps): Promise<Me
   };
 }
 
+export const dynamic = 'force-dynamic';
+
 export default async function ServicePage({ params }: ServicePageProps) {
   const { slug } = await params;
   const service = getServiceBySlug(slug);

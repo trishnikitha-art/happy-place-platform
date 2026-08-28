@@ -7,6 +7,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/newsletter" },
 };
 
+export const dynamic = 'force-dynamic';
+
 // Placeholder newsletter data - will be replaced with actual content system
 const newsletters = [
   {

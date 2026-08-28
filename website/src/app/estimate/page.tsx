@@ -12,6 +12,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/estimate" },
 };
 
+export const dynamic = 'force-dynamic';
+
 export default function EstimatePage() {
   const company = getCompany();
 

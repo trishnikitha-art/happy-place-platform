@@ -14,6 +14,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/about" },
 };
 
+export const dynamic = 'force-dynamic';
+
 export default async function AboutPage() {
   const company = getCompany();
   const cities = getAllCities();

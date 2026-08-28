@@ -13,6 +13,8 @@ export const metadata: Metadata = {
   alternates: { canonical: "/reviews" },
 };
 
+export const dynamic = 'force-dynamic';
+
 export default async function ReviewsPage() {
   const company = getCompany();
   const stats = await getReviewStats();

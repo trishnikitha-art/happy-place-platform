@@ -19,6 +19,8 @@ export function generateStaticParams() {
   return projects.map((p) => ({ slug: p.slug || p.id }));
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function generateMetadata({
   params,
 }: {
