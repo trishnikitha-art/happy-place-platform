@@ -23,8 +23,12 @@ import { useState } from "react";
  * 
  * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
  * Card text always uses light register tokens regardless of page background.
+ * 
+ * NAVIGATION CONTRACT: ServiceCard owns its own navigation to prevent nested Link bugs.
+ * When rendered standalone, it links to estimate page with service parameter.
+ * When rendered within another Link wrapper, navigation should be handled by the parent.
  */
-export function ServiceCard({ service, runtimeCardMediaObject }: { service: Service; runtimeCardMediaObject?: Media | null }) {
+export function ServiceCard({ service, runtimeCardMediaObject, href }: { service: Service; runtimeCardMediaObject?: Media | null; href?: string }) {
   const [renderRequestId] = useState(() => `render-${service.slug}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
 
   // UNCONDITIONAL LOG - will appear in iframe console if component renders
@@ -60,8 +64,11 @@ export function ServiceCard({ service, runtimeCardMediaObject }: { service: Serv
   const bodyColor = "text-text-muted";
   const linkColor = "text-text hover:text-honey";
 
+  // Use provided href if available, otherwise default to estimate page
+  const cardHref = href || `/estimate?service=${service.slug}`;
+
   return (
-    <Link href={`/estimate?service=${service.slug}`} className="block">
+    <Link href={cardHref} className="block">
       <CraftCard className="group flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl" style={{ containerType: 'inline-size' }}>
         <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
           {hasImage && imageSrc ? (

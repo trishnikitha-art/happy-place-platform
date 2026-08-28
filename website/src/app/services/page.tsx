@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { ServiceCard } from "@/components/service-card";
 import { CTASection } from "@/components/cta-section";
-import { Icon } from "@/components/icon";
-import { VisualSlot } from "@/components/visual-slot";
 import { getNonArchivedServices } from "@/lib/registries";
+import { getServiceCardAssignment, getServiceCardAssignments } from "@/lib/assignment-store";
+import { resolvePublicMedia } from "@/lib/media";
 
 export const metadata: Metadata = {
   title: "Services",
@@ -19,11 +18,22 @@ export const dynamic = 'force-dynamic';
 export default async function ServicesPage() {
   const services = getNonArchivedServices();
   
-  // P0 FIX: Resolve service card media on client-side to avoid static build collision with runtime authority
-  // Public media gate requires KV + Blob verification which cannot execute during static generation
-  const serviceCardAssignments = new Map<string, { mediaId: string | null }>();
+  // Resolve service card media through authoritative path: getServiceCardAssignment → resolvePublicMedia
+  // This is the same path used successfully by Home page
+  const serviceCardMediaMap = new Map<string, any>();
+  
   for (const service of services) {
-    serviceCardAssignments.set(service.slug, { mediaId: null });
+    try {
+      const assignment = await getServiceCardAssignment(service.slug, 'services-page');
+      if (assignment?.mediaId) {
+        const resolvedMedia = await resolvePublicMedia(assignment.mediaId);
+        if (resolvedMedia) {
+          serviceCardMediaMap.set(service.slug, resolvedMedia);
+        }
+      }
+    } catch (error) {
+      console.error('[SERVICES_PAGE] Failed to resolve media for service:', service.slug, error);
+    }
   }
   
   // Group services by category using a simple categorization
@@ -72,19 +82,12 @@ export default async function ServicesPage() {
                 </p>
                 <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
                   {categoryServices.map((s) => (
-                    <Link key={s.id} href={`/services/${s.slug}`}>
-                      <VisualSlot
-                        id={`services-page-service-card-${s.slug}`}
-                        route="/services"
-                        page="Services"
-                        section={category}
-                        slotName={`${s.name} Service Card`}
-                        currentMediaId={serviceCardAssignments.get(s.slug)?.mediaId || null}
-                        component="ServiceCard"
-                      >
-                        <ServiceCard service={s} runtimeCardMediaObject={null} />
-                      </VisualSlot>
-                    </Link>
+                    <div key={s.id}>
+                      <ServiceCard 
+                        service={s} 
+                        runtimeCardMediaObject={serviceCardMediaMap.get(s.slug) || null} 
+                      />
+                    </div>
                   ))}
                 </div>
               </div>

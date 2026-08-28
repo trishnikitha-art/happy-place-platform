@@ -20,6 +20,15 @@ export default async function AboutPage() {
   const company = getCompany();
   const cities = getAllCities();
   const ownerBrand = await getOwnerPortrait();
+  
+  // Diagnostic: Log the actual assignment state for brand-portrait
+  console.log('[ABOUT_PAGE] OWNER_PORTRAIT_DIAGNOSTIC', {
+    hasOwnerBrand: !!ownerBrand,
+    mediaId: ownerBrand?.mediaId,
+    hasResolvedMedia: !!ownerBrand?.resolvedMedia,
+    resolvedMediaId: ownerBrand?.resolvedMedia?.id,
+  });
+  
   // P1 FIX: Use pre-validated resolvedMedia from brand function (passed public media gate)
   // This prevents bypassing the public media gate by calling getMediaById directly
   const ownerMedia = ownerBrand?.resolvedMedia || null;
