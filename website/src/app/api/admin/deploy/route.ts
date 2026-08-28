@@ -1681,26 +1681,41 @@ export async function POST(request: Request) {
           },
           'verify brand file'
         );
+
+        const mediaFileResponse = await fetchWithRetry(
+          `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/${mediaFilePath}?ref=${newCommitSha}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${githubToken}`,
+              'Accept': 'application/vnd.github.v3+json',
+            },
+          },
+          'verify media file'
+        );
         
         const projectsFilePresent = projectsFileResponse.ok;
         const servicesFilePresent = servicesFileResponse.ok;
         const brandFilePresent = brandFileResponse.ok;
+        const mediaFilePresent = mediaFileResponse.ok;
         
         console.log('[DEPLOY API] VERIFICATION_RESULT', {
           projectsFilePresent,
           servicesFilePresent,
           brandFilePresent,
+          mediaFilePresent,
           projectsFileStatus: projectsFileResponse.status,
           servicesFileStatus: servicesFileResponse.status,
-          brandFileStatus: brandFileResponse.status
+          brandFileStatus: brandFileResponse.status,
+          mediaFileStatus: mediaFileResponse.status
         });
         
-        if (!projectsFilePresent || !servicesFilePresent || !brandFilePresent) {
-          verificationError = `Files missing in commit: projects=${projectsFilePresent}, services=${servicesFilePresent}, brand=${brandFilePresent}`;
+        if (!projectsFilePresent || !servicesFilePresent || !brandFilePresent || !mediaFilePresent) {
+          verificationError = `Files missing in commit: projects=${projectsFilePresent}, services=${servicesFilePresent}, brand=${brandFilePresent}, media=${mediaFilePresent}`;
           console.error('[DEPLOY API] VERIFICATION_FILES_MISSING', { 
             projectsFilePresent,
             servicesFilePresent,
-            brandFilePresent
+            brandFilePresent,
+            mediaFilePresent
           });
         } else {
           verificationPassed = true;
@@ -1727,7 +1742,8 @@ export async function POST(request: Request) {
       const promotionFailures: { serviceSlug: string; reason: string }[] = [];
 
       // Re-process staging keys to promote assignments to runtime KV
-      for (const key of transaction.stagingKeys) {
+      const promotionKeys = transaction?.stagingKeys || stagingKeys;
+      for (const key of promotionKeys) {
         const value = await redis.get(key);
         if (!value) continue;
 
@@ -1846,10 +1862,10 @@ export async function POST(request: Request) {
       message: verificationPassed 
         ? "Your changes are live and saved. Git commit successful."
         : "Git commit succeeded but verification failed. Changes are in staging for retry.",
-      authorityFiles: [projectsFilePath, servicesFilePath, brandFilePath],
+      authorityFiles: [projectsFilePath, servicesFilePath, brandFilePath, mediaFilePath],
       targetBranch: 'main',
       status: verificationPassed ? "COMMITTED_DEPLOYING" : "COMMITTED_NEEDS_RECONCILIATION",
-      filesCommitted: ['projects.v1.json', 'services.v1.json', 'brand.v1.json'],
+      filesCommitted: ['projects.v1.json', 'services.v1.json', 'brand.v1.json', 'media.v1.json'],
       verificationPassed,
       verificationError: verificationError || undefined,
       externalCommitPoint: true
