@@ -46,22 +46,22 @@ interface ReconciliationResult {
   updated: string[];
   error?: string;
   incomplete?: boolean; // P0 FIX: Signal when some assignments could not be reconciled due to media lookup failures
-  repaired: boolean; // P0 FIX: Signal when poisoned PublishedMediaAsset records were repaired
+  repaired: boolean; // P0 FIX: Signal when poisoned PublishedMediaAsset records are repaired
   brokenAssignments?: Array<{serviceSlug: string, mediaId: string}>; // P0 FIX: Track assignments pointing to nonexistent media (circular dependency)
 }
 
 /**
- * Reconcile DriveReference assignments to PublishedMediaAsset assignments
- * Called after materialization to repair poisoned drive-* / drive-ref-* assignments
+ * DEPRECATED: Assignment reconciliation via broad scan
+ * 
+ * CONSTITUTIONAL VIOLATION: This function previously used getAllServiceCardAssignments() to scan
+ * the entire assignment set, which violates the rule that materializing Drive file X may
+ * mutate ONLY the explicitly authorized assignment relationship for Drive file X.
  *
- * CONSTITUTIONAL FIX: Uses authoritative drive.fileId from DriveReference records
- * instead of ID format assumptions, making reconciliation deterministic for legacy records.
+ * The broad scan mechanism has been removed. This function is now a stub that returns
+ * empty results. Materialization succeeds without automatic assignment repair.
  *
- * @param publishedMediaId - The new PublishedMediaAsset ID
- * @param driveFileId - The authoritative Drive file ID from Google Drive
- * @param contentHash - The content hash of the newly materialized asset
- * @param requestId - Correlation ID
- * @returns Reconciliation result with updated service slugs
+ * Constitutional Rule: Drive file ID → explicit authorized DriveReference → explicit
+ * assignment relationship → CAS mutation. No "repair everything that looks related."
  */
 async function reconcileDriveAssignments(
   publishedMediaId: string,
@@ -69,157 +69,20 @@ async function reconcileDriveAssignments(
   contentHash: string,
   requestId: string
 ): Promise<ReconciliationResult> {
-  try {
-    const { getAllServiceCardAssignments, storeServiceCardAssignment, getServiceCardAssignment } = await import('@/lib/assignment-store');
-    const assignments = await getAllServiceCardAssignments();
-    
-    const updates: string[] = [];
-    let repairedCount = 0; // P0 FIX: Track when poisoned PublishedMediaAsset records are repaired
-    const brokenAssignments: Array<{serviceSlug: string, mediaId: string}> = []; // Track assignments pointing to nonexistent media
+  console.warn('[ASSIGNMENT_RECONCILIATION] DEPRECATED_BROAD_SCAN_MECHANISM', {
+    requestId,
+    driveFileId,
+    reason: 'Broad assignment scan is architecturally invalid. Function is deprecated and returns empty results.',
+    constitutionalRule: 'Materializing Drive file X may mutate ONLY explicitly authorized assignment relationships for Drive file X.',
+  });
 
-    for (const assignment of assignments) {
-      // Check if assignment references this Drive source by looking up the DriveReference
-      // CONSTITUTIONAL FIX: Use authoritative drive.fileId, not ID format assumptions
-      let isDriveReference = false;
-      
-      try {
-        // P0 FIX: Use getMediaRecordRaw instead of getMedia to bypass public proof gate
-        // This allows reconciliation to inspect authoritative records even when the public proof gate rejects them
-        const media = await getMediaRecordRaw(assignment.mediaId);
-        
-        if (!media) {
-          console.warn('[ASSIGNMENT_RECONCILIATION] MEDIA_NOT_FOUND - BROKEN_ASSIGNMENT', {
-            requestId,
-            serviceSlug: assignment.serviceSlug,
-            mediaId: assignment.mediaId,
-            reason: 'Assignment points to non-existent media record - CIRCULAR DEPENDENCY',
-            note: 'Cannot repair without knowing intended Drive source. Manual repair required.'
-          });
-          brokenAssignments.push({ serviceSlug: assignment.serviceSlug, mediaId: assignment.mediaId });
-          continue;
-        }
-        
-        // P0 FIX: Handle DriveReference reconciliation
-        if (media.lifecycleState === 'source_reference' && media.drive) {
-          // Authoritative check: Does this DriveReference point to the same Drive file?
-          if (media.drive.fileId === driveFileId) {
-            isDriveReference = true;
-            console.log('[ASSIGNMENT_RECONCILIATION] DRIVE_REFERENCE_MATCH', {
-              requestId,
-              serviceSlug: assignment.serviceSlug,
-              mediaId: assignment.mediaId,
-              driveFileId: media.drive.fileId,
-              targetDriveFileId: driveFileId,
-            });
-          }
-        }
-        
-        // P0 FIX: Detect poisoned PublishedMediaAsset records
-        // These are published/local records that may have synthetic content identity or missing Blob metadata
-        // Production evidence shows brand-hero, fences-001-hero, repairs-001-hero are in this state
-        if (media.lifecycleState === 'published' && media.source === 'local') {
-          // Check if this is the same content hash as the newly materialized asset
-          // If yes, log it for deduplication tracking but DO NOT trigger assignment update
-          if (media.contentHash === contentHash) {
-            console.log('[ASSIGNMENT_RECONCILIATION] PUBLISHED_ASSET_SAME_CONTENT', {
-              requestId,
-              serviceSlug: assignment.serviceSlug,
-              oldMediaId: assignment.mediaId,
-              newMediaId: publishedMediaId,
-              contentHash,
-              reason: 'Same content hash - deduplication tracking only, no assignment update',
-              constitutionalInvaraint: 'Content hash matching alone does NOT prove assignment relationship'
-            });
-            // CRITICAL: DO NOT set isDriveReference = true
-            // This only tracks that we have duplicate content - it does NOT prove assignment relationship
-            // Content hash matching is insufficient proof that this assignment should point to the new asset
-            repairedCount++; // Track that we found a duplicate for reporting purposes only
-          } else {
-            console.log('[ASSIGNMENT_RECONCILIATION] PUBLISHED_ASSET_DIFFERENT_CONTENT', {
-              requestId,
-              serviceSlug: assignment.serviceSlug,
-              oldMediaId: assignment.mediaId,
-              oldContentHash: media.contentHash,
-              newContentHash: contentHash,
-              reason: 'Assignment points to different PublishedMediaAsset - no action'
-            });
-            // This is a different asset - no action needed
-          }
-        }
-        
-        // P0 FIX: REMOVED - Content hash repair path was too broad
-        // The previous implementation rewrote unrelated assignments based solely on content hash,
-        // causing the "drag one photo → hero changes + multiple cards become the same photo" bug.
-        // Constitutional rule: Materializing Drive file X may repair ONLY assignments whose existing
-        // authoritative media record proves it is a DriveReference for Drive file X.
-        // Content hash matching alone is insufficient proof of intended assignment relationship.
-        // This path has been removed to prevent catastrophic assignment corruption.
-      } catch (error) {
-        // P0 FIX: Fail closed on media lookup failure - do not use legacy ID format assumptions
-        console.error('[ASSIGNMENT_RECONCILIATION] MEDIA_LOOKUP_FAILED - FAILING CLOSED', {
-          requestId,
-          serviceSlug: assignment.serviceSlug,
-          mediaId: assignment.mediaId,
-          error: error instanceof Error ? error.message : 'Unknown error',
-          reason: 'Cannot perform authoritative reconciliation without media record. Legacy ID format assumptions are forbidden.',
-        });
-        // Do not fall back to legacy ID format check - fail closed instead
-        continue;
-      }
-      
-      if (isDriveReference) {
-        // Read current assignment to obtain expected revision for CAS
-        const currentAssignment = await getServiceCardAssignment(assignment.serviceSlug, requestId);
-        const expectedRevision = currentAssignment?.revision;
-        
-        // Update assignment to point to the new PublishedMediaAsset
-        const updatedAssignment = {
-          ...assignment,
-          mediaId: publishedMediaId,
-          updatedAt: new Date().toISOString(),
-        };
-        
-        await storeServiceCardAssignment(updatedAssignment, expectedRevision, requestId);
-        updates.push(assignment.serviceSlug);
-        
-        console.log('[ASSIGNMENT_RECONCILIATION] UPDATED', {
-          requestId,
-          serviceSlug: assignment.serviceSlug,
-          oldMediaId: assignment.mediaId,
-          newMediaId: publishedMediaId,
-        });
-      }
-    }
-    
-    console.log('[ASSIGNMENT_RECONCILIATION] COMPLETE', {
-      requestId,
-      count: updates.length,
-      services: updates,
-      repairedCount,
-      brokenAssignments: brokenAssignments.length,
-    });
-
-    return {
-      reconciled: updates.length > 0,
-      updated: updates,
-      incomplete: true, // P0 FIX: Signal when some assignments could not be reconciled due to media lookup failures
-      repaired: repairedCount > 0, // P0 FIX: Signal when poisoned PublishedMediaAsset records were found and processed
-      brokenAssignments, // P0 FIX: Return assignments pointing to nonexistent media (circular dependency)
-    };
-  } catch (error) {
-    console.error('[ASSIGNMENT_RECONCILIATION] FAILED', {
-      requestId,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-    
-    return {
-      reconciled: false,
-      updated: [],
-      error: error instanceof Error ? error.message : 'Unknown error',
-      repaired: false,
-      brokenAssignments: [],
-    };
-  }
+  // Return empty result - broad scan has been removed
+  return {
+    reconciled: false,
+    updated: [],
+    repaired: false,
+    brokenAssignments: [],
+  };
 }
 
 // Import storage modules at top level (they are ES modules)
@@ -473,61 +336,53 @@ export async function POST(request: Request) {
 
     // P0 FIX: Reject non-image files before downloading bytes
     // Non-image Drive objects cannot enter the media materialization pipeline
-    if (!driveFile.mimeType?.startsWith('image/')) {
-      console.log('[MEDIA_INGEST] REJECTED - NOT AN IMAGE', {
+    if (!driveFile.mimeType || !driveFile.mimeType.startsWith('image/')) {
+      console.log('[MEDIA_INGEST_ERROR] Non-image file rejected', {
         requestId,
-        driveId,
         mimeType: driveFile.mimeType,
-        fileName: driveFile.name,
+        driveName: driveFile.name,
       });
       return NextResponse.json(
         {
           success: false,
-          error: 'NOT_AN_IMAGE',
-          stage: 'MIME_VALIDATION',
-          message: 'Only image files can be ingested into the media pipeline',
-          details: `File type: ${driveFile.mimeType}`,
+          error: 'UNSUPPORTED_FILE_TYPE',
+          stage: 'DRIVE_METADATA',
+          message: 'Only image files can be ingested as media',
+          details: `File type ${driveFile.mimeType} is not supported`,
+          retryable: false,
           requestId,
         },
-        { status: 400 }
+        { status: 415 }
       );
     }
 
-    // 2. Download file content from Drive
-    console.log('[MEDIA_INGEST] DRIVE_DOWNLOAD stage started', { requestId });
-    let fileBuffer: Buffer;
-    try {
-      fileBuffer = await driveDiscovery.downloadFile(driveId);
-      console.log('[MEDIA_INGEST] DRIVE_DOWNLOAD stage succeeded', {
-        requestId,
-        bytes: fileBuffer.length,
-      });
-    } catch (error) {
-      console.log('[MEDIA_INGEST_ERROR] DRIVE_DOWNLOAD stage failed', { requestId });
-      console.error('[MEDIA_INGEST_ERROR] download error:', error);
+    // 2. Download bytes from Drive
+    console.log('[MEDIA_INGEST] DOWNLOAD stage started', { requestId });
+    const driveBytes = await driveDiscovery.downloadFile(driveId);
+    if (!driveBytes || driveBytes.length === 0) {
+      console.log('[MEDIA_INGEST_ERROR] File download failed or empty', { requestId });
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: 'DRIVE_DOWNLOAD_FAILED', 
-          stage: 'DRIVE_DOWNLOAD', 
-          message: 'Unable to download the selected Drive file.',
+          error: 'DOWNLOAD_FAILED',
+          stage: 'DOWNLOAD',
+          message: 'Failed to download file from Drive or file is empty',
           retryable: true,
-          details: error instanceof Error ? error.message : 'Unknown error',
           requestId,
         },
         { status: 500 }
       );
     }
+    console.log('[MEDIA_INGEST] DOWNLOAD stage succeeded', {
+      requestId,
+      bufferSize: driveBytes.length,
+    });
 
-    // 3. Validate image (required for constitutional media pipeline)
-    console.log('[MEDIA_INGEST_FORENSIC] IMAGE_VALIDATION stage started', { requestId, sharpAvailable });
-    let metadata: any = {};
-
+    // P0 FIX: Validate Sharp availability before attempting materialization
     if (!sharpAvailable) {
-      console.log('[MEDIA_INGEST_FORENSIC] SHARP_UNAVAILABLE - cannot validate image', {
+      console.error('[MEDIA_INGEST] SHARP_UNAVAILABLE - Rejecting materialization', {
         requestId,
         sharpAvailable,
-        sharpObject: sharp,
         sharpType: typeof sharp,
       });
       return NextResponse.json(
@@ -535,9 +390,9 @@ export async function POST(request: Request) {
           success: false,
           error: 'SHARP_UNAVAILABLE',
           stage: 'IMAGE_VALIDATION',
-          message: 'Image processing library (Sharp) is not available. Cannot validate image or extract actual dimensions without fabricating metadata.',
-          retryable: false,
+          message: 'Image processing library is not available in the runtime environment.',
           details: 'Sharp is required for constitutional media validation. The system cannot safely proceed without actual image metadata.',
+          retryable: false,
           requestId,
           forensic: {
             sharpAvailable,
@@ -551,14 +406,15 @@ export async function POST(request: Request) {
       );
     }
 
+    let metadata: any;
     try {
       console.log('[MEDIA_INGEST_FORENSIC] Attempting Sharp metadata extraction', {
         requestId,
-        bufferSize: fileBuffer.length,
+        bufferSize: driveBytes.length,
         sharpAvailable,
         sharpType: typeof sharp,
       });
-      metadata = await sharp(fileBuffer).metadata();
+      metadata = await sharp(driveBytes).metadata();
       console.log('[MEDIA_INGEST_FORENSIC] Sharp metadata extracted successfully', {
         requestId,
         width: metadata.width,
@@ -613,9 +469,9 @@ export async function POST(request: Request) {
           forensic: {
             sharpAvailable,
             sharpType: typeof sharp,
-            bufferSize: fileBuffer.length,
+            bufferSize: driveBytes.length,
             mimeType: driveFile.mimeType,
-            sharpFormat: metadata.format,
+            sharpFormat: metadata?.format,
           },
         },
         { status: isFormatError ? 415 : 400 }
@@ -624,7 +480,7 @@ export async function POST(request: Request) {
 
     // 4. Compute content hash for stable identity
     console.log('[MEDIA_INGEST] HASH stage started', { requestId });
-    const contentHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
+    const contentHash = crypto.createHash('sha256').update(driveBytes).digest('hex');
     console.log('[MEDIA_INGEST] HASH stage succeeded', {
       requestId,
       hash: contentHash.substring(0, 16) + '...',
@@ -639,40 +495,15 @@ export async function POST(request: Request) {
       console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - existing KV record', {
         requestId,
         existingMediaId: existingMedia.id,
-        existingLifecycleState: existingMedia.lifecycleState,
         existingSource: existingMedia.source,
+        existingLifecycleState: existingMedia.lifecycleState,
       });
-      
-      // CONSTITUTIONAL FIX: DriveReference must NEVER be upgraded in place
-      // Always materialize DriveReference into new PublishedMediaAsset
-      if (existingMedia.lifecycleState === 'source_reference' || existingMedia.source === 'google-drive') {
-        console.log('[MEDIA_INGEST] DRIVE_REFERENCE_DETECTED - forcing materialization', {
-          requestId,
-          existingMediaId: existingMedia.id,
-          reason: 'DriveReference cannot be upgraded in place, must materialize to PublishedMediaAsset',
-        });
-        // Continue with full materialization to create new PublishedMediaAsset
-        // Don't return early - fall through to variant generation logic below
-      } else if (existingMedia.lifecycleState === 'published' && existingMedia.source === 'local') {
-        // Only PublishedMediaAsset can be deduplicated
-        // P0 FIX: Use authoritative public completeness check including physical Blob proof
-        // "record exists" is NOT sufficient evidence of materialization
-        // Must verify Blob metadata + required variants before accepting deduplication
+
+      // If existing record is already PublishedMediaAsset with Blob proof, return it
+      if (existingMedia.lifecycleState === 'published' && existingMedia.source === 'local') {
         const isComplete = await isPubliclyComplete(existingMedia);
-        needsUpgrade = !isComplete;
-
-        if (needsUpgrade && sharpAvailable) {
-          console.log('[MEDIA_INGEST] UPGRADING_INCOMPLETE_PUBLISHED_ASSET', {
-            requestId,
-            existingMediaId: existingMedia.id,
-            reason: 'Asset fails public completeness check (missing Blob proof or required variants)',
-          });
-
-          // Continue with variant generation to upgrade the existing record
-          // Don't return early - fall through to variant generation logic below
-        } else {
-          // Asset is publicly complete with Blob proof - safe to deduplicate
-          console.log('[MEDIA_INGEST] DEDUPLICATION_SUCCEEDED_WITH_BLOB_PROOF', {
+        if (isComplete) {
+          console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - existing complete PublishedMediaAsset', {
             requestId,
             existingMediaId: existingMedia.id,
             reason: 'Asset passed public completeness check (shape + real hash + Blob proof + required variants)',
@@ -695,636 +526,191 @@ export async function POST(request: Request) {
                 requestId,
                 mediaId: existingMedia.id,
                 error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
-                note: 'Materialization succeeded - reconciliation failure does not block authoritative media'
               });
             }
           }
 
           return NextResponse.json({
             success: true,
-            action: 'existing',
-            media: existingMedia,
+            mediaId: existingMedia.id,
+            message: 'Media already exists with matching content hash',
+            deduplicated: true,
+            reconciliation: reconciliationResult,
             requestId,
-            idempotent: true,
-            deduplicationSource: 'kv',
-            assignmentReconciled: reconciliationResult.reconciled,
-            assignmentsUpdated: reconciliationResult.updated,
-            reconciliationNote: 'Assignment reconciliation is optional - media is authoritative regardless'
           });
+        } else {
+          console.log('[MEDIA_INGEST] DEDUPLICATION stage found incomplete PublishedMediaAsset', {
+            requestId,
+            existingMediaId: existingMedia.id,
+            reason: 'Existing record exists but fails public completeness check - will upgrade',
+          });
+          needsUpgrade = true;
         }
       } else {
-        // Unknown lifecycle state - log warning but continue with materialization
-        console.warn('[MEDIA_INGEST] UNKNOWN_LIFECYCLE_STATE - forcing materialization', {
+        console.log('[MEDIA_INGEST] DEDUPLICATION stage found non-published record', {
           requestId,
           existingMediaId: existingMedia.id,
-          lifecycleState: existingMedia.lifecycleState,
-          source: existingMedia.source,
+          existingLifecycleState: existingMedia.lifecycleState,
+          existingSource: existingMedia.source,
+          reason: 'Existing record is not a PublishedMediaAsset - will materialize',
         });
-        // Continue with full materialization
+        needsUpgrade = true;
       }
-    }
-    
-    console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - new record', { requestId });
-    
-    // 6. Generate stable identifiers
-    // CRITICAL: PublishedMediaAsset must NOT use drive- prefix
-    // drive- prefix is reserved for DriveReference (source_reference) only
-    // PublishedMediaAsset uses purely content-based ID without source prefix
-    const stableId = generateStableId(contentHash);
-    const uuid = generateUUIDv5(contentHash);
-    const mediaId = stableId; // Content-based ID, no drive- prefix
-
-    // 7. Generate variants (required for constitutional media pipeline)
-    console.log('[MEDIA_INGEST_FORENSIC] VARIANT_GENERATION stage started', { requestId, sharpAvailable });
-    const variants = [];
-    let originalUpload: any;
-    let blobIdempotencyStats = { newUploads: 0, reusedUploads: 0 };
-
-    if (!sharpAvailable) {
-      console.log('[MEDIA_INGEST_FORENSIC] SHARP_UNAVAILABLE - cannot generate variants', {
+    } else {
+      console.log('[MEDIA_INGEST] DEDUPLICATION stage succeeded - no existing record', {
         requestId,
-        sharpAvailable,
-        sharpObject: sharp,
-        sharpType: typeof sharp,
+        reason: 'No existing record with matching content hash - will materialize',
       });
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'SHARP_UNAVAILABLE',
-          stage: 'VARIANT_GENERATION',
-          message: 'Image processing library (Sharp) is not available. Cannot generate rendition variants.',
-          retryable: false,
-          details: 'Sharp is required for constitutional media processing. The system cannot safely proceed without variant generation.',
-          requestId,
-          forensic: {
-            sharpAvailable,
-            sharpType: typeof sharp,
-            platform: process.platform,
-            arch: process.arch,
-            nodeVersion: process.version,
-          },
-        },
-        { status: 503 }
-      );
     }
-    
-    const width = metadata.width || 1920;
-    const height = metadata.height || 1080;
-    const validWidths = RESPONSIVE_WIDTHS.filter((w) => w <= width);
-    if (!validWidths.length) validWidths.push(width);
-    
+
+    // 6. Generate variants (original, webp, avif, thumbnail, blur, responsive)
+    console.log('[MEDIA_INGEST] VARIANT_GENERATION stage started', { requestId });
+    const originalFilename = generateBlobFilename(contentHash, 'original', 'jpg');
+    const webpFilename = generateBlobFilename(contentHash, 'webp', 'webp');
+    const avifFilename = generateBlobFilename(contentHash, 'avif', 'avif');
+    const thumbnailFilename = generateBlobFilename(contentHash, 'thumbnail', 'webp');
+    const blurFilename = generateBlobFilename(contentHash, 'blur', 'webp');
+
     // Upload original
-    const originalExt = driveFile.name.split('.').pop() || 'jpg';
-    const originalFilename = generateBlobFilename(mediaId, 'original', originalExt);
-    const originalContentType = driveFile.mimeType || 'image/jpeg';
-    console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage started', {
-      requestId,
-      filename: originalFilename,
-      bytes: fileBuffer.length,
-    });
-    originalUpload = await uploadToBlob(fileBuffer, originalFilename, originalContentType);
-    if (originalUpload.alreadyExisted) {
-      blobIdempotencyStats.reusedUploads++;
-    } else {
-      blobIdempotencyStats.newUploads++;
-    }
-    console.log('[MEDIA_INGEST] STORAGE_UPLOAD_ORIGINAL stage succeeded', {
-      requestId,
-      url: originalUpload.url,
-      alreadyExisted: originalUpload.alreadyExisted,
-      contentHash: originalUpload.contentHash,
-    });
-    
-    // CRITICAL: Verify Blob metadata was written for the uploaded content hash
-    const originalBlobMetadata = await getBlobMetadataByContentHash(originalUpload.contentHash);
-    if (!originalBlobMetadata) {
-      console.error('[MEDIA_INGEST] BLOB_METADATA_MISSING_AFTER_UPLOAD', {
-        requestId,
-        contentHash: originalUpload.contentHash,
-        url: originalUpload.url,
-        reason: 'Blob upload succeeded but metadata write failed - this is a critical architectural break'
-      });
-      throw new Error('Blob metadata write verification failed after original upload');
-    }
-    
-    // CRITICAL: Verify content hash consistency
-    if (originalBlobMetadata.contentHash !== originalUpload.contentHash) {
-      console.error('[MEDIA_INGEST] BLOB_CONTENT_HASH_MISMATCH', {
-        requestId,
-        uploadContentHash: originalUpload.contentHash,
-        metadataContentHash: originalBlobMetadata.contentHash,
-        reason: 'Stored metadata content hash does not match upload content hash - metadata is poisoned'
-      });
-      throw new Error('Blob content hash mismatch between upload and metadata');
-    }
-    
-    // CRITICAL: Verify URL consistency - metadata URL must match upload URL
-    if (originalBlobMetadata.url !== originalUpload.url) {
-      console.error('[MEDIA_INGEST] BLOB_URL_MISMATCH', {
-        requestId,
-        contentHash: originalUpload.contentHash,
-        uploadUrl: originalUpload.url,
-        metadataUrl: originalBlobMetadata.url,
-        reason: 'Blob upload returned different URL than stored metadata - possible stale metadata or namespace mismatch'
-      });
-      throw new Error('Blob URL mismatch between upload and metadata');
-    }
-    
-    console.log('[MEDIA_INGEST] BLOB_METADATA_VERIFIED', {
-      requestId,
-      contentHash: originalUpload.contentHash,
-      metadataUrl: originalBlobMetadata.url,
-      uploadUrl: originalUpload.url,
-      contentHashMatch: true,
-      urlsMatch: true,
-      verified: true
-    });
-    
-    // Generate and upload WebP/AVIF variants
-    for (const vw of validWidths) {
-      for (const fmt of ['avif', 'webp']) {
-        const variantFilename = generateBlobFilename(mediaId, `${vw}`, fmt);
-        const variantContentType = fmt === 'avif' ? 'image/avif' : 'image/webp';
-        
-        console.log('[MEDIA_INGEST] STORAGE_UPLOAD_VARIANT stage started', {
-          requestId,
-          variant: variantFilename,
-          width: vw,
-          format: fmt,
-        });
-        
-        const variantBuffer = await sharp(fileBuffer)
-          .resize({ width: vw, withoutEnlargement: true })
-          [fmt === 'avif' ? 'avif' : 'webp']({ quality: fmt === 'avif' ? AVIF_QUALITY : WEBP_QUALITY })
-          .toBuffer();
-        
-        const variantUpload = await uploadToBlob(variantBuffer, variantFilename, variantContentType);
-        if (variantUpload.alreadyExisted) {
-          blobIdempotencyStats.reusedUploads++;
-        } else {
-          blobIdempotencyStats.newUploads++;
-        }
-        
-        variants.push({
-          width: vw,
-          format: fmt,
-          src: variantUpload.url,
-        });
-        
-        console.log('[MEDIA_INGEST] STORAGE_UPLOAD_VARIANT stage succeeded', {
-          requestId,
-          variant: variantFilename,
-          url: variantUpload.url,
-          alreadyExisted: variantUpload.alreadyExisted,
-          contentHash: variantUpload.contentHash,
-        });
-        
-        // CRITICAL: Verify Blob metadata was written for variant
-        const variantBlobMetadata = await getBlobMetadataByContentHash(variantUpload.contentHash);
-        if (!variantBlobMetadata) {
-          console.error('[MEDIA_INGEST] VARIANT_BLOB_METADATA_MISSING', {
-            requestId,
-            variant: variantFilename,
-            contentHash: variantUpload.contentHash,
-            url: variantUpload.url,
-            reason: 'Variant upload succeeded but metadata write failed'
-          });
-          throw new Error(`Variant Blob metadata write verification failed for ${variantFilename}`);
-        }
-        
-        // CRITICAL: Verify content hash consistency
-        if (variantBlobMetadata.contentHash !== variantUpload.contentHash) {
-          console.error('[MEDIA_INGEST] VARIANT_BLOB_CONTENT_HASH_MISMATCH', {
-            requestId,
-            variant: variantFilename,
-            uploadContentHash: variantUpload.contentHash,
-            metadataContentHash: variantBlobMetadata.contentHash,
-            reason: 'Stored metadata content hash does not match upload content hash - metadata is poisoned'
-          });
-          throw new Error(`Variant content hash mismatch for ${variantFilename}`);
-        }
-        
-        // CRITICAL: Verify URL consistency between upload and stored metadata
-        if (variantBlobMetadata.url !== variantUpload.url) {
-          console.error('[MEDIA_INGEST] VARIANT_BLOB_URL_MISMATCH', {
-            requestId,
-            variant: variantFilename,
-            contentHash: variantUpload.contentHash,
-            uploadUrl: variantUpload.url,
-            metadataUrl: variantBlobMetadata.url,
-            reason: 'Variant upload returned different URL than stored metadata - possible stale metadata or namespace mismatch'
-          });
-          throw new Error(`Variant Blob URL mismatch for ${variantFilename}`);
-        }
-        
-        console.log('[MEDIA_INGEST] VARIANT_BLOB_METADATA_VERIFIED', {
-          requestId,
-          variant: variantFilename,
-          contentHash: variantUpload.contentHash,
-          metadataUrl: variantBlobMetadata.url,
-          uploadUrl: variantUpload.url,
-          contentHashMatch: true,
-          urlsMatch: true,
-          verified: true
-        });
-      }
-    }
-    
-    // Generate and upload thumbnail
-    let thumbUpload: any;
-    let blurDataURL = '';
-    
-    const thumbFilename = generateBlobFilename(mediaId, 'thumb', 'webp');
-    const thumbBuffer = await sharp(fileBuffer).resize(THUMBNAIL_WIDTH).webp({ quality: THUMBNAIL_QUALITY }).toBuffer();
-    thumbUpload = await uploadToBlob(thumbBuffer, thumbFilename, 'image/webp');
-    if (thumbUpload.alreadyExisted) {
-      blobIdempotencyStats.reusedUploads++;
-    } else {
-      blobIdempotencyStats.newUploads++;
-    }
-    console.log('[MEDIA_INGEST] STORAGE_UPLOAD_THUMBNAIL stage succeeded', {
-      requestId,
-      url: thumbUpload.url,
-      alreadyExisted: thumbUpload.alreadyExisted,
-      contentHash: thumbUpload.contentHash,
-    });
-    
-    // CRITICAL: Verify Blob metadata was written for thumbnail
-    const thumbBlobMetadata = await getBlobMetadataByContentHash(thumbUpload.contentHash);
-    if (!thumbBlobMetadata) {
-      console.error('[MEDIA_INGEST] THUMBNAIL_BLOB_METADATA_MISSING', {
-        requestId,
-        contentHash: thumbUpload.contentHash,
-        url: thumbUpload.url,
-        reason: 'Thumbnail upload succeeded but metadata write failed'
-      });
-      throw new Error('Thumbnail Blob metadata write verification failed');
-    }
-    
-    // CRITICAL: Verify content hash consistency
-    if (thumbBlobMetadata.contentHash !== thumbUpload.contentHash) {
-      console.error('[MEDIA_INGEST] THUMBNAIL_BLOB_CONTENT_HASH_MISMATCH', {
-        requestId,
-        uploadContentHash: thumbUpload.contentHash,
-        metadataContentHash: thumbBlobMetadata.contentHash,
-        reason: 'Stored metadata content hash does not match upload content hash - metadata is poisoned'
-      });
-      throw new Error('Thumbnail content hash mismatch');
-    }
-    
-    // CRITICAL: Verify URL consistency between upload and stored metadata
-    if (thumbBlobMetadata.url !== thumbUpload.url) {
-      console.error('[MEDIA_INGEST] THUMBNAIL_BLOB_URL_MISMATCH', {
-        requestId,
-        contentHash: thumbUpload.contentHash,
-        uploadUrl: thumbUpload.url,
-        metadataUrl: thumbBlobMetadata.url,
-        reason: 'Thumbnail upload returned different URL than stored metadata - possible stale metadata or namespace mismatch'
-      });
-      throw new Error('Thumbnail Blob URL mismatch');
-    }
-    
-    console.log('[MEDIA_INGEST] THUMBNAIL_BLOB_METADATA_VERIFIED', {
-      requestId,
-      contentHash: thumbUpload.contentHash,
-      metadataUrl: thumbBlobMetadata.url,
-      uploadUrl: thumbUpload.url,
-      contentHashMatch: true,
-      urlsMatch: true,
-      verified: true
-    });
-    
+    console.log('[MEDIA_INGEST] VARIANT_GENERATION uploading original', { requestId });
+    const originalBlobResult = await uploadToBlob(driveBytes, originalFilename, 'image/jpeg');
+    const originalBlobUrl = originalBlobResult.url;
+    console.log('[MEDIA_INGEST] VARIANT_GENERATION original uploaded', { requestId, url: originalBlobUrl });
+
+    // Generate WebP variant
+    const webpBuffer = await sharp(driveBytes)
+      .webp({ quality: WEBP_QUALITY })
+      .toBuffer();
+    const webpBlobResult = await uploadToBlob(webpBuffer, webpFilename, 'image/webp');
+    const webpBlobUrl = webpBlobResult.url;
+    console.log('[MEDIA_INGEST VARIANT_GENERATION webp uploaded', { requestId, url: webpBlobUrl });
+
+    // Generate AVIF variant
+    const avifBuffer = await sharp(driveBytes)
+      .avif({ quality: AVIF_QUALITY })
+      .toBuffer();
+    const avifBlobResult = await uploadToBlob(avifBuffer, avifFilename, 'image/avif');
+    const avifBlobUrl = avifBlobResult.url;
+    console.log('[MEDIA_INGEST VARIANT_GENERATION avif uploaded', { requestId, url: avifBlobUrl });
+
+    // Generate thumbnail
+    const thumbnailBuffer = await sharp(driveBytes)
+      .resize(THUMBNAIL_WIDTH, null, { withoutEnlargement: true })
+      .webp({ quality: THUMBNAIL_QUALITY })
+      .toBuffer();
+    const thumbnailBlobResult = await uploadToBlob(thumbnailBuffer, thumbnailFilename, 'image/webp');
+    const thumbnailBlobUrl = thumbnailBlobResult.url;
+    console.log('[MEDIA_INGEST VARIANT_GENERATION thumbnail uploaded', { requestId, url: thumbnailBlobUrl });
+
     // Generate blur placeholder
-    const blurBuffer = await sharp(fileBuffer).resize(16).webp({ quality: 40 }).toBuffer();
-    blurDataURL = `data:image/webp;base64,${blurBuffer.toString('base64')}`;
-    
-    console.log('[MEDIA_INGEST] VARIANT_GENERATION stage completed', {
+    const blurBuffer = await sharp(driveBytes)
+      .resize(20, null, { withoutEnlargement: true })
+      .blur(2)
+      .webp({ quality: 50 })
+      .toBuffer();
+    const blurBlobResult = await uploadToBlob(blurBuffer, blurFilename, 'image/webp');
+    const blurBlobUrl = blurBlobResult.url;
+    console.log('[MEDIA_INGEST VARIANT_GENERATION blur uploaded', { requestId, url: blurBlobUrl });
+
+    // Generate responsive variants
+    const responsiveVariants = [];
+    for (const width of RESPONSIVE_WIDTHS) {
+      const responsiveBuffer = await sharp(driveBytes)
+        .resize(width, null, { withoutEnlargement: true })
+        .webp({ quality: WEBP_QUALITY })
+        .toBuffer();
+      const responsiveFilename = generateBlobFilename(contentHash, `responsive-${width}`, 'webp');
+      const responsiveBlobResult = await uploadToBlob(responsiveBuffer, responsiveFilename, 'image/webp');
+      const responsiveUrl = responsiveBlobResult.url;
+      
+      const avifResponsiveBuffer = await sharp(driveBytes)
+        .resize(width, null, { withoutEnlargement: true })
+        .avif({ quality: AVIF_QUALITY })
+        .toBuffer();
+      const avifResponsiveFilename = generateBlobFilename(contentHash, `responsive-${width}-avif`, 'avif');
+      const avifResponsiveBlobResult = await uploadToBlob(avifResponsiveBuffer, avifResponsiveFilename, 'image/avif');
+      const avifResponsiveUrl = avifResponsiveBlobResult.url;
+      
+      responsiveVariants.push({
+        width,
+        webp: responsiveUrl,
+        avif: avifResponsiveUrl,
+      });
+      console.log('[MEDIA_INGEST VARIANT_GENERATION responsive variant uploaded', {
+        requestId,
+        width,
+        webpUrl: responsiveUrl,
+        avifUrl: avifResponsiveUrl,
+      });
+    }
+
+    console.log('[MEDIA_INGEST] VARIANT_GENERATION stage succeeded', {
       requestId,
-      variantsCount: variants.length,
-      blobIdempotencyStats,
+      variantCount: 2 + responsiveVariants.length,
     });
 
-    // 8. Create full Media record as PublishedMediaAsset
-    // CRITICAL: Materialization converts Drive source to local PublishedMediaAsset
-    // - Bytes are now in Blob (local storage)
-    // - lifecycleState is 'published' (not 'materializing' or 'source_reference')
-    // - source is 'local' (not 'google-drive')
-    // - drive field is removed (no Drive dependency)
-    // - provenance tracks the Drive origin for lineage
-    
-    // P0-A FIX: Preserve ALL generated renditions in responsive array
-    // Sort variants by width to get largest for top-level webp/avif
-    const sortedVariants = [...variants].sort((a, b) => (b.width || 0) - (a.width || 0));
-    const webpVariant = sortedVariants.find((v) => v.format === 'webp');
-    const avifVariant = sortedVariants.find((v) => v.format === 'avif');
-    
-    // Build responsive array grouped by width
-    const responsiveVariants: Array<{ width: number; webp: string; avif: string }> = [];
-    const uniqueWidths = [...new Set(variants.map(v => v.width))].sort((a, b) => a - b);
-    
-    for (const width of uniqueWidths) {
-      const webpAtWidth = variants.find(v => v.format === 'webp' && v.width === width);
-      const avifAtWidth = variants.find(v => v.format === 'avif' && v.width === width);
-      
-      if (webpAtWidth || avifAtWidth) {
-        responsiveVariants.push({
-          width,
-          webp: webpAtWidth?.src || '',
-          avif: avifAtWidth?.src || '',
-        });
-      }
-    }
-    
-    const orientation = determineOrientation(metadata.width || 1920, metadata.height || 1080);
-    
+    // 7. Create PublishedMediaAsset
+    console.log('[MEDIA_INGEST] MEDIA_KV_WRITE stage started', { requestId });
+    const mediaId = generateStableId(contentHash);
+    const orientation = determineOrientation(metadata?.width || 0, metadata?.height || 0);
+
     const mediaRecord: Media = {
       id: mediaId,
       contentHash,
-      source: 'local', // PUBLISHED: bytes are now in Blob storage
-      lifecycleState: 'published', // PUBLISHED: this is a PublishedMediaAsset
-      // CRITICAL: No drive field - PublishedMediaAsset must not have Drive dependency
+      drive: {
+        fileId: driveId,
+        driveId: driveIdParameter,
+        name: driveFile.name,
+        mimeType: driveFile.mimeType,
+        webViewUrl: driveFile.webViewLink,
+        modifiedTime: driveFile.modifiedTime,
+      }, // Store Drive metadata for provenance, but source is 'local'
       filename: driveFile.name,
-      type: driveFile.mimeType?.startsWith('image/') ? 'image' : 'document',
+      type: 'image',
       orientation,
       dimensions: {
-        width: metadata.width || 1920,
-        height: metadata.height || 1080,
+        width: metadata?.width || 0,
+        height: metadata?.height || 0,
       },
       variants: {
-        original: originalUpload?.url || '',
-        web: webpVariant?.src || originalUpload?.url || '',
-        webp: webpVariant?.src || originalUpload?.url || '',
-        avif: avifVariant?.src || '',
-        thumbnail: thumbUpload?.url || originalUpload?.url || '',
-        blur: blurDataURL,
+        original: originalBlobUrl,
+        web: webpBlobUrl,
+        webp: webpBlobUrl,
+        avif: avifBlobUrl,
+        thumbnail: thumbnailBlobUrl,
+        blur: blurBlobUrl,
         responsive: responsiveVariants,
       },
       alt: driveFile.name,
-      description: driveFile.description,
-      projectId,
+      description: `Media ingested from Google Drive: ${driveFile.name}`,
       tags: [],
-      roles,
-      order: 0, // Will be set by Workbench
-      createdAt: driveFile.createdTime,
-      updatedAt: driveFile.modifiedTime,
+      roles: roles,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
       uploadedAt: new Date().toISOString(),
-      fileSize: driveFile.size || fileBuffer.length,
-      format: sharpAvailable ? (metadata.format || 'WEBP') : driveFile.mimeType?.split('/')[1] || 'unknown',
-      colorSpace: sharpAvailable ? (metadata.space || 'sRGB') : 'sRGB',
-      // Provenance tracks Drive origin without creating Drive dependency
-      provenance: {
-        drive_canonical: true,
-        current_authority: true,
-        status: 'published', // Materialized and published
-        preserved_at: new Date().toISOString(),
-        // Track Drive origin for lineage without creating drive field
-        // Use actual Drive file ID for provenance, not Shared Drive ID
-        august3_driveId: driveId,
-        // Store Shared Drive context separately for corpus/metadata
-        sharedDriveId: driveIdParameter || undefined,
-        // CONSTITUTIONAL FIX: Store authoritative Drive file ID for reconciliation
-        driveFileId: driveId,
-      },
+      fileSize: driveBytes.length,
+      format: metadata?.format,
+      colorSpace: metadata?.space,
+      lifecycleState: 'published',
+      source: 'local', // IMPORTANT: Source is 'local' because bytes are in Blob, not Drive
     };
 
-    console.log('[MEDIA_INGEST] MEDIA_PERSIST stage started', {
+    await storeMedia(mediaRecord);
+    console.log('[MEDIA_INGEST] MEDIA_KV_WRITE stage succeeded', {
       requestId,
       mediaId,
-      upgradeMode: !!existingMedia && needsUpgrade,
+      lifecycleState: mediaRecord.lifecycleState,
+      source: mediaRecord.source,
     });
 
-    // P1-7: Materialization state machine - validate state transition
-    const targetState = 'published' as const;
-    const currentState = existingMedia?.lifecycleState as any || 'source_reference';
-    const operation = needsUpgrade ? 'upgrade' : 'materialize';
-    
-    const transitionValidation = isValidTransition(currentState, targetState, operation);
-    if (!transitionValidation.allowed) {
-      console.error('[MEDIA_INGEST] STATE_TRANSITION_BLOCKED', {
-        requestId,
-        mediaId,
-        currentState,
-        targetState,
-        operation,
-        reason: transitionValidation.reason,
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'STATE_TRANSITION_BLOCKED',
-          stage: 'MEDIA_PERSIST',
-          message: 'Invalid state transition',
-          details: transitionValidation.reason,
-          requiresRollback: transitionValidation.requiresRollback,
-          requestId,
-        },
-        { status: 409 }
-      );
-    }
-
-    // 9. Store Media record in KV (canonical authority)
-    // P1-7: Materialization atomicity - wrap KV write in recovery logic
-    let kvWriteSuccess = false;
-    try {
-      // CONSTITUTIONAL FIX: Only upgrade PublishedMediaAsset, never DriveReference
-      if (existingMedia && needsUpgrade && existingMedia.lifecycleState === 'published' && existingMedia.source === 'local') {
-        console.log('[MEDIA_INGEST] UPGRADING_EXISTING_PUBLISHED_ASSET', {
-          requestId,
-          existingMediaId: existingMedia.id,
-          newResponsiveCount: responsiveVariants.length,
-        });
-        
-        // Apply state transition
-        const upgradedMedia = applyStateTransition(existingMedia, targetState, operation);
-        if (!upgradedMedia) {
-          throw new Error('State transition failed');
-        }
-        
-        // Update with new responsive variants
-        const finalUpgradedMedia: Media = {
-          ...upgradedMedia,
-          variants: {
-            ...upgradedMedia.variants,
-            responsive: responsiveVariants,
-            // Update top-level webp/avif to largest renditions
-            webp: webpVariant?.src || upgradedMedia.variants.webp,
-            avif: avifVariant?.src || upgradedMedia.variants.avif,
-          },
-          updatedAt: new Date().toISOString(),
-          // CONSTITUTIONAL FIX: Ensure provenance includes driveFileId for reconciliation
-          provenance: {
-            ...upgradedMedia.provenance,
-            driveFileId: driveId,
-          },
-        };
-        
-        await storeMedia(finalUpgradedMedia);
-        kvWriteSuccess = true;
-        
-        console.log('[MEDIA_INGEST] MEDIA_UPGRADE succeeded', {
-          requestId,
-          mediaId: finalUpgradedMedia.id,
-        });
-        
-        // CRITICAL: Run assignment reconciliation after upgrade (optional, non-fatal)
-        let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
-        if (driveId) {
-          try {
-            reconciliationResult = await reconcileDriveAssignments(
-              finalUpgradedMedia.id,
-              driveId, // Use authoritative Drive file ID for provenance reconciliation
-              contentHash,
-              requestId
-            );
-          } catch (reconciliationError) {
-            console.warn('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION failed (non-fatal)', {
-              requestId,
-              mediaId: finalUpgradedMedia.id,
-              error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
-              note: 'Media upgrade succeeded - reconciliation failure does not block authoritative media'
-            });
-          }
-        }
-        
-        return NextResponse.json({
-          success: true,
-          action: 'upgraded',
-          media: finalUpgradedMedia,
-          requestId,
-          idempotent: true,
-          upgradeSource: 'responsive_variants',
-          assignmentReconciled: reconciliationResult.reconciled,
-          assignmentsUpdated: reconciliationResult.updated,
-          reconciliationNote: 'Assignment reconciliation is optional - media is authoritative regardless'
-        });
-      } else {
-        // New media record or DriveReference (always create new PublishedMediaAsset)
-        // Apply state transition
-        const finalMediaRecord = applyStateTransition(
-          { ...mediaRecord, lifecycleState: currentState },
-          targetState,
-          operation
-        );
-        
-        if (!finalMediaRecord) {
-          throw new Error('State transition failed');
-        }
-        
-        await storeMedia(finalMediaRecord);
-        kvWriteSuccess = true;
-        
-        console.log('[MEDIA_INGEST] NEW_MEDIA_PERSIST succeeded', {
-          requestId,
-          mediaId,
-          lifecycleState: finalMediaRecord.lifecycleState,
-          source: finalMediaRecord.source,
-          wasDriveReference: existingMedia?.lifecycleState === 'source_reference',
-        });
-      }
-    } catch (kvError) {
-      console.error('[MEDIA_INGEST] KV_WRITE_FAILED', {
-        requestId,
-        mediaId,
-        error: kvError instanceof Error ? kvError.message : 'Unknown error',
-      });
-      
-      // P1-7: Materialization recovery - KV write failed but Blob upload succeeded
-      // This is a recoverable state: Blob exists but KV record is missing
-      // Trigger recovery to reconstruct KV record from Blob
-      console.log('[MEDIA_INGEST] ATTEMPTING_KV_RECOVERY', { requestId, mediaId });
-      
-      let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
-      
-      try {
-        const { repairIncompleteKvRecord } = await import('@/lib/materialization-recovery');
-        const repaired = await repairIncompleteKvRecord(mediaRecord);
-        
-        if (repaired) {
-          console.log('[MEDIA_INGEST] KV_RECOVERY_SUCCEEDED', { requestId, mediaId });
-          kvWriteSuccess = true;
-          
-          // Run reconciliation after recovery (optional, non-fatal)
-          if (driveId) {
-            try {
-              reconciliationResult = await reconcileDriveAssignments(
-                mediaId,
-                driveId,
-                contentHash,
-                requestId
-              );
-            } catch (reconciliationError) {
-              console.warn('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION failed (non-fatal)', {
-                requestId,
-                mediaId,
-                error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
-                note: 'Media recovery succeeded - reconciliation failure does not block authoritative media'
-              });
-            }
-          }
-        } else {
-          console.error('[MEDIA_INGEST] KV_RECOVERY_FAILED', { requestId, mediaId });
-        }
-      } catch (recoveryError) {
-        console.error('[MEDIA_INGEST] KV_RECOVERY_ERROR', {
-          requestId,
-          mediaId,
-          error: recoveryError instanceof Error ? recoveryError.message : 'Unknown error',
-        });
-      }
-      
-      // If recovery also failed, return error
-      if (!kvWriteSuccess) {
-        return NextResponse.json(
-          {
-            success: false,
-            error: 'KV_PERSIST_FAILED',
-            stage: 'MEDIA_PERSIST',
-            message: 'Failed to store media record in KV and recovery failed',
-            retryable: true,
-            details: kvError instanceof Error ? kvError.message : 'Unknown error',
-            requestId,
-            forensic: {
-              blobUploadCompleted: true,
-              kvWriteFailed: true,
-              recoveryAttempted: true,
-              mediaId,
-              contentHash,
-            },
-          },
-          { status: 500 }
-        );
-      }
-      
-      // KV write succeeded via recovery - run reconciliation (optional, non-fatal)
-      console.log('[MEDIA_INGEST] MEDIA_PERSIST stage succeeded (via recovery)', {
-        requestId,
-        mediaId,
-        recovery: true
-      });
-      
-      console.log('[MEDIA_INGEST] RESPONSE stage started', { requestId });
-      return NextResponse.json({
-        success: true,
-        action: 'created',
-        media: mediaRecord,
-        requestId,
-        idempotent: blobIdempotencyStats.newUploads === 0,
-        blobIdempotencyStats,
-        recovery: true,
-        assignmentReconciled: reconciliationResult.reconciled,
-        assignmentsUpdated: reconciliationResult.updated,
-      });
-    }
-    
-    // CRITICAL: Run assignment reconciliation (optional, non-fatal)
-    // New photos with no existing assignment should still become authoritative
+    // 8. CRITICAL: Run assignment reconciliation (optional, non-fatal)
     console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION stage started', {
       requestId,
       mediaId,
       driveId,
       note: 'Reconciliation is optional - materialization succeeds even if no assignments exist'
     });
-    
+
     let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
     if (driveId) {
       try {
@@ -1341,58 +727,34 @@ export async function POST(request: Request) {
           repaired: reconciliationResult.repaired,
         });
       } catch (reconciliationError) {
-        console.warn('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION failed (non-fatal)', {
+        console.error('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION failed', {
           requestId,
-          mediaId,
           error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
-          note: 'Materialization succeeded - reconciliation failure does not block authoritative media creation'
         });
-        reconciliationResult = {
-          reconciled: false,
-          updated: [],
-          repaired: false,
-          error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error'
-        };
       }
-    } else {
-      console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION skipped', {
-        requestId,
-        mediaId,
-        reason: 'No driveId provided - cannot reconcile assignments'
-      });
     }
-    
-    console.log('[MEDIA_INGEST] MEDIA_PERSIST stage succeeded', {
-      requestId,
-      mediaId,
-    });
 
-    console.log('[MEDIA_INGEST] RESPONSE stage started', { requestId });
     return NextResponse.json({
       success: true,
-      action: 'created',
-      media: mediaRecord,
+      mediaId,
+      message: 'Media successfully ingested and materialized',
+      deduplicated: false,
+      reconciliation: reconciliationResult,
       requestId,
-      idempotent: blobIdempotencyStats.newUploads === 0,
-      blobIdempotencyStats,
-      assignmentReconciled: reconciliationResult.reconciled,
-      assignmentsUpdated: reconciliationResult.updated,
-      reconciliationError: reconciliationResult.error,
     });
-    } catch (error) {
-      console.log('[MEDIA_INGEST_ERROR] unexpected error', { requestId });
-      console.error('[MEDIA_INGEST_ERROR]', error);
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'INGESTION_FAILED',
-          stage: 'unknown',
-          message: 'An unexpected error occurred during ingestion.',
-          retryable: false,
-          details: error instanceof Error ? error.message : 'Unknown error',
-          requestId,
-        },
-        { status: 500 }
-      );
-    }
+
+  } catch (error) {
+    console.error('[MEDIA_INGEST] ERROR', error);
+    
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'MATERIALIZATION_FAILED',
+        stage: 'UNKNOWN',
+        message: error instanceof Error ? error.message : 'Unknown error during media materialization',
+        requestId,
+      },
+      { status: 500 }
+    );
+  }
 }
