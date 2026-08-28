@@ -129,13 +129,13 @@ describe('Deployment Transaction Bulk Assignment', () => {
     expect(tx.stagingKeys).toContain(SLOT_A_KEY);
   });
 
-  it('should support 5 simultaneous slot mutations in one transaction', async () => {
+  it('should support concurrent registration of multiple staging keys', async () => {
     if (!hasKv) {
       console.log('Skipping: KV not configured');
       return;
     }
 
-    const TRANSACTION_ID = `${TEST_TRANSACTION_PREFIX}5SLOT-${Date.now()}`;
+    const TRANSACTION_ID = `${TEST_TRANSACTION_PREFIX}CONCURRENT-${Date.now()}`;
     testTransactionIds.push(TRANSACTION_ID);
 
     const SLOT_A_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:service:decks`;
@@ -144,48 +144,47 @@ describe('Deployment Transaction Bulk Assignment', () => {
     const SLOT_D_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:service:painting`;
     const SLOT_E_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:brand-hero`;
 
-    // Simulate 5 simultaneous assignments
-    const tx1 = await createDeploymentTransaction(
-      TRANSACTION_ID,
-      [SLOT_A_KEY],
-      ['website/src/config/services.v1.json'],
-      '5-slot bulk test'
-    );
+    // Register all 5 keys concurrently with Promise.all
+    const results = await Promise.all([
+      createDeploymentTransaction(
+        TRANSACTION_ID,
+        [SLOT_A_KEY],
+        ['website/src/config/services.v1.json'],
+        'Concurrent test'
+      ),
+      createDeploymentTransaction(
+        TRANSACTION_ID,
+        [SLOT_B_KEY],
+        ['website/src/config/services.v1.json'],
+        'Concurrent test'
+      ),
+      createDeploymentTransaction(
+        TRANSACTION_ID,
+        [SLOT_C_KEY],
+        ['website/src/config/services.v1.json'],
+        'Concurrent test'
+      ),
+      createDeploymentTransaction(
+        TRANSACTION_ID,
+        [SLOT_D_KEY],
+        ['website/src/config/services.v1.json'],
+        'Concurrent test'
+      ),
+      createDeploymentTransaction(
+        TRANSACTION_ID,
+        [SLOT_E_KEY],
+        ['website/src/config/brand.v1.json'],
+        'Concurrent test'
+      ),
+    ]);
 
-    const tx2 = await createDeploymentTransaction(
-      TRANSACTION_ID,
-      [SLOT_B_KEY],
-      ['website/src/config/services.v1.json'],
-      '5-slot bulk test'
-    );
-
-    const tx3 = await createDeploymentTransaction(
-      TRANSACTION_ID,
-      [SLOT_C_KEY],
-      ['website/src/config/services.v1.json'],
-      '5-slot bulk test'
-    );
-
-    const tx4 = await createDeploymentTransaction(
-      TRANSACTION_ID,
-      [SLOT_D_KEY],
-      ['website/src/config/services.v1.json'],
-      '5-slot bulk test'
-    );
-
-    const tx5 = await createDeploymentTransaction(
-      TRANSACTION_ID,
-      [SLOT_E_KEY],
-      ['website/src/config/brand.v1.json'],
-      '5-slot bulk test'
-    );
-
-    // Final transaction should contain all 5 staging keys
-    expect(tx5.stagingKeys).toHaveLength(5);
-    expect(tx5.stagingKeys).toContain(SLOT_A_KEY);
-    expect(tx5.stagingKeys).toContain(SLOT_B_KEY);
-    expect(tx5.stagingKeys).toContain(SLOT_C_KEY);
-    expect(tx5.stagingKeys).toContain(SLOT_D_KEY);
-    expect(tx5.stagingKeys).toContain(SLOT_E_KEY);
+    // Final result should contain all 5 staging keys regardless of registration order
+    const finalTx = results[results.length - 1];
+    expect(finalTx.stagingKeys).toHaveLength(5);
+    expect(finalTx.stagingKeys).toContain(SLOT_A_KEY);
+    expect(finalTx.stagingKeys).toContain(SLOT_B_KEY);
+    expect(finalTx.stagingKeys).toContain(SLOT_C_KEY);
+    expect(finalTx.stagingKeys).toContain(SLOT_D_KEY);
+    expect(finalTx.stagingKeys).toContain(SLOT_E_KEY);
   });
 });
