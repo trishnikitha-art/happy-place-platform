@@ -3,7 +3,7 @@
   "generatedAt": "2026-08-28T00:59:20.268Z",
   "homepageHero": {
     "id": "brand-hero-001",
-    "mediaId": "brand-hero",
+    "mediaId": "fences-001-hero",
     "alt": "Happy Place Carpentry - Building decks, fences, and custom carpentry across Oregon's Mid-Willamette Valley",
     "fallback": {
       "gradient": true,
@@ -12,7 +12,7 @@
   },
   "ownerPortrait": {
     "id": "brand-owner-001",
-    "mediaId": "fences-001-hero",
+    "mediaId": "brand-portrait",
     "alt": "Taylor & Lanie of Happy Place Carpentry",
     "names": [
       "Taylor",
