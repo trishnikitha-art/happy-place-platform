@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-28T11:24:55.154Z",
+  "generatedAt": "2026-08-28T11:50:44.582Z",
   "media": [
     {
       "id": "fences-001-hero",
@@ -1554,6 +1554,144 @@
         "august3_driveId": "1Ke8-uwF-H9PrVO3Vwn2lSlW-P2XtpqE7",
         "sharedDriveId": "0ALeA98MLc-s_Uk9PVA",
         "driveFileId": "1Ke8-uwF-H9PrVO3Vwn2lSlW-P2XtpqE7"
+      }
+    },
+    {
+      "id": "c65e27844063e63ad2c300f88a9e7479",
+      "contentHash": "c65e27844063e63ad2c300f88a9e747994e582c96e89a53f282ce79e4bcb3f40",
+      "source": "local",
+      "lifecycleState": "published",
+      "filename": "HP016_ExteriorPainting_HouseRefresh_After.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 2048,
+        "height": 1536
+      },
+      "variants": {
+        "original": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-original-c65e27844063.jpg",
+        "web": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-2000-0f26e8fadfbf.webp",
+        "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-2000-0f26e8fadfbf.webp",
+        "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-2000-81b31340905a.avif",
+        "thumbnail": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-thumb-c932008bb9ba.webp",
+        "blur": "data:image/webp;base64,UklGRmAAAABXRUJQVlA4IFQAAAAwAgCdASoQAAwAA4BaJQBOj+ADL8ZDUWKMAAD+yXbsVNZGPuRvc11EcqDHbr5ZTyLjExn2Sz/u4mE3XvUcDijgn7y2pV/vKFfltg60SAKUuIIMAAA=",
+        "responsive": [
+          {
+            "width": 480,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-480-13caec76c86c.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-480-bff7351e65fb.avif"
+          },
+          {
+            "width": 768,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-768-554df7d40dbc.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-768-408bb0c8bb5b.avif"
+          },
+          {
+            "width": 1080,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-1080-35cc17324561.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-1080-4ad73b39ecca.avif"
+          },
+          {
+            "width": 1600,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-1600-2e2619313783.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-1600-0edf2ceebe68.avif"
+          },
+          {
+            "width": 2000,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-2000-0f26e8fadfbf.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-2000-81b31340905a.avif"
+          }
+        ]
+      },
+      "alt": "HP016_ExteriorPainting_HouseRefresh_After.jpg",
+      "tags": [],
+      "roles": [
+        "gallery"
+      ],
+      "order": 0,
+      "createdAt": "2026-08-03T21:10:41.819Z",
+      "updatedAt": "2026-08-28T00:27:40.330Z",
+      "uploadedAt": "2026-08-28T00:27:40.330Z",
+      "fileSize": 1178426,
+      "format": "jpeg",
+      "colorSpace": "srgb",
+      "provenance": {
+        "drive_canonical": true,
+        "current_authority": true,
+        "status": "published",
+        "preserved_at": "2026-08-28T00:27:40.330Z",
+        "august3_driveId": "1m6Z_6Gt5FqKZplx4GxT8KOAUHZO1DPlc",
+        "sharedDriveId": "0ALeA98MLc-s_Uk9PVA",
+        "driveFileId": "1m6Z_6Gt5FqKZplx4GxT8KOAUHZO1DPlc"
+      }
+    },
+    {
+      "id": "216cc8b78507866480d0238cc650eaf3",
+      "contentHash": "216cc8b78507866480d0238cc650eaf3933118c1463d5e19adcd88e1245d72df",
+      "source": "local",
+      "lifecycleState": "published",
+      "filename": "HP0017_ExteriorPainting_Before.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 2048,
+        "height": 1536
+      },
+      "variants": {
+        "original": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/216cc8b78507866480d0238cc650eaf3-original-216cc8b78507.jpg",
+        "web": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/216cc8b78507866480d0238cc650eaf3-2000-db2851215529.webp",
+        "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/216cc8b78507866480d0238cc650eaf3-2000-db2851215529.webp",
+        "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/216cc8b78507866480d0238cc650eaf3-2000-10b8e4d062e8.avif",
+        "thumbnail": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/216cc8b78507866480d0238cc650eaf3-thumb-3c8e76cdc6f7.webp",
+        "blur": "data:image/webp;base64,UklGRmgAAABXRUJQVlA4IFwAAADQAQCdASoQAAwAA4BaJaACdADP2pRsgAD9UJpGqLfOwlUpjZpyjLMbN3e3s4/YPKWnkZe45SC7G7loFgK+ifjU5VbPkzS0HLLYz8MuCEwn3yDhCEuDBuT3CUAAAA==",
+        "responsive": [
+          {
+            "width": 480,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/216cc8b78507866480d0238cc650eaf3-480-b5e4d4509e23.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/216cc8b78507866480d0238cc650eaf3-480-265632f518e4.avif"
+          },
+          {
+            "width": 768,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/216cc8b78507866480d0238cc650eaf3-768-e7ad40c7be5b.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/216cc8b78507866480d0238cc650eaf3-768-4546d3254493.avif"
+          },
+          {
+            "width": 1080,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/216cc8b78507866480d0238cc650eaf3-1080-e61a4a1b4a0b.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/216cc8b78507866480d0238cc650eaf3-1080-5f33881e0bf7.avif"
+          },
+          {
+            "width": 1600,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/216cc8b78507866480d0238cc650eaf3-1600-67fa576c3250.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/216cc8b78507866480d0238cc650eaf3-1600-7532e81cde90.avif"
+          },
+          {
+            "width": 2000,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/216cc8b78507866480d0238cc650eaf3-2000-db2851215529.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/216cc8b78507866480d0238cc650eaf3-2000-10b8e4d062e8.avif"
+          }
+        ]
+      },
+      "alt": "HP0017_ExteriorPainting_Before.jpg",
+      "tags": [],
+      "roles": [
+        "gallery"
+      ],
+      "order": 0,
+      "createdAt": "2026-08-03T21:15:37.653Z",
+      "updatedAt": "2026-08-28T11:50:31.594Z",
+      "uploadedAt": "2026-08-28T11:50:31.594Z",
+      "fileSize": 1123629,
+      "format": "jpeg",
+      "colorSpace": "srgb",
+      "provenance": {
+        "drive_canonical": true,
+        "current_authority": true,
+        "status": "published",
+        "preserved_at": "2026-08-28T11:50:31.594Z",
+        "august3_driveId": "18HBr2eX37qEh4kDydrzJgZZVlMNhVxi8",
+        "sharedDriveId": "0ALeA98MLc-s_Uk9PVA",
+        "driveFileId": "18HBr2eX37qEh4kDydrzJgZZVlMNhVxi8"
       }
     }
   ]
