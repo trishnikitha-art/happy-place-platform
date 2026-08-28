@@ -1503,7 +1503,7 @@ Check browser console for detailed logs.`);
 
       if (slotId === 'homepage-hero-slot' || slotId === 'hero-background') {
         endpoint = '/api/admin/brand/hero';
-        requestBody = { mediaId: asset.id, transactionId };
+        requestBody = { mediaId: asset.id, transactionId, slotId };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1511,7 +1511,7 @@ Check browser console for detailed logs.`);
         });
       } else if (slotId === 'homepage-owner-portrait-slot' || slotId === 'about-owner-portrait-slot') {
         endpoint = '/api/admin/brand/portrait';
-        requestBody = { mediaId: asset.id, transactionId };
+        requestBody = { mediaId: asset.id, transactionId, slotId };
         response = await fetch(endpoint, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },

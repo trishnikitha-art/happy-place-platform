@@ -58,15 +58,18 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
   console.log('[PUBLIC_READER] HOMEPAGE_HERO_REQUEST', { requestId });
   
   // Try to load runtime assignment for brand-hero
+  // P0 FIX: Check slot-specific keys to support both homepage-hero-slot and hero-background
   try {
     const { getServiceCardAssignment } = await import('@/lib/assignment-store');
-    const assignment = await getServiceCardAssignment('brand-hero', requestId);
-    
+    // Try specific key first, then fallback to legacy key
+    const assignment = await getServiceCardAssignment('brand-hero-background', requestId) ||
+                       await getServiceCardAssignment('brand-hero', requestId);
+
     if (assignment && assignment.mediaId) {
-      console.log('[PUBLIC_READER] ASSIGNMENT_FOUND', { 
-        requestId, 
+      console.log('[PUBLIC_READER] ASSIGNMENT_FOUND', {
+        requestId,
         key: 'service-card-assignment:brand-hero',
-        mediaId: assignment.mediaId 
+        mediaId: assignment.mediaId
       });
       
       // Resolve mediaId through public media gate (rejects Drive references)
@@ -122,10 +125,14 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
   console.log('[BRAND] OWNER_PORTRAIT_REQUEST', { requestId });
   
   // Try to load runtime assignment for brand-portrait
+  // P0 FIX: Check slot-specific keys to support both homepage-owner-portrait-slot and about-owner-portrait-slot
   try {
     const { getServiceCardAssignment } = await import('@/lib/assignment-store');
-    const assignment = await getServiceCardAssignment('brand-portrait', requestId);
-    
+    // Try specific keys first, then fallback to legacy key
+    const assignment = await getServiceCardAssignment('brand-portrait-homepage', requestId) ||
+                       await getServiceCardAssignment('brand-portrait-about', requestId) ||
+                       await getServiceCardAssignment('brand-portrait', requestId);
+
     if (assignment && assignment.mediaId) {
       console.log('[BRAND] Runtime assignment loaded for portrait:', { requestId, mediaId: assignment.mediaId });
       

@@ -650,19 +650,21 @@ export async function POST(request: Request) {
             const serviceSlug = parts[5];
             
             // Check if this is a brand assignment (brand-hero or brand-portrait)
-            if (serviceSlug === 'brand-hero') {
+            if (serviceSlug === 'brand-hero' || serviceSlug === 'brand-hero-background') {
               brandData.homepageHero.mediaId = stringValue;
-              console.log('[DEPLOY API] APPLIED_BRAND_HERO_ASSIGNMENT', { 
+              console.log('[DEPLOY API] APPLIED_BRAND_HERO_ASSIGNMENT', {
                 mediaId: stringValue,
-                transactionId 
+                serviceSlug,
+                transactionId
               });
               appliedCount++; // P0 FIX: Count brand mutations toward mutation total
               continue;
-            } else if (serviceSlug === 'brand-portrait') {
+            } else if (serviceSlug === 'brand-portrait' || serviceSlug === 'brand-portrait-homepage' || serviceSlug === 'brand-portrait-about') {
               brandData.ownerPortrait.mediaId = stringValue;
-              console.log('[DEPLOY API] APPLIED_BRAND_PORTRAIT_ASSIGNMENT', { 
+              console.log('[DEPLOY API] APPLIED_BRAND_PORTRAIT_ASSIGNMENT', {
                 mediaId: stringValue,
-                transactionId 
+                serviceSlug,
+                transactionId
               });
               appliedCount++; // P0 FIX: Count brand mutations toward mutation total
               continue;
@@ -1794,9 +1796,14 @@ export async function POST(request: Request) {
             const currentAssignment = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
             const expectedRevision = currentAssignment?.revision ?? 0; // P0 FIX: Use 0 for create, not undefined
 
-            // Create promoted assignment
+            // P0 FIX: Map slot-specific keys back to canonical brand keys for promotion
+            const canonicalServiceSlug = serviceSlug === 'brand-hero-background' ? 'brand-hero' :
+                                        serviceSlug === 'brand-portrait-homepage' ? 'brand-portrait' :
+                                        serviceSlug === 'brand-portrait-about' ? 'brand-portrait' :
+                                        serviceSlug; // No mapping needed for other services
+
             const promotedAssignment = {
-              serviceSlug,
+              serviceSlug: canonicalServiceSlug,
               mediaId: stringValue,
               updatedAt: new Date().toISOString(),
               source: 'workbench' as const,
@@ -1807,18 +1814,20 @@ export async function POST(request: Request) {
             await storeServiceCardAssignment(promotedAssignment, expectedRevision, deploymentTransactionId);
 
             console.log('[DEPLOY API] ASSIGNMENT_PROMOTED', {
-              serviceSlug,
+              originalServiceSlug: serviceSlug,
+              canonicalServiceSlug,
               mediaId: stringValue,
               revision: promotedAssignment.revision,
             });
             promotionCount++;
           } catch (error) {
             console.error('[DEPLOY API] ASSIGNMENT_PROMOTION_FAILED', {
-              serviceSlug,
+              originalServiceSlug: serviceSlug,
+              canonicalServiceSlug,
               error: error instanceof Error ? error.message : 'Unknown error',
             });
             promotionFailures.push({
-              serviceSlug,
+              serviceSlug: canonicalServiceSlug,
               reason: error instanceof Error ? error.message : 'Unknown error',
             });
           }
