@@ -1595,20 +1595,20 @@ export async function POST(request: Request) {
     }
     
     console.log('[DEPLOY API] BRANCH_REF_UPDATED', { newCommitSha });
-    
+
     // EXTERNAL COMMIT POINT: Git ref update is the irreversible external side effect
     // At this point, the deployment exists in the repository regardless of what follows
-    console.log('[DEPLOY API] EXTERNAL_COMMIT_POINT_REACHED', { 
+    console.log('[DEPLOY API] EXTERNAL_COMMIT_POINT_REACHED', {
       deploymentTransactionId,
       commitSha: newCommitSha,
       commitUrl: newCommitData.html_url
     });
-    
-    // MARK TRANSACTION AS COMMITTED (committing → committed)
-    // This happens AFTER the external commit point because Redis state is coordination, not atomic
-    transaction = await commitDeploymentTransaction(deploymentTransactionId, newCommitSha, newCommitData.html_url, transactionOwner);
-    console.log('[DEPLOY API] TRANSACTION_COMMITTED', { transactionId: deploymentTransactionId, commitSha: newCommitSha });
-    
+
+    // CRITICAL: Do NOT mark transaction as committed yet
+    // Transaction remains in 'committing' state until promotion succeeds
+    // This allows committing → failed transition if promotion fails
+    // Only after promotion succeeds do we transition committing → committed
+
     // Step 7: Verify the commit contains both files (post-commit verification, NOT a commit gate)
     // If verification fails, the deployment still succeeded - this is for monitoring/reconciliation
     console.log('[DEPLOY API] VERIFYING_COMMIT_CONTENTS');
@@ -1722,8 +1722,8 @@ export async function POST(request: Request) {
         }
       }
     }
-    
-    console.log('[DEPLOY API] ATOMIC_COMMIT_SUCCESS', { 
+
+    console.log('[DEPLOY API] ATOMIC_COMMIT_SUCCESS', {
       deploymentTransactionId,
       commitSha: newCommitSha,
       commitUrl: newCommitData.html_url,
@@ -1731,10 +1731,42 @@ export async function POST(request: Request) {
       verificationError
     });
 
-    // CRITICAL FIX: Promote staging assignments to authoritative runtime KV
-    // This is the missing connection between Workbench staging and public runtime
-    // Without this, assignments exist in Git but runtime KV cannot resolve them
-    if (isProduction && redis && verificationPassed) {
+    // FAIL-CLOSED: If verification failed, reject deployment
+    // Verification failure means Git commit is incomplete or corrupted
+    if (!verificationPassed) {
+      console.error('[DEPLOY API] DEPLOYMENT_REJECTED_VERIFICATION_FAILED', {
+        deploymentTransactionId,
+        verificationError,
+      });
+
+      // MARK TRANSACTION AS FAILED (committing → failed is legal)
+      if (transaction) {
+        await failDeploymentTransaction(
+          deploymentTransactionId,
+          `Deployment rejected: Commit verification failed - ${verificationError}`
+        );
+      }
+
+      return NextResponse.json(
+        {
+          error: "Deployment rejected: Commit verification failed",
+          message: `Git commit succeeded but verification failed: ${verificationError}. This indicates an incomplete or corrupted commit.`,
+          verificationError,
+          forensic: {
+            deploymentTransactionId,
+            verificationError,
+          },
+        },
+        { status: 400 }
+      );
+    }
+
+    // CRITICAL FIX: Promote staging assignments to authoritative runtime KV BEFORE marking transaction committed
+    // This ensures Git authority and runtime KV are one coherent transaction
+    // If promotion fails, we can transition committing → failed (legal)
+    // If promotion succeeds, we transition committing → committed (legal)
+    // PREVIOUS BUG: Git was committed before promotion, causing split-brain when promotion failed
+    if (isProduction && redis) {
       console.log('[DEPLOY API] PROMOTING_STAGING_TO_RUNTIME_KV', { deploymentTransactionId });
 
       const { storeServiceCardAssignment, getServiceCardAssignment } = await import('@/lib/assignment-store');
@@ -1760,7 +1792,7 @@ export async function POST(request: Request) {
           try {
             // Read current assignment to get expected revision for CAS
             const currentAssignment = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
-            const expectedRevision = currentAssignment?.revision;
+            const expectedRevision = currentAssignment?.revision ?? 0; // P0 FIX: Use 0 for create, not undefined
 
             // Create promoted assignment
             const promotedAssignment = {
@@ -1768,7 +1800,7 @@ export async function POST(request: Request) {
               mediaId: stringValue,
               updatedAt: new Date().toISOString(),
               source: 'workbench' as const,
-              revision: expectedRevision ? expectedRevision + 1 : 1,
+              revision: expectedRevision + 1, // Always increment
             };
 
             // Store in authoritative runtime KV
@@ -1800,6 +1832,7 @@ export async function POST(request: Request) {
       });
 
       // FAIL-CLOSED: If promotion failed, reject deployment to prevent split-brain
+      // At this point, transaction is still in 'committing' state, so we can transition to 'failed'
       if (promotionFailures.length > 0) {
         console.error('[DEPLOY API] DEPLOYMENT_REJECTED_PROMOTION_FAILURES', {
           deploymentTransactionId,
@@ -1807,7 +1840,7 @@ export async function POST(request: Request) {
           promotionFailures,
         });
 
-        // MARK TRANSACTION AS FAILED
+        // MARK TRANSACTION AS FAILED (committing → failed is legal)
         if (transaction) {
           await failDeploymentTransaction(
             deploymentTransactionId,
@@ -1830,6 +1863,11 @@ export async function POST(request: Request) {
       }
     }
 
+    // MARK TRANSACTION AS COMMITTED (committing → committed)
+    // This happens AFTER promotion succeeds, ensuring Git and runtime KV are coherent
+    transaction = await commitDeploymentTransaction(deploymentTransactionId, newCommitSha, newCommitData.html_url, transactionOwner);
+    console.log('[DEPLOY API] TRANSACTION_COMMITTED', { transactionId: deploymentTransactionId, commitSha: newCommitSha });
+
     // TRANSACTIONAL FIX: Only delete staging keys after durable commit verification AND promotion
     // This prevents data loss if commit or promotion fails
     if (isProduction && redis && stagingKeys.length > 0 && verificationPassed) {
@@ -1847,27 +1885,23 @@ export async function POST(request: Request) {
         transaction = await consumeDeploymentTransaction(deploymentTransactionId, transactionOwner);
         console.log('[DEPLOY API] TRANSACTION_CONSUMED', { transactionId: deploymentTransactionId });
       }
-    } else if (isProduction && redis && stagingKeys.length > 0 && !verificationPassed) {
-      console.warn('[DEPLOY API] STAGING_KEYS_PRESERVED_DUE_TO_VERIFICATION_FAILURE', { 
+    } else if (isProduction && redis && stagingKeys.length > 0) {
+      console.warn('[DEPLOY API] STAGING_KEYS_PRESERVED_NO_REDIS_OR_NO_STAGING', {
         stagingKeysCount: stagingKeys.length,
-        verificationError 
       });
     }
 
-    return NextResponse.json({ 
+    return NextResponse.json({
       success: true,
       deploymentTransactionId,
       commitSha: newCommitSha,
       commitUrl: newCommitData.html_url,
-      message: verificationPassed 
-        ? "Your changes are live and saved. Git commit successful."
-        : "Git commit succeeded but verification failed. Changes are in staging for retry.",
+      message: "Your changes are live and saved. Git commit successful.",
       authorityFiles: [projectsFilePath, servicesFilePath, brandFilePath, mediaFilePath],
       targetBranch: 'main',
-      status: verificationPassed ? "COMMITTED_DEPLOYING" : "COMMITTED_NEEDS_RECONCILIATION",
+      status: "COMMITTED_DEPLOYING",
       filesCommitted: ['projects.v1.json', 'services.v1.json', 'brand.v1.json', 'media.v1.json'],
-      verificationPassed,
-      verificationError: verificationError || undefined,
+      verificationPassed: true,
       externalCommitPoint: true
     });
 
