@@ -163,22 +163,24 @@ export async function POST(request: Request) {
 
     // P0 FIX: Fail-closed when Redis is unavailable in production
     // Prevents split-brain where UI accepts mutations but cannot stage them
-    console.error('[BRAND HERO] REDIS_UNAVAILABLE - FAILING_CLOSED', {
-      mediaId,
-      transactionId: effectiveTransactionId,
-      environment: process.env.NODE_ENV,
-      reason: 'KV credentials not configured or Redis unavailable'
-    });
-
-    return NextResponse.json(
-      {
-        error: "Redis unavailable",
-        message: "Staging storage is unavailable. Cannot accept mutations without Redis staging.",
+    if (isProduction && !redis) {
+      console.error('[BRAND HERO] REDIS_UNAVAILABLE - FAILING_CLOSED', {
         mediaId,
-        transactionId: effectiveTransactionId
-      },
-      { status: 503 }
-    );
+        transactionId: effectiveTransactionId,
+        environment: process.env.NODE_ENV,
+        reason: 'KV credentials not configured or Redis unavailable'
+      });
+
+      return NextResponse.json(
+        {
+          error: "Redis unavailable",
+          message: "Staging storage is unavailable. Cannot accept mutations without Redis staging.",
+          mediaId,
+          transactionId: effectiveTransactionId
+        },
+        { status: 503 }
+      );
+    }
 
     // Development: Use assignment store directly
     const currentAssignment = await getServiceCardAssignment('brand-hero', requestId);
