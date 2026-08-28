@@ -1791,16 +1791,17 @@ export async function POST(request: Request) {
         if (parts.length >= 6 && parts[2] === 'workbench-staging' && parts[4] === 'service') {
           const serviceSlug = parts[5];
 
+          // P0 FIX: Map slot-specific keys back to canonical brand keys for promotion
+          // Calculate outside try block so it's accessible in catch block
+          const canonicalServiceSlug = serviceSlug === 'brand-hero-background' ? 'brand-hero' :
+                                      serviceSlug === 'brand-portrait-homepage' ? 'brand-portrait' :
+                                      serviceSlug === 'brand-portrait-about' ? 'brand-portrait' :
+                                      serviceSlug; // No mapping needed for other services
+
           try {
             // Read current assignment to get expected revision for CAS
             const currentAssignment = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
             const expectedRevision = currentAssignment?.revision ?? 0; // P0 FIX: Use 0 for create, not undefined
-
-            // P0 FIX: Map slot-specific keys back to canonical brand keys for promotion
-            const canonicalServiceSlug = serviceSlug === 'brand-hero-background' ? 'brand-hero' :
-                                        serviceSlug === 'brand-portrait-homepage' ? 'brand-portrait' :
-                                        serviceSlug === 'brand-portrait-about' ? 'brand-portrait' :
-                                        serviceSlug; // No mapping needed for other services
 
             const promotedAssignment = {
               serviceSlug: canonicalServiceSlug,
