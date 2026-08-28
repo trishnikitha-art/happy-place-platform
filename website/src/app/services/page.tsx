@@ -1,9 +1,11 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { ServiceCard } from "@/components/service-card";
 import { CTASection } from "@/components/cta-section";
+import { Icon } from "@/components/icon";
 import { getNonArchivedServices } from "@/lib/registries";
-import { getServiceCardAssignment, getServiceCardAssignments } from "@/lib/assignment-store";
+import { getServiceCardAssignment } from "@/lib/assignment-store";
 import { resolvePublicMedia } from "@/lib/media";
 
 export const metadata: Metadata = {
