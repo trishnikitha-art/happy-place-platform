@@ -34,7 +34,7 @@ import { storeMedia, findMediaByContentHash, getMedia, getMediaRecordRaw } from 
 import crypto from 'crypto';
 import type { Media, MediaRole } from '@/types/media';
 import { RESPONSIVE_WIDTHS, THUMBNAIL_WIDTH, THUMBNAIL_QUALITY, WEBP_QUALITY, AVIF_QUALITY } from '@/lib/media-constants';
-import { needsMaterialization } from '@/lib/media-contracts';
+import { needsMaterialization, isPubliclyComplete } from '@/lib/media-contracts';
 import { applyStateTransition, isValidTransition } from '@/lib/materialization-state-machine';
 import { verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
 
@@ -679,20 +679,29 @@ export async function POST(request: Request) {
         // Don't return early - fall through to variant generation logic below
       } else if (existingMedia.lifecycleState === 'published' && existingMedia.source === 'local') {
         // Only PublishedMediaAsset can be deduplicated
-        // P0 FIX: Use authoritative completeness check from media-contracts.ts
-        const isComplete = !needsMaterialization(existingMedia);
+        // P0 FIX: Use authoritative public completeness check including physical Blob proof
+        // "record exists" is NOT sufficient evidence of materialization
+        // Must verify Blob metadata + required variants before accepting deduplication
+        const isComplete = await isPubliclyComplete(existingMedia);
         needsUpgrade = !isComplete;
 
         if (needsUpgrade && sharpAvailable) {
           console.log('[MEDIA_INGEST] UPGRADING_INCOMPLETE_PUBLISHED_ASSET', {
             requestId,
             existingMediaId: existingMedia.id,
-            reason: 'Asset fails materialization completeness check',
+            reason: 'Asset fails public completeness check (missing Blob proof or required variants)',
           });
 
           // Continue with variant generation to upgrade the existing record
           // Don't return early - fall through to variant generation logic below
         } else {
+          // Asset is publicly complete with Blob proof - safe to deduplicate
+          console.log('[MEDIA_INGEST] DEDUPLICATION_SUCCEEDED_WITH_BLOB_PROOF', {
+            requestId,
+            existingMediaId: existingMedia.id,
+            reason: 'Asset passed public completeness check (shape + real hash + Blob proof + required variants)',
+          });
+
           // CRITICAL: Run assignment reconciliation for deduplicated media (optional, non-fatal)
           // This ensures DriveReference assignments are repaired when re-ingesting the same content
           // But materialization succeeds even if reconciliation fails
@@ -714,7 +723,7 @@ export async function POST(request: Request) {
               });
             }
           }
-          
+
           return NextResponse.json({
             success: true,
             action: 'existing',
