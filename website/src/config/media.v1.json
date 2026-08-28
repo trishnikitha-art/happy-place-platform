@@ -65,6 +65,51 @@
       "colorSpace": "sRGB"
     },
     {
+      "id": "fences-001-before",
+      "driveId": "drive-c266e5096e43",
+      "filename": "FENCE BEFORE.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "web": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "webp": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "avif": "/images/projects/fences/FENCE BUILD-1080.avif",
+        "thumbnail": "/images/projects/fences/FENCE BUILD-thumb.webp"
+      },
+      "alt": "Before fence installation",
+      "description": "Property before fence construction",
+      "service": "fences",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "fences-001",
+      "tags": [
+        "fences",
+        "before",
+        "corvallis"
+      ],
+      "roles": [
+        "before"
+      ],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "createdAt": "2026-07-20T00:00:00.000Z",
+      "updatedAt": "2026-07-20T00:00:00.000Z",
+      "uploadedAt": "2026-07-20T00:00:00.000Z",
+      "fileSize": 282546,
+      "format": "WEBP",
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "802ccc84e0637b56cdf517cc6ca39168e71681d24d523eaa5e7a255b3f10433a"
+    },
+    {
       "id": "fences-001-after",
       "driveId": "drive-7a4b33c8b2bb",
       "filename": "FENCE AFTER.jpg",
@@ -153,6 +198,231 @@
       "lifecycleState": "published",
       "source": "local",
       "contentHash": "d2824f848e00a433307b704281ef1380408ab5fcf9edd92e9f7f46caf2d9128f"
+    },
+    {
+      "id": "fences-001-installation",
+      "driveId": "fences-001-variant-002",
+      "filename": "FENCE INSTALLATION.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "web": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "webp": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "avif": "/images/projects/fences/FENCE BUILD-1080.avif",
+        "thumbnail": "/images/projects/fences/FENCE BUILD-thumb.webp"
+      },
+      "alt": "Fence installation work",
+      "description": "Professional fence installation in progress",
+      "service": "fences",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "fences-001",
+      "tags": [
+        "fences",
+        "installation",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "createdAt": "2026-07-20T00:00:00.000Z",
+      "updatedAt": "2026-07-20T00:00:00.000Z",
+      "uploadedAt": "2026-07-20T00:00:00.000Z",
+      "fileSize": 282546,
+      "format": "WEBP",
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "802ccc84e0637b56cdf517cc6ca39168e71681d24d523eaa5e7a255b3f10433a"
+    },
+    {
+      "id": "fences-001-detail",
+      "driveId": "fences-001-variant-003",
+      "filename": "FENCE DETAIL.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "web": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "webp": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "avif": "/images/projects/fences/FENCE BUILD-1080.avif",
+        "thumbnail": "/images/projects/fences/FENCE BUILD-thumb.webp"
+      },
+      "alt": "Fence construction detail",
+      "description": "Detail of professional fence construction",
+      "service": "fences",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "fences-001",
+      "tags": [
+        "fences",
+        "detail",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "createdAt": "2026-07-20T00:00:00.000Z",
+      "updatedAt": "2026-07-20T00:00:00.000Z",
+      "uploadedAt": "2026-07-20T00:00:00.000Z",
+      "fileSize": 282546,
+      "format": "WEBP",
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "802ccc84e0637b56cdf517cc6ca39168e71681d24d523eaa5e7a255b3f10433a"
+    },
+    {
+      "id": "fences-001-finished",
+      "driveId": "fences-001-variant-004",
+      "filename": "FENCE FINISHED.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "web": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "webp": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "avif": "/images/projects/fences/FENCE BUILD-1080.avif",
+        "thumbnail": "/images/projects/fences/FENCE BUILD-thumb.webp"
+      },
+      "alt": "Completed fence work",
+      "description": "Professional fence construction completed",
+      "service": "fences",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "fences-001",
+      "tags": [
+        "fences",
+        "finished",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "createdAt": "2026-07-20T00:00:00.000Z",
+      "updatedAt": "2026-07-20T00:00:00.000Z",
+      "uploadedAt": "2026-07-20T00:00:00.000Z",
+      "fileSize": 282546,
+      "format": "WEBP",
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "802ccc84e0637b56cdf517cc6ca39168e71681d24d523eaa5e7a255b3f10433a"
+    },
+    {
+      "id": "fences-001-progress",
+      "driveId": "fences-001-variant-005",
+      "filename": "FENCE PROGRESS.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "web": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "webp": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "avif": "/images/projects/fences/FENCE BUILD-1080.avif",
+        "thumbnail": "/images/projects/fences/FENCE BUILD-thumb.webp"
+      },
+      "alt": "Fence construction progress",
+      "description": "Progress of professional fence construction",
+      "service": "fences",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "fences-001",
+      "tags": [
+        "fences",
+        "progress",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "createdAt": "2026-07-20T00:00:00.000Z",
+      "updatedAt": "2026-07-20T00:00:00.000Z",
+      "uploadedAt": "2026-07-20T00:00:00.000Z",
+      "fileSize": 282546,
+      "format": "WEBP",
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "802ccc84e0637b56cdf517cc6ca39168e71681d24d523eaa5e7a255b3f10433a"
+    },
+    {
+      "id": "fences-001-gate",
+      "driveId": "fences-001-variant-006",
+      "filename": "FENCE GATE.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "web": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "webp": "/images/projects/fences/FENCE BUILD-1080.webp",
+        "avif": "/images/projects/fences/FENCE BUILD-1080.avif",
+        "thumbnail": "/images/projects/fences/FENCE BUILD-thumb.webp"
+      },
+      "alt": "Fence gate installation",
+      "description": "Professional fence gate construction",
+      "service": "fences",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "fences-001",
+      "tags": [
+        "fences",
+        "gate",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "createdAt": "2026-07-20T00:00:00.000Z",
+      "updatedAt": "2026-07-20T00:00:00.000Z",
+      "uploadedAt": "2026-07-20T00:00:00.000Z",
+      "fileSize": 282546,
+      "format": "WEBP",
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "802ccc84e0637b56cdf517cc6ca39168e71681d24d523eaa5e7a255b3f10433a"
     },
     {
       "id": "builtins-001-hero",

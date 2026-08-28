@@ -18,7 +18,12 @@
         "before": "fences-001-before",
         "after": "fences-001-after",
         "gallery": [
-          "fences-001-matching"
+          "fences-001-matching",
+          "fences-001-installation",
+          "fences-001-detail",
+          "fences-001-finished",
+          "fences-001-progress",
+          "fences-001-gate"
         ]
       },
       "story": {
@@ -84,7 +89,11 @@
         "hero": "pergolas-001-hero",
         "before": "pergolas-001-before",
         "after": "pergolas-001-after",
-        "gallery": []
+        "gallery": [
+          "pergolas-001-construction",
+          "pergolas-001-steel-frame",
+          "pergolas-001-finished"
+        ]
       },
       "story": {
         "challenge": "Customer wanted a custom outdoor living space with privacy",
