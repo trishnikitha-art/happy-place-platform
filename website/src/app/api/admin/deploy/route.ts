@@ -715,6 +715,13 @@ export async function POST(request: Request) {
           } else if (field === 'gallery') {
             const galleryArray = Array.isArray(value) ? value : (value ? [value] : []);
             projectsData.projects[projectIndex].media.gallery = galleryArray;
+            console.log('[DEPLOY API] GALLERY_MUTATION_APPLIED', { 
+              projectId, 
+              galleryLength: galleryArray.length,
+              isV2CompleteArray: Array.isArray(value),
+              key,
+              transactionId 
+            });
           } else if (field === 'before' || field === 'after') {
             if (value) projectsData.projects[projectIndex].media[field] = value;
           }

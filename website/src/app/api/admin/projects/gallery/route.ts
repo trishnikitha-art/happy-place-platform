@@ -1,21 +1,34 @@
 /**
- * Admin Project Gallery Photo API Endpoint
+ * Admin Project Gallery API Endpoint
  * 
- * Updates a specific gallery photo mediaId for a project in projects.v1.json
+ * Gallery Management v2 - Atomic Ordered Gallery Authority
  * 
- * POST /api/admin/projects/gallery
+ * PUT /api/admin/projects/gallery
+ * Body: { projectId: string, gallery: string[], transactionId?: string }
+ * 
+ * Atomic gallery mutation with complete ordered array.
+ * Replaces current gallery with the complete desired order in one operation.
+ * Supports: reorder, prepend, append, delete, multi-photo changes with one operation.
+ * 
+ * POST /api/admin/projects/gallery (LEGACY - DEPRECATED)
  * Body: { projectId: string, galleryIndex: number, mediaId: string, operation: 'replace' | 'add' }
  * 
- * operation:
- *   - 'replace': Replace existing gallery item at index (default)
- *   - 'add': Append new mediaId to gallery (galleryIndex ignored)
+ * Legacy endpoint maintained for backward compatibility during migration.
  * 
- * Requires Workbench authentication.
+ * DELETE /api/admin/projects/gallery (LEGACY - DEPRECATED)
+ * Body: { projectId: string, galleryIndex: number }
+ * 
+ * Legacy endpoint maintained for backward compatibility during migration.
  * 
  * Constitutional Architecture:
- * - In development: Writes to local filesystem for testing
- * - In production: Uses KV persistence to avoid EROFS errors
- * - Deploy route commits changes to GitHub
+ * - Gallery order is human editorial state (not deterministic projection)
+ * - One atomic mutation contains the complete desired ordered media-ID sequence
+ * - Media identity remains immutable, only ordering changes
+ * - Gallery membership/order is mutable presentation authority
+ * - Workbench is the human control surface for ordered assignment
+ * - Public site consumes the resulting authoritative ordered list
+ * 
+ * Requires Workbench authentication.
  */
 
 import { NextResponse } from "next/server";
@@ -47,6 +60,199 @@ function getRedisClient(): Redis | null {
   }
 }
 
+/**
+ * GET /api/admin/projects/gallery?projectId={projectId}
+ * 
+ * Retrieve current gallery state for a project.
+ * Returns the complete ordered gallery array for use in atomic mutations.
+ */
+export async function GET(request: Request) {
+  // SECURITY: Require Workbench authentication
+  const isAuthenticated = await workbenchSession.isAuthenticated();
+  if (!isAuthenticated) {
+    return NextResponse.json(
+      { error: "Unauthorized", message: "Workbench authentication required" },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const { searchParams } = new URL(request.url);
+    const projectId = searchParams.get('projectId');
+
+    if (!projectId) {
+      return NextResponse.json(
+        { error: "projectId query parameter is required" },
+        { status: 400 }
+      );
+    }
+
+    console.log('[GALLERY GET] REQUEST_RECEIVED', { projectId });
+
+    // Load from authoritative projects.v1.json
+    const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
+    const projectsData = JSON.parse(readFileSync(projectsPath, "utf-8"));
+
+    const project = projectsData.projects.find((p: any) => p.id === projectId);
+    if (!project) {
+      return NextResponse.json(
+        { error: "Project not found" },
+        { status: 404 }
+      );
+    }
+
+    const gallery = project.media?.gallery || [];
+
+    console.log('[GALLERY GET] SUCCESS', { projectId, galleryLength: gallery.length });
+
+    return NextResponse.json({
+      success: true,
+      projectId,
+      gallery,
+      galleryLength: gallery.length
+    });
+  } catch (error) {
+    console.error('[GALLERY GET] ERROR', error);
+    return NextResponse.json(
+      { error: "Failed to retrieve project gallery" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * NEW V2: Atomic Gallery Mutation
+ * PUT /api/admin/projects/gallery
+ * 
+ * Atomic replacement of entire gallery with complete ordered array.
+ * This is the canonical gallery authority operation.
+ */
+export async function PUT(request: Request) {
+  // SECURITY: Require Workbench authentication
+  const isAuthenticated = await workbenchSession.isAuthenticated();
+  if (!isAuthenticated) {
+    return NextResponse.json(
+      { error: "Unauthorized", message: "Workbench authentication required" },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const { projectId, gallery, transactionId } = body;
+
+    if (!projectId || !Array.isArray(gallery)) {
+      return NextResponse.json(
+        { error: "projectId and gallery array are required" },
+        { status: 400 }
+      );
+    }
+
+    console.log('[GALLERY V2 PUT] REQUEST_RECEIVED', { projectId, galleryLength: gallery.length, transactionId });
+
+    // Validate all mediaIds exist in authoritative KV media source
+    const mediaValidationResults = await Promise.all(
+      gallery.map(async (mediaId) => {
+        const mediaExists = await getMediaByIdAsync(mediaId);
+        return { mediaId, valid: !!mediaExists };
+      })
+    );
+
+    const invalidMediaIds = mediaValidationResults.filter(r => !r.valid);
+    if (invalidMediaIds.length > 0) {
+      console.error('[GALLERY V2 PUT] INVALID_MEDIA_IDS', { invalidMediaIds });
+      return NextResponse.json(
+        { 
+          error: "Invalid media IDs provided", 
+          invalidMediaIds,
+          message: "All media IDs must exist in authoritative media sources"
+        },
+        { status: 400 }
+      );
+    }
+
+    // Use KV for production persistence to avoid EROFS errors
+    const redis = getRedisClient();
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    if (isProduction && redis) {
+      // Production: Use transactional staging format
+      const effectiveTransactionId = transactionId || `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:gallery`;
+
+      // Store the complete ordered gallery array
+      await redis.set(stagingKey, JSON.stringify(gallery));
+
+      // Create authoritative deployment transaction record
+      const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
+      await createDeploymentTransaction(
+        effectiveTransactionId,
+        [stagingKey],
+        ['projects.v1.json'],
+        `Gallery order mutation: ${projectId} (${gallery.length} items)`
+      );
+
+      console.log('[GALLERY V2 PUT] STAGED_IN_KV', {
+        projectId,
+        galleryLength: gallery.length,
+        stagingKey,
+        transactionId: effectiveTransactionId
+      });
+
+      return NextResponse.json({
+        success: true,
+        projectId,
+        gallery,
+        galleryLength: gallery.length,
+        staged: true,
+        persistence: 'kv',
+        transactionId: effectiveTransactionId
+      });
+    }
+
+    // P0 FIX: Fail-closed when Redis is unavailable in production
+    console.error('[GALLERY V2 PUT] REDIS_UNAVAILABLE - FAILING_CLOSED', {
+      projectId,
+      galleryLength: gallery.length,
+      transactionId,
+      environment: process.env.NODE_ENV,
+      reason: 'KV credentials not configured or Redis unavailable'
+    });
+
+    return NextResponse.json(
+      {
+        error: "Redis unavailable",
+        message: "Staging storage is unavailable. Cannot accept mutations without Redis staging.",
+        projectId,
+        galleryLength: gallery.length,
+        transactionId
+      },
+      { status: 503 }
+    );
+  } catch (error) {
+    console.error('[GALLERY V2 PUT] ERROR', error);
+    return NextResponse.json(
+      { error: "Failed to update project gallery order" },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * LEGACY POST - Single-item gallery mutation (DEPRECATED)
+ * 
+ * Replaced by PUT /api/admin/projects/gallery for atomic ordered gallery authority.
+ * Maintained for backward compatibility during migration.
+ * 
+ * POST /api/admin/projects/gallery
+ * Body: { projectId: string, galleryIndex: number, mediaId: string, operation: 'replace' | 'add' }
+ * 
+ * operation:
+ *   - 'replace': Replace existing gallery item at index (default)
+ *   - 'add': Append new mediaId to gallery (galleryIndex ignored)
+ * 
+ * DEPRECATED: Use PUT /api/admin/projects/gallery with complete ordered array instead.
+ */
 export async function POST(request: Request) {
   // SECURITY: Require Workbench authentication
   const isAuthenticated = await workbenchSession.isAuthenticated();
@@ -77,6 +283,13 @@ export async function POST(request: Request) {
 
     console.log('[GALLERY POST] REQUEST_RECEIVED', { projectId, galleryIndex, mediaId, operation, transactionId });
 
+    // DEPRECATION WARNING
+    console.warn('[GALLERY POST] DEPRECATED_ENDPOINT', {
+      warning: 'POST endpoint is deprecated. Use PUT /api/admin/projects/gallery with complete ordered array instead.',
+      currentOperation: operation,
+      recommendedOperation: 'PUT with complete gallery array'
+    });
+
     // Validate mediaId exists in authoritative KV media source
     const mediaExists = await getMediaByIdAsync(mediaId);
     if (!mediaExists) {
@@ -87,6 +300,10 @@ export async function POST(request: Request) {
       );
     }
 
+    // For 'add' operation, prepend to beginning of existing gallery
+    // For 'replace' operation, we would need to load existing gallery first
+    // Since this is deprecated, we stage the single mediaId as before
+    
     // Use KV for production persistence to avoid EROFS errors
     const redis = getRedisClient();
     const isProduction = process.env.NODE_ENV === 'production';
@@ -96,7 +313,7 @@ export async function POST(request: Request) {
       const effectiveTransactionId = transactionId || `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:gallery`;
 
-      // Store as array with the single mediaId at the specified index
+      // DEPRECATED: Stage single mediaId (NOT recommended for production use)
       const galleryArray = [mediaId];
       await redis.set(stagingKey, JSON.stringify(galleryArray));
 
@@ -106,7 +323,7 @@ export async function POST(request: Request) {
         effectiveTransactionId,
         [stagingKey],
         ['projects.v1.json'],
-        `Project gallery assignment: ${projectId} (index ${galleryIndex})`
+        `DEPRECATED gallery mutation: ${projectId} (index ${galleryIndex})`
       );
 
       console.log('[GALLERY POST] STAGED_IN_KV', {
@@ -114,7 +331,8 @@ export async function POST(request: Request) {
         operation,
         mediaId,
         stagingKey,
-        transactionId: effectiveTransactionId
+        transactionId: effectiveTransactionId,
+        deprecation: true
       });
 
       return NextResponse.json({
@@ -125,7 +343,8 @@ export async function POST(request: Request) {
         mediaId,
         staged: true,
         persistence: 'kv',
-        transactionId: effectiveTransactionId
+        transactionId: effectiveTransactionId,
+        deprecation: true
       });
     }
 
@@ -221,6 +440,17 @@ export async function POST(request: Request) {
   }
 }
 
+/**
+ * LEGACY DELETE - Gallery item deletion (DEPRECATED)
+ * 
+ * Replaced by PUT /api/admin/projects/gallery with complete ordered array.
+ * Maintained for backward compatibility during migration.
+ * 
+ * DELETE /api/admin/projects/gallery
+ * Body: { projectId: string, galleryIndex: number }
+ * 
+ * DEPRECATED: Use PUT /api/admin/projects/gallery with complete ordered array (minus deleted item) instead.
+ */
 export async function DELETE(request: Request) {
   // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
   if (process.env.NODE_ENV === 'development') {
@@ -249,11 +479,19 @@ export async function DELETE(request: Request) {
 
     console.log('[GALLERY DELETE] REQUEST_RECEIVED', { projectId, galleryIndex });
 
+    // DEPRECATION WARNING
+    console.warn('[GALLERY DELETE] DEPRECATED_ENDPOINT', {
+      warning: 'DELETE endpoint is deprecated. Use PUT /api/admin/projects/gallery with complete ordered array (minus deleted item) instead.',
+      currentOperation: 'delete',
+      recommendedOperation: 'PUT with complete gallery array'
+    });
+
     // Use KV for production persistence to avoid EROFS errors
     const redis = getRedisClient();
     const isProduction = process.env.NODE_ENV === 'production';
     
     if (isProduction && redis) {
+      // DEPRECATED: Use non-transactional staging key (old protocol)
       const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}project:${projectId}:gallery`;
       const currentGallery = await redis.get<(string | null)[]>(stagingKey) || [];
       
@@ -264,16 +502,18 @@ export async function DELETE(request: Request) {
         );
       }
       
+      // DEPRECATED: Creates null hole instead of removing item
       currentGallery[galleryIndex] = null;
       await redis.set(stagingKey, currentGallery);
-      console.log('[GALLERY DELETE] STAGED_IN_KV', { projectId, galleryIndex });
+      console.log('[GALLERY DELETE] STAGED_IN_KV', { projectId, galleryIndex, deprecation: true });
       
       return NextResponse.json({ 
         success: true, 
         projectId, 
         galleryIndex,
         staged: true,
-        persistence: 'kv'
+        persistence: 'kv',
+        deprecation: true
       });
     }
 
