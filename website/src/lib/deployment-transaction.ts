@@ -145,8 +145,8 @@ export async function atomicPromoteAssignments(
     
     const result = await redis.eval(
       ATOMIC_PROMOTION_SCRIPT,
-      [assignmentsData, deploymentTransactionId],
-      0 // No keys needed
+      [], // No keys needed for this script
+      [assignmentsData, deploymentTransactionId]
     );
     
     if (result && typeof result === 'object' && 'err' in result) {
