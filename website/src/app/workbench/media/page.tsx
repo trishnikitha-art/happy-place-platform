@@ -591,16 +591,31 @@ export default function MediaWorkbench() {
 
           console.log('[DELETE GALLERY] PARSED_SLOT', { slotId, projectId, galleryIndex });
 
+          // FIX: Use atomic PUT authority instead of legacy DELETE
+          // Get current gallery, remove at galleryIndex, PUT complete array
+          const getResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+          if (!getResponse.ok) {
+            throw new Error('Failed to fetch current gallery');
+          }
+          const galleryData = await getResponse.json();
+          const currentGallery = galleryData.gallery || [];
+          
+          // Remove media at galleryIndex
+          const newGallery = currentGallery.filter((_: string, i: number) => i !== galleryIndex);
+          
           const response = await fetch('/api/admin/projects/gallery', {
-            method: 'DELETE',
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectId, galleryIndex }),
+            body: JSON.stringify({ projectId, gallery: newGallery }),
           });
 
           if (!response.ok) {
             const error = await response.json();
             throw new Error(error.error || 'Failed to delete gallery assignment');
           }
+
+          const result = await response.json();
+          console.log('[DELETE GALLERY] SUCCESS', { projectId, galleryLength: result.gallery?.length || 0 });
 
           // Reload canonical data after successful deletion
           loadCanonicalData();
@@ -625,14 +640,22 @@ export default function MediaWorkbench() {
         }
 
         try {
+          // FIX: Use atomic PUT authority instead of legacy POST
+          // Get current gallery, append mediaId, PUT complete array
+          const getResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+          if (!getResponse.ok) {
+            throw new Error('Failed to fetch current gallery');
+          }
+          const galleryData = await getResponse.json();
+          const currentGallery = galleryData.gallery || [];
+          
+          // Append mediaId to gallery
+          const newGallery = [...currentGallery, asset.id];
+          
           const response = await fetch('/api/admin/projects/gallery', {
-            method: 'POST',
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              projectId, 
-              mediaId: asset.id, 
-              operation: 'add' 
-            }),
+            body: JSON.stringify({ projectId, gallery: newGallery }),
           });
 
           if (!response.ok) {
@@ -641,12 +664,12 @@ export default function MediaWorkbench() {
           }
 
           const result = await response.json();
-          console.log('[ADD TO GALLERY] SUCCESS', { projectId, mediaId: asset.id, galleryLength: result.galleryLength });
+          console.log('[ADD TO GALLERY] SUCCESS', { projectId, mediaId: asset.id, galleryLength: result.gallery?.length || 0 });
 
           // Reload canonical data after successful add
           loadCanonicalData();
           
-          alert(`Successfully added "${asset.filename}" to gallery. Gallery now has ${result.galleryLength} photos.`);
+          alert(`Successfully added "${asset.filename}" to gallery. Gallery now has ${result.gallery?.length || 0} photos.`);
         } catch (error) {
           console.error('[ADD TO GALLERY] ERROR', error);
           alert(`Failed to add to gallery: ${error instanceof Error ? error.message : String(error)}`);
@@ -1584,10 +1607,24 @@ Check browser console for detailed logs.`);
         const projectId = idPart.substring(0, lastHyphenIndex);
         const galleryIndex = parseInt(idPart.substring(lastHyphenIndex + 1), 10);
         console.log('[DND 8] GALLERY_SLOT_PARSED', { slotId, projectId, galleryIndex });
+        
+        // FIX: Use atomic PUT authority instead of legacy POST
+        // Get current gallery, apply mutation, PUT complete array
+        const getResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+        if (!getResponse.ok) {
+          throw new Error('Failed to fetch current gallery');
+        }
+        const galleryData = await getResponse.json();
+        const currentGallery = galleryData.gallery || [];
+        
+        // Replace media at galleryIndex
+        const newGallery = [...currentGallery];
+        newGallery[galleryIndex] = asset.id;
+        
         endpoint = '/api/admin/projects/gallery';
-        requestBody = { projectId, galleryIndex, mediaId: asset.id, transactionId };
+        requestBody = { projectId, gallery: newGallery, transactionId };
         response = await fetch(endpoint, {
-          method: 'POST',
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
@@ -1608,10 +1645,24 @@ Check browser console for detailed logs.`);
         const projectId = idPart.substring(0, lastHyphenIndex);
         const galleryIndex = parseInt(idPart.substring(lastHyphenIndex + 1), 10);
         console.log('[DND 8] PROJECT_GALLERY_SLOT_PARSED', { slotId, projectId, galleryIndex });
+        
+        // FIX: Use atomic PUT authority instead of legacy POST
+        // Get current gallery, apply mutation, PUT complete array
+        const getResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+        if (!getResponse.ok) {
+          throw new Error('Failed to fetch current gallery');
+        }
+        const galleryData = await getResponse.json();
+        const currentGallery = galleryData.gallery || [];
+        
+        // Replace media at galleryIndex
+        const newGallery = [...currentGallery];
+        newGallery[galleryIndex] = asset.id;
+        
         endpoint = '/api/admin/projects/gallery';
-        requestBody = { projectId, galleryIndex, mediaId: asset.id, transactionId };
+        requestBody = { projectId, gallery: newGallery, transactionId };
         response = await fetch(endpoint, {
-          method: 'POST',
+          method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
