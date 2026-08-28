@@ -146,38 +146,13 @@ async function reconcileDriveAssignments(
           }
         }
         
-        // P0 FIX: Content hash lookup for identity reconciliation
-        // If assignment points to a media with missing Blob metadata but same content hash, repair it
-        if (media.lifecycleState === 'published' && media.source === 'local' && media.contentHash) {
-          const { findMediaByContentHash } = await import('@/lib/media-kv-store');
-          const matchingMedia = await findMediaByContentHash(contentHash);
-          
-          if (matchingMedia && matchingMedia.id !== assignment.mediaId) {
-            console.log('[ASSIGNMENT_RECONCILIATION] CONTENT_HASH_REPAIR_FOUND', {
-              requestId,
-              serviceSlug: assignment.serviceSlug,
-              oldMediaId: assignment.mediaId,
-              newMediaId: matchingMedia.id,
-              contentHash,
-              reason: 'Found complete media with same content hash - repairing assignment'
-            });
-            
-            // Update assignment to point to the complete media
-            const currentAssignment = await getServiceCardAssignment(assignment.serviceSlug, requestId);
-            const expectedRevision = currentAssignment?.revision;
-            
-            const updatedAssignment = {
-              ...assignment,
-              mediaId: matchingMedia.id,
-              updatedAt: new Date().toISOString(),
-            };
-            
-            await storeServiceCardAssignment(updatedAssignment, expectedRevision, requestId);
-            updates.push(assignment.serviceSlug);
-            repairedCount++;
-            isDriveReference = true;
-          }
-        }
+        // P0 FIX: REMOVED - Content hash repair path was too broad
+        // The previous implementation rewrote unrelated assignments based solely on content hash,
+        // causing the "drag one photo → hero changes + multiple cards become the same photo" bug.
+        // Constitutional rule: Materializing Drive file X may repair ONLY assignments whose existing
+        // authoritative media record proves it is a DriveReference for Drive file X.
+        // Content hash matching alone is insufficient proof of intended assignment relationship.
+        // This path has been removed to prevent catastrophic assignment corruption.
       } catch (error) {
         // P0 FIX: Fail closed on media lookup failure - do not use legacy ID format assumptions
         console.error('[ASSIGNMENT_RECONCILIATION] MEDIA_LOOKUP_FAILED - FAILING CLOSED', {
