@@ -140,8 +140,8 @@ export async function POST(request: Request) {
     if (isProduction && redis) {
       // P0 FIX: Use slot-specific staging key to prevent identity collision
       // Different slots (homepage-hero-slot vs hero-background) must have different staging keys
-      const slotSpecificKey = slotId === 'hero-background' ? 'brand-hero-background' : 'brand-hero';
-      const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${slotSpecificKey}`;
+      const prodSlotSpecificKey = slotId === 'hero-background' ? 'brand-hero-background' : 'brand-hero';
+      const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${prodSlotSpecificKey}`;
 
       await redis.set(stagingKey, mediaId);
 
@@ -171,6 +171,7 @@ export async function POST(request: Request) {
       console.error('[BRAND HERO] REDIS_UNAVAILABLE - FAILING_CLOSED', {
         mediaId,
         transactionId: effectiveTransactionId,
+        slotId,
         environment: process.env.NODE_ENV,
         reason: 'KV credentials not configured or Redis unavailable'
       });
@@ -188,20 +189,20 @@ export async function POST(request: Request) {
 
     // Development: Use assignment store directly
     // P0 FIX: Use slot-specific assignment key to prevent identity collision
-    const slotSpecificKey = slotId === 'hero-background' ? 'brand-hero-background' : 'brand-hero';
-    const currentAssignment = await getServiceCardAssignment(slotSpecificKey, requestId);
+    const devSlotSpecificKey = slotId === 'hero-background' ? 'brand-hero-background' : 'brand-hero';
+    const currentAssignment = await getServiceCardAssignment(devSlotSpecificKey, requestId);
     const expectedRevision = currentAssignment?.revision;
 
     console.log('[BRAND HERO] CAS_READ', {
       requestId,
-      slotSpecificKey,
+      devSlotSpecificKey,
       currentRevision: expectedRevision,
       currentMediaId: currentAssignment?.mediaId,
     });
 
     const { storeServiceCardAssignment } = await import('@/lib/assignment-store');
     const assignment = {
-      serviceSlug: slotSpecificKey,
+      serviceSlug: devSlotSpecificKey,
       mediaId,
       updatedAt: new Date().toISOString(),
       source: 'workbench' as const,
@@ -217,8 +218,8 @@ export async function POST(request: Request) {
     // CRITICAL: Also write to KV staging area for deployment API discovery
     // Deployment API expects: workbench-staging:{txId}:service:{serviceSlug}
     // P0 FIX: Use slot-specific staging key for development too
-    const slotSpecificKey = slotId === 'hero-background' ? 'brand-hero-background' : 'brand-hero';
-    const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${slotSpecificKey}`;
+    const devSlotSpecificKey = slotId === 'hero-background' ? 'brand-hero-background' : 'brand-hero';
+    const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${devSlotSpecificKey}`;
     if (redis) {
       await redis.set(stagingKey, mediaId);
       console.log('[BRAND HERO] STAGING_AREA_WRITE', {
@@ -232,10 +233,10 @@ export async function POST(request: Request) {
     }
 
     // Read back to verify
-    const storedAssignment = await getServiceCardAssignment(slotSpecificKey, requestId);
+    const storedAssignment = await getServiceCardAssignment(devSlotSpecificKey, requestId);
     console.log('[BRAND HERO] ASSIGNMENT_VERIFICATION', {
       requestId,
-      slotSpecificKey,
+      devSlotSpecificKey,
       storedMediaId: storedAssignment?.mediaId,
       matchesExpected: storedAssignment?.mediaId === mediaId,
     });

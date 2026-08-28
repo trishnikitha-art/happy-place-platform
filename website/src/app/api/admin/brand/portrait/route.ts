@@ -139,10 +139,10 @@ export async function POST(request: Request) {
     // This prevents Redis/Git split-brain - promotion happens only after Git succeeds
     if (isProduction && redis) {
       // P0 FIX: Use slot-specific staging key to prevent identity collision
-      // Different slots (homepage-owner-portrait-slot vs about-owner-portrait-slot) 
+      // Different slots (homepage-owner-portrait-slot vs about-owner-portrait-slot)
       // must have different staging keys even though they route to the same endpoint
-      const slotSpecificKey = slotId === 'about-owner-portrait-slot' ? 'brand-portrait-about' : 'brand-portrait-homepage';
-      const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${slotSpecificKey}`;
+      const prodSlotSpecificKey = slotId === 'about-owner-portrait-slot' ? 'brand-portrait-about' : 'brand-portrait-homepage';
+      const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${prodSlotSpecificKey}`;
 
       await redis.set(stagingKey, mediaId);
 
@@ -189,20 +189,20 @@ export async function POST(request: Request) {
 
     // Development: Use assignment store directly
     // P0 FIX: Use slot-specific assignment key to prevent identity collision
-    const slotSpecificKey = slotId === 'about-owner-portrait-slot' ? 'brand-portrait-about' : 'brand-portrait-homepage';
-    const currentAssignment = await getServiceCardAssignment(slotSpecificKey, requestId);
+    const devSlotSpecificKey = slotId === 'about-owner-portrait-slot' ? 'brand-portrait-about' : 'brand-portrait-homepage';
+    const currentAssignment = await getServiceCardAssignment(devSlotSpecificKey, requestId);
     const expectedRevision = currentAssignment?.revision;
 
     console.log('[BRAND PORTRAIT] CAS_READ', {
       requestId,
-      slotSpecificKey,
+      devSlotSpecificKey,
       currentRevision: expectedRevision,
       currentMediaId: currentAssignment?.mediaId,
     });
 
     const { storeServiceCardAssignment } = await import('@/lib/assignment-store');
     const assignment = {
-      serviceSlug: slotSpecificKey,
+      serviceSlug: devSlotSpecificKey,
       mediaId,
       updatedAt: new Date().toISOString(),
       source: 'workbench' as const,
@@ -218,8 +218,8 @@ export async function POST(request: Request) {
     // CRITICAL: Also write to KV staging area for deployment API discovery
     // Deployment API expects: workbench-staging:{txId}:service:{serviceSlug}
     // P0 FIX: Use slot-specific staging key for development too
-    const slotSpecificKey = slotId === 'about-owner-portrait-slot' ? 'brand-portrait-about' : 'brand-portrait-homepage';
-    const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${slotSpecificKey}`;
+    const devSlotSpecificKey = slotId === 'about-owner-portrait-slot' ? 'brand-portrait-about' : 'brand-portrait-homepage';
+    const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:service:${devSlotSpecificKey}`;
     if (redis) {
       await redis.set(stagingKey, mediaId);
       console.log('[BRAND PORTRAIT] STAGING_AREA_WRITE', {
@@ -233,10 +233,10 @@ export async function POST(request: Request) {
     }
 
     // Read back to verify
-    const storedAssignment = await getServiceCardAssignment(slotSpecificKey, requestId);
+    const storedAssignment = await getServiceCardAssignment(devSlotSpecificKey, requestId);
     console.log('[BRAND PORTRAIT] ASSIGNMENT_VERIFICATION', {
       requestId,
-      slotSpecificKey,
+      devSlotSpecificKey,
       storedMediaId: storedAssignment?.mediaId,
       matchesExpected: storedAssignment?.mediaId === mediaId,
     });
