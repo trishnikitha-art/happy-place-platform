@@ -88,6 +88,106 @@ export interface DeploymentTransaction {
 const TRANSACTION_PREFIX = 'deployment-transaction:';
 
 /**
+ * Atomic Lua script for multi-assignment promotion
+ * Validates all expected revisions, then atomically writes all assignments
+ * Prevents partial promotion failures
+ */
+const ATOMIC_PROMOTION_SCRIPT = `
+  local assignmentsData = cjson.decode(ARGV[1])
+  local deploymentTransactionId = ARGV[2]
+  
+  -- Phase 1: Validate all expected revisions
+  for i, assignment in ipairs(assignmentsData) do
+    local assignmentKey = 'service-card-assignment:' .. assignment.serviceSlug
+    local current = redis.call('GET', assignmentKey)
+    
+    if current then
+      local parsed = cjson.decode(current)
+      local expectedRevision = assignment.expectedRevision
+      
+      -- Check if current revision matches expected
+      if parsed.revision ~= expectedRevision then
+        return {err = 'CAS_FAILURE', serviceSlug = assignment.serviceSlug, expectedRevision = expectedRevision, actualRevision = parsed.revision}
+      end
+    else
+      -- Assignment doesn't exist, expectedRevision must be 0 for create
+      if assignment.expectedRevision ~= 0 then
+        return {err = 'CAS_FAILURE_MISSING', serviceSlug = assignment.serviceSlug, expectedRevision = assignment.expectedRevision}
+      end
+    end
+  end
+  
+  -- Phase 2: Atomically write all assignments
+  for i, assignment in ipairs(assignmentsData) do
+    local assignmentKey = 'service-card-assignment:' .. assignment.serviceSlug
+    -- Increment revision for write
+    assignment.revision = assignment.expectedRevision + 1
+    local assignmentValue = cjson.encode(assignment)
+    
+    redis.call('SET', assignmentKey, assignmentValue)
+  end
+  
+  return {ok = 'PROMOTED', count = #assignmentsData}
+`;
+
+/**
+ * Atomic multi-assignment promotion
+ * Validates all expected revisions, then atomically writes all assignments
+ * Prevents partial promotion failures
+ */
+export async function atomicPromoteAssignments(
+  assignments: Array<{ serviceSlug: string; mediaId: string; expectedRevision: number; updatedAt: string; source: string }>,
+  deploymentTransactionId: string
+): Promise<{ success: boolean; count: number; error?: string; failedServiceSlug?: string }> {
+  try {
+    const redis = getRedisClient();
+    const assignmentsData = JSON.stringify(assignments);
+    
+    const result = await redis.eval(
+      ATOMIC_PROMOTION_SCRIPT,
+      [assignmentsData, deploymentTransactionId],
+      0 // No keys needed
+    );
+    
+    if (result && typeof result === 'object' && 'err' in result) {
+      console.error('[ATOMIC_PROMOTION] FAILED', {
+        deploymentTransactionId,
+        error: result.err,
+        failedServiceSlug: result.serviceSlug,
+      });
+      
+      return {
+        success: false,
+        count: 0,
+        error: result.err,
+        failedServiceSlug: result.serviceSlug,
+      };
+    }
+    
+    console.log('[ATOMIC_PROMOTION] SUCCESS', {
+      deploymentTransactionId,
+      count: result?.count || 0,
+    });
+    
+    return {
+      success: true,
+      count: result?.count || 0,
+    };
+  } catch (error) {
+    console.error('[ATOMIC_PROMOTION] ERROR', {
+      deploymentTransactionId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    
+    return {
+      success: false,
+      count: 0,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
  * Get namespaced transaction key
  */
 function getTransactionKey(transactionId: string): string {

@@ -1771,11 +1771,12 @@ export async function POST(request: Request) {
     if (isProduction && redis) {
       console.log('[DEPLOY API] PROMOTING_STAGING_TO_RUNTIME_KV', { deploymentTransactionId });
 
-      const { storeServiceCardAssignment, getServiceCardAssignment } = await import('@/lib/assignment-store');
-      let promotionCount = 0;
-      const promotionFailures: { serviceSlug: string; reason: string }[] = [];
+      const { getServiceCardAssignment } = await import('@/lib/assignment-store');
+      const { atomicPromoteAssignments } = await import('@/lib/deployment-transaction');
 
-      // Re-process staging keys to promote assignments to runtime KV
+      // Phase 1: Build complete promotion set with canonical identities and expected revisions
+      const promotionSet: Array<{ serviceSlug: string; mediaId: string; expectedRevision: number; updatedAt: string; source: string }> = [];
+      
       const promotionKeys = transaction?.stagingKeys || stagingKeys;
       for (const key of promotionKeys) {
         const value = await redis.get(key);
@@ -1792,85 +1793,69 @@ export async function POST(request: Request) {
           const serviceSlug = parts[5];
 
           // P0 FIX: Map slot-specific keys back to canonical brand keys for promotion
-          // Calculate outside try block so it's accessible in catch block
           const canonicalServiceSlug = serviceSlug === 'brand-hero-background' ? 'brand-hero' :
                                       serviceSlug === 'brand-portrait-homepage' ? 'brand-portrait' :
                                       serviceSlug === 'brand-portrait-about' ? 'brand-portrait' :
                                       serviceSlug; // No mapping needed for other services
 
-          try {
-            // Read current assignment to get expected revision for CAS
-            const currentAssignment = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
-            const expectedRevision = currentAssignment?.revision ?? 0; // P0 FIX: Use 0 for create, not undefined
+          // P0 FIX: Read current assignment from CANONICAL runtime target, not staging alias
+          const currentAssignment = await getServiceCardAssignment(canonicalServiceSlug, deploymentTransactionId);
+          const expectedRevision = currentAssignment?.revision ?? 0;
 
-            const promotedAssignment = {
-              serviceSlug: canonicalServiceSlug,
-              mediaId: stringValue,
-              updatedAt: new Date().toISOString(),
-              source: 'workbench' as const,
-              revision: expectedRevision + 1, // Always increment
-            };
+          promotionSet.push({
+            serviceSlug: canonicalServiceSlug,
+            mediaId: stringValue,
+            expectedRevision,
+            updatedAt: new Date().toISOString(),
+            source: 'workbench' as const,
+          });
 
-            // Store in authoritative runtime KV
-            await storeServiceCardAssignment(promotedAssignment, expectedRevision, deploymentTransactionId);
-
-            console.log('[DEPLOY API] ASSIGNMENT_PROMOTED', {
-              originalServiceSlug: serviceSlug,
-              canonicalServiceSlug,
-              mediaId: stringValue,
-              revision: promotedAssignment.revision,
-            });
-            promotionCount++;
-          } catch (error) {
-            console.error('[DEPLOY API] ASSIGNMENT_PROMOTION_FAILED', {
-              originalServiceSlug: serviceSlug,
-              canonicalServiceSlug,
-              error: error instanceof Error ? error.message : 'Unknown error',
-            });
-            promotionFailures.push({
-              serviceSlug: canonicalServiceSlug,
-              reason: error instanceof Error ? error.message : 'Unknown error',
-            });
-          }
+          console.log('[DEPLOY API] PROMOTION_PRECHECK', {
+            originalServiceSlug: serviceSlug,
+            canonicalServiceSlug,
+            mediaId: stringValue,
+            expectedRevision,
+          });
         }
       }
 
-      console.log('[DEPLOY API] PROMOTION_COMPLETE', {
-        deploymentTransactionId,
-        promotionCount,
-        failureCount: promotionFailures.length,
-      });
+      // Phase 2: Atomic multi-assignment promotion
+      const promotionResult = await atomicPromoteAssignments(promotionSet, deploymentTransactionId);
 
-      // FAIL-CLOSED: If promotion failed, reject deployment to prevent split-brain
-      // At this point, transaction is still in 'committing' state, so we can transition to 'failed'
-      if (promotionFailures.length > 0) {
-        console.error('[DEPLOY API] DEPLOYMENT_REJECTED_PROMOTION_FAILURES', {
+      if (!promotionResult.success) {
+        console.error('[DEPLOY API] ATOMIC_PROMOTION_FAILED', {
           deploymentTransactionId,
-          failureCount: promotionFailures.length,
-          promotionFailures,
+          error: promotionResult.error,
+          failedServiceSlug: promotionResult.failedServiceSlug,
         });
 
         // MARK TRANSACTION AS FAILED (committing → failed is legal)
         if (transaction) {
           await failDeploymentTransaction(
             deploymentTransactionId,
-            `Deployment rejected: ${promotionFailures.length} assignments failed to promote to runtime KV`
+            `Atomic promotion failed: ${promotionResult.error}${promotionResult.failedServiceSlug ? ` (service: ${promotionResult.failedServiceSlug})` : ''}`
           );
         }
 
         return NextResponse.json(
           {
-            error: "Deployment rejected: Assignment promotion failures",
-            message: `${promotionFailures.length} assignments could not be promoted to runtime KV. This would create split-brain state where Git has assignments but runtime KV does not.`,
-            promotionFailures,
+            error: "Deployment rejected: Atomic assignment promotion failed",
+            message: "One or more assignments failed CAS validation during atomic promotion. All-or-nothing promotion succeeded.",
+            promotionError: promotionResult.error,
+            failedServiceSlug: promotionResult.failedServiceSlug,
             forensic: {
               deploymentTransactionId,
-              failureCount: promotionFailures.length,
+              promotionSetSize: promotionSet.length,
             },
           },
           { status: 400 }
         );
       }
+
+      console.log('[DEPLOY API] ATOMIC_PROMOTION_SUCCESS', {
+        deploymentTransactionId,
+        promotedCount: promotionResult.count,
+      });
     }
 
     // MARK TRANSACTION AS COMMITTED (committing → committed)
