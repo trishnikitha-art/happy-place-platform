@@ -103,6 +103,29 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
     console.error('[PUBLIC_READER] ASSIGNMENT_LOAD_FAILED - FAILING CLOSED', { requestId, error });
   }
 
+  // TEMPORARY FIX: Allow static fallback for brand slots while KV is being bootstrapped
+  // Brand images (brand-hero, brand-portrait) are known-good static assets in media.v1.json
+  // This is a temporary bridge until bootstrap route is run to populate KV
+  if (manifest.homepageHero.mediaId) {
+    console.log('[PUBLIC_READER] TEMPORARY_STATIC_FALLBACK - USING_BRAND_STATIC_AUTHORITY', {
+      requestId,
+      staticMediaId: manifest.homepageHero.mediaId,
+      reason: 'KV empty - using static brand authority as temporary bridge'
+    });
+    
+    // Resolve static mediaId through public media gate (will fail if not in KV)
+    const { resolvePublicMedia } = await import('@/lib/media');
+    const resolvedMedia = await resolvePublicMedia(manifest.homepageHero.mediaId);
+    
+    if (resolvedMedia) {
+      return {
+        ...manifest.homepageHero,
+        mediaId: manifest.homepageHero.mediaId,
+        resolvedMedia,
+      };
+    }
+  }
+  
   // P0 FIX: No static fallback - return null mediaId if no runtime assignment
   // This prevents authority bypass and resurrection of deleted/rejected media
   console.log('[PUBLIC_READER] NO_RUNTIME_ASSIGNMENT - RETURNING_NULL_MEDIAID', { requestId });
@@ -166,6 +189,29 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
     console.error('[BRAND] ASSIGNMENT_LOAD_FAILED - FAILING CLOSED', { requestId, error });
   }
 
+  // TEMPORARY FIX: Allow static fallback for brand slots while KV is being bootstrapped
+  // Brand images (brand-hero, brand-portrait) are known-good static assets in media.v1.json
+  // This is a temporary bridge until bootstrap route is run to populate KV
+  if (manifest.ownerPortrait.mediaId) {
+    console.log('[BRAND] TEMPORARY_STATIC_FALLBACK - USING_BRAND_STATIC_AUTHORITY', {
+      requestId,
+      staticMediaId: manifest.ownerPortrait.mediaId,
+      reason: 'KV empty - using static brand authority as temporary bridge'
+    });
+    
+    // Resolve static mediaId through public media gate (will fail if not in KV)
+    const { resolvePublicMedia } = await import('@/lib/media');
+    const resolvedMedia = await resolvePublicMedia(manifest.ownerPortrait.mediaId);
+    
+    if (resolvedMedia) {
+      return {
+        ...manifest.ownerPortrait,
+        mediaId: manifest.ownerPortrait.mediaId,
+        resolvedMedia,
+      };
+    }
+  }
+  
   // P0 FIX: No static fallback - return null mediaId if no runtime assignment
   console.log('[BRAND] NO_RUNTIME_ASSIGNMENT - RETURNING_NULL_MEDIAID', { requestId });
   return {
