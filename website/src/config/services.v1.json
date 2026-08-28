@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-28T11:50:43.122Z",
+  "generatedAt": "2026-08-28T12:12:41.254Z",
   "services": [
     {
       "id": "decks",
@@ -648,7 +648,7 @@
           "required": true
         }
       ],
-      "cardMediaId": "6fd33914d4c27fbf71871bbc6405ff1c"
+      "cardMediaId": "repairs-001-hero"
     },
     {
       "id": "pergolas",
@@ -808,7 +808,7 @@
           }
         }
       ],
-      "cardMediaId": "216cc8b78507866480d0238cc650eaf3"
+      "cardMediaId": "c148cedee481f1e3a5fa13d85efbac1c"
     },
     {
       "id": "drywall",
