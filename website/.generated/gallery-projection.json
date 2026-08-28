@@ -5,8 +5,8 @@
   "scoringVersion": "1.0.0",
   "canonicalGraphVersion": "1.0.0",
   "generatorVersion": "1.0.0",
-  "inputHash": "sha256:4e54294a1730bceb75b27604c3ff2155af961f8a9e7d49ce50dab6139808527b",
-  "generatedAt": "2026-08-28T12:01:10.690Z",
+  "inputHash": "sha256:98aca457fa21e982987725959a4b7f4daa172193ebde78945df554ec65d058c9",
+  "generatedAt": "2026-08-28T12:02:41.073Z",
   "projects": [
     {
       "projectId": "project-featured",
@@ -83,6 +83,8 @@
         "hero-background-enhanced.jpg",
         "hero-background-enhanced.jpg",
         "hero-background-enhanced.jpg",
+        "hero-background-enhanced.jpg",
+        "Feature-Fence-Photo.jpg",
         "Feature-Fence-Photo.jpg",
         "Feature-Fence-Photo.jpg",
         "Feature-Fence-Photo.jpg",
@@ -168,6 +170,8 @@
       "projectId": "project-hp0017",
       "galleryRepresentative": "HP0017_ExteriorPainting_After.jpg",
       "supportingGalleryEvidence": [
+        "HP0017_ExteriorPainting_Before.jpg",
+        "HP0017_ExteriorPainting_After.jpg",
         "HP0017_ExteriorPainting_Before.jpg",
         "HP0017_ExteriorPainting_After.jpg",
         "HP0017_ExteriorPainting_Before.jpg",
@@ -558,6 +562,9 @@
         "HP0018_FenceInstallation_Interior_WalkwayStained_After.jpg",
         "HP0018_FenceInstallation_Exterior_SideStained_After.jpg",
         "HP0018_FenceInstallation_Exterior_Side_After.jpg",
+        "HP0018_FenceInstallation_Interior_WalkwayStained_After.jpg",
+        "HP0018_FenceInstallation_Exterior_SideStained_After.jpg",
+        "HP0018_FenceInstallation_Exterior_Side_After.jpg",
         "HP0018_FenceInstallation_Interior_WalkwayStained_After.jpg"
       ],
       "galleryOrder": 2,
@@ -567,6 +574,8 @@
       "projectId": "project-hp001",
       "galleryRepresentative": "HP001_DrywallRepair_WallDamage_After.jpg",
       "supportingGalleryEvidence": [
+        "HP001_DrywallRepair_WallDamage_Before.jpeg",
+        "HP001_DrywallRepair_WallDamage_After.jpg",
         "HP001_DrywallRepair_WallDamage_Before.jpeg",
         "HP001_DrywallRepair_WallDamage_After.jpg",
         "HP001_DrywallRepair_WallDamage_Before.jpeg",
@@ -803,6 +812,7 @@
         "HP0020_FenceInstallation_After.jpg",
         "HP0020_FenceInstallation_After.jpg",
         "HP0020_FenceInstallation_After.jpg",
+        "HP0020_FenceInstallation_After.jpg",
         "HP0020_FenceInstallation_After.jpg"
       ],
       "galleryOrder": 4,
@@ -812,6 +822,8 @@
       "projectId": "project-hp002",
       "galleryRepresentative": "HP002_ExteriorPainting_House_After.jpg",
       "supportingGalleryEvidence": [
+        "HP002_ExteriorPainting_House_Before.jpg",
+        "HP002_ExteriorPainting_House_After.jpg",
         "HP002_ExteriorPainting_House_Before.jpg",
         "HP002_ExteriorPainting_House_After.jpg",
         "HP002_ExteriorPainting_House_Before.jpg",
@@ -1125,6 +1137,8 @@
         "HP003_ShedConstruction_After.jpg",
         "HP003_ShedConstruction_Before.jpg",
         "HP003_ShedConstruction_After.jpg",
+        "HP003_ShedConstruction_Before.jpg",
+        "HP003_ShedConstruction_After.jpg",
         "HP003_ShedConstruction_Before.jpg"
       ],
       "galleryOrder": 6,
@@ -1134,6 +1148,8 @@
       "projectId": "project-hp004",
       "galleryRepresentative": "HP004_SidingRepair_After.jpeg",
       "supportingGalleryEvidence": [
+        "HP004_SidingRepair_Before.jpeg",
+        "HP004_SidingRepair_After.jpeg",
         "HP004_SidingRepair_Before.jpeg",
         "HP004_SidingRepair_After.jpeg",
         "HP004_SidingRepair_Before.jpeg",
@@ -1447,6 +1463,8 @@
         "HP005_DoorReplacement_After.jpeg",
         "HP005_DoorReplacement_Before.jpeg",
         "HP005_DoorReplacement_After.jpeg",
+        "HP005_DoorReplacement_Before.jpeg",
+        "HP005_DoorReplacement_After.jpeg",
         "HP005_DoorReplacement_Before.jpeg"
       ],
       "galleryOrder": 8,
@@ -1456,6 +1474,8 @@
       "projectId": "project-hp006",
       "galleryRepresentative": "HP006_ExteriorPainting_House_After.jpg",
       "supportingGalleryEvidence": [
+        "HP006_ExteriorPainting_House_Before.jpg",
+        "HP006_ExteriorPainting_House_After.jpg",
         "HP006_ExteriorPainting_House_Before.jpg",
         "HP006_ExteriorPainting_House_After.jpg",
         "HP006_ExteriorPainting_House_Before.jpg",
@@ -1769,6 +1789,8 @@
         "HP007_SidingRotRepair_After.jpeg",
         "HP007_SidingRotRepair_Before.jpeg",
         "HP007_SidingRotRepair_After.jpeg",
+        "HP007_SidingRotRepair_Before.jpeg",
+        "HP007_SidingRotRepair_After.jpeg",
         "HP007_SidingRotRepair_Before.jpeg"
       ],
       "galleryOrder": 10,
@@ -1778,6 +1800,8 @@
       "projectId": "project-hp008",
       "galleryRepresentative": "HP008_AtticAccessDoorInstallation_After_Closed.jpg",
       "supportingGalleryEvidence": [
+        "HP008_AtticAccessDoorInstallation_After_Open.jpg",
+        "HP008_AtticAccessDoorInstallation_After_Closed.jpg",
         "HP008_AtticAccessDoorInstallation_After_Open.jpg",
         "HP008_AtticAccessDoorInstallation_After_Closed.jpg",
         "HP008_AtticAccessDoorInstallation_After_Open.jpg",
@@ -2091,6 +2115,8 @@
         "HP009_DrywallRepair_After_Primed.jpg",
         "HP009_DrywallRepair_Before.jpg",
         "HP009_DrywallRepair_After_Primed.jpg",
+        "HP009_DrywallRepair_Before.jpg",
+        "HP009_DrywallRepair_After_Primed.jpg",
         "HP009_DrywallRepair_Before.jpg"
       ],
       "galleryOrder": 12,
@@ -2100,6 +2126,8 @@
       "projectId": "project-hp010",
       "galleryRepresentative": "HP010_ExteriorPainting_House_After.jpg",
       "supportingGalleryEvidence": [
+        "HP010_ExteriorPainting_House_Before.jpg",
+        "HP010_ExteriorPainting_House_After.jpg",
         "HP010_ExteriorPainting_House_Before.jpg",
         "HP010_ExteriorPainting_House_After.jpg",
         "HP010_ExteriorPainting_House_Before.jpg",
@@ -2413,6 +2441,8 @@
         "HP011_SubfloorReplacement_After.jpg",
         "HP011_SubfloorReplacement_Before.jpg",
         "HP011_SubfloorReplacement_After.jpg",
+        "HP011_SubfloorReplacement_Before.jpg",
+        "HP011_SubfloorReplacement_After.jpg",
         "HP011_SubfloorReplacement_Before.jpg"
       ],
       "galleryOrder": 14,
@@ -2422,6 +2452,8 @@
       "projectId": "project-hp012",
       "galleryRepresentative": "HP012_FenceRebuild_After.jpg",
       "supportingGalleryEvidence": [
+        "HP012_FenceRebuild_Before.jpg",
+        "HP012_FenceRebuild_After.jpg",
         "HP012_FenceRebuild_Before.jpg",
         "HP012_FenceRebuild_After.jpg",
         "HP012_FenceRebuild_Before.jpg",
@@ -2735,6 +2767,8 @@
         "HP013_WindowFrameRefinish_After.jpg",
         "HP013_WindowFrameRefinish_Before.jpg",
         "HP013_WindowFrameRefinish_After.jpg",
+        "HP013_WindowFrameRefinish_Before.jpg",
+        "HP013_WindowFrameRefinish_After.jpg",
         "HP013_WindowFrameRefinish_Before.jpg"
       ],
       "galleryOrder": 16,
@@ -2896,6 +2930,8 @@
         "HP014_VinylFlooring_After.jpg",
         "HP014_VinylFlooring_Before.jpg",
         "HP014_VinylFlooring_After.jpg",
+        "HP014_VinylFlooring_Before.jpg",
+        "HP014_VinylFlooring_After.jpg",
         "HP014_VinylFlooring_Before.jpg"
       ],
       "galleryOrder": 17,
@@ -2905,6 +2941,8 @@
       "projectId": "project-hp015",
       "galleryRepresentative": "HP015_VinylFlooring_After.jpg",
       "supportingGalleryEvidence": [
+        "HP015_VinylFlooring_Before.jpg",
+        "HP015_VinylFlooring_After.jpg",
         "HP015_VinylFlooring_Before.jpg",
         "HP015_VinylFlooring_After.jpg",
         "HP015_VinylFlooring_Before.jpg",
@@ -3372,6 +3410,10 @@
         "HP016_BathroomDrywallRepair_After.jpg",
         "HP016_BathroomDrywallRepair_Before.jpg",
         "HP016_ExteriorPainting_HouseRefresh_After.jpg",
+        "HP016_ExteriorPainting_HouseRefresh_Before.jpg",
+        "HP016_BathroomDrywallRepair_After.jpg",
+        "HP016_BathroomDrywallRepair_Before.jpg",
+        "HP016_ExteriorPainting_HouseRefresh_After.jpg",
         "HP016_ExteriorPainting_HouseRefresh_Before.jpg"
       ],
       "galleryOrder": 19,
@@ -3533,11 +3575,13 @@
         "HP019_FenceRebuild_After (1).jpg",
         "HP019_FenceRebuild_Before.jpg",
         "HP019_FenceRebuild_After (1).jpg",
+        "HP019_FenceRebuild_Before.jpg",
+        "HP019_FenceRebuild_After (1).jpg",
         "HP019_FenceRebuild_Before.jpg"
       ],
       "galleryOrder": 20,
       "coverage": "COMPLETE"
     }
   ],
-  "generatedHash": "sha256:fe6d828c56c4359d2ec3de5db6b6a089057c35cacd697629f04948a01b3e57c4"
+  "generatedHash": "sha256:d2cab57df1843b3b6f7d37c3ca722de269254d1faaf4509ec05b3d3f77fb0122"
 }

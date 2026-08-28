@@ -150,28 +150,30 @@ export async function atomicPromoteAssignments(
     );
     
     if (result && typeof result === 'object' && 'err' in result) {
+      const errorResult = result as { err: string; serviceSlug?: string };
       console.error('[ATOMIC_PROMOTION] FAILED', {
         deploymentTransactionId,
-        error: result.err,
-        failedServiceSlug: result.serviceSlug,
+        error: errorResult.err,
+        failedServiceSlug: errorResult.serviceSlug,
       });
       
       return {
         success: false,
         count: 0,
-        error: result.err,
-        failedServiceSlug: result.serviceSlug,
+        error: errorResult.err,
+        failedServiceSlug: errorResult.serviceSlug,
       };
     }
     
+    const successResult = result as { ok: string; count: number };
     console.log('[ATOMIC_PROMOTION] SUCCESS', {
       deploymentTransactionId,
-      count: result?.count || 0,
+      count: successResult?.count || 0,
     });
     
     return {
       success: true,
-      count: result?.count || 0,
+      count: successResult?.count || 0,
     };
   } catch (error) {
     console.error('[ATOMIC_PROMOTION] ERROR', {
