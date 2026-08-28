@@ -22,7 +22,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, ChevronRight, Loader2, List } from 'lucide-react';
 import { loadVisualAssetRegistry, addDriveAssetToRegistry, type VisualAsset } from '@/lib/visual-asset-registry';
-import { getMediaByIdAsync } from '@/lib/media';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
 
@@ -961,7 +960,10 @@ Check browser console for detailed logs.`);
 
   const getSlotMedia = async (slot: RegisteredSlot) => {
     if (!slot.currentMediaId) return null;
-    return await getMediaByIdAsync(slot.currentMediaId);
+    // P0 FIX: Resolve media from already-loaded Workbench asset state instead of direct KV access
+    // Browser must not access KV credentials directly - use server API boundary or local asset state
+    const media = assets.find(a => a.id === slot.currentMediaId);
+    return media || null;
   };
 
   // Compatibility fallback: resolve URL-based assetIds to canonical IDs
