@@ -150,6 +150,54 @@ export async function PUT(request: Request) {
 
     console.log('[GALLERY V2 PUT] REQUEST_RECEIVED', { projectId, galleryLength: gallery.length, transactionId });
 
+    // P0: Input validation - gallery must be array
+    if (!Array.isArray(gallery)) {
+      return NextResponse.json(
+        { error: "gallery must be an array" },
+        { status: 400 }
+      );
+    }
+
+    // P0: Input validation - no duplicate media IDs
+    const uniqueMediaIds = new Set(gallery);
+    if (uniqueMediaIds.size !== gallery.length) {
+      console.error('[GALLERY V2 PUT] DUPLICATE_MEDIA_IDS', { 
+        galleryLength: gallery.length, 
+        uniqueCount: uniqueMediaIds.size 
+      });
+      return NextResponse.json(
+        { 
+          error: "Gallery contains duplicate media IDs",
+          message: "Each media ID must appear exactly once in the gallery"
+        },
+        { status: 400 }
+      );
+    }
+
+    // P0: Input validation - no null/undefined values
+    if (gallery.some(id => id === null || id === undefined)) {
+      console.error('[GALLERY V2 PUT] NULL_OR_UNDEFINED_MEDIA_IDS');
+      return NextResponse.json(
+        { 
+          error: "Gallery contains null or undefined values",
+          message: "All gallery items must be valid media IDs"
+        },
+        { status: 400 }
+      );
+    }
+
+    // P0: Input validation - no empty strings
+    if (gallery.some(id => typeof id === 'string' && id.trim() === '')) {
+      console.error('[GALLERY V2 PUT] EMPTY_STRING_MEDIA_IDS');
+      return NextResponse.json(
+        { 
+          error: "Gallery contains empty string values",
+          message: "All gallery items must be non-empty media IDs"
+        },
+        { status: 400 }
+      );
+    }
+
     // Validate all mediaIds exist in authoritative KV media source
     const mediaValidationResults = await Promise.all(
       gallery.map(async (mediaId) => {
@@ -171,6 +219,28 @@ export async function PUT(request: Request) {
       );
     }
 
+    // P0: Revision/concurrency barrier - read current state
+    const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
+    const projectsData = JSON.parse(readFileSync(projectsPath, "utf-8"));
+    const project = projectsData.projects.find((p: any) => p.id === projectId);
+    
+    if (!project) {
+      return NextResponse.json(
+        { error: "Project not found" },
+        { status: 404 }
+      );
+    }
+
+    const currentGallery = project.media?.gallery || [];
+    const currentRevision = Date.now(); // Simple revision based on timestamp
+    
+    console.log('[GALLERY V2 PUT] CONCURRENCY_CHECK', {
+      projectId,
+      currentGalleryLength: currentGallery.length,
+      newGalleryLength: gallery.length,
+      currentRevision
+    });
+
     // Use KV for production persistence to avoid EROFS errors
     const redis = getRedisClient();
     const isProduction = process.env.NODE_ENV === 'production';
@@ -180,8 +250,14 @@ export async function PUT(request: Request) {
       const effectiveTransactionId = transactionId || `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:gallery`;
 
-      // Store the complete ordered gallery array
-      await redis.set(stagingKey, JSON.stringify(gallery));
+      // Store the complete ordered gallery array with revision metadata
+      const galleryPayload = {
+        gallery,
+        currentRevision,
+        previousGallery: currentGallery,
+        mutationTimestamp: new Date().toISOString()
+      };
+      await redis.set(stagingKey, JSON.stringify(galleryPayload));
 
       // Create authoritative deployment transaction record
       const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
@@ -196,7 +272,9 @@ export async function PUT(request: Request) {
         projectId,
         galleryLength: gallery.length,
         stagingKey,
-        transactionId: effectiveTransactionId
+        transactionId: effectiveTransactionId,
+        currentRevision,
+        previousGalleryLength: currentGallery.length
       });
 
       return NextResponse.json({
@@ -206,7 +284,8 @@ export async function PUT(request: Request) {
         galleryLength: gallery.length,
         staged: true,
         persistence: 'kv',
-        transactionId: effectiveTransactionId
+        transactionId: effectiveTransactionId,
+        currentRevision
       });
     }
 

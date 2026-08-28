@@ -628,6 +628,15 @@ export async function POST(request: Request) {
           // Ensure value is a string
           const stringValue = typeof value === 'string' ? value : String(value);
           
+          // Parse staging value (may be V2 object or V1 array/value)
+          let stagingValue = stringValue;
+          try {
+            stagingValue = JSON.parse(stringValue);
+          } catch (e) {
+            // If not JSON, use as-is
+            stagingValue = stringValue;
+          }
+          
           // Skip metadata keys (now deprecated - using deployment-transaction instead)
           if (key.endsWith(':meta')) continue;
           
@@ -651,18 +660,18 @@ export async function POST(request: Request) {
             
             // Check if this is a brand assignment (brand-hero or brand-portrait)
             if (serviceSlug === 'brand-hero' || serviceSlug === 'brand-hero-background') {
-              brandData.homepageHero.mediaId = stringValue;
+              brandData.homepageHero.mediaId = stagingValue;
               console.log('[DEPLOY API] APPLIED_BRAND_HERO_ASSIGNMENT', {
-                mediaId: stringValue,
+                mediaId: stagingValue,
                 serviceSlug,
                 transactionId
               });
               appliedCount++; // P0 FIX: Count brand mutations toward mutation total
               continue;
             } else if (serviceSlug === 'brand-portrait' || serviceSlug === 'brand-portrait-homepage' || serviceSlug === 'brand-portrait-about') {
-              brandData.ownerPortrait.mediaId = stringValue;
+              brandData.ownerPortrait.mediaId = stagingValue;
               console.log('[DEPLOY API] APPLIED_BRAND_PORTRAIT_ASSIGNMENT', {
-                mediaId: stringValue,
+                mediaId: stagingValue,
                 serviceSlug,
                 transactionId
               });
@@ -673,10 +682,10 @@ export async function POST(request: Request) {
             // Regular service card assignment
             const serviceIndex = servicesData.services.findIndex((s: any) => s.slug === serviceSlug);
             if (serviceIndex !== -1) {
-              servicesData.services[serviceIndex].cardMediaId = stringValue;
+              servicesData.services[serviceIndex].cardMediaId = stagingValue;
               console.log('[DEPLOY API] APPLIED_SERVICE_ASSIGNMENT', { 
                 serviceSlug, 
-                mediaId: stringValue,
+                mediaId: stagingValue,
                 transactionId 
               });
               appliedCount++; // P0 FIX: Count service mutations toward mutation total
@@ -710,20 +719,44 @@ export async function POST(request: Request) {
             projectsData.projects[projectIndex].media = {};
           }
           
+          // Extract field value from staging payload (V2 object or V1 value)
+          let extractedValue = stagingValue;
+          if (typeof stagingValue === 'object' && stagingValue !== null && !Array.isArray(stagingValue) && 'gallery' in stagingValue) {
+            // V2 gallery payload: { gallery: [...], currentRevision: ..., previousGallery: [...] }
+            extractedValue = (stagingValue as any).gallery;
+          }
+          
           if (field === 'hero') {
-            if (value) projectsData.projects[projectIndex].media.hero = value;
+            if (extractedValue) projectsData.projects[projectIndex].media.hero = extractedValue;
           } else if (field === 'gallery') {
-            const galleryArray = Array.isArray(value) ? value : (value ? [value] : []);
+            // V2: Gallery payload may include revision metadata
+            let galleryArray;
+            if (typeof stagingValue === 'object' && stagingValue !== null && !Array.isArray(stagingValue) && 'gallery' in stagingValue) {
+              // V2 format: { gallery: [...], currentRevision: ..., previousGallery: [...], mutationTimestamp: ... }
+              galleryArray = Array.isArray((stagingValue as any).gallery) ? (stagingValue as any).gallery : [];
+              console.log('[DEPLOY API] GALLERY_V2_PAYLOAD_DETECTED', { 
+                projectId, 
+                galleryLength: galleryArray.length,
+                hasRevision: 'currentRevision' in stagingValue,
+                hasPrevious: 'previousGallery' in stagingValue,
+                currentRevision: (stagingValue as any).currentRevision,
+                previousGalleryLength: (stagingValue as any).previousGallery?.length,
+                key,
+                transactionId 
+              });
+            } else {
+              // V1/Legacy format: plain array or single value
+              galleryArray = Array.isArray(extractedValue) ? extractedValue : (extractedValue ? [extractedValue] : []);
+              console.log('[DEPLOY API] GALLERY_V1_PAYLOAD_DETECTED', { 
+                projectId, 
+                galleryLength: galleryArray.length,
+                key,
+                transactionId 
+              });
+            }
             projectsData.projects[projectIndex].media.gallery = galleryArray;
-            console.log('[DEPLOY API] GALLERY_MUTATION_APPLIED', { 
-              projectId, 
-              galleryLength: galleryArray.length,
-              isV2CompleteArray: Array.isArray(value),
-              key,
-              transactionId 
-            });
           } else if (field === 'before' || field === 'after') {
-            if (value) projectsData.projects[projectIndex].media[field] = value;
+            if (extractedValue) projectsData.projects[projectIndex].media[field] = extractedValue;
           }
           
           console.log('[DEPLOY API] APPLIED_STAGING_CHANGE', { projectId, field, key, transactionId });
