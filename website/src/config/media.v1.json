@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-08-26T17:43:36.782Z",
+  "generatedAt": "2026-08-28T00:47:45.209Z",
   "media": [
     {
       "id": "fences-001-hero",
@@ -1308,6 +1308,75 @@
         "august3_driveId": "15heZucYxiRdXQPfiwEWGxnvwretie-K2",
         "sharedDriveId": "0ALeA98MLc-s_Uk9PVA",
         "driveFileId": "15heZucYxiRdXQPfiwEWGxnvwretie-K2"
+      }
+    },
+    {
+      "id": "2df4fe450b3b35d38be23538e2fdcf0d",
+      "contentHash": "2df4fe450b3b35d38be23538e2fdcf0da70f31125975fd0e899841cffa3fe9c4",
+      "source": "local",
+      "lifecycleState": "published",
+      "filename": "HP010_ExteriorPainting_House_After.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 5712,
+        "height": 4284
+      },
+      "variants": {
+        "original": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2df4fe450b3b35d38be23538e2fdcf0d-original-2df4fe450b3b.jpg",
+        "web": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2df4fe450b3b35d38be23538e2fdcf0d-2000-f44e84792df9.webp",
+        "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2df4fe450b3b35d38be23538e2fdcf0d-2000-f44e84792df9.webp",
+        "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2df4fe450b3b35d38be23538e2fdcf0d-2000-ecaef06fa0b9.avif",
+        "thumbnail": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2df4fe450b3b35d38be23538e2fdcf0d-thumb-b375c1dc9e77.webp",
+        "blur": "data:image/webp;base64,UklGRmIAAABXRUJQVlA4IFYAAADwAQCdASoQAAwAA4BaJZgCsAEPC4FQ1kAA/tUQeaTLqqITeVHckUWEKQJQDo+NyukeSI5LdDmhK3PAz6GUOuFTpFxfm2WaKN3/NZTlMJkTKO9MecfAAA==",
+        "responsive": [
+          {
+            "width": 480,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2df4fe450b3b35d38be23538e2fdcf0d-480-3093a6a648e9.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2df4fe450b3b35d38be23538e2fdcf0d-480-cb223b5a4900.avif"
+          },
+          {
+            "width": 768,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2df4fe450b3b35d38be23538e2fdcf0d-768-914ff34d8625.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2df4fe450b3b35d38be23538e2fdcf0d-768-48b42ca3a09b.avif"
+          },
+          {
+            "width": 1080,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2df4fe450b3b35d38be23538e2fdcf0d-1080-e1c2467ec0c0.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2df4fe450b3b35d38be23538e2fdcf0d-1080-3a9d41268c22.avif"
+          },
+          {
+            "width": 1600,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2df4fe450b3b35d38be23538e2fdcf0d-1600-d7205f470201.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2df4fe450b3b35d38be23538e2fdcf0d-1600-8046f9a013d8.avif"
+          },
+          {
+            "width": 2000,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2df4fe450b3b35d38be23538e2fdcf0d-2000-f44e84792df9.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/2df4fe450b3b35d38be23538e2fdcf0d-2000-ecaef06fa0b9.avif"
+          }
+        ]
+      },
+      "alt": "HP010_ExteriorPainting_House_After.jpg",
+      "tags": [],
+      "roles": [
+        "gallery"
+      ],
+      "order": 0,
+      "createdAt": "2026-08-03T02:09:20.888Z",
+      "updatedAt": "2026-08-28T00:27:49.532Z",
+      "uploadedAt": "2026-08-27T15:22:50.903Z",
+      "fileSize": 7625056,
+      "format": "jpeg",
+      "colorSpace": "srgb",
+      "provenance": {
+        "drive_canonical": true,
+        "current_authority": true,
+        "status": "published",
+        "preserved_at": "2026-08-27T15:22:50.903Z",
+        "august3_driveId": "1jWY9U84guLvrv6W1zy881oXf9JK2IV7d",
+        "sharedDriveId": "0ALeA98MLc-s_Uk9PVA",
+        "driveFileId": "1jWY9U84guLvrv6W1zy881oXf9JK2IV7d"
       }
     }
   ]
