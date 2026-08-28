@@ -455,6 +455,28 @@ export default async function HomePage() {
         </Section>
       </ScrollReveal>
 
+      {/* BOTTOM VISUAL — real media-bearing slot before CTA */}
+      <ScrollReveal>
+        <Section className="relative bg-[#F0ECE5]">
+          <div className="absolute inset-0 bg-gradient-to-br from-[#F0ECE5] via-[#EDE9E0] to-[#E8E5DC] opacity-100" aria-hidden="true" />
+          <Container className="relative z-10">
+            <VisualSlot
+              id="homepage-bottom-visual-slot"
+              route="/"
+              page="Homepage"
+              section="Bottom Visual"
+              slotName="Bottom Visual"
+              currentMediaId={null}
+              component="BottomVisual"
+            >
+              <div className="relative aspect-[16/9] overflow-hidden rounded-card photo-mounted">
+                {/* Image will render when media is assigned via Workbench */}
+              </div>
+            </VisualSlot>
+          </Container>
+        </Section>
+      </ScrollReveal>
+
       <ScrollReveal>
         <VisualSlot
           id="homepage-cta-slot"
