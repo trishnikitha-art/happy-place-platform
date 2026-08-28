@@ -5,8 +5,8 @@
  * Enforces legal state transitions, idempotency, and concurrent deployment safety.
  *
  * TRANSACTION STATES:
- * - prepared: Transaction is ready to be claimed for deployment
- * - committing: Transaction is actively being deployed (exactly one owner)
+ * - prepared: Transaction is ready to be claimed for deployment, staging keys can be added
+ * - committing: Transaction is actively being deployed (exactly one owner), no new mutations allowed
  * - committed: Git commit SHA recorded and immutable
  * - consumed: Staging cleanup allowed, transaction is complete
  * - failed: Retry/recovery policy applies
@@ -18,14 +18,23 @@
  * - committed → consumed (staging cleanup complete)
  * - failed → prepared (retry attempt)
  *
+ * STAGING KEY AGGREGATION:
+ * - Multiple assignments can share one transaction ID
+ * - Each assignment contributes its staging key to the transaction
+ * - Staging keys are atomically merged with deduplication
+ * - Staging keys can only be added in 'prepared' state
+ * - Once in 'committing' or later, no new mutations allowed
+ *
  * ILLEGAL TRANSITIONS (rejected):
  * - Any state → committing (must go through prepared first)
  * - committed → committing (cannot replay committed transaction)
  * - consumed → any state (terminal state)
  * - committing → prepared (must fail first)
+ * - Adding staging keys to non-prepared transaction
  *
  * IDEMPOTENCY:
  * - Duplicate transaction submission returns existing authoritative state
+ * - Duplicate staging key registration is idempotent (no-op)
  * - Exactly one Git commit per transaction ID
  * - Idempotent replay returns original commit SHA
  */
@@ -87,19 +96,52 @@ function getTransactionKey(transactionId: string): string {
 }
 
 /**
- * Atomic Lua script for transaction creation (create-if-absent)
- * Returns existing transaction if already exists, creates new if absent
- * Creation is NOT a state transition - it's atomic initialization
+ * Atomic Lua script for transaction creation with staging key aggregation
+ * Creates new transaction if absent, atomically merges staging keys if exists
+ * This supports bulk assignments: multiple assignments share one transaction ID
+ * but each contributes its own staging key to the transaction record
  */
 const CREATE_TRANSACTION_SCRIPT = `
   local key = KEYS[1]
   local transactionData = ARGV[1]
+  local newStagingKeys = cjson.decode(ARGV[2])
   
   local current = redis.call('GET', key)
   
-  -- If transaction already exists, return it (idempotent creation)
+  -- If transaction already exists, atomically merge staging keys
   if current then
-    return {ok = 'EXISTS', data = current}
+    local parsed = cjson.decode(current)
+    
+    -- Only merge if transaction is in 'prepared' state
+    -- Once committing/committed/failed, no new mutations allowed
+    if parsed.state ~= 'prepared' then
+      return {err = 'TRANSACTION_NOT_PREPARED: Cannot add staging keys to ' .. parsed.state .. ' transaction'}
+    end
+    
+    -- Build merged staging keys with deduplication
+    local existingKeys = parsed.stagingKeys or {}
+    local mergedKeys = {}
+    local keySet = {}
+    
+    -- Add existing keys to set
+    for i, existingKey in ipairs(existingKeys) do
+      keySet[existingKey] = true
+      table.insert(mergedKeys, existingKey)
+    end
+    
+    -- Add new keys if not already present
+    for i, newKey in ipairs(newStagingKeys) do
+      if not keySet[newKey] then
+        keySet[newKey] = true
+        table.insert(mergedKeys, newKey)
+      end
+    end
+    
+    -- Update transaction with merged staging keys
+    parsed.stagingKeys = mergedKeys
+    redis.call('SET', key, cjson.encode(parsed))
+    
+    return {ok = 'MERGED', data = cjson.encode(parsed), stagingKeysCount = #mergedKeys}
   end
   
   -- Create new transaction atomically
@@ -192,14 +234,15 @@ const STATE_TRANSITION_SCRIPT = `
 `;
 
 /**
- * Create a new deployment transaction in prepared state (atomic create-if-absent)
- * Returns existing transaction if already exists (idempotent creation)
+ * Create a new deployment transaction in prepared state (atomic create-or-merge)
+ * Creates new transaction if absent, atomically merges staging keys if exists
+ * This supports bulk assignments: multiple assignments share one transaction ID
  * @param transactionId - Unique transaction ID
- * @param stagingKeys - Staging keys to clean up after commit
- * @param files - Authority files in this transaction
- * @param reason - Deployment reason
+ * @param stagingKeys - Staging keys to merge into transaction
+ * @param files - Authority files in this transaction (immutable after creation)
+ * @param reason - Deployment reason (immutable after creation)
  * @param parentCommitSha - Expected parent commit for concurrent safety
- * @returns Created or existing transaction
+ * @returns Created or merged transaction
  */
 export async function createDeploymentTransaction(
   transactionId: string,
@@ -210,7 +253,7 @@ export async function createDeploymentTransaction(
 ): Promise<DeploymentTransaction> {
   const key = getTransactionKey(transactionId);
   const client = getRedisClient();
-  
+
   const transaction: DeploymentTransaction = {
     transactionId,
     state: 'prepared',
@@ -220,31 +263,50 @@ export async function createDeploymentTransaction(
     parentCommitSha,
     createdAt: new Date().toISOString(),
   };
-  
-  console.log('[DEPLOYMENT_TRANSACTION] CREATING', { transactionId, stagingKeysCount: stagingKeys.length, files });
-  
+
+  console.log('[DEPLOYMENT_TRANSACTION] CREATING_OR_MERGING', { transactionId, stagingKeysCount: stagingKeys.length, files });
+
   try {
     const result = await client.eval(
       CREATE_TRANSACTION_SCRIPT,
       [key],
-      [JSON.stringify(transaction)]
+      [JSON.stringify(transaction), JSON.stringify(stagingKeys)]
     );
-    
+
     if (result && typeof result === 'object' && 'err' in result) {
-      throw new Error(`Failed to create transaction: ${(result as any).err}`);
+      throw new Error(`Failed to create/merge transaction: ${(result as any).err}`);
     }
-    
-    // If transaction already existed, return it (idempotent)
+
+    // If transaction was created fresh
+    if (result && typeof result === 'object' && 'ok' in result && (result as any).ok === 'CREATED') {
+      console.log('[DEPLOYMENT_TRANSACTION] CREATED', { transactionId, stagingKeysCount: stagingKeys.length });
+      return transaction;
+    }
+
+    // If transaction already existed and staging keys were merged
+    if (result && typeof result === 'object' && 'ok' in result && (result as any).ok === 'MERGED') {
+      const merged = JSON.parse((result as any).data) as DeploymentTransaction;
+      const stagingKeysCount = (result as any).stagingKeysCount;
+      console.log('[DEPLOYMENT_TRANSACTION] MERGED_STAGING_KEYS', {
+        transactionId,
+        state: merged.state,
+        totalStagingKeys: stagingKeysCount,
+        newKeysAdded: stagingKeys.length
+      });
+      return merged;
+    }
+
+    // Fallback for legacy 'EXISTS' behavior (should not occur with new script)
     if (result && typeof result === 'object' && 'ok' in result && (result as any).ok === 'EXISTS') {
       const existing = JSON.parse((result as any).data) as DeploymentTransaction;
       console.log('[DEPLOYMENT_TRANSACTION] RETURNED_EXISTING', { transactionId, state: existing.state });
       return existing;
     }
-    
+
     console.log('[DEPLOYMENT_TRANSACTION] CREATED', { transactionId });
     return transaction;
   } catch (error) {
-    console.error('[DEPLOYMENT_TRANSACTION] CREATE_FAILED', { transactionId, error });
+    console.error('[DEPLOYMENT_TRANSACTION] CREATE_OR_MERGE_FAILED', { transactionId, error });
     throw error;
   }
 }
