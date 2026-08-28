@@ -119,7 +119,7 @@ async function reconcileDriveAssignments(
         // Production evidence shows brand-hero, fences-001-hero, repairs-001-hero are in this state
         if (media.lifecycleState === 'published' && media.source === 'local') {
           // Check if this is the same content hash as the newly materialized asset
-          // If yes, this assignment can be upgraded to point to the new asset
+          // If yes, log it for deduplication tracking but DO NOT trigger assignment update
           if (media.contentHash === contentHash) {
             console.log('[ASSIGNMENT_RECONCILIATION] PUBLISHED_ASSET_SAME_CONTENT', {
               requestId,
@@ -127,11 +127,13 @@ async function reconcileDriveAssignments(
               oldMediaId: assignment.mediaId,
               newMediaId: publishedMediaId,
               contentHash,
-              reason: 'Same content hash - assignment is already pointing at correct asset or duplicate'
+              reason: 'Same content hash - deduplication tracking only, no assignment update',
+              constitutionalInvaraint: 'Content hash matching alone does NOT prove assignment relationship'
             });
-            // Consider this reconciled since it's the same content
-            isDriveReference = true;
-            repairedCount++; // P0 FIX: Track that we repaired a poisoned record
+            // CRITICAL: DO NOT set isDriveReference = true
+            // This only tracks that we have duplicate content - it does NOT prove assignment relationship
+            // Content hash matching is insufficient proof that this assignment should point to the new asset
+            repairedCount++; // Track that we found a duplicate for reporting purposes only
           } else {
             console.log('[ASSIGNMENT_RECONCILIATION] PUBLISHED_ASSET_DIFFERENT_CONTENT', {
               requestId,
@@ -139,10 +141,9 @@ async function reconcileDriveAssignments(
               oldMediaId: assignment.mediaId,
               oldContentHash: media.contentHash,
               newContentHash: contentHash,
-              reason: 'Assignment points to different PublishedMediaAsset - manual repair may be needed'
+              reason: 'Assignment points to different PublishedMediaAsset - no action'
             });
-            // This is a poisoned/legacy assignment that doesn't match the new asset
-            // Don't mark as reconciled - it needs manual intervention
+            // This is a different asset - no action needed
           }
         }
         
