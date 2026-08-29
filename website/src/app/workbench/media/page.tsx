@@ -926,7 +926,20 @@ ${responseText.substring(0, 200)}`);
             driveBrowsing: false, 
             driveSelectedFile: null 
           }));
-          alert(`Drive asset created: ${data.media.id}`);
+          
+          // COMPLETE THE SLOT ASSIGNMENT TRANSITION
+          // If a slot was selected when Drive file was ingested, assign the new asset to it
+          if (state.selectedSlot) {
+            console.log('[WORKBENCH] Auto-assigning newly ingested Drive asset to selected slot', {
+              slotId: state.selectedSlot.id,
+              mediaId: driveAsset.id,
+              slotName: state.selectedSlot.slotName,
+            });
+            handleSlotAssignment(state.selectedSlot.id, driveAsset.id);
+            alert(`Drive asset created and assigned to ${state.selectedSlot.slotName}: ${driveAsset.id}`);
+          } else {
+            alert(`Drive asset created: ${driveAsset.id}`);
+          }
         } else if (data.action === 'existing') {
           alert(`Drive asset already exists: ${data.media.id}`);
           loadCanonicalData(); // Reload to show existing asset
