@@ -10,9 +10,12 @@ const config: Config = {
   },
   testMatch: [
     "**/compiler/__tests__/**/*.test.ts",
-    "**/generators/__tests__/**/*.test.ts",
     "**/lib/__tests__/**/*.test.ts",
     "**/src/lib/drive/__tests__/**/*.test.ts",
+  ],
+  testPathIgnorePatterns: [
+    "**/generators/__tests__/**",
+    "**/generated/**",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
