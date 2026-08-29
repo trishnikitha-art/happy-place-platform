@@ -704,8 +704,21 @@ export default function MediaWorkbench() {
       let dynamicMediaList: any[] = [];
       try {
         const { getPublishedMediaAssets } = await import('@/lib/visual-asset-registry');
-        dynamicMediaList = await getPublishedMediaAssets();
-        setState(prev => ({ ...prev, kvAvailable: true, kvError: null }));
+        const result = await getPublishedMediaAssets();
+        
+        if (result.available) {
+          dynamicMediaList = result.assets;
+          setState(prev => ({ ...prev, kvAvailable: true, kvError: null }));
+        } else {
+          // KV infrastructure unavailable - set unavailable state
+          console.error('[WORKBENCH] KV media authority unavailable - AUTHORITY UNAVAILABLE:', result.error);
+          setState(prev => ({ 
+            ...prev, 
+            kvAvailable: false, 
+            kvError: result.error || 'KV authority unavailable'
+          }));
+          // Continue with static registry as read-only evidence - no authoritative mutations allowed
+        }
       } catch (error) {
         console.error('[WORKBENCH] KV media authority unavailable - AUTHORITY UNAVAILABLE:', error);
         // Set KV unavailable state - this is a blocking error for authoritative mutations

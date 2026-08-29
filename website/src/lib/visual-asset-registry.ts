@@ -323,11 +323,23 @@ export async function getAugust3RecoverableAssets(): Promise<VisualAsset[]> {
 }
 
 /**
+ * PublishedMediaAssets result contract
+ * Explicit availability signaling to distinguish KV unavailability from empty results
+ */
+export interface PublishedMediaAssetsResult {
+  available: boolean;
+  assets: VisualAsset[];
+  error?: string;
+}
+
+/**
  * Get PublishedMediaAsset records from KV (materialized from Drive sources)
  * Returns local published assets that have been materialized from Drive or other sources
  * Reconstructs usage slot assignments from service card assignments
+ * 
+ * CRITICAL: Does not swallow KV infrastructure failure - returns explicit availability contract
  */
-export async function getPublishedMediaAssets(): Promise<VisualAsset[]> {
+export async function getPublishedMediaAssets(): Promise<PublishedMediaAssetsResult> {
   const publishedAssets: VisualAsset[] = [];
   
   try {
@@ -338,12 +350,15 @@ export async function getPublishedMediaAssets(): Promise<VisualAsset[]> {
     try {
       mediaIds = await listMediaIds();
     } catch (error) {
-      // KV unavailable - log warning and return empty array
-      console.warn('[VISUAL_ASSET_REGISTRY] KV unavailable for published media assets', {
+      // KV unavailable - return explicit unavailable status
+      console.error('[VISUAL_ASSET_REGISTRY] KV infrastructure unavailable', {
         error: error instanceof Error ? error.message : 'Unknown error',
-        fallback: 'Returning empty published assets array'
       });
-      return [];
+      return {
+        available: false,
+        assets: [],
+        error: error instanceof Error ? error.message : 'Unknown KV error',
+      };
     }
     
     // Load all service card assignments for usage slot reconstruction
@@ -399,10 +414,17 @@ export async function getPublishedMediaAssets(): Promise<VisualAsset[]> {
       withAssignments: publishedAssets.filter(a => a.usageSlots.length > 0).length,
     });
     
-    return publishedAssets;
+    return {
+      available: true,
+      assets: publishedAssets,
+    };
   } catch (error) {
     console.error('[VISUAL_ASSET_REGISTRY] Failed to load PublishedMediaAssets:', error);
-    return [];
+    return {
+      available: false,
+      assets: [],
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
   }
 }
 

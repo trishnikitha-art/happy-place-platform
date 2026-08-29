@@ -532,6 +532,8 @@ export async function POST(request: Request) {
 
           return NextResponse.json({
             success: true,
+            action: 'existing',
+            media: existingMedia,
             mediaId: existingMedia.id,
             message: 'Media already exists with matching content hash',
             deduplicated: true,
@@ -657,14 +659,14 @@ export async function POST(request: Request) {
     const mediaRecord: Media = {
       id: mediaId,
       contentHash,
-      drive: {
-        fileId: driveId,
-        driveId: driveIdParameter,
-        name: driveFile.name,
-        mimeType: driveFile.mimeType,
-        webViewUrl: driveFile.webViewLink,
-        modifiedTime: driveFile.modifiedTime,
-      }, // Store Drive metadata for provenance, but source is 'local'
+      // CONSTITUTIONAL FIX: No drive field on PublishedMediaAsset
+      // Drive provenance belongs in provenance.driveFileId, not in the drive field
+      // This preserves lineage without creating a runtime Drive dependency
+      provenance: {
+        driveFileId: driveId,
+        sharedDriveId: driveIdParameter,
+        preserved_at: new Date().toISOString(),
+      },
       filename: driveFile.name,
       type: 'image',
       orientation,
@@ -736,6 +738,8 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
+      action: 'created',
+      media: mediaRecord,
       mediaId,
       message: 'Media successfully ingested and materialized',
       deduplicated: false,

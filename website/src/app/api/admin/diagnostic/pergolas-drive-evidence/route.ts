@@ -34,36 +34,37 @@ export async function GET() {
     );
   }
 
+  const steps: Array<Record<string, unknown>> = [];
   const evidence: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
-    steps: [],
+    steps,
   };
 
   try {
     // STEP 1: Check Drive authentication
-    evidence.steps.push({ step: 1, name: 'Check Drive authentication status' });
+    steps.push({ step: 1, name: 'Check Drive authentication status' });
     const isDriveAuthenticated = await driveSession.isAuthenticated();
     evidence.driveAuthenticated = isDriveAuthenticated;
 
     if (!isDriveAuthenticated) {
-      evidence.steps.push({ step: 1, status: 'FAILED', reason: 'Not authenticated with Drive' });
+      steps.push({ step: 1, status: 'FAILED', reason: 'Not authenticated with Drive' });
       return NextResponse.json({
         error: 'Not authenticated with Drive',
         message: 'Please authenticate with Google Drive via the Workbench first',
         evidence,
       }, { status: 401 });
     }
-    evidence.steps.push({ step: 1, status: 'COMPLETE' });
+    steps.push({ step: 1, status: 'COMPLETE' });
 
     // STEP 2: Discover Drive structure
-    evidence.steps.push({ step: 2, name: 'Discover Drive structure' });
+    steps.push({ step: 2, name: 'Discover Drive structure' });
     try {
       const structure = await driveDiscovery.discoverStructure();
       evidence.myDrive = structure.myDrive;
       evidence.sharedDrives = structure.sharedDrives;
-      evidence.steps.push({ step: 2, status: 'COMPLETE', sharedDriveCount: structure.sharedDrives.length });
+      steps.push({ step: 2, status: 'COMPLETE', sharedDriveCount: structure.sharedDrives.length });
     } catch (error) {
-      evidence.steps.push({ step: 2, status: 'FAILED', error: error instanceof Error ? error.message : 'Unknown error' });
+      steps.push({ step: 2, status: 'FAILED', error: error instanceof Error ? error.message : 'Unknown error' });
       return NextResponse.json({
         error: 'Failed to discover Drive structure',
         message: error instanceof Error ? error.message : 'Unknown error',
@@ -72,7 +73,7 @@ export async function GET() {
     }
 
     // STEP 3: Search for Pergolas files by name
-    evidence.steps.push({ step: 3, name: 'Search for Pergolas-related files by name' });
+    steps.push({ step: 3, name: 'Search for Pergolas-related files by name' });
     const searchTerms = ['pergola', 'Pergola', 'PERGOLA', 'HOMESERVICEPROJECTPERGOLAS'];
     const searchResults: Record<string, unknown> = {};
 
@@ -88,10 +89,10 @@ export async function GET() {
       }
     }
     evidence.searchResults = searchResults;
-    evidence.steps.push({ step: 3, status: 'COMPLETE', termsSearched: searchTerms.length });
+    steps.push({ step: 3, status: 'COMPLETE', termsSearched: searchTerms.length });
 
     // STEP 4: Test application-style IDs
-    evidence.steps.push({ step: 4, name: 'Test application-style IDs as Drive file IDs' });
+    steps.push({ step: 4, name: 'Test application-style IDs as Drive file IDs' });
     const pergolasIds = [
       'pergolas-001-hero',
       'pergolas-001-before',
@@ -131,10 +132,10 @@ export async function GET() {
       }
     }
     evidence.applicationIdTests = idTestResults;
-    evidence.steps.push({ step: 4, status: 'COMPLETE', idsTested: pergolasIds.length });
+    steps.push({ step: 4, status: 'COMPLETE', idsTested: pergolasIds.length });
 
     // STEP 5: Test known Drive-prefixed IDs
-    evidence.steps.push({ step: 5, name: 'Test known Drive-prefixed IDs from media.v1.json' });
+    steps.push({ step: 5, name: 'Test known Drive-prefixed IDs from media.v1.json' });
     const knownDriveIds = ['drive-c266e5096e43', 'drive-7a4b33c8b2bb'];
     const driveIdTestResults: Record<string, unknown> = {};
 
@@ -165,7 +166,7 @@ export async function GET() {
       }
     }
     evidence.driveIdTests = driveIdTestResults;
-    evidence.steps.push({ step: 5, status: 'COMPLETE', idsTested: knownDriveIds.length });
+    steps.push({ step: 5, status: 'COMPLETE', idsTested: knownDriveIds.length });
 
     // Final verdict
     const realDriveFileIds = Object.values(idTestResults).filter((r: any) => r?.isRealDriveFile).length;
