@@ -16,13 +16,6 @@ function isProductionWriteBlocked(): boolean {
   return process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
 }
 
-interface BeforeAfterRequest {
-  projectId: string;
-  side: 'before' | 'after';
-  mediaId: string;
-  transactionId?: string;
-}
-
 // Shared KV client factory. Returns null (never throws) when credentials are absent,
 // so callers can branch on presence instead of crashing.
 function getRedisClient(): Redis | null {
@@ -40,6 +33,7 @@ interface BeforeAfterRequest {
   projectId: string;
   side: 'before' | 'after';
   mediaId: string;
+  transactionId?: string;
 }
 
 export async function POST(request: NextRequest) {
