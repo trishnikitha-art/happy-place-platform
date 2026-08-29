@@ -731,15 +731,17 @@ export async function POST(request: Request) {
           } else if (field === 'gallery') {
             // V2: Gallery payload may include revision metadata
             let galleryArray;
+            let newRevision;
             if (typeof stagingValue === 'object' && stagingValue !== null && !Array.isArray(stagingValue) && 'gallery' in stagingValue) {
               // V2 format: { gallery: [...], currentRevision: ..., previousGallery: [...], mutationTimestamp: ... }
               galleryArray = Array.isArray((stagingValue as any).gallery) ? (stagingValue as any).gallery : [];
+              newRevision = (stagingValue as any).currentRevision;
               console.log('[DEPLOY API] GALLERY_V2_PAYLOAD_DETECTED', { 
                 projectId, 
                 galleryLength: galleryArray.length,
                 hasRevision: 'currentRevision' in stagingValue,
                 hasPrevious: 'previousGallery' in stagingValue,
-                currentRevision: (stagingValue as any).currentRevision,
+                currentRevision: newRevision,
                 previousGalleryLength: (stagingValue as any).previousGallery?.length,
                 key,
                 transactionId 
@@ -755,6 +757,9 @@ export async function POST(request: Request) {
               });
             }
             projectsData.projects[projectIndex].media.gallery = galleryArray;
+            if (newRevision !== undefined) {
+              projectsData.projects[projectIndex].media.galleryRevision = newRevision;
+            }
           } else if (field === 'before' || field === 'after') {
             if (extractedValue) projectsData.projects[projectIndex].media[field] = extractedValue;
           }

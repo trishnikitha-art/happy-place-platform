@@ -102,14 +102,16 @@ export async function GET(request: Request) {
     }
 
     const gallery = project.media?.gallery || [];
+    const currentRevision = project.media?.galleryRevision || 0;
 
-    console.log('[GALLERY GET] SUCCESS', { projectId, galleryLength: gallery.length });
+    console.log('[GALLERY GET] SUCCESS', { projectId, galleryLength: gallery.length, currentRevision });
 
     return NextResponse.json({
       success: true,
       projectId,
       gallery,
-      galleryLength: gallery.length
+      galleryLength: gallery.length,
+      currentRevision
     });
   } catch (error) {
     console.error('[GALLERY GET] ERROR', error);
@@ -139,7 +141,7 @@ export async function PUT(request: Request) {
 
   try {
     const body = await request.json();
-    const { projectId, gallery, transactionId } = body;
+    const { projectId, gallery, transactionId, expectedRevision } = body;
 
     if (!projectId || !Array.isArray(gallery)) {
       return NextResponse.json(
@@ -232,14 +234,34 @@ export async function PUT(request: Request) {
     }
 
     const currentGallery = project.media?.gallery || [];
-    const currentRevision = Date.now(); // Simple revision based on timestamp
+    const currentRevision = project.media?.galleryRevision || 0;
     
     console.log('[GALLERY V2 PUT] CONCURRENCY_CHECK', {
       projectId,
       currentGalleryLength: currentGallery.length,
       newGalleryLength: gallery.length,
-      currentRevision
+      currentRevision,
+      expectedRevision
     });
+    
+    // CAS: Compare current revision with expected revision (only if expectedRevision is provided)
+    if (expectedRevision !== undefined && expectedRevision !== currentRevision) {
+      console.error('[GALLERY V2 PUT] CAS_FAILURE', {
+        projectId,
+        expectedRevision,
+        currentRevision,
+        reason: 'Gallery has been modified by another operation'
+      });
+      return NextResponse.json(
+        { 
+          error: "Concurrent modification detected",
+          message: "Gallery has been modified by another operation. Please reload and try again.",
+          currentRevision,
+          expectedRevision
+        },
+        { status: 409 }
+      );
+    }
 
     // Use KV for production persistence to avoid EROFS errors
     const redis = getRedisClient();
@@ -251,9 +273,10 @@ export async function PUT(request: Request) {
       const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:gallery`;
 
       // Store the complete ordered gallery array with revision metadata
+      const newRevision = currentRevision + 1;
       const galleryPayload = {
         gallery,
-        currentRevision,
+        currentRevision: newRevision,
         previousGallery: currentGallery,
         mutationTimestamp: new Date().toISOString()
       };

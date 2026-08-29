@@ -599,6 +599,7 @@ export default function MediaWorkbench() {
           }
           const galleryData = await getResponse.json();
           const currentGallery = galleryData.gallery || [];
+          const currentRevision = galleryData.currentRevision || 0;
           
           // Remove media at galleryIndex
           const newGallery = currentGallery.filter((_: string, i: number) => i !== galleryIndex);
@@ -606,7 +607,7 @@ export default function MediaWorkbench() {
           const response = await fetch('/api/admin/projects/gallery', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectId, gallery: newGallery }),
+            body: JSON.stringify({ projectId, gallery: newGallery, expectedRevision: currentRevision }),
           });
 
           if (!response.ok) {
@@ -641,13 +642,14 @@ export default function MediaWorkbench() {
 
         try {
           // FIX: Use atomic PUT authority instead of legacy POST
-          // Get current gallery, append mediaId, PUT complete array
+          // Get current gallery, append mediaId, PUT complete array with CAS
           const getResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
           if (!getResponse.ok) {
             throw new Error('Failed to fetch current gallery');
           }
           const galleryData = await getResponse.json();
           const currentGallery = galleryData.gallery || [];
+          const currentRevision = galleryData.currentRevision || 0;
           
           // Append mediaId to gallery
           const newGallery = [...currentGallery, asset.id];
@@ -655,7 +657,7 @@ export default function MediaWorkbench() {
           const response = await fetch('/api/admin/projects/gallery', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectId, gallery: newGallery }),
+            body: JSON.stringify({ projectId, gallery: newGallery, expectedRevision: currentRevision }),
           });
 
           if (!response.ok) {
@@ -1609,20 +1611,21 @@ Check browser console for detailed logs.`);
         console.log('[DND 8] GALLERY_SLOT_PARSED', { slotId, projectId, galleryIndex });
         
         // FIX: Use atomic PUT authority instead of legacy POST
-        // Get current gallery, apply mutation, PUT complete array
+        // Get current gallery, apply mutation, PUT complete array with CAS
         const getResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
         if (!getResponse.ok) {
           throw new Error('Failed to fetch current gallery');
         }
         const galleryData = await getResponse.json();
         const currentGallery = galleryData.gallery || [];
+        const currentRevision = galleryData.currentRevision || 0;
         
         // Replace media at galleryIndex
         const newGallery = [...currentGallery];
         newGallery[galleryIndex] = asset.id;
         
         endpoint = '/api/admin/projects/gallery';
-        requestBody = { projectId, gallery: newGallery, transactionId };
+        requestBody = { projectId, gallery: newGallery, expectedRevision: currentRevision, transactionId };
         response = await fetch(endpoint, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -1647,20 +1650,21 @@ Check browser console for detailed logs.`);
         console.log('[DND 8] PROJECT_GALLERY_SLOT_PARSED', { slotId, projectId, galleryIndex });
         
         // FIX: Use atomic PUT authority instead of legacy POST
-        // Get current gallery, apply mutation, PUT complete array
+        // Get current gallery, apply mutation, PUT complete array with CAS
         const getResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
         if (!getResponse.ok) {
           throw new Error('Failed to fetch current gallery');
         }
         const galleryData = await getResponse.json();
         const currentGallery = galleryData.gallery || [];
+        const currentRevision = galleryData.currentRevision || 0;
         
         // Replace media at galleryIndex
         const newGallery = [...currentGallery];
         newGallery[galleryIndex] = asset.id;
         
         endpoint = '/api/admin/projects/gallery';
-        requestBody = { projectId, gallery: newGallery, transactionId };
+        requestBody = { projectId, gallery: newGallery, expectedRevision: currentRevision, transactionId };
         response = await fetch(endpoint, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -1729,6 +1733,8 @@ Check browser console for detailed logs.`);
             userMessage = 'This asset must be materialized before assignment. Please use the ingest workflow to convert Drive assets to PublishedMediaAsset.';
           } else if (errorJson.error === 'Invalid media lifecycle state') {
             userMessage = 'This asset is not in a published state. Only fully materialized PublishedMediaAsset can be assigned.';
+          } else if (errorJson.error === 'Concurrent modification detected' || response.status === 409) {
+            userMessage = 'Gallery has been modified by another operation. Please reload the page and try again.';
           } else if (errorJson.message) {
             userMessage = errorJson.message;
           }
