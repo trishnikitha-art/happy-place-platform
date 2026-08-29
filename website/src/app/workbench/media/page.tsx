@@ -13,6 +13,10 @@
  * - Interaction: click slot → select media, click media → show slot usage
  * - Single source of truth: website components declare their own slots
  *
+ * CRITICAL: Client component NEVER directly accesses KV credentials
+ * - All KV queries go through /api/workbench/media-authority (server-side)
+ * - This prevents KV_REST_API_URL and KV_REST_API_TOKEN from being exposed to browser
+ *
  * Organization follows website navigation:
  * Home → Services → Our Work → About → Reviews → Estimate
  */
@@ -701,10 +705,15 @@ export default function MediaWorkbench() {
       const staticRegistry = await loadVisualAssetRegistry();
       
       // Load dynamic media from KV (Drive records) - fail-closed if KV unavailable
+      // Server-side API route to avoid exposing KV credentials to browser
       let dynamicMediaList: any[] = [];
       try {
-        const { getPublishedMediaAssets } = await import('@/lib/visual-asset-registry');
-        const result = await getPublishedMediaAssets();
+        const response = await fetch('/api/workbench/media-authority', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'getPublishedMediaAssets' }),
+        });
+        const result = await response.json();
         
         if (result.available) {
           dynamicMediaList = result.assets;
@@ -1427,9 +1436,13 @@ Check browser console for detailed logs.`);
         });
 
         // Reload dynamic media from KV to pick up new PublishedMediaAsset
+        // Server-side API route to avoid exposing KV credentials to browser
         try {
-          const { getPublishedMediaAssets } = await import('@/lib/visual-asset-registry');
-          await getPublishedMediaAssets();
+          await fetch('/api/workbench/media-authority', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: 'getPublishedMediaAssets' }),
+          });
         } catch (error) {
           console.warn('[DND] KV media authority unavailable - skipping dynamic reload:', error);
           // Continue without dynamic reload - KV unavailability is not a DND blocking error
