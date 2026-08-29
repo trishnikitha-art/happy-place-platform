@@ -20,7 +20,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, ChevronRight, Loader2, List } from 'lucide-react';
+import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, ChevronRight, Loader2, List, AlertCircle } from 'lucide-react';
 import { loadVisualAssetRegistry, addDriveAssetToRegistry, type VisualAsset } from '@/lib/visual-asset-registry';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
@@ -50,6 +50,8 @@ interface MediaWorkbenchState {
   driveViewMode: 'grid' | 'list';
   driveNextPageToken?: string;
   driveLoadingMore: boolean;
+  kvAvailable: boolean;
+  kvError: string | null;
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -85,6 +87,8 @@ export default function MediaWorkbench() {
     driveViewMode: 'grid',
     driveNextPageToken: undefined,
     driveLoadingMore: false,
+    kvAvailable: true,
+    kvError: null,
   });
 
   const mediaPanelRef = useRef<HTMLDivElement>(null);
@@ -701,9 +705,16 @@ export default function MediaWorkbench() {
       try {
         const { getPublishedMediaAssets } = await import('@/lib/visual-asset-registry');
         dynamicMediaList = await getPublishedMediaAssets();
+        setState(prev => ({ ...prev, kvAvailable: true, kvError: null }));
       } catch (error) {
-        console.warn('[WORKBENCH] KV media authority unavailable - using static registry only:', error);
-        // Continue with static registry - KV unavailability is not a Workbench blocking error
+        console.error('[WORKBENCH] KV media authority unavailable - AUTHORITY UNAVAILABLE:', error);
+        // Set KV unavailable state - this is a blocking error for authoritative mutations
+        setState(prev => ({ 
+          ...prev, 
+          kvAvailable: false, 
+          kvError: error instanceof Error ? error.message : 'KV authority unavailable'
+        }));
+        // Continue with static registry as read-only evidence - no authoritative mutations allowed
       }
       
       // Combine static + dynamic media for complete inventory
@@ -1236,6 +1247,17 @@ Check browser console for detailed logs.`);
   };
 
   const handleSlotAssignment = (slotId: string, assetId: string) => {
+    // ENFORCE KV AUTHORITY BOUNDARY: Prevent assignments when KV is unavailable
+    if (!state.kvAvailable) {
+      alert(`AUTHORITY UNAVAILABLE: KV media authority is not accessible. Cannot perform authoritative assignments without live KV connectivity.\n\nError: ${state.kvError || 'Unknown KV error'}\n\nPlease resolve KV connectivity to enable media operations.`);
+      console.error('[WORKBENCH] ASSIGNMENT_REJECTED: KV authority unavailable', {
+        slotId,
+        assetId,
+        kvError: state.kvError,
+      });
+      return;
+    }
+
     // Use registeredSlotsRef.current instead of stale state.registeredSlots
     const slot = registeredSlotsRef.current.find(s => s.id === slotId);
     const asset = assetsRef.current.find(a => a.id === assetId);
@@ -1253,6 +1275,7 @@ Check browser console for detailed logs.`);
       assetFound: !!asset,
       registeredSlotsCount: registeredSlotsRef.current.length,
       assetsCount: assetsRef.current.length,
+      kvAvailable: state.kvAvailable,
       timestamp: Date.now(),
     });
     
@@ -1882,6 +1905,29 @@ Check browser console for detailed logs.`);
         <div className="text-center">
           <Layers className="mx-auto h-12 w-12 animate-spin text-muted-foreground" />
           <p className="mt-4 text-muted-foreground">Loading workbench...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // KV Authority Unavailable - Show blocking error
+  if (!state.kvAvailable) {
+    return (
+      <div className="h-dvh flex items-center justify-center bg-background">
+        <div className="text-center max-w-md px-4">
+          <AlertCircle className="mx-auto h-12 w-12 text-red-500 mb-4" />
+          <h2 className="text-xl font-bold text-foreground mb-2">AUTHORITY UNAVAILABLE</h2>
+          <p className="text-muted-foreground mb-4">
+            KV media authority is not accessible. The Workbench cannot perform authoritative mutations without live KV connectivity.
+          </p>
+          <div className="bg-destructive/10 border border-destructive rounded-lg p-4 text-left">
+            <p className="text-sm text-destructive font-mono">
+              Error: {state.kvError || 'Unknown KV error'}
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground mt-4">
+            Static data is displayed as read-only evidence. Please resolve KV connectivity to enable authoritative media operations.
+          </p>
         </div>
       </div>
     );
