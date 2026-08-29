@@ -43,6 +43,5 @@
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],
-<<<<<<< HEAD
   "exclude": ["node_modules", "internal", "src/generated", "src/artifacts", "src/generators", "src/compiler", "src/lib/__tests__"]
 }
