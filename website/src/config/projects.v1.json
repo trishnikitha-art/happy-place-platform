@@ -90,7 +90,11 @@
         "hero": "pergolas-001-hero",
         "before": "pergolas-001-before",
         "after": "pergolas-001-after",
-        "gallery": [],
+        "gallery": [
+          "pergolas-001-construction",
+          "pergolas-001-steel-frame",
+          "pergolas-001-finished"
+        ],
         "galleryRevision": 0
       },
       "story": {
