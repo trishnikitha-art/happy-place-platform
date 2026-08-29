@@ -14,8 +14,8 @@ const config: Config = {
     "**/src/lib/drive/__tests__/**/*.test.ts",
   ],
   testPathIgnorePatterns: [
-    "**/generators/__tests__/**",
-    "**/generated/**",
+    "/src/generators/__tests__/",
+    "/src/generated/",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
