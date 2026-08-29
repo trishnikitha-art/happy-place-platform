@@ -14,6 +14,15 @@
  */
 
 import { Redis } from '@upstash/redis';
+import crypto from 'crypto';
+
+/**
+ * Create safe fingerprint for credential investigation
+ * Prevents logging actual secrets while allowing identity verification
+ */
+function createHash(input: string): string {
+  return crypto.createHash('sha256').update(input).digest('hex').substring(0, 16);
+}
 
 /**
  * P1-9: KV environment isolation
@@ -116,6 +125,44 @@ function createRedisClient(): Redis {
     token = integrationToken;
   }
   
+  // Generate safe fingerprints for credential investigation
+  const urlFingerprint = url ? createHash(url) : 'none';
+  const tokenFingerprint = token ? createHash(token) : 'none';
+  const integrationUrlFingerprint = integrationUrl ? createHash(integrationUrl) : 'none';
+  const integrationTokenFingerprint = integrationToken ? createHash(integrationToken) : 'none';
+  const readOnlyTokenFingerprint = readOnlyToken ? createHash(readOnlyToken) : 'none';
+  
+  const urlHost = url ? new URL(url).hostname : 'none';
+  const integrationUrlHost = integrationUrl ? new URL(integrationUrl).hostname : 'none';
+  
+  // Determine token type
+  let tokenType = 'unknown';
+  if (token === readOnlyToken) {
+    tokenType = 'read-only';
+  } else if (token === integrationToken) {
+    tokenType = 'integration-read-write';
+  } else if (token) {
+    tokenType = 'manual-read-write';
+  }
+  
+  console.log('[CREDENTIAL_INVESTIGATION]', {
+    urlHost,
+    integrationUrlHost,
+    urlFingerprint,
+    tokenFingerprint,
+    integrationUrlFingerprint,
+    integrationTokenFingerprint,
+    readOnlyTokenFingerprint,
+    tokenType,
+    integrationUrlPresent: !!integrationUrl,
+    integrationTokenPresent: !!integrationToken,
+    readOnlyTokenPresent: !!readOnlyToken,
+    selectedCredentialFingerprint: urlFingerprint,
+    allRedisVars: Object.keys(process.env).filter(key => 
+      key.includes('KV') || key.includes('REDIS') || key.includes('UPSTASH')
+    ).map(key => ({ key, hasValue: !!process.env[key] })),
+  });
+  
   // During static build, KV may not be available - throw explicit error
   // Runtime pages will handle this as a dependency failure
   if (!url || !token) {
@@ -132,6 +179,8 @@ function createRedisClient(): Redis {
   console.log('[ASSIGNMENT_KV] Created environment-bound client', {
     environment: env,
     namespace: getKvNamespace(),
+    urlHost,
+    tokenType,
   });
   
   return client;

@@ -1,24 +1,8 @@
-/**
- * Admin Project Card API Endpoint
- * 
- * Updates the hero mediaId for a project in projects.v1.json
- * 
- * POST /api/admin/projects/card
- * Body: { projectId: string, mediaId: string }
- * 
- * Requires Workbench authentication.
- * 
- * Constitutional Architecture:
- * - In development: Writes to local filesystem for testing
- * - In production: Uses KV persistence to avoid EROFS errors
- * - Deploy route commits changes to GitHub
- */
-
 import { NextResponse } from "next/server";
+import { Redis } from '@upstash/redis';
 import { readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 import { workbenchSession } from "@/lib/workbench-session";
-import { Redis } from '@upstash/redis';
 import { getKvNamespace } from '@/lib/environment';
 
 export const runtime = 'nodejs';
@@ -31,6 +15,8 @@ function isProductionWriteBlocked(): boolean {
   return process.env.VERCEL_ENV === 'production' || process.env.NODE_ENV === 'production';
 }
 
+// Shared KV client factory. Returns null (never throws) when credentials are absent,
+// so callers can branch on presence instead of crashing.
 function getRedisClient(): Redis | null {
   try {
     const url = process.env.KV_REST_API_URL;
@@ -68,9 +54,12 @@ export async function POST(request: Request) {
       );
     }
 
+<<<<<<< HEAD
     console.log('[CARD UPDATE] REQUEST_RECEIVED', { projectId, mediaId, transactionId });
+=======
+    console.log('[DND SERVER 1] REQUEST_RECEIVED', { projectId, mediaId });
+    console.log('[DND SERVER 2] IDENTIFIER_VALIDATION', { projectId, mediaId });
 
-    // Use KV for production persistence to avoid EROFS errors
     const redis = getRedisClient();
     const isProduction = process.env.NODE_ENV === 'production';
     
@@ -125,7 +114,6 @@ export async function POST(request: Request) {
 
     // Development: Write to local filesystem
     console.log('[CARD UPDATE] DEV_MODE', { projectId, mediaId });
-
     const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
     const projectsData = JSON.parse(readFileSync(projectsPath, "utf-8"));
 
@@ -137,6 +125,7 @@ export async function POST(request: Request) {
       );
     }
 
+    projectsData.projects[projectIndex].media = projectsData.projects[projectIndex].media || {};
     projectsData.projects[projectIndex].media.hero = mediaId;
     projectsData.generatedAt = new Date().toISOString();
 
@@ -150,18 +139,11 @@ export async function POST(request: Request) {
     }
 
     writeFileSync(projectsPath, JSON.stringify(projectsData, null, 2));
+    console.log('[DND SERVER] DEV_WRITE_SUCCESS', { projectId, mediaId });
 
-    console.log('[CARD UPDATE] DEV_WRITE_SUCCESS', { projectId, mediaId });
-
-    return NextResponse.json({ 
-      success: true, 
-      projectId, 
-      mediaId,
-      staged: false,
-      persistence: 'filesystem'
-    });
+    return NextResponse.json({ success: true, projectId, mediaId, staged: false, persistence: 'filesystem' });
   } catch (error) {
-    console.error('[CARD UPDATE] ERROR', error);
+    console.error("Error updating project card:", error);
     return NextResponse.json(
       { error: "Failed to update project card" },
       { status: 500 }

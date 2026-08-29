@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { Redis } from '@upstash/redis';
 import fs from 'fs';
 import path from 'path';
-import { Redis } from '@upstash/redis';
 import { workbenchSession } from '@/lib/workbench-session';
 import { getKvNamespace } from '@/lib/environment';
 
@@ -23,6 +23,8 @@ interface BeforeAfterRequest {
   transactionId?: string;
 }
 
+// Shared KV client factory. Returns null (never throws) when credentials are absent,
+// so callers can branch on presence instead of crashing.
 function getRedisClient(): Redis | null {
   try {
     const url = process.env.KV_REST_API_URL;
@@ -32,6 +34,12 @@ function getRedisClient(): Redis | null {
   } catch {
     return null;
   }
+}
+
+interface BeforeAfterRequest {
+  projectId: string;
+  side: 'before' | 'after';
+  mediaId: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -64,7 +72,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Use KV for production persistence to avoid EROFS errors
     const redis = getRedisClient();
     const isProduction = process.env.NODE_ENV === 'production';
     
@@ -120,7 +127,6 @@ export async function POST(request: NextRequest) {
 
     // Development: Write to local filesystem
     console.log('[BEFORE-AFTER API] DEV_MODE', { projectId, side, mediaId, transactionId });
-
     const projectsContent = fs.readFileSync(PROJECTS_PATH, 'utf-8');
     const projects = JSON.parse(projectsContent);
 
@@ -136,7 +142,6 @@ export async function POST(request: NextRequest) {
     if (!projects[projectIndex].media) {
       projects[projectIndex].media = {};
     }
-
     projects[projectIndex].media[side] = mediaId;
 
     console.log('[BEFORE-AFTER API] UPDATED_PROJECT', {
@@ -156,6 +161,7 @@ export async function POST(request: NextRequest) {
     }
 
     fs.writeFileSync(PROJECTS_PATH, JSON.stringify(projects, null, 2), 'utf-8');
+    console.log('[BEFORE-AFTER API] DEV_WRITE_SUCCESS', { projectId, side, mediaId });
 
     return NextResponse.json({
       success: true,
