@@ -3,6 +3,32 @@
   "generatedAt": "2026-08-28T13:33:44.852Z",
   "services": [
     {
+      "id": "homepage-bottom-visual",
+      "name": "Homepage Bottom Visual",
+      "slug": "homepage-bottom-visual",
+      "description": "Bottom visual section on homepage",
+      "icon": "image",
+      "featured": false,
+      "homepageEligible": false,
+      "order": 999,
+      "capabilities": {},
+      "estimateQuestions": [],
+      "metaDescription": "Homepage bottom visual section"
+    },
+    {
+      "id": "about-bottom-visual",
+      "name": "About Bottom Visual",
+      "slug": "about-bottom-visual",
+      "description": "Bottom visual section on about page",
+      "icon": "image",
+      "featured": false,
+      "homepageEligible": false,
+      "order": 999,
+      "capabilities": {},
+      "estimateQuestions": [],
+      "metaDescription": "About page bottom visual section"
+    },
+    {
       "id": "decks",
       "name": "Decks",
       "slug": "decks",

@@ -1688,6 +1688,16 @@ Check browser console for detailed logs.`);
         });
       } else if (slotId.includes('before') || slotId.includes('after')) {
         throw new Error('Before/after assignment not yet implemented. Needs projects.v1.json write endpoint');
+      } else if (slotId === 'homepage-bottom-visual-slot' || slotId === 'about-bottom-visual-slot') {
+        // New bottom visual slots - use service card assignment system
+        const serviceSlug = slotId === 'homepage-bottom-visual-slot' ? 'homepage-bottom-visual' : 'about-bottom-visual';
+        endpoint = '/api/admin/services/card';
+        requestBody = { serviceSlug, mediaId: asset.id, transactionId };
+        response = await fetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(requestBody),
+        });
       } else {
         console.log('[DND] UNSUPPORTED_SLOT_TYPE', { slotId });
         throw new Error(`Unsupported slot type: ${slotId}`);

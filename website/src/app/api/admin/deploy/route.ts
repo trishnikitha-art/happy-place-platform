@@ -1835,6 +1835,8 @@ export async function POST(request: Request) {
           const canonicalServiceSlug = serviceSlug === 'brand-hero-background' ? 'brand-hero' :
                                       serviceSlug === 'brand-portrait-homepage' ? 'brand-portrait' :
                                       serviceSlug === 'brand-portrait-about' ? 'brand-portrait' :
+                                      serviceSlug === 'homepage-bottom-visual' ? 'homepage-bottom-visual' :
+                                      serviceSlug === 'about-bottom-visual' ? 'about-bottom-visual' :
                                       serviceSlug; // No mapping needed for other services
 
           try {
