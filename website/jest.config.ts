@@ -8,7 +8,6 @@ const config: Config = {
       diagnostics: false,
     }],
   },
-<<<<<<< HEAD
   testMatch: ["**/compiler/__tests__/**/*.test.ts", "**/generators/__tests__/**/*.test.ts", "**/lib/__tests__/**/*.test.ts"],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",

@@ -54,11 +54,7 @@ export async function POST(request: Request) {
       );
     }
 
-<<<<<<< HEAD
     console.log('[CARD UPDATE] REQUEST_RECEIVED', { projectId, mediaId, transactionId });
-=======
-    console.log('[DND SERVER 1] REQUEST_RECEIVED', { projectId, mediaId });
-    console.log('[DND SERVER 2] IDENTIFIER_VALIDATION', { projectId, mediaId });
 
     const redis = getRedisClient();
     const isProduction = process.env.NODE_ENV === 'production';
