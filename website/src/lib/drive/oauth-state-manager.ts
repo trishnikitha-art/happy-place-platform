@@ -12,6 +12,12 @@
  * 
  * Browser receives ONLY opaque state string.
  * Server validates and consumes state atomically.
+ * 
+ * CRITICAL FIX: Removed all process-global state
+ * - No module-level mutable state
+ * - No ambient cookies() fallback
+ * - Cookie store must be explicitly passed by route handler
+ * - Redis client created per-request via client factory
  */
 
 import { Redis } from '@upstash/redis';
@@ -46,33 +52,40 @@ export class StateInfrastructureError extends Error {
   }
 }
 
-let redis: Redis | null = null;
-
-function getRedisClient(): Redis {
-  if (!redis) {
-    let url = process.env.KV_REST_API_URL;
-    let token = process.env.KV_REST_API_TOKEN;
-    
-    // Check integration-generated variables
-    const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
-    const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
-    const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
-    
-    // Use integration credentials if primary not set
-    if (!url && integrationUrl) {
-      url = integrationUrl;
-    }
-    if (!token && integrationToken) {
-      token = integrationToken;
-    }
-    
-    if (!url || !token) {
-      throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
-    }
-    
-    redis = new Redis({ url, token });
+/**
+ * Redis Client Factory
+ * 
+ * Creates environment-bound Redis clients to prevent mutable process-global state.
+ * Each client is bound to the current environment at creation time.
+ * This prevents identity leaks when environments change or credentials rotate.
+ */
+function createRedisClient(): Redis {
+  let url = process.env.KV_REST_API_URL;
+  let token = process.env.KV_REST_API_TOKEN;
+  
+  // Check integration-generated variables
+  const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
+  const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
+  const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
+  
+  // Use integration credentials if primary not set
+  if (!url && integrationUrl) {
+    url = integrationUrl;
   }
-  return redis;
+  if (!token && integrationToken) {
+    token = integrationToken;
+  }
+  
+  if (!url || !token) {
+    throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
+  }
+  
+  // Create fresh client bound to current environment
+  const client = new Redis({ url, token });
+  
+  console.log('[OAUTH_STATE] Created environment-bound client');
+  
+  return client;
 }
 
 // Redis namespace
@@ -155,12 +168,13 @@ export function generateBrowserBinding(): string {
  * Establishes or retrieves an HttpOnly browser binding cookie for CSRF protection.
  * The binding is cryptographically random and opaque.
  * 
- * @param cookieStore - Optional cookie store for testing
+ * CRITICAL: cookieStore is REQUIRED - no ambient fallback
+ * 
+ * @param cookieStore - Cookie store from route handler
  * @returns Browser binding value
  */
-export async function getOrCreateBrowserBinding(cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<string> {
-  const actualCookieStore = cookieStore || await cookies();
-  const existingBinding = actualCookieStore.get(BROWSER_BINDING_COOKIE);
+export async function getOrCreateBrowserBinding(cookieStore: Awaited<ReturnType<typeof cookies>>): Promise<string> {
+  const existingBinding = cookieStore.get(BROWSER_BINDING_COOKIE);
   
   if (existingBinding) {
     return existingBinding.value;
@@ -170,7 +184,7 @@ export async function getOrCreateBrowserBinding(cookieStore?: Awaited<ReturnType
   const binding = generateBrowserBinding();
   const secureFlag = process.env.NODE_ENV === 'production';
   
-  actualCookieStore.set(BROWSER_BINDING_COOKIE, binding, {
+  cookieStore.set(BROWSER_BINDING_COOKIE, binding, {
     httpOnly: true,
     secure: secureFlag,
     sameSite: 'lax',
@@ -186,12 +200,13 @@ export async function getOrCreateBrowserBinding(cookieStore?: Awaited<ReturnType
  *
  * Retrieves the browser binding value from the HttpOnly cookie.
  * 
- * @param cookieStore - Optional cookie store for testing
+ * CRITICAL: cookieStore is REQUIRED - no ambient fallback
+ * 
+ * @param cookieStore - Cookie store from route handler
  * @returns Browser binding value or null if not present
  */
-export async function getBrowserBinding(cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<string | null> {
-  const actualCookieStore = cookieStore || await cookies();
-  const binding = actualCookieStore.get(BROWSER_BINDING_COOKIE);
+export async function getBrowserBinding(cookieStore: Awaited<ReturnType<typeof cookies>>): Promise<string | null> {
+  const binding = cookieStore.get(BROWSER_BINDING_COOKIE);
   return binding?.value || null;
 }
 
@@ -200,11 +215,12 @@ export async function getBrowserBinding(cookieStore?: Awaited<ReturnType<typeof 
  *
  * Removes the browser binding cookie.
  * 
- * @param cookieStore - Optional cookie store for testing
+ * CRITICAL: cookieStore is REQUIRED - no ambient fallback
+ * 
+ * @param cookieStore - Cookie store from route handler
  */
-export async function clearBrowserBinding(cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<void> {
-  const actualCookieStore = cookieStore || await cookies();
-  actualCookieStore.delete(BROWSER_BINDING_COOKIE);
+export async function clearBrowserBinding(cookieStore: Awaited<ReturnType<typeof cookies>>): Promise<void> {
+  cookieStore.delete(BROWSER_BINDING_COOKIE);
 }
 
 /**
@@ -217,9 +233,11 @@ export async function clearBrowserBinding(cookieStore?: Awaited<ReturnType<typeo
  * 
  * Uses atomic SET NX EX to ensure state record cannot exist without intended expiration
  * 
- * @param cookieStore - Optional cookie store for testing
+ * CRITICAL: cookieStore is REQUIRED - no ambient fallback
+ * 
+ * @param cookieStore - Cookie store from route handler
  */
-export async function createState(cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<string> {
+export async function createState(cookieStore: Awaited<ReturnType<typeof cookies>>): Promise<string> {
   const state = generateState();
   const browserBinding = await getOrCreateBrowserBinding(cookieStore);
   const now = new Date();
@@ -234,7 +252,7 @@ export async function createState(cookieStore?: Awaited<ReturnType<typeof cookie
   };
 
   try {
-    const client = getRedisClient();
+    const client = createRedisClient();
     
     // Use atomic SET NX EX to ensure state record cannot exist without intended expiration
     // NX: Only set if key does not exist (prevents duplicate state creation)
@@ -269,9 +287,9 @@ export async function createState(cookieStore?: Awaited<ReturnType<typeof cookie
  * @param state - OAuth state string
  * @param cookieStore - Optional cookie store for testing
  */
-export async function validateState(state: string, cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<StateValidationResult> {
+export async function validateState(state: string, cookieStore: Awaited<ReturnType<typeof cookies>>): Promise<StateValidationResult> {
   try {
-    const client = getRedisClient();
+    const client = createRedisClient();
     const record = await client.get<OAuthStateRecord>(`${STATE_PREFIX}${state}`);
 
     if (!record) {
@@ -333,12 +351,14 @@ export async function validateState(state: string, cookieStore?: Awaited<ReturnT
  *
  * Under concurrent requests, exactly one consumer will succeed
  *
+ * CRITICAL: cookieStore is REQUIRED - no ambient fallback
+ *
  * @param state - OAuth state string
- * @param cookieStore - Optional cookie store for testing
+ * @param cookieStore - Cookie store from route handler
  */
-export async function consumeState(state: string, cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<boolean> {
+export async function consumeState(state: string, cookieStore: Awaited<ReturnType<typeof cookies>>): Promise<boolean> {
   try {
-    const client = getRedisClient();
+    const client = createRedisClient();
     const browserBinding = await getBrowserBinding(cookieStore);
     
     if (!browserBinding) {
@@ -410,9 +430,9 @@ export async function consumeState(state: string, cookieStore?: Awaited<ReturnTy
  * @param state - OAuth state string
  * @param cookieStore - Optional cookie store for testing
  */
-export async function deleteState(state: string, cookieStore?: Awaited<ReturnType<typeof cookies>>): Promise<void> {
+export async function deleteState(state: string, cookieStore: Awaited<ReturnType<typeof cookies>>): Promise<void> {
   try {
-    const client = getRedisClient();
+    const client = createRedisClient();
     await client.del(`${STATE_PREFIX}${state}`);
     await clearBrowserBinding(cookieStore);
     console.log('[OAUTH_STATE] State deleted');

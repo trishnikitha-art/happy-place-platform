@@ -3,10 +3,15 @@
  * 
  * Automatically discovers My Drive, Shared Drives, and known HPP folders.
  * Never requires manual path entry from the operator.
+ * 
+ * CRITICAL FIX: Corpus authorization enforcement at discovery layer
+ * All Drive operations validate requested driveId against authorized corpus
+ * This prevents bypass of application-level corpus authorization
  */
 
 import { getDriveClient, isAuthenticated } from './oauth-manager';
 import { google } from 'googleapis';
+import { verifyCorpusAuthorization } from './corpus-authorization';
 
 export interface DriveFolder {
   id: string;
@@ -182,10 +187,32 @@ export class DriveDiscovery {
    * List immediate children of a folder (folders and files)
    * Lazy loading - no recursion, no depth limit
    * Supports pagination via nextPageToken
+   * 
+   * CRITICAL FIX: Validate driveId against authorized corpus before making Drive API call
+   * This prevents bypass of application-level corpus authorization
    */
   async listChildren(context: DriveListContext, pageToken?: string): Promise<DriveListResult> {
     if (!(await isAuthenticated())) {
       throw new Error('Not authenticated with Drive');
+    }
+
+    // CRITICAL FIX: Validate driveId against authorized corpus before Drive API call
+    // Google OAuth access is NOT sufficient for HPP authorization
+    if (context.driveId) {
+      const corpusAuth = await verifyCorpusAuthorization(context.parentId, context.driveId);
+      if (!corpusAuth.authorized) {
+        console.error('[DRIVE_DISCOVERY] DRIVE_ID_NOT_AUTHORIZED', {
+          folderId: context.parentId,
+          requestedDriveId: context.driveId,
+          reason: corpusAuth.reason,
+        });
+        throw new Error(`Drive ID ${context.driveId} is not authorized: ${corpusAuth.reason}`);
+      }
+      console.log('[DRIVE_DISCOVERY] DRIVE_ID_AUTHORIZED', {
+        folderId: context.parentId,
+        driveId: context.driveId,
+        corpus: corpusAuth.corpus,
+      });
     }
 
     const drive = await getDriveClient();
@@ -284,11 +311,28 @@ export class DriveDiscovery {
   /**
    * Get file metadata
    * @param fileId - The actual file ID (file identity, not corpus context)
+   * 
+   * CRITICAL FIX: Validate file belongs to authorized corpus before making Drive API call
    */
   async getFile(fileId: string): Promise<DriveFile | null> {
     if (!(await isAuthenticated())) {
       return null;
     }
+
+    // CRITICAL FIX: Validate file belongs to authorized corpus before Drive API call
+    // Google OAuth access is NOT sufficient for HPP authorization
+    const corpusAuth = await verifyCorpusAuthorization(fileId);
+    if (!corpusAuth.authorized) {
+      console.error('[DRIVE_DISCOVERY] FILE_NOT_AUTHORIZED', {
+        fileId,
+        reason: corpusAuth.reason,
+      });
+      return null; // Return null instead of error for metadata
+    }
+    console.log('[DRIVE_DISCOVERY] FILE_AUTHORIZED', {
+      fileId,
+      corpus: corpusAuth.corpus,
+    });
 
     const drive = await getDriveClient();
 
@@ -331,11 +375,28 @@ export class DriveDiscovery {
   /**
    * Download file content
    * @param fileId - The actual file ID (file identity, not corpus context)
+   * 
+   * CRITICAL FIX: Validate file belongs to authorized corpus before making Drive API call
    */
   async downloadFile(fileId: string): Promise<Buffer> {
     if (!(await isAuthenticated())) {
       throw new Error('Not authenticated with Drive');
     }
+
+    // CRITICAL FIX: Validate file belongs to authorized corpus before Drive API call
+    // Google OAuth access is NOT sufficient for HPP authorization
+    const corpusAuth = await verifyCorpusAuthorization(fileId);
+    if (!corpusAuth.authorized) {
+      console.error('[DRIVE_DISCOVERY] FILE_NOT_AUTHORIZED_FOR_DOWNLOAD', {
+        fileId,
+        reason: corpusAuth.reason,
+      });
+      throw new Error(`File ${fileId} is not authorized: ${corpusAuth.reason}`);
+    }
+    console.log('[DRIVE_DISCOVERY] FILE_AUTHORIZED_FOR_DOWNLOAD', {
+      fileId,
+      corpus: corpusAuth.corpus,
+    });
 
     const drive = await getDriveClient();
 
@@ -365,17 +426,43 @@ export class DriveDiscovery {
    * Search for files by name within a specific Drive context
    * @param query - Search query string
    * @param context - Optional Drive context (My Drive or Shared Drive)
+   * 
+   * CRITICAL FIX: Validate driveId against authorized corpus before Drive API call
+   * CRITICAL FIX: Escape user query to prevent Drive query injection
    */
   async searchFiles(query: string, context?: DriveListContext): Promise<DriveFile[]> {
     if (!(await isAuthenticated())) {
       return [];
     }
 
+    // CRITICAL FIX: Validate driveId against authorized corpus before Drive API call
+    if (context?.driveId) {
+      const corpusAuth = await verifyCorpusAuthorization(context.parentId, context.driveId);
+      if (!corpusAuth.authorized) {
+        console.error('[DRIVE_DISCOVERY] DRIVE_ID_NOT_AUTHORIZED_FOR_SEARCH', {
+          folderId: context.parentId,
+          requestedDriveId: context.driveId,
+          reason: corpusAuth.reason,
+        });
+        return []; // Return empty results instead of error
+      }
+      console.log('[DRIVE_DISCOVERY] DRIVE_ID_AUTHORIZED_FOR_SEARCH', {
+        folderId: context.parentId,
+        driveId: context.driveId,
+        corpus: corpusAuth.corpus,
+      });
+    }
+
     const drive = await getDriveClient();
 
     try {
+      // CRITICAL FIX: Escape user query to prevent Drive query injection
+      const escapedQuery = query
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'");
+
       const params: Record<string, unknown> = {
-        q: `name contains '${query}' and trashed = false`,
+        q: `name contains '${escapedQuery}' and trashed = false`,
         fields: 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,parents)',
         pageSize: 100,
         supportsAllDrives: true,
@@ -393,7 +480,7 @@ export class DriveDiscovery {
       }
 
       console.log('[Drive Discovery] searchFiles params:', {
-        query,
+        query: escapedQuery,
         corpora: params.corpora,
         driveId: params.driveId,
       });
@@ -425,17 +512,43 @@ export class DriveDiscovery {
    * @param query - Search query string
    * @param corpusId - Optional corpus ID to scope search
    * @param pageToken - Optional page token for pagination
+   * 
+   * CRITICAL FIX: Validate corpusId against authorized corpus before Drive API call
+   * CRITICAL FIX: Escape user query to prevent Drive query injection
    */
   async search(query: string, corpusId?: string, pageToken?: string): Promise<DriveListResult> {
     if (!(await isAuthenticated())) {
       return { items: [] };
     }
 
+    // CRITICAL FIX: Validate corpusId against authorized corpus before Drive API call
+    // Google OAuth access is NOT sufficient for HPP authorization
+    if (corpusId && corpusId !== 'root') {
+      const corpusAuth = await verifyCorpusAuthorization('root', corpusId);
+      if (!corpusAuth.authorized) {
+        console.error('[DRIVE_DISCOVERY] CORPUS_ID_NOT_AUTHORIZED', {
+          requestedCorpusId: corpusId,
+          reason: corpusAuth.reason,
+        });
+        return { items: [] }; // Return empty results instead of error for search
+      }
+      console.log('[DRIVE_DISCOVERY] CORPUS_ID_AUTHORIZED', {
+        corpusId,
+        corpus: corpusAuth.corpus,
+      });
+    }
+
     const drive = await getDriveClient();
 
     try {
+      // CRITICAL FIX: Escape user query to prevent Drive query injection
+      // Backslashes and single quotes must be escaped in Drive query syntax
+      const escapedQuery = query
+        .replace(/\\/g, '\\\\')  // Escape backslashes first
+        .replace(/'/g, "\\'");   // Escape single quotes
+
       const params: Record<string, unknown> = {
-        q: `name contains '${query}' and trashed = false`,
+        q: `name contains '${escapedQuery}' and trashed = false`,
         fields: 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,parents),nextPageToken',
         pageSize: 100,
         supportsAllDrives: true,
@@ -455,7 +568,7 @@ export class DriveDiscovery {
       }
 
       console.log('[Drive Discovery] search params:', {
-        query,
+        query: escapedQuery,
         corpora: params.corpora,
         driveId: params.driveId,
         pageToken,

@@ -8,16 +8,32 @@
  * 
  * The browser must never invoke media-kv-store directly.
  * 
+ * CRITICAL FIX: Added Workbench authentication boundary
+ * Server-side authority data must only be exposed to authenticated Workbench users
+ * 
  * POST /api/workbench/media-authority
  * Body: { action: 'getPublishedMediaAssets' }
  */
 
 import { NextResponse } from 'next/server';
 import { getPublishedMediaAssets } from '@/lib/visual-asset-registry';
+import { workbenchSession } from '@/lib/workbench-session';
 
 export const dynamic = 'force-dynamic';
 
 export async function POST(request: Request) {
+  // CRITICAL FIX: Verify Workbench authentication before exposing media authority data
+  const isWorkbenchAuthenticated = await workbenchSession.isAuthenticated();
+  if (!isWorkbenchAuthenticated) {
+    return NextResponse.json(
+      { 
+        error: 'WORKBENCH_AUTH_REQUIRED',
+        message: 'Workbench authentication required',
+      },
+      { status: 401 }
+    );
+  }
+
   try {
     const body = await request.json();
     const { action } = body;

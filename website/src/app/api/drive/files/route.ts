@@ -64,26 +64,28 @@ export async function GET(request: Request) {
 
     console.log('[Drive Files API] Request:', { folderId, driveId, pageToken });
 
-    // CRITICAL: Verify driveId and folderId consistency
-    // If driveId is supplied, verify the folder actually belongs to that corpus
-    // This prevents requesting objects from unauthorized corpora
-    if (driveId && folderId !== 'root') {
+    // P0 FIX: Verify driveId against HPP authorized corpus
+    // Google OAuth access is NOT sufficient for HPP authorization
+    // Shared Drives must be explicitly configured via HPP_AUTHORIZED_SHARED_DRIVES
+    // NO root exemption - if driveId is supplied, it must be HPP-authorized
+    // This prevents driveId + root from bypassing corpus consistency check
+    if (driveId) {
       const corpusAuth = await verifyCorpusAuthorization(folderId, driveId);
       if (!corpusAuth.authorized) {
-        console.error('[DRIVE_AUTHORIZATION] DRIVE_ID_FOLDER_ID_MISMATCH', {
+        console.error('[DRIVE_AUTHORIZATION] DRIVE_ID_NOT_AUTHORIZED', {
           folderId,
           requestedDriveId: driveId,
           reason: corpusAuth.reason,
         });
         return NextResponse.json(
           {
-            error: 'DRIVE_ID_FOLDER_ID_MISMATCH',
-            message: corpusAuth.reason || 'Folder does not belong to the requested Drive corpus',
+            error: 'DRIVE_ID_NOT_AUTHORIZED',
+            message: corpusAuth.reason || 'Shared Drive is not HPP-authorized (check HPP_AUTHORIZED_SHARED_DRIVES)',
           },
           { status: 403 }
         );
       }
-      console.log('[DRIVE_AUTHORIZATION] DRIVE_ID_FOLDER_ID_CONSISTENT', {
+      console.log('[DRIVE_AUTHORIZATION] DRIVE_ID_AUTHORIZED', {
         folderId,
         driveId,
         corpus: corpusAuth.corpus,

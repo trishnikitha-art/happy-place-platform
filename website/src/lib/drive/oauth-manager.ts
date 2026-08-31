@@ -125,30 +125,37 @@ async function explicitTokenRefresh(
 }
 
 /**
- * Get OAuth2 client for Drive API calls with explicit authorizationId
+ * Get OAuth2 client for Drive API calls
  * 
- * Creates per-request OAuth client with explicit authorization context.
- * Handles token refresh explicitly during request context.
- * No process-level state, no background callbacks.
+ * CRITICAL: authorizationId is NEVER accepted from caller
+ * Authorization ID is resolved ONLY from the current authenticated session
+ * This prevents caller-controlled authorization ID from reaching OAuth credentials
+ * 
+ * HTTP boundary → session resolution → authorization resolution → OAuth client
+ * 
+ * The raw authorization ID is an internal capability, not an API-level identity selector
  */
-export async function getOAuthClient(authorizationId?: string): Promise<InstanceType<typeof google.auth.OAuth2>> {
-  console.log('[OAUTH_MANAGER] Getting OAuth client for authorization:', authorizationId);
+export async function getOAuthClient(): Promise<InstanceType<typeof google.auth.OAuth2>> {
+  console.log('[OAUTH_MANAGER] Getting OAuth client for current session');
   
-  // If authorizationId not provided, resolve from session
-  let effectiveAuthorizationId = authorizationId;
-  if (!effectiveAuthorizationId) {
-    const sessionId = await getSessionIdFromCookies();
-    if (sessionId) {
-      const session = await getSession(sessionId);
-      if (session) {
-        effectiveAuthorizationId = session.authorizationId;
-      }
-    }
+  // Resolve authorization ID ONLY from current authenticated session
+  // NEVER accept authorizationId from caller - this is a security boundary
+  const sessionId = await getSessionIdFromCookies();
+  if (!sessionId) {
+    throw new Error('No active session found');
   }
-
-  if (!effectiveAuthorizationId) {
-    throw new Error('Cannot resolve authorization ID from session');
+  
+  const session = await getSession(sessionId);
+  if (!session) {
+    throw new Error('Session not found');
   }
+  
+  const effectiveAuthorizationId = session.authorizationId;
+  if (!effectiveAuthorizationId) {
+    throw new Error('Session has no associated authorization');
+  }
+  
+  console.log('[OAUTH_MANAGER] Resolved authorization ID from session:', effectiveAuthorizationId);
   
   // Resolve credentials from authorization repository
   const authorization = await getAuthorization(effectiveAuthorizationId);
@@ -242,10 +249,13 @@ export async function getOAuthClient(authorizationId?: string): Promise<Instance
 }
 
 /**
- * Get Drive API client with explicit authorizationId
+ * Get Drive API client for current session
+ * 
+ * CRITICAL: No authorizationId parameter - resolves from current session only
+ * This prevents caller-controlled authorization ID from reaching Drive API
  */
-export async function getDriveClient(authorizationId?: string): Promise<ReturnType<typeof google.drive>> {
-  const auth = await getOAuthClient(authorizationId);
+export async function getDriveClient(): Promise<ReturnType<typeof google.drive>> {
+  const auth = await getOAuthClient();
   return google.drive({ version: 'v3', auth });
 }
 
