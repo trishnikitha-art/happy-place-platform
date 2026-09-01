@@ -61,7 +61,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     if (contextMenu && ENABLE_WORKBENCH) {
       // Send add-to-gallery request to workbench with project ID
       const slotId = contextMenu.slotId;
-      // Extract project ID from slot ID (format: our-work-gallery-{projectId}-{index})
+      // Extract project ID from slot ID (format: our-work-gallery-{projectId}-{mediaId})
       const idPart = slotId.replace('our-work-gallery-', '');
       const lastHyphenIndex = idPart.lastIndexOf('-');
       const projectId = idPart.substring(0, lastHyphenIndex);
@@ -234,7 +234,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                 
                 return (
                   <button
-                    key={`${project.id}-${photoIndex}`}
+                    key={`${project.id}-${mediaId}`}
                     className="group relative block aspect-[4/3] overflow-hidden cursor-pointer break-inside-avoid mb-4"
                     onClick={() => {
                       // P0 FIX: Use pre-validated galleryMedia from server-side resolution (passed public media gate)
@@ -257,12 +257,12 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                       const globalIndex = allGalleryImages.findIndex(img => img.src === src);
                       openLightbox(allGalleryImages, globalIndex);
                     }}
-                    onContextMenu={(e) => handleContextMenu(e, `our-work-gallery-${project.id}-${photoIndex}`)}
+                    onContextMenu={(e) => handleContextMenu(e, `our-work-gallery-${project.id}-${mediaId}`)}
                     aria-label={`View ${photo!.alt} in full screen`}
                   >
                     <CraftCard className="overflow-hidden">
                       <VisualSlot
-                        id={`our-work-gallery-${project.id}-${photoIndex}`}
+                        id={`our-work-gallery-${project.id}-${mediaId}`}
                         route="/our-work"
                         page="OurWork"
                         section="Gallery"

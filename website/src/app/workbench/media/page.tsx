@@ -590,17 +590,17 @@ export default function MediaWorkbench() {
             return;
           }
 
-          // Parse slot ID to get project ID and gallery index
-          // Format: our-work-gallery-{projectId}-{index}
+          // Parse slot ID to get project ID and mediaId
+          // Format: our-work-gallery-{projectId}-{mediaId}
           const idPart = slotId.replace('our-work-gallery-', '');
           const lastHyphenIndex = idPart.lastIndexOf('-');
           const projectId = idPart.substring(0, lastHyphenIndex);
-          const galleryIndex = parseInt(idPart.substring(lastHyphenIndex + 1), 10);
+          const mediaId = idPart.substring(lastHyphenIndex + 1);
 
-          console.log('[DELETE GALLERY] PARSED_SLOT', { slotId, projectId, galleryIndex });
+          console.log('[DELETE GALLERY] PARSED_SLOT', { slotId, projectId, mediaId });
 
           // FIX: Use atomic PUT authority instead of legacy DELETE
-          // Get current gallery, remove at galleryIndex, PUT complete array
+          // Get current gallery, remove by mediaId, PUT complete array
           const getResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
           if (!getResponse.ok) {
             throw new Error('Failed to fetch current gallery');
@@ -609,8 +609,8 @@ export default function MediaWorkbench() {
           const currentGallery = galleryData.gallery || [];
           const currentRevision = galleryData.currentRevision || 0;
           
-          // Remove media at galleryIndex
-          const newGallery = currentGallery.filter((_: string, i: number) => i !== galleryIndex);
+          // Remove media by mediaId (stable identity, not index)
+          const newGallery = currentGallery.filter((id: string) => id !== mediaId);
           
           const response = await fetch('/api/admin/projects/gallery', {
             method: 'PUT',
@@ -1665,12 +1665,12 @@ Check browser console for detailed logs.`);
           body: JSON.stringify(requestBody),
         });
       } else if (slotId.startsWith('our-work-gallery-')) {
-        // Extract project ID and gallery index from slot ID (e.g., our-work-gallery-exterior-painting-001-0 -> exterior-painting-001, 0)
+        // Extract project ID and mediaId from slot ID (e.g., our-work-gallery-exterior-painting-001-{mediaId})
         const idPart = slotId.replace('our-work-gallery-', '');
         const lastHyphenIndex = idPart.lastIndexOf('-');
         const projectId = idPart.substring(0, lastHyphenIndex);
-        const galleryIndex = parseInt(idPart.substring(lastHyphenIndex + 1), 10);
-        console.log('[DND 8] GALLERY_SLOT_PARSED', { slotId, projectId, galleryIndex });
+        const existingMediaId = idPart.substring(lastHyphenIndex + 1);
+        console.log('[DND 8] GALLERY_SLOT_PARSED', { slotId, projectId, existingMediaId });
         
         // FIX: Use atomic PUT authority instead of legacy POST
         // Get current gallery, apply mutation, PUT complete array with CAS
@@ -1682,9 +1682,8 @@ Check browser console for detailed logs.`);
         const currentGallery = galleryData.gallery || [];
         const currentRevision = galleryData.currentRevision || 0;
         
-        // Replace media at galleryIndex
-        const newGallery = [...currentGallery];
-        newGallery[galleryIndex] = asset.id;
+        // Replace existing mediaId with new asset.id in the gallery array
+        const newGallery = currentGallery.map((id: string) => id === existingMediaId ? asset.id : id);
         
         endpoint = '/api/admin/projects/gallery';
         requestBody = { projectId, gallery: newGallery, expectedRevision: currentRevision, transactionId };

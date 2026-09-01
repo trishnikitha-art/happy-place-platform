@@ -50,22 +50,15 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
       
       // Create multiple authorization records for the same subject
       const upsertAttempts = Array.from({ length: 5 }, (_, i) => 
-        upsertAuthorization({
-          id: `auth_${Date.now()}_${i}`,
-          provider: 'google',
+        upsertAuthorization(
           googleSubject,
           email,
-          scopes: ['drive.readonly'],
-          encryptedAccessToken: 'test_token',
-          accessTokenExpiresAt: new Date(Date.now() + 3600000).toISOString(),
-          encryptedRefreshToken: 'test_refresh',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          lastUsedAt: new Date().toISOString(),
-          lastRefreshAt: new Date().toISOString(),
-          status: 'active',
-          keyVersion: 1,
-        })
+          ['drive.readonly'],
+          'test_token',
+          Date.now() + 3600000,
+          'test_refresh',
+          1
+        )
       );
       
       // Execute all upserts concurrently
@@ -104,22 +97,15 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
       
       // Create authorization
       const authId = `auth_index_${Date.now()}`;
-      await upsertAuthorization({
-        id: authId,
-        provider: 'google',
+      await upsertAuthorization(
         googleSubject,
         email,
-        scopes: ['drive.readonly'],
-        encryptedAccessToken: 'test_token',
-        accessTokenExpiresAt: new Date(Date.now() + 3600000).toISOString(),
-        encryptedRefreshToken: 'test_refresh',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        lastUsedAt: new Date().toISOString(),
-        lastRefreshAt: new Date().toISOString(),
-        status: 'active',
-        keyVersion: 1,
-      });
+        ['drive.readonly'],
+        'test_token',
+        Date.now() + 3600000,
+        'test_refresh',
+        1
+      );
       
       // Verify subject index resolves to correct authorization
       const auth = await findAuthorizationBySubject(googleSubject);
@@ -154,22 +140,15 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
       
       // Simulate multiple processes trying to acquire the same identity
       const acquisitionAttempts = Array.from({ length: 10 }, (_, i) => 
-        upsertAuthorization({
-          id: `auth_atomic_${Date.now()}_${i}`,
-          provider: 'google',
+        upsertAuthorization(
           googleSubject,
           email,
-          scopes: ['drive.readonly'],
-          encryptedAccessToken: `token_${i}`,
-          accessTokenExpiresAt: new Date(Date.now() + 3600000).toISOString(),
-          encryptedRefreshToken: `refresh_${i}`,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          lastUsedAt: new Date().toISOString(),
-          lastRefreshAt: new Date().toISOString(),
-          status: 'active',
-          keyVersion: 1,
-        })
+          ['drive.readonly'],
+          `token_${i}`,
+          Date.now() + 3600000,
+          `refresh_${i}`,
+          1
+        )
       );
       
       // Execute all acquisitions concurrently
@@ -208,22 +187,15 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
       const authId = `auth_lifecycle_${Date.now()}`;
       
       // Create authorization
-      await upsertAuthorization({
-        id: authId,
-        provider: 'google',
+      await upsertAuthorization(
         googleSubject,
         email,
-        scopes: ['drive.readonly'],
-        encryptedAccessToken: 'test_token',
-        accessTokenExpiresAt: new Date(Date.now() + 3600000).toISOString(),
-        encryptedRefreshToken: 'test_refresh',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        lastUsedAt: new Date().toISOString(),
-        lastRefreshAt: new Date().toISOString(),
-        status: 'active',
-        keyVersion: 1,
-      });
+        ['drive.readonly'],
+        'test_token',
+        Date.now() + 3600000,
+        'test_refresh',
+        1
+      );
       
       // Retrieve authorization
       const auth = await getAuthorization(authId);
@@ -253,22 +225,15 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
       const authId = `auth_revoke_${Date.now()}`;
       
       // Create authorization
-      await upsertAuthorization({
-        id: authId,
-        provider: 'google',
+      await upsertAuthorization(
         googleSubject,
         email,
-        scopes: ['drive.readonly'],
-        encryptedAccessToken: 'test_token',
-        accessTokenExpiresAt: new Date(Date.now() + 3600000).toISOString(),
-        encryptedRefreshToken: 'test_refresh',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        lastUsedAt: new Date().toISOString(),
-        lastRefreshAt: new Date().toISOString(),
-        status: 'active',
-        keyVersion: 1,
-      });
+        ['drive.readonly'],
+        'test_token',
+        Date.now() + 3600000,
+        'test_refresh',
+        1
+      );
       
       // Verify authorization exists
       const authBefore = await getAuthorization(authId);

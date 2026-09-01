@@ -243,12 +243,13 @@ export function VisualSlot({
 
     // If in iframe, use postMessage to communicate with parent
     if (window.parent !== window) {
+      const targetOrigin = window.parent.location.origin;
       window.parent.postMessage(
         {
           type: 'SLOT_CLICK',
           slot: { id, route, page, section, slotName, currentMediaId },
         },
-        '*'
+        targetOrigin
       );
     } else {
       // Direct dispatch if not in iframe

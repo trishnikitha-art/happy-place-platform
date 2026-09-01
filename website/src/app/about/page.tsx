@@ -7,6 +7,9 @@ import { getCompany } from "@/lib/company";
 import { getOwnerPortrait } from "@/lib/brand";
 import { getAllCities } from "@/lib/registries";
 import { VisualSlot } from "@/components/visual-slot";
+import { getServiceCardAssignment } from "@/lib/assignment-store";
+import { resolvePublicMedia } from "@/lib/media";
+import type { Media } from "@/types/media";
 
 export const metadata: Metadata = {
   title: "About",
@@ -33,6 +36,35 @@ export default async function AboutPage() {
   // This prevents bypassing the public media gate by calling getMediaById directly
   const ownerMedia = ownerBrand?.resolvedMedia || null;
   const ownerSrc = ownerMedia?.variants?.web || ownerMedia?.variants?.original;
+
+  // P0 FIX: Resolve bottom visual slot through authoritative assignment path
+  let bottomVisualMediaId: string | null = null;
+  let bottomVisualMedia: Media | null = null;
+  try {
+    const bottomVisualAssignment = await getServiceCardAssignment('about-bottom-visual', 'about');
+    if (bottomVisualAssignment?.mediaId && bottomVisualAssignment.mediaId !== '') {
+      const resolvedMedia = await resolvePublicMedia(bottomVisualAssignment.mediaId);
+      if (resolvedMedia) {
+        bottomVisualMediaId = bottomVisualAssignment.mediaId;
+        bottomVisualMedia = resolvedMedia;
+        console.log('[PUBLIC_MEDIA_GATE] BOTTOM_VISUAL_RESOLUTION', {
+          slotId: 'about-bottom-visual-slot',
+          mediaId: bottomVisualMediaId,
+          resolved: true,
+        });
+      } else {
+        console.log('[PUBLIC_MEDIA_GATE] BOTTOM_VISUAL_REJECTED', {
+          slotId: 'about-bottom-visual-slot',
+          rejectedMediaId: bottomVisualAssignment.mediaId,
+        });
+      }
+    }
+  } catch (error) {
+    console.error('[BOTTOM_VISUAL_ASSIGNMENT] ERROR', {
+      slotId: 'about-bottom-visual-slot',
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
   
   return (
     <>
@@ -100,12 +132,24 @@ export default async function AboutPage() {
             page="About"
             section="Bottom Visual"
             slotName="Bottom Visual"
-            currentMediaId={null}
+            currentMediaId={bottomVisualMediaId}
             component="BottomVisual"
           >
-            <div className="relative aspect-[16/9] overflow-hidden rounded-card photo-mounted">
-              {/* Image will render when media is assigned via Workbench */}
-            </div>
+            {bottomVisualMedia && bottomVisualMedia.variants?.web ? (
+              <div className="relative aspect-[16/9] overflow-hidden rounded-card photo-mounted">
+                <Image
+                  src={bottomVisualMedia.variants.web}
+                  alt={bottomVisualMedia.alt || "Happy Place Carpentry - Bottom visual"}
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
+                  className="object-cover"
+                />
+              </div>
+            ) : (
+              <div className="relative aspect-[16/9] overflow-hidden rounded-card photo-muted">
+                {/* No media assigned or media failed public gate */}
+              </div>
+            )}
           </VisualSlot>
         </Container>
       </Section>
