@@ -57,7 +57,7 @@ interface GalleryManagementState {
   isSaving: boolean;
   saveError: string | null;
   hasUnsavedChanges: boolean;
-  draggedIndex: number | null;
+  draggedMediaId: string | null;
   dropTargetIndex: number | null;
 }
 
@@ -72,7 +72,7 @@ export default function GalleryManagementPanel() {
     isSaving: false,
     saveError: null,
     hasUnsavedChanges: false,
-    draggedIndex: null,
+    draggedMediaId: null,
     dropTargetIndex: null,
   });
 
@@ -104,9 +104,25 @@ export default function GalleryManagementPanel() {
       if (!response.ok) throw new Error('Failed to load gallery');
       const data = await response.json();
 
+      // Resolve media details through authoritative media authority
+      const mediaAuthorityResponse = await fetch('/api/workbench/media-authority', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'getPublishedMediaAssets' }),
+      });
+      if (!mediaAuthorityResponse.ok) throw new Error('Failed to load media authority');
+      const mediaAuthorityData = await mediaAuthorityResponse.json();
+      const mediaRegistry = mediaAuthorityData.assets || [];
+
       // Resolve media details for each gallery item
       const galleryItems: GalleryItem[] = (data.gallery || []).map((mediaId: string) => {
-        return { mediaId, thumbnail: null, alt: null, filename: null };
+        const media = mediaRegistry.find((m: any) => m.id === mediaId);
+        return {
+          mediaId,
+          thumbnail: media?.variants?.thumbnail || media?.variants?.web || media?.variants?.webp || null,
+          alt: media?.filename || null,
+          filename: media?.filename || null,
+        };
       });
 
       setState(prev => ({
@@ -128,46 +144,59 @@ export default function GalleryManagementPanel() {
     }
   };
 
-  const handleDragStart = (index: number) => {
-    setState(prev => ({ ...prev, draggedIndex: index, dropTargetIndex: null }));
+  const handleDragStart = (mediaId: string) => {
+    setState(prev => ({ ...prev, draggedMediaId: mediaId, dropTargetIndex: null }));
   };
 
   const handleDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
-    if (state.draggedIndex !== null && state.draggedIndex !== index) {
+    if (state.draggedMediaId !== null) {
       setState(prev => ({ ...prev, dropTargetIndex: index }));
     }
   };
 
   const handleDragEnd = () => {
-    setState(prev => ({ ...prev, draggedIndex: null, dropTargetIndex: null }));
+    setState(prev => ({ ...prev, draggedMediaId: null, dropTargetIndex: null }));
   };
 
   const handleDrop = (e: React.DragEvent, dropIndex: number) => {
     e.preventDefault();
 
-    if (state.draggedIndex === null || state.draggedIndex === dropIndex) {
+    if (state.draggedMediaId === null) {
+      handleDragEnd();
+      return;
+    }
+
+    // Find the dragged item by mediaId (stable identity)
+    const draggedItem = state.gallery.find(item => item.mediaId === state.draggedMediaId);
+    if (!draggedItem) {
+      handleDragEnd();
+      return;
+    }
+
+    const draggedIndex = state.gallery.findIndex(item => item.mediaId === state.draggedMediaId);
+    if (draggedIndex === dropIndex) {
       handleDragEnd();
       return;
     }
 
     // Create new ordered array (local state only, no server mutation)
     const newGallery = [...state.gallery];
-    const [draggedItem] = newGallery.splice(state.draggedIndex, 1);
+    newGallery.splice(draggedIndex, 1);
     newGallery.splice(dropIndex, 0, draggedItem);
 
     console.log('[GALLERY_MANAGEMENT] LOCAL_REORDER', {
       originalLength: state.gallery.length,
-      fromIndex: state.draggedIndex,
+      draggedMediaId: state.draggedMediaId,
+      fromIndex: draggedIndex,
       toIndex: dropIndex,
-      mediaId: draggedItem.mediaId,
     });
 
     setState(prev => ({
       ...prev,
       gallery: newGallery,
       hasUnsavedChanges: true,
-      draggedIndex: null,
+      draggedMediaId: null,
       dropTargetIndex: null,
     }));
   };
@@ -363,14 +392,14 @@ export default function GalleryManagementPanel() {
               <div
                 key={item.mediaId}
                 draggable
-                onDragStart={() => handleDragStart(index)}
+                onDragStart={() => handleDragStart(item.mediaId)}
                 onDragOver={(e) => handleDragOver(e, index)}
                 onDragEnd={handleDragEnd}
                 onDrop={(e) => handleDrop(e, index)}
                 className={`
                   bg-card border border-border rounded-lg p-4 cursor-grab active:cursor-grabbing
                   hover:border-primary transition-colors
-                  ${state.draggedIndex === index ? 'opacity-50' : ''}
+                  ${state.draggedMediaId === item.mediaId ? 'opacity-50' : ''}
                   ${state.dropTargetIndex === index ? 'border-primary bg-primary/5' : ''}
                 `}
               >
