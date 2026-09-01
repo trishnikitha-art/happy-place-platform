@@ -61,11 +61,11 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     if (contextMenu && ENABLE_WORKBENCH) {
       // Send add-to-gallery request to workbench with project ID
       const slotId = contextMenu.slotId;
-      // Extract project ID from slot ID (format: our-work-gallery-{projectId}-{mediaId})
-      const idPart = slotId.replace('our-work-gallery-', '');
-      const lastHyphenIndex = idPart.lastIndexOf('-');
-      const projectId = idPart.substring(0, lastHyphenIndex);
-      
+      // Extract project ID from slot ID (format: our-work-gallery::{projectId}::{mediaId})
+      const idPart = slotId.replace('our-work-gallery::', '');
+      const lastDoubleColonIndex = idPart.lastIndexOf('::');
+      const projectId = idPart.substring(0, lastDoubleColonIndex);
+
       window.postMessage({
         type: 'add-to-gallery',
         slotId,
@@ -257,12 +257,12 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                       const globalIndex = allGalleryImages.findIndex(img => img.src === src);
                       openLightbox(allGalleryImages, globalIndex);
                     }}
-                    onContextMenu={(e) => handleContextMenu(e, `our-work-gallery-${project.id}-${mediaId}`)}
+                    onContextMenu={(e) => handleContextMenu(e, `our-work-gallery::${project.id}::${mediaId}`)}
                     aria-label={`View ${photo!.alt} in full screen`}
                   >
                     <CraftCard className="overflow-hidden">
                       <VisualSlot
-                        id={`our-work-gallery-${project.id}-${mediaId}`}
+                        id={`our-work-gallery::${project.id}::${mediaId}`}
                         route="/our-work"
                         page="OurWork"
                         section="Gallery"

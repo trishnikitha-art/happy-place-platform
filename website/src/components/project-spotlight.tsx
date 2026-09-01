@@ -235,7 +235,7 @@ export function ProjectSpotlight({
                 >
                   <div className="relative aspect-[4/3]">
                     <VisualSlot
-                      id={`project-gallery-${project.id}-${i}`}
+                      id={`project-gallery::${project.id}::${i}`}
                       route={`/projects/${project.slug || project.id}`}
                       page="ProjectDetail"
                       section="Gallery"

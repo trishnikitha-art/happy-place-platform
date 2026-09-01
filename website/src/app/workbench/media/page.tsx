@@ -528,7 +528,7 @@ export default function MediaWorkbench() {
           
           if (asset) {
             // Gallery duplicate prevention: check if mediaId is already in another gallery slot
-            if (slotId.startsWith('our-work-gallery-') || slotId.startsWith('project-gallery-')) {
+            if (slotId.startsWith('our-work-gallery::') || slotId.startsWith('project-gallery::')) {
               const existingGallerySlot = registeredSlotsRef.current.find(s => 
                 s.section === 'Gallery' && 
                 s.currentMediaId === canonicalAssetId && 
@@ -596,11 +596,11 @@ export default function MediaWorkbench() {
           }
 
           // Parse slot ID to get project ID and mediaId
-          // Format: our-work-gallery-{projectId}-{mediaId}
-          const idPart = slotId.replace('our-work-gallery-', '');
-          const lastHyphenIndex = idPart.lastIndexOf('-');
-          const projectId = idPart.substring(0, lastHyphenIndex);
-          const mediaId = idPart.substring(lastHyphenIndex + 1);
+          // Format: our-work-gallery::{projectId}::{mediaId}
+          const idPart = slotId.replace('our-work-gallery::', '');
+          const lastDoubleColonIndex = idPart.lastIndexOf('::');
+          const projectId = idPart.substring(0, lastDoubleColonIndex);
+          const mediaId = idPart.substring(lastDoubleColonIndex + 2);
 
           console.log('[DELETE GALLERY] PARSED_SLOT', { slotId, projectId, mediaId });
 
@@ -1669,12 +1669,12 @@ Check browser console for detailed logs.`);
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
-      } else if (slotId.startsWith('our-work-gallery-')) {
-        // Extract project ID and mediaId from slot ID (e.g., our-work-gallery-exterior-painting-001-{mediaId})
-        const idPart = slotId.replace('our-work-gallery-', '');
-        const lastHyphenIndex = idPart.lastIndexOf('-');
-        const projectId = idPart.substring(0, lastHyphenIndex);
-        const existingMediaId = idPart.substring(lastHyphenIndex + 1);
+      } else if (slotId.startsWith('our-work-gallery::')) {
+        // Extract project ID and mediaId from slot ID (e.g., our-work-gallery::{projectId}::{mediaId})
+        const idPart = slotId.replace('our-work-gallery::', '');
+        const lastDoubleColonIndex = idPart.lastIndexOf('::');
+        const projectId = idPart.substring(0, lastDoubleColonIndex);
+        const existingMediaId = idPart.substring(lastDoubleColonIndex + 2);
         console.log('[DND 8] GALLERY_SLOT_PARSED', { slotId, projectId, existingMediaId });
         
         // FIX: Use atomic PUT authority instead of legacy POST
@@ -1707,12 +1707,12 @@ Check browser console for detailed logs.`);
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(requestBody),
         });
-      } else if (slotId.startsWith('project-gallery-')) {
-        // Extract project ID and gallery index from slot ID (e.g., project-gallery-fences-001-0 -> fences-001, 0)
-        const idPart = slotId.replace('project-gallery-', '');
-        const lastHyphenIndex = idPart.lastIndexOf('-');
-        const projectId = idPart.substring(0, lastHyphenIndex);
-        const galleryIndex = parseInt(idPart.substring(lastHyphenIndex + 1), 10);
+      } else if (slotId.startsWith('project-gallery::')) {
+        // Extract project ID and gallery index from slot ID (e.g., project-gallery::{projectId}::{index})
+        const idPart = slotId.replace('project-gallery::', '');
+        const lastDoubleColonIndex = idPart.lastIndexOf('::');
+        const projectId = idPart.substring(0, lastDoubleColonIndex);
+        const galleryIndex = parseInt(idPart.substring(lastDoubleColonIndex + 2), 10);
         console.log('[DND 8] PROJECT_GALLERY_SLOT_PARSED', { slotId, projectId, galleryIndex });
         
         // FIX: Use atomic PUT authority instead of legacy POST
