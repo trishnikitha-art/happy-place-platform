@@ -57,7 +57,7 @@ describe('OAuth Negative Security - Real Redis Integration', () => {
       const {
         createSession,
         getSession,
-      } = await import('../oauth-session-manager');
+      } = await import('../oauth-state-manager');
 
       const googleSubject = `test_revoke_session_${Date.now()}`;
       const email = `test_revoke_session_${Date.now()}@example.com`;
@@ -115,7 +115,7 @@ describe('OAuth Negative Security - Real Redis Integration', () => {
       const {
         createSession,
         getSession,
-      } = await import('../oauth-session-manager');
+      } = await import('../oauth-state-manager');
 
       const subjectA = `test_subject_A_${Date.now()}`;
       const subjectB = `test_subject_B_${Date.now()}`;
@@ -195,7 +195,7 @@ describe('OAuth Negative Security - Real Redis Integration', () => {
         createSession,
         getSession,
         deleteSession,
-      } = await import('../oauth-session-manager');
+      } = await import('../oauth-state-manager');
 
       const googleSubject = `test_isolation_${Date.now()}`;
       const email = `test_isolation_${Date.now()}@example.com`;

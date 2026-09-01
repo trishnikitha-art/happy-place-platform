@@ -91,6 +91,7 @@ jobs:
         env:
           NODE_ENV: test
           ENCRYPTION_KEY: test-encryption-key-32-bytes-long
+          # Unit tests DO NOT use real Redis - they use mocks
       - name: Run OAuth integration tests with real Redis
         run: npx jest --config jest.oauth.integration.config.ts
         env:
@@ -100,3 +101,5 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
+          NODE_ENV: test
+          # Integration tests DO use real Redis - they require real credentials

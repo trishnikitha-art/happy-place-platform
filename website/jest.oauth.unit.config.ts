@@ -11,6 +11,9 @@ const config: Config = {
   testMatch: [
     "**/src/lib/drive/__tests__/oauth-*.test.ts",
   ],
+  testPathIgnorePatterns: [
+    "/src/lib/drive/__tests__/*.integration.test.ts", // Exclude integration tests from unit test runs
+  ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
