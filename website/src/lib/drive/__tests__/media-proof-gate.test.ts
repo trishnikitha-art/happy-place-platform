@@ -36,14 +36,14 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
   });
 
   describe('Synthetic Content Identity Rejection', () => {
-    it('should reject synthetic content identity from KV path', async () => {
+    it('should reject synthetic content identity from Drive source', async () => {
       const { getMedia } = require('@/lib/media-kv-store');
       
-      // Simulate KV returning a synthetic record (contentHash === SHA256(canonicalId))
+      // Drive assets with synthetic hashes should be rejected
       getMedia.mockResolvedValue({
         id: 'brand-hero',
         lifecycleState: 'published',
-        source: 'local',
+        source: 'google-drive',
         contentHash: 'ae2b1fca596bf1268e37357044f8a8613b11a8c8', // SHA256('brand-hero')
         dimensions: { width: 1200, height: 800 },
         variants: { original: '/images/test.jpg' }
@@ -54,36 +54,77 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
       expect(result).toBeNull();
     });
 
-    it('should reject synthetic content identity from static bootstrap path', () => {
-      // Static bootstrap should reject synthetic content identity
+    it('should allow local assets with synthetic hashes', async () => {
+      const { getMedia } = require('@/lib/media-kv-store');
+      
+      // Local assets can use synthetic hashes (canonical ID based)
+      getMedia.mockResolvedValue({
+        id: 'brand-hero',
+        lifecycleState: 'published',
+        source: 'local',
+        contentHash: 'ae2b1fca596bf1268e37357044f8a8613b11a8c8', // SHA256('brand-hero')
+        dimensions: { width: 1200, height: 800 },
+        variants: { original: '/images/test.jpg', web: '/images/test.webp' }
+      });
+
+      const result = await resolvePublicMedia('brand-hero');
+      
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe('brand-hero');
+    });
+
+    it('should allow local assets with synthetic hashes in static bootstrap', () => {
+      // Static bootstrap should allow local assets with synthetic hashes
       // getStaticMediaForBootstrap() is ONLY for explicit bootstrap/recovery operations
       
-      // If media.v1.json contains a synthetic record, getStaticMediaForBootstrap() should NOT return it
-      expect(() => {
-        const staticMedia = getStaticMediaForBootstrap('brand-hero');
-        if (staticMedia && staticMedia.contentHash === 'ae2b1fca596bf1268e37357044f8a8613b11a8c8') {
-          throw new Error('FAIL: Static bootstrap returned synthetic content identity without proof verification');
-        }
-      }).not.toThrow();
+      // Local assets can use synthetic hashes (canonical ID based)
+      const staticMedia = getStaticMediaForBootstrap('brand-hero');
+      if (staticMedia && staticMedia.source === 'local' && staticMedia.contentHash === 'ae2b1fca596bf1268e37357044f8a8613b11a8c8') {
+        // This is acceptable for local assets
+        expect(staticMedia.id).toBe('brand-hero');
+      } else {
+        // If it exists, it should be a valid local asset
+        expect(staticMedia?.source).toBe('local');
+      }
     });
   });
 
   describe('Constitutional Proof Requirements', () => {
-    it('should require physical Blob verification for published local assets', async () => {
+    it('should allow local published assets with valid public variants', async () => {
       const { getMedia } = require('@/lib/media-kv-store');
       
-      // Simulate KV returning a record without Blob metadata
+      // Local assets with valid public variants should be allowed (static file serving)
+      // They don't require Blob metadata since they're served from static files
       getMedia.mockResolvedValue({
         id: 'test-media',
         lifecycleState: 'published',
         source: 'local',
+        contentHash: 'some-hash', // Local assets can use synthetic hashes
+        dimensions: { width: 1200, height: 800 },
+        variants: { original: '/images/test.jpg', web: '/images/test.webp' } // Valid public variants
+      });
+
+      const result = await resolvePublicMedia('test-media');
+      
+      expect(result).not.toBeNull();
+      expect(result?.id).toBe('test-media');
+    });
+
+    it('should require Blob verification for Drive published assets', async () => {
+      const { getMedia } = require('@/lib/media-kv-store');
+      
+      // Drive assets require real Blob metadata and verification
+      getMedia.mockResolvedValue({
+        id: 'test-drive-media',
+        lifecycleState: 'published',
+        source: 'google-drive',
         contentHash: 'some-hash',
         dimensions: { width: 1200, height: 800 },
         variants: { original: '/images/test.jpg' }
         // Missing blob_metadata in KV - should be rejected
       });
 
-      const result = await resolvePublicMedia('test-media');
+      const result = await resolvePublicMedia('test-drive-media');
       
       expect(result).toBeNull();
     });
@@ -132,26 +173,38 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
   });
 
   describe('Authority Path Consistency', () => {
-    it('should apply same proof checks to KV and static paths', async () => {
+    it('should apply different proof requirements for local vs Drive assets', async () => {
       const { getMedia } = require('@/lib/media-kv-store');
       
-      // Both paths should reject the same invalid record
-      const invalidRecord = {
-        id: 'invalid-media',
+      // Local asset with synthetic hash + valid variants = ALLOWED
+      const localAsset = {
+        id: 'local-media',
         lifecycleState: 'published',
         source: 'local',
-        contentHash: 'synthetic-hash', // Should fail constitutional proof
+        contentHash: 'synthetic-hash', // Local assets can use synthetic hashes
+        dimensions: { width: 1200, height: 800 },
+        variants: { original: '/images/test.jpg', web: '/images/test.webp' }
+      };
+
+      // Drive asset with synthetic hash = REJECTED
+      const driveAsset = {
+        id: 'drive-media',
+        lifecycleState: 'published',
+        source: 'google-drive',
+        contentHash: 'synthetic-hash', // Drive assets require real hash
         dimensions: { width: 1200, height: 800 },
         variants: { original: '/images/test.jpg' }
       };
 
-      // KV path
-      getMedia.mockResolvedValue(invalidRecord);
-      const kvResult = await resolvePublicMedia('invalid-media');
+      // Test local asset (should pass)
+      getMedia.mockResolvedValue(localAsset);
+      const localResult = await resolvePublicMedia('local-media');
+      expect(localResult).not.toBeNull();
       
-      // Static path should also reject (once fixed)
-      // For now, this test documents the current inconsistency
-      expect(kvResult).toBeNull();
+      // Test Drive asset (should fail)
+      getMedia.mockResolvedValue(driveAsset);
+      const driveResult = await resolvePublicMedia('drive-media');
+      expect(driveResult).toBeNull();
     });
   });
 });

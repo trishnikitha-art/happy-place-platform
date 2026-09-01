@@ -51,8 +51,13 @@ function getEnvironment(): Environment {
     return 'test';
   }
   
-  // Default to development for safety
-  return 'development';
+  // P0 FIX: Fail closed on unknown environment
+  // Unknown/missing environment must not silently default to development
+  // This prevents production-like execution from accidentally routing into development namespace
+  throw new Error(
+    `Unknown environment: VERCEL_ENV=${vercelEnv}, NODE_ENV=${nodeEnv}. ` +
+    'Environment must be explicitly configured. Cannot proceed with unsafe default.'
+  );
 }
 
 /**
@@ -73,33 +78,34 @@ function namespacedKey(key: string): string {
   return `${namespace}${key}`;
 }
 
-let redis: Redis | null = null;
-
+/**
+ * P0 FIX: Eliminate process-global mutable state
+ * Create fresh Redis client on each call to prevent identity leaks
+ * and cross-request contamination
+ */
 function getRedisClient(): Redis {
-  if (!redis) {
-    let url = process.env.KV_REST_API_URL;
-    let token = process.env.KV_REST_API_TOKEN;
-    
-    // Check integration-generated variables
-    const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
-    const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
-    const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
-    
-    // Use integration credentials if primary not set
-    if (!url && integrationUrl) {
-      url = integrationUrl;
-    }
-    if (!token && integrationToken) {
-      token = integrationToken;
-    }
-    
-    if (!url || !token) {
-      throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
-    }
-    
-    redis = new Redis({ url, token });
+  let url = process.env.KV_REST_API_URL;
+  let token = process.env.KV_REST_API_TOKEN;
+  
+  // Check integration-generated variables
+  const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
+  const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
+  const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
+  
+  // Use integration credentials if primary not set
+  if (!url && integrationUrl) {
+    url = integrationUrl;
   }
-  return redis;
+  if (!token && integrationToken) {
+    token = integrationToken;
+  }
+  
+  if (!url || !token) {
+    throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
+  }
+  
+  // Create fresh client on each call (no global cache)
+  return new Redis({ url, token });
 }
 
 // Redis namespace (P1-9: Environment isolation applied)

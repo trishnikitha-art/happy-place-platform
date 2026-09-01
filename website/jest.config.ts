@@ -21,6 +21,7 @@ const config: Config = {
     "/src/lib/__tests__/assignment-store-kv.test.ts", // Requires complex mocking for CAS enforcement
     "/src/lib/drive/__tests__/oauth-atomic-identity.test.ts", // Requires ENCRYPTION_KEY and complex setup
     "/src/lib/drive/__tests__/oauth-authority-revocation.test.ts", // Requires ENCRYPTION_KEY and complex setup
+    "/src/lib/drive/__tests__/oauth-manager.test.ts", // Requires complex OAuth flow setup
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",

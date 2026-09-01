@@ -10,6 +10,7 @@
  */
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+import path from 'path';
 
 // Set environment variables before importing modules
 process.env.KV_REST_API_URL = 'https://test.redis.com';
@@ -46,10 +47,9 @@ describe('Workbench Session - Server-Side Authentication Boundary', () => {
     it('should workbench-session implementation uses Redis client factory for server-side storage', () => {
       // Read the workbench-session.ts file to verify the architecture
       const fs = require('fs');
-      const workbenchSessionCode = fs.readFileSync(
-        'C:/Users/nolan/CascadeProjects/happy-place-platform/website/src/lib/workbench-session.ts',
-        'utf8'
-      );
+      const path = require('path');
+      const workbenchSessionPath = path.join(__dirname, '../../workbench-session.ts');
+      const workbenchSessionCode = fs.readFileSync(workbenchSessionPath, 'utf8');
       
       // Verify it uses Redis for server-side storage
       expect(workbenchSessionCode).toContain('createRedisClient()');
@@ -65,10 +65,9 @@ describe('Workbench Session - Server-Side Authentication Boundary', () => {
 
     it('should verify old cookie-based authentication was removed', () => {
       const fs = require('fs');
-      const workbenchSessionCode = fs.readFileSync(
-        'C:/Users/nolan/CascadeProjects/happy-place-platform/website/src/lib/workbench-session.ts',
-        'utf8'
-      );
+      const path = require('path');
+      const workbenchSessionPath = path.join(__dirname, '../../workbench-session.ts');
+      const workbenchSessionCode = fs.readFileSync(workbenchSessionPath, 'utf8');
       
       // Old implementation had these cookie fields - they should not be SET anymore
       const cookieSetAuthenticated = workbenchSessionCode.match(/cookieStore\.set\('workbench_authenticated'/g);
@@ -85,10 +84,9 @@ describe('Workbench Session - Server-Side Authentication Boundary', () => {
   describe('Server-Side Session Data Structure', () => {
     it('should verify session data structure includes server-side authenticated flag', () => {
       const fs = require('fs');
-      const workbenchSessionCode = fs.readFileSync(
-        'C:/Users/nolan/CascadeProjects/happy-place-platform/website/src/lib/workbench-session.ts',
-        'utf8'
-      );
+      const path = require('path');
+      const workbenchSessionPath = path.join(__dirname, '../../workbench-session.ts');
+      const workbenchSessionCode = fs.readFileSync(workbenchSessionPath, 'utf8');
       
       // Verify session data includes authenticated flag
       expect(workbenchSessionCode).toMatch(/authenticated:\s*true/);
@@ -98,10 +96,9 @@ describe('Workbench Session - Server-Side Authentication Boundary', () => {
 
     it('should verify session validation checks server-side data', () => {
       const fs = require('fs');
-      const workbenchSessionCode = fs.readFileSync(
-        'C:/Users/nolan/CascadeProjects/happy-place-platform/website/src/lib/workbench-session.ts',
-        'utf8'
-      );
+      const path = require('path');
+      const workbenchSessionPath = path.join(__dirname, '../../workbench-session.ts');
+      const workbenchSessionCode = fs.readFileSync(workbenchSessionPath, 'utf8');
       
       // Verify isAuthenticated() fetches from Redis
       expect(workbenchSessionCode).toMatch(/createRedisClient\(\)/);
@@ -115,10 +112,9 @@ describe('Workbench Session - Server-Side Authentication Boundary', () => {
   describe('Fail-Closed Semantics', () => {
     it('should verify Redis failures cause authentication to fail closed', () => {
       const fs = require('fs');
-      const workbenchSessionCode = fs.readFileSync(
-        'C:/Users/nolan/CascadeProjects/happy-place-platform/website/src/lib/workbench-session.ts',
-        'utf8'
-      );
+      const path = require('path');
+      const workbenchSessionPath = path.join(__dirname, '../../workbench-session.ts');
+      const workbenchSessionCode = fs.readFileSync(workbenchSessionPath, 'utf8');
       
       // Verify authenticate() fails closed on Redis error
       expect(workbenchSessionCode).toMatch(/catch/);
@@ -133,10 +129,9 @@ describe('Workbench Session - Server-Side Authentication Boundary', () => {
   describe('Session Expiration', () => {
     it('should verify session expiration is checked server-side', () => {
       const fs = require('fs');
-      const workbenchSessionCode = fs.readFileSync(
-        'C:/Users/nolan/CascadeProjects/happy-place-platform/website/src/lib/workbench-session.ts',
-        'utf8'
-      );
+      const path = require('path');
+      const workbenchSessionPath = path.join(__dirname, '../../workbench-session.ts');
+      const workbenchSessionCode = fs.readFileSync(workbenchSessionPath, 'utf8');
       
       // Verify expiration check uses server-side expiresAt
       expect(workbenchSessionCode).toMatch(/Date\.now\(\)\s*>=\s*parsedSession\.expiresAt/);
