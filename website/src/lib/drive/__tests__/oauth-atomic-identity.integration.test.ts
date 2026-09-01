@@ -57,7 +57,7 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
           'test_token',
           Date.now() + 3600000,
           'test_refresh',
-          1
+          0
         )
       );
       
@@ -104,7 +104,7 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
         'test_token',
         Date.now() + 3600000,
         'test_refresh',
-        1
+        0
       );
       
       // Verify subject index resolves to correct authorization
@@ -147,7 +147,7 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
           `token_${i}`,
           Date.now() + 3600000,
           `refresh_${i}`,
-          1
+          0
         )
       );
       
@@ -194,7 +194,7 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
         'test_token',
         Date.now() + 3600000,
         'test_refresh',
-        1
+        0
       );
       
       // Retrieve authorization
@@ -232,7 +232,7 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
         'test_token',
         Date.now() + 3600000,
         'test_refresh',
-        1
+        0
       );
       
       // Verify authorization exists

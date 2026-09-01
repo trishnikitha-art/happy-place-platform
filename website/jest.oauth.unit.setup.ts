@@ -10,7 +10,7 @@
 process.env.KV_REST_API_URL = 'https://test.redis.com';
 process.env.KV_REST_API_TOKEN = 'test-token';
 process.env.NODE_ENV = 'test';
-process.env.ENCRYPTION_KEY = 'test-encryption-key-32-bytes-long';
+process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 // Mock browser cookies (Next.js headers)
 jest.mock('next/headers', () => ({

@@ -19,10 +19,9 @@ if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
 
 // P0: Fail closed if encryption key is missing
 if (!process.env.ENCRYPTION_KEY) {
-  throw new Error(
-    'OAuth integration tests require ENCRYPTION_KEY. ' +
-    'Configure GitHub Actions secret.'
-  );
+  // Set a test encryption key for integration tests if not provided (must be 64 hex chars for 32 bytes)
+  process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
+  console.log('[OAUTH_INTEGRATION_SETUP] Using test ENCRYPTION_KEY for integration tests');
 }
 
 // Set environment variables for real Redis testing

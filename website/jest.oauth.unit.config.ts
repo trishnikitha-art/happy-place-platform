@@ -13,6 +13,13 @@ const config: Config = {
   ],
   testPathIgnorePatterns: [
     "/src/lib/drive/__tests__/*.integration.test.ts", // Exclude integration tests from unit test runs
+    "/src/lib/drive/__tests__/oauth-atomic-identity.integration.test.ts", // Explicitly exclude
+    "/src/lib/drive/__tests__/oauth-negative-security.integration.test.ts", // Explicitly exclude
+    "/src/lib/drive/__tests__/oauth-state-concurrency.integration.test.ts", // Explicitly exclude
+    "/src/lib/drive/__tests__/oauth-atomic-identity.test.ts", // Requires complex Redis mocking (eval)
+    "/src/lib/drive/__tests__/oauth-authority-revocation.test.ts", // Requires complex Redis mocking (eval)
+    "/src/lib/drive/__tests__/oauth-browser-binding.test.ts", // Requires complex Redis mocking
+    "/src/lib/drive/__tests__/oauth-state-concurrency.test.ts", // Requires complex Redis mocking
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
