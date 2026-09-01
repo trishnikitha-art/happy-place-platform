@@ -196,6 +196,26 @@ export async function POST(request: Request) {
           continue;
         }
 
+        // P0: Verify media record → Blob metadata consistency
+        // The metadata must correspond to the media record
+        if (blobMetadata.contentHash !== contentHash) {
+          classification.classification = 'BLOB_HASH_MISMATCH';
+          classificationCounts.BLOB_HASH_MISMATCH++;
+          classification.errorType = 'METADATA_CONTENT_HASH_MISMATCH';
+          classification.error = `Blob metadata contentHash (${blobMetadata.contentHash}) does not match media contentHash (${contentHash})`;
+          classifications.push(classification);
+          continue;
+        }
+
+        if (blobMetadata.url !== originalBlobUrl) {
+          classification.classification = 'BLOB_HASH_MISMATCH';
+          classificationCounts.BLOB_HASH_MISMATCH++;
+          classification.errorType = 'METADATA_URL_MISMATCH';
+          classification.error = `Blob metadata URL (${blobMetadata.url}) does not match media original URL (${originalBlobUrl})`;
+          classifications.push(classification);
+          continue;
+        }
+
         // P0: Missing original Blob URL is explicit failure
         const originalBlobUrl = media.variants?.original;
         if (!originalBlobUrl) {
