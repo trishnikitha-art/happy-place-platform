@@ -12,7 +12,7 @@
  */
 
 import { getMedia, getMediaRecordRaw, storeMedia, findMediaByContentHash } from './media-kv-store';
-import { verifyBlobHash, verifyBlobExists, getBlobMetadataByContentHash } from './blob-storage';
+import { verifyBlobHash, verifyBlobExists, getBlobMetadataByContentHash, type BlobHashVerificationResult } from './blob-storage';
 import { getAllServiceCardAssignments, storeServiceCardAssignment, getServiceCardAssignment } from './assignment-store';
 import type { Media } from '@/types/media';
 
@@ -173,12 +173,14 @@ export async function repairIncompleteKvRecord(media: Media): Promise<boolean> {
     }
     
     // Verify original Blob hash matches content hash
-    const originalHashMatches = await verifyBlobHash(originalBlobMetadata.url, media.contentHash);
-    if (!originalHashMatches) {
+    const verificationResult: BlobHashVerificationResult = await verifyBlobHash(originalBlobMetadata.url, media.contentHash);
+    if (!verificationResult.success) {
       console.error('[MATERIALIZATION_RECOVERY] Cannot repair: Original Blob hash mismatch', {
         mediaId: media.id,
         contentHash: media.contentHash,
         blobUrl: originalBlobMetadata.url,
+        errorType: verificationResult.errorType,
+        actualHash: verificationResult.actualHash,
       });
       return false;
     }

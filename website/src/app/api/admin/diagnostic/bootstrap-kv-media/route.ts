@@ -266,15 +266,17 @@ export async function POST() {
             // Verify physical Blob hash if original variant exists
             if (inKV.variants?.original) {
               const { verifyBlobHash } = await import('@/lib/blob-storage');
-              const hashVerified = await verifyBlobHash(inKV.variants.original, inKV.contentHash);
+              const verificationResult = await verifyBlobHash(inKV.variants.original, inKV.contentHash);
               
-              if (!hashVerified) {
+              if (!verificationResult.success) {
                 failedVerification++;
-                verificationErrors[media.id] = 'Blob hash verification failed';
+                verificationErrors[media.id] = `Blob hash verification failed: ${verificationResult.errorType}`;
                 console.error('[KV_MEDIA_BOOTSTRAP_EVIDENCE] VERIFICATION_FAILED', {
                   testId,
                   mediaId: media.id,
-                  reason: 'Physical Blob bytes do not match content hash'
+                  reason: `Physical Blob verification failed: ${verificationResult.errorType}`,
+                  errorType: verificationResult.errorType,
+                  actualHash: verificationResult.actualHash,
                 });
                 continue;
               }

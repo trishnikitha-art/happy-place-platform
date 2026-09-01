@@ -9,7 +9,7 @@
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 import type { Media } from '@/types/media';
-import { verifyBlobHash } from '@/lib/blob-storage';
+import { verifyBlobHash, type BlobHashVerificationResult } from '@/lib/blob-storage';
 import { getEnvironment, getKvNamespace } from '@/lib/environment';
 
 /**
@@ -232,14 +232,18 @@ export async function verifyPublicMediaAuthority(media: Media): Promise<boolean>
   
   // Real physical verification: fetch Blob bytes and verify hash
   const blobUrl = media.variants.original;
-  const hashMatches = await verifyBlobHash(blobUrl, media.contentHash);
+  const verificationResult = await verifyBlobHash(blobUrl, media.contentHash);
   
-  if (!hashMatches) {
+  if (!verificationResult.success) {
     console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Blob hash verification failed', {
       mediaId: media.id,
       contentHash: media.contentHash,
       blobUrl,
-      reason: 'Physical Blob bytes do not match content hash'
+      errorType: verificationResult.errorType,
+      actualHash: verificationResult.actualHash,
+      reason: verificationResult.errorType === 'INTEGRITY_FAILURE' 
+        ? 'Physical Blob bytes do not match content hash'
+        : `Blob verification failed: ${verificationResult.errorType}`
     });
     return false;
   }
