@@ -11,6 +11,7 @@ import { join } from 'path';
 import crypto from 'crypto';
 
 const MEDIA_FILE = join(process.cwd(), 'src/config/media.v1.json');
+const MEDIA_MAIN_FILE = join(process.cwd(), 'src/config/media.v1.main.json');
 const PUBLIC_IMAGES_DIR = join(process.cwd(), 'public/images');
 
 function computeFileHash(filePath) {
@@ -24,16 +25,32 @@ function computeFileHash(filePath) {
 }
 
 function computeRealContentHashes() {
-  console.log('[HASH] Reading media.v1.json...');
+  console.log('[HASH] Reading media.v1.main.json...');
   
-  const data = JSON.parse(readFileSync(MEDIA_FILE, 'utf-8'));
+  const data = JSON.parse(readFileSync(MEDIA_MAIN_FILE, 'utf8'));
   
   let updatedCount = 0;
   let failedCount = 0;
+  let skippedCount = 0;
   
   for (const media of data.media) {
     if (!media.variants || !media.variants.original) {
       console.log(`[HASH] Skipping ${media.id}: no original variant`);
+      skippedCount++;
+      continue;
+    }
+    
+    // Skip if already has a real contentHash (not synthetic)
+    if (media.contentHash && !isSyntheticHash(media.id, media.contentHash)) {
+      console.log(`[HASH] Skipping ${media.id}: already has real contentHash`);
+      skippedCount++;
+      continue;
+    }
+    
+    // Skip if the original path is a Blob URL (not a local file)
+    if (media.variants.original.startsWith('https://')) {
+      console.log(`[HASH] Skipping ${media.id}: Blob URL, not local file`);
+      skippedCount++;
       continue;
     }
     
@@ -59,10 +76,16 @@ function computeRealContentHashes() {
   
   data.generatedAt = new Date().toISOString();
   
-  writeFileSync(MEDIA_FILE, JSON.stringify(data, null, 2));
+  writeFileSync(MEDIA_MAIN_FILE, JSON.stringify(data, null, 2));
   
-  console.log(`[HASH] Complete: ${updatedCount} records updated, ${failedCount} failed`);
+  console.log(`[HASH] Complete: ${updatedCount} records updated, ${skippedCount} skipped, ${failedCount} failed`);
   console.log('[HASH] All contentHash values now represent actual file bytes');
+}
+
+function isSyntheticHash(id, hash) {
+  const crypto = require('crypto');
+  const synthetic = crypto.createHash('sha256').update(id).digest('hex');
+  return hash === synthetic;
 }
 
 computeRealContentHashes();

@@ -57,7 +57,7 @@ function isSyntheticContentHash(canonicalId: string, contentHash: string): boole
 // Load media manifest using shared AuthorityLoader
 export function loadMediaManifest(): MediaManifest {
   return loadAuthority<MediaManifest>({
-    path: "@/config/media.v1.json",
+    path: "@/config/media.v1.main.json",
     fallback: { version: "1.0.0", generatedAt: new Date().toISOString(), media: [] },
     name: "Media"
   });
