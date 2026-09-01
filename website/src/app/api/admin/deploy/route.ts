@@ -505,8 +505,8 @@ export async function POST(request: Request) {
       const brandFile = join(process.cwd(), "src/config/brand.v1.json");
       const brandData = JSON.parse(readFileSync(brandFile, "utf-8"));
       
-      // Read current media.v1.json for media record merging
-      const mediaFile = join(process.cwd(), "src/config/media.v1.json");
+      // Read current media.v1.main.json for media record merging
+      const mediaFile = join(process.cwd(), "src/config/media.v1.main.json");
       const mediaData = JSON.parse(readFileSync(mediaFile, "utf-8"));
       
       // CRITICAL: Read authoritative deployment transaction first
@@ -1050,8 +1050,8 @@ export async function POST(request: Request) {
       const brandData = JSON.parse(readFileSync(brandFile, "utf-8"));
       brandFileContent = JSON.stringify(brandData, null, 2);
       
-      // Also read media.v1.json in dev mode
-      const mediaFile = join(process.cwd(), "src/config/media.v1.json");
+      // Also read media.v1.main.json in dev mode
+      const mediaFile = join(process.cwd(), "src/config/media.v1.main.json");
       const mediaData = JSON.parse(readFileSync(mediaFile, "utf-8"));
       mediaFileContent = JSON.stringify(mediaData, null, 2);
     }

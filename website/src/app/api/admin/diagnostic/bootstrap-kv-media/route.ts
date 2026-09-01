@@ -155,8 +155,12 @@ export async function POST() {
           continue;
         }
         
+        // SAFETY: Normalize local paths to prevent Blob URL injection
+        // Ensure originalUrl starts with '/' to be treated as absolute path from public/
+        const normalizedPath = originalUrl.startsWith('/') ? originalUrl : `/${originalUrl}`;
+        
         // Check if source file exists in public/images (local filesystem only)
-        const sourcePath = join(process.cwd(), 'public', originalUrl);
+        const sourcePath = join(process.cwd(), 'public', normalizedPath);
         if (!existsSync(sourcePath)) {
           failed++;
           errors[media.id] = `Source file not found: ${sourcePath}`;

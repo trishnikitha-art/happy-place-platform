@@ -103,7 +103,7 @@ export async function POST(request: Request) {
     };
 
     // Load canonical static authority
-    const mediaV1Path = join(process.cwd(), 'src/config/media.v1.json');
+    const mediaV1Path = join(process.cwd(), 'src/config/media.v1.main.json');
     const mediaV1Data = JSON.parse(readFileSync(mediaV1Path, 'utf8'));
     const canonicalRecords = new Map<string, any>();
     mediaV1Data.media.forEach((m: any) => {

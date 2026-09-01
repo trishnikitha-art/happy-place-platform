@@ -71,7 +71,7 @@ export function loadAuthority<T>({
       "@/config/company.v1.json": require("../config/company.v1.json"),
       "@/config/services.v1.json": require("../config/services.v1.json"),
       "@/config/projects.v1.json": require("../config/projects.v1.json"),
-      "@/config/media.v1.json": require("../config/media.v1.json"),
+      "@/config/media.v1.json": require("../config/media.v1.main.json"),
       "@/config/reviews.v1.json": require("../config/reviews.v1.json"),
       "@/config/brand.v1.json": require("../config/brand.v1.json"),
       "@/config/navigation.v1.json": require("../config/navigation.v1.json"),
