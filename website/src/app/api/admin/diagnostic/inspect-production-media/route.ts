@@ -202,7 +202,7 @@ export async function POST(request: Request) {
           classification.classification = 'BLOB_HASH_MISMATCH';
           classificationCounts.BLOB_HASH_MISMATCH++;
           classification.errorType = 'METADATA_CONTENT_HASH_MISMATCH';
-          classification.error = `Blob metadata contentHash (${blobMetadata.contentHash}) does not match media contentHash (${contentHash})`;
+          classification.error = 'METADATA_CONTENT_HASH_MISMATCH'; // Safe error code
           classifications.push(classification);
           continue;
         }
@@ -211,7 +211,7 @@ export async function POST(request: Request) {
           classification.classification = 'BLOB_HASH_MISMATCH';
           classificationCounts.BLOB_HASH_MISMATCH++;
           classification.errorType = 'METADATA_URL_MISMATCH';
-          classification.error = `Blob metadata URL (${blobMetadata.url}) does not match media original URL (${originalBlobUrl})`;
+          classification.error = 'METADATA_URL_MISMATCH'; // Safe error code
           classifications.push(classification);
           continue;
         }
@@ -268,7 +268,7 @@ export async function POST(request: Request) {
               classification.errorType = 'UNKNOWN_ERROR';
           }
           
-          classification.error = verificationResult.errorType;
+          classification.error = verificationResult.errorType; // Safe error type code (not raw message)
           classifications.push(classification);
           continue;
         }
@@ -288,7 +288,8 @@ export async function POST(request: Request) {
         classifications.push({
           mediaId,
           classification: 'ERROR',
-          error: error instanceof Error ? error.message : 'Unknown error',
+          // P1: Safe error code - no sensitive infrastructure details
+          error: 'CLASSIFICATION_ERROR',
         });
       }
     }
@@ -341,11 +342,16 @@ export async function POST(request: Request) {
         : `Accounting mismatch: ${totalClassified + missingRecords} accounted vs ${mediaIds.length} enumerated`,
       evidence: {
         classificationCounts,
-        classifications: classifications.slice(0, 100), // Limit to first 100 for response size
+        // Aggregate counts cover ALL records (no truncation)
         totalMediaRecords: mediaIds.length,
         totalClassified,
         missingRecords,
         accountingValid,
+        // Sampled classification details (first 100 for response size)
+        // Full classification details require pagination mechanism
+        sampledClassifications: classifications.slice(0, 100),
+        sampledCount: Math.min(classifications.length, 100),
+        hasMoreSamples: classifications.length > 100,
       },
       cleanupStatus: 'not_required',
       verdict,
