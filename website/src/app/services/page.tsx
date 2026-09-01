@@ -97,24 +97,24 @@ export default async function ServicesPage() {
           </div>
           <div className="mt-16 rounded-2xl border border-border-soft bg-linen p-8">
             <h3 className="text-xl font-bold text-deep" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>Not seeing what you're looking for?</h3>
-            <p className="mt-3 text-base text-gray-600" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
+            <p className="mt-3 text-base text-deep/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
               We handle many other residential repair and improvement projects. If it isn't listed above, reach out — we'll let you know if it's a good fit or recommend someone who is.
             </p>
-            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm text-deep">
+            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm text-deep/90">
               <span>Trim & finish carpentry</span>
-              <span className="text-gray-300">·</span>
+              <span className="text-deep/60">·</span>
               <span>Deck repairs</span>
-              <span className="text-gray-300">·</span>
+              <span className="text-deep/60">·</span>
               <span>Doors</span>
-              <span className="text-gray-300">·</span>
+              <span className="text-deep/60">·</span>
               <span>Windows</span>
-              <span className="text-gray-300">·</span>
+              <span className="text-deep/60">·</span>
               <span>Siding repairs</span>
-              <span className="text-gray-300">·</span>
+              <span className="text-deep/60">·</span>
               <span>Small remodels</span>
-              <span className="text-gray-300">·</span>
+              <span className="text-deep/60">·</span>
               <span>Hardware installation</span>
-              <span className="text-gray-300">·</span>
+              <span className="text-deep/60">·</span>
               <span>General maintenance</span>
             </div>
           </div>
