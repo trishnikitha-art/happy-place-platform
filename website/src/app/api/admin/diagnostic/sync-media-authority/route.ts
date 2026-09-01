@@ -1,9 +1,8 @@
 /**
- * Simple Media Authority Sync from Static to KV
+ * Media Authority Sync from Static to KV
  * 
  * This endpoint syncs media records from media.v1.main.json to KV
- * without rematerialization. It assumes the static records already have
- * the correct constitutional fields (lifecycleState, source, contentHash).
+ * It updates existing stale records with corrected constitutional fields.
  * 
  * POST /api/admin/diagnostic/sync-media-authority
  */
@@ -27,20 +26,13 @@ export async function POST() {
     const manifest = loadMediaManifest();
     
     let synced = 0;
+    let updated = 0;
     let skipped = 0;
     let failed = 0;
     const errors: Record<string, string> = {};
     
     for (const media of manifest.media) {
       try {
-        // Check if already in KV
-        const existing = await getMediaRecordRaw(media.id);
-        if (existing) {
-          skipped++;
-          console.log('[SYNC] SKIPPED', { mediaId: media.id, reason: 'Already in KV' });
-          continue;
-        }
-        
         // Skip if missing constitutional fields
         if (!media.lifecycleState || !media.source || !media.contentHash) {
           skipped++;
@@ -48,15 +40,30 @@ export async function POST() {
           continue;
         }
         
-        // Write to KV
-        await saveMedia(media);
-        synced++;
-        console.log('[SYNC] SYNCED', { 
-          mediaId: media.id,
-          lifecycleState: media.lifecycleState,
-          source: media.source,
-          contentHash: media.contentHash
-        });
+        // Check if already in KV
+        const existing = await getMediaRecordRaw(media.id);
+        if (existing) {
+          // Update existing stale record with corrected constitutional fields
+          await saveMedia(media);
+          updated++;
+          console.log('[SYNC] UPDATED', { 
+            mediaId: media.id,
+            oldSource: existing.source,
+            newSource: media.source,
+            oldLifecycleState: existing.lifecycleState,
+            newLifecycleState: media.lifecycleState,
+          });
+        } else {
+          // Write new record to KV
+          await saveMedia(media);
+          synced++;
+          console.log('[SYNC] SYNCED', { 
+            mediaId: media.id,
+            lifecycleState: media.lifecycleState,
+            source: media.source,
+            contentHash: media.contentHash
+          });
+        }
         
       } catch (error) {
         failed++;
@@ -68,6 +75,7 @@ export async function POST() {
     return NextResponse.json({
       totalMediaCount: manifest.media.length,
       synced,
+      updated,
       skipped,
       failed,
       errors: failed > 0 ? errors : undefined,
