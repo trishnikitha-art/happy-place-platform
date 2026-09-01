@@ -196,6 +196,17 @@ export async function POST(request: Request) {
           continue;
         }
 
+        // P0: Missing original Blob URL is explicit failure
+        const originalBlobUrl = media.variants?.original;
+        if (!originalBlobUrl) {
+          classification.classification = 'MISSING_ORIGINAL_BLOB';
+          classificationCounts.MISSING_ORIGINAL_BLOB++;
+          classifications.push(classification);
+          continue;
+        }
+
+        classification.blobUrl = originalBlobUrl;
+
         // P0: Verify media record → Blob metadata consistency
         // The metadata must correspond to the media record
         if (blobMetadata.contentHash !== contentHash) {
@@ -215,17 +226,6 @@ export async function POST(request: Request) {
           classifications.push(classification);
           continue;
         }
-
-        // P0: Missing original Blob URL is explicit failure
-        const originalBlobUrl = media.variants?.original;
-        if (!originalBlobUrl) {
-          classification.classification = 'MISSING_ORIGINAL_BLOB';
-          classificationCounts.MISSING_ORIGINAL_BLOB++;
-          classifications.push(classification);
-          continue;
-        }
-
-        classification.blobUrl = originalBlobUrl;
 
         // P0: Verify contentHash only against original variant (never web)
         // Use structured error types from verifyBlobHash instead of string matching
