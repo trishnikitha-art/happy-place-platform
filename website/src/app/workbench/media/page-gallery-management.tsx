@@ -67,7 +67,7 @@ export default function GalleryManagementPanel() {
     projectName: null,
     gallery: [],
     currentRevision: null,
-    loading: true,
+    loading: false,
     error: null,
     isSaving: false,
     saveError: null,
