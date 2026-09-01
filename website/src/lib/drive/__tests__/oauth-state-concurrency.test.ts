@@ -8,6 +8,28 @@
  * - Redis failure → infrastructure error (not false)
  */
 
+// Set environment variables before importing modules
+process.env.KV_REST_API_URL = 'https://test.redis.com';
+process.env.KV_REST_API_TOKEN = 'test-token';
+
+// Mock cookies for Next.js
+jest.mock('next/headers', () => ({
+  cookies: jest.fn(),
+}));
+
+// Mock Redis for testing
+jest.mock('@upstash/redis', () => {
+  function Redis(this: unknown, ...args: unknown[]) {
+    return {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue('OK'),
+      del: jest.fn().mockResolvedValue(1),
+      expire: jest.fn().mockResolvedValue(1),
+    };
+  }
+  return { Redis };
+});
+
 import {
   createState,
   consumeState,
@@ -16,33 +38,39 @@ import {
   StateInfrastructureError,
 } from '../oauth-state-manager';
 
-// Mock cookie store for testing with stateful binding
-const mockCookieStore = {
-  _bindings: new Map<string, string>(),
-  get: (name: string) => {
-    const value = mockCookieStore._bindings.get(name);
-    return value ? { value } : undefined;
-  },
-  set: (name: string, value: string, options: any) => {
-    mockCookieStore._bindings.set(name, value);
-  },
-  delete: (name: string) => {
-    mockCookieStore._bindings.delete(name);
-  },
-};
-
 describe('OAuth State Concurrency', () => {
+  let mockCookieStore: any;
+  
+  beforeEach(() => {
+    jest.clearAllMocks();
+    
+    // Mock cookies for Next.js
+    const { cookies } = require('next/headers');
+    mockCookieStore = {
+      set: jest.fn(),
+      get: jest.fn(),
+      delete: jest.fn(),
+    };
+    cookies.mockReturnValue(mockCookieStore);
+  });
+
+  afterAll(() => {
+    // Clean up environment variables
+    delete process.env.KV_REST_API_URL;
+    delete process.env.KV_REST_API_TOKEN;
+  });
+
   describe('Concurrent State Consumption', () => {
     it('should allow exactly one consumer to succeed on concurrent consume', async () => {
       // Create a state with mock cookie store
-      const state = await createState(mockCookieStore as any);
+      const state = await createState(mockCookieStore);
       expect(state).toBeTruthy();
 
       // Simulate concurrent consumption with cookie store injection
       const consumePromises = [
-        consumeState(state, mockCookieStore as any),
-        consumeState(state, mockCookieStore as any),
-        consumeState(state, mockCookieStore as any),
+        consumeState(state, mockCookieStore),
+        consumeState(state, mockCookieStore),
+        consumeState(state, mockCookieStore),
       ];
 
       const results = await Promise.all(consumePromises);
@@ -53,19 +81,19 @@ describe('OAuth State Concurrency', () => {
     });
 
     it('should reject replayed state', async () => {
-      const state = await createState(mockCookieStore as any);
+      const state = await createState(mockCookieStore);
       expect(state).toBeTruthy();
 
       // First consume should succeed
-      const firstConsume = await consumeState(state, mockCookieStore as any);
+      const firstConsume = await consumeState(state, mockCookieStore);
       expect(firstConsume).toBe(true);
 
       // Second consume (replay) should fail
-      const secondConsume = await consumeState(state, mockCookieStore as any);
+      const secondConsume = await consumeState(state, mockCookieStore);
       expect(secondConsume).toBe(false);
 
       // Validation should return STATE_REPLAYED
-      const validation = await validateState(state, mockCookieStore as any);
+      const validation = await validateState(state, mockCookieStore);
       expect(validation).toBe(StateValidationResult.STATE_REPLAYED);
     });
   });
@@ -77,32 +105,19 @@ describe('OAuth State Concurrency', () => {
       // In a real test environment, we'd need to mock Redis or use a very short TTL
       
       // Create state with mock cookie store
-      const state = await createState(mockCookieStore as any);
+      const state = await createState(mockCookieStore);
       expect(state).toBeTruthy();
 
       // Validate immediately (should be valid)
-      const validation = await validateState(state, mockCookieStore as any);
+      const validation = await validateState(state, mockCookieStore);
       expect(validation).toBe(StateValidationResult.STATE_VALID);
 
       // Consume state
-      await consumeState(state, mockCookieStore as any);
+      await consumeState(state, mockCookieStore);
 
       // After consumption, validation should return STATE_REPLAYED
-      const postConsumeValidation = await validateState(state, mockCookieStore as any);
+      const postConsumeValidation = await validateState(state, mockCookieStore);
       expect(postConsumeValidation).toBe(StateValidationResult.STATE_REPLAYED);
-    });
-  });
-
-  describe('Redis Failure Handling', () => {
-    it('should throw StateInfrastructureError on Redis failure', async () => {
-      // This test would require mocking Redis to simulate failure
-      // For now, we'll document the expected behavior
-      
-      // Expected: When Redis is unavailable, consumeState should throw
-      // StateInfrastructureError, not return false (which would be a security failure)
-      
-      // This is a test placeholder - actual implementation would need Redis mocking
-      expect(true).toBe(true); // Placeholder
     });
   });
 });

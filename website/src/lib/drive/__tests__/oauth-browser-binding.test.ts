@@ -8,6 +8,23 @@
  * - binding cannot be forged from state alone
  */
 
+// Set environment variables before importing modules
+process.env.KV_REST_API_URL = 'https://test.redis.com';
+process.env.KV_REST_API_TOKEN = 'test-token';
+
+// Mock Redis for testing
+jest.mock('@upstash/redis', () => {
+  function Redis(this: unknown, ...args: unknown[]) {
+    return {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue('OK'),
+      del: jest.fn().mockResolvedValue(1),
+      expire: jest.fn().mockResolvedValue(1),
+    };
+  }
+  return { Redis };
+});
+
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import {
   getOrCreateBrowserBinding,
@@ -45,6 +62,12 @@ class MockCookieStore {
 
 describe('OAuth Browser Binding', () => {
   let mockCookieStore: MockCookieStore;
+
+  afterAll(() => {
+    // Clean up environment variables
+    delete process.env.KV_REST_API_URL;
+    delete process.env.KV_REST_API_TOKEN;
+  });
 
   beforeEach(() => {
     mockCookieStore = new MockCookieStore();

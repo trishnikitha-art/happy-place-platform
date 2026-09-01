@@ -7,6 +7,23 @@
  * - revoked identity → deterministic behavior
  */
 
+// Set environment variables before importing modules
+process.env.KV_REST_API_URL = 'https://test.redis.com';
+process.env.KV_REST_API_TOKEN = 'test-token';
+
+// Mock Redis for testing
+jest.mock('@upstash/redis', () => {
+  function Redis(this: unknown, ...args: unknown[]) {
+    return {
+      get: jest.fn().mockResolvedValue(null),
+      set: jest.fn().mockResolvedValue('OK'),
+      del: jest.fn().mockResolvedValue(1),
+      expire: jest.fn().mockResolvedValue(1),
+    };
+  }
+  return { Redis };
+});
+
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import {
   upsertAuthorization,
@@ -25,18 +42,32 @@ describe('OAuth Atomic Identity Acquisition', () => {
 
   beforeEach(async () => {
     // Clean up any existing test authorization
-    const existingAuth = await findAuthorizationBySubject(TEST_SUBJECT);
-    if (existingAuth) {
-      await revokeAuthorization(existingAuth.id);
+    try {
+      const existingAuth = await findAuthorizationBySubject(TEST_SUBJECT);
+      if (existingAuth) {
+        await revokeAuthorization(existingAuth.id);
+      }
+    } catch (error) {
+      // Ignore cleanup errors
     }
   });
 
   afterEach(async () => {
     // Clean up after each test
-    const existingAuth = await findAuthorizationBySubject(TEST_SUBJECT);
-    if (existingAuth) {
-      await revokeAuthorization(existingAuth.id);
+    try {
+      const existingAuth = await findAuthorizationBySubject(TEST_SUBJECT);
+      if (existingAuth) {
+        await revokeAuthorization(existingAuth.id);
+      }
+    } catch (error) {
+      // Ignore cleanup errors
     }
+  });
+
+  afterAll(() => {
+    // Clean up environment variables
+    delete process.env.KV_REST_API_URL;
+    delete process.env.KV_REST_API_TOKEN;
   });
 
   it('should create new authorization for new subject', async () => {

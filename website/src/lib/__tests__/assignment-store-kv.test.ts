@@ -9,7 +9,20 @@
  *
  * @upstash/redis is mocked so we observe the exact { url, token } passed to the
  * Redis constructor without performing any network I/O.
+ * 
+ * resolvePublicMedia is mocked to return a valid PublishedMediaAsset for test mediaId
+ * since the test is about KV credential resolution, not media validation.
  */
+
+jest.mock('../media', () => ({
+  resolvePublicMedia: jest.fn().mockResolvedValue({
+    id: 'media-xyz',
+    filename: 'test.jpg',
+    lifecycleState: 'published',
+    variants: { web: 'https://example.com/test.jpg' },
+  }),
+}));
+
 const upstashMock = { Redis: jest.fn() };
 
 jest.mock('@upstash/redis', () => {
@@ -19,12 +32,22 @@ jest.mock('@upstash/redis', () => {
   return { Redis };
 });
 
+// Mock getServiceCardAssignment to return null (so expectedRevision=0 is valid)
+jest.mock('../assignment-store', () => {
+  const originalModule = jest.requireActual('../assignment-store');
+  return {
+    ...originalModule,
+    getServiceCardAssignment: jest.fn().mockResolvedValue(null),
+  };
+});
+
 type AssignmentStore = typeof import('../assignment-store');
 
 function validAssignment() {
   return {
     serviceSlug: 'brand-hero',
     mediaId: 'media-xyz',
+    expectedRevision: 0, // Required for CAS enforcement (0 = create)
     updatedAt: new Date().toISOString(),
     source: 'workbench' as const,
   };

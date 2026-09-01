@@ -213,9 +213,10 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
     return null;
   }
 
-  // REJECT: Synthetic content identity (contentHash === SHA256(canonicalId))
-  // This must be checked even for PublishedMediaAsset to prevent synthetic back doors
-  if (media.contentHash && isSyntheticContentHash(id, media.contentHash)) {
+  // REJECT: Synthetic content identity (contentHash === SHA256(canonicalId)) for Drive assets
+  // This must be checked for Drive assets to prevent synthetic back doors
+  // Local assets can use synthetic hashes as they're static files with canonical IDs
+  if (media.source === 'google-drive' && media.contentHash && isSyntheticContentHash(id, media.contentHash)) {
     console.error('[PUBLIC_MEDIA_GATE] REJECTED: Synthetic content identity', {
       mediaId: id,
       contentHash: media.contentHash,
@@ -224,9 +225,10 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
     return null;
   }
 
-  // REJECT: Missing physical Blob metadata for published local assets
-  // PublishedMediaAsset with source: 'local' must have proof of physical bytes
-  if (media.source === 'local' && media.contentHash) {
+  // REJECT: Missing physical Blob metadata for published Drive assets
+  // PublishedMediaAsset with source: 'google-drive' must have proof of physical bytes
+  // Local source assets are served from static files and don't require Blob metadata
+  if (media.source === 'google-drive' && media.contentHash) {
     try {
       const { getBlobMetadataByContentHash } = await import('@/lib/blob-storage');
       const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);

@@ -43,7 +43,7 @@ describe('Workbench Session - Server-Side Authentication Boundary', () => {
   });
 
   describe('Session Cookie Architecture', () => {
-    it('should workbench-session implementation uses Redis for server-side storage', () => {
+    it('should workbench-session implementation uses Redis client factory for server-side storage', () => {
       // Read the workbench-session.ts file to verify the architecture
       const fs = require('fs');
       const workbenchSessionCode = fs.readFileSync(
@@ -52,7 +52,7 @@ describe('Workbench Session - Server-Side Authentication Boundary', () => {
       );
       
       // Verify it uses Redis for server-side storage
-      expect(workbenchSessionCode).toContain('getRedisClient()');
+      expect(workbenchSessionCode).toContain('createRedisClient()');
       expect(workbenchSessionCode).toContain('workbench_session:');
       
       // Verify it does NOT store authentication state in cookies (except in clearSession for backwards compatibility)
@@ -104,7 +104,7 @@ describe('Workbench Session - Server-Side Authentication Boundary', () => {
       );
       
       // Verify isAuthenticated() fetches from Redis
-      expect(workbenchSessionCode).toMatch(/getRedisClient\(\)/);
+      expect(workbenchSessionCode).toMatch(/createRedisClient\(\)/);
       expect(workbenchSessionCode).toMatch(/workbench_session:/);
       
       // Verify it checks server-side authenticated flag

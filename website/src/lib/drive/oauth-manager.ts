@@ -176,41 +176,30 @@ export async function getOAuthClient(): Promise<InstanceType<typeof google.auth.
 
   const oauth2Client = await createOAuthClient(credentials, effectiveAuthorizationId);
 
-  // Proactive token refresh if near expiry (within 5 minutes)
-  if (credentials.expiry_date && credentials.expiry_date - Date.now() < 5 * 60 * 1000) {
-    console.log('[OAUTH_MANAGER] Token near expiry, proactive refresh for authorization:', effectiveAuthorizationId);
+  // Single authoritative token refresh path
+  // Check if token needs refresh (expired or near expiry within 5 minutes)
+  const needsRefresh = !credentials.expiry_date || 
+                       credentials.expiry_date - Date.now() < 5 * 60 * 1000;
+
+  if (needsRefresh) {
+    console.log('[OAUTH_MANAGER] Token needs refresh (expired or near expiry), performing explicit refresh:', {
+      authorizationId: effectiveAuthorizationId,
+      currentExpiry: credentials.expiry_date ? new Date(credentials.expiry_date).toISOString() : 'unknown',
+    });
     await explicitTokenRefresh(oauth2Client, effectiveAuthorizationId);
-    console.log('[OAUTH_MANAGER] Proactive refresh successful for authorization:', effectiveAuthorizationId);
+    console.log('[OAUTH_MANAGER] Token refresh successful for authorization:', effectiveAuthorizationId);
   }
 
-  // Ensure token is valid with error handling
-  // CRITICAL FIX: Always call explicitTokenRefresh() to ensure persistence
-  // Google's getAccessToken() may internally refresh without calling our persistence path
-  const beforeExpiry = oauth2Client.credentials.expiry_date as number;
-  
+  // Validate token is accessible without triggering internal refresh
   try {
     const tokens = await oauth2Client.getAccessToken();
-    const afterExpiry = oauth2Client.credentials.expiry_date as number;
-    
-    // Check if Google internally refreshed the token (expiry changed)
-    const wasInternallyRefreshed = afterExpiry > beforeExpiry;
-    
-    if (wasInternallyRefreshed) {
-      console.log('[OAUTH_MANAGER] INTERNAL_REFRESH_DETECTED, calling explicit persistence:', {
-        authorizationId: effectiveAuthorizationId,
-        beforeExpiry: new Date(beforeExpiry).toISOString(),
-        afterExpiry: new Date(afterExpiry).toISOString(),
-      });
-      
-      // Call explicit refresh to ensure persistence even though Google already refreshed
-      await explicitTokenRefresh(oauth2Client, effectiveAuthorizationId);
-    }
-    
     if (!tokens.token) {
+      console.log('[OAUTH_MANAGER] Token validation failed, attempting recovery refresh:', effectiveAuthorizationId);
       await explicitTokenRefresh(oauth2Client, effectiveAuthorizationId);
+      console.log('[OAUTH_MANAGER] Recovery refresh successful for authorization:', effectiveAuthorizationId);
     }
   } catch (error) {
-    console.error('[OAUTH_MANAGER] Token validation failed, attempting explicit refresh:', effectiveAuthorizationId, error);
+    console.error('[OAUTH_MANAGER] Token validation failed, attempting recovery refresh:', effectiveAuthorizationId, error);
     
     // Attempt explicit refresh as recovery
     try {
