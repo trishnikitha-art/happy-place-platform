@@ -96,8 +96,7 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
       const email = `test_index_${Date.now()}@example.com`;
       
       // Create authorization
-      const authId = `auth_index_${Date.now()}`;
-      await upsertAuthorization(
+      const auth = await upsertAuthorization(
         googleSubject,
         email,
         ['drive.readonly'],
@@ -107,11 +106,13 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
         1
       );
       
+      const authId = auth.id;
+      
       // Verify subject index resolves to correct authorization
-      const auth = await findAuthorizationBySubject(googleSubject);
-      expect(auth).not.toBeNull();
-      expect(auth?.id).toBe(authId);
-      expect(auth?.googleSubject).toBe(googleSubject);
+      const subjectAuth = await findAuthorizationBySubject(googleSubject);
+      expect(subjectAuth).not.toBeNull();
+      expect(subjectAuth?.id).toBe(authId);
+      expect(subjectAuth?.googleSubject).toBe(googleSubject);
       
       // Verify direct get also works
       const directAuth = await getAuthorization(authId);
@@ -184,10 +185,9 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
 
       const googleSubject = `test_lifecycle_${Date.now()}`;
       const email = `test_lifecycle_${Date.now()}@example.com`;
-      const authId = `auth_lifecycle_${Date.now()}`;
       
       // Create authorization
-      await upsertAuthorization(
+      const auth = await upsertAuthorization(
         googleSubject,
         email,
         ['drive.readonly'],
@@ -197,10 +197,12 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
         1
       );
       
+      const authId = auth.id;
+      
       // Retrieve authorization
-      const auth = await getAuthorization(authId);
-      expect(auth).toBeDefined();
-      expect(auth?.id).toBe(authId);
+      const retrievedAuth = await getAuthorization(authId);
+      expect(retrievedAuth).toBeDefined();
+      expect(retrievedAuth?.id).toBe(authId);
       expect(auth?.googleSubject).toBe(googleSubject);
       
       console.log('[OAUTH_IDENTITY_INTEGRATION] Authorization lifecycle test passed');
@@ -222,10 +224,9 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
 
       const googleSubject = `test_revoke_${Date.now()}`;
       const email = `test_revoke_${Date.now()}@example.com`;
-      const authId = `auth_revoke_${Date.now()}`;
       
       // Create authorization
-      await upsertAuthorization(
+      const auth = await upsertAuthorization(
         googleSubject,
         email,
         ['drive.readonly'],
@@ -235,6 +236,8 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
         1
       );
       
+      const authId = auth.id;
+      
       // Verify authorization exists
       const authBefore = await getAuthorization(authId);
       expect(authBefore).toBeDefined();
@@ -242,11 +245,12 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
       // Revoke authorization
       await revokeAuthorization(authId);
       
-      // Verify authorization is revoked
+      // Verify authorization status is revoked (record still exists but marked revoked)
       const authAfter = await getAuthorization(authId);
-      expect(authAfter).toBeNull();
+      expect(authAfter).toBeDefined();
+      expect(authAfter?.status).toBe('revoked');
       
-      // Verify subject index is cleaned up
+      // Verify subject index is cleaned up (prevents resurrection)
       const subjectAuth = await findAuthorizationBySubject(googleSubject);
       expect(subjectAuth).toBeNull();
       

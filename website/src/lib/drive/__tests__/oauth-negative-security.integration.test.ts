@@ -54,13 +54,14 @@ describe('OAuth Negative Security - Real Redis Integration', () => {
         upsertAuthorization,
         revokeAuthorization,
         findAuthorizationBySubject,
+        getAuthorization,
       } = await import('../oauth-credential-store');
 
       const googleSubject = `test_revoke_session_${Date.now()}`;
       const email = `test_revoke_session_${Date.now()}@example.com`;
       
       // Create authorization
-      await upsertAuthorization(
+      const auth = await upsertAuthorization(
         googleSubject,
         email,
         ['drive.readonly'],
@@ -70,17 +71,24 @@ describe('OAuth Negative Security - Real Redis Integration', () => {
         1
       );
       
+      const authId = auth.id;
+      
       // Verify authorization exists
       const authBefore = await findAuthorizationBySubject(googleSubject);
       expect(authBefore).toBeDefined();
       expect(authBefore?.status).toBe('active');
       
       // Revoke authorization
-      await revokeAuthorization(authBefore!.id);
+      await revokeAuthorization(authId);
       
-      // Verify authorization is revoked
+      // Verify authorization is revoked (subject index deleted)
       const authAfter = await findAuthorizationBySubject(googleSubject);
       expect(authAfter).toBeNull();
+      
+      // Verify direct get shows revoked status
+      const directAuth = await getAuthorization(authId);
+      expect(directAuth).toBeDefined();
+      expect(directAuth?.status).toBe('revoked');
       
       console.log('[OAUTH_SECURITY_INTEGRATION] Revoked session rejection test passed');
     });
