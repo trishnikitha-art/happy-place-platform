@@ -86,6 +86,11 @@ jobs:
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
+      - name: Run OAuth unit tests with Redis mocks
+        run: npx jest --config jest.oauth.unit.config.ts
+        env:
+          NODE_ENV: test
+          ENCRYPTION_KEY: test-encryption-key-32-bytes-long
       - name: Run OAuth integration tests with real Redis
         run: npx jest --config jest.oauth.integration.config.ts
         env:

@@ -9,14 +9,13 @@ const config: Config = {
     }],
   },
   testMatch: [
-    "**/src/lib/drive/__tests__/*.integration.test.ts",
+    "**/src/lib/drive/__tests__/oauth-*.test.ts",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
   },
-  // DO NOT mock @upstash/redis for integration tests
-  // These tests require real Redis connectivity
-  setupFilesAfterEnv: ['<rootDir>/jest.oauth.integration.setup.ts'],
+  // Unit tests MAY mock Redis for testing logic in isolation
+  setupFilesAfterEnv: ['<rootDir>/jest.oauth.unit.setup.ts'],
 };
 
 export default config;

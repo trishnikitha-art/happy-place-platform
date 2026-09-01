@@ -65,6 +65,11 @@ function getEnvironment(): Environment {
  * This ensures isolation between production, preview, development, and test
  */
 function getKvNamespace(): string {
+  // Check for test namespace override (integration tests)
+  if (process.env.TEST_NAMESPACE) {
+    return process.env.TEST_NAMESPACE;
+  }
+  
   const env = getEnvironment();
   return `hpp:${env}:`;
 }
