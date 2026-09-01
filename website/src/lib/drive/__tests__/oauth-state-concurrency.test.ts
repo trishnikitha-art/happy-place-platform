@@ -12,23 +12,12 @@
 process.env.KV_REST_API_URL = 'https://test.redis.com';
 process.env.KV_REST_API_TOKEN = 'test-token';
 
+import crypto from 'crypto';
+
 // Mock cookies for Next.js
 jest.mock('next/headers', () => ({
   cookies: jest.fn(),
 }));
-
-// Mock Redis for testing
-jest.mock('@upstash/redis', () => {
-  function Redis(this: unknown, ...args: unknown[]) {
-    return {
-      get: jest.fn().mockResolvedValue(null),
-      set: jest.fn().mockResolvedValue('OK'),
-      del: jest.fn().mockResolvedValue(1),
-      expire: jest.fn().mockResolvedValue(1),
-    };
-  }
-  return { Redis };
-});
 
 import {
   createState,
@@ -40,15 +29,19 @@ import {
 
 describe('OAuth State Concurrency', () => {
   let mockCookieStore: any;
+  let browserBinding: string;
   
   beforeEach(() => {
     jest.clearAllMocks();
+    
+    // Generate a browser binding for this test
+    browserBinding = crypto.randomBytes(16).toString('hex');
     
     // Mock cookies for Next.js
     const { cookies } = require('next/headers');
     mockCookieStore = {
       set: jest.fn(),
-      get: jest.fn(),
+      get: jest.fn().mockReturnValue({ value: browserBinding }),
       delete: jest.fn(),
     };
     cookies.mockReturnValue(mockCookieStore);

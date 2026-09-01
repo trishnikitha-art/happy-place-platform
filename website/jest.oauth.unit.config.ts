@@ -19,7 +19,6 @@ const config: Config = {
     "/src/lib/drive/__tests__/oauth-atomic-identity.test.ts", // Requires complex Redis mocking (eval)
     "/src/lib/drive/__tests__/oauth-authority-revocation.test.ts", // Requires complex Redis mocking (eval)
     "/src/lib/drive/__tests__/oauth-browser-binding.test.ts", // Requires complex Redis mocking
-    "/src/lib/drive/__tests__/oauth-state-concurrency.test.ts", // Requires complex Redis mocking
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",

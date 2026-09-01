@@ -18,14 +18,70 @@ jest.mock('next/headers', () => ({
 }));
 
 // Mock Redis for unit tests (allowed for unit tests)
+const mockStateStore = new Map<string, any>();
+
 jest.mock('@upstash/redis', () => {
   function Redis(this: unknown, ...args: unknown[]) {
     return {
-      get: jest.fn().mockResolvedValue(null),
-      set: jest.fn().mockResolvedValue('OK'),
-      del: jest.fn().mockResolvedValue(1),
+      get: jest.fn().mockImplementation(async (key: string) => {
+        const value = mockStateStore.get(key);
+        if (value) {
+          try {
+            return JSON.parse(value);
+          } catch {
+            return value;
+          }
+        }
+        return null;
+      }),
+      set: jest.fn().mockImplementation(async (key: string, value: any, options?: any) => {
+        // If value is an object (state record), store it as JSON
+        if (typeof value === 'object' && value !== null) {
+          mockStateStore.set(key, JSON.stringify(value));
+        } else {
+          mockStateStore.set(key, typeof value === 'string' ? value : JSON.stringify(value));
+        }
+        return 'OK';
+      }),
+      del: jest.fn().mockImplementation(async (key: string) => {
+        mockStateStore.delete(key);
+        return 1;
+      }),
       expire: jest.fn().mockResolvedValue(1),
-      eval: jest.fn().mockResolvedValue(1),
+      eval: jest.fn().mockImplementation(async (script: string, keys: string[], args: any[]) => {
+        // Implement atomic state consumption Lua script
+        if (script.includes('consumed') || script.includes('KEEPTTL')) {
+          const key = keys[0];
+          const stateArg = args[0];
+          const browserBindingArg = args[1];
+          
+          const recordData = mockStateStore.get(key);
+          if (!recordData) {
+            return 0; // State not found
+          }
+          
+          const record = JSON.parse(recordData);
+          
+          // Check if already consumed
+          if (record.consumed === true) {
+            return 0;
+          }
+          
+          // Check browser binding
+          if (record.browserBinding !== browserBindingArg) {
+            return 0;
+          }
+          
+          // Mark as consumed atomically
+          record.consumed = true;
+          mockStateStore.set(key, JSON.stringify(record));
+          
+          return 1; // Success
+        }
+        
+        // Default eval behavior
+        return 1;
+      }),
     };
   }
   return { Redis };
