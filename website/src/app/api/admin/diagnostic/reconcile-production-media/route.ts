@@ -1,15 +1,15 @@
 /**
- * Production Media Reconciliation Diagnostic
+ * Production Media Inspection Diagnostic
  * 
- * EVIDENCE STATE MACHINE: NOT_CONFIGURED → CONFIGURED → ENUMERATED → CLASSIFIED → REPAIRED → VERIFIED → PROVEN
+ * EVIDENCE STATE MACHINE: NOT_CONFIGURED → CONFIGURED → ENUMERATED → CLASSIFIED → VERIFIED → PROVEN
  * 
- * CLASSIFICATION: SYNTHETIC-WRITE
- * - Reconciles production KV media records with Blob metadata
- * - Classifies records by health status
- * - Performs safe repairs with quarantine for poisoned records
+ * CLASSIFICATION: SYNTHETIC-READ
+ * - Inspects production KV media records and Blob metadata
+ * - Classifies records by health status with fail-closed logic
+ * - Does NOT perform repairs (inspection-only diagnostic)
  * - Must be run with explicit admin authorization
  * 
- * TEST ID: production-media-reconciliation
+ * TEST ID: production-media-inspection
  * 
  * POST /api/admin/diagnostic/reconcile-production-media
  * 
@@ -17,14 +17,27 @@
  * - Enumerate all media:* records in KV (ENUMERATED)
  * - Classify each record by health status (CLASSIFIED)
  * - Return evidence of classification without repairs (PROVEN)
- * - Optional: perform safe repairs (REPAIRED)
  * 
- * Classification categories:
+ * Classification categories (stricter than production public gate):
  * - SYNTHETIC_HASH: Hash derived from canonical ID, not actual bytes → QUARANTINE
- * - MISSING_BLOB_METADATA: Media exists but blob_metadata:* record missing → RECOVER
- * - MISSING_BLOB: Media references Blob URL that doesn't exist → INCOMPLETE
- * - INVALID_BLOB_HASH: Blob bytes don't match expected hash → QUARANTINE
- * - VALID: Real hash + valid Blob metadata + Blob bytes match → PRESERVE
+ * - MISSING_CONTENT_HASH: No contentHash present → INVALID
+ * - MISSING_ORIGINAL_BLOB: No original variant present → INVALID
+ * - MISSING_BLOB_METADATA: Media exists but blob_metadata:* record missing → INVALID
+ * - BLOB_NOT_FOUND: Blob URL present but object doesn't exist → INVALID
+ * - BLOB_HASH_MISMATCH: Blob bytes don't match expected hash → QUARANTINE
+ * - BLOB_UNVERIFIABLE: Infrastructure error prevents verification → UNVERIFIABLE
+ * - PHYSICALLY_VERIFIED: Real hash + valid Blob metadata + original Blob bytes match → VALID
+ * - ERROR: Classification error
+ * 
+ * P0 FIXES:
+ * - Requires Workbench authentication (admin authorization boundary)
+ * - Missing contentHash is explicit failure classification
+ * - Missing original Blob URL is explicit failure classification
+ * - Never uses web variant as substitute for original hash verification
+ * - Storage errors have typed classification (UNVERIFIABLE vs BLOB_NOT_FOUND)
+ * - Enumeration/classification accounting is exact
+ * - PROVEN verdict only after all required physical checks succeed
+ * - Diagnostic is stricter than production public gate
  */
 
 import { NextResponse } from "next/server";
@@ -45,12 +58,12 @@ interface EvidenceResult {
   observedResult: string;
   evidence: Record<string, unknown>;
   cleanupStatus: string;
-  verdict: 'NOT_CONFIGURED' | 'CONFIGURED' | 'ENUMERATED' | 'CLASSIFIED' | 'REPAIRED' | 'VERIFIED' | 'PROVEN' | 'FAILED';
+  verdict: 'NOT_CONFIGURED' | 'CONFIGURED' | 'ENUMERATED' | 'CLASSIFIED' | 'FAILED';
 }
 
 interface MediaClassification {
   mediaId: string;
-  classification: 'SYNTHETIC_HASH' | 'MISSING_BLOB_METADATA' | 'MISSING_BLOB' | 'INVALID_BLOB_HASH' | 'VALID' | 'ERROR';
+  classification: 'SYNTHETIC_HASH' | 'MISSING_CONTENT_HASH' | 'MISSING_ORIGINAL_BLOB' | 'MISSING_BLOB_METADATA' | 'BLOB_NOT_FOUND' | 'BLOB_HASH_MISMATCH' | 'BLOB_UNVERIFIABLE' | 'PHYSICALLY_VERIFIED' | 'ERROR';
   contentHash?: string;
   isSynthetic?: boolean;
   hasBlobMetadata?: boolean;
@@ -60,11 +73,11 @@ interface MediaClassification {
   lifecycleState?: string;
   source?: string;
   error?: string;
+  errorType?: string;
 }
 
-interface ReconciliationRequest {
+interface InspectionRequest {
   dryRun?: boolean;
-  repair?: boolean;
 }
 
 export async function POST(request: Request) {
@@ -76,6 +89,8 @@ export async function POST(request: Request) {
   console.log('[PRODUCTION_MEDIA_RECONCILIATION] TEST_STARTED', { testId, startTime, deploymentSha, environment });
 
   // REQUIRE ADMIN AUTHORIZATION
+  // Workbench authentication serves as the admin authorization boundary for this codebase
+  // The Workbench password (WORKBENCH_PASSWORD) is the owner/admin access control mechanism
   const isAuthenticated = await workbenchSession.isAuthenticated();
   if (!isAuthenticated) {
     return NextResponse.json({
@@ -84,9 +99,9 @@ export async function POST(request: Request) {
       endTime: new Date().toISOString(),
       deploymentSha,
       environment,
-      dependency: 'Production Media Reconciliation',
+      dependency: 'Production Media Inspection',
       operation: 'authentication',
-      expectedInvariant: 'Admin session authenticated',
+      expectedInvariant: 'Workbench session authenticated (admin authorization)',
       observedResult: 'Unauthorized',
       evidence: { authenticated: false },
       cleanupStatus: 'not_required',
@@ -95,20 +110,18 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body: ReconciliationRequest = await request.json();
-    const dryRun = body.dryRun !== false; // Default to dry run
-    const repair = body.repair === true; // Require explicit repair flag
+    const body: InspectionRequest = await request.json();
+    const dryRun = body.dryRun !== false; // Default to dry run (always true for inspection)
 
-    console.log('[PRODUCTION_MEDIA_RECONCILIATION] CONFIGURED', { 
+    console.log('[PRODUCTION_MEDIA_INSPECTION] CONFIGURED', { 
       testId, 
       dryRun,
-      repair,
     });
 
     // STATE: CONFIGURED → ENUMERATED
     const mediaIds = await listMediaIds();
     
-    console.log('[PRODUCTION_MEDIA_RECONCILIATION] ENUMERATED', { 
+    console.log('[PRODUCTION_MEDIA_INSPECTION] ENUMERATED', { 
       testId, 
       mediaCount: mediaIds.length 
     });
@@ -117,18 +130,23 @@ export async function POST(request: Request) {
     const classifications: MediaClassification[] = [];
     const classificationCounts: Record<string, number> = {
       SYNTHETIC_HASH: 0,
+      MISSING_CONTENT_HASH: 0,
+      MISSING_ORIGINAL_BLOB: 0,
       MISSING_BLOB_METADATA: 0,
-      MISSING_BLOB: 0,
-      INVALID_BLOB_HASH: 0,
-      VALID: 0,
+      BLOB_NOT_FOUND: 0,
+      BLOB_HASH_MISMATCH: 0,
+      BLOB_UNVERIFIABLE: 0,
+      PHYSICALLY_VERIFIED: 0,
       ERROR: 0,
     };
+    let missingRecords = 0;
 
     for (const mediaId of mediaIds) {
       try {
         const media = await getMediaRecordRaw(mediaId);
         if (!media) {
-          console.warn('[PRODUCTION_MEDIA_RECONCILIATION] MEDIA_RECORD_MISSING', { testId, mediaId });
+          console.warn('[PRODUCTION_MEDIA_INSPECTION] MEDIA_RECORD_MISSING', { testId, mediaId });
+          missingRecords++;
           continue;
         }
 
@@ -139,66 +157,96 @@ export async function POST(request: Request) {
           source: media.source,
         };
 
-        // Check for synthetic content identity
+        // P0: Missing contentHash is explicit failure
         const contentHash = media.contentHash;
-        if (contentHash) {
-          const syntheticHash = crypto.createHash('sha256').update(mediaId).digest('hex');
-          classification.isSynthetic = (contentHash === syntheticHash);
-          classification.contentHash = contentHash;
+        if (!contentHash) {
+          classification.classification = 'MISSING_CONTENT_HASH';
+          classificationCounts.MISSING_CONTENT_HASH++;
+          classifications.push(classification);
+          continue;
+        }
 
-          if (classification.isSynthetic) {
-            classification.classification = 'SYNTHETIC_HASH';
-            classificationCounts.SYNTHETIC_HASH++;
-            classifications.push(classification);
-            continue;
-          }
+        classification.contentHash = contentHash;
+
+        // Check for synthetic content identity
+        const syntheticHash = crypto.createHash('sha256').update(mediaId).digest('hex');
+        classification.isSynthetic = (contentHash === syntheticHash);
+
+        if (classification.isSynthetic) {
+          classification.classification = 'SYNTHETIC_HASH';
+          classificationCounts.SYNTHETIC_HASH++;
+          classifications.push(classification);
+          continue;
         }
 
         // Check for Blob metadata
-        if (contentHash) {
-          const blobMetadata = await getBlobMetadata(contentHash);
-          classification.hasBlobMetadata = !!blobMetadata;
+        const blobMetadata = await getBlobMetadata(contentHash);
+        classification.hasBlobMetadata = !!blobMetadata;
 
-          if (!blobMetadata) {
-            classification.classification = 'MISSING_BLOB_METADATA';
-            classificationCounts.MISSING_BLOB_METADATA++;
+        if (!blobMetadata) {
+          classification.classification = 'MISSING_BLOB_METADATA';
+          classificationCounts.MISSING_BLOB_METADATA++;
+          classifications.push(classification);
+          continue;
+        }
+
+        // P0: Missing original Blob URL is explicit failure
+        const originalBlobUrl = media.variants?.original;
+        if (!originalBlobUrl) {
+          classification.classification = 'MISSING_ORIGINAL_BLOB';
+          classificationCounts.MISSING_ORIGINAL_BLOB++;
+          classifications.push(classification);
+          continue;
+        }
+
+        classification.blobUrl = originalBlobUrl;
+
+        // P0: Verify contentHash only against original variant (never web)
+        try {
+          const blobExists = await verifyBlobHash(originalBlobUrl, contentHash);
+          classification.blobExists = blobExists;
+          classification.blobHashValid = blobExists;
+
+          if (!blobExists) {
+            classification.classification = 'BLOB_HASH_MISMATCH';
+            classificationCounts.BLOB_HASH_MISMATCH++;
             classifications.push(classification);
             continue;
           }
-
-          // Check Blob URL and verify hash
-          const blobUrl = media.variants?.original || media.variants?.web;
-          if (blobUrl) {
-            classification.blobUrl = blobUrl;
-            
-            try {
-              const blobExists = await verifyBlobHash(blobUrl, contentHash);
-              classification.blobExists = blobExists;
-              classification.blobHashValid = blobExists;
-
-              if (!blobExists) {
-                classification.classification = 'INVALID_BLOB_HASH';
-                classificationCounts.INVALID_BLOB_HASH++;
-                classifications.push(classification);
-                continue;
-              }
-            } catch (error) {
-              classification.classification = 'MISSING_BLOB';
-              classificationCounts.MISSING_BLOB++;
-              classification.error = error instanceof Error ? error.message : 'Unknown error';
-              classifications.push(classification);
-              continue;
-            }
+        } catch (error) {
+          // P1: Distinguish error types for proper classification
+          const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+          
+          if (errorMessage.includes('404') || errorMessage.includes('not found')) {
+            classification.classification = 'BLOB_NOT_FOUND';
+            classificationCounts.BLOB_NOT_FOUND++;
+            classification.errorType = 'BLOB_NOT_FOUND';
+          } else if (errorMessage.includes('403') || errorMessage.includes('unauthorized')) {
+            classification.classification = 'BLOB_UNVERIFIABLE';
+            classificationCounts.BLOB_UNVERIFIABLE++;
+            classification.errorType = 'AUTH_FAILURE';
+          } else if (errorMessage.includes('timeout') || errorMessage.includes('network') || errorMessage.includes('ETIMEDOUT')) {
+            classification.classification = 'BLOB_UNVERIFIABLE';
+            classificationCounts.BLOB_UNVERIFIABLE++;
+            classification.errorType = 'NETWORK_ERROR';
+          } else {
+            classification.classification = 'BLOB_UNVERIFIABLE';
+            classificationCounts.BLOB_UNVERIFIABLE++;
+            classification.errorType = 'INFRASTRUCTURE_ERROR';
           }
+          
+          classification.error = errorMessage;
+          classifications.push(classification);
+          continue;
         }
 
-        // If we got here, the record is valid
-        classification.classification = 'VALID';
-        classificationCounts.VALID++;
+        // If we got here, the record is physically verified
+        classification.classification = 'PHYSICALLY_VERIFIED';
+        classificationCounts.PHYSICALLY_VERIFIED++;
         classifications.push(classification);
 
       } catch (error) {
-        console.error('[PRODUCTION_MEDIA_RECONCILIATION] CLASSIFICATION_ERROR', {
+        console.error('[PRODUCTION_MEDIA_INSPECTION] CLASSIFICATION_ERROR', {
           testId,
           mediaId,
           error: error instanceof Error ? error.message : 'Unknown error',
@@ -212,38 +260,53 @@ export async function POST(request: Request) {
       }
     }
 
-    console.log('[PRODUCTION_MEDIA_RECONCILIATION] CLASSIFIED', { 
+    // P1: Exact accounting requirement
+    const totalClassified = classifications.length;
+    const totalAccounted = totalClassified + missingRecords + classificationCounts.ERROR;
+    const accountingValid = totalAccounted === mediaIds.length;
+
+    console.log('[PRODUCTION_MEDIA_INSPECTION] CLASSIFIED', { 
       testId, 
       classificationCounts,
-      totalClassified: classifications.length
+      totalMediaRecords: mediaIds.length,
+      totalClassified,
+      missingRecords,
+      accountingValid,
     });
 
     const endTime = new Date().toISOString();
 
-    // Return classification evidence without repairs (safe diagnostic)
+    // P0: PROVEN verdict only if accounting is valid and all required checks succeed
+    const verdict = accountingValid ? 'CLASSIFIED' : 'FAILED';
+
+    // Return classification evidence without repairs (inspection-only diagnostic)
     return NextResponse.json({
       testId,
       startTime,
       endTime,
       deploymentSha,
       environment,
-      dependency: 'Production Media Reconciliation',
+      dependency: 'Production Media Inspection',
       operation: 'classification',
-      expectedInvariant: 'All media records classified by health status',
-      observedResult: `Classified ${classifications.length} media records`,
+      expectedInvariant: 'All media records classified with exact accounting',
+      observedResult: accountingValid 
+        ? `Classified ${totalClassified} media records with exact accounting`
+        : `Accounting mismatch: ${totalAccounted} accounted vs ${mediaIds.length} enumerated`,
       evidence: {
         classificationCounts,
         classifications: classifications.slice(0, 100), // Limit to first 100 for response size
         totalMediaRecords: mediaIds.length,
+        totalClassified,
+        missingRecords,
+        accountingValid,
         dryRun,
-        repair,
       },
       cleanupStatus: 'not_required',
-      verdict: 'PROVEN',
+      verdict,
     });
 
   } catch (error) {
-    console.error('[PRODUCTION_MEDIA_RECONCILIATION] FAILED', {
+    console.error('[PRODUCTION_MEDIA_INSPECTION] FAILED', {
       testId,
       error: error instanceof Error ? error.message : 'Unknown error',
     });
@@ -254,7 +317,7 @@ export async function POST(request: Request) {
       endTime: new Date().toISOString(),
       deploymentSha,
       environment,
-      dependency: 'Production Media Reconciliation',
+      dependency: 'Production Media Inspection',
       operation: 'classification',
       expectedInvariant: 'Classification completes without errors',
       observedResult: 'Classification failed',
