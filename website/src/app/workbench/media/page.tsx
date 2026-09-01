@@ -97,7 +97,7 @@ export default function MediaWorkbench() {
     driveLoadingMore: false,
     kvAvailable: true,
     kvError: null,
-    workbenchMode: 'slot-assignment',
+    workbenchMode: 'slot-assignment' as WorkbenchMode,
   });
 
   const mediaPanelRef = useRef<HTMLDivElement>(null);
@@ -1941,7 +1941,7 @@ Check browser console for detailed logs.`);
   }
 
   // Gallery Management Mode
-  if (state.workbenchMode === 'gallery-management') {
+  if (state.workbenchMode === ('gallery-management' as WorkbenchMode)) {
     return <GalleryManagementPanel />;
   }
 
@@ -1990,7 +1990,7 @@ Check browser console for detailed logs.`);
               <button
                 onClick={() => setState(prev => ({ ...prev, workbenchMode: 'slot-assignment' as WorkbenchMode }))}
                 className={`px-3 py-1 rounded text-xs transition-colors ${
-                  state.workbenchMode === 'slot-assignment'
+                  state.workbenchMode === ('slot-assignment' as WorkbenchMode) as WorkbenchMode
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-surface hover:bg-surface/80'
                 }`}
@@ -2001,7 +2001,7 @@ Check browser console for detailed logs.`);
               <button
                 onClick={() => setState(prev => ({ ...prev, workbenchMode: 'gallery-management' as WorkbenchMode }))}
                 className={`px-3 py-1 rounded text-xs transition-colors ${
-                  state.workbenchMode === 'gallery-management'
+                  state.workbenchMode === 'gallery-management' as WorkbenchMode
                     ? 'bg-primary text-primary-foreground'
                     : 'bg-surface hover:bg-surface/80'
                 }`}
@@ -2011,7 +2011,7 @@ Check browser console for detailed logs.`);
               </button>
             </div>
 
-            {state.workbenchMode === 'slot-assignment' && state.pendingAssignments.size > 0 && (
+            {state.workbenchMode === ('slot-assignment' as WorkbenchMode) && state.pendingAssignments.size > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">
                   {state.pendingAssignments.size} pending change{state.pendingAssignments.size > 1 ? 's' : ''}
@@ -2043,7 +2043,7 @@ Check browser console for detailed logs.`);
       </div>
 
       {/* Page Navigation - Compact (only in slot-assignment mode) */}
-      {state.workbenchMode === 'slot-assignment' && (
+      {state.workbenchMode === ('slot-assignment' as WorkbenchMode) && (
         <div className="shrink-0 border-b border-border bg-surface px-4 py-1">
           <div className="flex gap-1">
             {(Object.keys(PAGE_LABELS) as PageRoute[]).map((route) => (
@@ -2064,7 +2064,7 @@ Check browser console for detailed logs.`);
       )}
 
       {/* Pending Assignments Bar */}
-      {state.workbenchMode === 'slot-assignment' && state.pendingAssignments.size > 0 && (
+      {state.workbenchMode === ('slot-assignment' as WorkbenchMode) && state.pendingAssignments.size > 0 && (
         <div className="shrink-0 border-b border-border bg-card px-4 py-2">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-foreground">
@@ -2100,7 +2100,7 @@ Check browser console for detailed logs.`);
       )}
 
       {/* Main Content - Two Panel Layout (only in slot-assignment mode) */}
-      {state.workbenchMode === 'slot-assignment' && (
+      {state.workbenchMode === ('slot-assignment' as WorkbenchMode) && (
         <div className="flex-1 grid grid-cols-2 min-h-0">
           {/* LEFT: Website Preview */}
           <section className="min-h-0 min-w-0 overflow-y-auto bg-white h-full">
