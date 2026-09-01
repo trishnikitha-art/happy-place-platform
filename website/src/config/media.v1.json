@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-01T22:14:42.885Z",
+  "generatedAt": "2026-09-01T22:15:39.276Z",
   "media": [
     {
       "id": "fences-001-hero",
@@ -1181,11 +1181,11 @@
       "contentHash": "57b84a974acbebeb30d1bb2ba45139e31405a7bf38ddfa0c98247b0de0c5a06b"
     },
     {
-      "id": "8ba3872848826e78609c7f04e02b75e7",
-      "contentHash": "8ba3872848826e78609c7f04e02b75e7698ecd6b8914006e3581db552e064eae",
+      "id": "c65e27844063e63ad2c300f88a9e7479",
+      "contentHash": "c65e27844063e63ad2c300f88a9e747994e582c96e89a53f282ce79e4bcb3f40",
       "source": "local",
       "lifecycleState": "published",
-      "filename": "HP0017_ExteriorPainting_After.jpg",
+      "filename": "HP016_ExteriorPainting_HouseRefresh_After.jpg",
       "type": "image",
       "orientation": "landscape",
       "dimensions": {
@@ -1193,60 +1193,60 @@
         "height": 1536
       },
       "variants": {
-        "original": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8ba3872848826e78609c7f04e02b75e7-original-8ba387284882.jpg",
-        "web": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8ba3872848826e78609c7f04e02b75e7-2000-bba4d273309b.webp",
-        "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8ba3872848826e78609c7f04e02b75e7-2000-bba4d273309b.webp",
-        "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8ba3872848826e78609c7f04e02b75e7-2000-eb62bd075d23.avif",
-        "thumbnail": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8ba3872848826e78609c7f04e02b75e7-thumb-d80464192fb7.webp",
-        "blur": "data:image/webp;base64,UklGRmIAAABXRUJQVlA4IFYAAADwAQCdASoQAAwAA4BaJZgCdAEPTZd5jwAA/mtgVemueyTdY7O2uyrdO9BvfcfYp8VxJIcRBQsBetJDoqa2OR49jm1sfBssXwZ6Sm0+sMw7MwDquz4AAA==",
+        "original": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-original-c65e27844063.jpg",
+        "web": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-2000-0f26e8fadfbf.webp",
+        "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-2000-0f26e8fadfbf.webp",
+        "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-2000-81b31340905a.avif",
+        "thumbnail": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-thumb-c932008bb9ba.webp",
+        "blur": "data:image/webp;base64,UklGRmAAAABXRUJQVlA4IFQAAAAwAgCdASoQAAwAA4BaJQBOj+ADL8ZDUWKMAAD+yXbsVNZGPuRvc11EcqDHbr5ZTyLjExn2Sz/u4mE3XvUcDijgn7y2pV/vKFfltg60SAKUuIIMAAA=",
         "responsive": [
           {
             "width": 480,
-            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8ba3872848826e78609c7f04e02b75e7-480-61600e747739.webp",
-            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8ba3872848826e78609c7f04e02b75e7-480-1bc2778ce38e.avif"
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-480-13caec76c86c.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-480-bff7351e65fb.avif"
           },
           {
             "width": 768,
-            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8ba3872848826e78609c7f04e02b75e7-768-09b58a3afc39.webp",
-            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8ba3872848826e78609c7f04e02b75e7-768-706b00e0d73a.avif"
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-768-554df7d40dbc.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-768-408bb0c8bb5b.avif"
           },
           {
             "width": 1080,
-            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8ba3872848826e78609c7f04e02b75e7-1080-2023ff3ae247.webp",
-            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8ba3872848826e78609c7f04e02b75e7-1080-6ceef7528b19.avif"
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-1080-35cc17324561.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-1080-4ad73b39ecca.avif"
           },
           {
             "width": 1600,
-            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8ba3872848826e78609c7f04e02b75e7-1600-1baf0dba403f.webp",
-            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8ba3872848826e78609c7f04e02b75e7-1600-4f89e278972b.avif"
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-1600-2e2619313783.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-1600-0edf2ceebe68.avif"
           },
           {
             "width": 2000,
-            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8ba3872848826e78609c7f04e02b75e7-2000-bba4d273309b.webp",
-            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8ba3872848826e78609c7f04e02b75e7-2000-eb62bd075d23.avif"
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-2000-0f26e8fadfbf.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/c65e27844063e63ad2c300f88a9e7479-2000-81b31340905a.avif"
           }
         ]
       },
-      "alt": "HP0017_ExteriorPainting_After.jpg",
+      "alt": "HP016_ExteriorPainting_HouseRefresh_After.jpg",
       "tags": [],
       "roles": [
         "gallery"
       ],
       "order": 0,
-      "createdAt": "2026-08-03T21:15:37.488Z",
-      "updatedAt": "2026-08-28T00:48:21.035Z",
-      "uploadedAt": "2026-08-28T00:48:21.034Z",
-      "fileSize": 819714,
+      "createdAt": "2026-08-03T21:10:41.819Z",
+      "updatedAt": "2026-08-28T00:27:40.330Z",
+      "uploadedAt": "2026-08-28T00:27:40.330Z",
+      "fileSize": 1178426,
       "format": "jpeg",
       "colorSpace": "srgb",
       "provenance": {
         "drive_canonical": true,
         "current_authority": true,
         "status": "published",
-        "preserved_at": "2026-08-28T00:48:21.034Z",
-        "august3_driveId": "1M9auG1c2XU2cmt-0yUZj8sBA8qpfxsFF",
+        "preserved_at": "2026-08-28T00:27:40.330Z",
+        "august3_driveId": "1m6Z_6Gt5FqKZplx4GxT8KOAUHZO1DPlc",
         "sharedDriveId": "0ALeA98MLc-s_Uk9PVA",
-        "driveFileId": "1M9auG1c2XU2cmt-0yUZj8sBA8qpfxsFF"
+        "driveFileId": "1m6Z_6Gt5FqKZplx4GxT8KOAUHZO1DPlc"
       }
     }
   ]
