@@ -207,20 +207,7 @@ export async function verifyPublicMediaAuthority(media: Media): Promise<boolean>
     });
     return false;
   }
-  
-  // Verify Blob metadata exists
-  const client = createRedisClient();
-  const blobMetadata = await client.get(namespacedKey(`${BLOB_METADATA_PREFIX}${media.contentHash}`));
-  
-  if (!blobMetadata) {
-    console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Missing Blob metadata', {
-      mediaId: media.id,
-      contentHash: media.contentHash,
-      reason: 'No blob_metadata record found for content hash'
-    });
-    return false;
-  }
-  
+
   // Verify the asset has actual variant URLs (not Drive proxy URLs)
   if (!media.variants || !media.variants.original) {
     console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Missing original variant', {
