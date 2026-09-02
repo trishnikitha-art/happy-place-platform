@@ -96,56 +96,42 @@ export default async function HomePage() {
   // Group services for homepage display (show homepageEligible services first)
   const homepageServices = allServices.filter(s => s.homepageEligible);
   
-  // Load runtime assignments for service cards on server side (avoids client-side Redis access)
-  // During static build, KV may be unavailable - fall back to static configuration
+  // Load service card media from static configuration (services.v1.json)
+  // This avoids dynamic Redis reads during static generation
   const serviceCardAssignments = new Map<string, { mediaId: string | null; mediaObject: Media | null }>();
   for (const service of homepageServices) {
-    try {
-      const assignment = await getServiceCardAssignment(service.slug);
-      if (assignment?.mediaId && assignment.mediaId !== '') { // Check for non-empty mediaId
-        // Resolve media object through public media gate (rejects Drive references, synthetic content, missing Blob metadata)
-        const mediaObject = await resolvePublicMedia(assignment.mediaId);
-        
-        console.log('[PUBLIC_MEDIA_GATE] SERVICE_CARD_RESOLUTION', {
-          serviceSlug: service.slug,
-          runtimeCardMediaId: assignment.mediaId,
-          resolved: Boolean(mediaObject),
-          resolvedMediaId: mediaObject?.id ?? null,
+    if (service.cardMediaId) {
+      console.log('[STATIC_CONFIG] SERVICE_CARD_MEDIA_ID', {
+        serviceSlug: service.slug,
+        cardMediaId: service.cardMediaId,
+      });
+      
+      // Resolve media object through public media gate (rejects Drive references, synthetic content, missing Blob metadata)
+      const mediaObject = await resolvePublicMedia(service.cardMediaId);
+      
+      console.log('[PUBLIC_MEDIA_GATE] SERVICE_CARD_RESOLUTION', {
+        serviceSlug: service.slug,
+        staticCardMediaId: service.cardMediaId,
+        resolved: Boolean(mediaObject),
+        resolvedMediaId: mediaObject?.id ?? null,
+      });
+      
+      if (mediaObject) {
+        serviceCardAssignments.set(service.slug, {
+          mediaId: service.cardMediaId,
+          mediaObject,
         });
-        
-        // CRITICAL FIX: Runtime assignment is only authoritative if its media record passes resolvePublicMedia()
-        // If the runtime assignment points to a rejected/missing media record, discard that runtime candidate
-        // Fall back to the service's authoritative cardMediaId from static configuration
-        if (mediaObject) {
-          serviceCardAssignments.set(service.slug, {
-            mediaId: assignment.mediaId,
-            mediaObject,
-          });
-        } else {
-          console.log('[PUBLIC_MEDIA_GATE] RUNTIME_ASSIGNMENT_REJECTED - FAILING_CLOSED', {
-            serviceSlug: service.slug,
-            rejectedRuntimeMediaId: assignment.mediaId,
-          });
-          
-          // P0 FIX: No static fallback - fail closed to prevent authority bypass
-          // Static configuration cannot resurrect rejected runtime assignments
-          serviceCardAssignments.set(service.slug, {
-            mediaId: null, // No image if runtime assignment rejected
-            mediaObject: null,
-          });
-        }
       } else {
-        // No assignment or empty mediaId (fail-closed state)
+        console.log('[PUBLIC_MEDIA_GATE] STATIC_MEDIA_ID_REJECTED', {
+          serviceSlug: service.slug,
+          rejectedMediaId: service.cardMediaId,
+        });
         serviceCardAssignments.set(service.slug, {
           mediaId: null,
           mediaObject: null,
         });
       }
-    } catch (error) {
-      console.error('[SERVICE_CARD_ASSIGNMENT] ERROR', {
-        serviceSlug: service.slug,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
+    } else {
       serviceCardAssignments.set(service.slug, {
         mediaId: null,
         mediaObject: null,
