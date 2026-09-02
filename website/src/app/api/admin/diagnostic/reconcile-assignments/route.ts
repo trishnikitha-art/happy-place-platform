@@ -102,7 +102,7 @@ export async function POST() {
     );
     
     // Build media ID set for validation
-    const canonicalMediaIds = new Set(mediaData.media.map((m: { id: string }) => m.id));
+    const canonicalMediaIds = new Set<string>(mediaData.media.map((m: { id: string }) => m.id));
     
     console.log('[ASSIGNMENT_RECONCILIATION] CANONICAL_LOADED', { 
       projects: projectsData.projects.length,
@@ -275,7 +275,7 @@ async function reconcileAssignment(
   mediaId: string,
   canonicalMediaIds: Set<string>,
   counters: { reconciled: number; skipped: number; failed: number; errors: Record<string, string> }
-) {
+): Promise<void> {
   try {
     // Validate media ID exists in canonical authority
     if (!canonicalMediaIds.has(mediaId)) {
