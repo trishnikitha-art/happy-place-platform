@@ -90,24 +90,50 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
   });
 
   describe('Constitutional Proof Requirements', () => {
-    it('should allow local published assets with valid public variants', async () => {
+    it('should allow local published assets with Blob metadata', async () => {
       const { getMedia } = require('@/lib/media-kv-store');
+      const { getBlobMetadataByContentHash } = require('@/lib/blob-storage');
       
-      // Local assets with valid public variants should be allowed (static file serving)
-      // They don't require Blob metadata since they're served from static files
+      // NEW CONTRACT: All published assets require Blob metadata
+      // This applies to both static-deployed and Drive-materialized assets after bootstrap
       getMedia.mockResolvedValue({
         id: 'test-media',
         lifecycleState: 'published',
         source: 'local',
-        contentHash: 'some-hash', // Local assets can use synthetic hashes
+        contentHash: 'some-hash',
         dimensions: { width: 1200, height: 800 },
-        variants: { original: '/images/test.jpg', web: '/images/test.webp' } // Valid public variants
+        variants: { original: 'https://blob.vercel-storage.com/test.jpg', web: 'https://blob.vercel-storage.com/test.webp' }
+      });
+      
+      // Mock Blob metadata presence
+      getBlobMetadataByContentHash.mockResolvedValue({
+        url: 'https://blob.vercel-storage.com/test.jpg',
+        uploadedAt: new Date().toISOString()
       });
 
       const result = await resolvePublicMedia('test-media');
       
       expect(result).not.toBeNull();
       expect(result?.id).toBe('test-media');
+    });
+
+    it('should reject local published assets without Blob metadata', async () => {
+      const { getMedia } = require('@/lib/media-kv-store');
+      
+      // NEW CONTRACT: All published assets require Blob metadata
+      // Local assets without Blob metadata are rejected
+      getMedia.mockResolvedValue({
+        id: 'test-media',
+        lifecycleState: 'published',
+        source: 'local',
+        contentHash: 'some-hash',
+        dimensions: { width: 1200, height: 800 },
+        variants: { original: '/images/test.jpg', web: '/images/test.webp' }
+      });
+
+      const result = await resolvePublicMedia('test-media');
+      
+      expect(result).toBeNull();
     });
 
     it('should require Blob verification for Drive published assets', async () => {
@@ -173,38 +199,44 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
   });
 
   describe('Authority Path Consistency', () => {
-    it('should apply different proof requirements for local vs Drive assets', async () => {
+    it('should apply same Blob metadata requirement for all published assets', async () => {
       const { getMedia } = require('@/lib/media-kv-store');
+      const { getBlobMetadataByContentHash } = require('@/lib/blob-storage');
       
-      // Local asset with synthetic hash + valid variants = ALLOWED
-      const localAsset = {
+      // NEW CONTRACT: All published assets require Blob metadata
+      // Local asset with Blob metadata = ALLOWED
+      const localAssetWithBlob = {
         id: 'local-media',
         lifecycleState: 'published',
         source: 'local',
-        contentHash: 'synthetic-hash', // Local assets can use synthetic hashes
+        contentHash: 'real-hash',
+        dimensions: { width: 1200, height: 800 },
+        variants: { original: 'https://blob.vercel-storage.com/test.jpg', web: 'https://blob.vercel-storage.com/test.webp' }
+      };
+
+      // Local asset without Blob metadata = REJECTED
+      const localAssetWithoutBlob = {
+        id: 'local-media-no-blob',
+        lifecycleState: 'published',
+        source: 'local',
+        contentHash: 'real-hash',
         dimensions: { width: 1200, height: 800 },
         variants: { original: '/images/test.jpg', web: '/images/test.webp' }
       };
 
-      // Drive asset with synthetic hash = REJECTED
-      const driveAsset = {
-        id: 'drive-media',
-        lifecycleState: 'published',
-        source: 'google-drive',
-        contentHash: 'synthetic-hash', // Drive assets require real hash
-        dimensions: { width: 1200, height: 800 },
-        variants: { original: '/images/test.jpg' }
-      };
-
-      // Test local asset (should pass)
-      getMedia.mockResolvedValue(localAsset);
+      // Test local asset with Blob metadata (should pass)
+      getMedia.mockResolvedValue(localAssetWithBlob);
+      getBlobMetadataByContentHash.mockResolvedValue({
+        url: 'https://blob.vercel-storage.com/test.jpg',
+        uploadedAt: new Date().toISOString()
+      });
       const localResult = await resolvePublicMedia('local-media');
       expect(localResult).not.toBeNull();
       
-      // Test Drive asset (should fail)
-      getMedia.mockResolvedValue(driveAsset);
-      const driveResult = await resolvePublicMedia('drive-media');
-      expect(driveResult).toBeNull();
+      // Test local asset without Blob metadata (should fail)
+      getMedia.mockResolvedValue(localAssetWithoutBlob);
+      const localResultNoBlob = await resolvePublicMedia('local-media-no-blob');
+      expect(localResultNoBlob).toBeNull();
     });
   });
 });
