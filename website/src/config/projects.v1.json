@@ -429,6 +429,595 @@
       "metaDescription": "Bathroom remodeling services in Corvallis, Oregon with custom features.",
       "createdAt": "2026-07-16T00:00:00.000Z",
       "updatedAt": "2026-07-16T00:00:00.000Z"
+    },
+    {
+      "id": "bathroom-remodeling",
+      "title": "Bathroom Remodeling",
+      "service": "bathroom-remodeling",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-09-02",
+      "media": {
+        "hero": "bathroom-remodeling-0",
+        "gallery": [
+          "bathroom-remodeling-0",
+          "bathroom-remodeling-1",
+          "bathroom-remodeling-2",
+          "bathroom-remodeling-3"
+        ],
+        "galleryRevision": 0
+      },
+      "story": {
+        "challenge": "Project completed",
+        "solution": "Professional carpentry work",
+        "outcome": "Quality craftsmanship delivered"
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 2000,
+          "high": 10000
+        },
+        "services": [
+          "bathroom-remodeling"
+        ],
+        "materials": [
+          "custom"
+        ],
+        "timeline": "1-2 weeks"
+      },
+      "tags": [
+        "bathroom-remodeling"
+      ],
+      "featured": false,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "slug": "bathroom-remodeling",
+      "createdAt": "2026-09-02T00:58:12.430Z",
+      "updatedAt": "2026-09-02T00:58:12.430Z"
+    },
+    {
+      "id": "built-ins",
+      "title": "Built Ins",
+      "service": "built-ins",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-09-02",
+      "media": {
+        "hero": "built-ins-0",
+        "gallery": [
+          "built-ins-0",
+          "built-ins-1",
+          "built-ins-2",
+          "built-ins-3",
+          "built-ins-4",
+          "built-ins-5",
+          "built-ins-6",
+          "built-ins-7"
+        ],
+        "galleryRevision": 0
+      },
+      "story": {
+        "challenge": "Project completed",
+        "solution": "Professional carpentry work",
+        "outcome": "Quality craftsmanship delivered"
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 2000,
+          "high": 10000
+        },
+        "services": [
+          "built-ins"
+        ],
+        "materials": [
+          "custom"
+        ],
+        "timeline": "1-2 weeks"
+      },
+      "tags": [
+        "built-ins"
+      ],
+      "featured": false,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "slug": "built-ins",
+      "createdAt": "2026-09-02T00:58:12.433Z",
+      "updatedAt": "2026-09-02T00:58:12.433Z"
+    },
+    {
+      "id": "davis-bathroom-remodel",
+      "title": "Davis Bathroom Remodel",
+      "service": "bathroom-remodeling",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-09-02",
+      "media": {
+        "hero": "davis-bathroom-remodel-0",
+        "gallery": [
+          "davis-bathroom-remodel-0",
+          "davis-bathroom-remodel-1",
+          "davis-bathroom-remodel-2",
+          "davis-bathroom-remodel-3"
+        ],
+        "galleryRevision": 0
+      },
+      "story": {
+        "challenge": "Project completed",
+        "solution": "Professional carpentry work",
+        "outcome": "Quality craftsmanship delivered"
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 2000,
+          "high": 10000
+        },
+        "services": [
+          "bathroom-remodeling"
+        ],
+        "materials": [
+          "custom"
+        ],
+        "timeline": "1-2 weeks"
+      },
+      "tags": [
+        "bathroom-remodeling"
+      ],
+      "featured": false,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "slug": "davis-bathroom-remodel",
+      "createdAt": "2026-09-02T00:58:12.434Z",
+      "updatedAt": "2026-09-02T00:58:12.434Z"
+    },
+    {
+      "id": "fences",
+      "title": "Fences",
+      "service": "fences",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-09-02",
+      "media": {
+        "hero": "fences-0",
+        "gallery": [
+          "fences-0",
+          "fences-1",
+          "fences-2",
+          "fences-3",
+          "fences-4",
+          "fences-5",
+          "fences-6",
+          "fences-7"
+        ],
+        "galleryRevision": 0
+      },
+      "story": {
+        "challenge": "Project completed",
+        "solution": "Professional carpentry work",
+        "outcome": "Quality craftsmanship delivered"
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 2000,
+          "high": 10000
+        },
+        "services": [
+          "fences"
+        ],
+        "materials": [
+          "custom"
+        ],
+        "timeline": "1-2 weeks"
+      },
+      "tags": [
+        "fences"
+      ],
+      "featured": false,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "slug": "fences",
+      "createdAt": "2026-09-02T00:58:12.435Z",
+      "updatedAt": "2026-09-02T00:58:12.435Z"
+    },
+    {
+      "id": "johnson-cedar-fence",
+      "title": "Johnson Cedar Fence",
+      "service": "fences",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-09-02",
+      "media": {
+        "hero": "johnson-cedar-fence-0",
+        "gallery": [
+          "johnson-cedar-fence-0",
+          "johnson-cedar-fence-1",
+          "johnson-cedar-fence-2",
+          "johnson-cedar-fence-3",
+          "johnson-cedar-fence-4",
+          "johnson-cedar-fence-5",
+          "johnson-cedar-fence-6",
+          "johnson-cedar-fence-7"
+        ],
+        "galleryRevision": 0
+      },
+      "story": {
+        "challenge": "Project completed",
+        "solution": "Professional carpentry work",
+        "outcome": "Quality craftsmanship delivered"
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 2000,
+          "high": 10000
+        },
+        "services": [
+          "fences"
+        ],
+        "materials": [
+          "custom"
+        ],
+        "timeline": "1-2 weeks"
+      },
+      "tags": [
+        "fences"
+      ],
+      "featured": false,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "slug": "johnson-cedar-fence",
+      "createdAt": "2026-09-02T00:58:12.437Z",
+      "updatedAt": "2026-09-02T00:58:12.437Z"
+    },
+    {
+      "id": "martinez-pergola",
+      "title": "Martinez Pergola",
+      "service": "pergolas",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-09-02",
+      "media": {
+        "hero": "martinez-pergola-0",
+        "gallery": [
+          "martinez-pergola-0",
+          "martinez-pergola-1",
+          "martinez-pergola-2",
+          "martinez-pergola-3",
+          "martinez-pergola-4",
+          "martinez-pergola-5",
+          "martinez-pergola-6",
+          "martinez-pergola-7",
+          "martinez-pergola-8",
+          "martinez-pergola-9"
+        ],
+        "galleryRevision": 0
+      },
+      "story": {
+        "challenge": "Project completed",
+        "solution": "Professional carpentry work",
+        "outcome": "Quality craftsmanship delivered"
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 2000,
+          "high": 10000
+        },
+        "services": [
+          "pergolas"
+        ],
+        "materials": [
+          "custom"
+        ],
+        "timeline": "1-2 weeks"
+      },
+      "tags": [
+        "pergolas"
+      ],
+      "featured": false,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "slug": "martinez-pergola",
+      "createdAt": "2026-09-02T00:58:12.439Z",
+      "updatedAt": "2026-09-02T00:58:12.439Z"
+    },
+    {
+      "id": "outdoor-living",
+      "title": "Outdoor Living",
+      "service": "outdoor-living",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-09-02",
+      "media": {
+        "hero": "outdoor-living-0",
+        "gallery": [
+          "outdoor-living-0",
+          "outdoor-living-1",
+          "outdoor-living-2",
+          "outdoor-living-3",
+          "outdoor-living-4",
+          "outdoor-living-5",
+          "outdoor-living-6",
+          "outdoor-living-7",
+          "outdoor-living-8",
+          "outdoor-living-9",
+          "outdoor-living-10",
+          "outdoor-living-11"
+        ],
+        "galleryRevision": 0
+      },
+      "story": {
+        "challenge": "Project completed",
+        "solution": "Professional carpentry work",
+        "outcome": "Quality craftsmanship delivered"
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 2000,
+          "high": 10000
+        },
+        "services": [
+          "outdoor-living"
+        ],
+        "materials": [
+          "custom"
+        ],
+        "timeline": "1-2 weeks"
+      },
+      "tags": [
+        "outdoor-living"
+      ],
+      "featured": false,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "slug": "outdoor-living",
+      "createdAt": "2026-09-02T00:58:12.440Z",
+      "updatedAt": "2026-09-02T00:58:12.440Z"
+    },
+    {
+      "id": "pergolas",
+      "title": "Pergolas",
+      "service": "pergolas",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-09-02",
+      "media": {
+        "hero": "pergolas-0",
+        "gallery": [
+          "pergolas-0",
+          "pergolas-1",
+          "pergolas-2",
+          "pergolas-3",
+          "pergolas-4",
+          "pergolas-5",
+          "pergolas-6",
+          "pergolas-7"
+        ],
+        "galleryRevision": 0
+      },
+      "story": {
+        "challenge": "Project completed",
+        "solution": "Professional carpentry work",
+        "outcome": "Quality craftsmanship delivered"
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 2000,
+          "high": 10000
+        },
+        "services": [
+          "pergolas"
+        ],
+        "materials": [
+          "custom"
+        ],
+        "timeline": "1-2 weeks"
+      },
+      "tags": [
+        "pergolas"
+      ],
+      "featured": false,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "slug": "pergolas",
+      "createdAt": "2026-09-02T00:58:12.442Z",
+      "updatedAt": "2026-09-02T00:58:12.442Z"
+    },
+    {
+      "id": "smith-built-ins",
+      "title": "Smith Built Ins",
+      "service": "built-ins",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-09-02",
+      "media": {
+        "hero": "smith-built-ins-0",
+        "gallery": [
+          "smith-built-ins-0",
+          "smith-built-ins-1",
+          "smith-built-ins-2",
+          "smith-built-ins-3",
+          "smith-built-ins-4",
+          "smith-built-ins-5",
+          "smith-built-ins-6",
+          "smith-built-ins-7"
+        ],
+        "galleryRevision": 0
+      },
+      "story": {
+        "challenge": "Project completed",
+        "solution": "Professional carpentry work",
+        "outcome": "Quality craftsmanship delivered"
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 2000,
+          "high": 10000
+        },
+        "services": [
+          "built-ins"
+        ],
+        "materials": [
+          "custom"
+        ],
+        "timeline": "1-2 weeks"
+      },
+      "tags": [
+        "built-ins"
+      ],
+      "featured": false,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "slug": "smith-built-ins",
+      "createdAt": "2026-09-02T00:58:12.443Z",
+      "updatedAt": "2026-09-02T00:58:12.443Z"
+    },
+    {
+      "id": "test-project-corvallis",
+      "title": "Test Project Corvallis",
+      "service": "test-project",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-09-02",
+      "media": {
+        "hero": "test-project-corvallis-0",
+        "gallery": [
+          "test-project-corvallis-0",
+          "test-project-corvallis-1",
+          "test-project-corvallis-2",
+          "test-project-corvallis-3"
+        ],
+        "galleryRevision": 0
+      },
+      "story": {
+        "challenge": "Project completed",
+        "solution": "Professional carpentry work",
+        "outcome": "Quality craftsmanship delivered"
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 2000,
+          "high": 10000
+        },
+        "services": [
+          "test-project"
+        ],
+        "materials": [
+          "custom"
+        ],
+        "timeline": "1-2 weeks"
+      },
+      "tags": [
+        "test-project"
+      ],
+      "featured": false,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "slug": "test-project-corvallis",
+      "createdAt": "2026-09-02T00:58:12.444Z",
+      "updatedAt": "2026-09-02T00:58:12.444Z"
+    },
+    {
+      "id": "wilson-home-repairs",
+      "title": "Wilson Home Repairs",
+      "service": "repairs",
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "completionDate": "2026-09-02",
+      "media": {
+        "hero": "wilson-home-repairs-0",
+        "gallery": [
+          "wilson-home-repairs-0",
+          "wilson-home-repairs-1",
+          "wilson-home-repairs-2",
+          "wilson-home-repairs-3",
+          "wilson-home-repairs-4",
+          "wilson-home-repairs-5",
+          "wilson-home-repairs-6",
+          "wilson-home-repairs-7",
+          "wilson-home-repairs-8",
+          "wilson-home-repairs-9",
+          "wilson-home-repairs-10",
+          "wilson-home-repairs-11",
+          "wilson-home-repairs-12",
+          "wilson-home-repairs-13",
+          "wilson-home-repairs-14",
+          "wilson-home-repairs-15",
+          "wilson-home-repairs-16",
+          "wilson-home-repairs-17",
+          "wilson-home-repairs-18",
+          "wilson-home-repairs-19"
+        ],
+        "galleryRevision": 0
+      },
+      "story": {
+        "challenge": "Project completed",
+        "solution": "Professional carpentry work",
+        "outcome": "Quality craftsmanship delivered"
+      },
+      "estimate": {
+        "estimatedRange": {
+          "low": 2000,
+          "high": 10000
+        },
+        "services": [
+          "repairs"
+        ],
+        "materials": [
+          "custom"
+        ],
+        "timeline": "1-2 weeks"
+      },
+      "tags": [
+        "repairs"
+      ],
+      "featured": false,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "slug": "wilson-home-repairs",
+      "createdAt": "2026-09-02T00:58:12.446Z",
+      "updatedAt": "2026-09-02T00:58:12.446Z"
     }
   ]
 }
