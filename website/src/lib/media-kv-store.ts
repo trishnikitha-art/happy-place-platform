@@ -150,6 +150,22 @@ async function verifyMaterializationState(media: Media): Promise<boolean> {
         });
         return false;
       }
+    } else if (media.storage === 'static') {
+      // Static storage: no Blob metadata required
+      // Just verify the storage field is properly set
+      console.log('[MEDIA_KV] STATIC_STORAGE_ACCEPTED', {
+        mediaId: media.id,
+        storage: media.storage,
+        reason: 'Static storage assets do not require Blob metadata'
+      });
+    } else {
+      // Missing or invalid storage field
+      console.error('[MEDIA_KV] REJECTED: Missing or invalid storage field', {
+        mediaId: media.id,
+        storage: media.storage,
+        reason: 'Published local media must have storage field (static or blob)'
+      });
+      return false;
     }
     
     return true;
@@ -228,33 +244,46 @@ export async function verifyPublicMediaAuthority(media: Media): Promise<boolean>
       });
       return false;
     }
-  }
-  
-  // Verify the asset has actual variant URLs (not Drive proxy URLs)
-  if (!media.variants || !media.variants.original) {
-    console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Missing original variant', {
-      mediaId: media.id,
-      reason: 'PublishedMediaAsset must have original variant URL'
-    });
-    return false;
-  }
-  
-  // Real physical verification: fetch Blob bytes and verify hash
-  const blobUrl = media.variants.original;
-  const verificationResult = await verifyBlobHash(blobUrl, media.contentHash);
-  
-  if (!verificationResult.success) {
-    console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Blob hash verification failed', {
-      mediaId: media.id,
-      contentHash: media.contentHash,
-      blobUrl,
-      errorType: verificationResult.errorType,
-      actualHash: verificationResult.actualHash,
-      reason: verificationResult.errorType === 'INTEGRITY_FAILURE' 
-        ? 'Physical Blob bytes do not match content hash'
-        : `Blob verification failed: ${verificationResult.errorType}`
-    });
-    return false;
+    
+    // Real physical verification: fetch Blob bytes and verify hash
+    const blobUrl = media.variants.original;
+    const verificationResult = await verifyBlobHash(blobUrl, media.contentHash);
+    
+    if (!verificationResult.success) {
+      console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Blob hash verification failed', {
+        mediaId: media.id,
+        contentHash: media.contentHash,
+        blobUrl,
+        errorType: verificationResult.errorType,
+        actualHash: verificationResult.actualHash,
+        reason: verificationResult.errorType === 'INTEGRITY_FAILURE' 
+          ? 'Physical Blob bytes do not match content hash'
+          : `Blob verification failed: ${verificationResult.errorType}`
+      });
+      return false;
+    }
+  } else if (media.storage === 'static') {
+    // Static storage: served from /public/images/, no Blob verification required
+    // Verify that static files have proper local paths instead of Blob URLs
+    if (!media.variants || !media.variants.original) {
+      console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Static media missing original variant', {
+        mediaId: media.id,
+        storage: media.storage,
+        reason: 'Static storage assets must have original variant path'
+      });
+      return false;
+    }
+    
+    // Verify static path is properly formatted (starts with /images/)
+    if (!media.variants.original.startsWith('/images/')) {
+      console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Invalid static path format', {
+        mediaId: media.id,
+        storage: media.storage,
+        path: media.variants.original,
+        reason: 'Static storage assets must have paths starting with /images/'
+      });
+      return false;
+    }
   }
   
   return true;

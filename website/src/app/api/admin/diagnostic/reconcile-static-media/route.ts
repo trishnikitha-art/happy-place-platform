@@ -52,8 +52,8 @@ export async function POST() {
 
   // SECURITY: Require Workbench authentication for reconciliation
   // This is a production data mutation operation that must be explicitly authorized
-  // Local development bypass requires explicit DRIVE_AUTH_BYPASS=true
-  const isDevBypass = process.env.DRIVE_AUTH_BYPASS === 'true';
+  // CRITICAL: Production never honors bypass flag, regardless of environment variable
+  const isDevBypass = process.env.DRIVE_AUTH_BYPASS === 'true' && process.env.VERCEL_ENV !== 'production';
 
   if (!isDevBypass) {
     const isAuthenticated = await workbenchSession.isAuthenticated();
@@ -72,6 +72,7 @@ export async function POST() {
   } else {
     console.warn('[STATIC_MEDIA_RECONCILIATION] DEV_MODE_BYPASS_ACTIVE', {
       reason: 'DRIVE_AUTH_BYPASS=true - Workbench authentication bypassed for local development',
+      environment: process.env.VERCEL_ENV,
     });
   }
 
