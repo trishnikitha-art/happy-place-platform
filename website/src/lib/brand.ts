@@ -58,12 +58,10 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
   console.log('[PUBLIC_READER] HOMEPAGE_HERO_REQUEST', { requestId });
   
   // Try to load runtime assignment for brand-hero
-  // P0 FIX: Check slot-specific keys to support both homepage-hero-slot and hero-background
+  // NO FALLBACK: Each slot has exactly one assignment key
   try {
     const { getServiceCardAssignment } = await import('@/lib/assignment-store');
-    // Try specific key first, then fallback to legacy key
-    const assignment = await getServiceCardAssignment('brand-hero-background', requestId) ||
-                       await getServiceCardAssignment('brand-hero', requestId);
+    const assignment = await getServiceCardAssignment('brand-hero-background', requestId);
 
     if (assignment && assignment.mediaId) {
       console.log('[PUBLIC_READER] ASSIGNMENT_FOUND', {
@@ -126,13 +124,10 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
   console.log('[BRAND] OWNER_PORTRAIT_REQUEST', { requestId });
   
   // Try to load runtime assignment for brand-portrait
-  // P0 FIX: Check slot-specific keys to support both homepage-owner-portrait-slot and about-owner-portrait-slot
+  // NO FALLBACK: Each slot has exactly one assignment key
   try {
     const { getServiceCardAssignment } = await import('@/lib/assignment-store');
-    // Try specific keys first, then fallback to legacy key
-    const assignment = await getServiceCardAssignment('brand-portrait-homepage', requestId) ||
-                       await getServiceCardAssignment('brand-portrait-about', requestId) ||
-                       await getServiceCardAssignment('brand-portrait', requestId);
+    const assignment = await getServiceCardAssignment('brand-portrait-homepage', requestId);
 
     if (assignment && assignment.mediaId) {
       console.log('[BRAND] Runtime assignment loaded for portrait:', { requestId, mediaId: assignment.mediaId });
