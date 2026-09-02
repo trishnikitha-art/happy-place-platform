@@ -51,13 +51,21 @@ try {
         continue;
       }
       
+      // Add storage field for proper authority resolution
+      // Static storage: served from /public/images/, no Blob metadata required
+      // Blob storage: materialized from Drive, requires Blob metadata
+      const reconciledMedia = {
+        ...media,
+        storage: media.source === 'local' ? 'static' : undefined,
+      };
+      
       // Write to KV using authoritative media writer
-      // Authoritative writer determines storage authority based on source field
-      await saveMedia(media);
+      await saveMedia(reconciledMedia);
       
       reconciled++;
       console.log('[STATIC_MEDIA_RECONCILIATION] RECONCILED', { 
-        mediaId: media.id
+        mediaId: media.id,
+        storage: reconciledMedia.storage
       });
       
     } catch (error) {
