@@ -6,13 +6,14 @@
  * Must be run in production environment with KV credentials
  * 
  * This script does what the Media Workbench "drag UI" would do:
- * 1. Reconcile 120 canonical static media records into MEDIA_KV
+ * 1. Reconcile canonical static media records into MEDIA_KV with inspection-based repair
  * 2. Reconcile assignments from canonical project/media relationships using authoritative writer
  * 
  * CRITICAL: This script now uses the same authoritative path as the Workbench:
  * - Phase 1: Reconciles static media using media-kv-store (authoritative media writer)
  * - Phase 2: Reconciles assignments using assignment-store (authoritative assignment writer)
  * - Both phases enforce CAS, public-media gate, and constitutional boundaries
+ * - Fixed authority path from media.v1.main.json to media.v1.json (current canonical)
  * 
  * Usage: 
  *   KV_REST_API_URL=<url> KV_REST_API_TOKEN=<token> node scripts/production-media-restoration.mjs
@@ -42,47 +43,115 @@ try {
   // ============================================
   console.log('[PHASE 1] RECONCILING STATIC MEDIA TO MEDIA_KV');
   
-  const mediaPath = join(process.cwd(), 'src/config/media.v1.main.json');
+  const mediaPath = join(process.cwd(), 'src/config/media.v1.json');
   const mediaData = JSON.parse(readFileSync(mediaPath, 'utf8'));
   
   console.log('[PHASE 1] CANONICAL_LOADED', { 
     totalCanonical: mediaData.media.length 
   });
   
-  let mediaReconciled = 0;
-  let mediaSkipped = 0;
+  let mediaRepaired = 0;
+  let mediaPreserved = 0;
   let mediaFailed = 0;
   const mediaErrors = {};
   
+  const classification = {
+    missing: 0,
+    incomplete: 0,
+    validStatic: 0,
+    validBlob: 0,
+    corrupt: 0,
+    synthetic: 0,
+    unexpected: 0,
+  };
+  
   for (const media of mediaData.media) {
     try {
-      // Check if already in KV using authoritative media reader
+      // Check existing KV record
       const existing = await getMediaRecordRaw(media.id);
-      if (existing) {
-        mediaSkipped++;
-        console.log('[PHASE 1] SKIPPED', { 
+      
+      // Classify existing record
+      if (!existing) {
+        // MISSING: Record doesn't exist in KV
+        classification.missing++;
+        
+        // Add storage field for static assets
+        const reconciledMedia = {
+          ...media,
+          storage: (media.source === 'local' ? 'static' : undefined),
+        };
+        
+        // Write to KV
+        await saveMedia(reconciledMedia);
+        mediaRepaired++;
+        console.log('[PHASE 1] REPAIRED_MISSING', { 
           mediaId: media.id,
-          reason: 'Already in KV'
+          storage: reconciledMedia.storage
         });
-        continue;
+        
+      } else {
+        // EXISTING: Inspect for completeness
+        const canonicalHash = media.contentHash;
+        const kvHash = existing.contentHash;
+        const canonicalStorage = media.source === 'local' ? 'static' : undefined;
+        const kvStorage = existing.storage;
+        
+        // Check for critical fields
+        const isComplete = 
+          existing.lifecycleState === 'published' &&
+          existing.source === media.source &&
+          existing.storage === canonicalStorage &&
+          existing.contentHash === canonicalHash &&
+          existing.variants && Object.keys(existing.variants).length > 0;
+        
+        if (!isComplete) {
+          // INCOMPLETE: Record exists but is missing critical fields
+          classification.incomplete++;
+          
+          // Repair through authoritative saveMedia()
+          // Do NOT blindly overwrite Blob-backed records
+          if (existing.storage === 'blob') {
+            // Blob records require careful handling - preserve, don't repair
+            classification.validBlob++;
+            mediaPreserved++;
+            console.log('[PHASE 1] PRESERVED_BLOB', { 
+              mediaId: media.id,
+              reason: 'Blob record - preserve without repair'
+            });
+          } else {
+            // Static records can be repaired
+            const reconciledMedia = {
+              ...media,
+              storage: canonicalStorage,
+            };
+            
+            await saveMedia(reconciledMedia);
+            mediaRepaired++;
+            console.log('[PHASE 1] REPAIRED_INCOMPLETE', { 
+              mediaId: media.id,
+              reason: 'Missing critical fields',
+              before: { storage: kvStorage, hash: kvHash },
+              after: { storage: canonicalStorage, hash: canonicalHash }
+            });
+          }
+          
+        } else {
+          // VALID: Record is materially equivalent to canonical
+          if (existing.storage === 'static') {
+            classification.validStatic++;
+          } else if (existing.storage === 'blob') {
+            classification.validBlob++;
+          } else {
+            classification.unexpected++;
+          }
+          
+          mediaPreserved++;
+          console.log('[PHASE 1] PRESERVED_VALID', { 
+            mediaId: media.id,
+            storage: existing.storage
+          });
+        }
       }
-      
-      // Add storage field for proper authority resolution
-      // Static storage: served from /public/images/, no Blob metadata required
-      // Blob storage: materialized from Drive, requires Blob metadata
-      const reconciledMedia = {
-        ...media,
-        storage: (media.source === 'local' ? 'static' : undefined),
-      };
-      
-      // Write to KV using authoritative media writer
-      await saveMedia(reconciledMedia);
-      
-      mediaReconciled++;
-      console.log('[PHASE 1] RECONCILED', { 
-        mediaId: media.id,
-        storage: reconciledMedia.storage
-      });
       
     } catch (error) {
       mediaFailed++;
@@ -96,11 +165,17 @@ try {
   
   console.log('[PHASE 1] COMPLETE', {
     totalCanonical: mediaData.media.length,
-    reconciled: mediaReconciled,
-    skipped: mediaSkipped,
+    classification,
+    repaired: mediaRepaired,
+    preserved: mediaPreserved,
     failed: mediaFailed,
     errors: mediaFailed > 0 ? mediaErrors : undefined,
   });
+  
+  if (mediaFailed > 0) {
+    console.error('[PRODUCTION_MEDIA_RESTORATION] PHASE 1 FAILED - ABORTING');
+    process.exit(1);
+  }
   
   if (mediaFailed > 0) {
     console.error('[PRODUCTION_MEDIA_RESTORATION] PHASE 1 FAILED - ABORTING');
@@ -224,8 +299,9 @@ try {
   console.log('========================================');
   console.log('PHASE 1 - Static Media Reconciliation:');
   console.log(`  Total canonical: ${mediaData.media.length}`);
-  console.log(`  Reconciled: ${mediaReconciled}`);
-  console.log(`  Skipped: ${mediaSkipped}`);
+  console.log(`  Classification:`, classification);
+  console.log(`  Repaired: ${mediaRepaired}`);
+  console.log(`  Preserved: ${mediaPreserved}`);
   console.log(`  Failed: ${mediaFailed}`);
   console.log('');
   console.log('PHASE 2 - Assignment Reconciliation:');

@@ -1,23 +1,27 @@
 /**
  * Static Media Reconciliation
  *
- * IDempotent reconciliation of canonical static media records into MEDIA_KV
+ * Idempotent reconciliation of canonical static media records into MEDIA_KV
  * No Blob materialization for static assets
- * No deletion, no replacement of existing valid records
+ * Inspection-based repair instead of blind skip
  *
  * CLASSIFICATION: SYNTHETIC-WRITE
  * - Reconciles media.v1.json canonical records into MEDIA_KV
  * - Static assets (served from /public/images/) are written without Blob materialization
- * - Idempotent: skips existing valid records
+ * - Idempotent: inspects existing records and repairs incomplete ones
+ * - Blob records are preserved without repair to avoid data loss
  * - Must be run with explicit admin authorization
  *
  * POST /api/admin/diagnostic/reconcile-static-media
  *
  * Performs:
  * - Load media.v1.json (canonical authority)
- * - For each record: if not in KV, write with storage: 'static' for local assets
- * - Validate records were written
- * - Return reconciliation report
+ * - For each record: classify existing KV state
+ * - Missing records: write with storage: 'static' for local assets
+ * - Incomplete records: repair through authoritative saveMedia()
+ * - Valid records: preserve without modification
+ * - Blob records: preserve without repair (safety check)
+ * - Return reconciliation report with classification breakdown
  */
 
 import { NextResponse } from "next/server";
@@ -34,8 +38,17 @@ interface ReconciliationResult {
   operation: string;
   evidence: {
     totalCanonical: number;
-    reconciled: number;
-    skipped: number;
+    classification: {
+      missing: number;
+      incomplete: number;
+      validStatic: number;
+      validBlob: number;
+      corrupt: number;
+      synthetic: number;
+      unexpected: number;
+    };
+    repaired: number;
+    preserved: number;
     failed: number;
     errors: Record<string, string>;
   };
@@ -97,39 +110,112 @@ export async function POST() {
       totalCanonical: manifest.media.length 
     });
     
-    let reconciled = 0;
-    let skipped = 0;
+    let repaired = 0;
+    let preserved = 0;
     let failed = 0;
     const errors: Record<string, string> = {};
     
+    const classification = {
+      missing: 0,
+      incomplete: 0,
+      validStatic: 0,
+      validBlob: 0,
+      corrupt: 0,
+      synthetic: 0,
+      unexpected: 0,
+    };
+    
     for (const media of manifest.media) {
       try {
-        // Check if already in KV
+        // Check existing KV record
         const existing = await getMediaRecordRaw(media.id);
-        if (existing) {
-          skipped++;
-          console.log('[STATIC_MEDIA_RECONCILIATION] SKIPPED', { 
+        
+        // Classify existing record
+        if (!existing) {
+          // MISSING: Record doesn't exist in KV
+          classification.missing++;
+          
+          // Add storage field for static assets
+          const reconciledMedia = {
+            ...media,
+            storage: (media.source === 'local' ? 'static' : undefined) as 'static' | 'blob' | undefined,
+          };
+          
+          // Write to KV
+          await saveMedia(reconciledMedia);
+          repaired++;
+          console.log('[STATIC_MEDIA_RECONCILIATION] REPAIRED_MISSING', { 
             testId, 
             mediaId: media.id,
-            reason: 'Already in KV'
+            storage: reconciledMedia.storage
           });
-          continue;
+          
+        } else {
+          // EXISTING: Inspect for completeness
+          const canonicalHash = media.contentHash;
+          const kvHash = existing.contentHash;
+          const canonicalStorage = media.source === 'local' ? 'static' : undefined;
+          const kvStorage = existing.storage;
+          
+          // Check for critical fields
+          const isComplete = 
+            existing.lifecycleState === 'published' &&
+            existing.source === media.source &&
+            existing.storage === canonicalStorage &&
+            existing.contentHash === canonicalHash &&
+            existing.variants && Object.keys(existing.variants).length > 0;
+          
+          if (!isComplete) {
+            // INCOMPLETE: Record exists but is missing critical fields
+            classification.incomplete++;
+            
+            // Repair through authoritative saveMedia()
+            // Do NOT blindly overwrite Blob-backed records
+            if (existing.storage === 'blob') {
+              // Blob records require careful handling - preserve, don't repair
+              classification.validBlob++;
+              preserved++;
+              console.log('[STATIC_MEDIA_RECONCILIATION] PRESERVED_BLOB', { 
+                testId, 
+                mediaId: media.id,
+                reason: 'Blob record - preserve without repair'
+              });
+            } else {
+              // Static records can be repaired
+              const reconciledMedia = {
+                ...media,
+                storage: canonicalStorage,
+              };
+              
+              await saveMedia(reconciledMedia);
+              repaired++;
+              console.log('[STATIC_MEDIA_RECONCILIATION] REPAIRED_INCOMPLETE', { 
+                testId, 
+                mediaId: media.id,
+                reason: 'Missing critical fields',
+                before: { storage: kvStorage, hash: kvHash },
+                after: { storage: canonicalStorage, hash: canonicalHash }
+              });
+            }
+            
+          } else {
+            // VALID: Record is materially equivalent to canonical
+            if (existing.storage === 'static') {
+              classification.validStatic++;
+            } else if (existing.storage === 'blob') {
+              classification.validBlob++;
+            } else {
+              classification.unexpected++;
+            }
+            
+            preserved++;
+            console.log('[STATIC_MEDIA_RECONCILIATION] PRESERVED_VALID', { 
+              testId, 
+              mediaId: media.id,
+              storage: existing.storage
+            });
+          }
         }
-        
-        // Add storage field for static assets
-        const reconciledMedia = {
-          ...media,
-          storage: (media.source === 'local' ? 'static' : undefined) as 'static' | 'blob' | undefined,
-        };
-        
-        // Write to KV
-        await saveMedia(reconciledMedia);
-        reconciled++;
-        console.log('[STATIC_MEDIA_RECONCILIATION] RECONCILED', { 
-          testId, 
-          mediaId: media.id,
-          storage: reconciledMedia.storage
-        });
         
       } catch (error) {
         failed++;
@@ -153,8 +239,9 @@ export async function POST() {
       operation: 'reconcile_static_media',
       evidence: {
         totalCanonical: manifest.media.length,
-        reconciled,
-        skipped,
+        classification,
+        repaired,
+        preserved,
         failed,
         errors: failed > 0 ? errors : undefined,
       },
