@@ -130,7 +130,7 @@ export async function POST() {
         }
         
         // Check if assignment already exists with same mediaId
-        const existing = await getServiceCardAssignment(slotKey, testId);
+        const existing = await getServiceCardAssignment(slotKey, `reconcile-${slotKey}`);
         if (existing && existing.mediaId === mediaId) {
           skipped++;
           console.log('[ASSIGNMENT_RECONCILIATION] SKIPPED', { 
@@ -154,7 +154,7 @@ export async function POST() {
           updatedAt: new Date().toISOString(),
         };
         
-        await storeServiceCardAssignment(assignment, currentRevision, testId);
+        await storeServiceCardAssignment(assignment, currentRevision, `reconcile-${slotKey}`);
         reconciled++;
         console.log('[ASSIGNMENT_RECONCILIATION] RECONCILED', { 
           slotKey,

@@ -20,7 +20,6 @@
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { Redis } from '@upstash/redis';
 import { saveMedia, getMediaRecordRaw } from '../src/lib/media-kv-store.js';
 import { storeServiceCardAssignment, getServiceCardAssignment } from '../src/lib/assignment-store.js';
 
@@ -33,10 +32,9 @@ if (!MEDIA_KV_URL || !MEDIA_KV_TOKEN) {
   process.exit(1);
 }
 
-const client = new Redis({ url: MEDIA_KV_URL, token: MEDIA_KV_TOKEN });
-
 console.log('[PRODUCTION_MEDIA_RESTORATION] STARTED');
 console.log('[PRODUCTION_MEDIA_RESTORATION] This is equivalent to Media Workbench drag UI restoration');
+console.log('[PRODUCTION_MEDIA_RESTORATION] Using authoritative writers (saveMedia, storeServiceCardAssignment)');
 
 try {
   // ============================================
@@ -58,8 +56,8 @@ try {
   
   for (const media of mediaData.media) {
     try {
-      // Check if already in KV
-      const existing = await client.get(`media:${media.id}`);
+      // Check if already in KV using authoritative media reader
+      const existing = await getMediaRecordRaw(media.id);
       if (existing) {
         mediaSkipped++;
         console.log('[PHASE 1] SKIPPED', { 
@@ -75,13 +73,8 @@ try {
         storage: media.source === 'local' ? 'static' : undefined,
       };
       
-      // Write to KV
-      await client.set(`media:${media.id}`, JSON.stringify(reconciledMedia));
-      
-      // Update content hash index
-      if (reconciledMedia.contentHash) {
-        await client.set(`content_hash:${reconciledMedia.contentHash}`, media.id);
-      }
+      // Write to KV using authoritative media writer
+      await saveMedia(reconciledMedia);
       
       mediaReconciled++;
       console.log('[PHASE 1] RECONCILED', { 
