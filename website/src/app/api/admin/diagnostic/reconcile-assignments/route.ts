@@ -2,11 +2,13 @@
  * Assignment Reconciliation
  * 
  * IDempotent reconciliation of canonical project/media relationships into runtime assignments
- * Validates media IDs against canonical media authority
+ * Uses authoritative assignment writer (storeServiceCardAssignment) to enforce constitutional path
+ * Validates media IDs against canonical media authority through public media gate
  * Idempotent: skips existing valid assignments
  * 
  * CLASSIFICATION: SYNTHETIC-WRITE
  * - Reconciles assignments from projects.v1.json and brand.v1.json
+ * - Uses storeServiceCardAssignment() to enforce CAS and public-media gate
  * - Validates media IDs against canonical media authority
  * - Idempotent: skips existing valid assignments
  * - Must be run with explicit admin authorization
@@ -17,14 +19,14 @@
  * - Load projects.v1.json and brand.v1.json (canonical configuration)
  * - Load media.v1.main.json (canonical media authority)
  * - For each project/media relationship: create or validate assignment
- * - Validate media IDs against canonical authority
+ * - Use authoritative assignment writer (storeServiceCardAssignment)
+ * - Validates media IDs against canonical media authority through public gate
  * - Return reconciliation report
  */
 
 import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
-import { Redis } from '@upstash/redis';
-import { getEnvironment, getKvNamespace } from '@/lib/environment';
+import { storeServiceCardAssignment, getServiceCardAssignment, type ServiceCardAssignment } from "@/lib/assignment-store";
 
 interface ReconciliationResult {
   testId: string;
@@ -109,36 +111,66 @@ export async function POST() {
       media: mediaData.media.length
     });
     
-    // Create KV client
-    let url = process.env.KV_REST_API_URL;
-    let token = process.env.KV_REST_API_TOKEN;
-    
-    const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
-    const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
-    
-    if (!url && integrationUrl) url = integrationUrl;
-    if (!token && integrationToken) token = integrationToken;
-    
-    if (!url || !token) {
-      return NextResponse.json({
-        testId,
-        startTime,
-        endTime: new Date().toISOString(),
-        deploymentSha,
-        environment,
-        operation: 'load_kv',
-        evidence: { error: 'Missing KV credentials' },
-        verdict: 'FAILED',
-      }, { status: 500 });
-    }
-    
-    const client = new Redis({ url, token });
-    const namespace = getKvNamespace();
-    
     let reconciled = 0;
     let skipped = 0;
     let failed = 0;
     const errors: Record<string, string> = {};
+    
+    // Define helpers with closure access to counters
+    const reconcileAssignment = async (slotKey: string, mediaId: string) => {
+      try {
+        // Validate media ID exists in canonical authority
+        if (!canonicalMediaIds.has(mediaId)) {
+          console.warn('[ASSIGNMENT_RECONCILIATION] MEDIA_ID_NOT_IN_CANONICAL', {
+            slotKey,
+            mediaId,
+            reason: 'Media ID not found in canonical media authority'
+          });
+          return;
+        }
+        
+        // Check if assignment already exists with same mediaId
+        const existing = await getServiceCardAssignment(slotKey, testId);
+        if (existing && existing.mediaId === mediaId) {
+          skipped++;
+          console.log('[ASSIGNMENT_RECONCILIATION] SKIPPED', { 
+            slotKey,
+            mediaId,
+            reason: 'Assignment already exists with same mediaId'
+          });
+          return;
+        }
+        
+        // Get current revision for CAS (0 if missing)
+        const currentRevision = existing?.revision || 0;
+        
+        // Create assignment using authoritative writer
+        // This enforces public-media gate validation
+        const assignment: ServiceCardAssignment = {
+          serviceSlug: slotKey,
+          mediaId,
+          source: 'reconciliation',
+          revision: currentRevision + 1,
+          updatedAt: new Date().toISOString(),
+        };
+        
+        await storeServiceCardAssignment(assignment, currentRevision, testId);
+        reconciled++;
+        console.log('[ASSIGNMENT_RECONCILIATION] RECONCILED', { 
+          slotKey,
+          mediaId
+        });
+        
+      } catch (error) {
+        failed++;
+        errors[slotKey] = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[ASSIGNMENT_RECONCILIATION] FAILED', {
+          slotKey,
+          mediaId,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    };
     
     // Reconcile project media assignments
     for (const project of projectsData.projects) {
@@ -149,36 +181,27 @@ export async function POST() {
         // Hero assignment
         if (projectMedia.hero) {
           await reconcileAssignment(
-            client,
-            namespace,
             `project:${project.id}:hero`,
             projectMedia.hero,
-            canonicalMediaIds,
-            { reconciled, skipped, failed, errors }
+            canonicalMediaIds
           );
         }
         
         // Before assignment
         if (projectMedia.before) {
           await reconcileAssignment(
-            client,
-            namespace,
             `project:${project.id}:before`,
             projectMedia.before,
-            canonicalMediaIds,
-            { reconciled, skipped, failed, errors }
+            canonicalMediaIds
           );
         }
         
         // After assignment
         if (projectMedia.after) {
           await reconcileAssignment(
-            client,
-            namespace,
             `project:${project.id}:after`,
             projectMedia.after,
-            canonicalMediaIds,
-            { reconciled, skipped, failed, errors }
+            canonicalMediaIds
           );
         }
         
@@ -186,12 +209,9 @@ export async function POST() {
         if (projectMedia.gallery && Array.isArray(projectMedia.gallery)) {
           for (const [index, mediaId] of projectMedia.gallery.entries()) {
             await reconcileAssignment(
-              client,
-              namespace,
               `project:${project.id}:gallery:${index}`,
               mediaId,
-              canonicalMediaIds,
-              { reconciled, skipped, failed, errors }
+              canonicalMediaIds
             );
           }
         }
@@ -209,23 +229,17 @@ export async function POST() {
     // Reconcile brand assignments
     if (brandData.homepageHero?.mediaId) {
       await reconcileAssignment(
-        client,
-        namespace,
         'brand-hero-background',
         brandData.homepageHero.mediaId,
-        canonicalMediaIds,
-        { reconciled, skipped, failed, errors }
+        canonicalMediaIds
       );
     }
     
     if (brandData.ownerPortrait?.mediaId) {
       await reconcileAssignment(
-        client,
-        namespace,
         'brand-portrait-homepage',
         brandData.ownerPortrait.mediaId,
-        canonicalMediaIds,
-        { reconciled, skipped, failed, errors }
+        canonicalMediaIds
       );
     }
     
@@ -265,64 +279,5 @@ export async function POST() {
       evidence: { error: error instanceof Error ? error.message : 'Unknown error' },
       verdict: 'FAILED',
     }, { status: 500 });
-  }
-}
-
-async function reconcileAssignment(
-  client: Redis,
-  namespace: string,
-  slotKey: string,
-  mediaId: string,
-  canonicalMediaIds: Set<string>,
-  counters: { reconciled: number; skipped: number; failed: number; errors: Record<string, string> }
-): Promise<void> {
-  try {
-    // Validate media ID exists in canonical authority
-    if (!canonicalMediaIds.has(mediaId)) {
-      console.warn('[ASSIGNMENT_RECONCILIATION] MEDIA_ID_NOT_IN_CANONICAL', {
-        slotKey,
-        mediaId,
-        reason: 'Media ID not found in canonical media authority'
-      });
-      return;
-    }
-    
-    // Check if assignment already exists
-    const existing = await client.get(`${namespace}service-card-assignment:${slotKey}`);
-    if (existing) {
-      const parsed = typeof existing === 'string' ? JSON.parse(existing) : existing;
-      if (parsed.mediaId === mediaId) {
-        counters.skipped++;
-        console.log('[ASSIGNMENT_RECONCILIATION] SKIPPED', { 
-          slotKey,
-          mediaId,
-          reason: 'Assignment already exists with same mediaId'
-        });
-        return;
-      }
-    }
-    
-    // Create assignment
-    const assignment = {
-      slotKey,
-      mediaId,
-      updatedAt: new Date().toISOString(),
-    };
-    
-    await client.set(`${namespace}service-card-assignment:${slotKey}`, JSON.stringify(assignment));
-    counters.reconciled++;
-    console.log('[ASSIGNMENT_RECONCILIATION] RECONCILED', { 
-      slotKey,
-      mediaId
-    });
-    
-  } catch (error) {
-    counters.failed++;
-    counters.errors[slotKey] = error instanceof Error ? error.message : 'Unknown error';
-    console.error('[ASSIGNMENT_RECONCILIATION] FAILED', {
-      slotKey,
-      mediaId,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
   }
 }

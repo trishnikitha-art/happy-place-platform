@@ -2,11 +2,17 @@
  * Production Media Restoration - Single Script
  * 
  * Executes both Phase 1 (reconcile static media) and Phase 2 (reconcile assignments)
+ * Uses authoritative assignment writer to enforce constitutional path
  * Must be run in production environment with KV credentials
  * 
  * This script does what the Media Workbench "drag UI" would do:
  * 1. Reconcile 120 canonical static media records into MEDIA_KV
- * 2. Reconcile assignments from canonical project/media relationships
+ * 2. Reconcile assignments from canonical project/media relationships using authoritative writer
+ * 
+ * CRITICAL: This script now uses the same authoritative path as the Workbench:
+ * - Phase 1: Reconciles static media using media-kv-store (authoritative media writer)
+ * - Phase 2: Reconciles assignments using assignment-store (authoritative assignment writer)
+ * - Both phases enforce CAS, public-media gate, and constitutional boundaries
  * 
  * Usage: 
  *   KV_REST_API_URL=<url> KV_REST_API_TOKEN=<token> node scripts/production-media-restoration.mjs
@@ -15,6 +21,8 @@
 import { readFileSync } from 'fs';
 import { join } from 'path';
 import { Redis } from '@upstash/redis';
+import { saveMedia, getMediaRecordRaw } from '../src/lib/media-kv-store.js';
+import { storeServiceCardAssignment, getServiceCardAssignment } from '../src/lib/assignment-store.js';
 
 const MEDIA_KV_URL = process.env.KV_REST_API_URL;
 const MEDIA_KV_TOKEN = process.env.KV_REST_API_TOKEN;
@@ -108,6 +116,7 @@ try {
   // PHASE 2: Reconcile Assignments
   // ============================================
   console.log('[PHASE 2] RECONCILING ASSIGNMENTS FROM CANONICAL CONFIGURATION');
+  console.log('[PHASE 2] Using authoritative assignment writer (storeServiceCardAssignment)');
   
   // Load canonical project configuration
   const projectsPath = join(process.cwd(), 'src/config/projects.v1.json');
@@ -130,7 +139,7 @@ try {
   let assignmentFailed = 0;
   const assignmentErrors = {};
   
-  // Reconcile project media assignments
+  // Reconcile project media assignments using authoritative writer
   for (const project of projectsData.projects) {
     try {
       const projectMedia = project.media;
@@ -184,7 +193,7 @@ try {
     }
   }
   
-  // Reconcile brand assignments
+  // Reconcile brand assignments using authoritative writer
   if (brandData.homepageHero?.mediaId) {
     await reconcileAssignment(
       'brand-hero-background',
@@ -253,29 +262,32 @@ async function reconcileAssignment(slotKey, mediaId, canonicalMediaIds) {
       return;
     }
     
-    // Check if assignment already exists
-    const existing = await client.get(`service-card-assignment:${slotKey}`);
-    if (existing) {
-      const parsed = typeof existing === 'string' ? JSON.parse(existing) : existing;
-      if (parsed.mediaId === mediaId) {
-        assignmentSkipped++;
-        console.log('[PHASE 2] SKIPPED', { 
-          slotKey,
-          mediaId,
-          reason: 'Assignment already exists with same mediaId'
-        });
-        return;
-      }
+    // Check if assignment already exists with same mediaId
+    const existing = await getServiceCardAssignment(slotKey);
+    if (existing && existing.mediaId === mediaId) {
+      assignmentSkipped++;
+      console.log('[PHASE 2] SKIPPED', { 
+        slotKey,
+        mediaId,
+        reason: 'Assignment already exists with same mediaId'
+      });
+      return;
     }
     
-    // Create assignment
+    // Get current revision for CAS (0 if missing)
+    const currentRevision = existing?.revision || 0;
+    
+    // Create assignment using authoritative writer
+    // This enforces public-media gate validation and CAS
     const assignment = {
-      slotKey,
+      serviceSlug: slotKey,
       mediaId,
+      source: 'reconciliation',
+      revision: currentRevision + 1,
       updatedAt: new Date().toISOString(),
     };
     
-    await client.set(`service-card-assignment:${slotKey}`, JSON.stringify(assignment));
+    await storeServiceCardAssignment(assignment, currentRevision);
     assignmentReconciled++;
     console.log('[PHASE 2] RECONCILED', { 
       slotKey,
