@@ -54,11 +54,12 @@ export async function POST() {
   
   console.log('[ASSIGNMENT_RECONCILIATION] STARTED', { testId, startTime, deploymentSha, environment });
 
-  // SECURITY: Require authentication in production
-  // Development bypass requires explicit DRIVE_AUTH_BYPASS=true
+  // SECURITY: Require Workbench authentication for reconciliation
+  // This is a production data mutation operation that must be explicitly authorized
+  // Local development bypass requires explicit DRIVE_AUTH_BYPASS=true
   const isDevBypass = process.env.DRIVE_AUTH_BYPASS === 'true';
 
-  if (process.env.NODE_ENV !== 'development' || !isDevBypass) {
+  if (!isDevBypass) {
     const isAuthenticated = await workbenchSession.isAuthenticated();
     if (!isAuthenticated) {
       return NextResponse.json({
@@ -68,13 +69,13 @@ export async function POST() {
         deploymentSha,
         environment,
         operation: 'authentication',
-        evidence: { error: 'Unauthorized' },
+        evidence: { error: 'Unauthorized: Workbench authentication required for reconciliation' },
         verdict: 'FAILED',
       }, { status: 401 });
     }
   } else {
     console.warn('[ASSIGNMENT_RECONCILIATION] DEV_MODE_BYPASS_ACTIVE', {
-      reason: 'DRIVE_AUTH_BYPASS=true',
+      reason: 'DRIVE_AUTH_BYPASS=true - Workbench authentication bypassed for local development',
     });
   }
 
