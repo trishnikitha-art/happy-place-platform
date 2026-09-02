@@ -291,7 +291,7 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
  * Clear media cache (useful for testing or hot reload)
  */
 export function clearMediaCache(): void {
-  clearAuthorityCache("@/config/media.v1.json");
+  clearAuthorityCache("@/config/media.v1.main.json");
 }
 
 /**
