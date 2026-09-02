@@ -6,12 +6,12 @@
   "canonicalGraphVersion": "1.0.0",
   "generatorVersion": "1.0.0",
   "inputHash": "f7d98559044329bbe7667edb389970af016070085d04ab357baf6917cea249ab",
-  "generatedAt": "2026-09-02T18:15:51.913Z",
+  "generatedAt": "2026-09-02T18:19:02.895Z",
+  "generatedHash": "f7d98559044329bbe7667edb389970af016070085d04ab357baf6917cea249ab",
   "projects": [
     {
       "projectId": "exterior-painting-001",
-      "projectTitle": "Exterior Painting & Surface Restoration – Corvallis",
-      "service": "painting",
+      "projectName": "Exterior Painting & Surface Restoration – Corvallis",
       "galleryRepresentative": "outdoor-living-001-hero",
       "supportingGalleryEvidence": [
         "outdoor-living-001-hero",
@@ -22,49 +22,32 @@
         "outdoor-living-001-6"
       ],
       "galleryOrder": 0,
-      "coverage": "COMPLETE",
-      "heroMediaId": "outdoor-living-001-hero",
-      "galleryMediaIds": [
-        "outdoor-living-001-2",
-        "outdoor-living-001-3",
-        "outdoor-living-001-4",
-        "outdoor-living-001-5",
-        "outdoor-living-001-6"
-      ]
+      "coverage": "COMPLETE"
     },
     {
       "projectId": "fences-001",
-      "projectTitle": "Fence Installation - Willamette Valley",
-      "service": "fences",
+      "projectName": "Fence Installation - Willamette Valley",
       "galleryRepresentative": "fences-001-hero",
       "supportingGalleryEvidence": [
         "fences-001-hero",
         "fences-001-matching"
       ],
       "galleryOrder": 0,
-      "coverage": "COMPLETE",
-      "heroMediaId": "fences-001-hero",
-      "galleryMediaIds": [
-        "fences-001-matching"
-      ]
+      "coverage": "COMPLETE"
     },
     {
       "projectId": "pergolas-001",
-      "projectTitle": "Steel-Framed Covered Privacy Courtyard – Corvallis",
-      "service": "pergolas",
+      "projectName": "Steel-Framed Covered Privacy Courtyard – Corvallis",
       "galleryRepresentative": "pergolas-001-hero",
       "supportingGalleryEvidence": [
         "pergolas-001-hero"
       ],
       "galleryOrder": 0,
-      "coverage": "HERO_ONLY",
-      "heroMediaId": "pergolas-001-hero",
-      "galleryMediaIds": []
+      "coverage": "HERO_ONLY"
     },
     {
       "projectId": "repairs-001",
-      "projectTitle": "Home Repairs - Willamette Valley",
-      "service": "repairs",
+      "projectName": "Home Repairs - Willamette Valley",
       "galleryRepresentative": "repairs-001-hero",
       "supportingGalleryEvidence": [
         "repairs-001-hero",
@@ -76,21 +59,11 @@
         "repairs-001-img0546"
       ],
       "galleryOrder": 2,
-      "coverage": "COMPLETE",
-      "heroMediaId": "repairs-001-hero",
-      "galleryMediaIds": [
-        "repairs-001-drywall",
-        "repairs-001-floor",
-        "repairs-001-gutter",
-        "repairs-001-floor0",
-        "repairs-001-img0544",
-        "repairs-001-img0546"
-      ]
+      "coverage": "COMPLETE"
     },
     {
       "projectId": "bathroom-remodeling",
-      "projectTitle": "Bathroom Remodeling",
-      "service": "bathroom-remodeling",
+      "projectName": "Bathroom Remodeling",
       "galleryRepresentative": "bathroom-remodeling-0",
       "supportingGalleryEvidence": [
         "bathroom-remodeling-0",
@@ -100,19 +73,11 @@
         "bathroom-remodeling-3"
       ],
       "galleryOrder": 4,
-      "coverage": "COMPLETE",
-      "heroMediaId": "bathroom-remodeling-0",
-      "galleryMediaIds": [
-        "bathroom-remodeling-0",
-        "bathroom-remodeling-1",
-        "bathroom-remodeling-2",
-        "bathroom-remodeling-3"
-      ]
+      "coverage": "COMPLETE"
     },
     {
       "projectId": "davis-bathroom-remodel",
-      "projectTitle": "Davis Bathroom Remodel",
-      "service": "bathroom-remodeling",
+      "projectName": "Davis Bathroom Remodel",
       "galleryRepresentative": "davis-bathroom-remodel-0",
       "supportingGalleryEvidence": [
         "davis-bathroom-remodel-0",
@@ -122,19 +87,11 @@
         "davis-bathroom-remodel-3"
       ],
       "galleryOrder": 5,
-      "coverage": "COMPLETE",
-      "heroMediaId": "davis-bathroom-remodel-0",
-      "galleryMediaIds": [
-        "davis-bathroom-remodel-0",
-        "davis-bathroom-remodel-1",
-        "davis-bathroom-remodel-2",
-        "davis-bathroom-remodel-3"
-      ]
+      "coverage": "COMPLETE"
     },
     {
       "projectId": "johnson-cedar-fence",
-      "projectTitle": "Johnson Cedar Fence",
-      "service": "fences",
+      "projectName": "Johnson Cedar Fence",
       "galleryRepresentative": "johnson-cedar-fence-0",
       "supportingGalleryEvidence": [
         "johnson-cedar-fence-0",
@@ -148,39 +105,22 @@
         "johnson-cedar-fence-7"
       ],
       "galleryOrder": 6,
-      "coverage": "COMPLETE",
-      "heroMediaId": "johnson-cedar-fence-0",
-      "galleryMediaIds": [
-        "johnson-cedar-fence-0",
-        "johnson-cedar-fence-1",
-        "johnson-cedar-fence-2",
-        "johnson-cedar-fence-3",
-        "johnson-cedar-fence-4",
-        "johnson-cedar-fence-5",
-        "johnson-cedar-fence-6",
-        "johnson-cedar-fence-7"
-      ]
+      "coverage": "COMPLETE"
     },
     {
       "projectId": "martinez-pergola",
-      "projectTitle": "Martinez Pergola",
-      "service": "pergolas",
+      "projectName": "Martinez Pergola",
       "galleryRepresentative": "martinez-pergola-hero",
       "supportingGalleryEvidence": [
         "martinez-pergola-hero",
         "martinez-pergola-gallery-1"
       ],
       "galleryOrder": 7,
-      "coverage": "COMPLETE",
-      "heroMediaId": "martinez-pergola-hero",
-      "galleryMediaIds": [
-        "martinez-pergola-gallery-1"
-      ]
+      "coverage": "COMPLETE"
     },
     {
       "projectId": "outdoor-living",
-      "projectTitle": "Outdoor Living",
-      "service": "outdoor-living",
+      "projectName": "Outdoor Living",
       "galleryRepresentative": "outdoor-living-0",
       "supportingGalleryEvidence": [
         "outdoor-living-0",
@@ -198,27 +138,11 @@
         "outdoor-living-11"
       ],
       "galleryOrder": 8,
-      "coverage": "COMPLETE",
-      "heroMediaId": "outdoor-living-0",
-      "galleryMediaIds": [
-        "outdoor-living-0",
-        "outdoor-living-1",
-        "outdoor-living-2",
-        "outdoor-living-3",
-        "outdoor-living-4",
-        "outdoor-living-5",
-        "outdoor-living-6",
-        "outdoor-living-7",
-        "outdoor-living-8",
-        "outdoor-living-9",
-        "outdoor-living-10",
-        "outdoor-living-11"
-      ]
+      "coverage": "COMPLETE"
     },
     {
       "projectId": "smith-built-ins",
-      "projectTitle": "Smith Built Ins",
-      "service": "built-ins",
+      "projectName": "Smith Built Ins",
       "galleryRepresentative": "smith-built-ins-0",
       "supportingGalleryEvidence": [
         "smith-built-ins-0",
@@ -232,23 +156,11 @@
         "smith-built-ins-7"
       ],
       "galleryOrder": 9,
-      "coverage": "COMPLETE",
-      "heroMediaId": "smith-built-ins-0",
-      "galleryMediaIds": [
-        "smith-built-ins-0",
-        "smith-built-ins-1",
-        "smith-built-ins-2",
-        "smith-built-ins-3",
-        "smith-built-ins-4",
-        "smith-built-ins-5",
-        "smith-built-ins-6",
-        "smith-built-ins-7"
-      ]
+      "coverage": "COMPLETE"
     },
     {
       "projectId": "test-project-corvallis",
-      "projectTitle": "Test Project Corvallis",
-      "service": "test-project",
+      "projectName": "Test Project Corvallis",
       "galleryRepresentative": "test-project-corvallis-0",
       "supportingGalleryEvidence": [
         "test-project-corvallis-0",
@@ -258,19 +170,11 @@
         "test-project-corvallis-3"
       ],
       "galleryOrder": 10,
-      "coverage": "COMPLETE",
-      "heroMediaId": "test-project-corvallis-0",
-      "galleryMediaIds": [
-        "test-project-corvallis-0",
-        "test-project-corvallis-1",
-        "test-project-corvallis-2",
-        "test-project-corvallis-3"
-      ]
+      "coverage": "COMPLETE"
     },
     {
       "projectId": "wilson-home-repairs",
-      "projectTitle": "Wilson Home Repairs",
-      "service": "repairs",
+      "projectName": "Wilson Home Repairs",
       "galleryRepresentative": "wilson-home-repairs-0",
       "supportingGalleryEvidence": [
         "wilson-home-repairs-0",
@@ -296,30 +200,7 @@
         "wilson-home-repairs-19"
       ],
       "galleryOrder": 11,
-      "coverage": "COMPLETE",
-      "heroMediaId": "wilson-home-repairs-0",
-      "galleryMediaIds": [
-        "wilson-home-repairs-0",
-        "wilson-home-repairs-1",
-        "wilson-home-repairs-2",
-        "wilson-home-repairs-3",
-        "wilson-home-repairs-4",
-        "wilson-home-repairs-5",
-        "wilson-home-repairs-6",
-        "wilson-home-repairs-7",
-        "wilson-home-repairs-8",
-        "wilson-home-repairs-9",
-        "wilson-home-repairs-10",
-        "wilson-home-repairs-11",
-        "wilson-home-repairs-12",
-        "wilson-home-repairs-13",
-        "wilson-home-repairs-14",
-        "wilson-home-repairs-15",
-        "wilson-home-repairs-16",
-        "wilson-home-repairs-17",
-        "wilson-home-repairs-18",
-        "wilson-home-repairs-19"
-      ]
+      "coverage": "COMPLETE"
     }
   ]
 }

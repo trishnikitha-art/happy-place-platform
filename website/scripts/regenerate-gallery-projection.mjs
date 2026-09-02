@@ -40,6 +40,7 @@ const galleryProjection = {
   generatorVersion: "1.0.0",
   inputHash: createHash('sha256').update(JSON.stringify({ projects, media })).digest('hex'),
   generatedAt: new Date().toISOString(),
+  generatedHash: createHash('sha256').update(JSON.stringify({ projects, media })).digest('hex'),
   projects: []
 };
 
@@ -92,14 +93,11 @@ for (const project of projects.projects) {
   if (heroMedia || galleryMedia.length > 0) {
     galleryProjection.projects.push({
       projectId: project.id,
-      projectTitle: project.title,
-      service: project.service,
+      projectName: project.title,
       galleryRepresentative,
       supportingGalleryEvidence,
       galleryOrder: project.featured ? 0 : galleryProjection.projects.length,
-      coverage,
-      heroMediaId: project.media.hero || null,
-      galleryMediaIds: project.media.gallery || []
+      coverage: coverage === 'EMPTY' ? 'UNKNOWN' : coverage
     });
   }
 }
