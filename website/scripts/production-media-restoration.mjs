@@ -72,7 +72,7 @@ try {
       // Blob storage: materialized from Drive, requires Blob metadata
       const reconciledMedia = {
         ...media,
-        storage: media.source === 'local' ? 'static' : undefined,
+        storage: (media.source === 'local' ? 'static' : undefined),
       };
       
       // Write to KV using authoritative media writer

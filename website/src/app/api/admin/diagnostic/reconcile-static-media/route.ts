@@ -118,7 +118,7 @@ export async function POST() {
         // Add storage field for static assets
         const reconciledMedia = {
           ...media,
-          storage: media.source === 'local' ? 'static' : undefined,
+          storage: (media.source === 'local' ? 'static' : undefined) as 'static' | 'blob' | undefined,
         };
         
         // Write to KV

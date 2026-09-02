@@ -290,7 +290,7 @@ function validateServiceCardAssignment(data: unknown): data is ServiceCardAssign
   }
   
   // Domain validation for actor (if present, must be valid enum value)
-  if (candidate.actor !== undefined && !['workbench', 'reconciliation', 'migration'].includes(candidate.actor)) {
+  if (candidate.actor !== undefined && typeof candidate.actor === 'string' && !['workbench', 'reconciliation', 'migration'].includes(candidate.actor)) {
     return false;
   }
   
