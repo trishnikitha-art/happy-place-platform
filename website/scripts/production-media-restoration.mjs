@@ -67,19 +67,12 @@ try {
         continue;
       }
       
-      // Add storage field for static assets
-      const reconciledMedia = {
-        ...media,
-        storage: media.source === 'local' ? 'static' : undefined,
-      };
-      
       // Write to KV using authoritative media writer
-      await saveMedia(reconciledMedia);
+      await saveMedia(media);
       
       mediaReconciled++;
       console.log('[PHASE 1] RECONCILED', { 
-        mediaId: media.id,
-        storage: reconciledMedia.storage
+        mediaId: media.id
       });
       
     } catch (error) {
