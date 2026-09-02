@@ -28,8 +28,8 @@ import { VisualSlot } from "@/components/visual-slot";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
 import type { Media } from "@/types/media";
 
-// Mark homepage as dynamic to allow KV access during runtime assignments
-export const dynamic = 'force-dynamic';
+// Mark homepage as static since brand media now uses static configuration
+export const dynamic = 'error';
 
 const siteUrl = "https://happyplacecarpentry.com";
 

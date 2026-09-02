@@ -48,7 +48,7 @@ export function loadBrandManifest(): BrandManifest {
 /**
  * Get homepage hero image
  * Returns brand hero or null if not set
- * Applies runtime assignment from persistent store if available
+ * Uses static configuration from brand.v1.json
  * Uses public media gate to ensure only PublishedMediaAsset can be returned
  */
 export async function getHomepageHero(): Promise<BrandHero | null> {
@@ -57,64 +57,50 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
   
   console.log('[PUBLIC_READER] HOMEPAGE_HERO_REQUEST', { requestId });
   
-  // Try to load runtime assignment for brand-hero
-  // NO FALLBACK: Each slot has exactly one assignment key
-  try {
-    const { getServiceCardAssignment } = await import('@/lib/assignment-store');
-    const assignment = await getServiceCardAssignment('brand-hero-background', requestId);
-
-    if (assignment && assignment.mediaId) {
-      console.log('[PUBLIC_READER] ASSIGNMENT_FOUND', {
-        requestId,
-        key: 'service-card-assignment:brand-hero',
-        mediaId: assignment.mediaId
+  // Use static configuration directly for brand hero
+  // Brand media is authoritative in brand.v1.json, not through runtime assignments
+  if (manifest.homepageHero.mediaId) {
+    console.log('[PUBLIC_READER] STATIC_BRAND_HERO_MEDIA_ID', {
+      requestId,
+      mediaId: manifest.homepageHero.mediaId
+    });
+    
+    // Resolve mediaId through public media gate (rejects Drive references)
+    const { resolvePublicMedia } = await import('@/lib/media');
+    const resolvedMedia = await resolvePublicMedia(manifest.homepageHero.mediaId);
+    
+    if (resolvedMedia) {
+      console.log('[PUBLIC_MEDIA_GATE] BRAND_HERO_APPROVED', { 
+        requestId, 
+        mediaId: manifest.homepageHero.mediaId,
+        resolvedMediaId: resolvedMedia.id 
       });
-      
-      // Resolve mediaId through public media gate (rejects Drive references)
-      const { resolvePublicMedia } = await import('@/lib/media');
-      const resolvedMedia = await resolvePublicMedia(assignment.mediaId);
-      
-      if (resolvedMedia) {
-        console.log('[PUBLIC_MEDIA_GATE] BRAND_HERO_APPROVED', { 
-          requestId, 
-          mediaId: assignment.mediaId,
-          resolvedMediaId: resolvedMedia.id 
-        });
-        // P1 FIX: Return the full resolved Media object, not just mediaId
-        // This ensures callers cannot bypass the public media gate by calling getMediaById directly
-        return {
-          ...manifest.homepageHero,
-          mediaId: assignment.mediaId,
-          resolvedMedia, // Attach the validated media object
-        };
-      } else {
-        console.error('[PUBLIC_MEDIA_GATE] BRAND_HERO_REJECTED', {
-          requestId,
-          mediaId: assignment.mediaId
-        });
-        // Reject assignment if it doesn't resolve to PublishedMediaAsset
-        // P0 FIX: Do NOT fall back to static without independent verification
-        // Static authority may contain incomplete media that also fails public proof
-      }
+      // Return the full resolved Media object
+      return {
+        ...manifest.homepageHero,
+        mediaId: manifest.homepageHero.mediaId,
+        resolvedMedia,
+      };
+    } else {
+      console.error('[PUBLIC_MEDIA_GATE] BRAND_HERO_REJECTED', {
+        requestId,
+        mediaId: manifest.homepageHero.mediaId
+      });
     }
-  } catch (error) {
-    console.error('[PUBLIC_READER] ASSIGNMENT_LOAD_FAILED - FAILING CLOSED', { requestId, error });
   }
 
-  // P0 FIX: No static fallback - return null mediaId if no runtime assignment
-  // This prevents authority bypass and resurrection of deleted/rejected media
-  // KV is now proven working - temporary fallback removed
-  console.log('[PUBLIC_READER] NO_RUNTIME_ASSIGNMENT - RETURNING_NULL_MEDIAID', { requestId });
+  // P0 FIX: No static fallback - return null mediaId if no valid media
+  console.log('[PUBLIC_READER] NO_STATIC_MEDIA_ID - RETURNING_NULL_MEDIAID', { requestId });
   return {
     ...manifest.homepageHero,
-    mediaId: null, // No image without runtime assignment
+    mediaId: null, // No image without valid media
   };
 }
 
 /**
  * Get owner portrait
  * Returns owner portrait or null if not set
- * Applies runtime assignment from persistent store if available
+ * Uses static configuration from brand.v1.json
  * Uses public media gate to ensure only PublishedMediaAsset can be returned
  */
 export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
@@ -123,52 +109,43 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
   
   console.log('[BRAND] OWNER_PORTRAIT_REQUEST', { requestId });
   
-  // Try to load runtime assignment for brand-portrait
-  // NO FALLBACK: Each slot has exactly one assignment key
-  try {
-    const { getServiceCardAssignment } = await import('@/lib/assignment-store');
-    const assignment = await getServiceCardAssignment('brand-portrait-homepage', requestId);
-
-    if (assignment && assignment.mediaId) {
-      console.log('[BRAND] Runtime assignment loaded for portrait:', { requestId, mediaId: assignment.mediaId });
-      
-      // Resolve mediaId through public media gate (rejects Drive references)
-      const { resolvePublicMedia } = await import('@/lib/media');
-      const resolvedMedia = await resolvePublicMedia(assignment.mediaId);
-      
-      if (resolvedMedia) {
-        console.log('[PUBLIC_MEDIA_GATE] BRAND_PORTRAIT_APPROVED', { 
-          requestId, 
-          mediaId: assignment.mediaId,
-          resolvedMediaId: resolvedMedia.id 
-        });
-        // P1 FIX: Return the full resolved Media object, not just mediaId
-        // This ensures callers cannot bypass the public media gate by calling getMediaById directly
-        return {
-          ...manifest.ownerPortrait,
-          mediaId: assignment.mediaId,
-          resolvedMedia, // Attach the validated media object
-        };
-      } else {
-        console.error('[PUBLIC_MEDIA_GATE] BRAND_PORTRAIT_REJECTED', {
-          requestId,
-          mediaId: assignment.mediaId
-        });
-        // Reject assignment if it doesn't resolve to PublishedMediaAsset
-        // P0 FIX: Do NOT fall back to static without independent verification
-      }
+  // Use static configuration directly for owner portrait
+  // Brand media is authoritative in brand.v1.json, not through runtime assignments
+  if (manifest.ownerPortrait.mediaId) {
+    console.log('[BRAND] STATIC_OWNER_PORTRAIT_MEDIA_ID', {
+      requestId,
+      mediaId: manifest.ownerPortrait.mediaId
+    });
+    
+    // Resolve mediaId through public media gate (rejects Drive references)
+    const { resolvePublicMedia } = await import('@/lib/media');
+    const resolvedMedia = await resolvePublicMedia(manifest.ownerPortrait.mediaId);
+    
+    if (resolvedMedia) {
+      console.log('[PUBLIC_MEDIA_GATE] BRAND_PORTRAIT_APPROVED', { 
+        requestId, 
+        mediaId: manifest.ownerPortrait.mediaId,
+        resolvedMediaId: resolvedMedia.id 
+      });
+      // Return the full resolved Media object
+      return {
+        ...manifest.ownerPortrait,
+        mediaId: manifest.ownerPortrait.mediaId,
+        resolvedMedia,
+      };
+    } else {
+      console.error('[PUBLIC_MEDIA_GATE] BRAND_PORTRAIT_REJECTED', {
+        requestId,
+        mediaId: manifest.ownerPortrait.mediaId
+      });
     }
-  } catch (error) {
-    console.error('[BRAND] ASSIGNMENT_LOAD_FAILED - FAILING CLOSED', { requestId, error });
   }
 
-  // P0 FIX: No static fallback - return null mediaId if no runtime assignment
-  // This prevents authority bypass and resurrection of deleted/rejected media
-  // KV is now proven working - temporary fallback removed
-  console.log('[BRAND] NO_RUNTIME_ASSIGNMENT - RETURNING_NULL_MEDIAID', { requestId });
+  // P0 FIX: No static fallback - return null mediaId if no valid media
+  console.log('[BRAND] NO_STATIC_MEDIA_ID - RETURNING_NULL_MEDIAID', { requestId });
   return {
     ...manifest.ownerPortrait,
-    mediaId: null, // No image without runtime assignment
+    mediaId: null, // No image without valid media
   };
 }
 
@@ -191,7 +168,7 @@ export function getTeamPhotos() {
 /**
  * Get office photo
  */
-export function getOfficePhoto() {
+export function getOffice() {
   const manifest = loadBrandManifest();
   return manifest.office;
 }
@@ -202,11 +179,4 @@ export function getOfficePhoto() {
 export function getMarketingAssets() {
   const manifest = loadBrandManifest();
   return manifest.marketingAssets;
-}
-
-/**
- * Clear brand cache (useful for testing or hot reload)
- */
-export function clearBrandCache(): void {
-  clearAuthorityCache("@/config/brand.v1.json");
 }
