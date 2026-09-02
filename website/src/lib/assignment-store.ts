@@ -195,6 +195,7 @@ export interface ServiceCardAssignment {
   updatedAt: string;
   source: 'workbench';
   revision?: number;
+  actor?: 'workbench' | 'reconciliation' | 'migration'; // Distinguishes between UI and automated operations
 }
 
 /**
@@ -283,7 +284,13 @@ function validateServiceCardAssignment(data: unknown): data is ServiceCardAssign
   }
   
   // Domain validation for source (must be 'workbench')
+  // actor field distinguishes between UI and automated operations
   if (candidate.source !== 'workbench') {
+    return false;
+  }
+  
+  // Domain validation for actor (if present, must be valid enum value)
+  if (candidate.actor !== undefined && !['workbench', 'reconciliation', 'migration'].includes(candidate.actor)) {
     return false;
   }
   

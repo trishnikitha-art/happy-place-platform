@@ -116,7 +116,7 @@ export async function POST() {
     let failed = 0;
     const errors: Record<string, string> = {};
     
-    // Define helpers with closure access to counters
+    // Define helpers with closure access to counters and canonicalMediaIds
     const reconcileAssignment = async (slotKey: string, mediaId: string) => {
       try {
         // Validate media ID exists in canonical authority
@@ -149,7 +149,8 @@ export async function POST() {
         const assignment: ServiceCardAssignment = {
           serviceSlug: slotKey,
           mediaId,
-          source: 'reconciliation',
+          source: 'workbench',
+          actor: 'reconciliation',
           revision: currentRevision + 1,
           updatedAt: new Date().toISOString(),
         };
@@ -182,8 +183,7 @@ export async function POST() {
         if (projectMedia.hero) {
           await reconcileAssignment(
             `project:${project.id}:hero`,
-            projectMedia.hero,
-            canonicalMediaIds
+            projectMedia.hero
           );
         }
         
@@ -191,8 +191,7 @@ export async function POST() {
         if (projectMedia.before) {
           await reconcileAssignment(
             `project:${project.id}:before`,
-            projectMedia.before,
-            canonicalMediaIds
+            projectMedia.before
           );
         }
         
@@ -200,8 +199,7 @@ export async function POST() {
         if (projectMedia.after) {
           await reconcileAssignment(
             `project:${project.id}:after`,
-            projectMedia.after,
-            canonicalMediaIds
+            projectMedia.after
           );
         }
         
@@ -210,8 +208,7 @@ export async function POST() {
           for (const [index, mediaId] of projectMedia.gallery.entries()) {
             await reconcileAssignment(
               `project:${project.id}:gallery:${index}`,
-              mediaId,
-              canonicalMediaIds
+              mediaId
             );
           }
         }
@@ -230,16 +227,14 @@ export async function POST() {
     if (brandData.homepageHero?.mediaId) {
       await reconcileAssignment(
         'brand-hero-background',
-        brandData.homepageHero.mediaId,
-        canonicalMediaIds
+        brandData.homepageHero.mediaId
       );
     }
     
     if (brandData.ownerPortrait?.mediaId) {
       await reconcileAssignment(
         'brand-portrait-homepage',
-        brandData.ownerPortrait.mediaId,
-        canonicalMediaIds
+        brandData.ownerPortrait.mediaId
       );
     }
     
