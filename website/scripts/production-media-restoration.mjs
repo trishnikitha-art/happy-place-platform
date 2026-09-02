@@ -93,14 +93,14 @@ try {
         // EXISTING: Inspect for completeness
         const canonicalHash = media.contentHash;
         const kvHash = existing.contentHash;
-        const canonicalStorage = media.source === 'local' ? 'static' : undefined;
+        const canonicalStorage = (media.source === 'local' ? 'static' : undefined) as 'static' | 'blob' | undefined;
         const kvStorage = existing.storage;
         
         // Check for critical fields
         const isComplete = 
           existing.lifecycleState === 'published' &&
           existing.source === media.source &&
-          existing.storage === canonicalStorage &&
+          existing.storage === (canonicalStorage as 'static' | 'blob' | undefined) &&
           existing.contentHash === canonicalHash &&
           existing.variants && Object.keys(existing.variants).length > 0;
         
@@ -122,7 +122,7 @@ try {
             // Static records can be repaired
             const reconciledMedia = {
               ...media,
-              storage: canonicalStorage,
+              storage: canonicalStorage as 'static' | 'blob' | undefined,
             };
             
             await saveMedia(reconciledMedia);
