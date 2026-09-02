@@ -165,8 +165,8 @@
           "measurementUnit": "square_feet"
         }
       ],
-      "cardMediaId": "outdoor-living-001-hero",
-      "archived": true
+      "cardMediaId": null,
+      "archived": false
     },
     {
       "id": "fences",
