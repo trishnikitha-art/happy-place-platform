@@ -57,7 +57,7 @@ function isSyntheticContentHash(canonicalId: string, contentHash: string): boole
 // Load media manifest using shared AuthorityLoader
 export function loadMediaManifest(): MediaManifest {
   return loadAuthority<MediaManifest>({
-    path: "@/config/media.v1.main.json",
+    path: "@/config/media.v1.json",
     fallback: { version: "1.0.0", generatedAt: new Date().toISOString(), media: [] },
     name: "Media"
   });
@@ -292,7 +292,7 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
  * Clear media cache (useful for testing or hot reload)
  */
 export function clearMediaCache(): void {
-  clearAuthorityCache("@/config/media.v1.main.json");
+  clearAuthorityCache("@/config/media.v1.json");
 }
 
 /**

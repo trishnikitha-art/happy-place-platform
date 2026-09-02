@@ -52,7 +52,7 @@ export async function GET(request: Request) {
   };
 
   try {
-    // STEP 1: Check static media.v1.main.json authority
+    // STEP 1: Check static media.v1.json authority
     trace.steps.push({ step: '1', status: 'CHECKING_STATIC_AUTHORITY' });
     try {
       const { loadMediaManifest } = await import('@/lib/media');

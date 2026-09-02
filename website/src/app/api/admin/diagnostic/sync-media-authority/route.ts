@@ -1,9 +1,9 @@
 /**
  * Media Authority Sync from Static to KV
- * 
- * This endpoint syncs media records from media.v1.main.json to KV
+ *
+ * This endpoint syncs media records from media.v1.json to KV
  * It updates existing stale records with corrected constitutional fields.
- * 
+ *
  * POST /api/admin/diagnostic/sync-media-authority
  */
 

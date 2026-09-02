@@ -1,23 +1,23 @@
 /**
  * Assignment Reconciliation
- * 
+ *
  * IDempotent reconciliation of canonical project/media relationships into runtime assignments
  * Uses authoritative assignment writer (storeServiceCardAssignment) to enforce constitutional path
  * Validates media IDs against canonical media authority through public media gate
  * Idempotent: skips existing valid assignments
- * 
+ *
  * CLASSIFICATION: SYNTHETIC-WRITE
  * - Reconciles assignments from projects.v1.json and brand.v1.json
  * - Uses storeServiceCardAssignment() to enforce CAS and public-media gate
  * - Validates media IDs against canonical media authority
  * - Idempotent: skips existing valid assignments
  * - Must be run with explicit admin authorization
- * 
+ *
  * POST /api/admin/diagnostic/reconcile-assignments
- * 
+ *
  * Performs:
  * - Load projects.v1.json and brand.v1.json (canonical configuration)
- * - Load media.v1.main.json (canonical media authority)
+ * - Load media.v1.json (canonical media authority)
  * - For each project/media relationship: create or validate assignment
  * - Use authoritative assignment writer (storeServiceCardAssignment)
  * - Validates media IDs against canonical media authority through public gate

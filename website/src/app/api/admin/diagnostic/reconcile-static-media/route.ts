@@ -1,20 +1,20 @@
 /**
  * Static Media Reconciliation
- * 
+ *
  * IDempotent reconciliation of canonical static media records into MEDIA_KV
  * No Blob materialization for static assets
  * No deletion, no replacement of existing valid records
- * 
+ *
  * CLASSIFICATION: SYNTHETIC-WRITE
- * - Reconciles media.v1.main.json canonical records into MEDIA_KV
+ * - Reconciles media.v1.json canonical records into MEDIA_KV
  * - Static assets (served from /public/images/) are written without Blob materialization
  * - Idempotent: skips existing valid records
  * - Must be run with explicit admin authorization
- * 
+ *
  * POST /api/admin/diagnostic/reconcile-static-media
- * 
+ *
  * Performs:
- * - Load media.v1.main.json (canonical authority)
+ * - Load media.v1.json (canonical authority)
  * - For each record: if not in KV, write with storage: 'static' for local assets
  * - Validate records were written
  * - Return reconciliation report
