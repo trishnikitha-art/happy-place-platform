@@ -162,8 +162,15 @@ export function validateMediaAuthority(manifest: MediaManifest): Finding[] {
     }
 
     // URL validation: check if variants are valid URLs
+    // Relative URLs (starting with /) are valid for static assets
+    // Absolute URLs (http/https) must be valid URL syntax
     Object.entries(media.variants || {}).forEach(([variantType, url]) => {
       if (typeof url === 'string') {
+        // Relative URLs are valid for static assets
+        if (url.startsWith('/')) {
+          return; // Valid relative URL
+        }
+        // Absolute URLs must be valid URL syntax
         try {
           new URL(url);
         } catch {
