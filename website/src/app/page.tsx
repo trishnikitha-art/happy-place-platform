@@ -27,8 +27,9 @@ import { getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib
 import { VisualSlot } from "@/components/visual-slot";
 import type { Media } from "@/types/media";
 
-// Mark homepage as static since brand media now uses static configuration
-export const dynamic = 'error';
+// Mark homepage as static for build safety
+// Brand media and service cards now use static configuration
+export const dynamic = 'force-static';
 
 const siteUrl = "https://happyplacecarpentry.com";
 
