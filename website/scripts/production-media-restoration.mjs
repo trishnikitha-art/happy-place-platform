@@ -20,8 +20,8 @@
 
 import { readFileSync } from 'fs';
 import { join } from 'path';
-import { saveMedia, getMediaRecordRaw } from '../src/lib/media-kv-store.js';
-import { storeServiceCardAssignment, getServiceCardAssignment } from '../src/lib/assignment-store.js';
+import { saveMedia, getMediaRecordRaw } from '../src/lib/media-kv-store.ts';
+import { storeServiceCardAssignment, getServiceCardAssignment } from '../src/lib/assignment-store.ts';
 
 const MEDIA_KV_URL = process.env.KV_REST_API_URL;
 const MEDIA_KV_TOKEN = process.env.KV_REST_API_TOKEN;
