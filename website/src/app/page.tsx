@@ -25,7 +25,6 @@ import { resolvePublicMedia } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 import { getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib/projects";
 import { VisualSlot } from "@/components/visual-slot";
-import { getServiceCardAssignment } from "@/lib/assignment-store";
 import type { Media } from "@/types/media";
 
 // Mark homepage as static since brand media now uses static configuration
@@ -137,35 +136,6 @@ export default async function HomePage() {
         mediaObject: null,
       });
     }
-  }
-
-  // P0 FIX: Resolve bottom visual slot through authoritative assignment path
-  let bottomVisualMediaId: string | null = null;
-  let bottomVisualMedia: Media | null = null;
-  try {
-    const bottomVisualAssignment = await getServiceCardAssignment('homepage-bottom-visual', 'homepage');
-    if (bottomVisualAssignment?.mediaId && bottomVisualAssignment.mediaId !== '') {
-      const resolvedMedia = await resolvePublicMedia(bottomVisualAssignment.mediaId);
-      if (resolvedMedia) {
-        bottomVisualMediaId = bottomVisualAssignment.mediaId;
-        bottomVisualMedia = resolvedMedia;
-        console.log('[PUBLIC_MEDIA_GATE] BOTTOM_VISUAL_RESOLUTION', {
-          slotId: 'homepage-bottom-visual-slot',
-          mediaId: bottomVisualMediaId,
-          resolved: true,
-        });
-      } else {
-        console.log('[PUBLIC_MEDIA_GATE] BOTTOM_VISUAL_REJECTED', {
-          slotId: 'homepage-bottom-visual-slot',
-          rejectedMediaId: bottomVisualAssignment.mediaId,
-        });
-      }
-    }
-  } catch (error) {
-    console.error('[BOTTOM_VISUAL_ASSIGNMENT] ERROR', {
-      slotId: 'homepage-bottom-visual-slot',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
   }
 
   return (
@@ -463,40 +433,6 @@ export default async function HomePage() {
               component="NewsletterSection"
             >
               <NewsletterSignup />
-            </VisualSlot>
-          </Container>
-        </Section>
-      </ScrollReveal>
-
-      {/* BOTTOM VISUAL — real media-bearing slot before CTA */}
-      <ScrollReveal>
-        <Section className="relative bg-[#F0ECE5]">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#F0ECE5] via-[#EDE9E0] to-[#E8E5DC] opacity-100" aria-hidden="true" />
-          <Container className="relative z-10">
-            <VisualSlot
-              id="homepage-bottom-visual-slot"
-              route="/"
-              page="Homepage"
-              section="Bottom Visual"
-              slotName="Bottom Visual"
-              currentMediaId={bottomVisualMediaId}
-              component="BottomVisual"
-            >
-              {bottomVisualMedia && bottomVisualMedia.variants?.web ? (
-                <div className="relative aspect-[16/9] overflow-hidden rounded-card photo-mounted">
-                  <Image
-                    src={bottomVisualMedia.variants.web}
-                    alt={bottomVisualMedia.alt || "Happy Place Carpentry - Bottom visual"}
-                    fill
-                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
-                    className="object-cover"
-                  />
-                </div>
-              ) : (
-                <div className="relative aspect-[16/9] overflow-hidden rounded-card photo-muted">
-                  {/* No media assigned or media failed public gate */}
-                </div>
-              )}
             </VisualSlot>
           </Container>
         </Section>
