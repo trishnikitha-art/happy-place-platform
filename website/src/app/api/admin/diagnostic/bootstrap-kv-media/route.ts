@@ -60,23 +60,34 @@ export async function POST() {
   
   console.log('[KV_MEDIA_BOOTSTRAP_EVIDENCE] TEST_STARTED', { testId, startTime, deploymentSha, environment });
 
-  // REQUIRE ADMIN AUTHORIZATION
-  const isAuthenticated = await workbenchSession.isAuthenticated();
-  if (!isAuthenticated) {
-    return NextResponse.json({
-      testId,
-      startTime,
-      endTime: new Date().toISOString(),
-      deploymentSha,
-      environment,
-      dependency: 'KV Media Bootstrap',
-      operation: 'authentication',
-      expectedInvariant: 'Admin session authenticated',
-      observedResult: 'Unauthorized',
-      evidence: { authenticated: false },
-      cleanupStatus: 'not_required',
-      verdict: 'FAILED',
-    }, { status: 401 });
+  // SECURITY: Require authentication in production
+  // Development bypass requires explicit DRIVE_AUTH_BYPASS=true
+  const isDevBypass = process.env.DRIVE_AUTH_BYPASS === 'true';
+
+  if (process.env.NODE_ENV !== 'development' || !isDevBypass) {
+    // Check Workbench authentication
+    const isAuthenticated = await workbenchSession.isAuthenticated();
+    if (!isAuthenticated) {
+      return NextResponse.json({
+        testId,
+        startTime,
+        endTime: new Date().toISOString(),
+        deploymentSha,
+        environment,
+        dependency: 'KV Media Bootstrap',
+        operation: 'authentication',
+        expectedInvariant: 'Admin session authenticated',
+        observedResult: 'Unauthorized',
+        evidence: { authenticated: false },
+        cleanupStatus: 'not_required',
+        verdict: 'FAILED',
+      }, { status: 401 });
+    }
+  } else {
+    console.warn('[KV_MEDIA_BOOTSTRAP] DEV_MODE_BYPASS_ACTIVE', {
+      reason: 'DRIVE_AUTH_BYPASS=true',
+      securityNote: 'This bypass is for development only'
+    });
   }
 
   try {
