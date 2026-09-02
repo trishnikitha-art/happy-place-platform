@@ -124,7 +124,7 @@ async function verifyMaterializationState(media: Media): Promise<boolean> {
     return true;
   }
   
-  // PublishedMediaAsset must have content hash AND Blob metadata for published state
+  // PublishedMediaAsset must have content hash
   if (media.lifecycleState === 'published' && media.source === 'local') {
     if (!media.contentHash) {
       console.error('[MEDIA_KV] REJECTED: Published local media missing content hash', {
@@ -134,18 +134,22 @@ async function verifyMaterializationState(media: Media): Promise<boolean> {
       return false;
     }
     
-    // CRITICAL: Verify Blob metadata exists for published/local records
-    // A record cannot legitimately be published if its Blob object + Blob metadata do not exist
-    const client = createRedisClient();
-    const blobMetadata = await client.get(namespacedKey(`${BLOB_METADATA_PREFIX}${media.contentHash}`));
-    
-    if (!blobMetadata) {
-      console.error('[MEDIA_KV] REJECTED: Published local media missing Blob metadata', {
-        mediaId: media.id,
-        contentHash: media.contentHash,
-        reason: 'PublishedMediaAsset must have Blob metadata with Blob object proof'
-      });
-      return false;
+    // CRITICAL: Use storage field to distinguish static vs Blob
+    // Static storage: served from /public/images/, no Blob metadata required
+    // Blob storage: materialized from Drive, requires Blob metadata
+    if (media.storage === 'blob') {
+      const client = createRedisClient();
+      const blobMetadata = await client.get(namespacedKey(`${BLOB_METADATA_PREFIX}${media.contentHash}`));
+      
+      if (!blobMetadata) {
+        console.error('[MEDIA_KV] REJECTED: Blob storage media missing Blob metadata', {
+          mediaId: media.id,
+          contentHash: media.contentHash,
+          storage: media.storage,
+          reason: 'Blob-storage assets must have Blob metadata with physical Blob proof'
+        });
+        return false;
+      }
     }
     
     return true;
@@ -207,7 +211,25 @@ export async function verifyPublicMediaAuthority(media: Media): Promise<boolean>
     });
     return false;
   }
-
+  
+  // CRITICAL: Use storage field to distinguish static vs Blob
+  // Static storage: served from /public/images/, no Blob metadata required
+  // Blob storage: materialized from Drive, requires Blob metadata
+  if (media.storage === 'blob') {
+    const client = createRedisClient();
+    const blobMetadata = await client.get(namespacedKey(`${BLOB_METADATA_PREFIX}${media.contentHash}`));
+    
+    if (!blobMetadata) {
+      console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Missing Blob metadata', {
+        mediaId: media.id,
+        contentHash: media.contentHash,
+        storage: media.storage,
+        reason: 'Blob-storage assets must have Blob metadata with physical Blob proof'
+      });
+      return false;
+    }
+  }
+  
   // Verify the asset has actual variant URLs (not Drive proxy URLs)
   if (!media.variants || !media.variants.original) {
     console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Missing original variant', {

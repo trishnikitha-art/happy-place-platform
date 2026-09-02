@@ -78,6 +78,7 @@ interface BaseMedia {
   fileSize?: number;
   format?: string;
   colorSpace?: string;
+  storage?: 'static' | 'blob'; // Storage authority: static files vs Blob materialization
 }
 
 /**
@@ -263,6 +264,8 @@ export function isMaterializingMedia(media: Media): boolean {
 export function isPublishedMediaAsset(media: Media): boolean {
   // CRITICAL: Constitutional validation for PublishedMediaAsset
   // Only PublishedMediaAsset can cross the public boundary
+  // Static storage assets don't require Blob metadata
+  // Blob storage assets require Blob metadata (enforced in verifyPublicMediaAuthority)
   return media.lifecycleState === 'published' && 
          media.source === 'local' && 
          typeof media.contentHash === 'string' &&
