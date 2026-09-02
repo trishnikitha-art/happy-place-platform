@@ -275,7 +275,8 @@ async function reconcileAssignment(slotKey, mediaId, canonicalMediaIds) {
     const assignment = {
       serviceSlug: slotKey,
       mediaId,
-      source: 'reconciliation',
+      source: 'workbench',
+      actor: 'reconciliation',
       revision: currentRevision + 1,
       updatedAt: new Date().toISOString(),
     };
