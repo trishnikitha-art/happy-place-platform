@@ -27,6 +27,9 @@
 import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
 import { storeServiceCardAssignment, getServiceCardAssignment, type ServiceCardAssignment } from "@/lib/assignment-store";
+import { loadProjectsManifest } from "@/lib/projects";
+import { loadMediaManifest } from "@/lib/media";
+import { loadBrandManifest } from "@/lib/brand";
 
 interface ReconciliationResult {
   testId: string;
@@ -80,32 +83,13 @@ export async function POST() {
   }
 
   try {
-    // Load canonical project configuration
-    const projectsData = JSON.parse(
-      require('fs').readFileSync(
-        require('path').join(process.cwd(), 'src/config/projects.v1.json'),
-        'utf8'
-      )
-    );
-    
-    // Load canonical media authority
-    const mediaData = JSON.parse(
-      require('fs').readFileSync(
-        require('path').join(process.cwd(), 'src/config/media.v1.main.json'),
-        'utf8'
-      )
-    );
-    
-    // Load brand configuration
-    const brandData = JSON.parse(
-      require('fs').readFileSync(
-        require('path').join(process.cwd(), 'src/config/brand.v1.json'),
-        'utf8'
-      )
-    );
+    // Load canonical configuration using authority loaders (production-safe module imports)
+    const projectsData = loadProjectsManifest();
+    const mediaData = loadMediaManifest();
+    const brandData = loadBrandManifest();
     
     // Build media ID set for validation
-    const canonicalMediaIds = new Set<string>(mediaData.media.map((m: { id: string }) => m.id));
+    const canonicalMediaIds = new Set<string>(mediaData.media.map((m) => m.id));
     
     console.log('[ASSIGNMENT_RECONCILIATION] CANONICAL_LOADED', { 
       projects: projectsData.projects.length,

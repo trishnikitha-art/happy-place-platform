@@ -261,7 +261,7 @@ const ENHANCED_GATE_COMMIT_TIMESTAMP = '2026-08-20T23:45:24Z';
  * @param data - Data to validate
  * @returns True if valid, false otherwise
  */
-function validateServiceCardAssignment(data: unknown): data is ServiceCardAssignment {
+export function validateServiceCardAssignment(data: unknown): data is ServiceCardAssignment {
   if (!data || typeof data !== 'object') {
     return false;
   }
@@ -290,8 +290,11 @@ function validateServiceCardAssignment(data: unknown): data is ServiceCardAssign
   }
   
   // Domain validation for actor (if present, must be valid enum value)
-  if (candidate.actor !== undefined && typeof candidate.actor === 'string' && !['workbench', 'reconciliation', 'migration'].includes(candidate.actor)) {
-    return false;
+  // FAIL-CLOSED: reject if actor is present but not a valid string enum value
+  if (candidate.actor !== undefined) {
+    if (typeof candidate.actor !== 'string' || !['workbench', 'reconciliation', 'migration'].includes(candidate.actor)) {
+      return false;
+    }
   }
   
   // Revision is optional but must be number if present
