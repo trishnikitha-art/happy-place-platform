@@ -102,7 +102,7 @@ export async function POST() {
     );
     
     // Build media ID set for validation
-    const canonicalMediaIds = new Set(mediaData.media.map(m => m.id));
+    const canonicalMediaIds = new Set(mediaData.media.map((m: { id: string }) => m.id));
     
     console.log('[ASSIGNMENT_RECONCILIATION] CANONICAL_LOADED', { 
       projects: projectsData.projects.length,
