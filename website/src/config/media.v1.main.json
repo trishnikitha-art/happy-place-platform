@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-02T00:58:49.651Z",
+  "generatedAt": "2026-09-02T01:30:00.000Z",
   "media": [
     {
       "id": "fences-001-hero",
@@ -1770,287 +1770,6 @@
       "storage": "static"
     },
     {
-      "id": "fences-0",
-      "filename": "FENCE BUILD-1080.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/fences/FENCE BUILD-1080.webp",
-        "web": "/images/projects/fences/FENCE BUILD-1080.webp",
-        "webp": "/images/projects/fences/FENCE BUILD-1080.webp",
-        "thumbnail": "/images/projects/fences/FENCE BUILD-1080.webp"
-      },
-      "alt": "fences - FENCE BUILD-1080.webp",
-      "service": "fences",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "fences",
-      "tags": [
-        "fences"
-      ],
-      "roles": [
-        "hero",
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.641Z",
-      "updatedAt": "2026-07-27T22:02:43.641Z",
-      "fileSize": 282546,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "fences-1",
-      "filename": "FENCE BUILD-480.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/fences/FENCE BUILD-480.webp",
-        "web": "/images/projects/fences/FENCE BUILD-480.webp",
-        "webp": "/images/projects/fences/FENCE BUILD-480.webp",
-        "thumbnail": "/images/projects/fences/FENCE BUILD-480.webp"
-      },
-      "alt": "fences - FENCE BUILD-480.webp",
-      "service": "fences",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "fences",
-      "tags": [
-        "fences"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.643Z",
-      "updatedAt": "2026-07-27T22:02:43.643Z",
-      "fileSize": 56412,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "fences-2",
-      "filename": "FENCE BUILD-768.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/fences/FENCE BUILD-768.webp",
-        "web": "/images/projects/fences/FENCE BUILD-768.webp",
-        "webp": "/images/projects/fences/FENCE BUILD-768.webp",
-        "thumbnail": "/images/projects/fences/FENCE BUILD-768.webp"
-      },
-      "alt": "fences - FENCE BUILD-768.webp",
-      "service": "fences",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "fences",
-      "tags": [
-        "fences"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.644Z",
-      "updatedAt": "2026-07-27T22:02:43.644Z",
-      "fileSize": 147056,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "fences-3",
-      "filename": "FENCE BUILD-thumb.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/fences/FENCE BUILD-thumb.webp",
-        "web": "/images/projects/fences/FENCE BUILD-thumb.webp",
-        "webp": "/images/projects/fences/FENCE BUILD-thumb.webp",
-        "thumbnail": "/images/projects/fences/FENCE BUILD-thumb.webp"
-      },
-      "alt": "fences - FENCE BUILD-thumb.webp",
-      "service": "fences",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "fences",
-      "tags": [
-        "fences"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.644Z",
-      "updatedAt": "2026-07-27T22:02:43.644Z",
-      "fileSize": 55722,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "fences-4",
-      "filename": "FENCEREBUILDMATCHINGSTAIN-1080.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.webp",
-        "web": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.webp",
-        "webp": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.webp",
-        "thumbnail": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-1080.webp"
-      },
-      "alt": "fences - FENCEREBUILDMATCHINGSTAIN-1080.webp",
-      "service": "fences",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "fences",
-      "tags": [
-        "fences"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.647Z",
-      "updatedAt": "2026-07-27T22:02:43.647Z",
-      "fileSize": 100492,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "fences-5",
-      "filename": "FENCEREBUILDMATCHINGSTAIN-480.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-480.webp",
-        "web": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-480.webp",
-        "webp": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-480.webp",
-        "thumbnail": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-480.webp"
-      },
-      "alt": "fences - FENCEREBUILDMATCHINGSTAIN-480.webp",
-      "service": "fences",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "fences",
-      "tags": [
-        "fences"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.648Z",
-      "updatedAt": "2026-07-27T22:02:43.648Z",
-      "fileSize": 23332,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "fences-6",
-      "filename": "FENCEREBUILDMATCHINGSTAIN-768.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-768.webp",
-        "web": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-768.webp",
-        "webp": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-768.webp",
-        "thumbnail": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-768.webp"
-      },
-      "alt": "fences - FENCEREBUILDMATCHINGSTAIN-768.webp",
-      "service": "fences",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "fences",
-      "tags": [
-        "fences"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.648Z",
-      "updatedAt": "2026-07-27T22:02:43.648Z",
-      "fileSize": 55132,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "fences-7",
-      "filename": "FENCEREBUILDMATCHINGSTAIN-thumb.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-thumb.webp",
-        "web": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-thumb.webp",
-        "webp": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-thumb.webp",
-        "thumbnail": "/images/projects/fences/FENCEREBUILDMATCHINGSTAIN-thumb.webp"
-      },
-      "alt": "fences - FENCEREBUILDMATCHINGSTAIN-thumb.webp",
-      "service": "fences",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "fences",
-      "tags": [
-        "fences"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.649Z",
-      "updatedAt": "2026-07-27T22:02:43.649Z",
-      "fileSize": 22744,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
       "id": "johnson-cedar-fence-0",
       "filename": "FENCE BUILD-1080.webp",
       "type": "image",
@@ -2326,357 +2045,6 @@
       "createdAt": "2026-07-31T22:51:58.032Z",
       "updatedAt": "2026-07-31T22:51:58.032Z",
       "fileSize": 22744,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "martinez-pergola-0",
-      "filename": "1-1080.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/martinez-pergola/1-1080.webp",
-        "web": "/images/projects/martinez-pergola/1-1080.webp",
-        "webp": "/images/projects/martinez-pergola/1-1080.webp",
-        "thumbnail": "/images/projects/martinez-pergola/1-1080.webp"
-      },
-      "alt": "martinez-pergola - 1-1080.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "martinez-pergola",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "hero",
-        "gallery"
-      ],
-      "createdAt": "2026-07-31T22:51:58.033Z",
-      "updatedAt": "2026-07-31T22:51:58.033Z",
-      "fileSize": 114936,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "martinez-pergola-1",
-      "filename": "1-480.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/martinez-pergola/1-480.webp",
-        "web": "/images/projects/martinez-pergola/1-480.webp",
-        "webp": "/images/projects/martinez-pergola/1-480.webp",
-        "thumbnail": "/images/projects/martinez-pergola/1-480.webp"
-      },
-      "alt": "martinez-pergola - 1-480.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "martinez-pergola",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-31T22:51:58.035Z",
-      "updatedAt": "2026-07-31T22:51:58.035Z",
-      "fileSize": 24038,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "martinez-pergola-2",
-      "filename": "1-768.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/martinez-pergola/1-768.webp",
-        "web": "/images/projects/martinez-pergola/1-768.webp",
-        "webp": "/images/projects/martinez-pergola/1-768.webp",
-        "thumbnail": "/images/projects/martinez-pergola/1-768.webp"
-      },
-      "alt": "martinez-pergola - 1-768.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "martinez-pergola",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-31T22:51:58.036Z",
-      "updatedAt": "2026-07-31T22:51:58.036Z",
-      "fileSize": 59434,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "martinez-pergola-3",
-      "filename": "1-thumb.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/martinez-pergola/1-thumb.webp",
-        "web": "/images/projects/martinez-pergola/1-thumb.webp",
-        "webp": "/images/projects/martinez-pergola/1-thumb.webp",
-        "thumbnail": "/images/projects/martinez-pergola/1-thumb.webp"
-      },
-      "alt": "martinez-pergola - 1-thumb.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "martinez-pergola",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-31T22:51:58.036Z",
-      "updatedAt": "2026-07-31T22:51:58.036Z",
-      "fileSize": 23454,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "martinez-pergola-4",
-      "filename": "HOMESERVICEPROJECTPERGOLAS-1080.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-1080.webp",
-        "web": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-1080.webp",
-        "webp": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-1080.webp",
-        "thumbnail": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-1080.webp"
-      },
-      "alt": "martinez-pergola - HOMESERVICEPROJECTPERGOLAS-1080.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "martinez-pergola",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-31T22:51:58.038Z",
-      "updatedAt": "2026-07-31T22:51:58.038Z",
-      "fileSize": 139390,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "martinez-pergola-5",
-      "filename": "HOMESERVICEPROJECTPERGOLAS-1600.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-1600.webp",
-        "web": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-1600.webp",
-        "webp": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-1600.webp",
-        "thumbnail": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-1600.webp"
-      },
-      "alt": "martinez-pergola - HOMESERVICEPROJECTPERGOLAS-1600.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "martinez-pergola",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-31T22:51:58.041Z",
-      "updatedAt": "2026-07-31T22:51:58.041Z",
-      "fileSize": 321474,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "martinez-pergola-6",
-      "filename": "HOMESERVICEPROJECTPERGOLAS-2000.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-2000.webp",
-        "web": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-2000.webp",
-        "webp": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-2000.webp",
-        "thumbnail": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-2000.webp"
-      },
-      "alt": "martinez-pergola - HOMESERVICEPROJECTPERGOLAS-2000.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "martinez-pergola",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-31T22:51:58.044Z",
-      "updatedAt": "2026-07-31T22:51:58.044Z",
-      "fileSize": 491832,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "martinez-pergola-7",
-      "filename": "HOMESERVICEPROJECTPERGOLAS-480.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-480.webp",
-        "web": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-480.webp",
-        "webp": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-480.webp",
-        "thumbnail": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-480.webp"
-      },
-      "alt": "martinez-pergola - HOMESERVICEPROJECTPERGOLAS-480.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "martinez-pergola",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-31T22:51:58.045Z",
-      "updatedAt": "2026-07-31T22:51:58.045Z",
-      "fileSize": 26188,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "martinez-pergola-8",
-      "filename": "HOMESERVICEPROJECTPERGOLAS-768.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-768.webp",
-        "web": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-768.webp",
-        "webp": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-768.webp",
-        "thumbnail": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-768.webp"
-      },
-      "alt": "martinez-pergola - HOMESERVICEPROJECTPERGOLAS-768.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "martinez-pergola",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-31T22:51:58.046Z",
-      "updatedAt": "2026-07-31T22:51:58.046Z",
-      "fileSize": 67134,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "martinez-pergola-9",
-      "filename": "HOMESERVICEPROJECTPERGOLAS-thumb.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-thumb.webp",
-        "web": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-thumb.webp",
-        "webp": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-thumb.webp",
-        "thumbnail": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-thumb.webp"
-      },
-      "alt": "martinez-pergola - HOMESERVICEPROJECTPERGOLAS-thumb.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "martinez-pergola",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-31T22:51:58.047Z",
-      "updatedAt": "2026-07-31T22:51:58.047Z",
-      "fileSize": 25418,
       "lifecycleState": "published",
       "source": "local",
       "contentHash": "placeholder-hash",
@@ -3098,287 +2466,6 @@
       "createdAt": "2026-07-27T22:02:43.664Z",
       "updatedAt": "2026-07-27T22:02:43.664Z",
       "fileSize": 35640,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "pergolas-0",
-      "filename": "1.png",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/pergolas/1.png",
-        "web": "/images/projects/pergolas/1.png",
-        "webp": "/images/projects/pergolas/1.png",
-        "thumbnail": "/images/projects/pergolas/1.png"
-      },
-      "alt": "pergolas - 1.png",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "pergolas",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "hero",
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.670Z",
-      "updatedAt": "2026-07-27T22:02:43.670Z",
-      "fileSize": 2637377,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "pergolas-1",
-      "filename": "HOMESERVICEPROJECTPERGOLAS-1080.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1080.webp",
-        "web": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1080.webp",
-        "webp": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1080.webp",
-        "thumbnail": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1080.webp"
-      },
-      "alt": "pergolas - HOMESERVICEPROJECTPERGOLAS-1080.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "pergolas",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.672Z",
-      "updatedAt": "2026-07-27T22:02:43.672Z",
-      "fileSize": 139390,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "pergolas-2",
-      "filename": "HOMESERVICEPROJECTPERGOLAS-1600.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1600.webp",
-        "web": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1600.webp",
-        "webp": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1600.webp",
-        "thumbnail": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-1600.webp"
-      },
-      "alt": "pergolas - HOMESERVICEPROJECTPERGOLAS-1600.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "pergolas",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.675Z",
-      "updatedAt": "2026-07-27T22:02:43.675Z",
-      "fileSize": 321474,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "pergolas-3",
-      "filename": "HOMESERVICEPROJECTPERGOLAS-2000.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-2000.webp",
-        "web": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-2000.webp",
-        "webp": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-2000.webp",
-        "thumbnail": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-2000.webp"
-      },
-      "alt": "pergolas - HOMESERVICEPROJECTPERGOLAS-2000.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "pergolas",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.677Z",
-      "updatedAt": "2026-07-27T22:02:43.677Z",
-      "fileSize": 491832,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "pergolas-4",
-      "filename": "HOMESERVICEPROJECTPERGOLAS-480.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-480.webp",
-        "web": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-480.webp",
-        "webp": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-480.webp",
-        "thumbnail": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-480.webp"
-      },
-      "alt": "pergolas - HOMESERVICEPROJECTPERGOLAS-480.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "pergolas",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.679Z",
-      "updatedAt": "2026-07-27T22:02:43.679Z",
-      "fileSize": 26188,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "pergolas-5",
-      "filename": "HOMESERVICEPROJECTPERGOLAS-768.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-768.webp",
-        "web": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-768.webp",
-        "webp": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-768.webp",
-        "thumbnail": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-768.webp"
-      },
-      "alt": "pergolas - HOMESERVICEPROJECTPERGOLAS-768.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "pergolas",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.680Z",
-      "updatedAt": "2026-07-27T22:02:43.680Z",
-      "fileSize": 67134,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "pergolas-6",
-      "filename": "HOMESERVICEPROJECTPERGOLAS-thumb.webp",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-thumb.webp",
-        "web": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-thumb.webp",
-        "webp": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-thumb.webp",
-        "thumbnail": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS-thumb.webp"
-      },
-      "alt": "pergolas - HOMESERVICEPROJECTPERGOLAS-thumb.webp",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "pergolas",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.680Z",
-      "updatedAt": "2026-07-27T22:02:43.680Z",
-      "fileSize": 25418,
-      "lifecycleState": "published",
-      "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
-    },
-    {
-      "id": "pergolas-7",
-      "filename": "HOMESERVICEPROJECTPERGOLAS.jpg",
-      "type": "image",
-      "orientation": "landscape",
-      "dimensions": {
-        "width": 1920,
-        "height": 1080
-      },
-      "variants": {
-        "original": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS.jpg",
-        "web": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS.jpg",
-        "webp": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS.jpg",
-        "thumbnail": "/images/projects/pergolas/HOMESERVICEPROJECTPERGOLAS.jpg"
-      },
-      "alt": "pergolas - HOMESERVICEPROJECTPERGOLAS.jpg",
-      "service": "pergolas",
-      "city": "Corvallis",
-      "county": "Benton",
-      "state": "Oregon",
-      "projectId": "pergolas",
-      "tags": [
-        "pergolas"
-      ],
-      "roles": [
-        "gallery"
-      ],
-      "createdAt": "2026-07-27T22:02:43.689Z",
-      "updatedAt": "2026-07-27T22:02:43.689Z",
-      "fileSize": 2081361,
       "lifecycleState": "published",
       "source": "local",
       "contentHash": "placeholder-hash",
@@ -4502,6 +3589,94 @@
       "createdAt": "2026-07-31T22:51:58.078Z",
       "updatedAt": "2026-07-31T22:51:58.078Z",
       "fileSize": 46872,
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "placeholder-hash",
+      "storage": "static"
+    },
+    {
+      "id": "martinez-pergola-hero",
+      "filename": "HOMESERVICEPROJECTPERGOLAS-1080.webp",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-1080.webp",
+        "web": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-1080.webp",
+        "webp": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-1080.webp",
+        "avif": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-1080.avif",
+        "thumbnail": "/images/projects/martinez-pergola/HOMESERVICEPROJECTPERGOLAS-thumb.webp"
+      },
+      "alt": "Martinez Pergola - Completed project",
+      "description": "Professional pergola construction",
+      "service": "pergolas",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "martinez-pergola",
+      "tags": [
+        "pergolas",
+        "corvallis"
+      ],
+      "roles": [
+        "hero"
+      ],
+      "featured": false,
+      "heroEligible": true,
+      "homepageEligible": false,
+      "createdAt": "2026-09-02T00:00:00.000Z",
+      "updatedAt": "2026-09-02T00:00:00.000Z",
+      "uploadedAt": "2026-09-02T00:00:00.000Z",
+      "fileSize": 139390,
+      "format": "WEBP",
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "placeholder-hash",
+      "storage": "static"
+    },
+    {
+      "id": "martinez-pergola-gallery-1",
+      "filename": "1-1080.webp",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/projects/martinez-pergola/1-1080.webp",
+        "web": "/images/projects/martinez-pergola/1-1080.webp",
+        "webp": "/images/projects/martinez-pergola/1-1080.webp",
+        "avif": "/images/projects/martinez-pergola/1-1080.avif",
+        "thumbnail": "/images/projects/martinez-pergola/1-thumb.webp"
+      },
+      "alt": "Martinez Pergola - Construction detail",
+      "description": "Pergola construction progress",
+      "service": "pergolas",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": "martinez-pergola",
+      "tags": [
+        "pergolas",
+        "corvallis"
+      ],
+      "roles": [
+        "gallery"
+      ],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "createdAt": "2026-09-02T00:00:00.000Z",
+      "updatedAt": "2026-09-02T00:00:00.000Z",
+      "uploadedAt": "2026-09-02T00:00:00.000Z",
+      "fileSize": 114936,
+      "format": "WEBP",
+      "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
       "contentHash": "placeholder-hash",

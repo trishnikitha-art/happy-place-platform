@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-01T22:19:24.432Z",
+  "generatedAt": "2026-09-02T01:30:00.000Z",
   "projects": [
     {
       "id": "fences-001",
@@ -18,12 +18,7 @@
         "before": "fences-001-before",
         "after": "fences-001-after",
         "gallery": [
-          "fences-001-matching",
-          "fences-001-installation",
-          "fences-001-detail",
-          "fences-001-finished",
-          "fences-001-progress",
-          "fences-001-gate"
+          "fences-001-matching"
         ],
         "galleryRevision": 0
       },
@@ -90,11 +85,7 @@
         "hero": "pergolas-001-hero",
         "before": "pergolas-001-before",
         "after": "pergolas-001-after",
-        "gallery": [
-          "pergolas-001-construction",
-          "pergolas-001-steel-frame",
-          "pergolas-001-finished"
-        ],
+        "gallery": [],
         "galleryRevision": 0
       },
       "story": {
@@ -480,59 +471,6 @@
       "updatedAt": "2026-09-02T00:58:12.430Z"
     },
     {
-      "id": "built-ins",
-      "title": "Built Ins",
-      "service": "built-ins",
-      "status": "completed",
-      "location": {
-        "city": "Corvallis",
-        "county": "Benton",
-        "state": "Oregon"
-      },
-      "completionDate": "2026-09-02",
-      "media": {
-        "hero": "built-ins-0",
-        "gallery": [
-          "built-ins-0",
-          "built-ins-1",
-          "built-ins-2",
-          "built-ins-3",
-          "built-ins-4",
-          "built-ins-5",
-          "built-ins-6",
-          "built-ins-7"
-        ],
-        "galleryRevision": 0
-      },
-      "story": {
-        "challenge": "Project completed",
-        "solution": "Professional carpentry work",
-        "outcome": "Quality craftsmanship delivered"
-      },
-      "estimate": {
-        "estimatedRange": {
-          "low": 2000,
-          "high": 10000
-        },
-        "services": [
-          "built-ins"
-        ],
-        "materials": [
-          "custom"
-        ],
-        "timeline": "1-2 weeks"
-      },
-      "tags": [
-        "built-ins"
-      ],
-      "featured": false,
-      "heroEligible": true,
-      "homepageEligible": false,
-      "slug": "built-ins",
-      "createdAt": "2026-09-02T00:58:12.433Z",
-      "updatedAt": "2026-09-02T00:58:12.433Z"
-    },
-    {
       "id": "davis-bathroom-remodel",
       "title": "Davis Bathroom Remodel",
       "service": "bathroom-remodeling",
@@ -580,59 +518,6 @@
       "slug": "davis-bathroom-remodel",
       "createdAt": "2026-09-02T00:58:12.434Z",
       "updatedAt": "2026-09-02T00:58:12.434Z"
-    },
-    {
-      "id": "fences",
-      "title": "Fences",
-      "service": "fences",
-      "status": "completed",
-      "location": {
-        "city": "Corvallis",
-        "county": "Benton",
-        "state": "Oregon"
-      },
-      "completionDate": "2026-09-02",
-      "media": {
-        "hero": "fences-0",
-        "gallery": [
-          "fences-0",
-          "fences-1",
-          "fences-2",
-          "fences-3",
-          "fences-4",
-          "fences-5",
-          "fences-6",
-          "fences-7"
-        ],
-        "galleryRevision": 0
-      },
-      "story": {
-        "challenge": "Project completed",
-        "solution": "Professional carpentry work",
-        "outcome": "Quality craftsmanship delivered"
-      },
-      "estimate": {
-        "estimatedRange": {
-          "low": 2000,
-          "high": 10000
-        },
-        "services": [
-          "fences"
-        ],
-        "materials": [
-          "custom"
-        ],
-        "timeline": "1-2 weeks"
-      },
-      "tags": [
-        "fences"
-      ],
-      "featured": false,
-      "heroEligible": true,
-      "homepageEligible": false,
-      "slug": "fences",
-      "createdAt": "2026-09-02T00:58:12.435Z",
-      "updatedAt": "2026-09-02T00:58:12.435Z"
     },
     {
       "id": "johnson-cedar-fence",
@@ -699,18 +584,9 @@
       },
       "completionDate": "2026-09-02",
       "media": {
-        "hero": "martinez-pergola-0",
+        "hero": "martinez-pergola-hero",
         "gallery": [
-          "martinez-pergola-0",
-          "martinez-pergola-1",
-          "martinez-pergola-2",
-          "martinez-pergola-3",
-          "martinez-pergola-4",
-          "martinez-pergola-5",
-          "martinez-pergola-6",
-          "martinez-pergola-7",
-          "martinez-pergola-8",
-          "martinez-pergola-9"
+          "martinez-pergola-gallery-1"
         ],
         "galleryRevision": 0
       },
@@ -798,59 +674,6 @@
       "slug": "outdoor-living",
       "createdAt": "2026-09-02T00:58:12.440Z",
       "updatedAt": "2026-09-02T00:58:12.440Z"
-    },
-    {
-      "id": "pergolas",
-      "title": "Pergolas",
-      "service": "pergolas",
-      "status": "completed",
-      "location": {
-        "city": "Corvallis",
-        "county": "Benton",
-        "state": "Oregon"
-      },
-      "completionDate": "2026-09-02",
-      "media": {
-        "hero": "pergolas-0",
-        "gallery": [
-          "pergolas-0",
-          "pergolas-1",
-          "pergolas-2",
-          "pergolas-3",
-          "pergolas-4",
-          "pergolas-5",
-          "pergolas-6",
-          "pergolas-7"
-        ],
-        "galleryRevision": 0
-      },
-      "story": {
-        "challenge": "Project completed",
-        "solution": "Professional carpentry work",
-        "outcome": "Quality craftsmanship delivered"
-      },
-      "estimate": {
-        "estimatedRange": {
-          "low": 2000,
-          "high": 10000
-        },
-        "services": [
-          "pergolas"
-        ],
-        "materials": [
-          "custom"
-        ],
-        "timeline": "1-2 weeks"
-      },
-      "tags": [
-        "pergolas"
-      ],
-      "featured": false,
-      "heroEligible": true,
-      "homepageEligible": false,
-      "slug": "pergolas",
-      "createdAt": "2026-09-02T00:58:12.442Z",
-      "updatedAt": "2026-09-02T00:58:12.442Z"
     },
     {
       "id": "smith-built-ins",
