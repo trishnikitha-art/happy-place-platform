@@ -149,6 +149,9 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
  * - Workbench can see DriveReferences
  * - Website can ONLY see published MediaAssets with public URLs
  * 
+ * BUILD SAFETY: During static build, uses static authority (media.v1.json) directly.
+ * During runtime, uses KV authority (Redis) for dynamic assignments.
+ * 
  * @param id - Media ID to resolve
  * @returns Published MediaAsset OR null (explicit unavailable state)
  * 
@@ -166,7 +169,7 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
  * - Media with source !== 'local'
  */
 export async function resolvePublicMedia(id: string): Promise<Media | null> {
-  console.log('[PUBLIC_MEDIA_GATE] Resolving public media:', { id });
+  console.log('[PUBLIC_MEDIA_GATE] Resolving public media:', { id, isStaticBuild: isStaticBuild() });
 
   // REJECT: drive-prefixed IDs (source references)
   // drive- and drive-ref- prefixes are reserved for DriveReference only
@@ -175,10 +178,34 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
     return null;
   }
 
-  // Resolve media via standard path
+  // BUILD SAFETY: During static build, use static authority directly
+  // This prevents KV lookup failures during static generation
+  if (isStaticBuild()) {
+    console.log('[PUBLIC_MEDIA_GATE] Using static authority during static build', { id });
+    const staticMedia = getStaticMediaForBootstrap(id);
+    if (!staticMedia) {
+      console.log('[PUBLIC_MEDIA_GATE] Static media not found', { id });
+      return null;
+    }
+
+    // Apply public media gate validation to static media
+    if (!isPublishedMediaAsset(staticMedia)) {
+      console.error('[PUBLIC_MEDIA_GATE] REJECTED: static media not a valid PublishedMediaAsset', { 
+        id, 
+        lifecycleState: staticMedia.lifecycleState,
+        source: staticMedia.source,
+      });
+      return null;
+    }
+
+    console.log('[PUBLIC_MEDIA_GATE] APPROVED: static published media', { id });
+    return staticMedia;
+  }
+
+  // RUNTIME: Resolve media via KV authority
   const media = await getMediaByIdAsync(id);
   if (!media) {
-    console.log('[PUBLIC_MEDIA_GATE] NOT_FOUND:', { id });
+    console.log('[PUBLIC_MEDIA_GATE] KV media not found', { id });
     return null;
   }
 
