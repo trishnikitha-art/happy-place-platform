@@ -31,10 +31,11 @@ import { loadAuthority, clearAuthorityCache, findById, sortByOrder } from "./aut
  * During static build, we can tolerate KV unavailability
  * During runtime, KV is a required dependency
  */
-function isStaticBuild(): boolean {
-  // Check if we're in Next.js build phase
-  // During build, NODE_ENV is 'production' but we're not actually running
-  const isBuilding = process.env.NEXT_PHASE === 'build';
+export function isStaticBuild(): boolean {
+  // Check if we're in Next.js production build phase
+  // NEXT_PHASE is set by Next.js: 'phase-production-build' during static generation
+  // During runtime, NEXT_PHASE is undefined or set to other values
+  const isBuilding = process.env.NEXT_PHASE === 'phase-production-build';
   return isBuilding;
 }
 

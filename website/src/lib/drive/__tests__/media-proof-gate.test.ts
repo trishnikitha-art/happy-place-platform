@@ -13,7 +13,7 @@
  */
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
-import { resolvePublicMedia, getStaticMediaForBootstrap } from '@/lib/media';
+import { resolvePublicMedia, getStaticMediaForBootstrap, isStaticBuild } from '@/lib/media';
 
 // Mock the media-kv-store to return synthetic record
 jest.mock('@/lib/media-kv-store', () => ({
@@ -237,6 +237,40 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
       const result = await resolvePublicMedia('drive-12345');
       
       expect(result).toBeNull();
+    });
+  });
+
+  describe('Build/Runtime Boundary', () => {
+    beforeEach(() => {
+      // Reset environment to ensure clean test state
+      delete process.env.NEXT_PHASE;
+    });
+
+    it('should detect static build phase correctly', () => {
+      // Set NEXT_PHASE to production build phase
+      process.env.NEXT_PHASE = 'phase-production-build';
+      
+      expect(isStaticBuild()).toBe(true);
+      
+      // Clean up
+      delete process.env.NEXT_PHASE;
+    });
+
+    it('should detect runtime phase correctly', () => {
+      // Ensure NEXT_PHASE is not set (runtime condition)
+      delete process.env.NEXT_PHASE;
+      
+      expect(isStaticBuild()).toBe(false);
+    });
+
+    it('should reject build phase with old NEXT_PHASE value', () => {
+      // Old incorrect check used 'build' instead of 'phase-production-build'
+      process.env.NEXT_PHASE = 'build';
+      
+      expect(isStaticBuild()).toBe(false);
+      
+      // Clean up
+      delete process.env.NEXT_PHASE;
     });
   });
 
