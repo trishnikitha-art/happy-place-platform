@@ -292,7 +292,8 @@ export function validateServiceCardAssignment(data: unknown): data is ServiceCar
   // Domain validation for actor (if present, must be valid enum value)
   // FAIL-CLOSED: reject if actor is present but not a valid string enum value
   if (candidate.actor !== undefined) {
-    if (typeof candidate.actor !== 'string' || !['workbench', 'reconciliation', 'migration'].includes(candidate.actor)) {
+    const allowedActors = ['workbench', 'reconciliation', 'migration'];
+    if (typeof candidate.actor !== 'string' || !allowedActors.includes(candidate.actor)) {
       return false;
     }
   }
