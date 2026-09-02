@@ -45,8 +45,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "802ccc84e0637b56cdf517cc6ca39168e71681d24d523eaa5e7a255b3f10433a",
-      "storage": "static"
+      "contentHash": "802ccc84e0637b56cdf517cc6ca39168e71681d24d523eaa5e7a255b3f10433a"
     },
     {
       "id": "fences-001-before",
@@ -91,8 +90,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "802ccc84e0637b56cdf517cc6ca39168e71681d24d523eaa5e7a255b3f10433a",
-      "storage": "static"
+      "contentHash": "802ccc84e0637b56cdf517cc6ca39168e71681d24d523eaa5e7a255b3f10433a"
     },
     {
       "id": "fences-001-after",
@@ -137,8 +135,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "d2824f848e00a433307b704281ef1380408ab5fcf9edd92e9f7f46caf2d9128f",
-      "storage": "static"
+      "contentHash": "d2824f848e00a433307b704281ef1380408ab5fcf9edd92e9f7f46caf2d9128f"
     },
     {
       "id": "fences-001-matching",
@@ -183,8 +180,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "d2824f848e00a433307b704281ef1380408ab5fcf9edd92e9f7f46caf2d9128f",
-      "storage": "static"
+      "contentHash": "d2824f848e00a433307b704281ef1380408ab5fcf9edd92e9f7f46caf2d9128f"
     },
     {
       "id": "builtins-001-hero",
@@ -229,8 +225,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "ae917cfeb9ceb14394c7632e6073d3cd26ee6593029481c43cba785e005691ed",
-      "storage": "static"
+      "contentHash": "ae917cfeb9ceb14394c7632e6073d3cd26ee6593029481c43cba785e005691ed"
     },
     {
       "id": "builtins-001-secondary",
@@ -275,8 +270,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "4dbea1df879f0a54aba9c32c63edf0f0027f55789f169ec2a09f80f891519bad",
-      "storage": "static"
+      "contentHash": "4dbea1df879f0a54aba9c32c63edf0f0027f55789f169ec2a09f80f891519bad"
     },
     {
       "id": "repairs-001-hero",
@@ -321,8 +315,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "dc88f6260c4ea3830894f17e7933cdc145a10b0ecdde018cfe71ed56c7db767a",
-      "storage": "static"
+      "contentHash": "dc88f6260c4ea3830894f17e7933cdc145a10b0ecdde018cfe71ed56c7db767a"
     },
     {
       "id": "repairs-001-drywall",
@@ -367,8 +360,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "52fb74e290da1a967aefa31118dfe79bec5c5f16109eb7351b4dec46ec2ffa2e",
-      "storage": "static"
+      "contentHash": "52fb74e290da1a967aefa31118dfe79bec5c5f16109eb7351b4dec46ec2ffa2e"
     },
     {
       "id": "repairs-001-floor",
@@ -413,8 +405,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "e051518487e49cb0a989d7712400294600dee44d087fbccbc6915c9e8f597691",
-      "storage": "static"
+      "contentHash": "e051518487e49cb0a989d7712400294600dee44d087fbccbc6915c9e8f597691"
     },
     {
       "id": "repairs-001-gutter",
@@ -459,8 +450,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "489d6e150e51aa78bbf87bcd9611c4b42cce1f482969aa0c679deafa2da32df7",
-      "storage": "static"
+      "contentHash": "489d6e150e51aa78bbf87bcd9611c4b42cce1f482969aa0c679deafa2da32df7"
     },
     {
       "id": "outdoor-living-001-hero",
@@ -506,8 +496,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "0d412c4c9b40d5416cde4681b7f9df706c0354b1518609527ee0c31ac07a4aa7",
-      "storage": "static"
+      "contentHash": "0d412c4c9b40d5416cde4681b7f9df706c0354b1518609527ee0c31ac07a4aa7"
     },
     {
       "id": "outdoor-living-001-2",
@@ -553,8 +542,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "872f28df8a83b72d320eff700d6bea1a553156df6ffe37aa48c8c0b443ff20ca",
-      "storage": "static"
+      "contentHash": "872f28df8a83b72d320eff700d6bea1a553156df6ffe37aa48c8c0b443ff20ca"
     },
     {
       "id": "outdoor-living-001-3",
@@ -600,8 +588,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "9d867371a9fb84f90e64c1f61991a0469107a9c3f69669d1ddce092fc0d541c9",
-      "storage": "static"
+      "contentHash": "9d867371a9fb84f90e64c1f61991a0469107a9c3f69669d1ddce092fc0d541c9"
     },
     {
       "id": "outdoor-living-001-4",
@@ -647,8 +634,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "e9de72e40f6d1ad5620387198e0d36eeb6931145410bea75eab34107ce7da9ca",
-      "storage": "static"
+      "contentHash": "e9de72e40f6d1ad5620387198e0d36eeb6931145410bea75eab34107ce7da9ca"
     },
     {
       "id": "outdoor-living-001-5",
@@ -694,8 +680,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "a7ffdcffaae5a6f858aa7b331e4cdd6b926c4733d833984ebacac5552c83a4a8",
-      "storage": "static"
+      "contentHash": "a7ffdcffaae5a6f858aa7b331e4cdd6b926c4733d833984ebacac5552c83a4a8"
     },
     {
       "id": "outdoor-living-001-6",
@@ -741,8 +726,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "c89b1a8bf9a10aac0227032c8d5419f3357b57fbc052ee22606642bf1f5cc0cc",
-      "storage": "static"
+      "contentHash": "c89b1a8bf9a10aac0227032c8d5419f3357b57fbc052ee22606642bf1f5cc0cc"
     },
     {
       "id": "bathroom-remodeling-001-hero",
@@ -787,8 +771,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "104aee1cbe39ca22ac438cd6053c42eb65a753fd73681100e14b9ed1dc970a8d",
-      "storage": "static"
+      "contentHash": "104aee1cbe39ca22ac438cd6053c42eb65a753fd73681100e14b9ed1dc970a8d"
     },
     {
       "id": "brand-featured",
@@ -832,8 +815,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "b80f586dbaa049d8900595cda5e7b2ffb07ce2f73d92d4c4db7eb5d858376ca2",
-      "storage": "static"
+      "contentHash": "b80f586dbaa049d8900595cda5e7b2ffb07ce2f73d92d4c4db7eb5d858376ca2"
     },
     {
       "id": "brand-hero",
@@ -879,8 +861,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "a6d46b0115772e90a125828f753a2035ab0aa81eeae40e36edfffb86b873f594",
-      "storage": "static"
+      "contentHash": "a6d46b0115772e90a125828f753a2035ab0aa81eeae40e36edfffb86b873f594"
     },
     {
       "id": "brand-portrait",
@@ -926,8 +907,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "eecbf99794e531e35a4f17a1c331d3e583124abbd0d3ae213d1d1588dd6df4fb",
-      "storage": "static"
+      "contentHash": "eecbf99794e531e35a4f17a1c331d3e583124abbd0d3ae213d1d1588dd6df4fb"
     },
     {
       "id": "repairs-001-floor0",
@@ -973,8 +953,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "757f5b1b4e69dd56b38b63645a8699a838a1d2eb572361e074e5792f4ce3c264",
-      "storage": "static"
+      "contentHash": "757f5b1b4e69dd56b38b63645a8699a838a1d2eb572361e074e5792f4ce3c264"
     },
     {
       "id": "repairs-001-img0544",
@@ -1019,8 +998,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "d65fdffc28f842195cd5a7fb192ba316480343e3f598d6e9027f9cbe339779dc",
-      "storage": "static"
+      "contentHash": "d65fdffc28f842195cd5a7fb192ba316480343e3f598d6e9027f9cbe339779dc"
     },
     {
       "id": "repairs-001-img0546",
@@ -1065,8 +1043,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "8f5183d8389469e044f3775236ca903b01f154333151707ece6aca1ff29bd781",
-      "storage": "static"
+      "contentHash": "8f5183d8389469e044f3775236ca903b01f154333151707ece6aca1ff29bd781"
     },
     {
       "id": "pergolas-001-hero",
@@ -1111,8 +1088,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "57b84a974acbebeb30d1bb2ba45139e31405a7bf38ddfa0c98247b0de0c5a06b",
-      "storage": "static"
+      "contentHash": "57b84a974acbebeb30d1bb2ba45139e31405a7bf38ddfa0c98247b0de0c5a06b"
     },
     {
       "id": "pergolas-001-before",
@@ -1157,8 +1133,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "f8a835afbe43e1c4787fb5235b24c8fac661905b49c5a00bae7bf22ea2d80b67",
-      "storage": "static"
+      "contentHash": "f8a835afbe43e1c4787fb5235b24c8fac661905b49c5a00bae7bf22ea2d80b67"
     },
     {
       "id": "pergolas-001-after",
@@ -1203,8 +1178,7 @@
       "colorSpace": "sRGB",
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "57b84a974acbebeb30d1bb2ba45139e31405a7bf38ddfa0c98247b0de0c5a06b",
-      "storage": "static"
+      "contentHash": "57b84a974acbebeb30d1bb2ba45139e31405a7bf38ddfa0c98247b0de0c5a06b"
     },
     {
       "id": "bathroom-remodeling-0",
@@ -1239,8 +1213,7 @@
       "fileSize": 54050,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "bathroom-remodeling-1",
@@ -1274,8 +1247,7 @@
       "fileSize": 16218,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "bathroom-remodeling-2",
@@ -1309,8 +1281,7 @@
       "fileSize": 32950,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "bathroom-remodeling-3",
@@ -1344,8 +1315,7 @@
       "fileSize": 15648,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "built-ins-0",
@@ -1380,8 +1350,7 @@
       "fileSize": 174430,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "built-ins-1",
@@ -1415,8 +1384,7 @@
       "fileSize": 33190,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "built-ins-2",
@@ -1450,8 +1418,7 @@
       "fileSize": 90540,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "built-ins-3",
@@ -1485,8 +1452,7 @@
       "fileSize": 32432,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "built-ins-4",
@@ -1520,8 +1486,7 @@
       "fileSize": 51376,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "built-ins-5",
@@ -1555,8 +1520,7 @@
       "fileSize": 15346,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "built-ins-6",
@@ -1590,8 +1554,7 @@
       "fileSize": 31098,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "built-ins-7",
@@ -1625,8 +1588,7 @@
       "fileSize": 14942,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "davis-bathroom-remodel-0",
@@ -1661,8 +1623,7 @@
       "fileSize": 54050,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "davis-bathroom-remodel-1",
@@ -1696,8 +1657,7 @@
       "fileSize": 16218,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "davis-bathroom-remodel-2",
@@ -1731,8 +1691,7 @@
       "fileSize": 32950,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "davis-bathroom-remodel-3",
@@ -1766,8 +1725,7 @@
       "fileSize": 15648,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "fences-0",
@@ -1802,8 +1760,7 @@
       "fileSize": 282546,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "fences-1",
@@ -1837,8 +1794,7 @@
       "fileSize": 56412,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "fences-2",
@@ -1872,8 +1828,7 @@
       "fileSize": 147056,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "fences-3",
@@ -1907,8 +1862,7 @@
       "fileSize": 55722,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "fences-4",
@@ -1942,8 +1896,7 @@
       "fileSize": 100492,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "fences-5",
@@ -1977,8 +1930,7 @@
       "fileSize": 23332,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "fences-6",
@@ -2012,8 +1964,7 @@
       "fileSize": 55132,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "fences-7",
@@ -2047,8 +1998,7 @@
       "fileSize": 22744,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "johnson-cedar-fence-0",
@@ -2083,8 +2033,7 @@
       "fileSize": 282546,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "johnson-cedar-fence-1",
@@ -2118,8 +2067,7 @@
       "fileSize": 56412,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "johnson-cedar-fence-2",
@@ -2153,8 +2101,7 @@
       "fileSize": 147056,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "johnson-cedar-fence-3",
@@ -2188,8 +2135,7 @@
       "fileSize": 55722,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "johnson-cedar-fence-4",
@@ -2223,8 +2169,7 @@
       "fileSize": 100492,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "johnson-cedar-fence-5",
@@ -2258,8 +2203,7 @@
       "fileSize": 23332,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "johnson-cedar-fence-6",
@@ -2293,8 +2237,7 @@
       "fileSize": 55132,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "johnson-cedar-fence-7",
@@ -2328,8 +2271,7 @@
       "fileSize": 22744,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "martinez-pergola-0",
@@ -2364,8 +2306,7 @@
       "fileSize": 114936,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "martinez-pergola-1",
@@ -2399,8 +2340,7 @@
       "fileSize": 24038,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "martinez-pergola-2",
@@ -2434,8 +2374,7 @@
       "fileSize": 59434,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "martinez-pergola-3",
@@ -2469,8 +2408,7 @@
       "fileSize": 23454,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "martinez-pergola-4",
@@ -2504,8 +2442,7 @@
       "fileSize": 139390,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "martinez-pergola-5",
@@ -2539,8 +2476,7 @@
       "fileSize": 321474,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "martinez-pergola-6",
@@ -2574,8 +2510,7 @@
       "fileSize": 491832,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "martinez-pergola-7",
@@ -2609,8 +2544,7 @@
       "fileSize": 26188,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "martinez-pergola-8",
@@ -2644,8 +2578,7 @@
       "fileSize": 67134,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "martinez-pergola-9",
@@ -2679,8 +2612,7 @@
       "fileSize": 25418,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "outdoor-living-0",
@@ -2715,8 +2647,7 @@
       "fileSize": 72504,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "outdoor-living-1",
@@ -2750,8 +2681,7 @@
       "fileSize": 71528,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "outdoor-living-2",
@@ -2785,8 +2715,7 @@
       "fileSize": 70366,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "outdoor-living-3",
@@ -2820,8 +2749,7 @@
       "fileSize": 68322,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "outdoor-living-4",
@@ -2855,8 +2783,7 @@
       "fileSize": 28584,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "outdoor-living-5",
@@ -2890,8 +2817,7 @@
       "fileSize": 28014,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "outdoor-living-6",
@@ -2925,8 +2851,7 @@
       "fileSize": 68246,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "outdoor-living-7",
@@ -2960,8 +2885,7 @@
       "fileSize": 66464,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "outdoor-living-8",
@@ -2995,8 +2919,7 @@
       "fileSize": 54778,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "outdoor-living-9",
@@ -3030,8 +2953,7 @@
       "fileSize": 54524,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "outdoor-living-10",
@@ -3065,8 +2987,7 @@
       "fileSize": 36778,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "outdoor-living-11",
@@ -3100,8 +3021,7 @@
       "fileSize": 35640,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "pergolas-0",
@@ -3136,8 +3056,7 @@
       "fileSize": 2637377,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "pergolas-1",
@@ -3171,8 +3090,7 @@
       "fileSize": 139390,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "pergolas-2",
@@ -3206,8 +3124,7 @@
       "fileSize": 321474,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "pergolas-3",
@@ -3241,8 +3158,7 @@
       "fileSize": 491832,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "pergolas-4",
@@ -3276,8 +3192,7 @@
       "fileSize": 26188,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "pergolas-5",
@@ -3311,8 +3226,7 @@
       "fileSize": 67134,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "pergolas-6",
@@ -3346,8 +3260,7 @@
       "fileSize": 25418,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "pergolas-7",
@@ -3381,8 +3294,7 @@
       "fileSize": 2081361,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "smith-built-ins-0",
@@ -3417,8 +3329,7 @@
       "fileSize": 174430,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "smith-built-ins-1",
@@ -3452,8 +3363,7 @@
       "fileSize": 33190,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "smith-built-ins-2",
@@ -3487,8 +3397,7 @@
       "fileSize": 90540,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "smith-built-ins-3",
@@ -3522,8 +3431,7 @@
       "fileSize": 32432,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "smith-built-ins-4",
@@ -3557,8 +3465,7 @@
       "fileSize": 51376,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "smith-built-ins-5",
@@ -3592,8 +3499,7 @@
       "fileSize": 15346,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "smith-built-ins-6",
@@ -3627,8 +3533,7 @@
       "fileSize": 31098,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "smith-built-ins-7",
@@ -3662,8 +3567,7 @@
       "fileSize": 14942,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "test-project-corvallis-0",
@@ -3698,8 +3602,7 @@
       "fileSize": 114936,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "test-project-corvallis-1",
@@ -3733,8 +3636,7 @@
       "fileSize": 24038,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "test-project-corvallis-2",
@@ -3768,8 +3670,7 @@
       "fileSize": 59434,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "test-project-corvallis-3",
@@ -3803,8 +3704,7 @@
       "fileSize": 23454,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-0",
@@ -3839,8 +3739,7 @@
       "fileSize": 116814,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-1",
@@ -3874,8 +3773,7 @@
       "fileSize": 37292,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-2",
@@ -3909,8 +3807,7 @@
       "fileSize": 73626,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-3",
@@ -3944,8 +3841,7 @@
       "fileSize": 36510,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-4",
@@ -3979,8 +3875,7 @@
       "fileSize": 71190,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-5",
@@ -4014,8 +3909,7 @@
       "fileSize": 20028,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-6",
@@ -4049,8 +3943,7 @@
       "fileSize": 43072,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-7",
@@ -4084,8 +3977,7 @@
       "fileSize": 19772,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-8",
@@ -4119,8 +4011,7 @@
       "fileSize": 146402,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-9",
@@ -4154,8 +4045,7 @@
       "fileSize": 26364,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-10",
@@ -4189,8 +4079,7 @@
       "fileSize": 74272,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-11",
@@ -4224,8 +4113,7 @@
       "fileSize": 25718,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-12",
@@ -4259,8 +4147,7 @@
       "fileSize": 34178,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-13",
@@ -4294,8 +4181,7 @@
       "fileSize": 11792,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-14",
@@ -4329,8 +4215,7 @@
       "fileSize": 21748,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-15",
@@ -4364,8 +4249,7 @@
       "fileSize": 11526,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-16",
@@ -4399,8 +4283,7 @@
       "fileSize": 230130,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-17",
@@ -4434,8 +4317,7 @@
       "fileSize": 47940,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-18",
@@ -4469,8 +4351,7 @@
       "fileSize": 126068,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     },
     {
       "id": "wilson-home-repairs-19",
@@ -4504,8 +4385,7 @@
       "fileSize": 46872,
       "lifecycleState": "published",
       "source": "local",
-      "contentHash": "placeholder-hash",
-      "storage": "static"
+      "contentHash": "placeholder-hash"
     }
   ]
 }

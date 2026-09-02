@@ -78,7 +78,6 @@ interface BaseMedia {
   fileSize?: number;
   format?: string;
   colorSpace?: string;
-  storage?: 'static' | 'blob'; // Storage authority: static files vs Blob materialization
 }
 
 /**
@@ -147,7 +146,6 @@ export interface PublishedMediaAsset extends BaseMedia {
   lifecycleState: 'published'; // Only published state allowed (REQUIRED)
   dimensions: MediaDimensions; // Non-zero dimensions (REQUIRED)
   variants: MediaVariants; // At least one valid rendition (REQUIRED)
-  storage: 'static' | 'blob'; // REQUIRED: Storage authority - static files vs Blob materialization
   provenance?: {
     august3_driveId?: string;
     sharedDriveId?: string;
@@ -265,7 +263,6 @@ export function isMaterializingMedia(media: Media): boolean {
 export function isPublishedMediaAsset(media: Media): boolean {
   // CRITICAL: Constitutional validation for PublishedMediaAsset
   // Only PublishedMediaAsset can cross the public boundary
-  // CONSTITUTIONAL FIX: Must have explicit storage authority
   return media.lifecycleState === 'published' && 
          media.source === 'local' && 
          typeof media.contentHash === 'string' &&
@@ -274,8 +271,7 @@ export function isPublishedMediaAsset(media: Media): boolean {
          media.dimensions.height > 0 &&
          !media.drive && // No Drive dependency
          !media.id.startsWith('drive-') && // No drive- prefix (reserved for DriveReference)
-         !media.id.startsWith('drive-ref-') && // No drive-ref- prefix (reserved for DriveReference)
-         media.storage !== undefined; // Must declare storage authority (static or blob)
+         !media.id.startsWith('drive-ref-'); // No drive-ref- prefix (reserved for DriveReference)
 }
 
 export function isStaleMedia(media: Media): boolean {

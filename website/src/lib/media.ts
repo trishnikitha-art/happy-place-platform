@@ -225,10 +225,10 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
     return null;
   }
 
-  // REJECT: Missing physical Blob metadata for Blob-storage assets
-  // PublishedMediaAsset with storage: 'blob' must have proof of physical bytes
-  // Static storage assets (storage: 'static') are served from static files and don't require Blob metadata
-  if (media.storage === 'blob' && media.contentHash) {
+  // REJECT: Missing physical Blob metadata for published assets
+  // All PublishedMediaAsset records must have Blob metadata as proof of physical bytes
+  // This applies to both static-deployed and Drive-materialized assets after bootstrap
+  if (media.contentHash) {
     try {
       const { getBlobMetadataByContentHash } = await import('@/lib/blob-storage');
       const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
@@ -236,8 +236,7 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
         console.error('[PUBLIC_MEDIA_GATE] REJECTED: Missing Blob metadata', {
           mediaId: id,
           contentHash: media.contentHash,
-          storage: media.storage,
-          reason: 'Blob-storage assets must have Blob metadata with physical Blob proof'
+          reason: 'No blob_metadata record found for content hash'
         });
         return null;
       }
