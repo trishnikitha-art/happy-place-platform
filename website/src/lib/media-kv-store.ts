@@ -284,6 +284,14 @@ export async function verifyPublicMediaAuthority(media: Media): Promise<boolean>
       });
       return false;
     }
+  } else {
+    // Missing or invalid storage field
+    console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Missing or invalid storage field', {
+      mediaId: media.id,
+      storage: media.storage,
+      reason: 'Published local media must have storage field (static or blob)'
+    });
+    return false;
   }
   
   return true;
