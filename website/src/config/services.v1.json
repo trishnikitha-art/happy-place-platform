@@ -8,8 +8,8 @@
       "slug": "decks",
       "description": "A deck should become part of the way you use your home, not something that only looks good in listing photos.",
       "icon": "deck",
-      "featured": true,
-      "homepageEligible": true,
+      "featured": false,
+      "homepageEligible": false,
       "order": 6,
       "capabilities": {
         "paintableSurface": true,
@@ -88,16 +88,33 @@
             "Storm damage"
           ],
           "next": {
-            "*": "deck_replace_size"
+            "*": "deck_replace_material"
           }
         },
         {
-          "id": "deck_replace_size",
-          "label": "Approximately how large?",
+          "id": "deck_replace_material",
+          "label": "What material are you thinking?",
+          "type": "select",
+          "category": "material",
+          "options": [
+            "Cedar",
+            "Pressure treated",
+            "Vinyl",
+            "Metal",
+            "Composite",
+            "Not sure"
+          ],
+          "next": {
+            "*": "deck_replace_length"
+          }
+        },
+        {
+          "id": "deck_replace_length",
+          "label": "Approximately how much fencing?",
           "type": "number",
           "category": "scope",
-          "measurementType": "area",
-          "measurementUnit": "square_feet"
+          "measurementType": "length",
+          "measurementUnit": "feet"
         },
         {
           "id": "deck_repair_what",
@@ -753,8 +770,8 @@
       "slug": "flooring",
       "description": "Good flooring starts underneath the flooring. If the subfloor isn't flat and solid, the finish floor won't stay that way either.",
       "icon": "flooring",
-      "featured": true,
-      "homepageEligible": true,
+      "featured": false,
+      "homepageEligible": false,
       "order": 4,
       "archived": true,
       "capabilities": {
