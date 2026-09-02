@@ -247,6 +247,15 @@ export async function verifyPublicMediaAuthority(media: Media): Promise<boolean>
     
     // Real physical verification: fetch Blob bytes and verify hash
     const blobUrl = media.variants.original;
+    
+    if (!blobUrl) {
+      console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Missing original variant URL', {
+        mediaId: media.id,
+        reason: 'Original variant URL is required for Blob verification'
+      });
+      return false;
+    }
+    
     const verificationResult = await verifyBlobHash(blobUrl, media.contentHash);
     
     if (!verificationResult.success) {
