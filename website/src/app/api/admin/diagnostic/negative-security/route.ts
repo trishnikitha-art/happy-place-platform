@@ -80,6 +80,24 @@ export async function GET() {
   try {
     const testCases: TestCase[] = [
       {
+        name: 'legacy_cookie_only_authentication_rejection',
+        expectedInvariant: 'Legacy cookie-only authentication must be rejected with 401',
+        test: async () => {
+          // Test that legacy cookie-only authentication is rejected
+          // This should make an actual request to a protected endpoint with only a legacy cookie
+          const testUrl = '/api/admin/diagnostic/negative-security';
+          const response = await fetch(`http://localhost:3000${testUrl}`, {
+            headers: {
+              'Cookie': 'legacy_auth_cookie=test_value',
+            },
+          });
+          return {
+            passed: response.status === 401,
+            evidence: { status: response.status, hasSessionCookie: false },
+          };
+        },
+      },
+      {
         name: 'stale_media_public_gate_rejection',
         expectedInvariant: 'Public gate rejects stale media',
         test: async () => {

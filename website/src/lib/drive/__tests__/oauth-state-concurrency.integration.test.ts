@@ -9,11 +9,9 @@
  * 
  * CRITICAL: These tests use REAL Redis connectivity, NOT mocks.
  * They prove actual Redis Lua atomic behavior and concurrent state consumption.
- * 
- * TEMPORARILY DISABLED: Requires real Redis credentials and API signature updates
  */
 
-describe.skip('OAuth State Concurrency - Real Redis Integration', () => {
+describe('OAuth State Concurrency - Real Redis Integration', () => {
   let testNamespace: string;
   
   beforeAll(() => {
