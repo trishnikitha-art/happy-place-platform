@@ -5,7 +5,8 @@ import { ServiceCard } from "@/components/service-card";
 import { CTASection } from "@/components/cta-section";
 import { Icon } from "@/components/icon";
 import { getNonArchivedServices } from "@/lib/registries";
-import { resolvePublicMedia, getMediaByIdAsync } from "@/lib/media";
+import { getServiceCardAssignment } from "@/lib/assignment-store";
+import { resolvePublicMedia } from "@/lib/media";
 
 export const metadata: Metadata = {
   title: "Services",
@@ -19,48 +20,17 @@ export const dynamic = 'force-dynamic';
 export default async function ServicesPage() {
   const services = getNonArchivedServices();
   
-  // Resolve service card media through static configuration (services.v1.json)
-  // This matches the Home page strategy to avoid dynamic Redis reads during static generation
-  // DEVELOPMENT FALLBACK: Uses static authority when KV is unavailable for development testing
+  // Resolve service card media through authoritative path: getServiceCardAssignment → resolvePublicMedia
+  // This is the same path used successfully by Home page
   const serviceCardMediaMap = new Map<string, any>();
   
   for (const service of services) {
     try {
-      if (service.cardMediaId) {
-        console.log('[SERVICES_PAGE] STATIC_CONFIG_MEDIA_ID', {
-          serviceSlug: service.slug,
-          cardMediaId: service.cardMediaId,
-        });
-        
-        const resolvedMedia = await resolvePublicMedia(service.cardMediaId);
+      const assignment = await getServiceCardAssignment(service.slug, 'services-page');
+      if (assignment?.mediaId) {
+        const resolvedMedia = await resolvePublicMedia(assignment.mediaId);
         if (resolvedMedia) {
           serviceCardMediaMap.set(service.slug, resolvedMedia);
-        } else {
-          console.log('[SERVICES_PAGE] STATIC_MEDIA_ID_REJECTED', {
-            serviceSlug: service.slug,
-            rejectedMediaId: service.cardMediaId,
-          });
-          
-          // Development fallback: try static authority when KV is unavailable
-          if (process.env.NODE_ENV === 'development') {
-            try {
-              const staticMedia = await getMediaByIdAsync(service.cardMediaId);
-              if (staticMedia && staticMedia.storage === 'static') {
-                console.log('[SERVICES_PAGE] STATIC_FALLBACK_RESOLUTION', {
-                  serviceSlug: service.slug,
-                  cardMediaId: service.cardMediaId,
-                  reason: 'KV authority unavailable, using static fallback'
-                });
-                serviceCardMediaMap.set(service.slug, staticMedia);
-              }
-            } catch (error) {
-              console.error('[SERVICES_PAGE] STATIC_FALLBACK_FAILED', {
-                serviceSlug: service.slug,
-                cardMediaId: service.cardMediaId,
-                error: error instanceof Error ? error.message : 'Unknown error'
-              });
-            }
-          }
         }
       }
     } catch (error) {

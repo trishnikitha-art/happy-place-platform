@@ -109,8 +109,6 @@ export function getStaticMediaForBootstrap(id: string): Media | null {
  * FAIL-CLOSED SEMANTICS:
  * - KV returns null (record does not exist) → FAIL CLOSED (no static fallback)
  * - KV throws infrastructure error → FAIL CLOSED (no silent authority bypass)
- * 
- * DEVELOPMENT FALLBACK: Uses static authority when KV is unavailable for development testing
  */
 export async function getMediaByIdAsync(id: string): Promise<Media | null> {
   // Check KV store for runtime PublishedMediaAsset records
@@ -133,26 +131,6 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
       });
       return null;
     }
-    
-    // Development fallback: try static authority when KV is unavailable
-    if (process.env.NODE_ENV === 'development') {
-      try {
-        const staticMedia = getStaticMediaForBootstrap(id);
-        if (staticMedia && staticMedia.storage === 'static') {
-          console.log('[MEDIA] STATIC_FALLBACK_RESOLUTION', { 
-            mediaId: id,
-            reason: 'KV authority unavailable, using static fallback' 
-          });
-          return staticMedia;
-        }
-      } catch (fallbackError) {
-        console.error('[MEDIA] STATIC_FALLBACK_FAILED', { 
-          mediaId: id,
-          error: fallbackError instanceof Error ? fallbackError.message : 'Unknown error' 
-        });
-      }
-    }
-    
     // During runtime, this is a real dependency failure - fail closed with null
     console.error('[MEDIA] KV_RUNTIME_DEPENDENCY_FAILURE - FAILING_CLOSED:', {
       error: error instanceof Error ? error.message : 'Unknown error',

@@ -21,7 +21,7 @@ import { getHomepageHero } from "@/lib/brand";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { NewsletterSignup } from "@/components/newsletter-signup";
 import { getOwnerPortrait } from "@/lib/brand";
-import { resolvePublicMedia, getMediaByIdAsync } from "@/lib/media";
+import { resolvePublicMedia } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 import { getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib/projects";
 import { VisualSlot } from "@/components/visual-slot";
@@ -98,7 +98,6 @@ export default async function HomePage() {
   
   // Load service card media from static configuration (services.v1.json)
   // This avoids dynamic Redis reads during static generation
-  // DEVELOPMENT FALLBACK: Uses static authority when KV is unavailable for development testing
   const serviceCardAssignments = new Map<string, { mediaId: string | null; mediaObject: Media | null }>();
   for (const service of homepageServices) {
     if (service.cardMediaId) {
@@ -127,44 +126,10 @@ export default async function HomePage() {
           serviceSlug: service.slug,
           rejectedMediaId: service.cardMediaId,
         });
-        
-        // Development fallback: try static authority when KV is unavailable
-        if (process.env.NODE_ENV === 'development') {
-          try {
-            const staticMedia = await getMediaByIdAsync(service.cardMediaId);
-            if (staticMedia && staticMedia.storage === 'static') {
-              console.log('[HOMEPAGE] STATIC_FALLBACK_RESOLUTION', {
-                serviceSlug: service.slug,
-                cardMediaId: service.cardMediaId,
-                reason: 'KV authority unavailable, using static fallback'
-              });
-              serviceCardAssignments.set(service.slug, {
-                mediaId: service.cardMediaId,
-                mediaObject: staticMedia,
-              });
-            } else {
-              serviceCardAssignments.set(service.slug, {
-                mediaId: null,
-                mediaObject: null,
-              });
-            }
-          } catch (error) {
-            console.error('[HOMEPAGE] STATIC_FALLBACK_FAILED', {
-              serviceSlug: service.slug,
-              cardMediaId: service.cardMediaId,
-              error: error instanceof Error ? error.message : 'Unknown error'
-            });
-            serviceCardAssignments.set(service.slug, {
-              mediaId: null,
-              mediaObject: null,
-            });
-          }
-        } else {
-          serviceCardAssignments.set(service.slug, {
-            mediaId: null,
-            mediaObject: null,
-          });
-        }
+        serviceCardAssignments.set(service.slug, {
+          mediaId: null,
+          mediaObject: null,
+        });
       }
     } else {
       serviceCardAssignments.set(service.slug, {
