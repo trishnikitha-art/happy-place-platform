@@ -10,7 +10,7 @@
  * CRITICAL: These tests use REAL Redis connectivity, NOT mocks.
  * They prove actual Redis Lua atomic behavior and concurrent state consumption.
  * 
- * TEMPORARILY DISABLED: API signature changes in oauth-state-manager require test updates
+ * TEMPORARILY DISABLED: Requires real Redis credentials and API signature updates
  */
 
 describe.skip('OAuth State Concurrency - Real Redis Integration', () => {
@@ -47,17 +47,19 @@ describe.skip('OAuth State Concurrency - Real Redis Integration', () => {
         createState,
         consumeState,
       } = await import('../oauth-state-manager');
+      const { cookies } = await import('next/headers');
 
-      const stateId = `concurrent_test_${Date.now()}`;
+      // Create mock cookie store for testing
+      const mockCookieStore = await cookies();
       
       // Create state
-      const state = await createState(stateId);
+      const state = await createState(mockCookieStore);
       expect(state).toBeDefined();
-      expect(state.stateId).toBe(stateId);
+      expect(state).toHaveLength(32); // 16-byte hex string
       
       // Simulate concurrent consumption by multiple processes
       const consumptionAttempts = Array.from({ length: 10 }, () => 
-        consumeState(stateId)
+        consumeState(state, mockCookieStore)
       );
       
       // Execute all consumptions concurrently
@@ -90,17 +92,22 @@ describe.skip('OAuth State Concurrency - Real Redis Integration', () => {
         validateState,
         StateValidationResult,
       } = await import('../oauth-state-manager');
+      const { cookies } = await import('next/headers');
 
-      const stateId = `replay_test_${Date.now()}`;
+      const mockCookieStore = await cookies();
       
       // Create and consume state
-      const state = await createState(stateId);
-      const firstResult = await consumeState(stateId);
+      const state = await createState(mockCookieStore);
+      const firstResult = await consumeState(state, mockCookieStore);
       expect(firstResult).toBe(true);
       
       // Attempt to consume again (replay)
-      const replayResult = await consumeState(stateId);
+      const replayResult = await consumeState(state, mockCookieStore);
       expect(replayResult).toBe(false);
+      
+      // Validate should show as replayed
+      const validation = await validateState(state, mockCookieStore);
+      expect(validation).toBe(StateValidationResult.STATE_REPLAYED);
       
       console.log('[OAUTH_STATE_INTEGRATION] State replay test passed');
     });
@@ -118,26 +125,27 @@ describe.skip('OAuth State Concurrency - Real Redis Integration', () => {
         validateState,
         StateValidationResult,
       } = await import('../oauth-state-manager');
+      const { cookies } = await import('next/headers');
 
-      const stateId = `validation_test_${Date.now()}`;
+      const mockCookieStore = await cookies();
       
       // Create state
-      const state = await createState(stateId);
+      const state = await createState(mockCookieStore);
       
       // Validate valid state
-      const validResult = await validateState(stateId);
-      expect(validResult).toBe(StateValidationResult.VALID);
+      const validResult = await validateState(state, mockCookieStore);
+      expect(validResult).toBe(StateValidationResult.STATE_VALID);
       
       // Consume state
-      await consumeState(stateId);
+      await consumeState(state, mockCookieStore);
       
       // Validate consumed state
-      const consumedResult = await validateState(stateId);
-      expect(consumedResult).toBe(StateValidationResult.CONSUMED);
+      const consumedResult = await validateState(state, mockCookieStore);
+      expect(consumedResult).toBe(StateValidationResult.STATE_REPLAYED);
       
       // Validate non-existent state
-      const invalidResult = await validateState('non_existent_state');
-      expect(invalidResult).toBe(StateValidationResult.NOT_FOUND);
+      const invalidResult = await validateState('non_existent_state', mockCookieStore);
+      expect(invalidResult).toBe(StateValidationResult.STATE_MISSING);
       
       console.log('[OAUTH_STATE_INTEGRATION] State validation test passed');
     });
@@ -155,18 +163,19 @@ describe.skip('OAuth State Concurrency - Real Redis Integration', () => {
         createState,
         consumeState,
       } = await import('../oauth-state-manager');
+      const { cookies } = await import('next/headers');
 
-      const stateId = `lua_atomic_test_${Date.now()}`;
+      const mockCookieStore = await cookies();
       
       // Create state
-      const state = await createState(stateId);
+      const state = await createState(mockCookieStore);
       
       // This test proves that the actual Redis Lua operation is being used
       // Mocked Redis would not provide true atomicity guarantees
       const results = await Promise.all([
-        consumeState(stateId),
-        consumeState(stateId),
-        consumeState(stateId),
+        consumeState(state, mockCookieStore),
+        consumeState(state, mockCookieStore),
+        consumeState(state, mockCookieStore),
       ]);
       
       // With real Redis Lua, exactly one should succeed
@@ -193,17 +202,18 @@ describe.skip('OAuth State Concurrency - Real Redis Integration', () => {
         validateState,
         StateValidationResult,
       } = await import('../oauth-state-manager');
+      const { cookies } = await import('next/headers');
 
+      const mockCookieStore = await cookies();
+      
       // Note: This test requires time manipulation or waiting for actual expiry
       // For integration tests, we may need to add a method to manually expire states
-      const stateId = `expiry_test_${Date.now()}`;
-      
-      const state = await createState(stateId);
+      const state = await createState(mockCookieStore);
       expect(state).toBeDefined();
       
       // State should be valid immediately after creation
-      const validResult = await validateState(stateId);
-      expect(validResult).toBe(StateValidationResult.VALID);
+      const validResult = await validateState(state, mockCookieStore);
+      expect(validResult).toBe(StateValidationResult.STATE_VALID);
       
       console.log('[OAUTH_STATE_INTEGRATION] State expiry validation test passed');
     });
