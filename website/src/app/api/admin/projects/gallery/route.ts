@@ -263,6 +263,53 @@ export async function PUT(request: Request) {
       );
     }
 
+    // SIMPLIFIED DEVELOPMENT MODE: Direct filesystem write
+    // This bypasses the complex KV staging → deployment transaction → Git commit pipeline
+    // for development testing and verification of the basic drag → save → reload round-trip
+    const isDevelopment = process.env.NODE_ENV === 'development';
+    
+    if (isDevelopment) {
+      console.log('[GALLERY V2 PUT] DEV_MODE - Direct filesystem write', { projectId, galleryLength: gallery.length });
+      
+      // Find project index for direct write
+      const projectIndex = projectsData.projects.findIndex((p: any) => p.id === projectId);
+      if (projectIndex === -1) {
+        return NextResponse.json(
+          { error: "Project not found" },
+          { status: 404 }
+        );
+      }
+      
+      // Directly write to projects.v1.json in development mode
+      if (!projectsData.projects[projectIndex].media) {
+        projectsData.projects[projectIndex].media = {};
+      }
+      
+      const newRevision = currentRevision + 1;
+      projectsData.projects[projectIndex].media.gallery = gallery;
+      projectsData.projects[projectIndex].media.galleryRevision = newRevision;
+      projectsData.generatedAt = new Date().toISOString();
+      
+      writeFileSync(projectsPath, JSON.stringify(projectsData, null, 2));
+      
+      console.log('[GALLERY V2 PUT] DEV_WRITE_SUCCESS', { 
+        projectId, 
+        galleryLength: gallery.length, 
+        newRevision 
+      });
+      
+      return NextResponse.json({
+        success: true,
+        projectId,
+        gallery,
+        galleryLength: gallery.length,
+        currentRevision: newRevision,
+        staged: false,
+        persistence: 'filesystem',
+        mode: 'development'
+      });
+    }
+
     // Use KV for production persistence to avoid EROFS errors
     const redis = getRedisClient();
     const isProduction = process.env.NODE_ENV === 'production';
