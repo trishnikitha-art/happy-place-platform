@@ -50,6 +50,7 @@ export function loadBrandManifest(): BrandManifest {
  * Returns brand hero or null if not set
  * Uses static configuration from brand.v1.json
  * Uses public media gate to ensure only PublishedMediaAsset can be returned
+ * DEVELOPMENT FALLBACK: Uses static authority when KV is unavailable for development testing
  */
 export async function getHomepageHero(): Promise<BrandHero | null> {
   const requestId = `hero-get-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -66,7 +67,7 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
     });
     
     // Resolve mediaId through public media gate (rejects Drive references)
-    const { resolvePublicMedia } = await import('@/lib/media');
+    const { resolvePublicMedia, getMediaByIdAsync } = await import('@/lib/media');
     const resolvedMedia = await resolvePublicMedia(manifest.homepageHero.mediaId);
     
     if (resolvedMedia) {
@@ -86,6 +87,31 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
         requestId,
         mediaId: manifest.homepageHero.mediaId
       });
+      
+      // Development fallback: try static authority when KV is unavailable
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          const staticMedia = await getMediaByIdAsync(manifest.homepageHero.mediaId);
+          if (staticMedia && staticMedia.storage === 'static') {
+            console.log('[BRAND] STATIC_FALLBACK_RESOLUTION', { 
+              requestId, 
+              mediaId: manifest.homepageHero.mediaId,
+              reason: 'KV authority unavailable, using static fallback' 
+            });
+            return {
+              ...manifest.homepageHero,
+              mediaId: manifest.homepageHero.mediaId,
+              resolvedMedia: staticMedia,
+            };
+          }
+        } catch (error) {
+          console.error('[BRAND] STATIC_FALLBACK_FAILED', { 
+            requestId, 
+            mediaId: manifest.homepageHero.mediaId,
+            error: error instanceof Error ? error.message : 'Unknown error' 
+          });
+        }
+      }
     }
   }
 
@@ -102,6 +128,7 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
  * Returns owner portrait or null if not set
  * Uses static configuration from brand.v1.json
  * Uses public media gate to ensure only PublishedMediaAsset can be returned
+ * DEVELOPMENT FALLBACK: Uses static authority when KV is unavailable for development testing
  */
 export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
   const requestId = `portrait-get-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -118,7 +145,7 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
     });
     
     // Resolve mediaId through public media gate (rejects Drive references)
-    const { resolvePublicMedia } = await import('@/lib/media');
+    const { resolvePublicMedia, getMediaByIdAsync } = await import('@/lib/media');
     const resolvedMedia = await resolvePublicMedia(manifest.ownerPortrait.mediaId);
     
     if (resolvedMedia) {
@@ -138,6 +165,31 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
         requestId,
         mediaId: manifest.ownerPortrait.mediaId
       });
+      
+      // Development fallback: try static authority when KV is unavailable
+      if (process.env.NODE_ENV === 'development') {
+        try {
+          const staticMedia = await getMediaByIdAsync(manifest.ownerPortrait.mediaId);
+          if (staticMedia && staticMedia.storage === 'static') {
+            console.log('[BRAND] STATIC_FALLBACK_RESOLUTION', { 
+              requestId, 
+              mediaId: manifest.ownerPortrait.mediaId,
+              reason: 'KV authority unavailable, using static fallback' 
+            });
+            return {
+              ...manifest.ownerPortrait,
+              mediaId: manifest.ownerPortrait.mediaId,
+              resolvedMedia: staticMedia,
+            };
+          }
+        } catch (error) {
+          console.error('[BRAND] STATIC_FALLBACK_FAILED', { 
+            requestId, 
+            mediaId: manifest.ownerPortrait.mediaId,
+            error: error instanceof Error ? error.message : 'Unknown error' 
+          });
+        }
+      }
     }
   }
 

@@ -5,7 +5,7 @@ import { ServiceCard } from "@/components/service-card";
 import { CTASection } from "@/components/cta-section";
 import { Icon } from "@/components/icon";
 import { getNonArchivedServices } from "@/lib/registries";
-import { resolvePublicMedia } from "@/lib/media";
+import { resolvePublicMedia, getMediaByIdAsync } from "@/lib/media";
 
 export const metadata: Metadata = {
   title: "Services",
@@ -21,6 +21,7 @@ export default async function ServicesPage() {
   
   // Resolve service card media through static configuration (services.v1.json)
   // This matches the Home page strategy to avoid dynamic Redis reads during static generation
+  // DEVELOPMENT FALLBACK: Uses static authority when KV is unavailable for development testing
   const serviceCardMediaMap = new Map<string, any>();
   
   for (const service of services) {
@@ -39,6 +40,27 @@ export default async function ServicesPage() {
             serviceSlug: service.slug,
             rejectedMediaId: service.cardMediaId,
           });
+          
+          // Development fallback: try static authority when KV is unavailable
+          if (process.env.NODE_ENV === 'development') {
+            try {
+              const staticMedia = await getMediaByIdAsync(service.cardMediaId);
+              if (staticMedia && staticMedia.storage === 'static') {
+                console.log('[SERVICES_PAGE] STATIC_FALLBACK_RESOLUTION', {
+                  serviceSlug: service.slug,
+                  cardMediaId: service.cardMediaId,
+                  reason: 'KV authority unavailable, using static fallback'
+                });
+                serviceCardMediaMap.set(service.slug, staticMedia);
+              }
+            } catch (error) {
+              console.error('[SERVICES_PAGE] STATIC_FALLBACK_FAILED', {
+                serviceSlug: service.slug,
+                cardMediaId: service.cardMediaId,
+                error: error instanceof Error ? error.message : 'Unknown error'
+              });
+            }
+          }
         }
       }
     } catch (error) {
