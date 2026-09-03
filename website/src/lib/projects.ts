@@ -9,7 +9,7 @@
 
 import { Project, ProjectsManifest, ProjectService, ProjectStatus } from "@/types/projects";
 import { loadAuthority, clearAuthorityCache, queryProjects, findById, findBySlug, filterFeatured, filterHomepageEligible, filterHeroEligible, filterNonArchived } from "./authority-loader";
-import { resolvePublicMedia } from "./media";
+import { resolvePublicMedia, getMediaByIdAsync } from "./media";
 import type { Media } from "@/types/media";
 
 // Load the canonical projects manifest using shared AuthorityLoader
@@ -37,28 +37,47 @@ export function getAllProjects(): Project[] {
  * P1 FIX: Resolve project media through public media gate
  * This prevents callers from bypassing the public media gate by calling getMediaById directly
  * Returns a project with all media IDs resolved to validated Media objects
- * NO FALLBACK: Fails honestly when KV authority is not available
+ * DEVELOPMENT FALLBACK: Uses static authority when KV is unavailable for development testing
  */
 export async function getProjectWithResolvedMedia(project: Project): Promise<Project> {
   const resolveMedia = async (mediaId: string | undefined): Promise<Media | undefined> => {
     if (!mediaId) return undefined;
     
-    // Use KV public authority only - no static fallback
+    // Use KV public authority first
     const kvMedia = await resolvePublicMedia(mediaId);
     if (kvMedia) return kvMedia;
     
-    // P0 FIX: Fail honestly when KV authority is not available
-    // Static fallback masks the actual failure of the constitutional authority
+    // Development fallback: try static authority when KV is unavailable
+    // This enables development testing without requiring full KV setup
+    if (process.env.NODE_ENV === 'development') {
+      try {
+        const staticMedia = await getMediaByIdAsync(mediaId);
+        if (staticMedia && staticMedia.storage === 'static') {
+          console.log('[PROJECTS] STATIC_FALLBACK_RESOLUTION', { 
+            mediaId, 
+            reason: 'KV authority unavailable, using static fallback' 
+          });
+          return staticMedia;
+        }
+      } catch (error) {
+        console.error('[PROJECTS] STATIC_FALLBACK_FAILED', { 
+          mediaId, 
+          error: error instanceof Error ? error.message : 'Unknown error' 
+        });
+      }
+    }
+    
+    // P0 FIX: Fail honestly when neither KV nor static authority is available
     console.error('[PROJECTS] MEDIA_RESOLUTION_FAILED', { 
       mediaId, 
-      reason: 'KV authority returned null' 
+      reason: 'Both KV and static authorities returned null' 
     });
     return undefined;
   };
 
   const resolveMediaArray = async (mediaIds: string[]): Promise<Media[]> => {
     const resolved = await Promise.all(mediaIds.map(resolveMedia));
-    return resolved.filter((m): m is Media => m !== undefined);
+    return resolved.filter((m): m is Media => m !== null);
   };
 
   return {

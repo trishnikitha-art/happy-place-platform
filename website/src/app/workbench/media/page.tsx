@@ -28,11 +28,8 @@ import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, Che
 import { loadVisualAssetRegistry, addDriveAssetToRegistry, type VisualAsset } from '@/lib/visual-asset-registry';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
-import GalleryManagementPanel from './page-gallery-management';
 
 type PageRoute = '/' | '/services' | '/our-work' | '/about' | '/reviews' | '/estimate';
-
-type WorkbenchMode = 'slot-assignment' | 'gallery-management';
 
 interface MediaWorkbenchState {
   loading: boolean;
@@ -59,7 +56,6 @@ interface MediaWorkbenchState {
   driveLoadingMore: boolean;
   kvAvailable: boolean;
   kvError: string | null;
-  workbenchMode: WorkbenchMode;
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -97,7 +93,6 @@ export default function MediaWorkbench() {
     driveLoadingMore: false,
     kvAvailable: true,
     kvError: null,
-    workbenchMode: 'slot-assignment' as WorkbenchMode,
   });
 
   const mediaPanelRef = useRef<HTMLDivElement>(null);
@@ -1940,11 +1935,6 @@ Check browser console for detailed logs.`);
     );
   }
 
-  // Gallery Management Mode
-  if (state.workbenchMode === ('gallery-management' as WorkbenchMode)) {
-    return <GalleryManagementPanel />;
-  }
-
   // KV Authority Unavailable - Show blocking error
   if (!state.kvAvailable) {
     return (
@@ -1985,33 +1975,7 @@ Check browser console for detailed logs.`);
             </span>
           </div>
           <div className="flex items-center gap-2">
-            {/* Mode Toggle */}
-            <div className="flex gap-1">
-              <button
-                onClick={() => setState(prev => ({ ...prev, workbenchMode: 'slot-assignment' as WorkbenchMode }))}
-                className={`px-3 py-1 rounded text-xs transition-colors ${
-                  state.workbenchMode === ('slot-assignment' as WorkbenchMode) as WorkbenchMode
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-surface hover:bg-surface/80'
-                }`}
-              >
-                <LayoutGrid size={14} className="inline mr-1" />
-                Slots
-              </button>
-              <button
-                onClick={() => setState(prev => ({ ...prev, workbenchMode: 'gallery-management' as WorkbenchMode }))}
-                className={`px-3 py-1 rounded text-xs transition-colors ${
-                  state.workbenchMode === 'gallery-management' as WorkbenchMode
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-surface hover:bg-surface/80'
-                }`}
-              >
-                <FileImage size={14} className="inline mr-1" />
-                Gallery
-              </button>
-            </div>
-
-            {state.workbenchMode === ('slot-assignment' as WorkbenchMode) && state.pendingAssignments.size > 0 && (
+            {state.pendingAssignments.size > 0 && (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-muted-foreground">
                   {state.pendingAssignments.size} pending change{state.pendingAssignments.size > 1 ? 's' : ''}
@@ -2042,29 +2006,27 @@ Check browser console for detailed logs.`);
         </div>
       </div>
 
-      {/* Page Navigation - Compact (only in slot-assignment mode) */}
-      {state.workbenchMode === ('slot-assignment' as WorkbenchMode) && (
-        <div className="shrink-0 border-b border-border bg-surface px-4 py-1">
-          <div className="flex gap-1">
-            {(Object.keys(PAGE_LABELS) as PageRoute[]).map((route) => (
-              <button
-                key={route}
-                onClick={() => setState(prev => ({ ...prev, selectedPage: route }))}
-                className={`px-2 py-1 rounded text-xs transition-colors ${
-                  state.selectedPage === route
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-background hover:bg-surface'
-                }`}
-              >
-                {PAGE_LABELS[route]}
-              </button>
-            ))}
-          </div>
+      {/* Page Navigation - Compact */}
+      <div className="shrink-0 border-b border-border bg-surface px-4 py-1">
+        <div className="flex gap-1">
+          {(Object.keys(PAGE_LABELS) as PageRoute[]).map((route) => (
+            <button
+              key={route}
+              onClick={() => setState(prev => ({ ...prev, selectedPage: route }))}
+              className={`px-2 py-1 rounded text-xs transition-colors ${
+                state.selectedPage === route
+                  ? 'bg-primary text-primary-foreground'
+                  : 'bg-background hover:bg-surface'
+              }`}
+            >
+              {PAGE_LABELS[route]}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
 
       {/* Pending Assignments Bar */}
-      {state.workbenchMode === ('slot-assignment' as WorkbenchMode) && state.pendingAssignments.size > 0 && (
+      {state.pendingAssignments.size > 0 && (
         <div className="shrink-0 border-b border-border bg-card px-4 py-2">
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs font-semibold text-foreground">
@@ -2099,25 +2061,24 @@ Check browser console for detailed logs.`);
         </div>
       )}
 
-      {/* Main Content - Two Panel Layout (only in slot-assignment mode) */}
-      {state.workbenchMode === ('slot-assignment' as WorkbenchMode) && (
-        <div className="flex-1 grid grid-cols-2 min-h-0">
-          {/* LEFT: Website Preview */}
-          <section className="min-h-0 min-w-0 overflow-y-auto bg-white h-full">
-            <iframe
-              ref={iframeRef}
-              src={`${window.location.origin}${state.selectedPage}?workbench=true`}
-              className="w-full h-full border-0"
-              title="Website Preview"
-              sandbox="allow-same-origin allow-scripts allow-popups"
-              onLoad={() => console.log('[SLOT] IFRAME_LOADED', {
-                iframeSrc: `${window.location.origin}${state.selectedPage}?workbench=true`,
-                contentWindowExists: !!iframeRef.current?.contentWindow,
-              })}
-            />
-          </section>
+      {/* Main Content - Two Panel Layout */}
+      <div className="flex-1 grid grid-cols-2 min-h-0">
+        {/* LEFT: Website Preview */}
+        <section className="min-h-0 min-w-0 overflow-y-auto bg-white h-full">
+          <iframe
+            ref={iframeRef}
+            src={`${window.location.origin}${state.selectedPage}?workbench=true`}
+            className="w-full h-full border-0"
+            title="Website Preview"
+            sandbox="allow-same-origin allow-scripts allow-popups"
+            onLoad={() => console.log('[SLOT] IFRAME_LOADED', {
+              iframeSrc: `${window.location.origin}${state.selectedPage}?workbench=true`,
+              contentWindowExists: !!iframeRef.current?.contentWindow,
+            })}
+          />
+        </section>
 
-          {/* RIGHT: Media Asset Management */}
+        {/* RIGHT: Media Asset Management */}
         <section 
           ref={mediaPanelRef}
           className="min-h-0 min-w-0 overflow-y-auto bg-background h-full"
@@ -2509,7 +2470,6 @@ Check browser console for detailed logs.`);
           </div>
         </section>
       </div>
-      )}
     </div>
   );
 }
