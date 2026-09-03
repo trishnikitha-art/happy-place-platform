@@ -89,7 +89,10 @@ function createRedisClient(): Redis {
 }
 
 // Redis namespace
-const STATE_PREFIX = 'drive:oauth:state:';
+// Use TEST_NAMESPACE if present for integration test isolation
+const STATE_PREFIX = process.env.TEST_NAMESPACE 
+  ? `${process.env.TEST_NAMESPACE}:drive:oauth:state:`
+  : 'drive:oauth:state:';
 
 // State TTL: 5 minutes (one-time use, short-lived)
 const STATE_TTL_SECONDS = 5 * 60;
