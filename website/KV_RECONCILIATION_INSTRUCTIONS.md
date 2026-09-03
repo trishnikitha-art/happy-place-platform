@@ -1,10 +1,16 @@
 # KV Reconciliation Instructions
 
-## Current Status
+## Current Status (2026-09-03)
 
 **Fixed**: Reconciliation mechanism now inspects and repairs instead of blindly skipping incomplete records.
 
 **Fixed**: Production restoration script now uses correct authority path (media.v1.json).
+
+**Fixed**: Static build detection corrected to use proper Next.js phase.
+
+**Fixed**: CI secret drift removed (ENCRYPTION_KEY_V1 no longer required).
+
+**Fixed**: OAuth integration tests updated to match current API.
 
 **Pending**: Actual KV reconciliation needs to be executed in production environment.
 
@@ -37,6 +43,24 @@
 - Uses same inspection-based repair logic as reconciliation endpoint
 - Both endpoints now use identical repair logic
 
+### 3. Static Build Detection (media.ts, workbench-session.ts)
+
+**Before**:
+- Used `process.env.NEXT_PHASE === 'build'` (incorrect)
+- Caused KV access during static generation
+
+**After**:
+- Uses `process.env.NEXT_PHASE === 'phase-production-build'` (correct)
+- Static generation now correctly uses static authority
+- No KV access during static build
+
+### 4. Production Reconciliation Script (scripts/execute-production-reconciliation.mjs)
+
+**Added**: New script for executing production reconciliation with authentication
+- Calls production endpoint: `https://happyplacecarpentry.com/api/admin/diagnostic/reconcile-static-media`
+- Requires Workbench session cookie
+- Returns detailed reconciliation evidence
+
 ## How to Execute KV Reconciliation
 
 ### Option 1: Via API Endpoint (Recommended)
@@ -58,6 +82,23 @@
    - Verify that incomplete records were repaired
 
 ### Option 2: Via Production Script
+
+1. **Authenticate to Workbench**
+   - Navigate to `/workbench/login`
+   - Complete OAuth authentication
+   - Obtain session cookie
+
+2. **Execute Script**
+   ```bash
+   node scripts/execute-production-reconciliation.mjs
+   ```
+
+3. **Review Results**
+   - Script outputs detailed classification breakdown
+   - Check for any failures
+   - Verify reconciliation success
+
+### Option 3: Via Direct KV Credentials (Not Recommended)
 
 1. **Set Environment Variables**
    ```bash
@@ -97,7 +138,7 @@ failed: 0
 
 ### Current Production State (Before Reconciliation)
 
-Based on Vercel telemetry:
+Based on Vercel telemetry (pre-fix):
 - 408 MEDIA_RESOLUTION_FAILED events
 - Many records missing from KV or incomplete (storage: undefined)
 - 147 Missing or invalid storage field failures
@@ -125,6 +166,12 @@ Once KV reconciliation is complete:
    - `/projects/[slug]` - individual project pages
    - `/about` - about page with owner portrait
 
+4. **Test Public Media Gate**
+   - Verify DriveReference records are rejected
+   - Verify published static records are accepted
+   - Verify blob records with Blob metadata are accepted
+   - Verify blob records without Blob metadata are rejected
+
 ## Data Integrity Note
 
 There are known data integrity issues documented in `DATA_INTEGRITY_INVESTIGATION.md`:
@@ -139,6 +186,7 @@ These do NOT block KV reconciliation (all resolve to valid files) but should be 
 2. **Generate production reconciliation evidence report** (todo item #5)
 3. **Address data integrity issues** (separate investigation)
 4. **Monitor Vercel logs** for new MEDIA_RESOLUTION_FAILED events
+5. **Test OAuth → Drive → media authority chain** (requires production credentials)
 
 ## Safety Notes
 
@@ -146,11 +194,24 @@ These do NOT block KV reconciliation (all resolve to valid files) but should be 
 - **Valid records are preserved**: Records that are materially equivalent to canonical are not modified
 - **Classification is explicit**: Each record is classified before any action is taken
 - **Fail-closed**: If reconciliation fails, it reports errors rather than corrupting data
+- **Authentication required**: Production reconciliation requires Workbench authentication
+- **Static build safety**: Reconciliation won't interfere with static generation
 
 ## Support
 
 If reconciliation fails:
-1. Check KV credentials are valid
-2. Check Workbench authentication is active
+1. Check KV credentials are valid (if using direct KV access)
+2. Check Workbench authentication is active (if using API endpoint)
 3. Review error messages in reconciliation response
 4. Check Vercel logs for detailed error information
+5. Verify static build detection is working correctly
+
+## Recent Fixes Summary
+
+- **CI Secret Drift (5074a79)**: Removed ENCRYPTION_KEY_V1 from required secrets
+- **Media Proof Test (86cb65a)**: Updated to match current storage contract
+- **Static Build Detection (e9ff451)**: Fixed to use correct Next.js phase
+- **OAuth Integration Test (e29431c)**: Updated to match current API signatures
+- **Reconciliation Script (17a8992)**: Added production reconciliation execution script
+
+All fixes are committed and ready for production execution.
