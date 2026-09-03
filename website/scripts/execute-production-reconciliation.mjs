@@ -5,31 +5,42 @@
  * 
  * INSTRUCTIONS:
  * 1. Ensure you have a valid Workbench session cookie
- * 2. Run this script from the website directory
+ * 2. Run this script from the website directory with the session cookie
  * 3. The script will call the production reconciliation endpoint
  * 
  * AUTHENTICATION:
  * - The reconciliation endpoint requires Workbench authentication
- * - You must be logged into the Workbench at https://happyplacecarpentry.com/admin
- * - The script uses the production endpoint with your session cookie
+ * - You must provide your Workbench session cookie
+ * - Usage: WORKBENCH_SESSION_COOKIE=your_cookie node scripts/execute-production-reconciliation.mjs
  * 
  * For production reconciliation:
- * node scripts/execute-production-reconciliation.mjs
+ * WORKBENCH_SESSION_COOKIE=your_cookie node scripts/execute-production-reconciliation.mjs
  */
 
 const PRODUCTION_ENDPOINT = 'https://happyplacecarpentry.com/api/admin/diagnostic/reconcile-static-media';
+const SESSION_COOKIE = process.env.WORKBENCH_SESSION_COOKIE;
 
 async function executeProductionReconciliation() {
   console.log('[PRODUCTION_RECONCILIATION] Starting production media reconciliation...');
   console.log('[PRODUCTION_RECONCILIATION] Endpoint:', PRODUCTION_ENDPOINT);
+  
+  if (!SESSION_COOKIE) {
+    console.error('[PRODUCTION_RECONCILIATION] ERROR: WORKBENCH_SESSION_COOKIE environment variable not set');
+    console.error('[PRODUCTION_RECONCILIATION] Please set your Workbench session cookie:');
+    console.error('[PRODUCTION_RECONCILIATION] WORKBENCH_SESSION_COOKIE=your_cookie node scripts/execute-production-reconciliation.mjs');
+    console.error('[PRODUCTION_RECONCILIATION] To get your session cookie:');
+    console.error('[PRODUCTION_RECONCILIATION] 1. Log into https://happyplacecarpentry.com/admin');
+    console.error('[PRODUCTION_RECONCILIATION] 2. Open browser DevTools → Application → Cookies');
+    console.error('[PRODUCTION_RECONCILIATION] 3. Copy the workbench_session_id cookie value');
+    process.exit(1);
+  }
   
   try {
     const response = await fetch(PRODUCTION_ENDPOINT, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // Note: You'll need to provide a valid session cookie
-        // This script assumes you have a Workbench session
+        'Cookie': `workbench_session_id=${SESSION_COOKIE}`,
       },
     });
     
