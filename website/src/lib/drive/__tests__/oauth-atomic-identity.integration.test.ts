@@ -57,7 +57,7 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
           'test_token',
           Date.now() + 3600000,
           'test_refresh',
-          1
+          0
         )
       );
       
@@ -103,7 +103,7 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
         'test_token',
         Date.now() + 3600000,
         'test_refresh',
-        1
+        0
       );
       
       const authId = auth.id;
@@ -148,7 +148,7 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
           `token_${i}`,
           Date.now() + 3600000,
           `refresh_${i}`,
-          1
+          0
         )
       );
       
@@ -194,7 +194,7 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
         'test_token',
         Date.now() + 3600000,
         'test_refresh',
-        1
+        0
       );
       
       const authId = auth.id;
@@ -233,7 +233,7 @@ describe('OAuth Atomic Identity - Real Redis Integration', () => {
         'test_token',
         Date.now() + 3600000,
         'test_refresh',
-        1
+        0
       );
       
       const authId = auth.id;

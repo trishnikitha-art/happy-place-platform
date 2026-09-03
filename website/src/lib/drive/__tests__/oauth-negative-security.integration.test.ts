@@ -68,7 +68,7 @@ describe('OAuth Negative Security - Real Redis Integration', () => {
         'test_token',
         Date.now() + 3600000,
         'test_refresh',
-        1
+        0
       );
       
       const authId = auth.id;
@@ -118,7 +118,7 @@ describe('OAuth Negative Security - Real Redis Integration', () => {
         'token_A',
         Date.now() + 3600000,
         'refresh_A',
-        1
+        0
       );
       
       // Create authorization for user B
@@ -129,7 +129,7 @@ describe('OAuth Negative Security - Real Redis Integration', () => {
         'token_B',
         Date.now() + 3600000,
         'refresh_B',
-        1
+        0
       );
       
       // Verify authorizations are isolated by subject
@@ -178,7 +178,7 @@ describe('OAuth Negative Security - Real Redis Integration', () => {
         'test_token',
         Date.now() + 3600000,
         'test_refresh',
-        1
+        0
       );
       
       // Verify authorization exists

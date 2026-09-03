@@ -228,6 +228,17 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
     return null;
   }
 
+  // REJECT: Missing or invalid storage field
+  // PublishedMediaAsset must have storage: 'static' or 'blob'
+  if (media.storage !== 'static' && media.storage !== 'blob') {
+    console.error('[PUBLIC_MEDIA_GATE] REJECTED: Missing or invalid storage field', {
+      mediaId: id,
+      storage: media.storage,
+      reason: 'PublishedMediaAsset must have storage field (static or blob)'
+    });
+    return null;
+  }
+
   // VALIDATE: Must satisfy PublishedMediaAsset contract using type guard
   if (!isPublishedMediaAsset(media)) {
     console.error('[PUBLIC_MEDIA_GATE] REJECTED: not a valid PublishedMediaAsset', { 

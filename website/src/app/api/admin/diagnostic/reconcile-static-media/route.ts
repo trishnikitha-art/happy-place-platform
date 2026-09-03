@@ -27,7 +27,7 @@
 import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
 import { loadMediaManifest } from "@/lib/media";
-import { saveMedia, getMediaRecordRaw } from "@/lib/media-kv-store";
+import { saveMedia, getMediaRecordRaw, listMediaIds } from "@/lib/media-kv-store";
 
 interface ReconciliationResult {
   testId: string;
@@ -38,6 +38,7 @@ interface ReconciliationResult {
   operation: string;
   evidence: {
     totalCanonical: number;
+    totalKvRecords: number;
     classification: {
       missing: number;
       incomplete: number;
@@ -46,6 +47,7 @@ interface ReconciliationResult {
       corrupt: number;
       synthetic: number;
       unexpected: number;
+      orphan: number;
     };
     repaired: number;
     preserved: number;
@@ -123,7 +125,40 @@ export async function POST() {
       corrupt: 0,
       synthetic: 0,
       unexpected: 0,
+      orphan: 0,
     };
+    
+    // DISCOVER ORPHAN KV RECORDS
+    // Scan actual KV to find records not in canonical authority
+    const allKvIds = await listMediaIds();
+    const canonicalIds = new Set(manifest.media.map(m => m.id));
+    const orphanIds = allKvIds.filter(id => !canonicalIds.has(id));
+    
+    console.log('[STATIC_MEDIA_RECONCILIATION] KV_DISCOVERY', {
+      testId,
+      totalKvRecords: allKvIds.length,
+      canonicalRecords: manifest.media.length,
+      orphanRecords: orphanIds.length
+    });
+    
+    // Classify orphan records
+    for (const orphanId of orphanIds) {
+      try {
+        const orphanRecord = await getMediaRecordRaw(orphanId);
+        if (orphanRecord) {
+          classification.orphan++;
+          preserved++;
+          console.log('[STATIC_MEDIA_RECONCILIATION] PRESERVED_ORPHAN', {
+            testId,
+            mediaId: orphanId,
+            reason: 'Orphan record (not in canonical authority) - preserved for manual review'
+          });
+        }
+      } catch (error) {
+        failed++;
+        errors[orphanId] = error instanceof Error ? error.message : 'Unknown error';
+      }
+    }
     
     for (const media of manifest.media) {
       try {
@@ -239,6 +274,7 @@ export async function POST() {
       operation: 'reconcile_static_media',
       evidence: {
         totalCanonical: manifest.media.length,
+        totalKvRecords: allKvIds.length,
         classification,
         repaired,
         preserved,
