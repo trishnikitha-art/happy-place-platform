@@ -431,6 +431,15 @@ export default function MediaWorkbench() {
   };
 
   const loadDriveFiles = async (folderId: string, pageToken?: string, driveId?: string | null) => {
+    console.log('[WORKBENCH_DRIVE_NAVIGATION] loadDriveFiles called', {
+      folderId,
+      pageToken,
+      driveId,
+      driveIdType: typeof driveId,
+      isNull: driveId === null,
+      isUndefined: driveId === undefined,
+    });
+
     try {
       setState(prev => ({ ...prev, driveLoading: true, driveError: null }));
       
@@ -438,12 +447,39 @@ export default function MediaWorkbench() {
       if (pageToken) params.append('pageToken', pageToken);
       if (driveId) params.append('driveId', driveId);
       
+      console.log('[WORKBENCH_DRIVE_NAVIGATION] API request parameters:', {
+        url: `/api/drive/files?${params.toString()}`,
+        hasDriveId: !!driveId,
+        driveId,
+      });
+      
       const response = await fetch(`/api/drive/files?${params.toString()}`);
       if (!response.ok) {
+        console.error('[WORKBENCH_DRIVE_NAVIGATION] API request failed', {
+          status: response.status,
+          statusText: response.statusText,
+        });
         throw new Error('Failed to load Drive files');
       }
       
       const data = await response.json();
+      
+      console.log('[WORKBENCH_DRIVE_NAVIGATION] API response:', {
+        itemCount: data.items?.length || 0,
+        nextPageToken: data.nextPageToken,
+      });
+      
+      setState(prev => ({
+        ...prev,
+        driveFiles: pageToken ? [...(prev.driveFiles || []), ...(data.items || [])] : (data.items || []),
+        driveNextPageToken: data.nextPageToken,
+        driveLoading: false,
+      }));
+      
+      console.log('[WORKBENCH_DRIVE_NAVIGATION] API response:', {
+        itemCount: data.items?.length || 0,
+        nextPageToken: data.nextPageToken,
+      });
       
       setState(prev => ({
         ...prev,
@@ -457,7 +493,7 @@ export default function MediaWorkbench() {
         hasMore: !!data.nextPageToken 
       });
     } catch (error) {
-      console.error('[WORKBENCH] DRIVE_FILES_ERROR', error);
+      console.error('[WORKBENCH_DRIVE_NAVIGATION] Error:', error);
       setState(prev => ({ 
         ...prev, 
         driveLoading: false, 
@@ -471,14 +507,60 @@ export default function MediaWorkbench() {
   };
 
   const navigateToFolder = (folder: DriveFolder) => {
-    setState(prev => ({
-      ...prev,
-      driveCurrentFolderId: folder.id,
-      driveBreadcrumb: [...prev.driveBreadcrumb, { id: folder.id, name: folder.name }],
-      driveFiles: [],
-      driveNextPageToken: undefined,
-    }));
-    loadDriveFiles(folder.id, undefined, state.driveCurrentDriveId);
+    console.log('[WORKBENCH_DRIVE_NAVIGATION] Folder navigation', {
+      folderId: folder.id,
+      folderName: folder.name,
+      isMyDrive: (folder as any).isMyDrive,
+      isSharedDrive: (folder as any).isSharedDrive,
+      currentDriveId: state.driveCurrentDriveId,
+    });
+
+    // Handle My Drive selection
+    if ((folder as any).isMyDrive) {
+      console.log('[WORKBENCH_DRIVE_NAVIGATION] Entering My Drive:', { id: folder.id, name: folder.name });
+      setState(prev => ({
+        ...prev,
+        driveCurrentFolderId: folder.id,
+        driveCurrentDriveId: null, // My Drive has no active driveId
+        driveBreadcrumb: [{ id: folder.id, name: folder.name }],
+        driveFiles: [],
+        driveNextPageToken: undefined,
+      }));
+      loadDriveFiles(folder.id, undefined, null);
+    }
+    // Handle Shared Drive selection
+    else if ((folder as any).isSharedDrive) {
+      const sharedDriveId = (folder as any).driveId;
+      console.log('[WORKBENCH_DRIVE_NAVIGATION] Entering Shared Drive:', {
+        sharedDriveId,
+        folderId: folder.id,
+        folderName: folder.name,
+      });
+      setState(prev => ({
+        ...prev,
+        driveCurrentFolderId: folder.id, // Shared Drive root ID
+        driveCurrentDriveId: sharedDriveId, // Set active Shared Drive ID
+        driveBreadcrumb: [{ id: folder.id, name: folder.name }], // Reset breadcrumbs
+        driveFiles: [],
+        driveNextPageToken: undefined,
+      }));
+      loadDriveFiles(folder.id, undefined, sharedDriveId);
+    } else {
+      // Regular folder navigation - preserve driveCurrentDriveId
+      console.log('[WORKBENCH_DRIVE_NAVIGATION] Entering folder:', {
+        folderId: folder.id,
+        folderName: folder.name,
+        preservedDriveId: state.driveCurrentDriveId,
+      });
+      setState(prev => ({
+        ...prev,
+        driveCurrentFolderId: folder.id,
+        driveBreadcrumb: [...prev.driveBreadcrumb, { id: folder.id, name: folder.name }],
+        driveFiles: [],
+        driveNextPageToken: undefined,
+      }));
+      loadDriveFiles(folder.id, undefined, state.driveCurrentDriveId);
+    }
   };
 
   const navigateBreadcrumb = (index: number) => {
