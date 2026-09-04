@@ -539,19 +539,21 @@ export default function MediaWorkbench() {
           }
           
           // Check if Drive file already exists as PublishedMediaAsset
-          // CRITICAL FIX: fileId and sharedDriveId are not interchangeable identities
-          // Must match on (fileId AND sharedDriveId) or fileId only (for non-shared files)
+          // CRITICAL FIX: Use the same provenance fields that ingestion writes
+          // Ingestion writes: provenance.driveFileId and provenance.sharedDriveId
+          // Workbench must match on the same fields
           const existingAsset = assetsRef.current.find(a => {
-            const assetDriveId = a.provenance?.august3_driveId;
+            const assetDriveFileId = a.provenance?.driveFileId;
+            const assetSharedDriveId = a.provenance?.sharedDriveId;
             const fileId = applicationData.fileId;
             const sharedDriveId = applicationData.sharedDriveId;
 
             // Match both fileId and sharedDriveId for shared files
             if (sharedDriveId) {
-              return assetDriveId === fileId && a.provenance?.drive_canonical === true;
+              return assetDriveFileId === fileId && assetSharedDriveId === sharedDriveId;
             }
             // Match fileId only for non-shared files
-            return assetDriveId === fileId && a.provenance?.drive_canonical === true;
+            return assetDriveFileId === fileId && !assetSharedDriveId;
           });
 
           if (existingAsset) {

@@ -184,6 +184,27 @@ export async function verifyCorpusAuthorization(
     // Get Drive client
     const driveClient = await driveSession.getDriveClient();
 
+    // CRITICAL FIX: Handle Shared Drive root differently
+    // Shared Drive root is not a file - it's the drive itself
+    // For Shared Drive operations, we only need to verify corpusId is authorized
+    if (fileId === 'root' && corpusId && corpusId !== 'root') {
+      // This is a Shared Drive root operation - verify corpusId directly
+      const authorizedCorpora = await getAuthorizedCorpora();
+      const authorizedCorpusIds = authorizedCorpora.map(c => c.id);
+      
+      if (!authorizedCorpusIds.includes(corpusId)) {
+        return {
+          authorized: false,
+          reason: `Corpus ${corpusId} not in authorized corpora`,
+        };
+      }
+      
+      return {
+        authorized: true,
+        corpus: corpusId,
+      };
+    }
+
     // Get file metadata to determine corpus
     const fileMetadata = await driveClient.files.get({
       fileId,
