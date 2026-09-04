@@ -64,11 +64,21 @@ export async function GET(request: Request) {
 
     console.log('[Drive Files API] Request:', { folderId, driveId, pageToken });
 
+    // FORENSIC: Log Shared Drive root representation for debugging
+    if (driveId && (folderId === driveId || folderId === 'root')) {
+      console.log('[DRIVE_FILES_FORENSIC] Shared Drive root request:', {
+        folderId,
+        driveId,
+        representation: folderId === driveId ? 'Workbench (folderId === driveId)' : 'Legacy (folderId === root)',
+      });
+    }
+
     // P0 FIX: Verify driveId against HPP authorized corpus
     // Google OAuth access is NOT sufficient for HPP authorization
     // Shared Drives must be explicitly configured via HPP_AUTHORIZED_SHARED_DRIVES
     // NO root exemption - if driveId is supplied, it must be HPP-authorized
     // This prevents driveId + root from bypassing corpus consistency check
+    // Handle both Shared Drive root representations: folderId === driveId (Workbench) and folderId === 'root' (legacy)
     if (driveId) {
       const corpusAuth = await verifyCorpusAuthorization(folderId, driveId);
       if (!corpusAuth.authorized) {
@@ -95,8 +105,10 @@ export async function GET(request: Request) {
     // P0 FIX: Verify folderId is accessible to the authenticated session
     // This prevents IDOR where an authorized user could list arbitrary folder IDs
     // even if Google technically permits the object
-    // CRITICAL: Shared Drive root (folderId === driveId) must also be authorized
-    // The folderId !== 'root' check is insufficient for Shared Drive context
+    // CRITICAL: Handle both Shared Drive root representations:
+    // - Workbench: folderId === driveId
+    // - Legacy: folderId === 'root' && driveId present
+    // My Drive root: folderId === 'root' && driveId absent
     if (folderId !== 'root' || driveId) {
       const folderAuth = await verifyFolderAuthorization(folderId);
       if (!folderAuth.authorized) {
