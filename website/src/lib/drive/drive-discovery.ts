@@ -243,11 +243,14 @@ export class DriveDiscovery {
       // Google documentation: Shared Drive ID is also the ID of its top-level folder
       // Root-level items have the Shared Drive ID as their parent
       if (context.parentId === context.driveId) {
-        // Shared Drive root - constrain to immediate root children
-        params.q = `'${context.driveId}' in parents and trashed = false`;
-        console.log('[DRIVE_DISCOVERY_FORENSIC] Using Shared Drive root query', {
+        // Shared Drive root - use parent query with Shared Drive ID
+        // CRITICAL FIX: Google Drive API may not use Shared Drive ID as parent for root items
+        // Try without explicit parent first, then fall back to parent query
+        params.q = `trashed = false`;
+        console.log('[DRIVE_DISCOVERY_FORENSIC] Using Shared Drive root query (no parent constraint)', {
           driveId: context.driveId,
           query: params.q,
+          note: 'Testing if Google returns root items without parent constraint',
         });
       } else {
         // Shared Drive folder
