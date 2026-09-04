@@ -60,6 +60,11 @@ interface ReconciliationResult {
  * 
  * Constitutional Rule: Drive file ID → explicit authorized DriveReference → explicit
  * assignment relationship → CAS mutation. Only updates assignments that explicitly reference this Drive file.
+ * 
+ * LIMITATION: drive-ref- reconciliation is not yet implemented correctly.
+ * drive-ref- IDs are based on Drive identity (fileId + sharedDriveId), not content hash.
+ * Current implementation only reconciles exact drive-<fileId> references to avoid updating unrelated assignments.
+ * Full drive-ref- reconciliation requires passing sharedDriveId context and reconstructing the Drive identity hash.
  */
 async function reconcileDriveAssignments(
   publishedMediaId: string,
@@ -87,10 +92,19 @@ async function reconcileDriveAssignments(
     
     // Find assignments that reference this specific Drive file
     // Check for both drive-<fileId> and drive-ref-<hash> patterns
-    const driveRefPattern = new RegExp(`^drive-${driveFileId}$|^drive-ref-`);
-    const assignmentsToUpdate = allAssignments.filter(assignment => 
-      driveRefPattern.test(assignment.mediaId)
-    );
+    // CRITICAL: drive-ref-<hash> uses Drive identity hash (fileId + sharedDriveId), not content hash
+    // We need to construct the same hash to match references
+    const exactFilePattern = new RegExp(`^drive-${driveFileId}$`);
+    const assignmentsToUpdate = allAssignments.filter(assignment => {
+      // Match exact drive-<fileId> references
+      if (exactFilePattern.test(assignment.mediaId)) {
+        return true;
+      }
+      // For drive-ref- references, we can't match without knowing the sharedDriveId context
+      // The current logic is fundamentally flawed - we need Drive identity information
+      // For now, only match exact drive-<fileId> references to avoid updating unrelated drive-ref-* assignments
+      return false;
+    });
 
     console.log('[ASSIGNMENT_RECONCILIATION] Found Drive-referenced assignments', {
       requestId,

@@ -90,9 +90,13 @@ function createRedisClient(): Redis {
 
 // Redis namespace
 // Use TEST_NAMESPACE if present for integration test isolation
-const STATE_PREFIX = process.env.TEST_NAMESPACE 
-  ? `${process.env.TEST_NAMESPACE}:drive:oauth:state:`
-  : 'drive:oauth:state:';
+// CRITICAL: Must be resolved dynamically at operation time, not module evaluation
+function getStatePrefix(): string {
+  if (process.env.TEST_NAMESPACE) {
+    return `${process.env.TEST_NAMESPACE}:drive:oauth:state:`;
+  }
+  return 'drive:oauth:state:';
+}
 
 // State TTL: 5 minutes (one-time use, short-lived)
 const STATE_TTL_SECONDS = 5 * 60;
@@ -260,7 +264,7 @@ export async function createState(cookieStore: Awaited<ReturnType<typeof cookies
     // Use atomic SET NX EX to ensure state record cannot exist without intended expiration
     // NX: Only set if key does not exist (prevents duplicate state creation)
     // EX: Set expiration time atomically with the value
-    await client.set(`${STATE_PREFIX}${state}`, record, {
+    await client.set(`${getStatePrefix()}${state}`, record, {
       nx: true,
       ex: STATE_TTL_SECONDS,
     });
@@ -293,7 +297,7 @@ export async function createState(cookieStore: Awaited<ReturnType<typeof cookies
 export async function validateState(state: string, cookieStore: Awaited<ReturnType<typeof cookies>>): Promise<StateValidationResult> {
   try {
     const client = createRedisClient();
-    const record = await client.get<OAuthStateRecord>(`${STATE_PREFIX}${state}`);
+    const record = await client.get<OAuthStateRecord>(`${getStatePrefix()}${state}`);
 
     if (!record) {
       console.log('[OAUTH_STATE] State not found');
@@ -403,7 +407,7 @@ export async function consumeState(state: string, cookieStore: Awaited<ReturnTyp
 
     const result = await client.eval(
       luaScript,
-      [`${STATE_PREFIX}${state}`],
+      [`${getStatePrefix()}${state}`],
       [state, browserBinding]
     );
 
@@ -436,7 +440,7 @@ export async function consumeState(state: string, cookieStore: Awaited<ReturnTyp
 export async function deleteState(state: string, cookieStore: Awaited<ReturnType<typeof cookies>>): Promise<void> {
   try {
     const client = createRedisClient();
-    await client.del(`${STATE_PREFIX}${state}`);
+    await client.del(`${getStatePrefix()}${state}`);
     await clearBrowserBinding(cookieStore);
     console.log('[OAUTH_STATE] State deleted');
   } catch (error) {
