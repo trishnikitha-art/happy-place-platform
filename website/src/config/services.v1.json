@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-02T15:35:00.000Z",
+  "generatedAt": "2026-09-04T12:13:06.088Z",
   "services": [
     {
       "id": "decks",
@@ -553,7 +553,7 @@
           ]
         }
       ],
-      "cardMediaId": "outdoor-living-001-3"
+      "cardMediaId": "outdoor-living-001-4"
     },
     {
       "id": "finish-carpentry",
