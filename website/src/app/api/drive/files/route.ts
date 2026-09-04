@@ -95,11 +95,14 @@ export async function GET(request: Request) {
     // P0 FIX: Verify folderId is accessible to the authenticated session
     // This prevents IDOR where an authorized user could list arbitrary folder IDs
     // even if Google technically permits the object
-    if (folderId !== 'root') {
+    // CRITICAL: Shared Drive root (folderId === driveId) must also be authorized
+    // The folderId !== 'root' check is insufficient for Shared Drive context
+    if (folderId !== 'root' || driveId) {
       const folderAuth = await verifyFolderAuthorization(folderId);
       if (!folderAuth.authorized) {
         console.error('[DRIVE_AUTHORIZATION] FOLDER_NOT_AUTHORIZED', {
           folderId,
+          driveId,
           reason: folderAuth.reason,
         });
         return NextResponse.json(
@@ -113,6 +116,7 @@ export async function GET(request: Request) {
       
       console.log('[DRIVE_AUTHORIZATION] FOLDER_ACCESS_VERIFIED', {
         folderId,
+        driveId,
         corpus: folderAuth.corpus,
       });
     }
