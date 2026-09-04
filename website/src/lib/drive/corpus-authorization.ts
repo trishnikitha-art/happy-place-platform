@@ -205,6 +205,52 @@ export async function verifyCorpusAuthorization(
       };
     }
 
+    // CRITICAL FIX: When corpusId is provided for non-root operations,
+    // verify corpusId matches the file's actual corpus before allowing the operation
+    // This prevents driveId swapping attacks
+    if (corpusId && corpusId !== 'root') {
+      // First verify corpusId is in authorized list
+      const authorizedCorpora = await getAuthorizedCorpora();
+      const authorizedCorpusIds = authorizedCorpora.map(c => c.id);
+      
+      if (!authorizedCorpusIds.includes(corpusId)) {
+        return {
+          authorized: false,
+          reason: `Corpus ${corpusId} not in authorized corpora`,
+        };
+      }
+      
+      // Then verify the file actually belongs to that corpus
+      const fileMetadata = await driveClient.files.get({
+        fileId,
+        fields: 'id,name,owners,permissions,shared,driveId',
+        supportsAllDrives: true,
+      });
+
+      if (!fileMetadata.data) {
+        return {
+          authorized: false,
+          reason: 'File not found in Drive',
+        };
+      }
+
+      const fileDriveId = fileMetadata.data.driveId;
+      const fileCorpusId = fileDriveId || 'root';
+      
+      // Verify file's corpus matches requested corpusId
+      if (fileCorpusId !== corpusId) {
+        return {
+          authorized: false,
+          reason: `File belongs to corpus ${fileCorpusId} but requested corpus ${corpusId}`,
+        };
+      }
+      
+      return {
+        authorized: true,
+        corpus: corpusId,
+      };
+    }
+
     // Get file metadata to determine corpus
     const fileMetadata = await driveClient.files.get({
       fileId,
