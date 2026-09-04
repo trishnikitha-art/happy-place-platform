@@ -201,7 +201,12 @@ export async function verifyCorpusAuthorization(
       
       return {
         authorized: true,
-        corpus: corpusId,
+        corpus: {
+          id: corpusId,
+          name: `Shared Drive ${corpusId}`,
+          type: 'shared_drive',
+          authorized: true,
+        },
       };
     }
 
@@ -247,7 +252,12 @@ export async function verifyCorpusAuthorization(
       
       return {
         authorized: true,
-        corpus: corpusId,
+        corpus: {
+          id: corpusId,
+          name: `Shared Drive ${corpusId}`,
+          type: 'shared_drive',
+          authorized: true,
+        },
       };
     }
 

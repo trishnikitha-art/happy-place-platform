@@ -127,8 +127,9 @@ export default function MediaWorkbench() {
     });
 
     // Listen for slot click events from iframe
-    const handleSlotClickEvent = (event: CustomEvent) => {
-      const { id } = event.detail;
+    const handleSlotClickEvent = (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { id } = customEvent.detail;
       console.log('[FORENSIC] WORKBENCH SLOT CLICK EVENT', { slotId: id });
       const slot = slotRegistry.get(id);
       if (slot) {
@@ -143,8 +144,9 @@ export default function MediaWorkbench() {
     };
 
     // Listen for gallery delete events from iframe
-    const handleDeleteGalleryEvent = async (event: CustomEvent) => {
-      const { slotId } = event.detail;
+    const handleDeleteGalleryEvent = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { slotId } = customEvent.detail;
       console.log('[DELETE GALLERY] EVENT_RECEIVED', { slotId });
 
       // Directly execute the delete logic
@@ -203,8 +205,9 @@ export default function MediaWorkbench() {
     };
 
     // Listen for gallery add events from iframe
-    const handleAddToGalleryEvent = async (event: CustomEvent) => {
-      const { slotId, projectId } = event.detail;
+    const handleAddToGalleryEvent = async (event: Event) => {
+      const customEvent = event as CustomEvent;
+      const { slotId, projectId } = customEvent.detail;
       console.log('[ADD TO GALLERY] EVENT_RECEIVED', { slotId, projectId });
 
       // Prompt user to select media to add
@@ -256,9 +259,9 @@ export default function MediaWorkbench() {
       }
     };
 
-    window.addEventListener('slot-click', handleSlotClickEvent as EventListener);
-    window.addEventListener('delete-gallery', handleDeleteGalleryEvent as EventListener);
-    window.addEventListener('add-to-gallery', handleAddToGalleryEvent as EventListener);
+    window.addEventListener('slot-click', handleSlotClickEvent);
+    window.addEventListener('delete-gallery', handleDeleteGalleryEvent);
+    window.addEventListener('add-to-gallery', handleAddToGalleryEvent);
 
     // Listen for iframe messages (SLOT_REGISTER and SLOT_CLICK)
     const handleMessage = async (event: MessageEvent) => {
@@ -701,9 +704,9 @@ export default function MediaWorkbench() {
 
     return () => {
       unsubscribe();
-      window.removeEventListener('slot-click', handleSlotClickEvent as EventListener);
-      window.removeEventListener('delete-gallery', handleDeleteGalleryEvent as EventListener);
-      window.removeEventListener('add-to-gallery', handleAddToGalleryEvent as EventListener);
+      window.removeEventListener('slot-click', handleSlotClickEvent);
+      window.removeEventListener('delete-gallery', handleDeleteGalleryEvent);
+      window.removeEventListener('add-to-gallery', handleAddToGalleryEvent);
       window.removeEventListener('message', handleMessage);
     };
   }, []);
