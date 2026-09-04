@@ -17,8 +17,8 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 interface MaterializeRequest {
-  fileId: string;
-  sharedDriveId?: string;
+  fileId: string;  // The Google Drive file ID to materialize
+  sharedDriveId?: string;  // The Shared Drive ID (corpus context)
   fileName: string;
   mimeType: string;
 }
@@ -84,8 +84,8 @@ export async function POST(request: Request) {
 
     const ingestUrl = `${baseUrl}/api/drive/ingest`;
     const ingestBody = {
-      driveId: fileId,
-      driveIdParameter: sharedDriveId,
+      fileId: fileId,  // The Google Drive file ID to materialize
+      sharedDriveId: sharedDriveId,  // The Shared Drive ID (corpus context)
       roles: ['gallery'],
     };
 

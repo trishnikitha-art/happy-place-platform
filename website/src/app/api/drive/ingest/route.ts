@@ -23,7 +23,7 @@
  *    - Provenance tracks Drive origin for lineage without creating dependency
  *
  * POST /api/drive/ingest
- * Body: { driveId: string, projectId?: string, roles?: MediaRole[] }
+ * Body: { fileId: string, sharedDriveId?: string, projectId?: string, roles?: MediaRole[] }
  */
 
 import { NextResponse } from 'next/server';
@@ -255,8 +255,8 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 interface IngestRequest {
-  driveId: string;
-  driveIdParameter?: string; // Shared Drive ID for file operations
+  fileId: string;  // The Google Drive file ID to materialize
+  sharedDriveId?: string;  // The Shared Drive ID (corpus context)
   projectId?: string;
   roles?: MediaRole[];
 }
@@ -327,26 +327,26 @@ export async function POST(request: Request) {
 
   try {
     const body: IngestRequest = await request.json();
-    const { driveId, driveIdParameter, projectId, roles = ['gallery'] } = body;
+    const { fileId, sharedDriveId, projectId, roles = ['gallery'] } = body;
 
     console.log('[MEDIA_INGEST] REQUEST stage succeeded', {
       requestId,
       source: 'drive',
-      driveFileId: driveId,
-      sharedDrive: !!driveIdParameter,
-      sharedDriveId: driveIdParameter || 'none',
+      driveFileId: fileId,
+      sharedDrive: !!sharedDriveId,
+      sharedDriveId: sharedDriveId || 'none',
       projectId: projectId || 'none',
       roles,
     });
 
-    if (!driveId) {
-      console.log('[MEDIA_INGEST_ERROR] driveId is required', { requestId });
+    if (!fileId) {
+      console.log('[MEDIA_INGEST_ERROR] fileId is required', { requestId });
       return NextResponse.json(
         { 
           success: false,
-          error: 'DRIVE_ID_REQUIRED', 
+          error: 'FILE_ID_REQUIRED', 
           stage: 'REQUEST', 
-          message: 'driveId is required', 
+          message: 'fileId is required', 
           retryable: false,
           requestId,
         },
@@ -400,17 +400,18 @@ export async function POST(request: Request) {
         requestId,
         sessionEmail: sessionIdentity?.email,
         operation: 'ingest',
-        driveId,
+        fileId,
       });
       
       // Verify the Drive file is accessible to the authenticated session
       // This prevents IDOR where an authorized user could access arbitrary Drive IDs
       // even if Google technically permits the object
-      const fileAuth = await verifyCorpusAuthorization(driveId, driveIdParameter);
+      // P0 FIX: Use fileId (file identity) and sharedDriveId (corpus context) for authorization
+      const fileAuth = await verifyCorpusAuthorization(fileId, sharedDriveId);
       if (!fileAuth.authorized) {
         console.error('[DRIVE_AUTHORIZATION] FILE_NOT_AUTHORIZED', {
           requestId,
-          driveId,
+          fileId,
           reason: fileAuth.reason,
         });
         return NextResponse.json(
@@ -427,14 +428,14 @@ export async function POST(request: Request) {
       
       console.log('[DRIVE_AUTHORIZATION] FILE_ACCESS_VERIFIED', {
         requestId,
-        driveId,
+        fileId,
         corpus: fileAuth.corpus,
       });
     }
 
     // 1. Get Drive file metadata
     console.log('[MEDIA_INGEST] DRIVE_METADATA stage started', { requestId });
-    const driveFile = await driveDiscovery.getFile(driveId);
+    const driveFile = await driveDiscovery.getFile(fileId);
     if (!driveFile) {
       console.log('[MEDIA_INGEST_ERROR] File not found in Drive', { requestId });
       return NextResponse.json(
@@ -480,7 +481,7 @@ export async function POST(request: Request) {
 
     // 2. Download bytes from Drive
     console.log('[MEDIA_INGEST] DOWNLOAD stage started', { requestId });
-    const driveBytes = await driveDiscovery.downloadFile(driveId);
+    const driveBytes = await driveDiscovery.downloadFile(fileId);
     if (!driveBytes || driveBytes.length === 0) {
       console.log('[MEDIA_INGEST_ERROR] File download failed or empty', { requestId });
       return NextResponse.json(
@@ -635,11 +636,11 @@ export async function POST(request: Request) {
           // This ensures DriveReference assignments are repaired when re-ingesting the same content
           // But materialization succeeds even if reconciliation fails
           let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
-          if (driveId) {
+          if (fileId) {
             try {
               reconciliationResult = await reconcileDriveAssignments(
                 existingMedia.id,
-                driveId, // Use authoritative Drive file ID for provenance reconciliation
+                fileId, // Use authoritative Drive file ID for provenance reconciliation
                 contentHash,
                 requestId
               );
@@ -785,8 +786,8 @@ export async function POST(request: Request) {
       // Drive provenance belongs in provenance.driveFileId, not in the drive field
       // This preserves lineage without creating a runtime Drive dependency
       provenance: {
-        driveFileId: driveId,
-        sharedDriveId: driveIdParameter,
+        driveFileId: fileId,
+        sharedDriveId: sharedDriveId,
         preserved_at: new Date().toISOString(),
       },
       filename: driveFile.name,
@@ -831,16 +832,16 @@ export async function POST(request: Request) {
     console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION stage started', {
       requestId,
       mediaId,
-      driveId,
+      fileId,
       note: 'Reconciliation is optional - materialization succeeds even if no assignments exist'
     });
 
     let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
-    if (driveId) {
+    if (fileId) {
       try {
         reconciliationResult = await reconcileDriveAssignments(
           mediaId,
-          driveId, // Use authoritative Drive file ID for provenance reconciliation
+          fileId, // Use authoritative Drive file ID for provenance reconciliation
           contentHash,
           requestId
         );
