@@ -62,6 +62,7 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
         id: 'brand-hero',
         lifecycleState: 'published',
         source: 'local',
+        storage: 'static',
         contentHash: 'ae2b1fca596bf1268e37357044f8a8613b11a8c8', // SHA256('brand-hero')
         dimensions: { width: 1200, height: 800 },
         variants: { original: '/images/test.jpg', web: '/images/test.webp' }
