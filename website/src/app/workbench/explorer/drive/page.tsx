@@ -208,9 +208,23 @@ export default function DriveExplorerPage() {
     const newBreadcrumb = state.breadcrumb.slice(0, index + 1);
     const target = newBreadcrumb[newBreadcrumb.length - 1];
     
+    console.log('[DRIVE_EXPLORER] Breadcrumb navigation', {
+      targetId: target.id,
+      targetName: target.name,
+      breadcrumbIndex: index,
+      breadcrumbLength: newBreadcrumb.length,
+      currentActiveDriveId: state.activeDriveId,
+    });
+    
     // If navigating back to root (My Drive or Shared Drive root), clear or preserve driveId
     if (newBreadcrumb.length === 1) {
       const isSharedDriveRoot = target.id === state.activeDriveId;
+      console.log('[DRIVE_EXPLORER] Navigating to root', {
+        isSharedDriveRoot,
+        targetId: target.id,
+        preservedDriveId: isSharedDriveRoot ? state.activeDriveId : null,
+      });
+      
       setState(prev => ({
         ...prev,
         currentFolderId: target.id,
@@ -222,6 +236,12 @@ export default function DriveExplorerPage() {
       }));
       loadChildren(target.id, undefined, isSharedDriveRoot ? state.activeDriveId || undefined : undefined);
     } else {
+      // Navigating to non-root: preserve activeDriveId
+      console.log('[DRIVE_EXPLORER] Navigating to non-root folder', {
+        targetId: target.id,
+        preservedDriveId: state.activeDriveId,
+      });
+      
       setState(prev => ({
         ...prev,
         currentFolderId: target.id,
