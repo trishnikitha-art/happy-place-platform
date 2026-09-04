@@ -12,6 +12,12 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
+    const sessionId = await driveSession.getSessionId();
+    console.log('[DRIVE AUTH STATUS FORENSIC] Session ID check:', {
+      hasSessionId: !!sessionId,
+      sessionIdPrefix: sessionId ? sessionId.substring(0, 8) + '...' : 'none',
+    });
+
     const credentials = await driveSession.getCredentials();
     const authenticated = await driveSession.isAuthenticated();
 
@@ -21,6 +27,8 @@ export async function GET() {
       hasRefreshToken: !!credentials?.refresh_token,
       hasExpiry: !!credentials?.expiry_date,
       hasScope: !!credentials?.scope,
+      expiryDate: credentials?.expiry_date ? new Date(credentials.expiry_date).toISOString() : 'none',
+      isExpired: credentials?.expiry_date ? Date.now() > credentials.expiry_date : 'unknown',
     });
 
     return NextResponse.json({
