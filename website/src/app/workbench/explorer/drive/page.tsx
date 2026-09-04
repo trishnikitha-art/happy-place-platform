@@ -117,12 +117,25 @@ export default function DriveExplorerPage() {
         params.set('driveId', contextDriveId);
       }
 
+      console.log('[DRIVE_EXPLORER_FORENSIC] loadChildren API call:', {
+        folderId,
+        contextDriveId,
+        pageToken,
+        activeDriveId: state.activeDriveId,
+        params: params.toString(),
+      });
+
       const response = await fetch(`/api/drive/files?${params}`);
       if (!response.ok) {
         throw new Error('Failed to load folder children');
       }
 
       const result = await response.json();
+
+      console.log('[DRIVE_EXPLORER_FORENSIC] loadChildren API response:', {
+        resultCount: result.items?.length || 0,
+        nextPageToken: result.nextPageToken,
+      });
 
       setState(prev => ({
         ...prev,
@@ -160,7 +173,13 @@ export default function DriveExplorerPage() {
     // Handle Shared Drive selection
     else if ((folder as any).isSharedDrive) {
       const sharedDriveId = (folder as any).driveId;
-      console.log('[DRIVE_EXPLORER] Entering Shared Drive:', { sharedDriveId, name: folder.name });
+      console.log('[DRIVE_EXPLORER_FORENSIC] Entering Shared Drive:', { 
+        sharedDriveId, 
+        folderId: folder.id,
+        folderName: folder.name,
+        assumption: 'folder.id === sharedDriveId for Shared Drive root',
+        folderIdEqualsDriveId: folder.id === sharedDriveId
+      });
       setState(prev => ({
         ...prev,
         currentFolderId: folder.id, // Shared Drive root ID
