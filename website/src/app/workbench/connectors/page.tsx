@@ -14,7 +14,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Plug, CheckCircle, RefreshCw, Cloud, Database } from 'lucide-react';
+import { Plug, CheckCircle, RefreshCw, Cloud, Database, AlertCircle } from 'lucide-react';
 
 interface ConnectorData {
   id: string;
@@ -32,6 +32,7 @@ export default function ConnectorsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [driveAuthStatus, setDriveAuthStatus] = useState<boolean>(false);
+  const [driveRequiresReauth, setDriveRequiresReauth] = useState<boolean>(false);
 
   useEffect(() => {
     loadConnectors();
@@ -42,14 +43,23 @@ export default function ConnectorsPage() {
     try {
       setLoading(true);
       setError(null);
+      setDriveRequiresReauth(false);
 
       // Use Drive discovery API
       const response = await fetch('/api/drive/discovery');
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Drive discovery failed');
+        // Check for authorization expiration
+        if (data.error === 'AUTHORIZATION_EXPIRED' || data.requiresReauth) {
+          setDriveRequiresReauth(true);
+          setError('Google Drive authorization has expired. Please re-authenticate.');
+        } else {
+          throw new Error(data.message || 'Drive discovery failed');
+        }
       }
 
-      const structure = await response.json();
+      const structure = data;
 
       // Map Drive structure to ConnectorData format
       const driveConnector: ConnectorData = {
@@ -164,6 +174,15 @@ export default function ConnectorsPage() {
 
               {/* Details */}
               <div className="p-4 space-y-3">
+                {driveRequiresReauth && connector.id === 'google-drive' && (
+                  <div className="bg-amber-50 border border-amber-200 rounded-md p-2 text-xs text-amber-800">
+                    <div className="flex items-center gap-1 font-medium mb-1">
+                      <AlertCircle size={12} />
+                      Authorization expired
+                    </div>
+                    <div>Google Drive authorization has expired or been revoked. Please re-authenticate to continue.</div>
+                  </div>
+                )}
                 {connector.connectedAs && (
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Connected as</span>
@@ -193,13 +212,13 @@ export default function ConnectorsPage() {
 
               {/* Actions */}
               <div className="p-4 border-t border-border flex gap-2">
-                {connector.id === 'google-drive' && !driveAuthStatus ? (
+                {connector.id === 'google-drive' && (driveRequiresReauth || !driveAuthStatus) ? (
                   <button
                     onClick={handleConnectDrive}
                     className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
                   >
                     <Cloud size={16} />
-                    Connect Drive
+                    {driveRequiresReauth ? 'Re-authenticate Drive' : 'Connect Drive'}
                   </button>
                 ) : (
                   <>

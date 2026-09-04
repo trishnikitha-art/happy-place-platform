@@ -50,8 +50,27 @@ export async function GET() {
     return NextResponse.json(filteredStructure);
   } catch (error) {
     console.error('Drive discovery error:', error);
+    
+    // Detect OAuth authorization failure (invalid_grant, revoked tokens)
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    const isAuthFailure = errorMessage.includes('invalid_grant') || 
+                        errorMessage.includes('revoked') ||
+                        errorMessage.includes('Token has been revoked') ||
+                        errorMessage.includes('OAuth authorization failed');
+    
+    if (isAuthFailure) {
+      return NextResponse.json(
+        { 
+          error: 'AUTHORIZATION_EXPIRED', 
+          message: 'Google Drive authorization has expired or been revoked. Please re-authenticate.',
+          requiresReauth: true
+        },
+        { status: 401 }
+      );
+    }
+    
     return NextResponse.json(
-      { error: 'Failed to discover Drive structure', message: error instanceof Error ? error.message : 'Unknown error' },
+      { error: 'Failed to discover Drive structure', message: errorMessage },
       { status: 500 }
     );
   }
