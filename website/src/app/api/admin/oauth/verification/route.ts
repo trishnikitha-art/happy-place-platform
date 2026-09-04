@@ -21,6 +21,7 @@
 
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
+import { getSessionIdFromCookies } from '@/lib/drive/drive-session';
 
 export const dynamic = 'force-dynamic';
 
@@ -166,7 +167,6 @@ export async function POST(request: Request) {
     const { isAuthenticated: isDriveAuthenticated } = await import('@/lib/drive/oauth-manager');
     result.session.driveAuthenticated = await isDriveAuthenticated();
     if (result.session.driveAuthenticated) {
-      const { getSessionIdFromCookies } = await import('@/lib/drive/oauth-manager');
       const driveSessionId = await getSessionIdFromCookies();
       result.session.driveSessionId = driveSessionId || undefined;
     }
