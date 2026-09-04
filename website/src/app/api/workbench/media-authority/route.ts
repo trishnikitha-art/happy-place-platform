@@ -40,7 +40,12 @@ export async function POST(request: Request) {
 
     if (action === 'getPublishedMediaAssets' || action === 'list') {
       const result = await getPublishedMediaAssets();
-      return NextResponse.json(result);
+      // Return in format expected by Workbench: { media: assets[], available: boolean, error?: string }
+      return NextResponse.json({
+        media: result.assets,
+        available: result.available,
+        error: result.error,
+      });
     }
 
     return NextResponse.json(
