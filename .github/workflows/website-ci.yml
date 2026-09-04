@@ -22,7 +22,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
+      - run: npm install --include=optional
       - run: npm run build
       - run: npm test
       # Lint is security-critical for this codebase - no escape hatch
@@ -38,7 +38,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - run: npm install
+      - run: npm install --include=optional
       - name: Validate required secrets are present
         run: |
           echo "Validating required GitHub Actions secrets..."
