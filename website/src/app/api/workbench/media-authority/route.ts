@@ -38,7 +38,7 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { action } = body;
 
-    if (action === 'getPublishedMediaAssets') {
+    if (action === 'getPublishedMediaAssets' || action === 'list') {
       const result = await getPublishedMediaAssets();
       return NextResponse.json(result);
     }
