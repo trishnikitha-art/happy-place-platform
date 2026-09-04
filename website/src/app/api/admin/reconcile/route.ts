@@ -21,7 +21,7 @@ import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { getServiceCardAssignment, storeServiceCardAssignment, type ServiceCardAssignment } from '@/lib/assignment-store';
 import { getMedia, getMediaRecordRaw, getBlobMetadata, verifyPublicMediaAuthority } from '@/lib/media-kv-store';
-import { verifyBlobHash } from '@/lib/blob-storage';
+import { verifyBlobHash, type BlobHashVerificationResult } from '@/lib/blob-storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +35,8 @@ interface ReconciliationEvidence {
   result: string;
   data?: Record<string, unknown>;
   error?: string;
+  errorType?: BlobHashVerificationResult['errorType'];
+  actualHash?: string;
 }
 
 interface ReconciliationReport {
