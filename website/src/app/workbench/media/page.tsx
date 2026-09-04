@@ -142,7 +142,123 @@ export default function MediaWorkbench() {
       }
     };
 
+    // Listen for gallery delete events from iframe
+    const handleDeleteGalleryEvent = async (event: CustomEvent) => {
+      const { slotId } = event.detail;
+      console.log('[DELETE GALLERY] EVENT_RECEIVED', { slotId });
+
+      // Directly execute the delete logic
+      if (!confirm('Are you sure you want to delete this gallery image? This will remove the media assignment from the gallery slot.')) {
+        return;
+      }
+
+      try {
+        const slot = state.registeredSlots.find(s => s.id === slotId);
+        if (!slot || slot.section !== 'Gallery') {
+          alert('This delete action is only available for gallery slots.');
+          return;
+        }
+
+        // Parse slot ID to get project ID and mediaId
+        // Format: our-work-gallery::{projectId}::{mediaId}
+        const idPart = slotId.replace('our-work-gallery::', '');
+        const lastDoubleColonIndex = idPart.lastIndexOf('::');
+        const projectId = idPart.substring(0, lastDoubleColonIndex);
+        const mediaId = idPart.substring(lastDoubleColonIndex + 2);
+        console.log('[DELETE GALLERY] PARSED_SLOT', { slotId, projectId, mediaId });
+
+        // FIX: Use atomic PUT authority instead of legacy DELETE
+        // Get current gallery, remove by mediaId, PUT complete array
+        const getResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+        if (!getResponse.ok) {
+          throw new Error('Failed to fetch current gallery');
+        }
+        const galleryData = await getResponse.json();
+        const currentGallery = galleryData.gallery || [];
+        const currentRevision = galleryData.currentRevision || 0;
+
+        // Remove media by mediaId (stable identity, not index)
+        const newGallery = currentGallery.filter((id: string) => id !== mediaId);
+
+        const response = await fetch('/api/admin/projects/gallery', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, gallery: newGallery, expectedRevision: currentRevision }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to delete gallery assignment');
+        }
+
+        const result = await response.json();
+        console.log('[DELETE GALLERY] SUCCESS', { projectId, galleryLength: result.gallery?.length || 0 });
+
+        // Reload canonical data after successful deletion
+        loadCanonicalData();
+      } catch (error) {
+        console.error('[DELETE GALLERY] ERROR', error);
+        alert(`Failed to delete gallery assignment: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    };
+
+    // Listen for gallery add events from iframe
+    const handleAddToGalleryEvent = async (event: CustomEvent) => {
+      const { slotId, projectId } = event.detail;
+      console.log('[ADD TO GALLERY] EVENT_RECEIVED', { slotId, projectId });
+
+      // Prompt user to select media to add
+      const asset = state.selectedAsset;
+      if (!asset) {
+        alert('Please select a media asset from the Workbench panel first.');
+        return;
+      }
+
+      if (!confirm(`Add "${asset.filename}" to gallery? This will append it to the project's gallery without replacing existing photos.`)) {
+        return;
+      }
+
+      try {
+        // FIX: Use atomic PUT authority instead of legacy POST
+        // Get current gallery, append mediaId, PUT complete array with CAS
+        const getResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+        if (!getResponse.ok) {
+          throw new Error('Failed to fetch current gallery');
+        }
+        const galleryData = await getResponse.json();
+        const currentGallery = galleryData.gallery || [];
+        const currentRevision = galleryData.currentRevision || 0;
+
+        // Append mediaId to gallery
+        const newGallery = [...currentGallery, asset.id];
+
+        const response = await fetch('/api/admin/projects/gallery', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, gallery: newGallery, expectedRevision: currentRevision }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to add to gallery');
+        }
+
+        const result = await response.json();
+        console.log('[ADD TO GALLERY] SUCCESS', { projectId, mediaId: asset.id, galleryLength: result.gallery?.length || 0 });
+
+        // Reload canonical data after successful add
+        loadCanonicalData();
+
+        alert(`Successfully added "${asset.filename}" to gallery. Gallery now has ${result.gallery?.length || 0} photos.`);
+      } catch (error) {
+        console.error('[ADD TO GALLERY] ERROR', error);
+        alert(`Failed to add to gallery: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    };
+
     window.addEventListener('slot-click', handleSlotClickEvent as EventListener);
+    window.addEventListener('delete-gallery', handleDeleteGalleryEvent as EventListener);
+    window.addEventListener('add-to-gallery', handleAddToGalleryEvent as EventListener);
 
     // Listen for iframe messages (SLOT_REGISTER and SLOT_CLICK)
     const handleMessage = async (event: MessageEvent) => {
@@ -573,117 +689,8 @@ export default function MediaWorkbench() {
         } else {
           console.log('[FORENSIC] parent NO ASSET_ID in drop message', { slotId });
         }
-      } else if (event.data.type === 'delete-gallery') {
-        // Handle delete request from Our Work page
-        const { slotId } = event.data;
-        console.log('[DELETE GALLERY] MESSAGE_RECEIVED', { slotId });
-        
-        // Directly execute the delete logic
-        if (!confirm('Are you sure you want to delete this gallery image? This will remove the media assignment from the gallery slot.')) {
-          return;
-        }
-
-        try {
-          const slot = state.registeredSlots.find(s => s.id === slotId);
-          if (!slot || slot.section !== 'Gallery') {
-            alert('This delete action is only available for gallery slots.');
-            return;
-          }
-
-          // Parse slot ID to get project ID and mediaId
-          // Format: our-work-gallery::{projectId}::{mediaId}
-          const idPart = slotId.replace('our-work-gallery::', '');
-          const lastDoubleColonIndex = idPart.lastIndexOf('::');
-          const projectId = idPart.substring(0, lastDoubleColonIndex);
-          const mediaId = idPart.substring(lastDoubleColonIndex + 2);
-
-          console.log('[DELETE GALLERY] PARSED_SLOT', { slotId, projectId, mediaId });
-
-          // FIX: Use atomic PUT authority instead of legacy DELETE
-          // Get current gallery, remove by mediaId, PUT complete array
-          const getResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
-          if (!getResponse.ok) {
-            throw new Error('Failed to fetch current gallery');
-          }
-          const galleryData = await getResponse.json();
-          const currentGallery = galleryData.gallery || [];
-          const currentRevision = galleryData.currentRevision || 0;
-          
-          // Remove media by mediaId (stable identity, not index)
-          const newGallery = currentGallery.filter((id: string) => id !== mediaId);
-          
-          const response = await fetch('/api/admin/projects/gallery', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectId, gallery: newGallery, expectedRevision: currentRevision }),
-          });
-
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to delete gallery assignment');
-          }
-
-          const result = await response.json();
-          console.log('[DELETE GALLERY] SUCCESS', { projectId, galleryLength: result.gallery?.length || 0 });
-
-          // Reload canonical data after successful deletion
-          loadCanonicalData();
-        } catch (error) {
-          console.error('[DELETE GALLERY] ERROR', error);
-          alert(`Failed to delete gallery assignment: ${error instanceof Error ? error.message : String(error)}`);
-        }
-      } else if (event.data.type === 'add-to-gallery') {
-        // Handle add-to-gallery request from Our Work page
-        const { slotId, projectId } = event.data;
-        console.log('[ADD TO GALLERY] MESSAGE_RECEIVED', { slotId, projectId });
-
-        // Prompt user to select media to add
-        const asset = state.selectedAsset;
-        if (!asset) {
-          alert('Please select a media asset from the Workbench panel first.');
-          return;
-        }
-
-        if (!confirm(`Add "${asset.filename}" to gallery? This will append it to the project's gallery without replacing existing photos.`)) {
-          return;
-        }
-
-        try {
-          // FIX: Use atomic PUT authority instead of legacy POST
-          // Get current gallery, append mediaId, PUT complete array with CAS
-          const getResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
-          if (!getResponse.ok) {
-            throw new Error('Failed to fetch current gallery');
-          }
-          const galleryData = await getResponse.json();
-          const currentGallery = galleryData.gallery || [];
-          const currentRevision = galleryData.currentRevision || 0;
-          
-          // Append mediaId to gallery
-          const newGallery = [...currentGallery, asset.id];
-          
-          const response = await fetch('/api/admin/projects/gallery', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ projectId, gallery: newGallery, expectedRevision: currentRevision }),
-          });
-
-          if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Failed to add to gallery');
-          }
-
-          const result = await response.json();
-          console.log('[ADD TO GALLERY] SUCCESS', { projectId, mediaId: asset.id, galleryLength: result.gallery?.length || 0 });
-
-          // Reload canonical data after successful add
-          loadCanonicalData();
-          
-          alert(`Successfully added "${asset.filename}" to gallery. Gallery now has ${result.gallery?.length || 0} photos.`);
-        } catch (error) {
-          console.error('[ADD TO GALLERY] ERROR', error);
-          alert(`Failed to add to gallery: ${error instanceof Error ? error.message : String(error)}`);
-        }
+      } else {
+        console.log('[FORENSIC] IGNORED_MESSAGE_TYPE', { messageType: event.data?.type });
       }
     };
     window.addEventListener('message', handleMessage);
@@ -693,6 +700,8 @@ export default function MediaWorkbench() {
     return () => {
       unsubscribe();
       window.removeEventListener('slot-click', handleSlotClickEvent as EventListener);
+      window.removeEventListener('delete-gallery', handleDeleteGalleryEvent as EventListener);
+      window.removeEventListener('add-to-gallery', handleAddToGalleryEvent as EventListener);
       window.removeEventListener('message', handleMessage);
     };
   }, []);
@@ -2024,7 +2033,6 @@ Check browser console for detailed logs.`);
             ))}
           </div>
         </div>
-      )}
 
       {/* Pending Assignments Bar */}
       {state.pendingAssignments.size > 0 && (

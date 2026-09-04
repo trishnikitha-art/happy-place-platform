@@ -134,6 +134,23 @@ class SlotRegistry {
       });
       // Forward slot click events to window for workbench to handle
       window.dispatchEvent(new CustomEvent('slot-click', { detail: event.data.slot }));
+    } else if (messageType === 'delete-gallery') {
+      console.log('[FORENSIC] GALLERY DELETE MESSAGE RECEIVED', {
+        type: messageType,
+        origin: event.origin,
+        slotId: event.data.slotId,
+      });
+      // Forward gallery delete events to window for workbench to handle
+      window.dispatchEvent(new CustomEvent('delete-gallery', { detail: event.data }));
+    } else if (messageType === 'add-to-gallery') {
+      console.log('[FORENSIC] GALLERY ADD MESSAGE RECEIVED', {
+        type: messageType,
+        origin: event.origin,
+        slotId: event.data.slotId,
+        projectId: event.data.projectId,
+      });
+      // Forward gallery add events to window for workbench to handle
+      window.dispatchEvent(new CustomEvent('add-to-gallery', { detail: event.data }));
     }
     // Ignore all other message types (Next.js HMR, devtools, etc.)
   };
