@@ -24,7 +24,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, ChevronRight, Loader2, List, AlertCircle, LayoutGrid } from 'lucide-react';
+import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, ChevronRight, Loader2, List, AlertCircle, LayoutGrid, Plus, X, Info } from 'lucide-react';
 import { loadVisualAssetRegistry, addDriveAssetToRegistry, type VisualAsset } from '@/lib/visual-asset-registry';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
@@ -56,6 +56,10 @@ interface MediaWorkbenchState {
   driveLoadingMore: boolean;
   kvAvailable: boolean;
   kvError: string | null;
+  showAddSlotDialog: boolean;
+  newSlotId: string;
+  newSlotName: string;
+  newSlotSection: string;
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -93,6 +97,10 @@ export default function MediaWorkbench() {
     driveLoadingMore: false,
     kvAvailable: true,
     kvError: null,
+    showAddSlotDialog: false,
+    newSlotId: '',
+    newSlotName: '',
+    newSlotSection: 'Hero',
   });
 
   const mediaPanelRef = useRef<HTMLDivElement>(null);
@@ -194,7 +202,14 @@ export default function MediaWorkbench() {
         }
 
         const result = await response.json();
-        console.log('[DELETE GALLERY] SUCCESS', { projectId, galleryLength: result.gallery?.length || 0 });
+        console.log('[DELETE GALLERY] SUCCESS', { projectId, galleryLength: result.gallery?.length || 0, staged: result.staged });
+
+        // Provide clear feedback about staging status
+        if (result.staged) {
+          alert(`Gallery change staged successfully.\n\nStatus: ${result.persistence === 'kv' ? 'Staged for deployment' : 'Development mode (immediate)'}\nTransaction ID: ${result.transactionId}\n\nNote: In production, staged changes require clicking "CONFIRM ALL" in the Workbench to deploy.`);
+        } else {
+          alert(`Gallery change saved immediately (development mode).`);
+        }
 
         // Reload canonical data after successful deletion
         loadCanonicalData();
@@ -247,12 +262,17 @@ export default function MediaWorkbench() {
         }
 
         const result = await response.json();
-        console.log('[ADD TO GALLERY] SUCCESS', { projectId, mediaId: asset.id, galleryLength: result.gallery?.length || 0 });
+        console.log('[ADD TO GALLERY] SUCCESS', { projectId, mediaId: asset.id, galleryLength: result.gallery?.length || 0, staged: result.staged });
+
+        // Provide clear feedback about staging status
+        if (result.staged) {
+          alert(`Successfully added "${asset.filename}" to gallery.\n\nStatus: ${result.persistence === 'kv' ? 'Staged for deployment' : 'Development mode (immediate)'}\nTransaction ID: ${result.transactionId}\nGallery now has ${result.gallery?.length || 0} photos.\n\nNote: In production, staged changes require clicking "CONFIRM ALL" in the Workbench to deploy.`);
+        } else {
+          alert(`Successfully added "${asset.filename}" to gallery (development mode). Gallery now has ${result.gallery?.length || 0} photos.`);
+        }
 
         // Reload canonical data after successful add
         loadCanonicalData();
-
-        alert(`Successfully added "${asset.filename}" to gallery. Gallery now has ${result.gallery?.length || 0} photos.`);
       } catch (error) {
         console.error('[ADD TO GALLERY] ERROR', error);
         alert(`Failed to add to gallery: ${error instanceof Error ? error.message : String(error)}`);
@@ -871,7 +891,7 @@ export default function MediaWorkbench() {
     });
   };
 
-  const useDriveFile = async (file: DriveFile) => {
+  const ingestDriveFile = async (file: DriveFile) => {
     try {
       console.log('[WORKBENCH] Starting Drive file ingestion', {
         fileId: file.id,
@@ -1101,6 +1121,8 @@ Check browser console for detailed logs.`);
       })),
     });
 
+    alert(`Processing ${state.pendingAssignments.size} pending assignment(s)...\n\nThis will:\n1. Persist changes to staging\n2. Create deployment transaction\n3. Commit to GitHub\n4. Trigger Vercel deployment\n\nPlease wait for completion.`);
+
     // Track success/failure and errors
     let successCount = 0;
     let failureCount = 0;
@@ -1167,11 +1189,12 @@ Check browser console for detailed logs.`);
 
     // Commit to GitHub after successful assignment persistence
     console.log('[DEPLOY API] COMMITTING_TO_GITHUB');
+    alert(`All ${successCount} assignment(s) persisted successfully.\n\nNow committing to GitHub...`);
     try {
       const deployResponse = await fetch('/api/admin/deploy', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           reason: `Workbench media changes accepted (${successCount} assignments)`,
           transactionIds: [deploymentTransactionId]
         }),
@@ -1280,6 +1303,85 @@ Check browser console for detailed logs.`);
     console.log('[DND CONFIRM] CANCEL_ASSIGNMENTS');
     setState(prev => ({ ...prev, pendingAssignments: new Map() }));
     deploymentInProgressRef.current = false; // Clear deployment flag on cancel
+  };
+
+  const openAddSlotDialog = () => {
+    setState(prev => ({ 
+      ...prev, 
+      showAddSlotDialog: true,
+      newSlotId: `custom-slot-${Date.now()}`,
+      newSlotName: '',
+      newSlotSection: 'Hero'
+    }));
+  };
+
+  const closeAddSlotDialog = () => {
+    setState(prev => ({ 
+      ...prev, 
+      showAddSlotDialog: false,
+      newSlotId: '',
+      newSlotName: '',
+      newSlotSection: 'Hero'
+    }));
+  };
+
+  const addNewSlot = () => {
+    const { newSlotId, newSlotName, newSlotSection, selectedPage } = state;
+    
+    if (!newSlotId.trim() || !newSlotName.trim()) {
+      alert('Please provide both a slot ID and slot name');
+      return;
+    }
+
+    // Check if slot ID already exists
+    const existingSlot = state.registeredSlots.find(s => s.id === newSlotId);
+    if (existingSlot) {
+      alert(`Slot ID "${newSlotId}" already exists on route "${existingSlot.route}"`);
+      return;
+    }
+
+    // Add slot to registry
+    const newSlot: Omit<RegisteredSlot, 'element'> = {
+      id: newSlotId.trim(),
+      route: selectedPage,
+      page: PAGE_LABELS[selectedPage],
+      section: newSlotSection,
+      slotName: newSlotName.trim(),
+      currentMediaId: null,
+      component: 'CustomSlot',
+    };
+
+    slotRegistry.addSlot(newSlot);
+    
+    console.log('[WORKBENCH] NEW_SLOT_ADDED', {
+      slotId: newSlot.id,
+      route: newSlot.route,
+      page: newSlot.page,
+      section: newSlot.section,
+      slotName: newSlot.slotName,
+    });
+
+    alert(`Visual slot "${newSlotName}" added successfully.\n\nSlot ID: ${newSlotId}\nRoute: ${selectedPage}\nSection: ${newSlotSection}\n\nNote: This is a programmatic slot. To use it in the website, you must add a VisualSlot component with this ID to the corresponding page component.`);
+
+    closeAddSlotDialog();
+    loadCanonicalData(); // Refresh to show the new slot
+  };
+
+  const removeSlot = (slotId: string, route: string) => {
+    if (!confirm(`Remove visual slot "${slotId}"?\n\nThis will remove the slot from the registry. Any media assignments to this slot will also be removed.`)) {
+      return;
+    }
+
+    slotRegistry.removeSlot(slotId, route);
+    
+    console.log('[WORKBENCH] SLOT_REMOVED', {
+      slotId,
+      route,
+    });
+
+    alert(`Visual slot "${slotId}" removed successfully.`);
+
+    loadCanonicalData(); // Refresh to show updated slots
   };
 
   const handleSlotAssignment = (slotId: string, assetId: string) => {
@@ -2016,9 +2118,84 @@ Check browser console for detailed logs.`);
               <RefreshCw size={14} className="inline mr-1" />
               Reload
             </button>
+            <button
+              onClick={openAddSlotDialog}
+              className="px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors flex items-center gap-2 text-xs"
+            >
+              <Plus size={14} className="inline mr-1" />
+              Add Slot
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Add Slot Dialog */}
+      {state.showAddSlotDialog && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-background border border-border rounded-lg p-6 w-full max-w-md">
+            <h3 className="text-lg font-semibold mb-4">Add Visual Slot</h3>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1">Slot ID</label>
+                <input
+                  type="text"
+                  value={state.newSlotId}
+                  onChange={(e) => setState(prev => ({ ...prev, newSlotId: e.target.value }))}
+                  className="w-full px-3 py-2 border border-border rounded bg-background text-foreground text-sm"
+                  placeholder="e.g., custom-hero-banner"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Unique identifier for this slot</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Slot Name</label>
+                <input
+                  type="text"
+                  value={state.newSlotName}
+                  onChange={(e) => setState(prev => ({ ...prev, newSlotName: e.target.value }))}
+                  className="w-full px-3 py-2 border border-border rounded bg-background text-foreground text-sm"
+                  placeholder="e.g., Hero Banner"
+                />
+                <p className="text-xs text-muted-foreground mt-1">Human-readable name for this slot</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium mb-1">Section</label>
+                <select
+                  value={state.newSlotSection}
+                  onChange={(e) => setState(prev => ({ ...prev, newSlotSection: e.target.value }))}
+                  className="w-full px-3 py-2 border border-border rounded bg-background text-foreground text-sm"
+                >
+                  <option value="Hero">Hero</option>
+                  <option value="Gallery">Gallery</option>
+                  <option value="Services">Services</option>
+                  <option value="About">About</option>
+                  <option value="Testimonials">Testimonials</option>
+                  <option value="Featured">Featured</option>
+                  <option value="Other">Other</option>
+                </select>
+                <p className="text-xs text-muted-foreground mt-1">Section this slot belongs to</p>
+              </div>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground bg-surface p-3 rounded">
+                <Info size={14} className="inline mr-1" />
+                <span>Route: {state.selectedPage} ({PAGE_LABELS[state.selectedPage]})</span>
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 mt-6">
+              <button
+                onClick={closeAddSlotDialog}
+                className="px-4 py-2 bg-surface text-foreground rounded hover:bg-surface/80 transition-colors text-sm"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={addNewSlot}
+                className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors text-sm"
+              >
+                Add Slot
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Page Navigation - Compact */}
       <div className="shrink-0 border-b border-border bg-surface px-4 py-1">
@@ -2381,7 +2558,7 @@ Check browser console for detailed logs.`);
                           </div>
                         </div>
                         <button
-                          onClick={() => state.driveSelectedFile && useDriveFile(state.driveSelectedFile)}
+                          onClick={() => state.driveSelectedFile && ingestDriveFile(state.driveSelectedFile)}
                           className="px-3 py-1.5 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 transition-colors"
                         >
                           Ingest as Media

@@ -41,7 +41,7 @@ function isProductionWriteBlocked(): boolean {
 }
 import { join } from "path";
 import { workbenchSession } from "@/lib/workbench-session";
-import { getMediaByIdAsync } from "@/lib/media";
+import { getMediaByIdAsync, resolvePublicMedia } from "@/lib/media";
 import { Redis } from '@upstash/redis';
 import { getKvNamespace } from '@/lib/environment';
 
@@ -200,22 +200,24 @@ export async function PUT(request: Request) {
       );
     }
 
-    // Validate all mediaIds exist in authoritative KV media source
+    // Validate all mediaIds pass the public media gate
+    // This ensures gallery mutations only accept media that is publicly eligible
     const mediaValidationResults = await Promise.all(
       gallery.map(async (mediaId) => {
-        const mediaExists = await getMediaByIdAsync(mediaId);
-        return { mediaId, valid: !!mediaExists };
+        // Use resolvePublicMedia to enforce the public media gate
+        const publicMedia = await resolvePublicMedia(mediaId);
+        return { mediaId, valid: !!publicMedia };
       })
     );
 
     const invalidMediaIds = mediaValidationResults.filter(r => !r.valid);
     if (invalidMediaIds.length > 0) {
-      console.error('[GALLERY V2 PUT] INVALID_MEDIA_IDS', { invalidMediaIds });
+      console.error('[GALLERY V2 PUT] INVALID_MEDIA_IDS - PUBLIC_GATE_FAILURE', { invalidMediaIds });
       return NextResponse.json(
-        { 
-          error: "Invalid media IDs provided", 
+        {
+          error: "Invalid media IDs provided",
           invalidMediaIds,
-          message: "All media IDs must exist in authoritative media sources"
+          message: "All media IDs must pass the public media gate (PublishedMediaAsset contract). Drive references, materializing assets, or non-published media cannot be added to galleries."
         },
         { status: 400 }
       );
@@ -244,8 +246,23 @@ export async function PUT(request: Request) {
       expectedRevision
     });
     
-    // CAS: Compare current revision with expected revision (only if expectedRevision is provided)
-    if (expectedRevision !== undefined && expectedRevision !== currentRevision) {
+    // CAS: Compare current revision with expected revision (REQUIRED in production)
+    if (expectedRevision === undefined) {
+      console.error('[GALLERY V2 PUT] CAS_REQUIRED', {
+        projectId,
+        environment: process.env.NODE_ENV,
+        reason: 'expectedRevision is required for production safety'
+      });
+      return NextResponse.json(
+        {
+          error: "Missing expectedRevision",
+          message: "expectedRevision parameter is required for production safety. Please read the current gallery state and provide the revision number."
+        },
+        { status: 400 }
+      );
+    }
+
+    if (expectedRevision !== currentRevision) {
       console.error('[GALLERY V2 PUT] CAS_FAILURE', {
         projectId,
         expectedRevision,
@@ -253,7 +270,7 @@ export async function PUT(request: Request) {
         reason: 'Gallery has been modified by another operation'
       });
       return NextResponse.json(
-        { 
+        {
           error: "Concurrent modification detected",
           message: "Gallery has been modified by another operation. Please reload and try again.",
           currentRevision,

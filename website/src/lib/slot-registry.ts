@@ -286,6 +286,20 @@ class SlotRegistry {
       window.removeEventListener('message', this.handleMessage);
     }
   }
+
+  // Allow programmatic slot creation (for Workbench "Add Slot" feature)
+  addSlot(slot: Omit<RegisteredSlot, 'element'>) {
+    const fullSlot: RegisteredSlot = {
+      ...slot,
+      element: null, // No DOM element for programmatically added slots
+    };
+    this.register(fullSlot);
+  }
+
+  // Remove a slot programmatically
+  removeSlot(slotId: string, route: string) {
+    this.unregister(slotId, route);
+  }
 }
 
 // Singleton instance with browser-global singleton for chunk deduplication
