@@ -35,7 +35,8 @@ export default function ConnectorsPage() {
   const [driveRequiresReauth, setDriveRequiresReauth] = useState<boolean>(false);
 
   useEffect(() => {
-    loadConnectors();
+    // P0 FIX: Single authoritative auth-status check first, then discovery
+    // Prevents race between auth/status and discovery modifying same authorization/session
     checkDriveAuth();
   }, []);
 
@@ -65,6 +66,7 @@ export default function ConnectorsPage() {
               capabilities: ['read files', 'browse folders', 'view thumbnails'],
             },
           ]);
+          setLoading(false);
           return;
         } else {
           throw new Error(data.message || 'Drive discovery failed');
@@ -85,6 +87,7 @@ export default function ConnectorsPage() {
       };
 
       setConnectors([driveConnector]);
+      setLoading(false);
     } catch (err) {
       console.error('Failed to load connectors:', err);
       setError('Failed to load connectors');
@@ -99,13 +102,13 @@ export default function ConnectorsPage() {
           capabilities: ['read files', 'browse folders', 'view thumbnails'],
         },
       ]);
-    } finally {
       setLoading(false);
     }
   };
 
   const checkDriveAuth = async () => {
     try {
+      setLoading(true);
       const response = await fetch('/api/drive/auth/status');
       if (response.ok) {
         const data = await response.json();
@@ -114,10 +117,41 @@ export default function ConnectorsPage() {
         if (data.requiresReauth) {
           setDriveRequiresReauth(true);
           // Don't set error - let connector grid render with re-auth button
+          // Set fallback connector with inactive status
+          setConnectors([
+            {
+              id: 'google-drive',
+              name: 'Google Drive',
+              type: 'google-drive',
+              status: 'inactive',
+              lastChecked: new Date().toISOString(),
+              capabilities: ['read files', 'browse folders', 'view thumbnails'],
+            },
+          ]);
+          setLoading(false);
+        } else if (data.authenticated) {
+          // Authenticated - load Drive discovery
+          await loadConnectors();
+        } else {
+          // Not authenticated - show connector with inactive status
+          setConnectors([
+            {
+              id: 'google-drive',
+              name: 'Google Drive',
+              type: 'google-drive',
+              status: 'inactive',
+              lastChecked: new Date().toISOString(),
+              capabilities: ['read files', 'browse folders', 'view thumbnails'],
+            },
+          ]);
+          setLoading(false);
         }
+      } else {
+        setLoading(false);
       }
     } catch (err) {
       console.error('Failed to check Drive auth status:', err);
+      setLoading(false);
     }
   };
 
