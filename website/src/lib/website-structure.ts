@@ -31,7 +31,7 @@ export interface VisualSlotRef {
   name: string;
   currentMediaId: string | null;
   currentMediaFilename: string | null;
-  status: 'OCCUPIED' | 'EMPTY' | 'BROKEN' | 'RECOVERABLE';
+  status: 'OCCUPIED' | 'EMPTY' | 'BROKEN' | 'RECOVERABLE' | 'DYNAMIC';
   acceptDrop: boolean;
   allowedAssetTypes: string[];
 }
@@ -167,38 +167,39 @@ export const WEBSITE_STRUCTURE: WebsitePage[] = [
         id: 'featured-transformations',
         name: 'Featured Transformations',
         component: 'BeforeAfterSlider',
-        visualSlots: [
-          {
-            id: 'our-work-featured-before-slot',
-            name: 'Before Image',
-            currentMediaId: null,
-            currentMediaFilename: 'FENCE BEFORE.jpg',
-            status: 'RECOVERABLE',
-            acceptDrop: true,
-            allowedAssetTypes: ['before', 'gallery'],
-          },
-          {
-            id: 'our-work-featured-after-slot',
-            name: 'After Image',
-            currentMediaId: null,
-            currentMediaFilename: 'FENCE AFTER.jpg',
-            status: 'RECOVERABLE',
-            acceptDrop: true,
-            allowedAssetTypes: ['after', 'hero'],
-          },
-        ],
+        visualSlots: [],
       },
       {
         id: 'recent-projects',
         name: 'Recent Projects',
-        component: 'ProjectSpotlight',
-        visualSlots: [],
+        component: 'ProjectCard',
+        visualSlots: [
+          {
+            id: 'our-work-project-card',
+            name: 'Project Card Slot',
+            currentMediaId: null,
+            currentMediaFilename: null,
+            status: 'DYNAMIC',
+            acceptDrop: true,
+            allowedAssetTypes: ['hero', 'gallery'],
+          },
+        ],
       },
       {
         id: 'project-gallery',
         name: 'Project Gallery',
-        component: 'ProjectPhotos',
-        visualSlots: [],
+        component: 'GalleryPhoto',
+        visualSlots: [
+          {
+            id: 'our-work-gallery',
+            name: 'Gallery Photo Slot',
+            currentMediaId: null,
+            currentMediaFilename: null,
+            status: 'DYNAMIC',
+            acceptDrop: true,
+            allowedAssetTypes: ['gallery', 'hero'],
+          },
+        ],
       },
     ],
   },
@@ -350,7 +351,7 @@ export function getAllEmptySlots(): VisualSlotRef[] {
   WEBSITE_STRUCTURE.forEach(page => {
     page.sections.forEach(section => {
       section.visualSlots.forEach(slot => {
-        if (slot.status === 'EMPTY' || slot.status === 'BROKEN' || slot.status === 'RECOVERABLE') {
+        if (slot.status === 'EMPTY' || slot.status === 'BROKEN' || slot.status === 'RECOVERABLE' || slot.status === 'DYNAMIC') {
           emptySlots.push(slot);
         }
       });

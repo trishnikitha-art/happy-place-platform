@@ -1,33 +1,11 @@
-/**
- * Media Workbench - Semantic Website Workbench
- *
- * Purpose: Map actual website visuals to canonical media assets
- * - LEFT: Live website preview (iframe for server components)
- * - RIGHT: Media asset management
- * - Mapping: Website element → semantic slot → canonical media ID → physical/Drive evidence
- *
- * Architecture (iframe for preview, simple slot registry):
- * - Renders actual website pages in iframe (necessary for server components)
- * - VisualSlot components register themselves to slotRegistry via postMessage
- * - Workbench receives slot identity (no coordinates, no overlays)
- * - Interaction: click slot → select media, click media → show slot usage
- * - Single source of truth: website components declare their own slots
- *
- * CRITICAL: Client component NEVER directly accesses KV credentials
- * - All KV queries go through /api/workbench/media-authority (server-side)
- * - This prevents KV_REST_API_URL and KV_REST_API_TOKEN from being exposed to browser
- *
- * Organization follows website navigation:
- * Home → Services → Our Work → About → Reviews → Estimate
- */
-
-'use client';
+"use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, ChevronRight, Loader2, List, AlertCircle, LayoutGrid, Plus, X, Info } from 'lucide-react';
+import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, ChevronRight, Loader2, List, AlertCircle, LayoutGrid, Plus, X, Info, MoreVertical } from 'lucide-react';
 import { loadVisualAssetRegistry, addDriveAssetToRegistry, type VisualAsset } from '@/lib/visual-asset-registry';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
+import { getWebsiteStructure, getPageByRoute, type WebsitePage, type WebsiteSection, type VisualSlotRef } from '@/lib/website-structure';
 
 type PageRoute = '/' | '/services' | '/our-work' | '/about' | '/reviews' | '/estimate';
 
@@ -60,10 +38,12 @@ interface MediaWorkbenchState {
   newSlotId: string;
   newSlotName: string;
   newSlotSection: string;
+  websiteStructure: WebsitePage[];
+  selectedSlotForContext: { x: number; y: number; slot: VisualSlotRef } | null;
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
-  '/': 'Home',
+  '/': 'Homepage',
   '/services': 'Services',
   '/our-work': 'Our Work',
   '/about': 'About',
@@ -72,6 +52,11 @@ const PAGE_LABELS: Record<PageRoute, string> = {
 };
 
 export default function MediaWorkbench() {
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const mediaPanelRef = useRef<HTMLDivElement>(null);
+  const assetsRef = useRef<VisualAsset[]>([]);
+  const registeredSlotsRef = useRef<RegisteredSlot[]>([]);
+
   const [state, setState] = useState<MediaWorkbenchState>({
     loading: true,
     assets: [],
@@ -101,28 +86,544 @@ export default function MediaWorkbench() {
     newSlotId: '',
     newSlotName: '',
     newSlotSection: 'Hero',
+    websiteStructure: [],
+    selectedSlotForContext: null,
   });
 
-  const mediaPanelRef = useRef<HTMLDivElement>(null);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const assetsRef = useRef<VisualAsset[]>([]);
-  const registeredSlotsRef = useRef<RegisteredSlot[]>([]);
-  const deploymentInProgressRef = useRef<boolean>(false); // Prevent deployment stacking
-
-  // Keep assetsRef in sync with state.assets (avoids stale closure in message listener)
+  // Keep refs in sync with state
   useEffect(() => {
     assetsRef.current = state.assets;
   }, [state.assets]);
 
-  // Keep registeredSlotsRef in sync with state.registeredSlots (avoids stale closure in message listener)
   useEffect(() => {
     registeredSlotsRef.current = state.registeredSlots;
   }, [state.registeredSlots]);
 
+  const loadCanonicalData = async () => {
+    try {
+      setState(prev => ({ ...prev, loading: true }));
+      
+      // Load static visual asset registry (media.v1.json)
+      const staticRegistry = await loadVisualAssetRegistry();
+      
+      // Load dynamic media from KV (Drive records) - fail-closed if KV unavailable
+      // Server-side API route to avoid exposing KV credentials to browser
+      let dynamicMediaList: any[] = [];
+      try {
+        const response = await fetch('/api/workbench/media-authority', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'list' }),
+        });
+        
+        if (response.ok) {
+          const data = await response.json();
+          dynamicMediaList = data.media || [];
+          console.log('[WORKBENCH] KV_MEDIA_LOADED', { count: dynamicMediaList.length });
+        } else {
+          console.warn('[WORKBENCH] KV_UNAVAILABLE', { status: response.status });
+          setState(prev => ({ 
+            ...prev, 
+            kvAvailable: false, 
+            kvError: `KV authority unavailable (${response.status})` 
+          }));
+        }
+      } catch (error) {
+        console.warn('[WORKBENCH] KV_ERROR', error);
+        setState(prev => ({ 
+          ...prev, 
+          kvAvailable: false, 
+          kvError: error instanceof Error ? error.message : 'Unknown KV error' 
+        }));
+      }
+      
+      // Merge static and dynamic media (dynamic wins on ID collision)
+      const mergedRegistry = [...staticRegistry];
+      dynamicMediaList.forEach((dynamicMedia: any) => {
+        const existingIndex = mergedRegistry.findIndex(a => a.id === dynamicMedia.id);
+        if (existingIndex >= 0) {
+          mergedRegistry[existingIndex] = dynamicMedia;
+        } else {
+          mergedRegistry.push(dynamicMedia);
+        }
+      });
+      
+      setState(prev => ({ 
+        ...prev, 
+        assets: mergedRegistry, 
+        loading: false 
+      }));
+      
+      console.log('[WORKBENCH] CANONICAL_DATA_LOADED', {
+        staticCount: staticRegistry.length,
+        dynamicCount: dynamicMediaList.length,
+        mergedCount: mergedRegistry.length,
+      });
+    } catch (error) {
+      console.error('[WORKBENCH] LOAD_ERROR', error);
+      setState(prev => ({ 
+        ...prev, 
+        loading: false,
+        kvAvailable: false,
+        kvError: error instanceof Error ? error.message : 'Unknown error'
+      }));
+    }
+  };
+
+  const handleSlotClick = (slot: RegisteredSlot) => {
+    console.log('[WORKBENCH] SLOT_CLICKED', {
+      slotId: slot.id,
+      route: slot.route,
+      page: slot.page,
+      section: slot.section,
+      slotName: slot.slotName,
+      currentMediaId: slot.currentMediaId,
+    });
+    
+    setState(prev => ({ ...prev, selectedSlot: slot }));
+    
+    // If slot has media, select that media
+    if (slot.currentMediaId) {
+      const asset = state.assets.find(a => a.id === slot.currentMediaId);
+      if (asset) {
+        setState(prev => ({ ...prev, selectedAsset: asset }));
+      }
+    }
+  };
+
+  const handleAssetClick = (asset: VisualAsset) => {
+    setState(prev => ({ ...prev, selectedAsset: asset }));
+    const usingSlots = state.registeredSlots.filter(s => s.currentMediaId === asset.id);
+    if (usingSlots.length > 0) {
+      setState(prev => ({ ...prev, selectedSlot: usingSlots[0] }));
+    }
+  };
+
+  const handleDragStart = (e: React.DragEvent, asset: VisualAsset | any, driveFile?: any) => {
+    console.log('[DND] DRAG_START', {
+      isDriveFile: !!driveFile,
+      assetId: asset?.id,
+      fileId: driveFile?.id,
+      filename: driveFile?.name || asset?.filename,
+      source: driveFile ? 'google-drive' : asset?.source,
+    });
+    
+    // If this is a Drive file that's not yet ingested, emit Drive identity
+    if (driveFile && driveFile.id) {
+      const driveReference = {
+        source: 'google-drive' as const,
+        fileId: driveFile.id,
+        sharedDriveId: state.driveCurrentDriveId || undefined,
+        name: driveFile.name,
+        mimeType: driveFile.mimeType, // Do NOT default - must be provided by Drive
+        modifiedTime: driveFile.modifiedTime,
+        webViewUrl: driveFile.webViewLink,
+      };
+      
+      e.dataTransfer.setData(
+        'application/x-workbench-asset',
+        JSON.stringify(driveReference)
+      );
+      
+      e.dataTransfer.setData('text/plain', `drive:${driveFile.id}`);
+      
+      console.log('[DND] DATA_TRANSFER_SET', {
+        type: 'drive-reference',
+        driveReference,
+      });
+    } else if (asset) {
+      // Existing asset - use asset ID
+      const assetId = asset.id;
+      
+      e.dataTransfer.setData(
+        'application/x-workbench-asset',
+        JSON.stringify({
+          assetId,
+          source: asset.source,
+        })
+      );
+      
+      e.dataTransfer.setData('text/plain', assetId);
+      
+      console.log('[DND] DATA_TRANSFER_SET', {
+        type: 'asset-reference',
+        assetId,
+        source: asset.source,
+      });
+    }
+
+    e.dataTransfer.effectAllowed = 'copy';
+    if (asset) {
+      setState(prev => ({ ...prev, selectedAsset: asset }));
+    }
+  };
+
+  const handleDriveDropToSlot = async (
+    slot: RegisteredSlot,
+    media: VisualAsset,
+    currentMediaId: string | null,
+    requestId: string
+  ) => {
+    console.log('[DND] HANDLE_DRIVE_DROP_TO_SLOT', {
+      requestId,
+      slotId: slot.id,
+      slotName: slot.slotName,
+      mediaId: media.id,
+      mediaFilename: media.filename,
+      currentMediaId,
+    });
+
+    if (!confirm(`Replace "${slot.slotName}" with "${media.filename}"?`)) {
+      console.log('[DND] DROP_CANCELLED_BY_USER', { requestId });
+      return;
+    }
+
+    try {
+      setState(prev => ({ ...prev, isAccepting: true }));
+
+      // Call assignment API to make the assignment
+      const response = await fetch('/api/workbench/assign-media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          slotId: slot.id,
+          mediaId: media.id,
+          route: slot.route,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to assign media');
+      }
+
+      const result = await response.json();
+      console.log('[DND] ASSIGNMENT_SUCCESS', {
+        requestId,
+        slotId: slot.id,
+        mediaId: media.id,
+        result,
+      });
+
+      // Update local state
+      setState(prev => {
+        const updatedSlots = prev.registeredSlots.map(s =>
+          s.id === slot.id ? { ...s, currentMediaId: media.id } : s
+        );
+        return {
+          ...prev,
+          registeredSlots: updatedSlots,
+          selectedSlot: { ...slot, currentMediaId: media.id },
+        };
+      });
+
+      // Force iframe reload to pick up authority changes after assignment
+      if (iframeRef.current) {
+        console.log('[DND] IFRAME_RELOAD_TRIGGERED', {
+          slotId: slot.id,
+          assetId: media.id,
+        });
+        iframeRef.current.src = iframeRef.current.src;
+      }
+    } catch (error) {
+      console.error('[DND] ASSIGNMENT_ERROR', { requestId, error });
+      alert(`Failed to assign media: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setState(prev => ({ ...prev, isAccepting: false }));
+    }
+  };
+
+  const materializeDriveFile = async (
+    applicationData: any,
+    slot: RegisteredSlot,
+    requestId: string
+  ) => {
+    console.log('[DND] MATERIALIZING_DRIVE_FILE', {
+      requestId,
+      fileId: applicationData.fileId,
+      sharedDriveId: applicationData.sharedDriveId,
+      slotId: slot.id,
+    });
+
+    try {
+      setState(prev => ({ ...prev, isAccepting: true }));
+
+      // Call materialization API
+      const response = await fetch('/api/workbench/materialize-drive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          fileId: applicationData.fileId,
+          sharedDriveId: applicationData.sharedDriveId,
+          fileName: applicationData.name,
+          mimeType: applicationData.mimeType,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to materialize Drive file');
+      }
+
+      const result = await response.json();
+      console.log('[DND] MATERIALIZATION_SUCCESS', {
+        requestId,
+        assetId: result.asset.id,
+        filename: result.asset.filename,
+      });
+
+      // Add to registry
+      addDriveAssetToRegistry(result.asset);
+
+      // Reload canonical data to include new asset
+      await loadCanonicalData();
+
+      // Now assign to slot
+      const asset = result.asset;
+      await handleDriveDropToSlot(slot, asset, slot.currentMediaId, requestId);
+    } catch (error) {
+      console.error('[DND] MATERIALIZATION_ERROR', { requestId, error });
+      alert(`Failed to materialize Drive file: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setState(prev => ({ ...prev, isAccepting: false }));
+    }
+  };
+
+  const verifyMediaMaterializationComplete = async (assetId: string): Promise<boolean> => {
+    try {
+      const response = await fetch(`/api/workbench/verify-materialization?assetId=${assetId}`);
+      if (!response.ok) {
+        console.warn('[DND] VERIFICATION_FAILED', { assetId, status: response.status });
+        return false;
+      }
+      const result = await response.json();
+      return result.complete === true;
+    } catch (error) {
+      console.error('[DND] VERIFICATION_ERROR', { assetId, error });
+      return false;
+    }
+  };
+
+  const loadDriveStructure = async () => {
+    try {
+      setState(prev => ({ ...prev, driveLoading: true, driveError: null }));
+      
+      const response = await fetch('/api/drive/structure');
+      if (!response.ok) {
+        throw new Error('Failed to load Drive structure');
+      }
+      
+      const structure = await response.json();
+      setState(prev => ({ 
+        ...prev, 
+        driveStructure: structure, 
+        driveLoading: false 
+      }));
+      
+      console.log('[WORKBENCH] DRIVE_STRUCTURE_LOADED', structure);
+    } catch (error) {
+      console.error('[WORKBENCH] DRIVE_STRUCTURE_ERROR', error);
+      setState(prev => ({ 
+        ...prev, 
+        driveLoading: false, 
+        driveError: error instanceof Error ? error.message : 'Failed to load Drive structure' 
+      }));
+    }
+  };
+
+  const loadDriveFiles = async (folderId: string, pageToken?: string, driveId?: string | null) => {
+    try {
+      setState(prev => ({ ...prev, driveLoading: true, driveError: null }));
+      
+      const params = new URLSearchParams({ folderId });
+      if (pageToken) params.append('pageToken', pageToken);
+      if (driveId) params.append('driveId', driveId);
+      
+      const response = await fetch(`/api/drive/files?${params.toString()}`);
+      if (!response.ok) {
+        throw new Error('Failed to load Drive files');
+      }
+      
+      const data = await response.json();
+      
+      setState(prev => ({
+        ...prev,
+        driveFiles: pageToken ? [...prev.driveFiles, ...data.files] : data.files,
+        driveNextPageToken: data.nextPageToken,
+        driveLoading: false,
+      }));
+      
+      console.log('[WORKBENCH] DRIVE_FILES_LOADED', { 
+        count: data.files.length, 
+        hasMore: !!data.nextPageToken 
+      });
+    } catch (error) {
+      console.error('[WORKBENCH] DRIVE_FILES_ERROR', error);
+      setState(prev => ({ 
+        ...prev, 
+        driveLoading: false, 
+        driveError: error instanceof Error ? error.message : 'Failed to load Drive files' 
+      }));
+    }
+  };
+
+  const selectDriveFile = (file: DriveFile) => {
+    setState(prev => ({ ...prev, driveSelectedFile: file }));
+  };
+
+  const navigateToFolder = (folder: DriveFolder) => {
+    setState(prev => ({
+      ...prev,
+      driveCurrentFolderId: folder.id,
+      driveBreadcrumb: [...prev.driveBreadcrumb, { id: folder.id, name: folder.name }],
+      driveFiles: [],
+      driveNextPageToken: undefined,
+    }));
+    loadDriveFiles(folder.id, undefined, state.driveCurrentDriveId);
+  };
+
+  const navigateBreadcrumb = (index: number) => {
+    const target = state.driveBreadcrumb[index];
+    setState(prev => ({
+      ...prev,
+      driveCurrentFolderId: target.id,
+      driveBreadcrumb: prev.driveBreadcrumb.slice(0, index + 1),
+      driveFiles: [],
+      driveNextPageToken: undefined,
+    }));
+    loadDriveFiles(target.id, undefined, state.driveCurrentDriveId);
+  };
+
+  const loadMoreDriveFiles = () => {
+    if (state.driveNextPageToken && !state.driveLoadingMore) {
+      setState(prev => ({ ...prev, driveLoadingMore: true }));
+      loadDriveFiles(state.driveCurrentFolderId, state.driveNextPageToken, state.driveCurrentDriveId);
+    }
+  };
+
+  const cancelAssignment = () => {
+    setState(prev => ({ ...prev, pendingAssignments: new Map() }));
+  };
+
+  const removePendingAssignment = (slotId: string) => {
+    setState(prev => {
+      const newAssignments = new Map(prev.pendingAssignments);
+      newAssignments.delete(slotId);
+      return { ...prev, pendingAssignments: newAssignments };
+    });
+  };
+
+  const openAddSlotDialog = () => {
+    setState(prev => ({ 
+      ...prev, 
+      showAddSlotDialog: true,
+      newSlotId: `custom-slot-${Date.now()}`,
+      newSlotName: '',
+      newSlotSection: 'Hero'
+    }));
+  };
+
+  const closeAddSlotDialog = () => {
+    setState(prev => ({ 
+      ...prev, 
+      showAddSlotDialog: false,
+      newSlotId: '',
+      newSlotName: '',
+      newSlotSection: 'Hero'
+    }));
+  };
+
+  const addNewSlot = () => {
+    const { newSlotId, newSlotName, newSlotSection, selectedPage } = state;
+    
+    if (!newSlotId.trim() || !newSlotName.trim()) {
+      alert('Please provide both a slot ID and slot name');
+      return;
+    }
+
+    // Check if slot ID already exists
+    const existingSlot = state.registeredSlots.find(s => s.id === newSlotId);
+    if (existingSlot) {
+      alert(`Slot ID "${newSlotId}" already exists on route "${existingSlot.route}"`);
+      return;
+    }
+
+    // Add slot to registry
+    const newSlot: Omit<RegisteredSlot, 'element'> = {
+      id: newSlotId.trim(),
+      route: selectedPage,
+      page: PAGE_LABELS[selectedPage],
+      section: newSlotSection,
+      slotName: newSlotName.trim(),
+      currentMediaId: null,
+      component: 'CustomSlot',
+    };
+
+    slotRegistry.addSlot(newSlot);
+    
+    console.log('[WORKBENCH] NEW_SLOT_ADDED', {
+      slotId: newSlot.id,
+      route: newSlot.route,
+      page: newSlot.page,
+      section: newSlot.section,
+      slotName: newSlot.slotName,
+    });
+
+    alert(`Visual slot "${newSlotName}" added successfully.\n\nSlot ID: ${newSlotId}\nRoute: ${selectedPage}\nSection: ${newSlotSection}\n\nNote: This is a programmatic slot. To use it in the website, you must add a VisualSlot component with this ID to the corresponding page component.`);
+
+    closeAddSlotDialog();
+    loadCanonicalData(); // Refresh to show the new slot
+  };
+
+  const handleSlotRightClick = (e: React.MouseEvent, slot: VisualSlotRef) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setState(prev => ({ 
+      ...prev, 
+      selectedSlotForContext: { x: e.clientX, y: e.clientY, slot }
+    }));
+  };
+
+  const closeContextMenu = () => {
+    setState(prev => ({ ...prev, selectedSlotForContext: null }));
+  };
+
+  // Close context menu on click outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      closeContextMenu();
+    };
+
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  const removeSlot = (slotId: string, route: string) => {
+    if (!confirm(`Remove visual slot "${slotId}"?\n\nThis will remove the slot from the registry. Any media assignments to this slot will also be removed.`)) {
+      return;
+    }
+
+    slotRegistry.removeSlot(slotId, route);
+    
+    console.log('[WORKBENCH] SLOT_REMOVED', {
+      slotId,
+      route,
+    });
+
+    alert(`Visual slot "${slotId}" removed successfully.`);
+
+    loadCanonicalData(); // Refresh to show updated slots
+  };
+
+  // Main effect for loading data and setting up event listeners
   useEffect(() => {
     console.log('[WORKBENCH] MESSAGE_LISTENER_ATTACHING');
 
     loadCanonicalData();
+
+    // Load website structure for slot grid
+    const structure = getWebsiteStructure();
+    setState(prev => ({ ...prev, websiteStructure: structure }));
 
     // Subscribe to slot registry changes
     const unsubscribe = slotRegistry.subscribe(() => {
@@ -278,10 +779,6 @@ export default function MediaWorkbench() {
         alert(`Failed to add to gallery: ${error instanceof Error ? error.message : String(error)}`);
       }
     };
-
-    window.addEventListener('slot-click', handleSlotClickEvent);
-    window.addEventListener('delete-gallery', handleDeleteGalleryEvent);
-    window.addEventListener('add-to-gallery', handleAddToGalleryEvent);
 
     // Listen for iframe messages (SLOT_REGISTER and SLOT_CLICK)
     const handleMessage = async (event: MessageEvent) => {
@@ -617,110 +1114,48 @@ export default function MediaWorkbench() {
             requestedAssetId: assetId,
             registryCount: assetsRef.current.length,
           });
-          
-          // Resolve to canonical ID (handles legacy URL-based assetIds)
-          const canonicalAssetId = resolveAssetId(assetId, assetsRef.current);
-          
-          console.log('[DND] ASSET_ID_RESOLUTION', {
-            requestId,
-            rawAssetId: assetId,
-            canonicalAssetId,
-            resolutionMethod: canonicalAssetId === assetId ? 'direct' : 'variant-fallback',
-          });
-          
-          if (!canonicalAssetId) {
-            console.log('[DND_ERROR] ASSET_LOOKUP_FAILED', {
+
+          const asset = assetsRef.current.find(a => a.id === assetId);
+          if (!asset) {
+            console.error('[DND] ASSET_NOT_FOUND', {
               requestId,
-              stage: 'ASSET_LOOKUP',
-              slotId,
               requestedAssetId: assetId,
               registryCount: assetsRef.current.length,
-            });
-            
-            // Log sample registry IDs for debugging
-            console.log('[DND] REGISTRY_IDS', {
-              requestId,
-              ids: assetsRef.current.slice(0, 30).map(a => ({
+              sampleIds: assetsRef.current.slice(0, 30).map(a => ({
                 id: a.id,
                 filename: a.filename,
                 source: a.source,
                 driveFileId: a.drive?.fileId,
               })),
             });
-            
+
             alert(`Asset not found: ${assetId.substring(0, 50)}...`);
             return;
           }
-          
-          const asset = assetsRef.current.find(a => a.id === canonicalAssetId);
-          
-          console.log('[DND] ASSET_LOOKUP_SUCCESS', {
+
+          const canonicalAssetId = asset.id;
+          console.log('[DND] ASSET_RESOLVED', {
             requestId,
+            requestedAssetId: assetId,
             canonicalAssetId,
-            found: !!asset,
-            filename: asset?.filename,
-            source: asset?.source,
+            filename: asset.filename,
+            source: asset.source,
           });
-          
-          if (asset) {
-            // Gallery duplicate prevention: check if mediaId is already in another gallery slot
-            if (slotId.startsWith('our-work-gallery::') || slotId.startsWith('project-gallery::')) {
-              const existingGallerySlot = registeredSlotsRef.current.find(s => 
-                s.section === 'Gallery' && 
-                s.currentMediaId === canonicalAssetId && 
-                s.id !== slotId
-              );
-              if (existingGallerySlot) {
-                alert(`This media is already assigned to ${existingGallerySlot.slotName}. Each gallery image can only be used once.`);
-                return;
-              }
-            }
 
-            console.log('[WB_FORENSIC] ASSIGNMENT_STAGED', {
-              requestId,
-              slotId,
-              canonicalAssetId,
-              currentMediaId: slot.currentMediaId,
-              timestamp: Date.now(),
-            });
-
-            console.log('[DND] STAGE_ASSIGNMENT', {
-              requestId,
-              slotId,
-              canonicalAssetId,
-              currentMediaId: slot.currentMediaId,
-            });
-            
-            // GALLERY DUPLICATE PREVENTION: Check if this mediaId is already assigned to another gallery slot
-            if (slot.section === 'Gallery') {
-              const existingGalleryAssignment = Array.from(state.pendingAssignments.values()).find(
-                p => p.slot.section === 'Gallery' && p.asset.id === canonicalAssetId && p.slot.id !== slot.id
-              );
-              if (existingGalleryAssignment) {
-                alert(`This media is already assigned to ${existingGalleryAssignment.slot.slotName}. A media asset can only appear in one gallery slot.`);
-                return;
-              }
-            }
-            
-            // STAGE the assignment (upsert by slot ID - latest wins for same slot)
-            handleSlotAssignment(slot.id, canonicalAssetId);
-          } else {
-            console.log('[DND 7] SLOT_ASSIGNMENT_ATTEMPT - ASSET NOT FOUND', {
-              requestId,
-              slotId,
-              assetId,
-            });
-          }
+          handleDriveDropToSlot(slot, asset, slot.currentMediaId, requestId);
         } else {
-          console.log('[FORENSIC] parent NO ASSET_ID in drop message', { slotId });
+          console.error('[DND] NO_ASSET_ID', { requestId });
         }
-      } else {
-        console.log('[FORENSIC] IGNORED_MESSAGE_TYPE', { messageType: event.data?.type });
+      } else if (messageType === 'REFRESH_SLOTS') {
+        console.log('[WB_FORENSIC] REFRESH_SLOTS_RECEIVED');
+        loadCanonicalData();
       }
     };
-    window.addEventListener('message', handleMessage);
 
-    console.log('[WORKBENCH] MESSAGE_LISTENER_ATTACHED');
+    window.addEventListener('slot-click', handleSlotClickEvent);
+    window.addEventListener('delete-gallery', handleDeleteGalleryEvent);
+    window.addEventListener('add-to-gallery', handleAddToGalleryEvent);
+    window.addEventListener('message', handleMessage);
 
     return () => {
       unsubscribe();
@@ -731,1314 +1166,34 @@ export default function MediaWorkbench() {
     };
   }, []);
 
-  const loadCanonicalData = async () => {
-    try {
-      setState(prev => ({ ...prev, loading: true }));
-      
-      // Load static visual asset registry (media.v1.json)
-      const staticRegistry = await loadVisualAssetRegistry();
-      
-      // Load dynamic media from KV (Drive records) - fail-closed if KV unavailable
-      // Server-side API route to avoid exposing KV credentials to browser
-      let dynamicMediaList: any[] = [];
-      try {
-        const response = await fetch('/api/workbench/media-authority', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'getPublishedMediaAssets' }),
-        });
-        const result = await response.json();
-        
-        if (result.available) {
-          dynamicMediaList = result.assets;
-          setState(prev => ({ ...prev, kvAvailable: true, kvError: null }));
-        } else {
-          // KV infrastructure unavailable - set unavailable state
-          console.error('[WORKBENCH] KV media authority unavailable - AUTHORITY UNAVAILABLE:', result.error);
-          setState(prev => ({ 
-            ...prev, 
-            kvAvailable: false, 
-            kvError: result.error || 'KV authority unavailable'
-          }));
-          // Continue with static registry as read-only evidence - no authoritative mutations allowed
-        }
-      } catch (error) {
-        console.error('[WORKBENCH] KV media authority unavailable - AUTHORITY UNAVAILABLE:', error);
-        // Set KV unavailable state - this is a blocking error for authoritative mutations
-        setState(prev => ({ 
-          ...prev, 
-          kvAvailable: false, 
-          kvError: error instanceof Error ? error.message : 'KV authority unavailable'
-        }));
-        // Continue with static registry as read-only evidence - no authoritative mutations allowed
-      }
-      
-      // Combine static + dynamic media for complete inventory
-      const combinedRegistry = [...staticRegistry];
-      
-      // Add KV Drive records that aren't already in static registry
-      for (const dynamicMedia of dynamicMediaList) {
-        const exists = staticRegistry.some(a => a.id === dynamicMedia.id);
-        if (!exists) {
-          const driveAsset = await addDriveAssetToRegistry(dynamicMedia);
-          combinedRegistry.push(driveAsset);
-        }
-      }
-      
-      console.log('[WORKBENCH] COMBINED_REGISTRY_LOADED', {
-        staticCount: staticRegistry.length,
-        dynamicCount: dynamicMediaList.length,
-        combinedCount: combinedRegistry.length,
-      });
-      
-      setState(prev => ({ ...prev, assets: combinedRegistry, registeredSlots: slotRegistry.getAll() }));
-    } catch (err) {
-      console.error('Failed to load canonical data:', err);
-    } finally {
-      setState(prev => ({ ...prev, loading: false }));
+  // Filter assets based on search and filter state
+  const filteredAssets = state.assets.filter(asset => {
+    // Search filter
+    if (state.searchQuery) {
+      const query = state.searchQuery.toLowerCase();
+      const matchesSearch = 
+        asset.filename.toLowerCase().includes(query) ||
+        asset.id.toLowerCase().includes(query) ||
+        (asset.alt && asset.alt.toLowerCase().includes(query));
+      if (!matchesSearch) return false;
     }
-  };
 
-  const loadDriveStructure = async () => {
-    try {
-      setState(prev => ({ ...prev, driveLoading: true, driveError: null }));
-      const response = await fetch('/api/drive/discovery');
-      if (!response.ok) {
-        throw new Error('Failed to load Drive structure');
-      }
-      const structure = await response.json();
-      setState(prev => ({ ...prev, driveStructure: structure }));
-    } catch (error) {
-      console.error('Failed to load Drive structure:', error);
-      setState(prev => ({ ...prev, driveError: error instanceof Error ? error.message : 'Unknown error' }));
-    } finally {
-      setState(prev => ({ ...prev, driveLoading: false }));
-    }
-  };
-
-  const loadDriveFiles = async (folderId: string = 'root', pageToken?: string, driveId?: string | null) => {
-    try {
-      setState(prev => ({ ...prev, driveLoading: true, driveError: null }));
-      const params = new URLSearchParams({ folderId });
-      if (pageToken) params.set('pageToken', pageToken);
-      if (driveId) params.set('driveId', driveId);
-
-      const response = await fetch(`/api/drive/files?${params}`);
-      if (!response.ok) {
-        throw new Error('Failed to load Drive files');
-      }
-      const result = await response.json();
-
-      setState(prev => ({
-        ...prev,
-        driveFiles: pageToken ? [...prev.driveFiles, ...result.items] : result.items,
-        driveNextPageToken: result.nextPageToken,
-        driveLoading: false,
-        driveLoadingMore: false,
-      }));
-    } catch (error) {
-      console.error('Failed to load Drive files:', error);
-      setState(prev => ({ ...prev, driveError: error instanceof Error ? error.message : 'Unknown error', driveLoading: false, driveLoadingMore: false }));
-    }
-  };
-
-  const navigateToFolder = async (folder: DriveFolder) => {
-    setState(prev => ({
-      ...prev,
-      driveCurrentFolderId: folder.id,
-      driveBreadcrumb: [...prev.driveBreadcrumb, { id: folder.id, name: folder.name }],
-      driveFiles: [],
-      driveNextPageToken: undefined,
-      driveSelectedFile: null,
-      driveLoading: true,
-    }));
-    await loadDriveFiles(folder.id, undefined, state.driveCurrentDriveId);
-  };
-
-  const navigateUp = (index: number) => {
-    const newBreadcrumb = state.driveBreadcrumb.slice(0, index + 1);
-    const target = newBreadcrumb[newBreadcrumb.length - 1];
-    
-    setState(prev => ({
-      ...prev,
-      driveCurrentFolderId: target.id,
-      driveBreadcrumb: newBreadcrumb,
-      driveFiles: [],
-      driveNextPageToken: undefined,
-      driveSelectedFile: null,
-      driveLoading: true,
-    }));
-    
-    // Preserve the current driveId throughout breadcrumb navigation
-    loadDriveFiles(target.id, undefined, state.driveCurrentDriveId);
-  };
-
-  const loadMoreDriveFiles = () => {
-    if (state.driveNextPageToken && !state.driveLoadingMore) {
-      setState(prev => ({ ...prev, driveLoadingMore: true }));
-      loadDriveFiles(state.driveCurrentFolderId, state.driveNextPageToken, state.driveCurrentDriveId);
-    }
-  };
-
-  const selectDriveFile = async (file: DriveFile) => {
-    setState(prev => ({ ...prev, driveSelectedFile: file }));
-    
-    // NO AUTOMATIC INGESTION: Selection is just selection
-    // Materialization must be explicit via "Ingest as Media" button
-    console.log('[WORKBENCH] Drive file selected (no automatic ingestion)', {
-      fileId: file.id,
-      name: file.name,
-    });
-  };
-
-  const ingestDriveFile = async (file: DriveFile) => {
-    try {
-      console.log('[WORKBENCH] Starting Drive file ingestion', {
-        fileId: file.id,
-        driveId: state.driveCurrentDriveId,
-        filename: file.name,
-        mimeType: file.mimeType,
-        size: file.size,
-        environment: process.env.NODE_ENV,
-      });
-
-      const requestBody = { 
-        driveId: file.id,
-        driveIdParameter: state.driveCurrentDriveId, // Pass Shared Drive ID if present
-      };
-      
-      const endpoint = '/api/drive/ingest';
-      console.log('[WORKBENCH] API request', {
-        endpoint,
-        method: 'POST',
-        body: JSON.stringify(requestBody),
-      });
-
-      const response = await fetch(endpoint, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(requestBody),
-      });
-      
-      console.log('[WORKBENCH] API response', {
-        status: response.status,
-        statusText: response.statusText,
-        ok: response.ok,
-        contentType: response.headers.get('content-type'),
-      });
-      
-      // Get response text first for debugging
-      const responseText = await response.text();
-      console.log('[WORKBENCH] Response body (first 500 chars)', {
-        preview: responseText.substring(0, 500),
-        length: responseText.length,
-        isHTML: responseText.startsWith('<!DOCTYPE') || responseText.startsWith('<html'),
-      });
-      
-      // Parse JSON only if it looks like JSON
-      let data;
-      try {
-        data = JSON.parse(responseText);
-      } catch (parseError) {
-        console.error('[WORKBENCH] JSON parse failed', {
-          error: parseError,
-          responseText: responseText.substring(0, 1000),
-        });
-        
-        // Return structured error with actual response info
-        alert(`API Error (Status ${response.status}):
-Expected JSON but received ${responseText.startsWith('<!DOCTYPE') ? 'HTML' : 'non-JSON'} response
-
-URL: ${endpoint}
-Status: ${response.status} ${response.statusText}
-Content-Type: ${response.headers.get('content-type') || 'unknown'}
-
-First 200 chars of response:
-${responseText.substring(0, 200)}`);
-        return;
-      }
-      
-      console.log('[WORKBENCH] Ingestion response parsed', {
-        success: data.success,
-        action: data.action,
-        error: data.error,
-        stage: data.stage,
-        message: data.message,
-        mediaId: data.media?.id,
-        requestId: data.requestId,
-      });
-      
-      if (response.ok) {
-        console.log('[WORKBENCH] Ingestion succeeded', {
-          action: data.action,
-          mediaId: data.media?.id,
-        });
-        
-        // Add the newly ingested asset to the registry
-        if (data.action === 'created' && data.media) {
-          const driveAsset = await addDriveAssetToRegistry(data.media);
-          
-          console.log('[DND] CANONICAL_ASSET', {
-            id: driveAsset.id,
-            source: driveAsset.source,
-            filename: driveAsset.filename,
-            driveFileId: driveAsset.drive?.fileId,
-            sharedDriveId: driveAsset.drive?.driveId,
-            thumbnail: driveAsset.variants?.thumbnail,
-          });
-          
-          setState(prev => ({ 
-            ...prev, 
-            assets: [...prev.assets, driveAsset],
-            driveBrowsing: false, 
-            driveSelectedFile: null 
-          }));
-          
-          // COMPLETE THE SLOT ASSIGNMENT TRANSITION
-          // If a slot was selected when Drive file was ingested, assign the new asset to it
-          if (state.selectedSlot) {
-            console.log('[WORKBENCH] Auto-assigning newly ingested Drive asset to selected slot', {
-              slotId: state.selectedSlot.id,
-              mediaId: driveAsset.id,
-              slotName: state.selectedSlot.slotName,
-            });
-            handleSlotAssignment(state.selectedSlot.id, driveAsset.id);
-            alert(`Drive asset created and assigned to ${state.selectedSlot.slotName}: ${driveAsset.id}`);
-          } else {
-            alert(`Drive asset created: ${driveAsset.id}`);
-          }
-        } else if (data.action === 'existing') {
-          alert(`Drive asset already exists: ${data.media.id}`);
-          loadCanonicalData(); // Reload to show existing asset
-        }
-      } else {
-        console.error('[WORKBENCH] Ingestion failed with error:', data);
-        const errorDetails = `
-Status: ${response.status} ${response.statusText}
-Error: ${data.error || 'UNKNOWN'}
-Stage: ${data.stage || 'UNKNOWN'}
-Message: ${data.message || 'Unknown error'}
-Details: ${data.details || 'None'}
-Request ID: ${data.requestId || 'None'}
-        `.trim();
-        alert(errorDetails);
-      }
-    } catch (error) {
-      console.error('[WORKBENCH] Failed to use Drive file:', error);
-      alert(`Error: Failed to use Drive asset
-
-${error instanceof Error ? error.message : 'Unknown error'}
-
-This may be due to:
-- Network error
-- Authentication redirect
-- API endpoint not found
-- Vercel Blob/KV not configured
-
-Check browser console for detailed logs.`);
-    }
-  };
-
-  const filteredAssets = state.assets.filter((asset) => {
-    const matchesSearch = 
-      asset.filename.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
-      asset.id.toLowerCase().includes(state.searchQuery.toLowerCase()) ||
-      asset.tags.some(tag => tag.toLowerCase().includes(state.searchQuery.toLowerCase()));
-    
-    if (!matchesSearch) return false;
-
-    const usedSlots = state.registeredSlots.filter(s => s.currentMediaId === asset.id);
-    const isUsed = usedSlots.length > 0;
-    const isDriveOnly = asset.classification === 'DRIVE_ONLY';
-    const isPublished = asset.classification === 'PUBLISHED';
-    const isLegacy = asset.classification !== 'PUBLISHED' && asset.classification !== 'DRIVE_ONLY';
-
+    // Category filter
     switch (state.filter) {
-      case 'used': return isUsed;
-      case 'unused': return !isUsed;
-      case 'drive': return isDriveOnly;
-      case 'published': return isPublished;
-      case 'legacy': return isLegacy;
-      default: return true;
+      case 'used':
+        return state.registeredSlots.some(s => s.currentMediaId === asset.id);
+      case 'unused':
+        return !state.registeredSlots.some(s => s.currentMediaId === asset.id);
+      case 'drive':
+        return asset.classification === 'DRIVE_ONLY';
+      case 'published':
+        return asset.classification === 'PUBLISHED';
+      case 'legacy':
+        return asset.classification !== 'PUBLISHED' && asset.classification !== 'DRIVE_ONLY';
+      default:
+        return true;
     }
   });
-
-  const getSlotMedia = async (slot: RegisteredSlot) => {
-    if (!slot.currentMediaId) return null;
-    // P0 FIX: Resolve media from already-loaded Workbench asset state instead of direct KV access
-    // Browser must not access KV credentials directly - use server API boundary or local asset state
-    const media = state.assets.find(a => a.id === slot.currentMediaId);
-    return media || null;
-  };
-
-  // Compatibility fallback: resolve URL-based assetIds to canonical IDs
-  function resolveAssetId(rawId: string, assets: VisualAsset[]): string | null {
-    // Direct match - canonical ID
-    const direct = assets.find(a => a.id === rawId);
-    if (direct) {
-      return direct.id;
-    }
-    
-    // Fallback: match against filename (for Drive file names being used as IDs)
-    const byFilename = assets.find(a => a.filename === rawId);
-    if (byFilename) {
-      return byFilename.id;
-    }
-    
-    // Fallback: match against variant URLs (for legacy URL-based assetIds)
-    const byVariant = assets.find(a =>
-      Object.values(a.variants ?? {}).some(
-        value => value === rawId
-      )
-    );
-    
-    return byVariant?.id ?? null;
-  }
-
-  const confirmAssignment = async () => {
-    if (state.pendingAssignments.size === 0) return;
-    if (state.isAccepting) return; // Prevent double-click
-    if (deploymentInProgressRef.current) {
-      console.log('[DEPLOY TRIGGER] DEPLOYMENT_ALREADY_IN_PROGRESS - blocking duplicate');
-      alert('A deployment is already in progress. Please wait for it to complete.');
-      return;
-    }
-
-    console.log('[WB_FORENSIC] CONFIRM_STARTED', {
-      count: state.pendingAssignments.size,
-      timestamp: Date.now(),
-    });
-
-    deploymentInProgressRef.current = true;
-    setState(prev => ({ ...prev, isAccepting: true }));
-
-    console.log('[DND] CONFIRMING_ASSIGNMENTS', {
-      count: state.pendingAssignments.size,
-      assignments: Array.from(state.pendingAssignments.values()).map(a => ({
-        slotId: a.slot.id,
-        assetId: a.asset.id,
-        currentMediaId: a.slot.currentMediaId,
-      })),
-    });
-
-    alert(`Processing ${state.pendingAssignments.size} pending assignment(s)...\n\nThis will:\n1. Persist changes to staging\n2. Create deployment transaction\n3. Commit to GitHub\n4. Trigger Vercel deployment\n\nPlease wait for completion.`);
-
-    // Track success/failure and errors
-    let successCount = 0;
-    let failureCount = 0;
-    const failures: Array<{slotId: string, assetId: string, error: string}> = [];
-
-    // Generate single transaction ID for entire confirmation batch
-    const deploymentTransactionId = `WBDEP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    console.log('[DND] DEPLOYMENT_TRANSACTION_GENERATED', { deploymentTransactionId });
-
-    // Process all pending assignments with shared transaction ID
-    for (const { slot, asset } of state.pendingAssignments.values()) {
-      try {
-        console.log('[DND] SLOT_ASSIGNMENT_PERSIST', {
-          slotId: slot.id,
-          assetId: asset.id,
-          slotName: slot.slotName,
-          transactionId: deploymentTransactionId,
-        });
-        
-        const result = await assignAssetToSlot(asset, slot, deploymentTransactionId);
-        
-        // CRITICAL: Only log success and increment successCount after verifying persistence succeeded
-        // assignAssetToSlot throws on failure, so reaching this line means persistence succeeded
-        successCount++;
-        
-        console.log('[DND] SLOT_ASSIGNMENT_SUCCESS', {
-          slotId: slot.id,
-          assetId: asset.id,
-          transactionId: deploymentTransactionId,
-          result,
-        });
-      } catch (error) {
-        failureCount++;
-        failures.push({
-          slotId: slot.id,
-          assetId: asset.id,
-          error: error instanceof Error ? error.message : String(error)
-        });
-        console.error('[DND] SLOT_ASSIGNMENT_FAILED', {
-          slotId: slot.id,
-          assetId: asset.id,
-          error: error instanceof Error ? error.message : String(error),
-        });
-        // Do not alert here - collect all failures and report summary at end
-      }
-    }
-
-    // Only proceed with deployment if all assignments succeeded
-    if (failureCount > 0) {
-      console.log('[DEPLOY TRIGGER] SKIPPED_DUE_TO_FAILURES', { successCount, failureCount, failures });
-      setState(prev => ({ ...prev, isAccepting: false, pendingAssignments: new Map() }));
-      
-      // Build detailed error message
-      const failureDetails = failures.map(f => 
-        `• ${f.slotId}: ${f.error}`
-      ).join('\n');
-      
-      alert(`Acceptance incomplete: ${successCount} succeeded, ${failureCount} failed. Deployment cancelled.\n\nFailed assignments:\n${failureDetails}`);
-      return;
-    }
-
-    // Clear all pending assignments after successful processing
-    setState(prev => ({ ...prev, pendingAssignments: new Map() }));
-
-    // Commit to GitHub after successful assignment persistence
-    console.log('[DEPLOY API] COMMITTING_TO_GITHUB');
-    alert(`All ${successCount} assignment(s) persisted successfully.\n\nNow committing to GitHub...`);
-    try {
-      const deployResponse = await fetch('/api/admin/deploy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reason: `Workbench media changes accepted (${successCount} assignments)`,
-          transactionIds: [deploymentTransactionId]
-        }),
-      });
-
-      if (deployResponse.ok) {
-        const deployData = await deployResponse.json();
-        console.log('[DEPLOY API] SUCCESS', { 
-          commitSha: deployData.commitSha,
-          commitUrl: deployData.commitUrl,
-          message: deployData.message,
-          status: deployData.status,
-          verificationPassed: deployData.verificationPassed
-        });
-        
-        // Handle COMMITTED_DEPLOYING status - poll for actual Vercel deployment
-        if (deployData.status === 'COMMITTED_DEPLOYING') {
-          console.log('[DEPLOY API] WAITING_FOR_VERCEL_DEPLOYMENT', { commitSha: deployData.commitSha });
-          
-          // Poll deployment status with exponential backoff
-          let deploymentReady = false;
-          let pollAttempts = 0;
-          const maxPollAttempts = 30; // 30 seconds max wait
-          const pollInterval = 1000; // 1 second initial interval
-          
-          while (!deploymentReady && pollAttempts < maxPollAttempts) {
-            await new Promise(resolve => setTimeout(resolve, pollInterval));
-            pollAttempts++;
-            
-            try {
-              const statusResponse = await fetch(`/api/admin/deploy/status?commitSha=${deployData.commitSha}`);
-              if (statusResponse.ok) {
-                const statusData = await statusResponse.json();
-                console.log('[DEPLOY API] STATUS_POLL', { 
-                  attempt: pollAttempts, 
-                  status: statusData.status,
-                  vercelStatus: statusData.vercelStatus 
-                });
-                
-                if (statusData.status === 'PUBLISHED' || statusData.vercelStatus === 'success') {
-                  deploymentReady = true;
-                  console.log('[DEPLOY API] VERCEL_DEPLOYMENT_READY', { 
-                    commitSha: deployData.commitSha,
-                    vercelStatus: statusData.vercelStatus 
-                  });
-                }
-              }
-            } catch (error) {
-              console.error('[DEPLOY API] STATUS_POLL_FAILED', { attempt: pollAttempts, error });
-            }
-          }
-          
-          if (deploymentReady) {
-            // Force iframe refresh AFTER Vercel deployment succeeds
-            console.log('[DND] SLOT_REFRESH_AFTER_VERCEL_DEPLOY', {
-              iframeExists: !!iframeRef.current,
-              commitSha: deployData.commitSha,
-            });
-            
-            if (iframeRef.current) {
-              console.log('[DND] IFRAME_REFRESH_TRIGGERED');
-              if (iframeRef.current.contentWindow) {
-                iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
-              }
-            }
-            
-            alert(`Your changes are live and saved.\n\n${deployData.message}\n\nCommit SHA: ${deployData.commitSha}\n\nVercel deployment completed successfully.`);
-          } else {
-            alert(`Your changes are safely committed to GitHub.\n\n${deployData.message}\n\nCommit SHA: ${deployData.commitSha}\n\nVercel deployment is still in progress. Refresh the page in a few moments to see changes.`);
-          }
-        } else if (deployData.status === 'PUBLISHED') {
-          // Directly published (shouldn't happen with new logic, but handle for compatibility)
-          console.log('[DND] SLOT_REFRESH_ALREADY_PUBLISHED', {
-            iframeExists: !!iframeRef.current,
-            commitSha: deployData.commitSha,
-          });
-          
-          if (iframeRef.current) {
-            console.log('[DND] IFRAME_REFRESH_TRIGGERED');
-            if (iframeRef.current.contentWindow) {
-              iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
-            }
-          }
-          
-          alert(`Your changes are live and saved.\n\n${deployData.message}\n\nCommit SHA: ${deployData.commitSha}`);
-        } else if (deployData.status === 'COMMITTED_NEEDS_RECONCILIATION') {
-          alert(`Your changes are safely saved. Publishing is still being completed automatically.\n\n${deployData.message}\n\nError: ${deployData.verificationError || 'Unknown verification error'}`);
-        } else {
-          alert(`Your changes are live and saved.\n\n${deployData.message}\n\nCommit SHA: ${deployData.commitSha}`);
-        }
-      } else {
-        const errorData = await deployResponse.json();
-        console.error('[DEPLOY API] FAILED', { error: errorData });
-        alert(`Your changes were not published. Nothing was lost. Try again.\n\nGitHub commit failed: ${errorData.error || errorData.message}`);
-      }
-    } catch (error) {
-      console.error('[DEPLOY API] ERROR', error);
-      alert(`Your changes were not published. Nothing was lost. Try again.\n\nGitHub commit failed: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setState(prev => ({ ...prev, isAccepting: false }));
-      deploymentInProgressRef.current = false; // Allow new deployments
-    }
-  };
-
-  const cancelAssignment = () => {
-    console.log('[DND CONFIRM] CANCEL_ASSIGNMENTS');
-    setState(prev => ({ ...prev, pendingAssignments: new Map() }));
-    deploymentInProgressRef.current = false; // Clear deployment flag on cancel
-  };
-
-  const openAddSlotDialog = () => {
-    setState(prev => ({ 
-      ...prev, 
-      showAddSlotDialog: true,
-      newSlotId: `custom-slot-${Date.now()}`,
-      newSlotName: '',
-      newSlotSection: 'Hero'
-    }));
-  };
-
-  const closeAddSlotDialog = () => {
-    setState(prev => ({ 
-      ...prev, 
-      showAddSlotDialog: false,
-      newSlotId: '',
-      newSlotName: '',
-      newSlotSection: 'Hero'
-    }));
-  };
-
-  const addNewSlot = () => {
-    const { newSlotId, newSlotName, newSlotSection, selectedPage } = state;
-    
-    if (!newSlotId.trim() || !newSlotName.trim()) {
-      alert('Please provide both a slot ID and slot name');
-      return;
-    }
-
-    // Check if slot ID already exists
-    const existingSlot = state.registeredSlots.find(s => s.id === newSlotId);
-    if (existingSlot) {
-      alert(`Slot ID "${newSlotId}" already exists on route "${existingSlot.route}"`);
-      return;
-    }
-
-    // Add slot to registry
-    const newSlot: Omit<RegisteredSlot, 'element'> = {
-      id: newSlotId.trim(),
-      route: selectedPage,
-      page: PAGE_LABELS[selectedPage],
-      section: newSlotSection,
-      slotName: newSlotName.trim(),
-      currentMediaId: null,
-      component: 'CustomSlot',
-    };
-
-    slotRegistry.addSlot(newSlot);
-    
-    console.log('[WORKBENCH] NEW_SLOT_ADDED', {
-      slotId: newSlot.id,
-      route: newSlot.route,
-      page: newSlot.page,
-      section: newSlot.section,
-      slotName: newSlot.slotName,
-    });
-
-    alert(`Visual slot "${newSlotName}" added successfully.\n\nSlot ID: ${newSlotId}\nRoute: ${selectedPage}\nSection: ${newSlotSection}\n\nNote: This is a programmatic slot. To use it in the website, you must add a VisualSlot component with this ID to the corresponding page component.`);
-
-    closeAddSlotDialog();
-    loadCanonicalData(); // Refresh to show the new slot
-  };
-
-  const removeSlot = (slotId: string, route: string) => {
-    if (!confirm(`Remove visual slot "${slotId}"?\n\nThis will remove the slot from the registry. Any media assignments to this slot will also be removed.`)) {
-      return;
-    }
-
-    slotRegistry.removeSlot(slotId, route);
-    
-    console.log('[WORKBENCH] SLOT_REMOVED', {
-      slotId,
-      route,
-    });
-
-    alert(`Visual slot "${slotId}" removed successfully.`);
-
-    loadCanonicalData(); // Refresh to show updated slots
-  };
-
-  const handleSlotAssignment = (slotId: string, assetId: string) => {
-    // ENFORCE KV AUTHORITY BOUNDARY: Prevent assignments when KV is unavailable
-    if (!state.kvAvailable) {
-      alert(`AUTHORITY UNAVAILABLE: KV media authority is not accessible. Cannot perform authoritative assignments without live KV connectivity.\n\nError: ${state.kvError || 'Unknown KV error'}\n\nPlease resolve KV connectivity to enable media operations.`);
-      console.error('[WORKBENCH] ASSIGNMENT_REJECTED: KV authority unavailable', {
-        slotId,
-        assetId,
-        kvError: state.kvError,
-      });
-      return;
-    }
-
-    // Use registeredSlotsRef.current instead of stale state.registeredSlots
-    const slot = registeredSlotsRef.current.find(s => s.id === slotId);
-    const asset = assetsRef.current.find(a => a.id === assetId);
-    
-    console.log('[WB_FORENSIC] ASSIGNMENT_INPUT', {
-      slotId,
-      resolvedSlotId: slot?.id,
-      mediaId: assetId,
-      source: asset?.source || 'unknown',
-      classification: asset?.classification || 'unknown',
-      lifecycleState: asset?.lifecycleState || 'unknown',
-      driveFileId: asset?.drive?.fileId,
-      sharedDriveId: asset?.drive?.driveId,
-      slotFound: !!slot,
-      assetFound: !!asset,
-      registeredSlotsCount: registeredSlotsRef.current.length,
-      assetsCount: assetsRef.current.length,
-      kvAvailable: state.kvAvailable,
-      timestamp: Date.now(),
-    });
-    
-    if (!slot || !asset) {
-      console.error('[WORKBENCH] Assignment failed: slot or asset not found', { slotId, assetId });
-      return;
-    }
-
-    // ENFORCE ASSIGNABILITY BOUNDARY: Only PUBLISHED assets can be assigned
-    // Legacy assets (PRESENT_MAPPED, PRESENT_UNMAPPED, etc.) must be promoted first
-    if (asset.classification !== 'PUBLISHED') {
-      alert(`This asset is not in a published state. Only fully materialized PublishedMediaAsset can be assigned.\n\nCurrent classification: ${asset.classification}\n\nLegacy assets must be promoted to PublishedMediaAsset before assignment.`);
-      console.log('[WORKBENCH] ASSIGNMENT_REJECTED: Asset not PUBLISHED', {
-        assetId,
-        classification: asset.classification,
-        lifecycleState: asset.lifecycleState,
-        source: asset.source,
-      });
-      return;
-    }
-
-    // Additional constitutional gate: enforce PublishedMediaAsset contract
-    if (asset.source !== 'local' || asset.lifecycleState !== 'published') {
-      alert(`This asset does not meet PublishedMediaAsset requirements.\n\nSource: ${asset.source}\nLifecycle: ${asset.lifecycleState}\n\nOnly local published assets can be assigned.`);
-      console.log('[WORKBENCH] ASSIGNMENT_REJECTED: Asset not PublishedMediaAsset', {
-        assetId,
-        source: asset.source,
-        lifecycleState: asset.lifecycleState,
-      });
-      return;
-    }
-    
-    console.log('[DND] SLOT_ASSIGNMENT', {
-      slotId,
-      assetId,
-      slotName: slot.slotName,
-      assetFilename: asset.filename,
-      currentMediaId: slot.currentMediaId,
-    });
-      
-    // Stage the assignment
-    setState(prev => {
-      const newPendingAssignments = new Map(prev.pendingAssignments);
-      newPendingAssignments.set(slotId, { slot, asset });
-      return { ...prev, pendingAssignments: newPendingAssignments };
-    });
-      
-    console.log('[WB_FORENSIC] ASSIGNMENT_STAGED', {
-      slotId,
-      mediaId: assetId,
-      source: asset.source,
-      timestamp: Date.now(),
-    });
-      
-    console.log('[DND] ASSIGNMENT_STAGED', {
-      slotId,
-      assetId,
-      pendingCount: state.pendingAssignments.size + 1,
-    });
-  };
-
-  const removePendingAssignment = (slotId: string) => {
-    setState(prev => {
-      const newPendingAssignments = new Map(prev.pendingAssignments);
-      newPendingAssignments.delete(slotId);
-      return { ...prev, pendingAssignments: newPendingAssignments };
-    });
-  };
-
-  const materializeDriveFile = async (driveFile: any, slot: RegisteredSlot, requestId?: string) => {
-    console.log('[DND] DRIVE_MATERIALIZATION_STARTED', {
-      requestId,
-      fileId: driveFile.fileId,
-      sharedDriveId: driveFile.sharedDriveId,
-      slotId: slot.id,
-    });
-
-    try {
-      console.log('[DND] DRIVE_INGEST_STARTED', {
-        requestId,
-        fileId: driveFile.fileId,
-        sharedDriveId: driveFile.sharedDriveId,
-      });
-      
-      // Use ingest API to materialize Drive file into PublishedMediaAsset
-      const response = await fetch('/api/drive/ingest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          driveId: driveFile.fileId,
-          driveIdParameter: driveFile.sharedDriveId,
-        }),
-      });
-
-      console.log('[DND] DRIVE_INGEST_RESPONSE', {
-        requestId,
-        httpStatus: response.status,
-      });
-
-      const result = await response.json();
-
-      if (result.success && result.media) {
-        console.log('[DND] DRIVE_MATERIALIZATION_SUCCESS', {
-          requestId,
-          mediaId: result.media.id,
-          lifecycleState: result.media.lifecycleState,
-          source: result.media.source,
-          hasVariants: !!result.media.variants,
-          slotId: slot.id,
-        });
-
-        // Verify this is actually a PublishedMediaAsset
-        if (result.media.source !== 'local' || result.media.lifecycleState !== 'published') {
-          console.error('[DND] MATERIALIZATION_INVALID_STATE', {
-            requestId,
-            mediaId: result.media.id,
-            source: result.media.source,
-            lifecycleState: result.media.lifecycleState,
-          });
-          alert('Materialization failed: asset is not in published state');
-          return;
-        }
-
-        // Add the newly materialized PublishedMediaAsset to assetsRef.current
-        assetsRef.current = [...assetsRef.current, result.media];
-        
-        // Also update React state to include the new asset
-        setState(prev => ({
-          ...prev,
-          assets: [...prev.assets, result.media],
-        }));
-
-        console.log('[DND] SLOT_STATE_UPDATED', {
-          requestId,
-          assetCount: assetsRef.current.length,
-        });
-
-        // Reload dynamic media from KV to pick up new PublishedMediaAsset
-        // Server-side API route to avoid exposing KV credentials to browser
-        try {
-          await fetch('/api/workbench/media-authority', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action: 'getPublishedMediaAssets' }),
-          });
-        } catch (error) {
-          console.warn('[DND] KV media authority unavailable - skipping dynamic reload:', error);
-          // Continue without dynamic reload - KV unavailability is not a DND blocking error
-        }
-
-        console.log('[DND] THUMBNAIL_RENDER_PATH', {
-          requestId,
-          thumbnailUrl: result.media.variants?.thumbnail,
-          webUrl: result.media.variants?.web,
-        });
-
-        // Route through existing replacement confirmation
-        handleDriveDropToSlot(slot, result.media, slot.currentMediaId, requestId);
-      } else {
-        console.error('[DND] DRIVE_MATERIALIZATION_FAILED', { requestId, result });
-        alert(`Materialization failed: ${result.error || result.message || 'Unknown error'}`);
-      }
-    } catch (error) {
-      console.error('[DND] DRIVE_MATERIALIZATION_ERROR', { requestId, error });
-      alert(`Materialization failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
-  };
-
-  /**
-   * P0 FIX: Verify media materialization completeness before using an asset
-   * Calls an API endpoint that uses the authoritative materialization contract
-   * (shape + real hash, no Blob proof - used during ingest context)
-   */
-  const verifyMediaMaterializationComplete = async (mediaId: string): Promise<boolean> => {
-    try {
-      const response = await fetch(`/api/admin/media/verify-complete?mediaId=${encodeURIComponent(mediaId)}&materializationOnly=true`);
-      if (response.ok) {
-        const data = await response.json();
-        return data.complete === true;
-      }
-      return false;
-    } catch (error) {
-      console.error('[DND] VERIFICATION_ERROR', { mediaId, error });
-      return false;
-    }
-  };
-
-  const handleDriveDropToSlot = (slot: RegisteredSlot, asset: VisualAsset, currentMediaId: string | null, requestId?: string) => {
-    console.log('[DND] DRIVE_DROP_TO_SLOT', {
-      requestId,
-      slotId: slot.id,
-      slotName: slot.slotName,
-      assetId: asset.id,
-      assetFilename: asset.filename,
-      currentMediaId,
-      hasVariants: !!asset.variants,
-      thumbnailUrl: asset.variants?.thumbnail,
-      webUrl: asset.variants?.web,
-    });
-
-    // If slot already has media, show replacement confirmation
-    if (currentMediaId) {
-      const currentAsset = assetsRef.current.find(a => a.id === currentMediaId);
-      const currentName = currentAsset?.filename || 'current image';
-      const newName = asset.filename;
-
-      const confirmed = confirm(
-        `Replace current image?\n\nCurrent: ${currentName}\nNew: ${newName}`
-      );
-
-      if (!confirmed) {
-        console.log('[DND] REPLACEMENT_CANCELLED', { slotId: slot.id });
-        return;
-      }
-
-      console.log('[DND] REPLACEMENT_CONFIRMED', { slotId: slot.id });
-    }
-
-    // Stage the assignment directly using the already-resolved slot and asset
-    // Do NOT use handleSlotAssignment which performs its own stale lookup
-    console.log('[WB_FORENSIC] ASSIGNMENT_INPUT', {
-      requestId,
-      slotId: slot.id,
-      resolvedSlotId: slot.id,
-      mediaId: asset.id,
-      source: asset.source,
-      driveFileId: asset.drive?.fileId,
-      sharedDriveId: asset.drive?.driveId,
-      slotFound: true,
-      assetFound: true,
-      timestamp: Date.now(),
-    });
-
-    console.log('[DND] REACT_STATE_UPDATE_STARTED', {
-      requestId,
-      slotId: slot.id,
-    });
-
-    setState(prev => {
-      const newPendingAssignments = new Map(prev.pendingAssignments);
-      newPendingAssignments.set(slot.id, { slot, asset });
-      return { ...prev, pendingAssignments: newPendingAssignments };
-    });
-    
-    console.log('[DND] REACT_STATE_UPDATE_COMPLETED', {
-      requestId,
-      slotId: slot.id,
-    });
-
-    console.log('[WB_FORENSIC] ASSIGNMENT_STAGED', {
-      requestId,
-      slotId: slot.id,
-      mediaId: asset.id,
-      source: asset.source,
-      timestamp: Date.now(),
-    });
-
-    console.log('[DND] ASSIGNMENT_STAGED', {
-      requestId,
-      slotId: slot.id,
-      assetId: asset.id,
-      pendingCount: state.pendingAssignments.size + 1,
-    });
-  };
-
-  const assignAssetToSlot = async (asset: VisualAsset, slot: RegisteredSlot, transactionId?: string) => {
-    const slotId = slot.id;
-
-    console.log('[WB_FORENSIC] ASSIGNMENT_API_REQUEST', {
-      requestId: transactionId,
-      slotId,
-      assetId: asset.id,
-      mediaId: asset.id,
-      assetFilename: asset.filename,
-      timestamp: Date.now(),
-    });
-
-    console.log('[DND] API_REQUEST', {
-      requestId: transactionId,
-      slotId,
-      assetId: asset.id,
-      mediaId: asset.id,
-      assetFilename: asset.filename,
-    });
-
-    try {
-      let response: Response;
-      let endpoint: string;
-      let requestBody: any;
-
-      if (slotId === 'homepage-hero-slot' || slotId === 'hero-background') {
-        endpoint = '/api/admin/brand/hero';
-        requestBody = { mediaId: asset.id, transactionId, slotId };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId === 'homepage-owner-portrait-slot' || slotId === 'about-owner-portrait-slot') {
-        endpoint = '/api/admin/brand/portrait';
-        requestBody = { mediaId: asset.id, transactionId, slotId };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId.startsWith('homepage-featured-project-')) {
-        // Extract project ID from slot ID (e.g., homepage-featured-project-exterior-painting-001 -> exterior-painting-001)
-        const projectId = slotId.replace('homepage-featured-project-', '');
-        endpoint = '/api/admin/projects/card';
-        requestBody = { projectId, mediaId: asset.id, transactionId };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId.startsWith('homepage-service-card-slot-')) {
-        // Extract service slug from slot ID (e.g., homepage-service-card-slot-painting -> painting)
-        const serviceSlug = slotId.replace('homepage-service-card-slot-', '');
-        endpoint = '/api/admin/services/card';
-        requestBody = { serviceSlug, mediaId: asset.id, transactionId };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId.startsWith('our-work-project-card-')) {
-        // Extract project ID from slot ID (e.g., our-work-project-card-exterior-painting-001 -> exterior-painting-001)
-        const projectId = slotId.replace('our-work-project-card-', '');
-        endpoint = '/api/admin/projects/card';
-        requestBody = { projectId, mediaId: asset.id, transactionId };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId.startsWith('services-') && slotId.includes('-project-card-')) {
-        // Extract project ID from service project card slot
-        const projectId = slotId.split('-project-card-')[1];
-        endpoint = '/api/admin/projects/card';
-        requestBody = { projectId, mediaId: asset.id, transactionId };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId.startsWith('services-') && slotId.includes('-related-service-card-')) {
-        // Extract service slug from slot ID (e.g., services-painting-related-service-card-fences -> fences)
-        const serviceSlug = slotId.split('-related-service-card-')[1];
-        endpoint = '/api/admin/services/card';
-        requestBody = { serviceSlug, mediaId: asset.id, transactionId };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId.startsWith('services-page-service-card-')) {
-        // Extract service slug from slot ID (e.g., services-page-service-card-painting -> painting)
-        const serviceSlug = slotId.replace('services-page-service-card-', '');
-        endpoint = '/api/admin/services/card';
-        requestBody = { serviceSlug, mediaId: asset.id, transactionId };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId.startsWith('our-work-gallery::')) {
-        // Extract project ID and mediaId from slot ID (e.g., our-work-gallery::{projectId}::{mediaId})
-        const idPart = slotId.replace('our-work-gallery::', '');
-        const lastDoubleColonIndex = idPart.lastIndexOf('::');
-        const projectId = idPart.substring(0, lastDoubleColonIndex);
-        const existingMediaId = idPart.substring(lastDoubleColonIndex + 2);
-        console.log('[DND 8] GALLERY_SLOT_PARSED', { slotId, projectId, existingMediaId });
-        
-        // FIX: Use atomic PUT authority instead of legacy POST
-        // Get current gallery, apply mutation, PUT complete array with CAS
-        const getResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
-        if (!getResponse.ok) {
-          throw new Error('Failed to fetch current gallery');
-        }
-        const galleryData = await getResponse.json();
-        const currentGallery = galleryData.gallery || [];
-        const currentRevision = galleryData.currentRevision || 0;
-        
-        // Replace existing mediaId with new asset.id in the gallery array
-        const newGallery = currentGallery.map((id: string) => id === existingMediaId ? asset.id : id);
-        
-        endpoint = '/api/admin/projects/gallery';
-        requestBody = { projectId, gallery: newGallery, expectedRevision: currentRevision, transactionId };
-        response = await fetch(endpoint, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId.startsWith('project-hero-')) {
-        // Extract project ID from slot ID (e.g., project-hero-fences-001 -> fences-001)
-        const projectId = slotId.replace('project-hero-', '');
-        endpoint = '/api/admin/projects/card';
-        requestBody = { projectId, mediaId: asset.id, transactionId };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId.startsWith('project-gallery::')) {
-        // Extract project ID and gallery index from slot ID (e.g., project-gallery::{projectId}::{index})
-        const idPart = slotId.replace('project-gallery::', '');
-        const lastDoubleColonIndex = idPart.lastIndexOf('::');
-        const projectId = idPart.substring(0, lastDoubleColonIndex);
-        const galleryIndex = parseInt(idPart.substring(lastDoubleColonIndex + 2), 10);
-        console.log('[DND 8] PROJECT_GALLERY_SLOT_PARSED', { slotId, projectId, galleryIndex });
-        
-        // FIX: Use atomic PUT authority instead of legacy POST
-        // Get current gallery, apply mutation, PUT complete array with CAS
-        const getResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
-        if (!getResponse.ok) {
-          throw new Error('Failed to fetch current gallery');
-        }
-        const galleryData = await getResponse.json();
-        const currentGallery = galleryData.gallery || [];
-        const currentRevision = galleryData.currentRevision || 0;
-        
-        // Replace media at galleryIndex
-        const newGallery = [...currentGallery];
-        newGallery[galleryIndex] = asset.id;
-        
-        endpoint = '/api/admin/projects/gallery';
-        requestBody = { projectId, gallery: newGallery, expectedRevision: currentRevision, transactionId };
-        response = await fetch(endpoint, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId.startsWith('slider-left-')) {
-        // Extract project ID from slot ID (e.g., slider-left-fences-001 -> fences-001)
-        const projectId = slotId.replace('slider-left-', '');
-        endpoint = '/api/admin/projects/before-after';
-        requestBody = { projectId, side: 'before', mediaId: asset.id, transactionId };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId.startsWith('slider-right-')) {
-        // Extract project ID from slot ID (e.g., slider-right-fences-001 -> fences-001)
-        const projectId = slotId.replace('slider-right-', '');
-        endpoint = '/api/admin/projects/before-after';
-        requestBody = { projectId, side: 'after', mediaId: asset.id, transactionId };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else if (slotId.includes('before') || slotId.includes('after')) {
-        throw new Error('Before/after assignment not yet implemented. Needs projects.v1.json write endpoint');
-      } else if (slotId === 'homepage-bottom-visual-slot' || slotId === 'about-bottom-visual-slot') {
-        // New bottom visual slots - use service card assignment system
-        const serviceSlug = slotId === 'homepage-bottom-visual-slot' ? 'homepage-bottom-visual' : 'about-bottom-visual';
-        endpoint = '/api/admin/services/card';
-        requestBody = { serviceSlug, mediaId: asset.id, transactionId };
-        response = await fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(requestBody),
-        });
-      } else {
-        console.log('[DND] UNSUPPORTED_SLOT_TYPE', { slotId });
-        throw new Error(`Unsupported slot type: ${slotId}`);
-      }
-
-      console.log('[DND] API_RESPONSE', {
-        requestId: transactionId,
-        endpoint,
-        status: response.status,
-        ok: response.ok,
-        requestBody,
-      });
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.log('[DND] SLOT_ASSIGNMENT_FAILURE', {
-          requestId: transactionId,
-          slotId,
-          assetId: asset.id,
-          status: response.status,
-          error: errorText,
-        });
-        
-        // Parse error for better user feedback
-        let userMessage = `Assignment failed (${response.status})`;
-        try {
-          const errorJson = JSON.parse(errorText);
-          if (errorJson.error === 'Asset must be materialized') {
-            userMessage = 'This asset must be materialized before assignment. Please use the ingest workflow to convert Drive assets to PublishedMediaAsset.';
-          } else if (errorJson.error === 'Invalid media lifecycle state') {
-            userMessage = 'This asset is not in a published state. Only fully materialized PublishedMediaAsset can be assigned.';
-          } else if (errorJson.error === 'Concurrent modification detected' || response.status === 409) {
-            userMessage = 'Gallery has been modified by another operation. Please reload the page and try again.';
-          } else if (errorJson.message) {
-            userMessage = errorJson.message;
-          }
-        } catch {
-          // Not JSON, use raw text
-          userMessage = `Assignment failed: ${response.status} - ${errorText}`;
-        }
-        
-        // CRITICAL: Throw error to signal failure to caller
-        // The caller will catch this and increment failureCount instead of successCount
-        throw new Error(userMessage);
-      }
-
-      console.log('[WB_FORENSIC] ASSIGNMENT_API_SUCCESS', {
-        requestId: transactionId,
-        slotId,
-        assetId: asset.id,
-        endpoint,
-        status: response.status,
-        timestamp: Date.now(),
-      });
-
-      const responseBody = await response.json();
-      console.log('[DND] API_RESPONSE_BODY', {
-        requestId: transactionId,
-        slotId,
-        assetId: asset.id,
-        responseBody,
-      });
-
-      return responseBody;
-
-    } catch (error) {
-      console.error('[DND] ASSIGNMENT_ERROR', error);
-      alert(`Failed to assign ${asset.filename} to ${slot.slotName}: ${error instanceof Error ? error.message : String(error)}`);
-      throw error;
-    }
-  };
-
-  const handleSlotClick = async (slot: RegisteredSlot) => {
-    setState(prev => ({ ...prev, selectedSlot: slot }));
-    const media = await getSlotMedia(slot);
-    if (media) {
-      const asset = state.assets.find(a => a.id === media.id);
-      if (asset) {
-        setState(prev => ({ ...prev, selectedAsset: asset }));
-      }
-    }
-    
-    // Force iframe reload to pick up authority changes after assignment
-    if (iframeRef.current) {
-      console.log('[DND] IFRAME_RELOAD_TRIGGERED', {
-        slotId: slot.id,
-        assetId: media?.id,
-      });
-      iframeRef.current.src = iframeRef.current.src;
-    }
-  };
-
-  const handleAssetClick = (asset: VisualAsset) => {
-    setState(prev => ({ ...prev, selectedAsset: asset }));
-    const usingSlots = state.registeredSlots.filter(s => s.currentMediaId === asset.id);
-    if (usingSlots.length > 0) {
-      setState(prev => ({ ...prev, selectedSlot: usingSlots[0] }));
-    }
-  };
-
-  const handleDragStart = (e: React.DragEvent, asset: VisualAsset | any, driveFile?: any) => {
-    console.log('[DND] DRAG_START', {
-      isDriveFile: !!driveFile,
-      assetId: asset?.id,
-      fileId: driveFile?.id,
-      filename: driveFile?.name || asset?.filename,
-      source: driveFile ? 'google-drive' : asset?.source,
-    });
-    
-    // If this is a Drive file that's not yet ingested, emit Drive identity
-    if (driveFile && driveFile.id) {
-      const driveReference = {
-        source: 'google-drive' as const,
-        fileId: driveFile.id,
-        sharedDriveId: state.driveCurrentDriveId || undefined,
-        name: driveFile.name,
-        mimeType: driveFile.mimeType, // Do NOT default - must be provided by Drive
-        modifiedTime: driveFile.modifiedTime,
-        webViewUrl: driveFile.webViewLink,
-      };
-      
-      e.dataTransfer.setData(
-        'application/x-workbench-asset',
-        JSON.stringify(driveReference)
-      );
-      
-      e.dataTransfer.setData('text/plain', `drive:${driveFile.id}`);
-      
-      console.log('[DND] DATA_TRANSFER_SET', {
-        type: 'drive-reference',
-        driveReference,
-      });
-    } else if (asset) {
-      // Existing asset - use asset ID
-      const assetId = asset.id;
-      
-      e.dataTransfer.setData(
-        'application/x-workbench-asset',
-        JSON.stringify({
-          assetId,
-          source: asset.source,
-          fileId: asset.drive?.fileId ?? null,
-          sharedDriveId: asset.drive?.driveId ?? null,
-        })
-      );
-      
-      e.dataTransfer.setData('text/plain', assetId);
-      
-      console.log('[DND] DATA_TRANSFER_SET', {
-        type: 'asset-reference',
-        assetId,
-        source: asset.source,
-      });
-    }
-    
-    e.dataTransfer.effectAllowed = 'copy';
-    if (asset) {
-      setState(prev => ({ ...prev, selectedAsset: asset }));
-    }
-  };
 
   if (state.loading) {
     return (
@@ -2103,24 +1258,26 @@ Check browser console for detailed logs.`);
                   Clear All
                 </button>
                 <button
-                  onClick={confirmAssignment}
-                  disabled={state.isAccepting}
-                  className="px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors flex items-center gap-2 text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                  onClick={() => {
+                    // TODO: Implement deploy all
+                    alert('Deploy all pending changes - not yet implemented');
+                  }}
+                  className="px-2 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors text-xs"
                 >
-                  {state.isAccepting ? 'ACCEPTING...' : 'CONFIRM ALL'}
+                  Confirm All
                 </button>
               </div>
             )}
             <button
               onClick={loadCanonicalData}
-              className="px-3 py-1 bg-surface text-foreground rounded hover:bg-surface/80 transition-colors flex items-center gap-2 text-xs"
+              className="p-1.5 bg-surface text-foreground rounded hover:bg-surface/80 transition-colors"
+              title="Refresh media"
             >
-              <RefreshCw size={14} className="inline mr-1" />
-              Reload
+              <RefreshCw size={14} />
             </button>
             <button
               onClick={openAddSlotDialog}
-              className="px-3 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors flex items-center gap-2 text-xs"
+              className="px-2 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors text-xs"
             >
               <Plus size={14} className="inline mr-1" />
               Add Slot
@@ -2197,6 +1354,54 @@ Check browser console for detailed logs.`);
         </div>
       )}
 
+      {/* Slot Context Menu */}
+      {state.selectedSlotForContext && (
+        <div
+          className="fixed z-50 bg-background border border-border rounded-lg shadow-lg py-1 min-w-40"
+          style={{ left: state.selectedSlotForContext.x, top: state.selectedSlotForContext.y }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <button
+            onClick={() => {
+              setState(prev => ({ 
+                ...prev, 
+                newSlotId: `custom-slot-${Date.now()}`, 
+                newSlotName: '', 
+                newSlotSection: 'Hero',
+                selectedSlotForContext: null
+              }));
+              setState(prev => ({ ...prev, showAddSlotDialog: true }));
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-accent transition-colors"
+          >
+            Add Visual Slot
+          </button>
+          <button
+            onClick={() => {
+              if (!state.selectedSlotForContext) return;
+              const slotId = state.selectedSlotForContext.slot.id;
+              if (!confirm(`Delete visual slot "${slotId}"?\n\nThis will remove the slot from the visual structure. The underlying media asset will NOT be deleted.\n\nDo you want to proceed?`)) {
+                return;
+              }
+
+              slotRegistry.removeSlot(slotId, state.selectedPage);
+              
+              console.log('[WORKBENCH] SLOT_DELETED', {
+                slotId,
+                route: state.selectedPage,
+              });
+
+              alert(`Visual slot "${slotId}" removed successfully.\n\nNote: The underlying media asset was not deleted.`);
+              setState(prev => ({ ...prev, selectedSlotForContext: null }));
+              loadCanonicalData();
+            }}
+            className="w-full px-4 py-2 text-left text-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
+          >
+            Delete Visual Slot
+          </button>
+        </div>
+      )}
+
       {/* Page Navigation - Compact */}
       <div className="shrink-0 border-b border-border bg-surface px-4 py-1">
         <div className="flex gap-1">
@@ -2242,7 +1447,6 @@ Check browser console for detailed logs.`);
                 <button
                   onClick={() => removePendingAssignment(assignment.slot.id)}
                   className="text-muted-foreground hover:text-foreground transition-colors"
-                  title="Remove from pending"
                 >
                   ×
                 </button>
@@ -2254,8 +1458,92 @@ Check browser console for detailed logs.`);
 
       {/* Main Content - Two Panel Layout */}
       <div className="flex-1 grid grid-cols-2 min-h-0">
-          {/* LEFT: Website Preview */}
-          <section className="min-h-0 min-w-0 overflow-y-auto bg-white h-full">
+          {/* LEFT: Website Preview with Slot Grid Overlay */}
+          <section className="min-h-0 min-w-0 overflow-y-auto bg-white h-full relative">
+            {/* Slot Grid Overlay */}
+            <div className="absolute inset-0 bg-black/5 p-4 overflow-y-auto pointer-events-none z-10">
+              <div className="pointer-events-auto">
+                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
+                  <LayoutGrid size={14} />
+                  Visual Slots for {PAGE_LABELS[state.selectedPage]}
+                </h3>
+                {(() => {
+                  const currentPage = getPageByRoute(state.selectedPage);
+                  if (!currentPage) return <p className="text-xs text-muted-foreground">No structure defined for this route</p>;
+                  
+                  return currentPage.sections.map(section => (
+                    <div key={section.id} className="mb-4">
+                      <h4 className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
+                        {section.name}
+                      </h4>
+                      {section.visualSlots.length === 0 ? (
+                        <p className="text-xs text-muted-foreground italic mb-2">No slots in this section</p>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          {section.visualSlots.map(slot => (
+                            <div
+                              key={slot.id}
+                              className="relative p-2 bg-background border border-border rounded hover:border-primary cursor-pointer transition-colors"
+                              onContextMenu={(e) => handleSlotRightClick(e, slot)}
+                              onClick={() => {
+                                const registeredSlot = state.registeredSlots.find(s => s.id === slot.id);
+                                if (registeredSlot) {
+                                  handleSlotClick(registeredSlot);
+                                }
+                              }}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                                e.dataTransfer.dropEffect = 'copy';
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                
+                                const assetId = e.dataTransfer.getData('text/plain');
+                                if (!assetId) return;
+
+                                const asset = state.assets.find(a => a.id === assetId);
+                                if (!asset) return;
+
+                                const registeredSlot = state.registeredSlots.find(s => s.id === slot.id);
+                                if (!registeredSlot) return;
+
+                                handleAssetClick(asset);
+                                const requestId = crypto.randomUUID();
+                                handleDriveDropToSlot(registeredSlot, asset, registeredSlot.currentMediaId, requestId);
+                              }}
+                            >
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-xs font-medium text-foreground truncate">{slot.name}</span>
+                                <span className={`text-xs px-1.5 py-0.5 rounded ${
+                                  slot.status === 'OCCUPIED' ? 'bg-green-100 text-green-800' :
+                                  slot.status === 'EMPTY' ? 'bg-gray-100 text-gray-800' :
+                                  slot.status === 'BROKEN' ? 'bg-red-100 text-red-800' :
+                                  slot.status === 'DYNAMIC' ? 'bg-blue-100 text-blue-800' :
+                                  'bg-yellow-100 text-yellow-800'
+                                }`}>
+                                  {slot.status}
+                                </span>
+                              </div>
+                              <div className="text-xs text-muted-foreground truncate">
+                                {slot.currentMediaFilename || 'No media assigned'}
+                              </div>
+                              {slot.currentMediaId && (
+                                <div className="text-xs text-primary truncate mt-1">
+                                  {slot.currentMediaId}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  ));
+                })()}
+              </div>
+            </div>
+            
+            {/* Website Preview Iframe */}
             <iframe
               ref={iframeRef}
               src={`${window.location.origin}${state.selectedPage}?workbench=true`}
@@ -2271,8 +1559,8 @@ Check browser console for detailed logs.`);
 
           {/* RIGHT: Media Asset Management */}
         <section 
-          ref={mediaPanelRef}
-          className="min-h-0 min-w-0 overflow-y-auto bg-background h-full"
+        ref={mediaPanelRef}
+        className="min-h-0 min-w-0 overflow-y-auto bg-background h-full"
         >
           <div className="p-4">
             {/* Search */}
@@ -2379,59 +1667,24 @@ Check browser console for detailed logs.`);
                           }}
                           className="flex-1 px-3 py-2 bg-background border border-border rounded-lg hover:border-primary transition-colors text-left"
                         >
-                          <Database className="inline mr-2" size={16} />
+                          <FolderOpen className="inline mr-2" size={16} />
                           {drive.name}
                         </button>
                       ))}
                     </div>
 
-                    {/* Breadcrumbs */}
-                    <div className="flex items-center gap-2 text-sm overflow-x-auto pb-2">
-                      {state.driveBreadcrumb.map((crumb, index) => (
-                        <div key={crumb.id} className="flex items-center gap-2">
-                          {index > 0 && <ChevronRight size={16} className="text-muted-foreground" />}
+                    {/* Breadcrumb */}
+                    {state.driveBreadcrumb.length > 1 && (
+                      <div className="flex items-center gap-1 text-sm">
+                        {state.driveBreadcrumb.map((crumb, index) => (
                           <button
-                            onClick={() => navigateUp(index)}
-                            className="text-primary hover:underline whitespace-nowrap"
+                            key={crumb.id}
+                            onClick={() => navigateBreadcrumb(index)}
+                            className="hover:text-primary transition-colors"
                           >
                             {crumb.name}
                           </button>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* View toggle */}
-                    <div className="flex justify-end">
-                      <button
-                        onClick={() => setState(prev => ({ ...prev, driveViewMode: prev.driveViewMode === 'grid' ? 'list' : 'grid' }))}
-                        className="p-2 bg-background border border-border rounded hover:border-primary transition-colors"
-                      >
-                        {state.driveViewMode === 'grid' ? <List size={20} /> : <FileImage size={20} />}
-                      </button>
-                    </div>
-
-                    {state.driveLoading && (
-                      <div className="text-center py-4 text-muted-foreground text-sm">
-                        Loading Drive files...
-                      </div>
-                    )}
-
-                    {/* Folders */}
-                    {state.driveFiles.filter((item: any) => item.type === 'folder').length > 0 && (
-                      <div className="mb-4">
-                        <h3 className="text-xs font-semibold text-muted-foreground mb-2">Folders</h3>
-                        <div className="grid grid-cols-3 gap-2">
-                          {state.driveFiles.filter((item: any) => item.type === 'folder').map((folder: any) => (
-                            <button
-                              key={folder.id}
-                              onClick={() => navigateToFolder(folder)}
-                              className="p-3 bg-background border border-border rounded-lg hover:border-primary transition-colors text-left"
-                            >
-                              <Folder className="inline mr-2" size={20} />
-                              <div className="text-sm font-medium text-foreground truncate">{folder.name}</div>
-                            </button>
-                          ))}
-                        </div>
+                        ))}
                       </div>
                     )}
 
@@ -2445,7 +1698,7 @@ Check browser console for detailed logs.`);
                               // Check if this Drive file has already been ingested
                               const existingAsset = state.assets.find(a => a.drive?.fileId === file.id);
                               const isIngested = !!existingAsset;
-                              
+
                               return (
                                 <button
                                   key={file.id}
@@ -2488,7 +1741,7 @@ Check browser console for detailed logs.`);
                               // Check if this Drive file has already been ingested
                               const existingAsset = state.assets.find(a => a.drive?.fileId === file.id);
                               const isIngested = !!existingAsset;
-                              
+
                               return (
                                 <button
                                   key={file.id}
@@ -2519,51 +1772,31 @@ Check browser console for detailed logs.`);
                                     <div className="text-xs text-muted-foreground">
                                       {file.modifiedTime ? new Date(file.modifiedTime).toLocaleDateString() : 'Unknown date'}
                                     </div>
-                                    {isIngested && (
-                                      <div className="text-xs text-green-600 font-medium">✓ Ingested</div>
-                                    )}
                                   </div>
+                                  {isIngested && (
+                                    <div className="text-xs text-green-600 font-medium">✓</div>
+                                  )}
                                 </button>
                               );
                             })}
                           </div>
                         )}
-
-                        {/* Load more */}
                         {state.driveNextPageToken && (
                           <button
                             onClick={loadMoreDriveFiles}
                             disabled={state.driveLoadingMore}
-                            className="mt-3 w-full py-2 bg-background border border-border rounded-lg hover:border-primary transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+                            className="w-full mt-2 py-2 bg-surface text-foreground rounded hover:bg-surface/80 transition-colors text-sm disabled:opacity-50"
                           >
-                            {state.driveLoadingMore ? <Loader2 size={16} className="animate-spin" /> : 'Load more'}
+                            {state.driveLoadingMore ? 'Loading...' : 'Load More'}
                           </button>
                         )}
                       </div>
                     )}
 
-                    {state.driveFiles.length === 0 && !state.driveLoading && (
-                      <div className="text-center py-4 text-muted-foreground text-sm">
+                    {state.driveFiles.filter((item: any) => item.type !== 'folder').length === 0 && !state.driveLoading && (
+                      <p className="text-sm text-muted-foreground text-center py-4">
                         No files in this folder
-                      </div>
-                    )}
-
-                    {/* Selected file actions */}
-                    {state.driveSelectedFile && (
-                      <div className="mt-4 p-3 bg-background border border-border rounded-lg flex items-center justify-between">
-                        <div>
-                          <div className="text-sm font-medium text-foreground">{state.driveSelectedFile.name}</div>
-                          <div className="text-xs text-muted-foreground">
-                            {state.driveSelectedFile.mimeType} • {state.driveSelectedFile.size ? `${(state.driveSelectedFile.size / 1024).toFixed(1)} KB` : 'Unknown size'}
-                          </div>
-                        </div>
-                        <button
-                          onClick={() => state.driveSelectedFile && ingestDriveFile(state.driveSelectedFile)}
-                          className="px-3 py-1.5 bg-primary text-primary-foreground text-sm rounded-lg hover:bg-primary/90 transition-colors"
-                        >
-                          Ingest as Media
-                        </button>
-                      </div>
+                      </p>
                     )}
                   </div>
                 )}
@@ -2578,7 +1811,7 @@ Check browser console for detailed logs.`);
                 const isDriveOnly = asset.classification === 'DRIVE_ONLY';
                 const isPublished = asset.classification === 'PUBLISHED';
                 const isLegacy = asset.classification !== 'PUBLISHED' && asset.classification !== 'DRIVE_ONLY';
-                
+
                 return (
                   <div
                     key={asset.id}
@@ -2610,52 +1843,49 @@ Check browser console for detailed logs.`);
                         alt={asset.filename}
                         className="w-full h-full object-cover"
                       />
-                    ) : asset.drive?.fileId ? (
-                      <img
-                        src={`/api/drive/files/${asset.drive.fileId}/thumbnail${asset.drive.driveId ? `?driveId=${asset.drive.driveId}` : ''}`}
-                        alt={asset.filename}
-                        className="w-full h-full object-cover"
-                      />
                     ) : (
-                      <div className="w-full h-full bg-surface flex items-center justify-center">
-                        <Layers className="text-muted-foreground" size={32} />
+                      <div className="w-full h-full bg-muted flex items-center justify-center">
+                        <FileImage size={24} className="text-muted-foreground" />
                       </div>
                     )}
                     
-                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
-                      <p className="text-xs text-white font-medium truncate">
-                        {asset.filename}
-                      </p>
+                    {/* Status badges */}
+                    <div className="absolute top-1 right-1 flex gap-1">
+                      {isUsed && (
+                        <span className="px-1.5 py-0.5 bg-green-500 text-white text-xs rounded-full">
+                          Used
+                        </span>
+                      )}
+                      {isDriveOnly && (
+                        <span className="px-1.5 py-0.5 bg-blue-500 text-white text-xs rounded-full">
+                          Drive
+                        </span>
+                      )}
+                      {isPublished && (
+                        <span className="px-1.5 py-0.5 bg-purple-500 text-white text-xs rounded-full">
+                          Published
+                        </span>
+                      )}
+                      {isLegacy && (
+                        <span className="px-1.5 py-0.5 bg-gray-500 text-white text-xs rounded-full">
+                          Legacy
+                        </span>
+                      )}
                     </div>
 
-                    {isDriveOnly && (
-                      <div className="absolute top-2 right-2 px-2 py-1 bg-blue-500 text-white text-xs rounded">
-                        Drive
-                      </div>
-                    )}
-                    {isPublished && (
-                      <div className="absolute top-2 left-2 px-2 py-1 bg-green-500 text-white text-xs rounded">
-                        Assignable
-                      </div>
-                    )}
-                    {isLegacy && (
-                      <div className="absolute top-2 left-2 px-2 py-1 bg-amber-500 text-white text-xs rounded">
-                        Legacy
-                      </div>
-                    )}
-                    {isUsed && !isDriveOnly && (
-                      <div className="absolute top-2 right-2 px-2 py-1 bg-gray-500 text-white text-xs rounded">
-                        Used
-                      </div>
-                    )}
+                    {/* Filename overlay */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
+                      <p className="text-xs text-white truncate">{asset.filename}</p>
+                    </div>
                   </div>
                 );
               })}
             </div>
 
             {filteredAssets.length === 0 && (
-              <div className="text-center py-12 text-muted-foreground">
-                No photos found
+              <div className="text-center py-8">
+                <FileImage size={48} className="mx-auto text-muted-foreground mb-4" />
+                <p className="text-sm text-muted-foreground">No media assets found</p>
               </div>
             )}
           </div>
