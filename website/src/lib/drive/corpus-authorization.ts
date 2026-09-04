@@ -3,6 +3,32 @@
  * 
  * P0-4: Application-level Drive corpus authorization
  * 
+ * CRITICAL AUTHORIZATION MODEL:
+ * 
+ * This module currently uses TWO SEPARATE authorization systems:
+ * 1. Workbench Session (workbench-session.ts): Authenticates human/admin to Workbench
+ * 2. Drive OAuth (oauth-credential-store.ts): Authenticates to Google Drive
+ * 
+ * These systems are NOT cryptographically bound together in the current implementation.
+ * 
+ * CURRENT BEHAVIOR:
+ * - workbenchSession.getSessionIdentity() checks if human is authenticated to Workbench
+ * - getDriveClient() uses Drive OAuth authorization to access Google Drive
+ * - Environment variables (HPP_AUTHORIZED_SHARED_DRIVES, HPP_AUTHORIZED_MY_DRIVE) control corpus access
+ * 
+ * LIMITATION: There is no explicit binding of:
+ * Workbench session identity ↔ Drive authorization identity ↔ Google subject ↔ authorized corpus
+ * 
+ * The Workbench session does not contain Google identity (intentionally - see workbench-session.ts)
+ * The Drive authorization does not contain Workbench session identity
+ * 
+ * This is architecturally awkward but not necessarily a vulnerability IF:
+ * - Workbench access is strictly controlled (single trusted admin)
+ * - Drive OAuth is strictly scoped (read-only, no write permissions)
+ * - Corpus allowlist is environment-configured (not user-configurable)
+ * 
+ * FUTURE: Implement explicit binding of Workbench ↔ Drive identity if multi-user support is needed
+ * 
  * Google OAuth authentication is NOT sufficient for HPP authorization.
  * The application must verify:
  * - authenticated session

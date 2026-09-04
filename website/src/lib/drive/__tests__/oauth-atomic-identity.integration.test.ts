@@ -83,26 +83,28 @@ describeOrSkip('OAuth Atomic Identity - Real Redis Integration', () => {
       const {
         upsertAuthorization,
         findAuthorizationBySubject,
+        getAuthorization,
       } = await import('../oauth-credential-store');
+      const { Redis } = await import('@upstash/redis');
 
       const googleSubject = `test_subject_${Date.now()}`;
       const email = `test_${Date.now()}@example.com`;
       
       // Create multiple authorization records for the same subject
-      const upsertAttempts = Array.from({ length: 5 }, (_, i) => 
+      const upsertAttempts = Array.from({ length: 10 }, (_, i) => 
         upsertAuthorization(
           googleSubject,
           email,
           ['drive.readonly'],
-          'test_token',
+          `test_token_${i}`,
           Date.now() + 3600000,
-          'test_refresh',
+          `test_refresh_${i}`,
           0
         )
       );
       
       // Execute all upserts concurrently
-      await Promise.all(upsertAttempts);
+      const results = await Promise.all(upsertAttempts);
       
       // CRITICAL: There should be exactly one authoritative authorization for this subject
       const auth = await findAuthorizationBySubject(googleSubject);
@@ -113,9 +115,42 @@ describeOrSkip('OAuth Atomic Identity - Real Redis Integration', () => {
       const sameSubjectAuths = await findAuthorizationBySubject(googleSubject);
       expect(sameSubjectAuths).not.toBeNull();
       
-      console.log('[OAUTH_IDENTITY_INTEGRATION] Concurrent upsert test passed:', {
+      // ADVERSARIAL: Inspect Redis state to prove no orphan records
+      // All upserts should have converged to the same authorization ID
+      const uniqueAuthIds = new Set(results.map(r => r.id));
+      expect(uniqueAuthIds.size).toBe(1); // All should have returned the same ID
+      
+      // Verify there are no orphan authorization records for this subject
+      const redis = new Redis({ 
+        url: OAUTH_IDENTITY_KV_REST_API_URL, 
+        token: OAUTH_IDENTITY_KV_REST_API_TOKEN 
+      });
+      
+      // Scan for all authorization keys in the test namespace
+      const authKeys = await redis.scan(0, {
+        match: `${testNamespace}drive:auth:*`,
+        count: 100
+      });
+      
+      // Find all authorizations for this subject
+      const authRecords: any[] = [];
+      for (const key of authKeys[0]) {
+        const record = await redis.get<any>(key);
+        if (record && record.googleSubject === googleSubject) {
+          authRecords.push(record);
+        }
+      }
+      
+      // CRITICAL: There should be exactly ONE authorization record for this subject
+      expect(authRecords.length).toBe(1);
+      expect(authRecords[0].id).toBe(auth?.id);
+      
+      console.log('[OAUTH_IDENTITY_INTEGRATION] Adversarial concurrent upsert test passed:', {
         googleSubject,
         authId: auth?.id,
+        totalAttempts: upsertAttempts.length,
+        uniqueAuthIds: uniqueAuthIds.size,
+        orphanRecords: authRecords.length - 1,
       });
     });
 
