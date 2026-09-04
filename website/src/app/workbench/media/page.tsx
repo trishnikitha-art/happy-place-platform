@@ -408,7 +408,7 @@ export default function MediaWorkbench() {
     try {
       setState(prev => ({ ...prev, driveLoading: true, driveError: null }));
       
-      const response = await fetch('/api/drive/structure');
+      const response = await fetch('/api/drive/discovery');
       if (!response.ok) {
         throw new Error('Failed to load Drive structure');
       }
