@@ -288,7 +288,6 @@ export default function MediaWorkbench() {
         body: JSON.stringify({
           slotId: slot.id,
           mediaId: media.id,
-          route: slot.route,
         }),
       });
 
