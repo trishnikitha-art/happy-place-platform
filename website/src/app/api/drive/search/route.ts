@@ -29,6 +29,11 @@ export async function GET(request: Request) {
   // This bypass requires both NODE_ENV=development AND explicit DRIVE_AUTH_BYPASS=true
   const authBypassEnabled = process.env.NODE_ENV === 'development' && process.env.DRIVE_AUTH_BYPASS === 'true';
   
+  // P0 FIX: Normalize corpusId once at the start for both authorization and search
+  // Client sends driveId for Shared Drive context, server accepts both driveId and corpusId
+  const { searchParams } = new URL(request.url);
+  const corpusId = searchParams.get('corpusId') || searchParams.get('driveId') || undefined;
+  
   if (authBypassEnabled) {
     console.warn('[DRIVE SEARCH API] AUTHENTICATION BYPASS ENABLED - DEVELOPMENT ONLY');
   } else {
@@ -49,11 +54,7 @@ export async function GET(request: Request) {
       );
     }
 
-    // P0 FIX: Verify search corpus authorization
-    // Client sends driveId for Shared Drive context, server accepts both driveId and corpusId
-    const { searchParams } = new URL(request.url);
-    const corpusId = searchParams.get('corpusId') || searchParams.get('driveId') || undefined;
-    
+    // P0 FIX: Verify search corpus authorization using normalized corpusId
     const searchAuth = await verifySearchAuthorization(corpusId);
     if (!searchAuth.authorized) {
       console.error('[DRIVE_AUTHORIZATION] SEARCH_NOT_AUTHORIZED', {
@@ -75,10 +76,7 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { searchParams } = new URL(request.url);
     const query = searchParams.get('query') || '';
-    // Normalize driveId to corpusId for consistency with authorization check
-    const corpusId = searchParams.get('corpusId') || searchParams.get('driveId') || undefined;
     const pageToken = searchParams.get('pageToken') || undefined;
 
     console.log('[DRIVE SEARCH API] Request:', { query, corpusId, pageToken });
