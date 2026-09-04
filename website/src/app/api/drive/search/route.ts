@@ -77,7 +77,8 @@ export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
     const query = searchParams.get('query') || '';
-    const corpusId = searchParams.get('corpusId') || undefined;
+    // Normalize driveId to corpusId for consistency with authorization check
+    const corpusId = searchParams.get('corpusId') || searchParams.get('driveId') || undefined;
     const pageToken = searchParams.get('pageToken') || undefined;
 
     console.log('[DRIVE SEARCH API] Request:', { query, corpusId, pageToken });
