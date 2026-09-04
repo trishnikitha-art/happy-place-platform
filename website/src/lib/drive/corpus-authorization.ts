@@ -212,7 +212,10 @@ export async function verifyCorpusAuthorization(
     // CRITICAL FIX: Handle Shared Drive root differently
     // Shared Drive root is not a file - it's the drive itself
     // For Shared Drive operations, we only need to verify corpusId is authorized
-    if (fileId === 'root' && corpusId && corpusId !== 'root') {
+    // Two cases:
+    // 1. fileId === 'root' && corpusId !== 'root' (Shared Drive root via My Drive root convention)
+    // 2. fileId === corpusId && corpusId !== 'root' (Shared Drive root via direct Drive ID)
+    if (corpusId && corpusId !== 'root' && (fileId === 'root' || fileId === corpusId)) {
       // This is a Shared Drive root operation - verify corpusId directly
       const authorizedCorpora = await getAuthorizedCorpora();
       const authorizedCorpusIds = authorizedCorpora.map(c => c.id);
