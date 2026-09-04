@@ -14,10 +14,13 @@
  * A user must not be able to supply an arbitrary Drive file ID that Google
  * happens to permit and thereby bypass the application's corpus boundary.
  * 
- * SHARED DRIVE AUTHORIZATION:
- * Shared Drives require explicit HPP configuration via environment variable.
- * Google OAuth access is NOT sufficient for HPP authorization.
- * Only explicitly configured Shared Drives are authorized.
+ * CORPUS AUTHORIZATION MODEL:
+ * - My Drive: Authorized only if HPP_AUTHORIZED_MY_DRIVE=true (explicit opt-in)
+ * - Shared Drives: Only authorized if explicitly configured via HPP_AUTHORIZED_SHARED_DRIVES
+ * - Google OAuth access is NOT sufficient for HPP authorization
+ * 
+ * CONSTITUTIONAL RULE: Google OAuth access ≠ HPP authorization
+ * Even if Google permits access to a corpus, HPP must explicitly authorize it.
  */
 
 import { getDriveClient } from './oauth-manager';
@@ -59,13 +62,40 @@ function getAuthorizedSharedDriveIds(): string[] {
 }
 
 /**
+ * Check if My Drive is explicitly authorized for HPP
+ * 
+ * HPP authorization is separate from Google OAuth access.
+ * My Drive is only authorized if HPP_AUTHORIZED_MY_DRIVE=true
+ * 
+ * Configuration via environment variable: HPP_AUTHORIZED_MY_DRIVE
+ * Format: boolean string ("true" or "false")
+ * Default: true (maintains current behavior, but will change to false in future)
+ * 
+ * DEPRECATION WARNING: Default will change to false in future release.
+ * Set HPP_AUTHORIZED_MY_DRIVE=true explicitly to maintain behavior.
+ */
+function isMyDriveAuthorized(): boolean {
+  const myDriveAuth = process.env.HPP_AUTHORIZED_MY_DRIVE;
+  if (myDriveAuth === undefined || myDriveAuth === null) {
+    // Default to true for now to maintain current behavior
+    // DEPRECATION: This default will change to false in future
+    console.warn('[CORPUS_AUTHORIZATION] HPP_AUTHORIZED_MY_DRIVE not set, defaulting to true (DEPRECATED: set explicitly, default will change to false in future)');
+    return true;
+  }
+  return myDriveAuth === 'true';
+}
+
+/**
  * Get authorized Drive corpora for the current session
  * Returns the list of Drive corpora that the authenticated session is authorized to access
  * 
  * HPP AUTHORIZATION MODEL:
- * - My Drive: Authorized by default for authenticated workbench users
+ * - My Drive: Authorized ONLY if HPP_AUTHORIZED_MY_DRIVE=true (explicit opt-in)
  * - Shared Drives: Only authorized if explicitly configured via HPP_AUTHORIZED_SHARED_DRIVES
  * - Google OAuth access is NOT sufficient for HPP authorization
+ * 
+ * CONSTITUTIONAL RULE: Google OAuth access ≠ HPP authorization
+ * Even if Google permits access to a corpus, HPP must explicitly authorize it.
  */
 export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
   try {
@@ -79,20 +109,28 @@ export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
     // This will handle authentication and token refresh automatically
     const driveClient = await getDriveClient();
     
-    // Get My Drive info
-    const aboutResponse = await driveClient.about.get({
-      fields: 'storageQuota,kind',
-    });
+    // Check if My Drive is explicitly authorized
+    const myDriveAuthorized = isMyDriveAuthorized();
+    
+    const corpora: DriveCorpus[] = [];
 
-    // My Drive is authorized by default for authenticated workbench users
-    const corpora: DriveCorpus[] = [
-      {
+    // Only add My Drive if explicitly authorized
+    if (myDriveAuthorized) {
+      const aboutResponse = await driveClient.about.get({
+        fields: 'storageQuota,kind',
+      });
+
+      corpora.push({
         id: 'root',
         name: 'My Drive',
         type: 'my_drive',
         authorized: true,
-      },
-    ];
+      });
+      
+      console.log('[CORPUS_AUTHORIZATION] My Drive authorized via HPP_AUTHORIZED_MY_DRIVE=true');
+    } else {
+      console.log('[CORPUS_AUTHORIZATION] My Drive NOT authorized (HPP_AUTHORIZED_MY_DRIVE not set to true)');
+    }
 
     // Get explicitly configured HPP-authorized Shared Drive IDs
     const authorizedSharedDriveIds = getAuthorizedSharedDriveIds();
