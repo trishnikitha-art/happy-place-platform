@@ -98,6 +98,11 @@ export default function ConnectorsPage() {
       if (response.ok) {
         const data = await response.json();
         setDriveAuthStatus(data.authenticated || false);
+        // If auth status indicates re-auth is required, set that flag
+        if (data.requiresReauth) {
+          setDriveRequiresReauth(true);
+          setError('Google Drive authorization has expired. Please re-authenticate.');
+        }
       }
     } catch (err) {
       console.error('Failed to check Drive auth status:', err);
