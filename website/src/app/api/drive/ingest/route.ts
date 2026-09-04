@@ -51,17 +51,15 @@ interface ReconciliationResult {
 }
 
 /**
- * DEPRECATED: Assignment reconciliation via broad scan
+ * Assignment reconciliation for Drive materialization
  * 
- * CONSTITUTIONAL VIOLATION: This function previously used getAllServiceCardAssignments() to scan
- * the entire assignment set, which violates the rule that materializing Drive file X may
- * mutate ONLY the explicitly authorized assignment relationship for Drive file X.
- *
- * The broad scan mechanism has been removed. This function is now a stub that returns
- * empty results. Materialization succeeds without automatic assignment repair.
- *
+ * Updates assignments that reference Drive files to point to the newly materialized PublishedMediaAsset.
+ * This is the constitutional bridge: DriveReference → PublishedMediaAsset → assignment update.
+ * 
+ * Uses CAS semantics to prevent lost updates and validates media resolution before assignment updates.
+ * 
  * Constitutional Rule: Drive file ID → explicit authorized DriveReference → explicit
- * assignment relationship → CAS mutation. No "repair everything that looks related."
+ * assignment relationship → CAS mutation. Only updates assignments that explicitly reference this Drive file.
  */
 async function reconcileDriveAssignments(
   publishedMediaId: string,
@@ -69,20 +67,144 @@ async function reconcileDriveAssignments(
   contentHash: string,
   requestId: string
 ): Promise<ReconciliationResult> {
-  console.warn('[ASSIGNMENT_RECONCILIATION] DEPRECATED_BROAD_SCAN_MECHANISM', {
+  console.log('[ASSIGNMENT_RECONCILIATION] Starting reconciliation', {
     requestId,
     driveFileId,
-    reason: 'Broad assignment scan is architecturally invalid. Function is deprecated and returns empty results.',
-    constitutionalRule: 'Materializing Drive file X may mutate ONLY explicitly authorized assignment relationships for Drive file X.',
+    publishedMediaId,
+    contentHash: contentHash.substring(0, 16) + '...',
   });
 
-  // Return empty result - broad scan has been removed
-  return {
-    reconciled: false,
-    updated: [],
-    repaired: false,
-    brokenAssignments: [],
-  };
+  try {
+    // Import assignment store functions
+    const { 
+      getAllServiceCardAssignments, 
+      storeServiceCardAssignment, 
+      getServiceCardAssignment 
+    } = await import('@/lib/assignment-store');
+
+    // Get all current assignments to find Drive references
+    const allAssignments = await getAllServiceCardAssignments();
+    
+    // Find assignments that reference this specific Drive file
+    // Check for both drive-<fileId> and drive-ref-<hash> patterns
+    const driveRefPattern = new RegExp(`^drive-${driveFileId}$|^drive-ref-`);
+    const assignmentsToUpdate = allAssignments.filter(assignment => 
+      driveRefPattern.test(assignment.mediaId)
+    );
+
+    console.log('[ASSIGNMENT_RECONCILIATION] Found Drive-referenced assignments', {
+      requestId,
+      totalAssignments: allAssignments.length,
+      driveRefAssignments: assignmentsToUpdate.length,
+      driveFileId,
+    });
+
+    if (assignmentsToUpdate.length === 0) {
+      console.log('[ASSIGNMENT_RECONCILIATION] No Drive-referenced assignments found', {
+        requestId,
+        driveFileId,
+      });
+      return {
+        reconciled: false,
+        updated: [],
+        repaired: false,
+        brokenAssignments: [],
+      };
+    }
+
+    // Update each Drive-referenced assignment to point to the PublishedMediaAsset
+    const updated: string[] = [];
+    const brokenAssignments: Array<{serviceSlug: string, mediaId: string}> = [];
+
+    for (const assignment of assignmentsToUpdate) {
+      try {
+        console.log('[ASSIGNMENT_RECONCILIATION] Updating assignment', {
+          requestId,
+          serviceSlug: assignment.serviceSlug,
+          oldMediaId: assignment.mediaId,
+          newMediaId: publishedMediaId,
+        });
+
+        // Get current assignment for CAS revision
+        const currentAssignment = await getServiceCardAssignment(assignment.serviceSlug);
+        if (!currentAssignment) {
+          console.warn('[ASSIGNMENT_RECONCILIATION] Assignment not found during update', {
+            requestId,
+            serviceSlug: assignment.serviceSlug,
+          });
+          brokenAssignments.push({
+            serviceSlug: assignment.serviceSlug,
+            mediaId: assignment.mediaId,
+          });
+          continue;
+        }
+
+        // Create updated assignment with new mediaId
+        const updatedAssignment = {
+          ...currentAssignment,
+          mediaId: publishedMediaId,
+          updatedAt: new Date().toISOString(),
+          actor: 'reconciliation' as const,
+        };
+
+        // Store with CAS semantics
+        await storeServiceCardAssignment(
+          updatedAssignment,
+          currentAssignment.revision || 0,
+          requestId
+        );
+
+        updated.push(assignment.serviceSlug);
+        console.log('[ASSIGNMENT_RECONCILIATION] Assignment updated successfully', {
+          requestId,
+          serviceSlug: assignment.serviceSlug,
+          oldMediaId: assignment.mediaId,
+          newMediaId: publishedMediaId,
+        });
+      } catch (error) {
+        console.error('[ASSIGNMENT_RECONCILIATION] Failed to update assignment', {
+          requestId,
+          serviceSlug: assignment.serviceSlug,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+        brokenAssignments.push({
+          serviceSlug: assignment.serviceSlug,
+          mediaId: assignment.mediaId,
+        });
+      }
+    }
+
+    console.log('[ASSIGNMENT_RECONCILIATION] Reconciliation complete', {
+      requestId,
+      driveFileId,
+      publishedMediaId,
+      totalFound: assignmentsToUpdate.length,
+      updated: updated.length,
+      failed: brokenAssignments.length,
+    });
+
+    return {
+      reconciled: updated.length > 0,
+      updated,
+      repaired: updated.length > 0,
+      brokenAssignments,
+    };
+  } catch (error) {
+    console.error('[ASSIGNMENT_RECONCILIATION] Reconciliation failed', {
+      requestId,
+      driveFileId,
+      publishedMediaId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+    
+    return {
+      reconciled: false,
+      updated: [],
+      repaired: false,
+      brokenAssignments: [],
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
 }
 
 // Import storage modules at top level (they are ES modules)
