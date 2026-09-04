@@ -230,20 +230,42 @@ export class DriveDiscovery {
       // Shared Drive query
       params.corpora = 'drive';
       params.driveId = context.driveId;
+      
+      // FORENSIC: Log Shared Drive root detection for verification
+      console.log('[DRIVE_DISCOVERY_FORENSIC] Shared Drive context', {
+        parentId: context.parentId,
+        driveId: context.driveId,
+        isRoot: context.parentId === context.driveId,
+        assumption: 'Shared Drive ID === root parent ID',
+      });
+      
       // For Shared Drive root, use the driveId as the folderId
       // Google documentation: Shared Drive ID is also the ID of its top-level folder
       // Root-level items have the Shared Drive ID as their parent
       if (context.parentId === context.driveId) {
         // Shared Drive root - constrain to immediate root children
         params.q = `'${context.driveId}' in parents and trashed = false`;
+        console.log('[DRIVE_DISCOVERY_FORENSIC] Using Shared Drive root query', {
+          driveId: context.driveId,
+          query: params.q,
+        });
       } else {
         // Shared Drive folder
         params.q = `'${context.parentId}' in parents and trashed = false`;
+        console.log('[DRIVE_DISCOVERY_FORENSIC] Using Shared Drive folder query', {
+          parentId: context.parentId,
+          driveId: context.driveId,
+          query: params.q,
+        });
       }
     } else {
       // My Drive query
       params.corpora = 'user';
       params.q = `'${context.parentId}' in parents and trashed = false`;
+      console.log('[DRIVE_DISCOVERY_FORENSIC] Using My Drive query', {
+        parentId: context.parentId,
+        query: params.q,
+      });
     }
 
     // Add pagination
