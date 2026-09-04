@@ -17,7 +17,7 @@
  * WORKBENCH_SESSION_COOKIE=your_cookie node scripts/execute-production-reconciliation.mjs
  */
 
-const PRODUCTION_ENDPOINT = 'https://happyplacecarpentry.com/api/admin/diagnostic/reconcile-static-media';
+const PRODUCTION_ENDPOINT = 'https://happy-place-platform.vercel.app/api/admin/diagnostic/reconcile-static-media';
 const SESSION_COOKIE = process.env.WORKBENCH_SESSION_COOKIE;
 
 async function executeProductionReconciliation() {
@@ -29,7 +29,7 @@ async function executeProductionReconciliation() {
     console.error('[PRODUCTION_RECONCILIATION] Please set your Workbench session cookie:');
     console.error('[PRODUCTION_RECONCILIATION] WORKBENCH_SESSION_COOKIE=your_cookie node scripts/execute-production-reconciliation.mjs');
     console.error('[PRODUCTION_RECONCILIATION] To get your session cookie:');
-    console.error('[PRODUCTION_RECONCILIATION] 1. Log into https://happyplacecarpentry.com/admin');
+    console.error('[PRODUCTION_RECONCILIATION] 1. Log into https://happy-place-platform.vercel.app/workbench/login');
     console.error('[PRODUCTION_RECONCILIATION] 2. Open browser DevTools → Application → Cookies');
     console.error('[PRODUCTION_RECONCILIATION] 3. Copy the workbench_session_id cookie value');
     process.exit(1);
@@ -52,7 +52,7 @@ async function executeProductionReconciliation() {
       if (response.status === 401) {
         console.log('[PRODUCTION_RECONCILIATION] Authentication required.');
         console.log('[PRODUCTION_RECONCILIATION] Please log into the Workbench at:');
-        console.log('[PRODUCTION_RECONCILIATION] https://happyplacecarpentry.com/admin');
+        console.log('[PRODUCTION_RECONCILIATION] https://happy-place-platform.vercel.app/workbench/login');
       }
       return;
     }
