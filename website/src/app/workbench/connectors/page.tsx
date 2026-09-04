@@ -53,7 +53,19 @@ export default function ConnectorsPage() {
         // Check for authorization expiration
         if (data.error === 'AUTHORIZATION_EXPIRED' || data.requiresReauth) {
           setDriveRequiresReauth(true);
-          setError('Google Drive authorization has expired. Please re-authenticate.');
+          // Don't set error - let connector grid render with re-auth button
+          // Set fallback connector with inactive status
+          setConnectors([
+            {
+              id: 'google-drive',
+              name: 'Google Drive',
+              type: 'google-drive',
+              status: 'inactive',
+              lastChecked: new Date().toISOString(),
+              capabilities: ['read files', 'browse folders', 'view thumbnails'],
+            },
+          ]);
+          return;
         } else {
           throw new Error(data.message || 'Drive discovery failed');
         }
@@ -101,7 +113,7 @@ export default function ConnectorsPage() {
         // If auth status indicates re-auth is required, set that flag
         if (data.requiresReauth) {
           setDriveRequiresReauth(true);
-          setError('Google Drive authorization has expired. Please re-authenticate.');
+          // Don't set error - let connector grid render with re-auth button
         }
       }
     } catch (err) {
