@@ -56,11 +56,34 @@ export async function GET(
 
     console.log('[DRIVE FOLDER API] Request:', { folderId, driveId, pageToken });
 
-    // CRITICAL: Verify driveId and folderId consistency
-    // If driveId is supplied, verify the folder actually belongs to that corpus
-    // CRITICAL: Shared Drive root (folderId === driveId) must also be authorized
-    // The folderId !== 'root' check is insufficient for Shared Drive context
-    if (driveId && (folderId !== 'root' || folderId === driveId)) {
+    // P0 FIX: Distinguish between My Drive root and Shared Drive root authorization
+    // Shared Drive root: folderId === 'root' AND driveId === SHARED_DRIVE_ID
+    // My Drive root: folderId === 'root' AND driveId absent
+    // Shared Drive child folder: folderId !== 'root' AND driveId present
+    if (driveId && folderId === 'root') {
+      // Shared Drive root case - verify corpus authorization
+      const corpusAuth = await verifyCorpusAuthorization('root', driveId);
+      if (!corpusAuth.authorized) {
+        console.error('[DRIVE_AUTHORIZATION] SHARED_DRIVE_ROOT_NOT_AUTHORIZED', {
+          folderId,
+          driveId,
+          reason: corpusAuth.reason,
+        });
+        return NextResponse.json(
+          {
+            error: 'DRIVE_SHARED_DRIVE_ROOT_NOT_AUTHORIZED',
+            message: corpusAuth.reason || 'Shared Drive root is not HPP-authorized',
+          },
+          { status: 403 }
+        );
+      }
+      console.log('[DRIVE_AUTHORIZATION] SHARED_DRIVE_ROOT_AUTHORIZED', {
+        folderId,
+        driveId,
+        corpus: corpusAuth.corpus,
+      });
+    } else if (driveId && folderId !== 'root') {
+      // Shared Drive child folder case - verify corpus and folder consistency
       const corpusAuth = await verifyCorpusAuthorization(folderId, driveId);
       if (!corpusAuth.authorized) {
         console.error('[DRIVE_AUTHORIZATION] DRIVE_ID_FOLDER_ID_MISMATCH', {
@@ -81,28 +104,47 @@ export async function GET(
         driveId,
         corpus: corpusAuth.corpus,
       });
-    }
-
-    // Verify folder authorization
-    const folderAuth = await verifyFolderAuthorization(folderId);
-    if (!folderAuth.authorized) {
-      console.error('[DRIVE_AUTHORIZATION] FOLDER_NOT_AUTHORIZED', {
+    } else if (folderId === 'root' && !driveId) {
+      // My Drive root case - verify My Drive authorization
+      const folderAuth = await verifyFolderAuthorization(folderId);
+      if (!folderAuth.authorized) {
+        console.error('[DRIVE_AUTHORIZATION] MY_DRIVE_ROOT_NOT_AUTHORIZED', {
+          folderId,
+          reason: folderAuth.reason,
+        });
+        return NextResponse.json(
+          {
+            error: 'DRIVE_MY_DRIVE_ROOT_NOT_AUTHORIZED',
+            message: folderAuth.reason || 'My Drive root is not authorized',
+          },
+          { status: 403 }
+        );
+      }
+      console.log('[DRIVE_AUTHORIZATION] MY_DRIVE_ROOT_AUTHORIZED', {
         folderId,
-        reason: folderAuth.reason,
+        corpus: folderAuth.corpus,
       });
-      return NextResponse.json(
-        {
-          error: 'DRIVE_FOLDER_NOT_AUTHORIZED',
-          message: folderAuth.reason || 'Drive folder is not accessible to the authenticated session',
-        },
-        { status: 403 }
-      );
+    } else {
+      // Regular folder case (My Drive child folder)
+      const folderAuth = await verifyFolderAuthorization(folderId);
+      if (!folderAuth.authorized) {
+        console.error('[DRIVE_AUTHORIZATION] FOLDER_NOT_AUTHORIZED', {
+          folderId,
+          reason: folderAuth.reason,
+        });
+        return NextResponse.json(
+          {
+            error: 'DRIVE_FOLDER_NOT_AUTHORIZED',
+            message: folderAuth.reason || 'Drive folder is not accessible to the authenticated session',
+          },
+          { status: 403 }
+        );
+      }
+      console.log('[DRIVE_AUTHORIZATION] FOLDER_ACCESS_VERIFIED', {
+        folderId,
+        corpus: folderAuth.corpus,
+      });
     }
-
-    console.log('[DRIVE_AUTHORIZATION] FOLDER_ACCESS_VERIFIED', {
-      folderId,
-      corpus: folderAuth.corpus,
-    });
 
     const result = await driveDiscovery.listChildren(
       { parentId: folderId, driveId },
