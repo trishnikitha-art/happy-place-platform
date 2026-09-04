@@ -57,11 +57,33 @@ export async function GET(
     console.log('[DRIVE FOLDER API] Request:', { folderId, driveId, pageToken });
 
     // P0 FIX: Distinguish between My Drive root and Shared Drive root authorization
-    // Shared Drive root: folderId === 'root' AND driveId === SHARED_DRIVE_ID
+    // Workbench sends Shared Drive root as: folderId === driveId (not 'root')
     // My Drive root: folderId === 'root' AND driveId absent
-    // Shared Drive child folder: folderId !== 'root' AND driveId present
-    if (driveId && folderId === 'root') {
-      // Shared Drive root case - verify corpus authorization
+    // Shared Drive child folder: folderId !== driveId AND driveId present
+    if (driveId && folderId === driveId) {
+      // Shared Drive root case (Workbench representation: folderId === driveId)
+      const corpusAuth = await verifyCorpusAuthorization(folderId, driveId);
+      if (!corpusAuth.authorized) {
+        console.error('[DRIVE_AUTHORIZATION] SHARED_DRIVE_ROOT_NOT_AUTHORIZED', {
+          folderId,
+          driveId,
+          reason: corpusAuth.reason,
+        });
+        return NextResponse.json(
+          {
+            error: 'DRIVE_SHARED_DRIVE_ROOT_NOT_AUTHORIZED',
+            message: corpusAuth.reason || 'Shared Drive root is not HPP-authorized',
+          },
+          { status: 403 }
+        );
+      }
+      console.log('[DRIVE_AUTHORIZATION] SHARED_DRIVE_ROOT_AUTHORIZED', {
+        folderId,
+        driveId,
+        corpus: corpusAuth.corpus,
+      });
+    } else if (driveId && folderId === 'root') {
+      // Legacy Shared Drive root representation (folderId === 'root' && driveId present)
       const corpusAuth = await verifyCorpusAuthorization('root', driveId);
       if (!corpusAuth.authorized) {
         console.error('[DRIVE_AUTHORIZATION] SHARED_DRIVE_ROOT_NOT_AUTHORIZED', {
@@ -82,7 +104,7 @@ export async function GET(
         driveId,
         corpus: corpusAuth.corpus,
       });
-    } else if (driveId && folderId !== 'root') {
+    } else if (driveId && folderId !== 'root' && folderId !== driveId) {
       // Shared Drive child folder case - verify corpus and folder consistency
       const corpusAuth = await verifyCorpusAuthorization(folderId, driveId);
       if (!corpusAuth.authorized) {
