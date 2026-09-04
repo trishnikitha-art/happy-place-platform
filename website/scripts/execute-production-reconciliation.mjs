@@ -13,6 +13,13 @@
  * - You must provide your Workbench session cookie
  * - Usage: WORKBENCH_SESSION_COOKIE=your_cookie node scripts/execute-production-reconciliation.mjs
  * 
+ * The reconciliation endpoint:
+ * - Loads canonical media.v1.json
+ * - Classifies existing KV records (missing, incomplete, valid, blob, orphan)
+ * - Repairs missing/incomplete static records by adding storage: 'static'
+ * - Preserves Blob records without repair (safety check)
+ * - Returns detailed reconciliation report
+ * 
  * For production reconciliation:
  * WORKBENCH_SESSION_COOKIE=your_cookie node scripts/execute-production-reconciliation.mjs
  */
@@ -65,10 +72,17 @@ async function executeProductionReconciliation() {
       console.log('[PRODUCTION_RECONCILIATION] ✅ SUCCESS');
       console.log('[PRODUCTION_RECONCILIATION] Summary:');
       console.log(`  - Total canonical records: ${result.evidence.totalCanonical}`);
+      console.log(`  - Total KV records: ${result.evidence.totalKvRecords}`);
       console.log(`  - Repaired: ${result.evidence.repaired}`);
       console.log(`  - Preserved: ${result.evidence.preserved}`);
       console.log(`  - Failed: ${result.evidence.failed}`);
-      console.log('[PRODUCTION_RECONCILIATION] Classification:', result.evidence.classification);
+      console.log('[PRODUCTION_RECONCILIATION] Classification:');
+      console.log(`  - Missing (added to KV): ${result.evidence.classification.missing}`);
+      console.log(`  - Incomplete (repaired): ${result.evidence.classification.incomplete}`);
+      console.log(`  - Valid static (preserved): ${result.evidence.classification.validStatic}`);
+      console.log(`  - Valid blob (preserved): ${result.evidence.classification.validBlob}`);
+      console.log(`  - Orphan (preserved for review): ${result.evidence.classification.orphan}`);
+      console.log('[PRODUCTION_RECONCILIATION] Note: Blob records are preserved without repair for safety');
     } else {
       console.log('[PRODUCTION_RECONCILIATION] ❌ FAILED');
       console.log('[PRODUCTION_RECONCILIATION] Errors:', result.evidence?.errors);
