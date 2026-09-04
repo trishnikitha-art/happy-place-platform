@@ -1,20 +1,25 @@
 /**
  * Media Storage Field Diagnostic and Repair
- * 
+ *
  * Identifies and repairs media records missing or invalid storage field.
- * 
+ *
  * Storage field validation:
  * - 'static': local assets served from /public/images/, no Blob metadata required
  * - 'blob': Drive-materialized assets, requires Blob metadata
- * 
+ *
+ * Repair logic:
+ * - If media has contentHash and Blob metadata exists → storage: 'blob'
+ * - If media has contentHash but no Blob metadata → storage: 'static'
+ * - If media has no contentHash → storage: 'static'
+ *
  * POST /api/admin/diagnostic/media-storage-repair
- * 
+ *
  * Requires Workbench authentication.
  */
 
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
-import { listMediaIds, getMedia } from '@/lib/media-kv-store';
+import { listMediaIds, getMedia, saveMedia } from '@/lib/media-kv-store';
 import { getBlobMetadataByContentHash } from '@/lib/blob-storage';
 
 export const dynamic = 'force-dynamic';
@@ -82,7 +87,14 @@ export async function POST(request: Request) {
             currentStorage: media.storage || 'missing',
             correctStorage,
           });
-          
+
+          // Persist the repair
+          const repairedMedia = {
+            ...media,
+            storage: correctStorage,
+          };
+          await saveMedia(repairedMedia);
+
           repaired.push(mediaId);
         } else {
           repairErrors.push({

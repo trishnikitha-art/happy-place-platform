@@ -10,6 +10,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    "package/**",
+    "scripts/**",
     // Work-in-progress directories not critical to OAuth verification
     "src/shared/connectors/**",
     "src/shared/explorer/**",

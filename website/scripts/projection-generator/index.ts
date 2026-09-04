@@ -196,7 +196,7 @@ function generateGalleryProjection(
   const projectionProjects: any[] = [];
   let order = 0;
   
-  for (const [projectId, projectData: any] of Object.entries(projects)) {
+  for (const [projectId, projectData] of Object.entries(projects)) {
     const images = projectData.images;
     const beforeImages = images.filter((img: any) => img.beforeAfter === false || img.filename.toLowerCase().includes('before'));
     const afterImages = images.filter((img: any) => img.beforeAfter === true || img.filename.toLowerCase().includes('after'));

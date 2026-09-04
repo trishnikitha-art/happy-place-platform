@@ -7,7 +7,6 @@ import type { Media } from "@/types/media";
 import { Icon } from "@/components/icon";
 import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
-import { resolvePublicMedia } from "@/lib/media";
 import { useState } from "react";
 
 /**
@@ -29,20 +28,8 @@ import { useState } from "react";
  * When rendered within another Link wrapper, navigation should be handled by the parent.
  */
 export function ServiceCard({ service, runtimeCardMediaObject, href }: { service: Service; runtimeCardMediaObject?: Media | null; href?: string }) {
-  const [renderRequestId] = useState(() => `render-${service.slug}-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`);
-
-  // UNCONDITIONAL LOG - will appear in iframe console if component renders
-  console.log('[SERVICE-CARD-RENDER]', { renderRequestId, serviceSlug: service.slug });
-  
   // Use runtime assignment if available, otherwise fall back to featured project media
   const cardMedia = runtimeCardMediaObject || null;
-
-  console.log('[FORENSIC] SERVICE_CARD_MEDIA_RESOLUTION', {
-    renderRequestId,
-    serviceSlug: service.slug,
-    runtimeCardMediaId: runtimeCardMediaObject?.id ?? null,
-    cardMediaFound: !!cardMedia,
-  });
 
   // Use provided cardMedia (already resolved through public media gate by server component)
   const featuredMedia = cardMedia;

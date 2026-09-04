@@ -310,11 +310,12 @@ export default async function HomePage() {
                       currentMediaId={heroMedia?.id || null}
                       component="ProjectCard"
                     >
-                      <img
+                      <Image
                         src={heroSrc}
                         alt={heroMedia?.alt || project.title}
-                        className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
-                        loading={i === 0 ? "eager" : "lazy"}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        priority={i === 0}
                       />
                     </VisualSlot>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
