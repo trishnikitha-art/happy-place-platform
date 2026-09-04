@@ -128,33 +128,7 @@ export class DriveSession {
     }
   }
 
-  /**
-   * Get Google Drive client for API operations
-   * Resolves credentials and returns configured Drive client
-   */
-  async getDriveClient(): Promise<any> {
-    const credentials = await this.getCredentials();
-    if (!credentials) {
-      throw new Error('Not authenticated with Drive');
-    }
 
-    const { google } = await import('googleapis');
-    const auth = new google.auth.OAuth2({
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
-      redirectUri: process.env.GOOGLE_REDIRECT_URI || 
-        `${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/drive/oauth/callback`,
-    });
-
-    auth.setCredentials({
-      access_token: credentials.access_token,
-      refresh_token: credentials.refresh_token,
-      expiry_date: credentials.expiry_date,
-      scope: credentials.scope,
-    });
-
-    return google.drive({ version: 'v3', auth });
-  }
 
 
 

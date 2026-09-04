@@ -11,8 +11,7 @@
 
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
-import { driveSession } from '@/lib/drive/drive-session';
-import { google } from 'googleapis';
+import { getDriveClient } from '@/lib/drive/oauth-manager';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,16 +27,16 @@ export async function GET() {
 
   try {
     // Check Drive authentication
-    const isDriveAuthenticated = await driveSession.isAuthenticated();
-    if (!isDriveAuthenticated) {
+    const { isAuthenticated: isDriveAuthenticated } = await import('@/lib/drive/oauth-manager');
+    if (!await isDriveAuthenticated()) {
       return NextResponse.json(
         { error: 'Not authenticated with Drive', message: 'Please authenticate with Google Drive first' },
         { status: 401 }
       );
     }
 
-    // Get Drive client
-    const driveClient = await driveSession.getDriveClient();
+    // Get Drive client (canonical path through oauth-manager)
+    const driveClient = await getDriveClient();
 
     // List all Google-accessible Shared Drives
     const drivesResponse = await driveClient.drives.list({

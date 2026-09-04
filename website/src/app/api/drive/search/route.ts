@@ -19,7 +19,7 @@
 import { NextResponse } from 'next/server';
 import { driveDiscovery } from '@/lib/drive/drive-discovery';
 import { workbenchSession } from '@/lib/workbench-session';
-import { driveSession } from '@/lib/drive/drive-session';
+import { isAuthenticated as isDriveAuthenticated } from '@/lib/drive/oauth-manager';
 import { verifySearchAuthorization } from '@/lib/drive/corpus-authorization';
 
 export const dynamic = 'force-dynamic';
@@ -42,8 +42,7 @@ export async function GET(request: Request) {
     }
 
     // Check Drive authentication
-    const isDriveAuthenticated = await driveSession.isAuthenticated();
-    if (!isDriveAuthenticated) {
+    if (!await isDriveAuthenticated()) {
       return NextResponse.json(
         { error: 'Unauthorized', message: 'Drive authentication required' },
         { status: 401 }

@@ -21,7 +21,6 @@
 
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
-import { driveSession } from '@/lib/drive/drive-session';
 
 export const dynamic = 'force-dynamic';
 
@@ -164,9 +163,11 @@ export async function POST(request: Request) {
     }
 
     // Check Drive session
-    result.session.driveAuthenticated = await driveSession.isAuthenticated();
+    const { isAuthenticated: isDriveAuthenticated } = await import('@/lib/drive/oauth-manager');
+    result.session.driveAuthenticated = await isDriveAuthenticated();
     if (result.session.driveAuthenticated) {
-      const driveSessionId = await driveSession.getSessionId();
+      const { getSessionIdFromCookies } = await import('@/lib/drive/oauth-manager');
+      const driveSessionId = await getSessionIdFromCookies();
       result.session.driveSessionId = driveSessionId || undefined;
     }
 
@@ -175,7 +176,8 @@ export async function POST(request: Request) {
       // Test if we can retrieve authorization (actual execution test)
       if (result.session.driveAuthenticated) {
         result.authorization.retrieveAuthorizationExecuted = true;
-        const driveClient = await driveSession.getDriveClient();
+        const { getDriveClient } = await import('@/lib/drive/oauth-manager');
+        const driveClient = await getDriveClient();
         result.authorization.retrieveAuthorizationSuccess = !!driveClient;
         result.credentials.canResolveCredentials = !!driveClient;
         result.flow.resolveSession = result.authorization.retrieveAuthorizationSuccess ? 'success' : 'failed';
