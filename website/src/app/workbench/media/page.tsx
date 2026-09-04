@@ -193,7 +193,7 @@ export default function MediaWorkbench() {
 
   const handleAssetClick = (asset: VisualAsset) => {
     setState(prev => ({ ...prev, selectedAsset: asset }));
-    const usingSlots = state.registeredSlots.filter(s => s.currentMediaId === asset.id);
+    const usingSlots = (state.registeredSlots || []).filter(s => s.currentMediaId === asset.id);
     if (usingSlots.length > 0) {
       setState(prev => ({ ...prev, selectedSlot: usingSlots[0] }));
     }
@@ -448,13 +448,13 @@ export default function MediaWorkbench() {
       
       setState(prev => ({
         ...prev,
-        driveFiles: pageToken ? [...prev.driveFiles, ...data.files] : data.files,
+        driveFiles: pageToken ? [...(prev.driveFiles || []), ...(data.items || [])] : (data.items || []),
         driveNextPageToken: data.nextPageToken,
         driveLoading: false,
       }));
       
       console.log('[WORKBENCH] DRIVE_FILES_LOADED', { 
-        count: data.files.length, 
+        count: data.items?.length || 0, 
         hasMore: !!data.nextPageToken 
       });
     } catch (error) {
@@ -1167,7 +1167,7 @@ export default function MediaWorkbench() {
   }, []);
 
   // Filter assets based on search and filter state
-  const filteredAssets = state.assets.filter(asset => {
+  const filteredAssets = (state.assets || []).filter(asset => {
     // Search filter
     if (state.searchQuery) {
       const query = state.searchQuery.toLowerCase();
@@ -1181,9 +1181,9 @@ export default function MediaWorkbench() {
     // Category filter
     switch (state.filter) {
       case 'used':
-        return state.registeredSlots.some(s => s.currentMediaId === asset.id);
+        return (state.registeredSlots || []).some(s => s.currentMediaId === asset.id);
       case 'unused':
-        return !state.registeredSlots.some(s => s.currentMediaId === asset.id);
+        return !(state.registeredSlots || []).some(s => s.currentMediaId === asset.id);
       case 'drive':
         return asset.classification === 'DRIVE_ONLY';
       case 'published':
@@ -1229,7 +1229,7 @@ export default function MediaWorkbench() {
     );
   }
 
-  const currentSlots = state.registeredSlots.filter(s => s.route === state.selectedPage);
+  const currentSlots = (state.registeredSlots || []).filter(s => s.route === state.selectedPage);
 
   return (
     <div className="h-screen flex flex-col bg-background overflow-hidden">
@@ -1689,12 +1689,12 @@ export default function MediaWorkbench() {
                     )}
 
                     {/* Files */}
-                    {state.driveFiles.filter((item: any) => item.type !== 'folder').length > 0 && (
+                    {(state.driveFiles || []).filter((item: any) => item.type !== 'folder').length > 0 && (
                       <div>
                         <h3 className="text-xs font-semibold text-muted-foreground mb-2">Files</h3>
                         {state.driveViewMode === 'grid' ? (
                           <div className="grid grid-cols-3 gap-2">
-                            {state.driveFiles.filter((item: any) => item.type !== 'folder').map((file: any) => {
+                            {(state.driveFiles || []).filter((item: any) => item.type !== 'folder').map((file: any) => {
                               // Check if this Drive file has already been ingested
                               const existingAsset = state.assets.find(a => a.drive?.fileId === file.id);
                               const isIngested = !!existingAsset;
@@ -1737,7 +1737,7 @@ export default function MediaWorkbench() {
                           </div>
                         ) : (
                           <div className="space-y-1">
-                            {state.driveFiles.filter((item: any) => item.type !== 'folder').map((file: any) => {
+                            {(state.driveFiles || []).filter((item: any) => item.type !== 'folder').map((file: any) => {
                               // Check if this Drive file has already been ingested
                               const existingAsset = state.assets.find(a => a.drive?.fileId === file.id);
                               const isIngested = !!existingAsset;
@@ -1793,7 +1793,7 @@ export default function MediaWorkbench() {
                       </div>
                     )}
 
-                    {state.driveFiles.filter((item: any) => item.type !== 'folder').length === 0 && !state.driveLoading && (
+                    {(state.driveFiles || []).filter((item: any) => item.type !== 'folder').length === 0 && !state.driveLoading && (
                       <p className="text-sm text-muted-foreground text-center py-4">
                         No files in this folder
                       </p>
