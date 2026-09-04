@@ -69,19 +69,14 @@ function getAuthorizedSharedDriveIds(): string[] {
  * 
  * Configuration via environment variable: HPP_AUTHORIZED_MY_DRIVE
  * Format: boolean string ("true" or "false")
- * Default: true (maintains current behavior, but will change to false in future)
+ * Default: false (fail-closed - explicit opt-in required)
  * 
- * DEPRECATION WARNING: Default will change to false in future release.
- * Set HPP_AUTHORIZED_MY_DRIVE=true explicitly to maintain behavior.
+ * CONSTITUTIONAL RULE: Google OAuth access ≠ HPP authorization
+ * My Drive is NOT authorized by default - must be explicitly configured
  */
 function isMyDriveAuthorized(): boolean {
   const myDriveAuth = process.env.HPP_AUTHORIZED_MY_DRIVE;
-  if (myDriveAuth === undefined || myDriveAuth === null) {
-    // Default to true for now to maintain current behavior
-    // DEPRECATION: This default will change to false in future
-    console.warn('[CORPUS_AUTHORIZATION] HPP_AUTHORIZED_MY_DRIVE not set, defaulting to true (DEPRECATED: set explicitly, default will change to false in future)');
-    return true;
-  }
+  // Explicit opt-in only - unset or any value other than "true" means NOT authorized
   return myDriveAuth === 'true';
 }
 
