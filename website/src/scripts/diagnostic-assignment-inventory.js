@@ -41,6 +41,11 @@ function getEnvironment() {
 }
 
 function getKvNamespace() {
+  // CRITICAL: Use TEST_NAMESPACE if present for integration test isolation
+  // This prevents tests from writing to production/development data
+  if (process.env.TEST_NAMESPACE) {
+    return process.env.TEST_NAMESPACE;
+  }
   const env = getEnvironment();
   return `hpp:${env}:`;
 }

@@ -36,19 +36,19 @@ import { createState, consumeState } from '../oauth-state-manager';
 import { cookies } from 'next/headers';
 
 // Check if Redis credentials are available
-const KV_REST_API_URL = process.env.KV_REST_API_URL || 
+const NEGATIVE_SECURITY_KV_REST_API_URL = process.env.KV_REST_API_URL || 
                        process.env.KV_REST_API__KV_REST_API_URL || 
                        process.env.KV_REST_API__REDIS_URL ||
                        process.env.KV_REST_API__KV_URL;
-const KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN || 
+const NEGATIVE_SECURITY_KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN || 
                          process.env.KV_REST_API__KV_REST_API_TOKEN;
 
-const REDIS_AVAILABLE = !!(KV_REST_API_URL && KV_REST_API_TOKEN);
+const NEGATIVE_SECURITY_REDIS_AVAILABLE = !!(NEGATIVE_SECURITY_KV_REST_API_URL && NEGATIVE_SECURITY_KV_REST_API_TOKEN);
 
 // Skip entire suite if Redis credentials are missing
 // In CI, Redis should be configured and these tests will run
 // In local development without Redis, these tests will be skipped
-const describeOrSkip = REDIS_AVAILABLE ? describe : describe.skip;
+const describeOrSkip = NEGATIVE_SECURITY_REDIS_AVAILABLE ? describe : describe.skip;
 
 describeOrSkip('Negative Security Tests', () => {
   let redis: Redis;
@@ -58,8 +58,8 @@ describeOrSkip('Negative Security Tests', () => {
 
   beforeAll(async () => {
     redis = new Redis({ 
-      url: KV_REST_API_URL, 
-      token: KV_REST_API_TOKEN 
+      url: NEGATIVE_SECURITY_KV_REST_API_URL, 
+      token: NEGATIVE_SECURITY_KV_REST_API_TOKEN 
     });
 
     // Generate unique test identity

@@ -67,8 +67,13 @@ function getEnvironment(): Environment {
 /**
  * Get KV namespace prefix for current environment
  * This ensures isolation between production, preview, development, and test
+ * CRITICAL: Use TEST_NAMESPACE if present for integration test isolation
+ * This prevents tests from writing to production/development data
  */
 function getKvNamespace(): string {
+  if (process.env.TEST_NAMESPACE) {
+    return process.env.TEST_NAMESPACE;
+  }
   const env = getEnvironment();
   return `hpp:${env}:`;
 }

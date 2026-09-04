@@ -11,24 +11,64 @@
  * They prove actual security boundary enforcement in production.
  */
 
-describe('OAuth Negative Security - Real Redis Integration', () => {
+import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
+
+// Check if Redis credentials are available
+const OAUTH_SECURITY_KV_REST_API_URL = process.env.KV_REST_API_URL || 
+                       process.env.KV_REST_API__KV_REST_API_URL || 
+                       process.env.KV_REST_API__REDIS_URL ||
+                       process.env.KV_REST_API__KV_URL;
+const OAUTH_SECURITY_KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN || 
+                         process.env.KV_REST_API__KV_REST_API_TOKEN;
+
+const OAUTH_SECURITY_REDIS_AVAILABLE = !!(OAUTH_SECURITY_KV_REST_API_URL && OAUTH_SECURITY_KV_REST_API_TOKEN);
+
+// Skip entire suite if Redis credentials are missing in local development
+// In CI, these tests should fail if Redis is not configured
+const CI = process.env.CI === 'true';
+const describeOrSkip = (!OAUTH_SECURITY_REDIS_AVAILABLE && !CI) ? describe.skip : describe;
+
+describeOrSkip('OAuth Negative Security - Real Redis Integration', () => {
   let testNamespace: string;
+  let originalTestNamespace: string | undefined;
   
   beforeAll(() => {
-    // Skip integration tests if Redis credentials are not available
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+    // FAIL FAST in CI: Integration tests require Redis credentials
+    if (CI && !OAUTH_SECURITY_REDIS_AVAILABLE) {
+      throw new Error(
+        '[OAUTH_SECURITY_INTEGRATION] CANNOT RUN: Redis credentials not available. ' +
+        'Required: KV_REST_API_URL and KV_REST_API_TOKEN. ' +
+        'These tests require real Redis connectivity to prove security boundary enforcement.'
+      );
+    }
+    
+    // Skip if Redis credentials not available in local development
+    if (!OAUTH_SECURITY_REDIS_AVAILABLE) {
       console.log('[OAUTH_SECURITY_INTEGRATION] Skipping integration tests - Redis credentials not available');
       return;
     }
     
+    // Save original TEST_NAMESPACE to restore after tests
+    originalTestNamespace = process.env.TEST_NAMESPACE;
+    
     // Generate unique test namespace to avoid conflicts with production data
     testNamespace = `test_oauth_security_${Date.now()}`;
+    process.env.TEST_NAMESPACE = testNamespace;
     console.log('[OAUTH_SECURITY_INTEGRATION] Using test namespace:', testNamespace);
   });
 
-  // Skip all tests if Redis credentials are not available
+  afterAll(() => {
+    // Restore original TEST_NAMESPACE
+    if (originalTestNamespace !== undefined) {
+      process.env.TEST_NAMESPACE = originalTestNamespace;
+    } else {
+      delete process.env.TEST_NAMESPACE;
+    }
+  });
+
+  // Skip all tests if Redis credentials are not available in local development
   beforeEach(() => {
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+    if (!OAUTH_SECURITY_REDIS_AVAILABLE) {
       console.log('[OAUTH_SECURITY_INTEGRATION] Skipping test - Redis credentials not available');
     }
   });
@@ -36,7 +76,7 @@ describe('OAuth Negative Security - Real Redis Integration', () => {
   describe('Legacy Cookie Rejection', () => {
     it('should reject requests with legacy drive_access_token cookies but no session', async () => {
       // Skip if Redis credentials not available
-      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      if (!OAUTH_SECURITY_REDIS_AVAILABLE) {
         console.log('[OAUTH_SECURITY_INTEGRATION] Skipping test - Redis credentials not available');
         return;
       }
@@ -67,7 +107,7 @@ describe('OAuth Negative Security - Real Redis Integration', () => {
   describe('Revoked Session Rejection', () => {
     it('should reject Drive access after authorization revocation', async () => {
       // Skip if Redis credentials not available
-      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      if (!OAUTH_SECURITY_REDIS_AVAILABLE) {
         console.log('[OAUTH_SECURITY_INTEGRATION] Skipping test - Redis credentials not available');
         return;
       }
@@ -119,7 +159,7 @@ describe('OAuth Negative Security - Real Redis Integration', () => {
   describe('Cross-Session Attack Prevention', () => {
     it('should prevent user/session A from using authorization belonging to B', async () => {
       // Skip if Redis credentials not available
-      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      if (!OAUTH_SECURITY_REDIS_AVAILABLE) {
         console.log('[OAUTH_SECURITY_INTEGRATION] Skipping test - Redis credentials not available');
         return;
       }
@@ -170,7 +210,7 @@ describe('OAuth Negative Security - Real Redis Integration', () => {
   describe('Corpus Authorization Enforcement', () => {
     it('should reject Drive files outside authorized corpus', async () => {
       // Skip if Redis credentials not available
-      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      if (!OAUTH_SECURITY_REDIS_AVAILABLE) {
         console.log('[OAUTH_SECURITY_INTEGRATION] Skipping test - Redis credentials not available');
         return;
       }
@@ -192,7 +232,7 @@ describe('OAuth Negative Security - Real Redis Integration', () => {
   describe('Session Isolation', () => {
     it('should ensure sessions are isolated by session ID', async () => {
       // Skip if Redis credentials not available
-      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      if (!OAUTH_SECURITY_REDIS_AVAILABLE) {
         console.log('[OAUTH_SECURITY_INTEGRATION] Skipping test - Redis credentials not available');
         return;
       }
