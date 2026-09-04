@@ -264,10 +264,12 @@ export async function uploadToBlob(
       // Redis metadata is a locator, not cryptographic proof of identity
       const hashMatches = await verifyBlobHash(existingMetadata.url, contentHash);
       
-      if (!hashMatches) {
+      if (!hashMatches.success) {
         console.error('[BLOB_STORAGE] EXISTING_METADATA_INVALID: Physical bytes do not match recorded hash', {
           contentHash,
           blobUrl: existingMetadata.url,
+          errorType: hashMatches.errorType,
+          actualHash: hashMatches.actualHash,
           reason: 'Existing Redis metadata points to Blob with wrong physical bytes - metadata is poisoned'
         });
         // Fall through to upload new Blob - metadata will be overwritten
@@ -379,11 +381,13 @@ export async function uploadToBlob(
         // This is cryptographic proof of identity, not just filename convention
         const hashMatches = await verifyBlobHash(blobHead.url, contentHash);
         
-        if (!hashMatches) {
+        if (!hashMatches.success) {
           console.error('[BLOB_STORAGE] RECOVERY_FAILED: Physical bytes do not match expected content hash', {
             contentHash,
             blobUrl: blobHead.url,
             filename: contentAddressedFilename,
+            errorType: hashMatches.errorType,
+            actualHash: hashMatches.actualHash,
             reason: 'Cryptographic identity proof failed - Blob bytes do not match expected hash'
           });
           throw new Error(`Blob recovery failed: physical bytes do not match expected content hash ${contentHash}`);

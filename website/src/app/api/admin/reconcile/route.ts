@@ -220,11 +220,13 @@ export async function POST(request: Request) {
 
     const hashMatches = await verifyBlobHash(blobUrl, targetMedia.contentHash);
     
-    if (!hashMatches) {
+    if (!hashMatches.success) {
       evidence.push({
         stage: 'VERIFY_BLOB_BYTES',
         result: 'rejected',
         error: 'Physical Blob bytes do not match content hash',
+        errorType: hashMatches.errorType,
+        actualHash: hashMatches.actualHash,
       });
       return NextResponse.json({
         success: false,
