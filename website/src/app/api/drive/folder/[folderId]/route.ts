@@ -58,7 +58,9 @@ export async function GET(
 
     // CRITICAL: Verify driveId and folderId consistency
     // If driveId is supplied, verify the folder actually belongs to that corpus
-    if (driveId && folderId !== 'root') {
+    // CRITICAL: Shared Drive root (folderId === driveId) must also be authorized
+    // The folderId !== 'root' check is insufficient for Shared Drive context
+    if (driveId && (folderId !== 'root' || folderId === driveId)) {
       const corpusAuth = await verifyCorpusAuthorization(folderId, driveId);
       if (!corpusAuth.authorized) {
         console.error('[DRIVE_AUTHORIZATION] DRIVE_ID_FOLDER_ID_MISMATCH', {
