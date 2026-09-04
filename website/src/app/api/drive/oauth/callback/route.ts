@@ -114,6 +114,16 @@ export async function GET(request: Request) {
 
   try {
     console.log('[DRIVE OAUTH FORENSIC] Exchanging authorization code for tokens...');
+    console.log('[DRIVE OAUTH FORENSIC] Token exchange parameters:', {
+      hasCode: !!code,
+      codePrefix: code ? code.substring(0, 8) + '...' : 'none',
+      hasClientId: !!clientId,
+      clientIdPrefix: clientId ? clientId.substring(0, 8) + '...' : 'none',
+      hasClientSecret: !!clientSecret,
+      redirectUri: redirectUri,
+      grantType: 'authorization_code',
+    });
+
     // Exchange code for tokens
     const params = new URLSearchParams({
       code,
@@ -123,14 +133,29 @@ export async function GET(request: Request) {
       grant_type: 'authorization_code',
     });
 
+    console.log('[DRIVE OAUTH FORENSIC] Fetching from Google token endpoint...');
     const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: params.toString(),
     });
 
+    console.log('[DRIVE OAUTH FORENSIC] Token exchange HTTP response:', {
+      status: tokenResponse.status,
+      statusText: tokenResponse.statusText,
+      ok: tokenResponse.ok,
+    });
+
     if (!tokenResponse.ok) {
       console.error('[DRIVE OAUTH FORENSIC] Token exchange HTTP error:', tokenResponse.status);
+      // Try to read error body for diagnostic information
+      let errorBody = 'none';
+      try {
+        errorBody = await tokenResponse.text();
+        console.error('[DRIVE OAUTH FORENSIC] Token exchange error body:', errorBody.substring(0, 200));
+      } catch (e) {
+        // Error body unreadable
+      }
       const url = new URL('/workbench/media', request.url);
       return NextResponse.redirect(url);
     }
@@ -140,6 +165,13 @@ export async function GET(request: Request) {
     console.log('[DRIVE OAUTH FORENSIC] Token exchange response:', {
       status: tokenResponse.status,
       hasError: !!tokenData.error,
+      error: tokenData.error || 'none',
+      errorDescription: tokenData.error_description || 'none',
+      hasAccessToken: !!tokenData.access_token,
+      hasRefreshToken: !!tokenData.refresh_token,
+      expiresIn: tokenData.expires_in || 'none',
+      tokenType: tokenData.token_type || 'none',
+      scope: tokenData.scope ? tokenData.scope.substring(0, 100) + '...' : 'none',
     });
 
     if (tokenData.error) {
@@ -185,6 +217,14 @@ export async function GET(request: Request) {
     // Calculate expiry date
     const expiresIn = tokenData.expires_in || 3600;
     const expiryDate = Date.now() + (expiresIn * 1000);
+
+    console.log('[DRIVE OAUTH FORENSIC] Token validation passed', {
+      hasAccessToken: !!tokenData.access_token,
+      hasRefreshToken: !!tokenData.refresh_token,
+      expiresIn,
+      expiryDate: new Date(expiryDate).toISOString(),
+      scope: tokenData.scope ? tokenData.scope.substring(0, 100) + '...' : 'none',
+    });
 
     console.log('[DRIVE OAUTH FORENSIC] Integrating with authority layers...');
     

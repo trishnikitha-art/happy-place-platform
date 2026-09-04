@@ -335,8 +335,25 @@ export async function upsertAuthorization(
   keyVersion: number = 0
 ): Promise<GoogleAuthorizationRecord> {
   try {
+    console.log('[AUTH_STORE] Upsert authorization called', {
+      googleSubject: googleSubject.substring(0, 8) + '...',
+      email,
+      scopesCount: scopes.length,
+      hasAccessToken: !!accessToken,
+      hasRefreshToken: !!refreshToken,
+      accessTokenExpiresAt: new Date(accessTokenExpiresAt).toISOString(),
+      keyVersion,
+    });
+
     // Check if authorization exists for subject
     const existingAuth = await findAuthorizationBySubject(googleSubject);
+
+    console.log('[AUTH_STORE] Existing authorization check', {
+      hasExistingAuth: !!existingAuth,
+      existingAuthId: existingAuth?.id?.substring(0, 8) + '...' || 'none',
+      existingAuthStatus: existingAuth?.status || 'none',
+      existingAuthLastUsed: existingAuth?.lastUsedAt || 'none',
+    });
 
     let auth: GoogleAuthorizationRecord;
 
@@ -357,7 +374,10 @@ export async function upsertAuthorization(
         );
       } else {
         // Active authorization: update credentials in place
-        console.log('[AUTH_STORE] Updating existing authorization credentials');
+        console.log('[AUTH_STORE] Updating existing authorization credentials', {
+          authId: existingAuth.id.substring(0, 8) + '...',
+          status: existingAuth.status,
+        });
         existingAuth.email = email;
         existingAuth.scopes = scopes;
         existingAuth.encryptedAccessToken = JSON.stringify(encrypt(accessToken, keyVersion));
@@ -406,6 +426,10 @@ export async function upsertAuthorization(
           throw new Error(`Authorization ${existingAuth.id} is not active - update rejected`);
         }
 
+        console.log('[AUTH_STORE] Authorization update succeeded', {
+          authId: existingAuth.id.substring(0, 8) + '...',
+        });
+
         auth = existingAuth;
       }
     } else {
@@ -421,6 +445,11 @@ export async function upsertAuthorization(
         keyVersion
       );
     }
+
+    console.log('[AUTH_STORE] Upsert completed', {
+      authId: auth.id.substring(0, 8) + '...',
+      status: auth.status,
+    });
 
     return auth;
   } catch (error) {

@@ -565,14 +565,50 @@ export default function MediaWorkbench() {
 
   const navigateBreadcrumb = (index: number) => {
     const target = state.driveBreadcrumb[index];
-    setState(prev => ({
-      ...prev,
-      driveCurrentFolderId: target.id,
-      driveBreadcrumb: prev.driveBreadcrumb.slice(0, index + 1),
-      driveFiles: [],
-      driveNextPageToken: undefined,
-    }));
-    loadDriveFiles(target.id, undefined, state.driveCurrentDriveId);
+    const newBreadcrumb = state.driveBreadcrumb.slice(0, index + 1);
+    
+    console.log('[WORKBENCH_DRIVE_NAVIGATION] Breadcrumb navigation', {
+      targetId: target.id,
+      targetName: target.name,
+      breadcrumbIndex: index,
+      breadcrumbLength: newBreadcrumb.length,
+      currentDriveId: state.driveCurrentDriveId,
+    });
+    
+    // If navigating back to root (first breadcrumb), clear or preserve driveId based on context
+    if (newBreadcrumb.length === 1) {
+      const isSharedDriveRoot = target.id === state.driveCurrentDriveId;
+      console.log('[WORKBENCH_DRIVE_NAVIGATION] Navigating to root', {
+        isSharedDriveRoot,
+        targetId: target.id,
+        preservedDriveId: isSharedDriveRoot ? state.driveCurrentDriveId : null,
+      });
+      
+      setState(prev => ({
+        ...prev,
+        driveCurrentFolderId: target.id,
+        driveCurrentDriveId: isSharedDriveRoot ? state.driveCurrentDriveId : null, // Preserve Shared Drive ID at root
+        driveBreadcrumb: newBreadcrumb,
+        driveFiles: [],
+        driveNextPageToken: undefined,
+      }));
+      loadDriveFiles(target.id, undefined, isSharedDriveRoot ? state.driveCurrentDriveId : null);
+    } else {
+      // Navigating to non-root: preserve driveCurrentDriveId
+      console.log('[WORKBENCH_DRIVE_NAVIGATION] Navigating to non-root folder', {
+        targetId: target.id,
+        preservedDriveId: state.driveCurrentDriveId,
+      });
+      
+      setState(prev => ({
+        ...prev,
+        driveCurrentFolderId: target.id,
+        driveBreadcrumb: newBreadcrumb,
+        driveFiles: [],
+        driveNextPageToken: undefined,
+      }));
+      loadDriveFiles(target.id, undefined, state.driveCurrentDriveId);
+    }
   };
 
   const loadMoreDriveFiles = () => {

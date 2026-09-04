@@ -11,6 +11,8 @@
 import { NextResponse } from 'next/server';
 import { driveSession } from '@/lib/drive/drive-session';
 import { getOAuthClient } from '@/lib/drive/oauth-manager';
+import { getAuthorization } from '@/lib/drive/oauth-credential-store';
+import { getSession } from '@/lib/drive/session-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -38,11 +40,78 @@ export async function GET() {
       });
     }
 
+    // Deep forensic: check session record directly
+    const session = await getSession(sessionId);
+    console.log('[DRIVE AUTH STATUS FORENSIC] Session record check:', {
+      hasSession: !!session,
+      sessionAuthorizationId: session?.authorizationId?.substring(0, 8) + '...' || 'none',
+    });
+
+    if (!session) {
+      console.log('[DRIVE AUTH STATUS FORENSIC] Session record not found - not authenticated');
+      return NextResponse.json({
+        authenticated: false,
+        has_access_token: false,
+        has_refresh_token: false,
+        has_expiry_date: false,
+        has_scope: false,
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      });
+    }
+
+    // Deep forensic: check authorization record directly
+    const authorization = await getAuthorization(session.authorizationId);
+    console.log('[DRIVE AUTH STATUS FORENSIC] Authorization record check:', {
+      hasAuthorization: !!authorization,
+      authorizationId: session.authorizationId.substring(0, 8) + '...',
+      authorizationStatus: authorization?.status || 'none',
+      authorizationGoogleSubject: authorization?.googleSubject?.substring(0, 8) + '...' || 'none',
+      hasAccessToken: !!authorization?.encryptedAccessToken,
+      hasRefreshToken: !!authorization?.encryptedRefreshToken,
+      accessTokenExpiresAt: authorization?.accessTokenExpiresAt || 'none',
+    });
+
+    if (!authorization) {
+      console.log('[DRIVE AUTH STATUS FORENSIC] Authorization record not found - not authenticated');
+      return NextResponse.json({
+        authenticated: false,
+        has_access_token: false,
+        has_refresh_token: false,
+        has_expiry_date: false,
+        has_scope: false,
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      });
+    }
+
+    if (authorization.status !== 'active') {
+      console.log('[DRIVE AUTH STATUS FORENSIC] Authorization not active - not authenticated', {
+        status: authorization.status,
+      });
+      return NextResponse.json({
+        authenticated: false,
+        has_access_token: false,
+        has_refresh_token: false,
+        has_expiry_date: false,
+        has_scope: false,
+        authorizationStatus: authorization.status,
+      }, {
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate',
+        },
+      });
+    }
+
     const credentials = await driveSession.getCredentials();
     
     // Check if credentials exist
     if (!credentials) {
-      console.log('[DRIVE AUTH STATUS FORENSIC] No credentials - not authenticated');
+      console.log('[DRIVE AUTH STATUS FORENSIC] No credentials after decryption - not authenticated');
       return NextResponse.json({
         authenticated: false,
         has_access_token: false,
@@ -66,6 +135,7 @@ export async function GET() {
       hasScope: !!credentials?.scope,
       expiryDate: credentials?.expiry_date ? new Date(credentials.expiry_date).toISOString() : 'none',
       isAccessTokenExpired,
+      timeUntilExpiry: credentials?.expiry_date ? Math.floor((credentials.expiry_date - Date.now()) / 1000) : 'none',
     });
 
     // If access token is expired, attempt refresh before reporting status

@@ -80,8 +80,17 @@ async function explicitTokenRefresh(
     const existingCredentials = oauth2Client.credentials;
     const existingRefreshToken = existingCredentials.refresh_token as string;
     
+    console.log('[OAUTH_MANAGER] Token refresh - before Google API call', {
+      authorizationId,
+      hasExistingRefreshToken: !!existingRefreshToken,
+      existingRefreshTokenPrefix: existingRefreshToken ? existingRefreshToken.substring(0, 8) + '...' : 'none',
+      currentExpiry: existingCredentials.expiry_date ? new Date(existingCredentials.expiry_date as number).toISOString() : 'none',
+    });
+    
     // Request refresh from Google
     await oauth2Client.refreshAccessToken();
+    
+    console.log('[OAUTH_MANAGER] Token refresh - Google API call succeeded');
     
     // Get refreshed credentials from the client
     const credentials = oauth2Client.credentials;
@@ -120,6 +129,10 @@ async function explicitTokenRefresh(
     console.log('[OAUTH_MANAGER] Explicit token refresh succeeded:', authorizationId);
   } catch (error) {
     console.error('[OAUTH_MANAGER] Explicit token refresh failed:', authorizationId, error);
+    console.error('[OAUTH_MANAGER] Refresh error details:', {
+      errorMessage: error instanceof Error ? error.message : String(error),
+      errorStack: error instanceof Error ? error.stack : 'none',
+    });
     throw new Error(`Explicit token refresh failed for authorization ${authorizationId}: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
