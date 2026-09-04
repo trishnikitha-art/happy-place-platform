@@ -20,7 +20,7 @@
  * Only explicitly configured Shared Drives are authorized.
  */
 
-import { driveSession } from './drive-session';
+import { getDriveClient } from './oauth-manager';
 import { workbenchSession } from '../workbench-session';
 
 export interface DriveCorpus {
@@ -75,14 +75,9 @@ export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
       return [];
     }
 
-    // Check Drive authentication
-    const isDriveAuthenticated = await driveSession.isAuthenticated();
-    if (!isDriveAuthenticated) {
-      return [];
-    }
-
-    // Get Drive client
-    const driveClient = await driveSession.getDriveClient();
+    // Get Drive client using authoritative path
+    // This will handle authentication and token refresh automatically
+    const driveClient = await getDriveClient();
     
     // Get My Drive info
     const aboutResponse = await driveClient.about.get({
@@ -113,10 +108,10 @@ export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
         
         for (const drive of drivesResponse.data.drives) {
           // Only authorize Shared Drives that are explicitly configured
-          if (authorizedSharedDriveIds.includes(drive.id)) {
+          if (authorizedSharedDriveIds.includes(drive.id || '')) {
             corpora.push({
-              id: drive.id,
-              name: drive.name || drive.id,
+              id: drive.id || '',
+              name: drive.name || drive.id || '',
               type: 'shared_drive',
               authorized: true,
             });
@@ -172,17 +167,9 @@ export async function verifyCorpusAuthorization(
       };
     }
 
-    // Check Drive authentication
-    const isDriveAuthenticated = await driveSession.isAuthenticated();
-    if (!isDriveAuthenticated) {
-      return {
-        authorized: false,
-        reason: 'Drive not authenticated',
-      };
-    }
-
-    // Get Drive client
-    const driveClient = await driveSession.getDriveClient();
+    // Get Drive client using authoritative path
+    // This will handle authentication and token refresh automatically
+    const driveClient = await getDriveClient();
 
     // CRITICAL FIX: Handle Shared Drive root differently
     // Shared Drive root is not a file - it's the drive itself
@@ -356,14 +343,9 @@ export async function verifySearchAuthorization(
       };
     }
 
-    // Check Drive authentication
-    const isDriveAuthenticated = await driveSession.isAuthenticated();
-    if (!isDriveAuthenticated) {
-      return {
-        authorized: false,
-        reason: 'Drive not authenticated',
-      };
-    }
+    // Get Drive client using authoritative path
+    // This will handle authentication and token refresh automatically
+    const driveClient = await getDriveClient();
 
     // If a specific corpus is requested, verify it's authorized
     if (corpusId) {

@@ -51,8 +51,9 @@ export async function GET(request: Request) {
     }
 
     // P0 FIX: Verify search corpus authorization
+    // Client sends driveId for Shared Drive context, server accepts both driveId and corpusId
     const { searchParams } = new URL(request.url);
-    const corpusId = searchParams.get('corpusId') || undefined;
+    const corpusId = searchParams.get('corpusId') || searchParams.get('driveId') || undefined;
     
     const searchAuth = await verifySearchAuthorization(corpusId);
     if (!searchAuth.authorized) {

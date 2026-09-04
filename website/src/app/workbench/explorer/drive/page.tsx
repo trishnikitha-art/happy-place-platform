@@ -56,36 +56,44 @@ export default function DriveExplorerPage() {
 
       const structure = await response.json();
 
-      // Display available Shared Drives
+      // Display both My Drive and Shared Drives at top level
+      const items: any[] = [];
+      
+      if (structure.myDrive) {
+        console.log('[DRIVE_EXPLORER] My Drive discovered:', structure.myDrive);
+        items.push({
+          id: structure.myDrive.id,
+          name: structure.myDrive.name,
+          mimeType: 'application/vnd.google-apps.folder',
+          type: 'folder',
+          isFolder: true,
+          isMyDrive: true,
+        } as DriveFolder);
+      }
+      
       if (structure.sharedDrives && structure.sharedDrives.length > 0) {
         console.log('[DRIVE_EXPLORER] Shared Drives discovered:', structure.sharedDrives);
-        // Show Shared Drives as top-level items (user can select to enter one)
-        setState(prev => ({
-          ...prev,
-          items: structure.sharedDrives.map((drive: any) => ({
-            id: drive.id,
-            name: drive.name,
-            mimeType: 'application/vnd.google-apps.folder',
-            type: 'folder',
-            isFolder: true,
-            isSharedDrive: true,
-            driveId: drive.id,
-          } as DriveFolder)),
-          loading: false,
-        }));
-      } else if (structure.myDrive) {
-        // Start at My Drive root
-        setState(prev => ({
-          ...prev,
-          currentFolderId: structure.myDrive.id,
-          activeDriveId: null, // My Drive has no active driveId
-          breadcrumb: [{ id: structure.myDrive.id, name: structure.myDrive.name }],
-        }));
-        await loadChildren(structure.myDrive.id);
-      } else {
+        items.push(...structure.sharedDrives.map((drive: any) => ({
+          id: drive.id,
+          name: drive.name,
+          mimeType: 'application/vnd.google-apps.folder',
+          type: 'folder',
+          isFolder: true,
+          isSharedDrive: true,
+          driveId: drive.id,
+        } as DriveFolder)));
+      }
+      
+      if (items.length === 0) {
         setState(prev => ({
           ...prev,
           error: 'Drive not connected',
+          loading: false,
+        }));
+      } else {
+        setState(prev => ({
+          ...prev,
+          items,
           loading: false,
         }));
       }
@@ -135,8 +143,22 @@ export default function DriveExplorerPage() {
   };
 
   const navigateToFolder = async (folder: DriveFolder) => {
+    // Handle My Drive selection
+    if ((folder as any).isMyDrive) {
+      console.log('[DRIVE_EXPLORER] Entering My Drive:', { id: folder.id, name: folder.name });
+      setState(prev => ({
+        ...prev,
+        currentFolderId: folder.id,
+        activeDriveId: null, // My Drive has no active driveId
+        breadcrumb: [{ id: folder.id, name: folder.name }],
+        items: [],
+        nextPageToken: undefined,
+        loading: true,
+      }));
+      await loadChildren(folder.id);
+    }
     // Handle Shared Drive selection
-    if ((folder as any).isSharedDrive) {
+    else if ((folder as any).isSharedDrive) {
       const sharedDriveId = (folder as any).driveId;
       console.log('[DRIVE_EXPLORER] Entering Shared Drive:', { sharedDriveId, name: folder.name });
       setState(prev => ({
