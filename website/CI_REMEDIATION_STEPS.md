@@ -1,5 +1,22 @@
 # CI Remediation Steps
 
+## Blocker 0: Workbench Drive File Listing Errors (FIXED)
+
+**Problem**: Workbench Drive browser showing `TypeError: Cannot read properties of undefined (reading 'length')` and `TypeError: Cannot read properties of undefined (reading 'filter')`.
+
+**Root Cause**: 
+1. API response structure mismatch - Drive API returns `{ items: [...] }` but code was accessing `data.files`
+2. Missing null safety for array operations on `driveFiles`, `registeredSlots`, and `assets`
+
+**Fix**: 
+- Changed `data.files` to `data.items` to match Drive API response structure
+- Added null safety checks: `(state.driveFiles || [])`, `(state.registeredSlots || [])`, `(state.assets || [])`
+- Prevents undefined access errors during Drive browsing
+
+**Status**: ✅ Fixed and committed (cb61794)
+
+---
+
 ## Blocker 1: Lightningcss Linux Dependency Missing
 
 **Problem**: CI build fails with `Error: Cannot find module '../lightningcss.linux-x64-gnu.node'`
