@@ -240,17 +240,14 @@ export class DriveDiscovery {
       });
       
       // For Shared Drive root, use the driveId as the folderId
-      // Google documentation: Shared Drive ID is also the ID of its top-level folder
+      // Google documentation: Shared Drive ID is the ID of its top-level folder
       // Root-level items have the Shared Drive ID as their parent
       if (context.parentId === context.driveId) {
-        // Shared Drive root - use parent query with Shared Drive ID
-        // CRITICAL FIX: Google Drive API may not use Shared Drive ID as parent for root items
-        // Try without explicit parent first, then fall back to parent query
-        params.q = `trashed = false`;
-        console.log('[DRIVE_DISCOVERY_FORENSIC] Using Shared Drive root query (no parent constraint)', {
+        // Shared Drive root - constrain to immediate root children
+        params.q = `'${context.driveId}' in parents and trashed = false`;
+        console.log('[DRIVE_DISCOVERY_FORENSIC] Using Shared Drive root query', {
           driveId: context.driveId,
           query: params.q,
-          note: 'Testing if Google returns root items without parent constraint',
         });
       } else {
         // Shared Drive folder
@@ -281,6 +278,8 @@ export class DriveDiscovery {
       driveId: context.driveId,
       corpora: params.corpora,
       q: params.q,
+      supportsAllDrives: params.supportsAllDrives,
+      includeItemsFromAllDrives: params.includeItemsFromAllDrives,
     });
 
     try {
@@ -290,6 +289,21 @@ export class DriveDiscovery {
       const items: (DriveFolder | DriveFile)[] = [];
 
       if (response.data.files) {
+        // FORENSIC: Log actual Google API response for Shared Drive root investigation
+        if (context.driveId && context.parentId === context.driveId) {
+          console.log('[DRIVE_DISCOVERY_FORENSIC] Shared Drive root Google API response:', {
+            driveId: context.driveId,
+            parentId: context.parentId,
+            returnedCount: response.data.files.length,
+            returnedIds: response.data.files.map((f: any) => f.id),
+            returnedNames: response.data.files.map((f: any) => f.name),
+            returnedParents: response.data.files.map((f: any) => f.parents),
+            returnedDriveIds: response.data.files.map((f: any) => f.driveId),
+            nextPageToken: response.data.nextPageToken,
+            incompleteSearch: response.data.incompleteSearch,
+          });
+        }
+
         for (const item of response.data.files) {
           if (item.mimeType === 'application/vnd.google-apps.folder') {
             items.push({
