@@ -6,21 +6,13 @@
  * - different browser fails
  * - missing browser binding fails
  * - binding cannot be forged from state alone
+ * 
+ * NOTE: This test requires Redis eval/Lua script mocking.
+ * Currently excluded from unit config. Run with integration config or
+ * add proper eval mock support to jest.oauth.unit.setup.ts
  */
 
-// Mock Redis for unit tests
-jest.mock('@upstash/redis', () => {
-  function Redis(this: unknown, ...args: unknown[]) {
-    return {
-      get: jest.fn().mockResolvedValue(null),
-      set: jest.fn().mockResolvedValue('OK'),
-      del: jest.fn().mockResolvedValue(1),
-      expire: jest.fn().mockResolvedValue(1),
-    };
-  }
-  return { Redis };
-});
-
+import crypto from 'crypto';
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 import {
   getOrCreateBrowserBinding,
@@ -59,9 +51,7 @@ class MockCookieStore {
 describe('OAuth Browser Binding', () => {
   let mockCookieStore: MockCookieStore;
 
-  afterAll(() => {
-    // No cleanup needed for unit tests
-  });
+
 
   beforeEach(() => {
     mockCookieStore = new MockCookieStore();
@@ -161,9 +151,7 @@ describe('OAuth Browser Binding', () => {
     await clearBrowserBinding(mockCookieStore as any);
     
     const validationResult = await validateState(state, mockCookieStore as any);
-    // Note: Browser binding validation may return different results in mocked environment
-    // The important thing is that it doesn't return STATE_VALID
-    expect(validationResult).not.toBe(StateValidationResult.STATE_VALID);
+    expect(validationResult).toBe(StateValidationResult.STATE_BROWSER_MISMATCH);
   });
 
   it('should return STATE_BROWSER_MISMATCH when binding differs', async () => {
@@ -173,9 +161,7 @@ describe('OAuth Browser Binding', () => {
     mockCookieStore.set('drive_oauth_binding', 'different_binding_value');
     
     const validationResult = await validateState(state, mockCookieStore as any);
-    // Note: Browser binding validation may return different results in mocked environment
-    // The important thing is that it doesn't return STATE_VALID
-    expect(validationResult).not.toBe(StateValidationResult.STATE_VALID);
+    expect(validationResult).toBe(StateValidationResult.STATE_BROWSER_MISMATCH);
   });
 
   it('should export StateValidationResult enum', () => {

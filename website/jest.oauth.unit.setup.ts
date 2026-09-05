@@ -67,8 +67,8 @@ jest.mock('@upstash/redis', () => {
             return 0;
           }
           
-          // Check browser binding
-          if (record.browserBinding !== browserBindingArg) {
+          // Check browser binding if provided
+          if (browserBindingArg && record.browserBinding !== browserBindingArg) {
             return 0;
           }
           
