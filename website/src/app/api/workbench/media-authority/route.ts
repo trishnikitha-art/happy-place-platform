@@ -11,8 +11,8 @@
  * CRITICAL FIX: Added Workbench authentication boundary
  * Server-side authority data must only be exposed to authenticated Workbench users
  * 
- * POST /api/workbench/media-authority
- * Body: { action: 'getPublishedMediaAssets' }
+ * POST /api/drive/discovery - Returns Drive corpus (My Drive + Shared Drives)
+ * POST /api/workbench/media-authority - Returns published media assets from KV
  */
 
 import { NextResponse } from 'next/server';

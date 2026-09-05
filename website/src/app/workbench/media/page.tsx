@@ -16,7 +16,7 @@ interface MediaWorkbenchState {
   selectedSlot: RegisteredSlot | null;
   selectedAsset: VisualAsset | null;
   searchQuery: string;
-  filter: 'all' | 'used' | 'unused' | 'drive' | 'published' | 'legacy';
+  filter: 'all' | 'used' | 'unused' | 'drive' | 'published' | 'legacy' | 'source';
   registeredSlots: RegisteredSlot[];
   pendingAssignments: Map<string, { slot: RegisteredSlot; asset: VisualAsset }>;
   isAccepting: boolean;
@@ -40,6 +40,7 @@ interface MediaWorkbenchState {
   newSlotSection: string;
   websiteStructure: WebsitePage[];
   selectedSlotForContext: { x: number; y: number; slot: VisualSlotRef } | null;
+  driveSourceMode: boolean; // P0 FIX: Toggle between published media and Drive source
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -88,6 +89,7 @@ export default function MediaWorkbench() {
     newSlotSection: 'Hero',
     websiteStructure: [],
     selectedSlotForContext: null,
+    driveSourceMode: false, // P0 FIX: Start with published media, not Drive source
   });
 
   // Keep refs in sync with state
@@ -109,7 +111,7 @@ export default function MediaWorkbench() {
       const staticRegistry = await loadVisualAssetRegistry();
       console.log('[WORKBENCH] STATIC_REGISTRY_LOADED', { 
         count: staticRegistry.length,
-        sample: staticRegistry.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, classification: a.classification }))
+        sample: staticRegistry.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, classification: a.classification, source: a.source }))
       });
       
       // Load dynamic media from KV (Drive records) - fail-closed if KV unavailable
@@ -169,7 +171,7 @@ export default function MediaWorkbench() {
         staticCount: staticRegistry.length,
         dynamicCount: dynamicMediaList.length,
         mergedCount: mergedRegistry.length,
-        sampleMerged: mergedRegistry.slice(0, 5).map(a => ({ id: a.id, filename: a.filename, classification: a.classification }))
+        sampleMerged: mergedRegistry.slice(0, 5).map(a => ({ id: a.id, filename: a.filename, classification: a.classification, source: a.source }))
       });
       
       setState(prev => ({ 
@@ -193,6 +195,59 @@ export default function MediaWorkbench() {
         loading: false,
         kvAvailable: false,
         kvError: error instanceof Error ? error.message : 'Unknown error'
+      }));
+    }
+  };
+
+  // P0 FIX: Load Drive corpus structure (My Drive + Shared Drives) for source browsing
+  const loadDriveCorpusStructure = async () => {
+    try {
+      console.log('[WORKBENCH] LOAD_DRIVE_CORPUS_START');
+      setState(prev => ({ ...prev, driveLoading: true, driveError: null }));
+      
+      const response = await fetch('/api/workbench/drive-corpus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'getStructure' }),
+      });
+      
+      console.log('[WORKBENCH] DRIVE_CORPUS_RESPONSE', { 
+        status: response.status,
+        ok: response.ok 
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[WORKBENCH] DRIVE_CORPUS_ERROR', errorText);
+        setState(prev => ({ 
+          ...prev, 
+          driveLoading: false, 
+          driveError: `Drive corpus unavailable (${response.status}): ${errorText}` 
+        }));
+        return;
+      }
+      
+      const data = await response.json();
+      const structure = data.structure;
+      
+      console.log('[WORKBENCH] DRIVE_CORPUS_LOADED', {
+        hasMyDrive: !!structure.myDrive,
+        sharedDriveCount: structure.sharedDrives?.length || 0,
+        myDriveName: structure.myDrive?.name,
+        sharedDriveNames: structure.sharedDrives?.map((d: any) => d.name),
+      });
+      
+      setState(prev => ({
+        ...prev,
+        driveStructure: structure,
+        driveLoading: false,
+      }));
+    } catch (error) {
+      console.error('[WORKBENCH] DRIVE_CORPUS_LOAD_ERROR', error);
+      setState(prev => ({ 
+        ...prev, 
+        driveLoading: false,
+        driveError: error instanceof Error ? error.message : 'Unknown error'
       }));
     }
   };
@@ -431,30 +486,8 @@ export default function MediaWorkbench() {
   };
 
   const loadDriveStructure = async () => {
-    try {
-      setState(prev => ({ ...prev, driveLoading: true, driveError: null }));
-      
-      const response = await fetch('/api/drive/discovery');
-      if (!response.ok) {
-        throw new Error('Failed to load Drive structure');
-      }
-      
-      const structure = await response.json();
-      setState(prev => ({ 
-        ...prev, 
-        driveStructure: structure, 
-        driveLoading: false 
-      }));
-      
-      console.log('[WORKBENCH] DRIVE_STRUCTURE_LOADED', structure);
-    } catch (error) {
-      console.error('[WORKBENCH] DRIVE_STRUCTURE_ERROR', error);
-      setState(prev => ({ 
-        ...prev, 
-        driveLoading: false, 
-        driveError: error instanceof Error ? error.message : 'Failed to load Drive structure' 
-      }));
-    }
+    // P0 FIX: Use the new loadDriveCorpusStructure function
+    return loadDriveCorpusStructure();
   };
 
   const loadDriveFiles = async (folderId: string, pageToken?: string, driveId?: string | null) => {
@@ -470,17 +503,25 @@ export default function MediaWorkbench() {
     try {
       setState(prev => ({ ...prev, driveLoading: true, driveError: null }));
       
-      const params = new URLSearchParams({ folderId });
-      if (pageToken) params.append('pageToken', pageToken);
-      if (driveId) params.append('driveId', driveId);
-      
-      console.log('[WORKBENCH_DRIVE_NAVIGATION] API request parameters:', {
-        url: `/api/drive/files?${params.toString()}`,
-        hasDriveId: !!driveId,
-        driveId,
+      // P0 FIX: Use the new drive-corpus API for authoritative Drive file access
+      const response = await fetch('/api/workbench/drive-corpus', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          action: 'getFiles',
+          folderId,
+          driveId,
+          pageToken,
+        }),
       });
       
-      const response = await fetch(`/api/drive/files?${params.toString()}`);
+      console.log('[WORKBENCH_DRIVE_NAVIGATION] API request parameters:', {
+        url: '/api/workbench/drive-corpus',
+        folderId,
+        driveId,
+        pageToken,
+      });
+      
       if (!response.ok) {
         console.error('[WORKBENCH_DRIVE_NAVIGATION] API request failed', {
           status: response.status,
@@ -752,6 +793,7 @@ export default function MediaWorkbench() {
     console.log('[WORKBENCH] MESSAGE_LISTENER_ATTACHING');
 
     loadCanonicalData();
+    loadDriveCorpusStructure(); // P0 FIX: Load Drive corpus structure for source browsing
 
     // Load website structure for slot grid
     const structure = getWebsiteStructure();
@@ -1322,6 +1364,10 @@ export default function MediaWorkbench() {
         return asset.classification === 'PUBLISHED';
       case 'legacy':
         return asset.classification !== 'PUBLISHED' && asset.classification !== 'DRIVE_ONLY';
+      case 'source':
+        // P0 FIX: Show all source assets (Drive-only + not published)
+        return asset.classification === 'DRIVE_ONLY' || 
+               (asset.classification !== 'PUBLISHED' && asset.source !== 'local');
       default:
         return true; // Show all assets when filter is 'all'
     }
@@ -1334,7 +1380,7 @@ export default function MediaWorkbench() {
       filteredCount: filteredAssets.length,
       filter: state.filter,
       searchQuery: state.searchQuery,
-      sampleAssets: filteredAssets.slice(0, 5).map(a => ({ id: a.id, filename: a.filename, classification: a.classification })),
+      sampleAssets: filteredAssets.slice(0, 5).map(a => ({ id: a.id, filename: a.filename, classification: a.classification, source: a.source })),
     });
   }
 
@@ -1720,7 +1766,7 @@ export default function MediaWorkbench() {
 
             {/* Filters */}
             <div className="flex gap-1 mb-4">
-              {(['all', 'used', 'unused', 'drive', 'published', 'legacy'] as const).map((filter) => (
+              {(['all', 'used', 'unused', 'drive', 'published', 'legacy', 'source'] as const).map((filter) => (
                 <button
                   key={filter}
                   onClick={() => setState(prev => ({ ...prev, filter }))}
@@ -1736,9 +1782,7 @@ export default function MediaWorkbench() {
               <button
                 onClick={() => {
                   setState(prev => ({ ...prev, driveBrowsing: !prev.driveBrowsing }));
-                  if (!state.driveBrowsing) {
-                    loadDriveStructure();
-                  }
+                  // P0 FIX: Drive corpus structure is already loaded on mount, no need to reload
                 }}
                 className={`px-2 py-1 rounded text-xs capitalize transition-colors ${
                   state.driveBrowsing
