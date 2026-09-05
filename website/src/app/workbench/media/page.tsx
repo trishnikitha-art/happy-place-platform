@@ -70,7 +70,7 @@ export default function MediaWorkbench() {
     registeredSlots: [],
     pendingAssignments: new Map(),
     isAccepting: false,
-    driveBrowsing: false,
+    driveBrowsing: true, // P0 FIX: Always show Drive source in main panel
     driveStructure: null,
     driveFiles: [],
     driveLoading: false,
@@ -200,7 +200,7 @@ export default function MediaWorkbench() {
     }
   };
 
-  // P0 FIX: Load Drive corpus structure (My Drive + Shared Drives) for source browsing
+  // P0 FIX: Load Drive corpus structure and return actual structure (not React state)
   const loadDriveCorpusStructure = async () => {
     try {
       console.log('[WORKBENCH] LOAD_DRIVE_CORPUS_START');
@@ -225,7 +225,7 @@ export default function MediaWorkbench() {
           driveLoading: false, 
           driveError: `Drive corpus unavailable (${response.status}): ${errorText}` 
         }));
-        return;
+        return null;
       }
       
       const data = await response.json();
@@ -243,6 +243,8 @@ export default function MediaWorkbench() {
         driveStructure: structure,
         driveLoading: false,
       }));
+      
+      return structure; // P0 FIX: Return actual structure for immediate use
     } catch (error) {
       console.error('[WORKBENCH] DRIVE_CORPUS_LOAD_ERROR', error);
       setState(prev => ({ 
@@ -250,11 +252,13 @@ export default function MediaWorkbench() {
         driveLoading: false,
         driveError: error instanceof Error ? error.message : 'Unknown error'
       }));
+      return null;
     }
   };
 
   // P0 FIX: Convert Drive files to VisualAsset format for main panel integration
-  const convertDriveFileToAsset = (driveFile: any): VisualAsset => {
+  // Accepts explicit driveId parameter to avoid React state race conditions
+  const convertDriveFileToAsset = (driveFile: any, explicitDriveId?: string | null): VisualAsset => {
     return {
       id: `drive-${driveFile.id}`,
       filename: driveFile.name,
@@ -273,7 +277,7 @@ export default function MediaWorkbench() {
       format: driveFile.mimeType,
       drive: {
         fileId: driveFile.id,
-        driveId: state.driveCurrentDriveId || undefined,
+        driveId: explicitDriveId || undefined,
         name: driveFile.name,
         mimeType: driveFile.mimeType,
         webViewUrl: driveFile.webViewLink,
@@ -290,52 +294,107 @@ export default function MediaWorkbench() {
   };
 
   // P0 FIX: Load Drive corpus and integrate into main asset list
+  // This is the authoritative client-side Drive source loader
   const loadDriveCorpusAndIntegrate = async () => {
     try {
       console.log('[WORKBENCH] LOAD_DRIVE_CORPUS_AND_INTEGRATE_START');
       
-      // Load Drive structure
-      await loadDriveCorpusStructure();
+      // Load Drive structure and get actual structure (not React state)
+      const structure = await loadDriveCorpusStructure();
       
-      if (!state.driveStructure) {
+      if (!structure) {
         console.log('[WORKBENCH] DRIVE_CORPUS_NOT_AVAILABLE');
         return;
       }
       
-      // Convert Drive files to assets
-      const driveAssets = (state.driveFiles || [])
-        .filter((item: any) => item.type !== 'folder')
-        .map(convertDriveFileToAsset);
-      
-      console.log('[WORKBENCH] DRIVE_ASSETS_CONVERTED', {
-        driveFileCount: state.driveFiles.length,
-        driveAssetCount: driveAssets.length,
-        sample: driveAssets.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, source: a.source })),
+      console.log('[WORKBENCH] AUTHORIZED_ROOTS', {
+        hasMyDrive: !!structure.myDrive,
+        sharedDriveCount: structure.sharedDrives?.length || 0,
       });
       
-      // Merge Drive assets into main asset list
-      setState(prev => {
-        const existingAssets = prev.assets || [];
-        const mergedAssets = [...existingAssets];
+      let totalDriveFiles = 0;
+      let totalDriveFolders = 0;
+      let integratedDriveAssets = 0;
+      
+      // P0 FIX: Load files from each authorized root explicitly
+      // My Drive root
+      if (structure.myDrive) {
+        console.log('[WORKBENCH] LOADING_MY_DRIVE_ROOT');
+        const myDriveFileCount = await loadDriveFiles(structure.myDrive.id, undefined, null);
+        totalDriveFiles += myDriveFileCount;
         
-        // Add Drive assets (avoid duplicates by ID)
-        driveAssets.forEach((driveAsset: VisualAsset) => {
-          const existingIndex = mergedAssets.findIndex(a => a.id === driveAsset.id);
-          if (existingIndex < 0) {
-            mergedAssets.push(driveAsset);
-          }
+        // Convert My Drive files with explicit driveId=null
+        const myDriveAssets = (state.driveFiles || [])
+          .filter((item: any) => item.type !== 'folder')
+          .map((file: any) => convertDriveFileToAsset(file, null));
+        
+        // Integrate My Drive assets
+        setState(prev => {
+          const existingAssets = prev.assets || [];
+          const mergedAssets = [...existingAssets];
+          
+          myDriveAssets.forEach((driveAsset: VisualAsset) => {
+            const existingIndex = mergedAssets.findIndex(a => a.id === driveAsset.id);
+            if (existingIndex < 0) {
+              mergedAssets.push(driveAsset);
+              integratedDriveAssets++;
+            }
+          });
+          
+          return { ...prev, assets: mergedAssets };
         });
         
-        console.log('[WORKBENCH] DRIVE_ASSETS_INTEGRATED', {
-          existingCount: existingAssets.length,
-          driveAssetCount: driveAssets.length,
-          mergedCount: mergedAssets.length,
-        });
-        
-        return {
-          ...prev,
-          assets: mergedAssets,
-        };
+        totalDriveFolders += (state.driveFiles || []).filter((item: any) => item.type === 'folder').length;
+      }
+      
+      // Shared Drive roots
+      if (structure.sharedDrives && structure.sharedDrives.length > 0) {
+        for (const sharedDrive of structure.sharedDrives) {
+          console.log('[WORKBENCH] LOADING_SHARED_DRIVE_ROOT', { 
+            driveId: sharedDrive.id, 
+            name: sharedDrive.name 
+          });
+          
+          const sharedDriveFileCount = await loadDriveFiles(sharedDrive.id, undefined, sharedDrive.id);
+          totalDriveFiles += sharedDriveFileCount;
+          
+          // Convert Shared Drive files with explicit driveId
+          const sharedDriveAssets = (state.driveFiles || [])
+            .filter((item: any) => item.type !== 'folder')
+            .map((file: any) => convertDriveFileToAsset(file, sharedDrive.id));
+          
+          // Integrate Shared Drive assets
+          setState(prev => {
+            const existingAssets = prev.assets || [];
+            const mergedAssets = [...existingAssets];
+            
+            sharedDriveAssets.forEach((driveAsset: VisualAsset) => {
+              const existingIndex = mergedAssets.findIndex(a => a.id === driveAsset.id);
+              if (existingIndex < 0) {
+                mergedAssets.push(driveAsset);
+                integratedDriveAssets++;
+              }
+            });
+            
+            return { ...prev, assets: mergedAssets };
+          });
+          
+          totalDriveFolders += (state.driveFiles || []).filter((item: any) => item.type === 'folder').length;
+        }
+      }
+      
+      console.log('[WORKBENCH] ROOT_ITEMS', {
+        totalDriveFiles,
+        totalDriveFolders,
+        integratedDriveAssets,
+      });
+      
+      console.log('[WORKBENCH] DRIVE_CORPUS_INTEGRATION_COMPLETE', {
+        myDrive: !!structure.myDrive,
+        sharedDrives: structure.sharedDrives?.length || 0,
+        totalFilesLoaded: totalDriveFiles,
+        totalFoldersLoaded: totalDriveFolders,
+        totalAssetsIntegrated: integratedDriveAssets,
       });
     } catch (error) {
       console.error('[WORKBENCH] DRIVE_CORPUS_INTEGRATION_ERROR', error);
@@ -627,6 +686,8 @@ export default function MediaWorkbench() {
         nextPageToken: data.nextPageToken,
       });
       
+      const fileCount = (data.items || []).length;
+      
       setState(prev => ({
         ...prev,
         driveFiles: pageToken ? [...(prev.driveFiles || []), ...(data.items || [])] : (data.items || []),
@@ -635,14 +696,41 @@ export default function MediaWorkbench() {
       }));
       
       console.log('[WORKBENCH] DRIVE_FILES_LOADED', { 
-        count: data.items?.length || 0, 
+        count: fileCount, 
         hasMore: !!data.nextPageToken 
       });
       
       // P0 FIX: Integrate newly loaded Drive files into main asset list
       const newDriveAssets = (data.items || [])
         .filter((item: any) => item.type !== 'folder')
-        .map(convertDriveFileToAsset);
+        .map((file: any) => convertDriveFileToAsset(file, driveId)); // Use explicit driveId
+      
+      if (newDriveAssets.length > 0) {
+        setState(prev => {
+          const existingAssets = prev.assets || [];
+          const mergedAssets = [...existingAssets];
+          
+          // Add new Drive assets (avoid duplicates by ID)
+          newDriveAssets.forEach((driveAsset: VisualAsset) => {
+            const existingIndex = mergedAssets.findIndex(a => a.id === driveAsset.id);
+            if (existingIndex < 0) {
+              mergedAssets.push(driveAsset);
+            }
+          });
+          
+          console.log('[WORKBENCH] NEW_DRIVE_ASSETS_INTEGRATED', {
+            newAssetCount: newDriveAssets.length,
+            totalAssetCount: mergedAssets.length,
+          });
+          
+          return {
+            ...prev,
+            assets: mergedAssets,
+          };
+        });
+      }
+      
+      return fileCount;
       
       if (newDriveAssets.length > 0) {
         setState(prev => {
@@ -675,6 +763,7 @@ export default function MediaWorkbench() {
         driveLoading: false, 
         driveError: error instanceof Error ? error.message : 'Failed to load Drive files' 
       }));
+      return 0;
     }
   };
 
