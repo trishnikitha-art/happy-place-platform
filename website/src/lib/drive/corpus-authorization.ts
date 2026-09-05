@@ -107,6 +107,21 @@ export function isMyDriveAuthorized(): boolean {
 }
 
 /**
+ * Get current authorization configuration for diagnostic purposes
+ * Returns the current environment variable configuration without requiring authentication
+ */
+export function getAuthorizationConfiguration() {
+  return {
+    myDriveAuthorized: isMyDriveAuthorized(),
+    myDriveConfigured: process.env.HPP_AUTHORIZED_MY_DRIVE !== undefined,
+    myDriveValue: process.env.HPP_AUTHORIZED_MY_DRIVE,
+    sharedDrivesConfigured: process.env.HPP_AUTHORIZED_SHARED_DRIVES !== undefined,
+    sharedDrivesValue: process.env.HPP_AUTHORIZED_SHARED_DRIVES,
+    authorizedSharedDriveIds: getAuthorizedSharedDriveIds(),
+  };
+}
+
+/**
  * Get authorized Drive corpora for the current session
  * Returns the list of Drive corpora that the authenticated session is authorized to access
  * 

@@ -41,6 +41,14 @@ interface MediaWorkbenchState {
   newSlotSection: string;
   websiteStructure: WebsitePage[];
   selectedSlotForContext: { x: number; y: number; slot: VisualSlotRef } | null;
+  authorizationConfig: {
+    myDriveAuthorized: boolean;
+    myDriveConfigured: boolean;
+    myDriveValue: string | undefined;
+    sharedDrivesConfigured: boolean;
+    sharedDrivesValue: string | undefined;
+    authorizedSharedDriveIds: string[];
+  } | null;
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -89,6 +97,7 @@ export default function MediaWorkbench() {
     newSlotSection: 'Hero',
     websiteStructure: [],
     selectedSlotForContext: null,
+    authorizationConfig: null,
   });
 
   // Keep refs in sync with state
@@ -99,6 +108,28 @@ export default function MediaWorkbench() {
   useEffect(() => {
     registeredSlotsRef.current = state.registeredSlots;
   }, [state.registeredSlots]);
+
+  // P0 FIX: Load authorization configuration for diagnostic purposes
+  const loadAuthorizationConfig = async () => {
+    try {
+      console.log('[WORKBENCH] LOAD_AUTHORIZATION_CONFIG_START');
+      
+      const response = await fetch('/api/workbench/authorization-config');
+      
+      if (!response.ok) {
+        console.warn('[WORKBENCH] AUTHORIZATION_CONFIG_UNAVAILABLE', { status: response.status });
+        return;
+      }
+      
+      const data = await response.json();
+      
+      console.log('[WORKBENCH] AUTHORIZATION_CONFIG_LOADED', data.configuration);
+      
+      setState(prev => ({ ...prev, authorizationConfig: data.configuration }));
+    } catch (error) {
+      console.warn('[WORKBENCH] AUTHORIZATION_CONFIG_ERROR', error);
+    }
+  };
 
   const loadCanonicalData = async () => {
     try {
@@ -1051,6 +1082,7 @@ export default function MediaWorkbench() {
     console.log('[WORKBENCH] MESSAGE_LISTENER_ATTACHING');
 
     loadCanonicalData();
+    loadAuthorizationConfig(); // P0 FIX: Load authorization configuration for diagnostics
     loadDriveCorpusStructure(); // P0 FIX: Load Drive corpus structure for source browsing
     
     // P0 FIX: Load Drive corpus and integrate into main asset list
@@ -2048,12 +2080,33 @@ export default function MediaWorkbench() {
             {/* Drive Browser */}
             {state.driveBrowsing && (
               <div className="mb-4 p-4 bg-surface rounded-lg">
+                {/* P0 FIX: Authorization Configuration Diagnostics */}
+                {state.authorizationConfig && (
+                  <div className="mb-4 p-3 bg-blue-50 text-blue-900 text-sm rounded border border-blue-200">
+                    <div className="font-semibold mb-2">Authorization Configuration:</div>
+                    <div className="space-y-1">
+                      <div>My Drive: {state.authorizationConfig.myDriveAuthorized ? '✅ Authorized' : '❌ Not Authorized'}</div>
+                      {!state.authorizationConfig.myDriveAuthorized && (
+                        <div className="text-red-600 text-xs">
+                          Set HPP_AUTHORIZED_MY_DRIVE=true to enable My Drive access
+                        </div>
+                      )}
+                      <div>Shared Drives: {state.authorizationConfig.authorizedSharedDriveIds.length} configured</div>
+                      {state.authorizationConfig.authorizedSharedDriveIds.length > 0 && (
+                        <div className="text-xs text-gray-600">
+                          IDs: {state.authorizationConfig.authorizedSharedDriveIds.join(', ')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
                 {state.driveError && (
                   <div className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded">
                     {state.driveError}
                   </div>
                 )}
-                
+
                 {!state.driveStructure && !state.driveLoading && (
                   <button
                     onClick={loadDriveStructure}
