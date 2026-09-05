@@ -488,7 +488,7 @@ export default function DriveExplorerPage() {
                     >
                       {file.thumbnailLink && file.mimeType?.startsWith('image/') ? (
                         <img
-                          src={state.activeDriveId ? `/api/drive/files/${file.id}/thumbnail?driveId=${state.activeDriveId}` : `/api/drive/files/${file.id}/thumbnail`}
+                          src={state.activeDriveId ? `/api/drive/files/${file.id}/thumbnail?corpusId=${state.activeDriveId}` : `/api/drive/files/${file.id}/thumbnail`}
                           alt={file.name}
                           className="w-full aspect-square object-cover rounded mb-2"
                         />
@@ -518,7 +518,7 @@ export default function DriveExplorerPage() {
                     >
                       {file.thumbnailLink && file.mimeType?.startsWith('image/') ? (
                         <img
-                          src={state.activeDriveId ? `/api/drive/files/${file.id}/thumbnail?driveId=${state.activeDriveId}` : `/api/drive/files/${file.id}/thumbnail`}
+                          src={state.activeDriveId ? `/api/drive/files/${file.id}/thumbnail?corpusId=${state.activeDriveId}` : `/api/drive/files/${file.id}/thumbnail`}
                           alt={file.name}
                           className="w-16 h-16 object-cover rounded"
                         />

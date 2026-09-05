@@ -35,9 +35,10 @@ export async function GET(
 ) {
   const { fileId } = await params;
   const { searchParams } = new URL(request.url);
-  const driveId = searchParams.get('driveId') || undefined;
+  // P0 FIX: Accept both corpusId (authoritative) and legacy driveId
+  const corpusId = searchParams.get('corpusId') || searchParams.get('driveId') || undefined;
 
-  console.log('[MEDIA_PROXY_REQUEST_STARTED]', { fileId, driveId });
+  console.log('[MEDIA_PROXY_REQUEST_STARTED]', { fileId, corpusId });
 
   try {
     // CRITICAL: Explicit authentication check before Drive API access
@@ -66,7 +67,7 @@ export async function GET(
     // Verify the Drive file is accessible to the authenticated session
     // This prevents IDOR where an authorized user could access arbitrary Drive IDs
     // even if Google technically permits the object
-    const fileAuth = await verifyCorpusAuthorization(fileId, driveId);
+    const fileAuth = await verifyCorpusAuthorization(fileId, corpusId);
     if (!fileAuth.authorized) {
       console.error('[DRIVE_AUTHORIZATION] FILE_NOT_AUTHORIZED', {
         fileId,
@@ -86,14 +87,14 @@ export async function GET(
       corpus: fileAuth.corpus,
     });
 
-    console.log('[MEDIA_PROXY_AUTH_RESOLVED]', { fileId, driveId, hasAuth: true });
+    console.log('[MEDIA_PROXY_AUTH_RESOLVED]', { fileId, corpusId, hasAuth: true });
 
     // Use Workbench user OAuth credentials
     const auth = await getOAuthClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const drive = google.drive({ version: 'v3', auth: auth as any });
 
-    console.log('[MEDIA_PROXY_DRIVE_FETCH_STARTED]', { fileId, driveId });
+    console.log('[MEDIA_PROXY_DRIVE_FETCH_STARTED]', { fileId, corpusId });
 
     // Get file metadata including mimeType and size FIRST
     const getFileParams: Record<string, unknown> = {
@@ -170,7 +171,7 @@ export async function GET(
       );
     }
 
-    console.log('[MEDIA_PROXY_MEDIA_DOWNLOAD_STARTED]', { fileId, driveId });
+    console.log('[MEDIA_PROXY_MEDIA_DOWNLOAD_STARTED]', { fileId, corpusId });
 
     // Try thumbnail first, fall back to full media if thumbnail unavailable
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
