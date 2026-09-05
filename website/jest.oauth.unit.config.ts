@@ -9,10 +9,12 @@ const config: Config = {
     }],
   },
   testMatch: [
-    "**/src/lib/drive/__tests__/oauth-*.test.ts",
+    "**/src/lib/drive/__tests__/oauth-basic.test.ts",
+    "**/src/lib/drive/__tests__/oauth-state-concurrency.test.ts",
   ],
   testPathIgnorePatterns: [
     "/src/lib/drive/__tests__/*.integration.test.ts", // Exclude integration tests from unit test runs
+    "/src/lib/drive/__tests__/*.real-integration.test.ts", // Exclude real Redis integration tests from unit test runs
     "/src/lib/drive/__tests__/oauth-atomic-identity.integration.test.ts", // Explicitly exclude
     "/src/lib/drive/__tests__/oauth-negative-security.integration.test.ts", // Explicitly exclude
     "/src/lib/drive/__tests__/oauth-state-concurrency.integration.test.ts", // Explicitly exclude

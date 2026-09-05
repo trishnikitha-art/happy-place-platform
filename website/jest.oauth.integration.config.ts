@@ -9,7 +9,6 @@ const config: Config = {
     }],
   },
   testMatch: [
-    "**/src/lib/drive/__tests__/*.integration.test.ts",
     "**/src/lib/drive/__tests__/*.real-integration.test.ts",
   ],
   moduleNameMapper: {

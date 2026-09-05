@@ -8,11 +8,7 @@
  * - Single authoritative revocation path
  */
 
-// Set environment variables before importing modules
-process.env.KV_REST_API_URL = 'https://test.redis.com';
-process.env.KV_REST_API_TOKEN = 'test-token';
-
-// Mock Redis for testing
+// Mock Redis for unit tests
 jest.mock('@upstash/redis', () => {
   function Redis(this: unknown, ...args: unknown[]) {
     return {
@@ -24,6 +20,11 @@ jest.mock('@upstash/redis', () => {
   }
   return { Redis };
 });
+
+// Mock cookies for Next.js
+jest.mock('next/headers', () => ({
+  cookies: jest.fn(),
+}));
 
 import {
   upsertAuthorization,
@@ -62,9 +63,7 @@ describe('OAuth Authority Revocation', () => {
   });
 
   afterAll(() => {
-    // Clean up environment variables
-    delete process.env.KV_REST_API_URL;
-    delete process.env.KV_REST_API_TOKEN;
+    // No cleanup needed for unit tests
   });
 
   describe('Multiple Session Revocation', () => {

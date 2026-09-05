@@ -8,10 +8,6 @@
  * - Redis failure → infrastructure error (not false)
  */
 
-// Set environment variables before importing modules
-process.env.KV_REST_API_URL = 'https://test.redis.com';
-process.env.KV_REST_API_TOKEN = 'test-token';
-
 import crypto from 'crypto';
 
 // Mock cookies for Next.js
@@ -48,9 +44,7 @@ describe('OAuth State Concurrency', () => {
   });
 
   afterAll(() => {
-    // Clean up environment variables
-    delete process.env.KV_REST_API_URL;
-    delete process.env.KV_REST_API_TOKEN;
+    // No cleanup needed for unit tests
   });
 
   describe('Concurrent State Consumption', () => {
