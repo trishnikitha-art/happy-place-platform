@@ -40,6 +40,14 @@ export async function POST() {
           continue;
         }
         
+        // P0 FIX: Ensure storage field is present for public media gate compliance
+        // Static files have local files, so storage should be 'static'
+        // Drive-ingested assets will have storage: 'blob' from ingest
+        if (!media.storage && media.source === 'local') {
+          media.storage = 'static';
+          console.log('[SYNC] STORAGE_FIX', { mediaId: media.id, addedStorage: 'static' });
+        }
+        
         // Check if already in KV
         const existing = await getMediaRecordRaw(media.id);
         if (existing) {
@@ -52,6 +60,8 @@ export async function POST() {
             newSource: media.source,
             oldLifecycleState: existing.lifecycleState,
             newLifecycleState: media.lifecycleState,
+            oldStorage: existing.storage,
+            newStorage: media.storage,
           });
         } else {
           // Write new record to KV
@@ -61,7 +71,8 @@ export async function POST() {
             mediaId: media.id,
             lifecycleState: media.lifecycleState,
             source: media.source,
-            contentHash: media.contentHash
+            contentHash: media.contentHash,
+            storage: media.storage,
           });
         }
         

@@ -128,6 +128,14 @@ async function syncMediaToKv() {
       continue;
     }
 
+    // P0 FIX: Ensure storage field is present for public media gate compliance
+    // Static files have local files, so storage should be 'static'
+    // Drive-ingested assets will have storage: 'blob' from ingest
+    if (!media.storage && media.source === 'local') {
+      media.storage = 'static';
+      console.log(`[SYNC] STORAGE_FIX: ${media.id} - added storage: 'static'`);
+    }
+
     // Only sync published local media
     if (media.lifecycleState !== 'published' || media.source !== 'local') {
       skippedCount++;
