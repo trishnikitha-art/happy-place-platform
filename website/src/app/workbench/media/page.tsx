@@ -1994,19 +1994,6 @@ export default function MediaWorkbench() {
                   {filter}
                 </button>
               ))}
-              <button
-                onClick={() => {
-                  setState(prev => ({ ...prev, driveBrowsing: !prev.driveBrowsing }));
-                  // P0 FIX: Drive corpus structure is already loaded on mount, no need to reload
-                }}
-                className={`px-2 py-1 rounded text-xs capitalize transition-colors ${
-                  state.driveBrowsing
-                    ? 'bg-blue-500 text-white'
-                    : 'bg-surface hover:bg-surface/80'
-                }`}
-              >
-                {state.driveBrowsing ? 'Close Drive' : 'Browse Drive'}
-              </button>
             </div>
 
             {/* Drive Browser */}
@@ -2087,6 +2074,28 @@ export default function MediaWorkbench() {
                             {crumb.name}
                           </button>
                         ))}
+                      </div>
+                    )}
+
+                    {/* Folders */}
+                    {(state.driveFiles || []).filter((item: any) => item.type === 'folder').length > 0 && (
+                      <div>
+                        <h3 className="text-xs font-semibold text-muted-foreground mb-2">Folders</h3>
+                        <div className="space-y-1">
+                          {(state.driveFiles || []).filter((item: any) => item.type === 'folder').map((folder: any) => (
+                            <button
+                              key={folder.id}
+                              onClick={() => navigateToFolder(folder)}
+                              className="w-full p-3 bg-background border border-border rounded-lg hover:border-primary transition-colors text-left flex items-center gap-3"
+                            >
+                              <Folder className="text-blue-500" size={20} />
+                              <div className="flex-1">
+                                <div className="text-sm font-medium text-foreground">{folder.name}</div>
+                              </div>
+                              <ChevronRight className="text-muted-foreground" size={16} />
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     )}
 
