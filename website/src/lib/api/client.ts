@@ -106,6 +106,8 @@ export const connectorApi = {
 };
 
 // Projection API
+// NOTE: For Happy Place Carpentry, projections are static media records
+// This is a minimal implementation returning the actual media authority
 export const projectionApi = {
   async getAll() {
     return apiClient.get<ProjectionData[]>('/projections');
