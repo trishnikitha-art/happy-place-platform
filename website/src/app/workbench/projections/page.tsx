@@ -15,6 +15,7 @@ export default function ProjectionsPage() {
   const [projectionTypes, setProjectionTypes] = useState<any[]>([]);
   const [selectedProjection, setSelectedProjection] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     loadProjections();
@@ -44,73 +45,11 @@ export default function ProjectionsPage() {
       setProjectionTypes(grouped);
     } catch (err) {
       console.error('Failed to load projections:', err);
-      // Fallback to mock data for development
-      setProjectionTypes([
-        {
-          id: 'customer',
-          name: 'Customer Projection',
-          description: 'Customer state, health, and relationships',
-          count: 12,
-          lastUpdated: new Date().toISOString(),
-          status: 'healthy',
-        },
-        {
-          id: 'project',
-          name: 'Project Projection',
-          description: 'Project status, progress, and budget',
-          count: 8,
-          lastUpdated: new Date().toISOString(),
-          status: 'healthy',
-        },
-        {
-          id: 'mission',
-          name: 'Mission Projection',
-          description: 'Mission execution state and results',
-          count: 5,
-          lastUpdated: new Date().toISOString(),
-          status: 'healthy',
-        },
-        {
-          id: 'connector',
-          name: 'Connector Projection',
-          description: 'Connector health and activity',
-          count: 3,
-          lastUpdated: new Date().toISOString(),
-          status: 'healthy',
-        },
-        {
-          id: 'recommendation',
-          name: 'Recommendation Projection',
-          description: 'Recommendation history and outcomes',
-          count: 24,
-          lastUpdated: new Date().toISOString(),
-          status: 'healthy',
-        },
-        {
-          id: 'evidence',
-          name: 'Evidence Projection',
-          description: 'Evidence packages and confidence scores',
-          count: 18,
-          lastUpdated: new Date().toISOString(),
-          status: 'healthy',
-        },
-        {
-          id: 'worker',
-          name: 'Worker Projection',
-          description: 'Worker status and performance',
-          count: 4,
-          lastUpdated: new Date().toISOString(),
-          status: 'degraded',
-        },
-        {
-          id: 'workflow',
-          name: 'Workflow Projection',
-          description: 'Workflow state and transitions',
-          count: 6,
-          lastUpdated: new Date().toISOString(),
-          status: 'healthy',
-        },
-      ]);
+      // P0 FIX: Do not use fallback mock data - expose the actual error
+      setError('Failed to load projections: API endpoint not available');
+      setProjectionTypes([]);
+      setLoading(false);
+      return; // Exit early to show empty state, not fake data
     } finally {
       setLoading(false);
     }
@@ -135,6 +74,32 @@ export default function ProjectionsPage() {
         <h1 className="text-3xl font-bold text-foreground mb-2">Projections</h1>
         <p className="text-muted-foreground mb-6">All projections in one view - everything is a projection</p>
         <div className="text-center py-12 text-muted-foreground">Loading projections...</div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-6">
+        <h1 className="text-3xl font-bold text-foreground mb-2">Projections</h1>
+        <p className="text-muted-foreground mb-6">All projections in one view - everything is a projection</p>
+        <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+          <h2 className="text-lg font-semibold text-red-900 mb-2">API Endpoint Not Available</h2>
+          <p className="text-red-700">{error}</p>
+          <p className="text-sm text-red-600 mt-2">The /api/projections endpoint does not exist in the current deployment.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (projectionTypes.length === 0) {
+    return (
+      <div className="p-6">
+        <h1 className="text-3xl font-bold text-foreground mb-2">Projections</h1>
+        <p className="text-muted-foreground mb-6">All projections in one view - everything is a projection</p>
+        <div className="text-center py-12 text-muted-foreground">
+          No projections available. The projection API endpoint is not configured.
+        </div>
       </div>
     );
   }
