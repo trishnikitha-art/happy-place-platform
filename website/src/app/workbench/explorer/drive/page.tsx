@@ -112,10 +112,11 @@ export default function DriveExplorerPage() {
     try {
       const params = new URLSearchParams({ folderId });
       if (pageToken) params.set('pageToken', pageToken);
+      // P0 FIX: Use corpusId (authoritative) instead of driveId for corpus context
       // Pass activeDriveId if in Shared Drive context (either from parameter or state)
       const contextDriveId = driveId || state.activeDriveId;
       if (contextDriveId) {
-        params.set('driveId', contextDriveId);
+        params.set('corpusId', contextDriveId); // Use corpusId to match the new field name
       }
 
       console.log('[DRIVE_EXPLORER_FORENSIC] loadChildren API call:', {
@@ -291,9 +292,9 @@ export default function DriveExplorerPage() {
       setState(prev => ({ ...prev, loading: true, error: null }));
 
       const params = new URLSearchParams({ query: state.searchQuery });
-      // Include driveId for Shared Drive search scoping
+      // P0 FIX: Use corpusId (authoritative) instead of driveId for Shared Drive search scoping
       if (state.activeDriveId) {
-        params.set('driveId', state.activeDriveId);
+        params.set('corpusId', state.activeDriveId);
       }
 
       const response = await fetch(`/api/drive/search?${params}`);

@@ -832,6 +832,7 @@ export async function POST(request: Request) {
       colorSpace: metadata?.space,
       lifecycleState: 'published',
       source: 'local', // IMPORTANT: Source is 'local' because bytes are in Blob, not Drive
+      storage: 'blob', // P0 FIX: Blob storage declaration required for public media gate
     };
 
     await storeMedia(mediaRecord);

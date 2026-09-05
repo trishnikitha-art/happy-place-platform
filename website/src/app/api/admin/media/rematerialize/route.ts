@@ -315,15 +315,16 @@ async function rematerializeMediaRecord(
     const staticRecord = staticManifest.media.find((m: any) => m.id === media.id);
     
     // Determine Drive source ID with precedence:
-    // 1. Runtime record drive.driveId (if present and valid)
-    // 2. Runtime record provenance.august3_driveId (if present)
-    // 3. Runtime record provenance.driveFileId (if present)
+    // 1. Runtime record provenance.driveFileId (authoritative Drive provenance)
+    // 2. Runtime record provenance.august3_driveId (legacy provenance field)
+    // 3. Runtime record drive.driveId (legacy drive field, should not exist on PublishedMediaAsset)
     // 4. Static manifest driveId (legacy top-level, fallback for poisoned runtime records)
-    // 5. Static manifest drive.fileId (if drive object exists)
-    driveSourceId = media.drive?.driveId || media.provenance?.august3_driveId || media.provenance?.driveFileId || (staticRecord as any)?.driveId || staticRecord?.drive?.fileId || null;
+    // 5. Static manifest drive.fileId (legacy drive object, fallback)
+    // P0 FIX: Use authoritative provenance fields first, not legacy drive.fileId
+    driveSourceId = media.provenance?.driveFileId || media.provenance?.august3_driveId || media.drive?.driveId || (staticRecord as any)?.driveId || staticRecord?.drive?.fileId || null;
     
     if (driveSourceId) {
-      const source = media.drive?.driveId ? 'runtime.driveId' : media.provenance?.august3_driveId ? 'runtime.provenance' : media.provenance?.driveFileId ? 'runtime.driveFileId' : (staticRecord as any)?.driveId ? 'static.driveId' : staticRecord?.drive?.fileId ? 'static.drive.fileId' : 'unknown';
+      const source = media.provenance?.driveFileId ? 'runtime.provenance.driveFileId' : media.provenance?.august3_driveId ? 'runtime.provenance.august3_driveId' : media.drive?.driveId ? 'runtime.drive.driveId' : (staticRecord as any)?.driveId ? 'static.driveId' : staticRecord?.drive?.fileId ? 'static.drive.fileId' : 'unknown';
       console.log('[REMATERIALIZATION] Using Drive source from provenance bridge:', {
         requestId,
         mediaId: media.id,

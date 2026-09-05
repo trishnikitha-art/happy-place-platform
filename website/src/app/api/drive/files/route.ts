@@ -60,7 +60,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url);
     const folderId = searchParams.get('folderId') || 'root';
     const pageToken = searchParams.get('pageToken') || undefined;
-    const driveId = searchParams.get('driveId') || undefined;
+    // P0 FIX: Accept both driveId (legacy) and corpusId (new) for compatibility
+    // corpusId is the authoritative field from the UI's corpus context preservation
+    const driveId = searchParams.get('corpusId') || searchParams.get('driveId') || undefined;
 
     console.log('[Drive Files API] Request:', { folderId, driveId, pageToken });
 
