@@ -182,30 +182,32 @@ function classifyAsset(media: Media, augustData?: any): VisualAsset['classificat
     return 'DRIVE_ONLY';
   }
 
-  if (media.filename === 'hero-background-enhanced.jpg' || media.filename === 'logo.png') {
-    return 'PRESENT_MAPPED';
-  }
-
-  if (media.projectId && ['FENCE BUILD.jpg', 'FENCEREBUILDMATCHINGSTAIN.png', 'FINISHEDCARPENTRY.png', 'FINISHEDCARPENTRY0.png', 'TRIMREPAIR.png', 'DRYWALL.png', 'FLOOR.png', 'GUTTERCLEANING.jpg'].includes(media.filename)) {
-    return 'PRESENT_UNMAPPED';
-  }
-
-  if (['Feature-Fence-Photo.jpg', 'HP0017_ExteriorPainting_After.jpg', 'HP0017_ExteriorPainting_Before.jpg', 'HP0018_FenceInstallation_Exterior_SideStained_After.jpg'].includes(media.filename)) {
-    return 'REFERENCED_MISSING';
-  }
-
-  if ((media as VisualAsset).provenance?.august3_driveId && !media.variants?.original) {
-    return 'AUGUST_RECOVERABLE';
-  }
-
-  if (media.filename.includes('-480.') || media.filename.includes('-thumb.')) {
-    return 'ORPHANED_VARIANT';
-  }
-
+  // PRESENT_MAPPED: Has physical file variants
   if (media.variants?.original) {
     return 'PRESENT_MAPPED';
   }
 
+  // REFERENCED_MISSING: Known referenced assets that are missing
+  if (['Feature-Fence-Photo.jpg', 'HP0017_ExteriorPainting_After.jpg', 'HP0017_ExteriorPainting_Before.jpg', 'HP0018_FenceInstallation_Exterior_SideStained_After.jpg'].includes(media.filename)) {
+    return 'REFERENCED_MISSING';
+  }
+
+  // AUGUST_RECOVERABLE: Known August 3 assets that can be recovered
+  if ((media as VisualAsset).provenance?.august3_driveId && !media.variants?.original) {
+    return 'AUGUST_RECOVERABLE';
+  }
+
+  // ORPHANED_VARIANT: Variant files without originals
+  if (media.filename.includes('-480.') || media.filename.includes('-thumb.')) {
+    return 'ORPHANED_VARIANT';
+  }
+
+  // PRESENT_UNMAPPED: Has variants but no mapping to known slots
+  if (media.variants?.web || media.variants?.webp || media.variants?.avif) {
+    return 'PRESENT_UNMAPPED';
+  }
+
+  // Default to UNKNOWN for anything else
   return 'UNKNOWN';
 }
 

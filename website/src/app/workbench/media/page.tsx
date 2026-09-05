@@ -101,31 +101,48 @@ export default function MediaWorkbench() {
 
   const loadCanonicalData = async () => {
     try {
+      console.log('[WORKBENCH] LOAD_CANONICAL_DATA_START');
       setState(prev => ({ ...prev, loading: true }));
       
       // Load static visual asset registry (media.v1.json)
+      console.log('[WORKBENCH] LOADING_STATIC_REGISTRY');
       const staticRegistry = await loadVisualAssetRegistry();
+      console.log('[WORKBENCH] STATIC_REGISTRY_LOADED', { 
+        count: staticRegistry.length,
+        sample: staticRegistry.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, classification: a.classification }))
+      });
       
       // Load dynamic media from KV (Drive records) - fail-closed if KV unavailable
       // Server-side API route to avoid exposing KV credentials to browser
       let dynamicMediaList: any[] = [];
       try {
+        console.log('[WORKBENCH] LOADING_KV_MEDIA_AUTHORITY');
         const response = await fetch('/api/workbench/media-authority', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'list' }),
         });
         
+        console.log('[WORKBENCH] KV_MEDIA_AUTHORITY_RESPONSE', { 
+          status: response.status,
+          ok: response.ok 
+        });
+        
         if (response.ok) {
           const data = await response.json();
           dynamicMediaList = data.media || [];
-          console.log('[WORKBENCH] KV_MEDIA_LOADED', { count: dynamicMediaList.length });
+          console.log('[WORKBENCH] KV_MEDIA_LOADED', { 
+            count: dynamicMediaList.length,
+            sample: dynamicMediaList.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, source: a.source }))
+          });
         } else {
           console.warn('[WORKBENCH] KV_UNAVAILABLE', { status: response.status });
+          const errorText = await response.text();
+          console.warn('[WORKBENCH] KV_ERROR_RESPONSE', errorText);
           setState(prev => ({ 
             ...prev, 
             kvAvailable: false, 
-            kvError: `KV authority unavailable (${response.status})` 
+            kvError: `KV authority unavailable (${response.status}): ${errorText}` 
           }));
         }
       } catch (error) {
@@ -148,6 +165,13 @@ export default function MediaWorkbench() {
         }
       });
       
+      console.log('[WORKBENCH] MERGED_REGISTRY', {
+        staticCount: staticRegistry.length,
+        dynamicCount: dynamicMediaList.length,
+        mergedCount: mergedRegistry.length,
+        sampleMerged: mergedRegistry.slice(0, 5).map(a => ({ id: a.id, filename: a.filename, classification: a.classification }))
+      });
+      
       setState(prev => ({ 
         ...prev, 
         assets: mergedRegistry, 
@@ -158,6 +182,9 @@ export default function MediaWorkbench() {
         staticCount: staticRegistry.length,
         dynamicCount: dynamicMediaList.length,
         mergedCount: mergedRegistry.length,
+        sampleStatic: staticRegistry.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, source: a.source })),
+        sampleDynamic: dynamicMediaList.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, source: a.source })),
+        sampleMerged: mergedRegistry.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, source: a.source })),
       });
     } catch (error) {
       console.error('[WORKBENCH] LOAD_ERROR', error);
@@ -463,18 +490,6 @@ export default function MediaWorkbench() {
       }
       
       const data = await response.json();
-      
-      console.log('[WORKBENCH_DRIVE_NAVIGATION] API response:', {
-        itemCount: data.items?.length || 0,
-        nextPageToken: data.nextPageToken,
-      });
-      
-      setState(prev => ({
-        ...prev,
-        driveFiles: pageToken ? [...(prev.driveFiles || []), ...(data.items || [])] : (data.items || []),
-        driveNextPageToken: data.nextPageToken,
-        driveLoading: false,
-      }));
       
       console.log('[WORKBENCH_DRIVE_NAVIGATION] API response:', {
         itemCount: data.items?.length || 0,
@@ -1308,9 +1323,20 @@ export default function MediaWorkbench() {
       case 'legacy':
         return asset.classification !== 'PUBLISHED' && asset.classification !== 'DRIVE_ONLY';
       default:
-        return true;
+        return true; // Show all assets when filter is 'all'
     }
   });
+
+  // Log filtered assets periodically (avoid spam on every render)
+  if (filteredAssets.length > 0 && (filteredAssets.length !== state.assets.length || state.filter !== 'all' || state.searchQuery)) {
+    console.log('[WORKBENCH] FILTERED_ASSETS', {
+      totalAssets: state.assets.length,
+      filteredCount: filteredAssets.length,
+      filter: state.filter,
+      searchQuery: state.searchQuery,
+      sampleAssets: filteredAssets.slice(0, 5).map(a => ({ id: a.id, filename: a.filename, classification: a.classification })),
+    });
+  }
 
   if (state.loading) {
     return (
