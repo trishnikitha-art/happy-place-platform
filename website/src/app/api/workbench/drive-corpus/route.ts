@@ -11,10 +11,13 @@
  * Workbench = human control surface
  * 
  * POST /api/workbench/drive-corpus - Returns Drive structure and files
+ * 
+ * CRITICAL: Respects corpus authorization - only exposes authorized Drive contexts
  */
 
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
+import { getAuthorizedCorpora } from '@/lib/drive/corpus-authorization';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,6 +39,9 @@ export async function POST(request: Request) {
     const { action } = body;
 
     if (action === 'getStructure') {
+      // P0 FIX: Verify authorized corpora before returning discovery
+      const authorizedCorpora = await getAuthorizedCorpora();
+      
       // Forward to Drive discovery to get My Drive and Shared Drives
       const response = await fetch(`${process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000'}/api/drive/discovery`, {
         method: 'GET',
@@ -62,19 +68,67 @@ export async function POST(request: Request) {
       }
 
       const structure = await response.json();
+      
+      // P0 FIX: Apply corpus authorization filtering
+      // Only expose authorized My Drive and Shared Drives
+      const myDriveAuthorized = authorizedCorpora.some(c => c.type === 'my_drive' && c.authorized);
+      
+      const filteredStructure = {
+        ...structure,
+        myDrive: myDriveAuthorized ? structure.myDrive : null,
+        sharedDrives: structure.sharedDrives?.filter((drive: any) => 
+          authorizedCorpora.some(c => c.id === drive.id && c.authorized)
+        ) || [],
+      };
+      
       console.log('[WORKBENCH_DRIVE_CORPUS] Drive structure loaded:', {
-        hasMyDrive: !!structure.myDrive,
-        sharedDriveCount: structure.sharedDrives?.length || 0,
+        hasMyDrive: !!filteredStructure.myDrive,
+        sharedDriveCount: filteredStructure.sharedDrives?.length || 0,
+        myDriveAuthorized,
+        authorizedCorpora: authorizedCorpora.map(c => ({ id: c.id, type: c.type, authorized: c.authorized })),
       });
 
       return NextResponse.json({
         success: true,
-        structure,
+        structure: filteredStructure,
       });
     }
 
     if (action === 'getFiles') {
       const { folderId, driveId, pageToken } = body;
+      
+      // P0 FIX: Verify corpus authorization before returning files
+      const authorizedCorpora = await getAuthorizedCorpora();
+      
+      // If driveId is provided, verify it's authorized
+      if (driveId) {
+        const isAuthorized = authorizedCorpora.some(c => c.id === driveId && c.authorized);
+        if (!isAuthorized) {
+          console.error('[WORKBENCH_DRIVE_CORPUS] Unauthorized Shared Drive access attempt:', { driveId });
+          return NextResponse.json(
+            { 
+              error: 'UNAUTHORIZED_CORPUS',
+              message: 'Shared Drive not authorized',
+            },
+            { status: 403 }
+          );
+        }
+      }
+      
+      // If no driveId (My Drive), verify My Drive is authorized
+      if (!driveId) {
+        const myDriveAuthorized = authorizedCorpora.some(c => c.type === 'my_drive' && c.authorized);
+        if (!myDriveAuthorized) {
+          console.error('[WORKBENCH_DRIVE_CORPUS] Unauthorized My Drive access attempt');
+          return NextResponse.json(
+            { 
+              error: 'UNAUTHORIZED_CORPUS',
+              message: 'My Drive not authorized',
+            },
+            { status: 403 }
+          );
+        }
+      }
 
       // Forward to Drive files API with corpus context
       const params = new URLSearchParams({ folderId });
@@ -108,6 +162,8 @@ export async function POST(request: Request) {
       console.log('[WORKBENCH_DRIVE_CORPUS] Drive files loaded:', {
         itemCount: data.items?.length || 0,
         hasNextPage: !!data.nextPageToken,
+        folderId,
+        driveId,
       });
 
       return NextResponse.json({
