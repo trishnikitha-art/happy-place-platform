@@ -6,6 +6,7 @@ import { loadVisualAssetRegistry, addDriveAssetToRegistry, type VisualAsset } fr
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
 import { getWebsiteStructure, getPageByRoute, type WebsitePage, type WebsiteSection, type VisualSlotRef } from '@/lib/website-structure';
+import type { Media } from '@/types/media';
 
 type PageRoute = '/' | '/services' | '/our-work' | '/about' | '/reviews' | '/estimate';
 
@@ -249,6 +250,95 @@ export default function MediaWorkbench() {
         driveLoading: false,
         driveError: error instanceof Error ? error.message : 'Unknown error'
       }));
+    }
+  };
+
+  // P0 FIX: Convert Drive files to VisualAsset format for main panel integration
+  const convertDriveFileToAsset = (driveFile: any): VisualAsset => {
+    return {
+      id: `drive-${driveFile.id}`,
+      filename: driveFile.name,
+      type: 'image' as const,
+      orientation: 'landscape' as const,
+      alt: driveFile.name,
+      description: '',
+      tags: [],
+      roles: [],
+      source: 'google-drive' as const,
+      classification: 'DRIVE_ONLY',
+      lifecycleState: 'source_reference' as const,
+      fileSize: driveFile.size,
+      createdAt: driveFile.createdTime,
+      uploadedAt: driveFile.createdTime,
+      format: driveFile.mimeType,
+      drive: {
+        fileId: driveFile.id,
+        driveId: state.driveCurrentDriveId || undefined,
+        name: driveFile.name,
+        mimeType: driveFile.mimeType,
+        webViewUrl: driveFile.webViewLink,
+        modifiedTime: driveFile.modifiedTime,
+      },
+      dimensions: { width: 0, height: 0 }, // Placeholder for Drive source
+      variants: {
+        thumbnail: driveFile.thumbnailLink,
+      },
+      usageSlots: [],
+      physicalPath: '',
+      physicalStatus: 'DRIVE_ONLY',
+    };
+  };
+
+  // P0 FIX: Load Drive corpus and integrate into main asset list
+  const loadDriveCorpusAndIntegrate = async () => {
+    try {
+      console.log('[WORKBENCH] LOAD_DRIVE_CORPUS_AND_INTEGRATE_START');
+      
+      // Load Drive structure
+      await loadDriveCorpusStructure();
+      
+      if (!state.driveStructure) {
+        console.log('[WORKBENCH] DRIVE_CORPUS_NOT_AVAILABLE');
+        return;
+      }
+      
+      // Convert Drive files to assets
+      const driveAssets = (state.driveFiles || [])
+        .filter((item: any) => item.type !== 'folder')
+        .map(convertDriveFileToAsset);
+      
+      console.log('[WORKBENCH] DRIVE_ASSETS_CONVERTED', {
+        driveFileCount: state.driveFiles.length,
+        driveAssetCount: driveAssets.length,
+        sample: driveAssets.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, source: a.source })),
+      });
+      
+      // Merge Drive assets into main asset list
+      setState(prev => {
+        const existingAssets = prev.assets || [];
+        const mergedAssets = [...existingAssets];
+        
+        // Add Drive assets (avoid duplicates by ID)
+        driveAssets.forEach((driveAsset: VisualAsset) => {
+          const existingIndex = mergedAssets.findIndex(a => a.id === driveAsset.id);
+          if (existingIndex < 0) {
+            mergedAssets.push(driveAsset);
+          }
+        });
+        
+        console.log('[WORKBENCH] DRIVE_ASSETS_INTEGRATED', {
+          existingCount: existingAssets.length,
+          driveAssetCount: driveAssets.length,
+          mergedCount: mergedAssets.length,
+        });
+        
+        return {
+          ...prev,
+          assets: mergedAssets,
+        };
+      });
+    } catch (error) {
+      console.error('[WORKBENCH] DRIVE_CORPUS_INTEGRATION_ERROR', error);
     }
   };
 
@@ -548,6 +638,36 @@ export default function MediaWorkbench() {
         count: data.items?.length || 0, 
         hasMore: !!data.nextPageToken 
       });
+      
+      // P0 FIX: Integrate newly loaded Drive files into main asset list
+      const newDriveAssets = (data.items || [])
+        .filter((item: any) => item.type !== 'folder')
+        .map(convertDriveFileToAsset);
+      
+      if (newDriveAssets.length > 0) {
+        setState(prev => {
+          const existingAssets = prev.assets || [];
+          const mergedAssets = [...existingAssets];
+          
+          // Add new Drive assets (avoid duplicates by ID)
+          newDriveAssets.forEach((driveAsset: VisualAsset) => {
+            const existingIndex = mergedAssets.findIndex(a => a.id === driveAsset.id);
+            if (existingIndex < 0) {
+              mergedAssets.push(driveAsset);
+            }
+          });
+          
+          console.log('[WORKBENCH] NEW_DRIVE_ASSETS_INTEGRATED', {
+            newAssetCount: newDriveAssets.length,
+            totalAssetCount: mergedAssets.length,
+          });
+          
+          return {
+            ...prev,
+            assets: mergedAssets,
+          };
+        });
+      }
     } catch (error) {
       console.error('[WORKBENCH_DRIVE_NAVIGATION] Error:', error);
       setState(prev => ({ 
@@ -794,6 +914,12 @@ export default function MediaWorkbench() {
 
     loadCanonicalData();
     loadDriveCorpusStructure(); // P0 FIX: Load Drive corpus structure for source browsing
+    
+    // P0 FIX: Load Drive corpus and integrate into main asset list
+    // This happens after canonical data load to merge Drive assets
+    setTimeout(() => {
+      loadDriveCorpusAndIntegrate();
+    }, 1000); // Small delay to ensure Drive structure is loaded
 
     // Load website structure for slot grid
     const structure = getWebsiteStructure();
