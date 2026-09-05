@@ -18,6 +18,7 @@
 import { NextResponse } from 'next/server';
 import { getPublishedMediaAssets } from '@/lib/visual-asset-registry';
 import { workbenchSession } from '@/lib/workbench-session';
+import { getMedia, listMediaIds } from '@/lib/media-kv-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +46,34 @@ export async function POST(request: Request) {
         media: result.assets,
         available: result.available,
         error: result.error,
+      });
+    }
+
+    // P0 FIX: Add action to find media by Drive file ID for deduplication
+    if (action === 'getByDriveFileId') {
+      const { driveFileId } = body;
+      if (!driveFileId) {
+        return NextResponse.json(
+          { error: 'driveFileId required' },
+          { status: 400 }
+        );
+      }
+
+      // Find media by Drive file ID by scanning KV media records
+      const mediaIds = await listMediaIds();
+      let foundMedia = null;
+      
+      for (const mediaId of mediaIds) {
+        const media = await getMedia(mediaId);
+        if (media && media.drive?.fileId === driveFileId) {
+          foundMedia = media;
+          break;
+        }
+      }
+
+      return NextResponse.json({
+        media: foundMedia,
+        found: !!foundMedia,
       });
     }
 

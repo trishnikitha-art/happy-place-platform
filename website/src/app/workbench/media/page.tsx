@@ -158,13 +158,37 @@ export default function MediaWorkbench() {
       }
       
       // Merge static and dynamic media (dynamic wins on ID collision)
+      // P0 FIX: Also deduplicate by content hash to prevent duplicates between static and dynamic sources
       const mergedRegistry = [...staticRegistry];
+      const contentHashMap = new Map<string, VisualAsset>();
+      
+      // First, build content hash map from static registry
+      staticRegistry.forEach(asset => {
+        if (asset.contentHash) {
+          contentHashMap.set(asset.contentHash, asset);
+        }
+      });
+      
+      // Then merge dynamic media, checking for content hash duplicates
       dynamicMediaList.forEach((dynamicMedia: any) => {
         const existingIndex = mergedRegistry.findIndex(a => a.id === dynamicMedia.id);
         if (existingIndex >= 0) {
           mergedRegistry[existingIndex] = dynamicMedia;
         } else {
-          mergedRegistry.push(dynamicMedia);
+          // P0 FIX: Check for content hash duplicate before adding
+          if (dynamicMedia.contentHash && contentHashMap.has(dynamicMedia.contentHash)) {
+            console.log('[WORKBENCH] DYNAMIC_MEDIA_CONTENT_HASH_DUPLICATE', {
+              contentHash: dynamicMedia.contentHash,
+              existingId: contentHashMap.get(dynamicMedia.contentHash)?.id,
+              newId: dynamicMedia.id,
+              action: 'skipping duplicate (keeping existing)',
+            });
+          } else {
+            mergedRegistry.push(dynamicMedia);
+            if (dynamicMedia.contentHash) {
+              contentHashMap.set(dynamicMedia.contentHash, dynamicMedia);
+            }
+          }
         }
       });
       
@@ -172,6 +196,7 @@ export default function MediaWorkbench() {
         staticCount: staticRegistry.length,
         dynamicCount: dynamicMediaList.length,
         mergedCount: mergedRegistry.length,
+        uniqueContentHashes: contentHashMap.size,
         sampleMerged: mergedRegistry.slice(0, 5).map(a => ({ id: a.id, filename: a.filename, classification: a.classification, source: a.source }))
       });
       
@@ -258,7 +283,35 @@ export default function MediaWorkbench() {
 
   // P0 FIX: Convert Drive files to VisualAsset format for main panel integration
   // Accepts explicit driveId parameter to avoid React state race conditions
-  const convertDriveFileToAsset = (driveFile: any, explicitDriveId?: string | null): VisualAsset => {
+  // P0 FIX: Deduplicates against existing KV media by contentHash to prevent duplicate human-facing entries
+  const convertDriveFileToAsset = async (driveFile: any, explicitDriveId?: string | null): Promise<VisualAsset | null> => {
+    // P0 FIX: Check if this Drive file already exists in KV media authority
+    // Use contentHash or Drive file ID to find existing PublishedMediaAsset
+    try {
+      const response = await fetch('/api/workbench/media-authority', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'getByDriveFileId', driveFileId: driveFile.id }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        if (data.media) {
+          console.log('[WORKBENCH] DRIVE_FILE_ALREADY_EXISTS_IN_KV', {
+            driveFileId: driveFile.id,
+            existingMediaId: data.media.id,
+            existingFilename: data.media.filename,
+            existingContentHash: data.media.contentHash,
+          });
+          // Return null to indicate this file should not be added as a duplicate
+          return null;
+        }
+      }
+    } catch (error) {
+      console.warn('[WORKBENCH] KV_DUPLICATE_CHECK_FAILED', { driveFileId: driveFile.id, error });
+    }
+    
+    // If not found in KV, create Drive-only asset
     return {
       id: `drive-${driveFile.id}`,
       filename: driveFile.name,
@@ -315,6 +368,7 @@ export default function MediaWorkbench() {
       let totalDriveFiles = 0;
       let totalDriveFolders = 0;
       let integratedDriveAssets = 0;
+      let skippedDriveAssets = 0; // P0 FIX: Track duplicates skipped
       
       // P0 FIX: Load files from each authorized root explicitly
       // My Drive root
@@ -323,10 +377,16 @@ export default function MediaWorkbench() {
         const myDriveFileCount = await loadDriveFiles(structure.myDrive.id, undefined, null);
         totalDriveFiles += myDriveFileCount;
         
-        // Convert My Drive files with explicit driveId=null
-        const myDriveAssets = (state.driveFiles || [])
-          .filter((item: any) => item.type !== 'folder')
-          .map((file: any) => convertDriveFileToAsset(file, null));
+        // Convert My Drive files with explicit driveId=null, checking for duplicates
+        const myDriveAssets: VisualAsset[] = [];
+        for (const file of (state.driveFiles || []).filter((item: any) => item.type !== 'folder')) {
+          const asset = await convertDriveFileToAsset(file, null);
+          if (asset) {
+            myDriveAssets.push(asset);
+          } else {
+            skippedDriveAssets++;
+          }
+        }
         
         // Integrate My Drive assets
         setState(prev => {
@@ -358,10 +418,16 @@ export default function MediaWorkbench() {
           const sharedDriveFileCount = await loadDriveFiles(sharedDrive.id, undefined, sharedDrive.id);
           totalDriveFiles += sharedDriveFileCount;
           
-          // Convert Shared Drive files with explicit driveId
-          const sharedDriveAssets = (state.driveFiles || [])
-            .filter((item: any) => item.type !== 'folder')
-            .map((file: any) => convertDriveFileToAsset(file, sharedDrive.id));
+          // Convert Shared Drive files with explicit driveId, checking for duplicates
+          const sharedDriveAssets: VisualAsset[] = [];
+          for (const file of (state.driveFiles || []).filter((item: any) => item.type !== 'folder')) {
+            const asset = await convertDriveFileToAsset(file, sharedDrive.id);
+            if (asset) {
+              sharedDriveAssets.push(asset);
+            } else {
+              skippedDriveAssets++;
+            }
+          }
           
           // Integrate Shared Drive assets
           setState(prev => {
@@ -387,6 +453,7 @@ export default function MediaWorkbench() {
         totalDriveFiles,
         totalDriveFolders,
         integratedDriveAssets,
+        skippedDriveAssets, // P0 FIX: Report skipped duplicates
       });
       
       console.log('[WORKBENCH] DRIVE_CORPUS_INTEGRATION_COMPLETE', {
@@ -395,6 +462,7 @@ export default function MediaWorkbench() {
         totalFilesLoaded: totalDriveFiles,
         totalFoldersLoaded: totalDriveFolders,
         totalAssetsIntegrated: integratedDriveAssets,
+        totalDuplicatesSkipped: skippedDriveAssets, // P0 FIX: Report duplicates skipped
       });
     } catch (error) {
       console.error('[WORKBENCH] DRIVE_CORPUS_INTEGRATION_ERROR', error);
@@ -701,9 +769,13 @@ export default function MediaWorkbench() {
       });
       
       // P0 FIX: Integrate newly loaded Drive files into main asset list
-      const newDriveAssets = (data.items || [])
-        .filter((item: any) => item.type !== 'folder')
-        .map((file: any) => convertDriveFileToAsset(file, driveId)); // Use explicit driveId
+      const newDriveAssets: VisualAsset[] = [];
+      for (const file of (data.items || []).filter((item: any) => item.type !== 'folder')) {
+        const asset = await convertDriveFileToAsset(file, driveId);
+        if (asset) {
+          newDriveAssets.push(asset);
+        }
+      }
       
       if (newDriveAssets.length > 0) {
         setState(prev => {
@@ -731,31 +803,6 @@ export default function MediaWorkbench() {
       }
       
       return fileCount;
-      
-      if (newDriveAssets.length > 0) {
-        setState(prev => {
-          const existingAssets = prev.assets || [];
-          const mergedAssets = [...existingAssets];
-          
-          // Add new Drive assets (avoid duplicates by ID)
-          newDriveAssets.forEach((driveAsset: VisualAsset) => {
-            const existingIndex = mergedAssets.findIndex(a => a.id === driveAsset.id);
-            if (existingIndex < 0) {
-              mergedAssets.push(driveAsset);
-            }
-          });
-          
-          console.log('[WORKBENCH] NEW_DRIVE_ASSETS_INTEGRATED', {
-            newAssetCount: newDriveAssets.length,
-            totalAssetCount: mergedAssets.length,
-          });
-          
-          return {
-            ...prev,
-            assets: mergedAssets,
-          };
-        });
-      }
     } catch (error) {
       console.error('[WORKBENCH_DRIVE_NAVIGATION] Error:', error);
       setState(prev => ({ 

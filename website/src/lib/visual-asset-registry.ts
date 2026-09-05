@@ -109,6 +109,7 @@ const WEBSITE_VISUAL_SLOTS: VisualSlot[] = [
 export async function loadVisualAssetRegistry(): Promise<VisualAsset[]> {
   const manifest = loadMediaManifest();
   const registry: VisualAsset[] = [];
+  const contentHashMap = new Map<string, VisualAsset>(); // P0 FIX: Deduplicate by content hash
 
   // Add current media assets from media.v1.json
   manifest.media.forEach(m => {
@@ -118,7 +119,7 @@ export async function loadVisualAssetRegistry(): Promise<VisualAsset[]> {
     const physicalPath = `/images/projects/${m.projectId || 'unknown'}/${m.filename}`;
     const physicalStatus = determinePhysicalStatus(m, augustData);
 
-    registry.push({
+    const asset: VisualAsset = {
       ...m,
       classification,
       usageSlots,
@@ -128,14 +129,33 @@ export async function loadVisualAssetRegistry(): Promise<VisualAsset[]> {
       augustService: augustData?.service,
       augustRoles: augustData?.roles,
       physicalStatus,
-    });
+    };
+
+    // P0 FIX: Deduplicate by content hash to prevent duplicate human-facing entries
+    if (m.contentHash) {
+      const existing = contentHashMap.get(m.contentHash);
+      if (existing) {
+        console.log('[VISUAL_ASSET_REGISTRY] DUPLICATE_CONTENT_HASH', {
+          contentHash: m.contentHash,
+          existingId: existing.id,
+          existingFilename: existing.filename,
+          newId: m.id,
+          newFilename: m.filename,
+          action: 'skipping duplicate (keeping existing)',
+        });
+        return; // Skip duplicate
+      }
+      contentHashMap.set(m.contentHash, asset);
+    }
+
+    registry.push(asset);
   });
 
   // Add missing August 3 assets that aren't in current media.v1.json
   AUGUST_3_BASELINE.forEach(august => {
     const exists = manifest.media.some(m => m.filename === august.filename);
     if (!exists) {
-      registry.push({
+      const asset: VisualAsset = {
         id: `august-missing-${august.driveId}`,
         filename: august.filename,
         alt: `Missing August 3 asset: ${august.filename}`,
@@ -161,8 +181,18 @@ export async function loadVisualAssetRegistry(): Promise<VisualAsset[]> {
         augustService: august.service,
         augustRoles: august.roles,
         physicalStatus: 'RECOVERABLE',
-      } as VisualAsset);
+      } as VisualAsset;
+
+      // P0 FIX: August 3 assets don't have content hash, so they can't be deduplicated by hash
+      // They are always added as they represent missing/recoverable assets
+      registry.push(asset);
     }
+  });
+
+  console.log('[VISUAL_ASSET_REGISTRY] FINAL_REGISTRY', {
+    totalAssets: registry.length,
+    uniqueContentHashes: contentHashMap.size,
+    sample: registry.slice(0, 5).map(a => ({ id: a.id, filename: a.filename, contentHash: a.contentHash })),
   });
 
   return registry;
