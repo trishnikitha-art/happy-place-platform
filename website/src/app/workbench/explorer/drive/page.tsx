@@ -17,7 +17,7 @@ interface DriveExplorerState {
   error: string | null;
   currentFolderId: string;
   activeDriveId: string | null; // Track active Shared Drive ID
-  breadcrumb: { id: string; name: string }[];
+  breadcrumb: { id: string; name: string; corpusId?: string }[]; // P0 FIX: Preserve corpus context in breadcrumbs
   items: (DriveFolder | DriveFile)[];
   viewMode: 'grid' | 'list';
   searchQuery: string;
@@ -81,6 +81,7 @@ export default function DriveExplorerPage() {
           isFolder: true,
           isSharedDrive: true,
           driveId: drive.id,
+          corpusId: drive.corpusId || drive.id, // P0 FIX: Preserve corpus context from discovery
         } as DriveFolder)));
       }
       
@@ -184,23 +185,31 @@ export default function DriveExplorerPage() {
         ...prev,
         currentFolderId: folder.id, // Shared Drive root ID
         activeDriveId: sharedDriveId, // Set active Shared Drive ID
-        breadcrumb: [{ id: folder.id, name: folder.name }], // Reset breadcrumbs
+        breadcrumb: [{ id: folder.id, name: folder.name, corpusId: sharedDriveId }], // P0 FIX: Preserve corpus context in breadcrumbs
         items: [],
         nextPageToken: undefined,
         loading: true,
       }));
       await loadChildren(folder.id, undefined, sharedDriveId || undefined);
     } else {
-      // Regular folder navigation - preserve activeDriveId
+      // Regular folder navigation - preserve corpus context
+      const folderCorpusId = (folder as any).corpusId || state.activeDriveId;
+      console.log('[DRIVE_EXPLORER] Entering folder with corpus context:', { 
+        folderId: folder.id, 
+        folderName: folder.name,
+        corpusId: folderCorpusId,
+        activeDriveId: state.activeDriveId
+      });
       setState(prev => ({
         ...prev,
         currentFolderId: folder.id,
-        breadcrumb: [...prev.breadcrumb, { id: folder.id, name: folder.name }],
+        activeDriveId: folderCorpusId, // P0 FIX: Preserve corpus context from folder
+        breadcrumb: [...prev.breadcrumb, { id: folder.id, name: folder.name, corpusId: folderCorpusId }],
         items: [],
         nextPageToken: undefined,
         loading: true,
       }));
-      await loadChildren(folder.id, undefined, state.activeDriveId || undefined);
+      await loadChildren(folder.id, undefined, folderCorpusId || undefined);
     }
   };
 
@@ -211,10 +220,14 @@ export default function DriveExplorerPage() {
     console.log('[DRIVE_EXPLORER] Breadcrumb navigation', {
       targetId: target.id,
       targetName: target.name,
+      targetCorpusId: target.corpusId,
       breadcrumbIndex: index,
       breadcrumbLength: newBreadcrumb.length,
       currentActiveDriveId: state.activeDriveId,
     });
+    
+    // P0 FIX: Preserve corpus context from breadcrumb
+    const targetCorpusId = target.corpusId || (newBreadcrumb.length === 1 && target.id === state.activeDriveId ? state.activeDriveId : null);
     
     // If navigating back to root (My Drive or Shared Drive root), clear or preserve driveId
     if (newBreadcrumb.length === 1) {
@@ -223,34 +236,36 @@ export default function DriveExplorerPage() {
         isSharedDriveRoot,
         targetId: target.id,
         preservedDriveId: isSharedDriveRoot ? state.activeDriveId : null,
+        targetCorpusId,
       });
       
       setState(prev => ({
         ...prev,
         currentFolderId: target.id,
-        activeDriveId: isSharedDriveRoot ? state.activeDriveId : null, // Preserve Shared Drive ID at root
+        activeDriveId: targetCorpusId || (isSharedDriveRoot ? state.activeDriveId : null), // P0 FIX: Use corpus context from breadcrumb
         breadcrumb: newBreadcrumb,
         items: [],
         nextPageToken: undefined,
         loading: true,
       }));
-      loadChildren(target.id, undefined, isSharedDriveRoot ? state.activeDriveId || undefined : undefined);
+      loadChildren(target.id, undefined, targetCorpusId || (isSharedDriveRoot ? state.activeDriveId || undefined : undefined));
     } else {
-      // Navigating to non-root: preserve activeDriveId
+      // Navigating to non-root: preserve corpus context from breadcrumb
       console.log('[DRIVE_EXPLORER] Navigating to non-root folder', {
         targetId: target.id,
-        preservedDriveId: state.activeDriveId,
+        preservedDriveId: targetCorpusId || state.activeDriveId,
       });
       
       setState(prev => ({
         ...prev,
         currentFolderId: target.id,
+        activeDriveId: targetCorpusId || state.activeDriveId, // P0 FIX: Use corpus context from breadcrumb
         breadcrumb: newBreadcrumb,
         items: [],
         nextPageToken: undefined,
         loading: true,
       }));
-      loadChildren(target.id, undefined, state.activeDriveId || undefined);
+      loadChildren(target.id, undefined, targetCorpusId || state.activeDriveId || undefined);
     }
   };
 

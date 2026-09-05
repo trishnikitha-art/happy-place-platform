@@ -19,6 +19,7 @@ export interface DriveFolder {
   type: 'my_drive' | 'shared_drive' | 'folder';
   parent?: string;
   modifiedTime?: string;
+  corpusId?: string; // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
 }
 
 export interface DriveListContext {
@@ -143,6 +144,7 @@ export class DriveDiscovery {
           id: response.data.id,
           name: response.data.name || 'My Drive',
           type: 'my_drive',
+          corpusId: response.data.id, // My Drive corpus ID is its own ID
         };
       }
     } catch (error) {
@@ -167,6 +169,7 @@ export class DriveDiscovery {
           id: drive.id,
           name: drive.name,
           type: 'shared_drive',
+          corpusId: drive.id, // Shared Drive corpus ID is its own ID
         }));
         
         // Log each Shared Drive ID for production configuration
@@ -312,6 +315,7 @@ export class DriveDiscovery {
               type: 'folder',
               parent: item.parents?.[0],
               modifiedTime: item.modifiedTime,
+              corpusId: context.driveId, // P0 FIX: Preserve corpus context from navigation
             });
           } else {
             items.push({

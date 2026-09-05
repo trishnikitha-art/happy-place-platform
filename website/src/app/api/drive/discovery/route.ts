@@ -39,9 +39,12 @@ export async function GET() {
     const structure = await driveDiscovery.discoverStructure();
     
     // Filter structure to only include authorized corpora
+    // P0 FIX: Do not expose unauthorized My Drive to the browser
+    const myDriveAuthorized = authorizedCorpora.some(c => c.type === 'my_drive' && c.authorized);
+    
     const filteredStructure = {
       ...structure,
-      myDrive: structure.myDrive,
+      myDrive: myDriveAuthorized ? structure.myDrive : null,
       sharedDrives: structure.sharedDrives?.filter(drive => 
         authorizedCorpora.some(c => c.id === drive.id && c.authorized)
       ) || [],
