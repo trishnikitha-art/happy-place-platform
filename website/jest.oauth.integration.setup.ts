@@ -12,16 +12,39 @@
  */
 
 // P0: Fail closed if Redis credentials are missing
-if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+const kvUrl = process.env.KV_REST_API_URL || 
+             process.env.KV_REST_API__KV_REST_API_URL || 
+             process.env.KV_REST_API__REDIS_URL ||
+             process.env.KV_REST_API__KV_URL;
+const kvToken = process.env.KV_REST_API_TOKEN || 
+               process.env.KV_REST_API__KV_REST_API_TOKEN;
+
+if (!kvUrl || !kvToken) {
   console.error('[OAUTH_INTEGRATION_SETUP] REAL_REDIS_CREDENTIALS_MISSING');
   console.error('[OAUTH_INTEGRATION_SETUP] Integration tests require KV_REST_API_URL and KV_REST_API_TOKEN');
   console.error('[OAUTH_INTEGRATION_SETUP] These tests CANNOT run with fake credentials');
   console.error('[OAUTH_INTEGRATION_SETUP] CI must provide real Upstash KV credentials');
+  console.error('[OAUTH_INTEGRATION_SETUP] Environment check:', {
+    KV_REST_API_URL: !!process.env.KV_REST_API_URL,
+    KV_REST_API__KV_REST_API_URL: !!process.env.KV_REST_API__KV_REST_API_URL,
+    KV_REST_API__REDIS_URL: !!process.env.KV_REST_API__REDIS_URL,
+    KV_REST_API__KV_URL: !!process.env.KV_REST_API__KV_URL,
+    KV_REST_API_TOKEN: !!process.env.KV_REST_API_TOKEN,
+    KV_REST_API__KV_REST_API_TOKEN: !!process.env.KV_REST_API__KV_REST_API_TOKEN,
+  });
   throw new Error('Integration tests require real Redis credentials (KV_REST_API_URL and KV_REST_API_TOKEN)');
 }
 
 console.log('[OAUTH_INTEGRATION_SETUP] REAL_REDIS_CREDENTIALS_PRESENT');
 console.log('[OAUTH_INTEGRATION_SETUP] Using REAL @upstash/redis for integration tests');
+
+// Ensure credential store can find the credentials
+if (!process.env.KV_REST_API_URL && kvUrl) {
+  process.env.KV_REST_API_URL = kvUrl;
+}
+if (!process.env.KV_REST_API_TOKEN && kvToken) {
+  process.env.KV_REST_API_TOKEN = kvToken;
+}
 
 // P0: Fail closed if encryption key is missing
 // Uses current production encryption contract (ENCRYPTION_KEY = key version 0)
