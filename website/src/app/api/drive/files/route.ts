@@ -104,13 +104,40 @@ export async function GET(request: Request) {
       });
     }
 
+    // P0 FIX: Enforce My Drive authorization for root case
+    // When folderId === 'root' and driveId is undefined, this is My Drive root access
+    // Google OAuth access is NOT sufficient for HPP authorization
+    // Must verify HPP_AUTHORIZED_MY_DRIVE === true
+    if (folderId === 'root' && !driveId) {
+      const { getAuthorizedCorpora } = await import('@/lib/drive/corpus-authorization');
+      const authorizedCorpora = await getAuthorizedCorpora();
+      
+      const myDriveAuthorized = authorizedCorpora.some(c => c.type === 'my_drive' && c.authorized);
+      if (!myDriveAuthorized) {
+        console.error('[DRIVE_AUTHORIZATION] MY_DRIVE_NOT_AUTHORIZED', {
+          folderId,
+          reason: 'My Drive is not HPP-authorized (check HPP_AUTHORIZED_MY_DRIVE)',
+        });
+        return NextResponse.json(
+          {
+            error: 'MY_DRIVE_NOT_AUTHORIZED',
+            message: 'My Drive is not HPP-authorized (check HPP_AUTHORIZED_MY_DRIVE)',
+          },
+          { status: 403 }
+        );
+      }
+      console.log('[DRIVE_AUTHORIZATION] MY_DRIVE_AUTHORIZED', {
+        folderId,
+      });
+    }
+
     // P0 FIX: Verify folderId is accessible to the authenticated session
     // This prevents IDOR where an authorized user could list arbitrary folder IDs
     // even if Google technically permits the object
     // CRITICAL: Handle both Shared Drive root representations:
     // - Workbench: folderId === driveId
     // - Legacy: folderId === 'root' && driveId present
-    // My Drive root: folderId === 'root' && driveId absent
+    // My Drive root: folderId === 'root' && driveId absent (handled above)
     if (folderId !== 'root' || driveId) {
       const folderAuth = await verifyFolderAuthorization(folderId);
       if (!folderAuth.authorized) {

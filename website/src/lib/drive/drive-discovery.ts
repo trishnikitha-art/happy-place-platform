@@ -574,9 +574,22 @@ export class DriveDiscovery {
       return { items: [] };
     }
 
-    // CRITICAL FIX: Validate corpusId against authorized corpus before Drive API call
+    // P0 FIX: If corpusId is undefined or 'root', this targets My Drive
+    // Must verify HPP_AUTHORIZED_MY_DRIVE === true before allowing
     // Google OAuth access is NOT sufficient for HPP authorization
-    if (corpusId && corpusId !== 'root') {
+    if (!corpusId || corpusId === 'root') {
+      const { isMyDriveAuthorized } = await import('./corpus-authorization');
+      const myDriveAuthorized = isMyDriveAuthorized();
+      if (!myDriveAuthorized) {
+        console.error('[DRIVE_DISCOVERY] MY_DRIVE_NOT_AUTHORIZED_FOR_SEARCH', {
+          reason: 'My Drive is not HPP-authorized (check HPP_AUTHORIZED_MY_DRIVE)',
+        });
+        return { items: [] }; // Return empty results instead of error for search
+      }
+      console.log('[DRIVE_DISCOVERY] MY_DRIVE_AUTHORIZED_FOR_SEARCH via HPP_AUTHORIZED_MY_DRIVE=true');
+    } else {
+      // CRITICAL FIX: Validate corpusId against authorized corpus before Drive API call
+      // Google OAuth access is NOT sufficient for HPP authorization
       const corpusAuth = await verifyCorpusAuthorization('root', corpusId);
       if (!corpusAuth.authorized) {
         console.error('[DRIVE_DISCOVERY] CORPUS_ID_NOT_AUTHORIZED', {
@@ -608,11 +621,13 @@ export class DriveDiscovery {
         includeItemsFromAllDrives: true,
       };
 
-      // Scope search to specific corpus if provided
+      // P0 FIX: Only use corpora='user' (My Drive) when My Drive is explicitly authorized
+      // Otherwise, scope to specific Shared Drive corpus
       if (corpusId && corpusId !== 'root') {
         params.corpora = 'drive';
         params.driveId = corpusId;
       } else {
+        // My Drive search - only allowed if HPP_AUTHORIZED_MY_DRIVE === true (verified above)
         params.corpora = 'user';
       }
 

@@ -100,7 +100,7 @@ function getAuthorizedSharedDriveIds(): string[] {
  * CONSTITUTIONAL RULE: Google OAuth access ≠ HPP authorization
  * My Drive is NOT authorized by default - must be explicitly configured
  */
-function isMyDriveAuthorized(): boolean {
+export function isMyDriveAuthorized(): boolean {
   const myDriveAuth = process.env.HPP_AUTHORIZED_MY_DRIVE;
   // Explicit opt-in only - unset or any value other than "true" means NOT authorized
   return myDriveAuth === 'true';
@@ -391,6 +391,10 @@ export async function verifyFolderAuthorization(
 /**
  * Verify search authorization
  * Ensures search is limited to authorized corpus
+ * 
+ * CONSTITUTIONAL RULE: Google OAuth access ≠ HPP authorization
+ * My Drive search requires explicit HPP_AUTHORIZED_MY_DRIVE=true
+ * Shared Drive search requires explicit HPP_AUTHORIZED_SHARED_DRIVES configuration
  */
 export async function verifySearchAuthorization(
   corpusId?: string
@@ -409,21 +413,44 @@ export async function verifySearchAuthorization(
     // This will handle authentication and token refresh automatically
     const driveClient = await getDriveClient();
 
-    // If a specific corpus is requested, verify it's authorized
-    if (corpusId) {
-      const authorizedCorpora = await getAuthorizedCorpora();
-      const authorizedCorpusIds = authorizedCorpora.map(c => c.id);
-      
-      if (!authorizedCorpusIds.includes(corpusId)) {
+    // P0 FIX: If corpusId is undefined or 'root', this targets My Drive
+    // Must verify HPP_AUTHORIZED_MY_DRIVE === true before allowing
+    // Google OAuth access is NOT sufficient for HPP authorization
+    if (!corpusId || corpusId === 'root') {
+      const myDriveAuthorized = isMyDriveAuthorized();
+      if (!myDriveAuthorized) {
         return {
           authorized: false,
-          reason: `Requested corpus (${corpusId}) is not in authorized corpora`,
+          reason: 'My Drive is not HPP-authorized (check HPP_AUTHORIZED_MY_DRIVE)',
         };
       }
+      console.log('[CORPUS_AUTHORIZATION] My Drive search authorized via HPP_AUTHORIZED_MY_DRIVE=true');
+      return {
+        authorized: true,
+        corpus: {
+          id: 'root',
+          name: 'My Drive',
+          type: 'my_drive',
+          authorized: true,
+        },
+      };
     }
 
+    // If a specific corpus is requested, verify it's authorized
+    const authorizedCorpora = await getAuthorizedCorpora();
+    const authorizedCorpusIds = authorizedCorpora.map(c => c.id);
+    
+    if (!authorizedCorpusIds.includes(corpusId)) {
+      return {
+        authorized: false,
+        reason: `Requested corpus (${corpusId}) is not in authorized corpora`,
+      };
+    }
+
+    const corpus = authorizedCorpora.find(c => c.id === corpusId);
     return {
       authorized: true,
+      corpus,
     };
   } catch (error) {
     console.error('[CORPUS_AUTHORIZATION] Search verification failed:', error);
