@@ -41,7 +41,6 @@ interface MediaWorkbenchState {
   newSlotSection: string;
   websiteStructure: WebsitePage[];
   selectedSlotForContext: { x: number; y: number; slot: VisualSlotRef } | null;
-  driveSourceMode: boolean; // P0 FIX: Toggle between published media and Drive source
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -90,7 +89,6 @@ export default function MediaWorkbench() {
     newSlotSection: 'Hero',
     websiteStructure: [],
     selectedSlotForContext: null,
-    driveSourceMode: false, // P0 FIX: Start with published media, not Drive source
   });
 
   // Keep refs in sync with state
@@ -374,12 +372,13 @@ export default function MediaWorkbench() {
       // My Drive root
       if (structure.myDrive) {
         console.log('[WORKBENCH] LOADING_MY_DRIVE_ROOT');
-        const myDriveFileCount = await loadDriveFiles(structure.myDrive.id, undefined, null);
-        totalDriveFiles += myDriveFileCount;
+        const myDriveResult = await loadDriveFiles(structure.myDrive.id, undefined, null);
+        totalDriveFiles += myDriveResult.count;
         
         // Convert My Drive files with explicit driveId=null, checking for duplicates
+        // P0 FIX: Use returned items instead of stale React state
         const myDriveAssets: VisualAsset[] = [];
-        for (const file of (state.driveFiles || []).filter((item: any) => item.type !== 'folder')) {
+        for (const file of myDriveResult.items.filter((item: any) => item.type !== 'folder')) {
           const asset = await convertDriveFileToAsset(file, null);
           if (asset) {
             myDriveAssets.push(asset);
@@ -404,7 +403,7 @@ export default function MediaWorkbench() {
           return { ...prev, assets: mergedAssets };
         });
         
-        totalDriveFolders += (state.driveFiles || []).filter((item: any) => item.type === 'folder').length;
+        totalDriveFolders += myDriveResult.items.filter((item: any) => item.type === 'folder').length;
       }
       
       // Shared Drive roots
@@ -415,12 +414,13 @@ export default function MediaWorkbench() {
             name: sharedDrive.name 
           });
           
-          const sharedDriveFileCount = await loadDriveFiles(sharedDrive.id, undefined, sharedDrive.id);
-          totalDriveFiles += sharedDriveFileCount;
+          const sharedDriveResult = await loadDriveFiles(sharedDrive.id, undefined, sharedDrive.id);
+          totalDriveFiles += sharedDriveResult.count;
           
           // Convert Shared Drive files with explicit driveId, checking for duplicates
+          // P0 FIX: Use returned items instead of stale React state
           const sharedDriveAssets: VisualAsset[] = [];
-          for (const file of (state.driveFiles || []).filter((item: any) => item.type !== 'folder')) {
+          for (const file of sharedDriveResult.items.filter((item: any) => item.type !== 'folder')) {
             const asset = await convertDriveFileToAsset(file, sharedDrive.id);
             if (asset) {
               sharedDriveAssets.push(asset);
@@ -445,7 +445,7 @@ export default function MediaWorkbench() {
             return { ...prev, assets: mergedAssets };
           });
           
-          totalDriveFolders += (state.driveFiles || []).filter((item: any) => item.type === 'folder').length;
+          totalDriveFolders += sharedDriveResult.items.filter((item: any) => item.type === 'folder').length;
         }
       }
       
@@ -707,7 +707,7 @@ export default function MediaWorkbench() {
     return loadDriveCorpusStructure();
   };
 
-  const loadDriveFiles = async (folderId: string, pageToken?: string, driveId?: string | null) => {
+  const loadDriveFiles = async (folderId: string, pageToken?: string, driveId?: string | null): Promise<{ items: any[], count: number }> => {
     console.log('[WORKBENCH_DRIVE_NAVIGATION] loadDriveFiles called', {
       folderId,
       pageToken,
@@ -754,11 +754,12 @@ export default function MediaWorkbench() {
         nextPageToken: data.nextPageToken,
       });
       
-      const fileCount = (data.items || []).length;
+      const items = data.items || [];
+      const fileCount = items.length;
       
       setState(prev => ({
         ...prev,
-        driveFiles: pageToken ? [...(prev.driveFiles || []), ...(data.items || [])] : (data.items || []),
+        driveFiles: pageToken ? [...(prev.driveFiles || []), ...items] : items,
         driveNextPageToken: data.nextPageToken,
         driveLoading: false,
       }));
@@ -770,7 +771,7 @@ export default function MediaWorkbench() {
       
       // P0 FIX: Integrate newly loaded Drive files into main asset list
       const newDriveAssets: VisualAsset[] = [];
-      for (const file of (data.items || []).filter((item: any) => item.type !== 'folder')) {
+      for (const file of items.filter((item: any) => item.type !== 'folder')) {
         const asset = await convertDriveFileToAsset(file, driveId);
         if (asset) {
           newDriveAssets.push(asset);
@@ -802,7 +803,8 @@ export default function MediaWorkbench() {
         });
       }
       
-      return fileCount;
+      // P0 FIX: Return actual items to avoid stale React state reads
+      return { items, count: fileCount };
     } catch (error) {
       console.error('[WORKBENCH_DRIVE_NAVIGATION] Error:', error);
       setState(prev => ({ 
@@ -810,7 +812,7 @@ export default function MediaWorkbench() {
         driveLoading: false, 
         driveError: error instanceof Error ? error.message : 'Failed to load Drive files' 
       }));
-      return 0;
+      return { items: [], count: 0 };
     }
   };
 
@@ -2172,7 +2174,7 @@ export default function MediaWorkbench() {
                                 >
                                   {file.thumbnailLink && file.mimeType?.startsWith('image/') ? (
                                     <img
-                                      src={`/api/drive/files/${file.id}/thumbnail${state.driveCurrentDriveId ? `?driveId=${state.driveCurrentDriveId}` : ''}`}
+                                      src={`/api/drive/files/${file.id}/thumbnail${state.driveCurrentDriveId ? `?corpusId=${state.driveCurrentDriveId}` : ''}`}
                                       alt={file.name}
                                       className="w-full aspect-square object-cover rounded mb-2"
                                       draggable={false}
@@ -2215,7 +2217,7 @@ export default function MediaWorkbench() {
                                 >
                                   {file.thumbnailLink && file.mimeType?.startsWith('image/') ? (
                                     <img
-                                      src={`/api/drive/files/${file.id}/thumbnail${state.driveCurrentDriveId ? `?driveId=${state.driveCurrentDriveId}` : ''}`}
+                                      src={`/api/drive/files/${file.id}/thumbnail${state.driveCurrentDriveId ? `?corpusId=${state.driveCurrentDriveId}` : ''}`}
                                       alt={file.name}
                                       className="w-12 h-12 object-cover rounded"
                                       draggable={false}

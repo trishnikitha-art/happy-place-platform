@@ -18,7 +18,7 @@
 import { NextResponse } from 'next/server';
 import { getPublishedMediaAssets } from '@/lib/visual-asset-registry';
 import { workbenchSession } from '@/lib/workbench-session';
-import { getMedia, listMediaIds } from '@/lib/media-kv-store';
+import { getMediaRecordRaw, listMediaIds } from '@/lib/media-kv-store';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,11 +60,12 @@ export async function POST(request: Request) {
       }
 
       // Find media by Drive file ID by scanning KV media records
+      // P0 FIX: Use getMediaRecordRaw for reconciliation to find records even if they fail public gate
       const mediaIds = await listMediaIds();
       let foundMedia = null;
       
       for (const mediaId of mediaIds) {
-        const media = await getMedia(mediaId);
+        const media = await getMediaRecordRaw(mediaId);
         if (media && media.drive?.fileId === driveFileId) {
           foundMedia = media;
           break;
