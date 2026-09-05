@@ -61,10 +61,8 @@ interface ReconciliationResult {
  * Constitutional Rule: Drive file ID → explicit authorized DriveReference → explicit
  * assignment relationship → CAS mutation. Only updates assignments that explicitly reference this Drive file.
  * 
- * LIMITATION: drive-ref- reconciliation is not yet implemented correctly.
- * drive-ref- IDs are based on Drive identity (fileId + sharedDriveId), not content hash.
- * Current implementation only reconciles exact drive-<fileId> references to avoid updating unrelated assignments.
- * Full drive-ref- reconciliation requires passing sharedDriveId context and reconstructing the Drive identity hash.
+ * P0 FIX: Canonicalize to drive-<fileId> only. drive-ref- system is documented but not implemented.
+ * Current implementation reconciles exact drive-<fileId> references.
  */
 async function reconcileDriveAssignments(
   publishedMediaId: string,
@@ -91,19 +89,11 @@ async function reconcileDriveAssignments(
     const allAssignments = await getAllServiceCardAssignments();
     
     // Find assignments that reference this specific Drive file
-    // Check for both drive-<fileId> and drive-ref-<hash> patterns
-    // CRITICAL: drive-ref-<hash> uses Drive identity hash (fileId + sharedDriveId), not content hash
-    // We need to construct the same hash to match references
+    // P0 FIX: Canonicalize to drive-<fileId> pattern only
+    // drive-ref- system is documented but not implemented in current codebase
     const exactFilePattern = new RegExp(`^drive-${driveFileId}$`);
     const assignmentsToUpdate = allAssignments.filter(assignment => {
-      // Match exact drive-<fileId> references
-      if (exactFilePattern.test(assignment.mediaId)) {
-        return true;
-      }
-      // For drive-ref- references, we can't match without knowing the sharedDriveId context
-      // The current logic is fundamentally flawed - we need Drive identity information
-      // For now, only match exact drive-<fileId> references to avoid updating unrelated drive-ref-* assignments
-      return false;
+      return exactFilePattern.test(assignment.mediaId);
     });
 
     console.log('[ASSIGNMENT_RECONCILIATION] Found Drive-referenced assignments', {
@@ -449,7 +439,8 @@ export async function POST(request: Request) {
 
     // 1. Get Drive file metadata
     console.log('[MEDIA_INGEST] DRIVE_METADATA stage started', { requestId });
-    const driveFile = await driveDiscovery.getFile(fileId);
+    // P0 FIX: Pass corpusId to preserve context through authorization chain
+    const driveFile = await driveDiscovery.getFile(fileId, sharedDriveId);
     if (!driveFile) {
       console.log('[MEDIA_INGEST_ERROR] File not found in Drive', { requestId });
       return NextResponse.json(
@@ -495,7 +486,8 @@ export async function POST(request: Request) {
 
     // 2. Download bytes from Drive
     console.log('[MEDIA_INGEST] DOWNLOAD stage started', { requestId });
-    const driveBytes = await driveDiscovery.downloadFile(fileId);
+    // P0 FIX: Pass corpusId to preserve context through authorization chain
+    const driveBytes = await driveDiscovery.downloadFile(fileId, sharedDriveId);
     if (!driveBytes || driveBytes.length === 0) {
       console.log('[MEDIA_INGEST_ERROR] File download failed or empty', { requestId });
       return NextResponse.json(
@@ -667,14 +659,22 @@ export async function POST(request: Request) {
             }
           }
 
+          // P0 FIX: Make reconciliation state explicit in deduplication path
+          const materializationState = reconciliationResult.reconciled ? 'materialized_reconciled' : 
+                                       reconciliationResult.error ? 'materialized_reconciliation_failed' : 
+                                       'materialized_reconciliation_pending';
+          
           return NextResponse.json({
             success: true,
             action: 'existing',
             media: existingMedia,
             mediaId: existingMedia.id,
-            message: 'Media already exists with matching content hash',
+            message: reconciliationResult.reconciled 
+              ? 'Media already exists with matching content hash and assignments reconciled'
+              : 'Media already exists with matching content hash, but assignment reconciliation incomplete',
             deduplicated: true,
             reconciliation: reconciliationResult,
+            materializationState, // P0 FIX: Explicit state for UI handling
             requestId,
           });
         } else {
@@ -704,15 +704,21 @@ export async function POST(request: Request) {
 
     // 6. Generate variants (original, webp, avif, thumbnail, blur, responsive)
     console.log('[MEDIA_INGEST] VARIANT_GENERATION stage started', { requestId });
-    const originalFilename = generateBlobFilename(contentHash, 'original', 'jpg');
+    // P0 FIX: Preserve original MIME type from Drive file
+    const originalMimeType = driveFile.mimeType || 'image/jpeg';
+    const originalExtension = originalMimeType === 'image/png' ? 'png' : 
+                           originalMimeType === 'image/webp' ? 'webp' :
+                           originalMimeType === 'image/tiff' ? 'tiff' :
+                           originalMimeType === 'image/avif' ? 'avif' : 'jpg';
+    const originalFilename = generateBlobFilename(contentHash, 'original', originalExtension);
     const webpFilename = generateBlobFilename(contentHash, 'webp', 'webp');
     const avifFilename = generateBlobFilename(contentHash, 'avif', 'avif');
     const thumbnailFilename = generateBlobFilename(contentHash, 'thumbnail', 'webp');
     const blurFilename = generateBlobFilename(contentHash, 'blur', 'webp');
 
-    // Upload original
+    // Upload original with preserved MIME type
     console.log('[MEDIA_INGEST] VARIANT_GENERATION uploading original', { requestId });
-    const originalBlobResult = await uploadToBlob(driveBytes, originalFilename, 'image/jpeg');
+    const originalBlobResult = await uploadToBlob(driveBytes, originalFilename, originalMimeType);
     const originalBlobUrl = originalBlobResult.url;
     console.log('[MEDIA_INGEST] VARIANT_GENERATION original uploaded', { requestId, url: originalBlobUrl });
 
@@ -874,14 +880,24 @@ export async function POST(request: Request) {
       }
     }
 
+    // P0 FIX: Make reconciliation state explicit in response
+    // Materialization can succeed while assignment reconciliation fails
+    // UI must distinguish between: materialized + reconciled vs materialized + reconciliation_pending
+    const materializationState = reconciliationResult.reconciled ? 'materialized_reconciled' : 
+                                 reconciliationResult.error ? 'materialized_reconciliation_failed' : 
+                                 'materialized_reconciliation_pending';
+    
     return NextResponse.json({
       success: true,
       action: 'created',
       media: mediaRecord,
       mediaId,
-      message: 'Media successfully ingested and materialized',
+      message: reconciliationResult.reconciled 
+        ? 'Media successfully ingested, materialized, and assignments reconciled'
+        : 'Media successfully ingested and materialized, but assignment reconciliation incomplete',
       deduplicated: false,
       reconciliation: reconciliationResult,
+      materializationState, // P0 FIX: Explicit state for UI handling
       requestId,
     });
 

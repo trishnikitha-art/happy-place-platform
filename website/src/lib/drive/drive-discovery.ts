@@ -354,26 +354,31 @@ export class DriveDiscovery {
   /**
    * Get file metadata
    * @param fileId - The actual file ID (file identity, not corpus context)
+   * @param corpusId - The corpus context (Shared Drive ID or null for My Drive)
    * 
    * CRITICAL FIX: Validate file belongs to authorized corpus before making Drive API call
+   * P0 FIX: Accept corpusId parameter to preserve context through authorization chain
    */
-  async getFile(fileId: string): Promise<DriveFile | null> {
+  async getFile(fileId: string, corpusId?: string): Promise<DriveFile | null> {
     if (!(await isAuthenticated())) {
       return null;
     }
 
     // CRITICAL FIX: Validate file belongs to authorized corpus before Drive API call
     // Google OAuth access is NOT sufficient for HPP authorization
-    const corpusAuth = await verifyCorpusAuthorization(fileId);
+    // P0 FIX: Use provided corpusId for context-aware authorization
+    const corpusAuth = await verifyCorpusAuthorization(fileId, corpusId);
     if (!corpusAuth.authorized) {
       console.error('[DRIVE_DISCOVERY] FILE_NOT_AUTHORIZED', {
         fileId,
+        corpusId,
         reason: corpusAuth.reason,
       });
       return null; // Return null instead of error for metadata
     }
     console.log('[DRIVE_DISCOVERY] FILE_AUTHORIZED', {
       fileId,
+      corpusId,
       corpus: corpusAuth.corpus,
     });
 
@@ -418,26 +423,31 @@ export class DriveDiscovery {
   /**
    * Download file content
    * @param fileId - The actual file ID (file identity, not corpus context)
+   * @param corpusId - The corpus context (Shared Drive ID or null for My Drive)
    * 
    * CRITICAL FIX: Validate file belongs to authorized corpus before making Drive API call
+   * P0 FIX: Accept corpusId parameter to preserve context through authorization chain
    */
-  async downloadFile(fileId: string): Promise<Buffer> {
+  async downloadFile(fileId: string, corpusId?: string): Promise<Buffer> {
     if (!(await isAuthenticated())) {
       throw new Error('Not authenticated with Drive');
     }
 
     // CRITICAL FIX: Validate file belongs to authorized corpus before Drive API call
     // Google OAuth access is NOT sufficient for HPP authorization
-    const corpusAuth = await verifyCorpusAuthorization(fileId);
+    // P0 FIX: Use provided corpusId for context-aware authorization
+    const corpusAuth = await verifyCorpusAuthorization(fileId, corpusId);
     if (!corpusAuth.authorized) {
       console.error('[DRIVE_DISCOVERY] FILE_NOT_AUTHORIZED_FOR_DOWNLOAD', {
         fileId,
+        corpusId,
         reason: corpusAuth.reason,
       });
       throw new Error(`File ${fileId} is not authorized: ${corpusAuth.reason}`);
     }
     console.log('[DRIVE_DISCOVERY] FILE_AUTHORIZED_FOR_DOWNLOAD', {
       fileId,
+      corpusId,
       corpus: corpusAuth.corpus,
     });
 
