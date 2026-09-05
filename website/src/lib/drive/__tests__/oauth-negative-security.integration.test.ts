@@ -74,9 +74,13 @@ describeOrSkip('OAuth Negative Security - Real Redis Integration', () => {
       delete process.env.TEST_NAMESPACE;
     }
     
-    // Clean up Redis client
+    // P0 FIX: Remove invalid redis.quit() call
+    // @upstash/redis is an HTTP REST client, not a TCP connection
+    // There is no .quit() method to call
+    // The Redis client will be garbage collected automatically
     if (redis) {
-      redis.quit();
+      // No cleanup needed for HTTP REST client
+      console.log('[OAUTH_SECURITY_INTEGRATION] Redis client cleanup skipped (HTTP REST client)');
     }
   });
 

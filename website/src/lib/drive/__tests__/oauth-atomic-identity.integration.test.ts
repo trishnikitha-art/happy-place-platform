@@ -127,14 +127,27 @@ describeOrSkip('OAuth Atomic Identity - Real Redis Integration', () => {
       });
       
       // Scan for all authorization keys in the test namespace
-      const authKeys = await redis.scan(0, {
-        match: `${testNamespace}drive:auth:*`,
-        count: 100
-      });
+      // CRITICAL FIX: redis.scan() returns [cursor, keys], not [keys, cursor]
+      // authKeys[0] is the cursor, authKeys[1] is the keys array
+      let cursor = '0'; // Redis scan cursor is a string
+      const allAuthKeys: string[] = [];
+      
+      do {
+        const scanResult = await redis.scan(cursor, {
+          match: `${testNamespace}drive:auth:*`,
+          count: 100
+        });
+        
+        cursor = scanResult[0]; // Update cursor for next iteration (cursor is a string)
+        const keys = scanResult[1]; // Get keys from this batch
+        allAuthKeys.push(...keys);
+        
+        // Continue scanning until cursor returns '0' (complete)
+      } while (cursor !== '0');
       
       // Find all authorizations for this subject
       const authRecords: any[] = [];
-      for (const key of authKeys[0]) {
+      for (const key of allAuthKeys) {
         const record = await redis.get<any>(key);
         if (record && record.googleSubject === googleSubject) {
           authRecords.push(record);
@@ -151,6 +164,7 @@ describeOrSkip('OAuth Atomic Identity - Real Redis Integration', () => {
         totalAttempts: upsertAttempts.length,
         uniqueAuthIds: uniqueAuthIds.size,
         orphanRecords: authRecords.length - 1,
+        totalKeysScanned: allAuthKeys.length,
       });
     });
 
