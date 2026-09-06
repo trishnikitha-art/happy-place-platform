@@ -54,6 +54,7 @@ interface MediaWorkbenchState {
     stale: number;
     malformedPublished: number;
     missingStorage: number;
+    missingStorageIds: string[]; // P0 FIX: Track IDs for targeted repair
     missingBlob: number;
     unknown: number;
   } | null;
@@ -2437,13 +2438,21 @@ export default function MediaWorkbench() {
                       <button
                         onClick={async () => {
                           if (!state.mediaAudit) return;
-                          const missingCount = state.mediaAudit.missingStorage;
-                          if (!confirm(`Repair ${missingCount} records missing storage field?\n\nThis will use evidence-based classification to determine correct storage type.\nLocal source → static storage\nDrive source → requires manual verification (will be skipped)`)) {
+                          const missingIds = state.mediaAudit.missingStorageIds || [];
+                          
+                          if (!confirm(`Repair ${state.mediaAudit.missingStorage} records missing storage field?\n\nThis will use evidence-based classification to determine correct storage type.\nLocal source → static storage\nDrive source → requires Blob evidence\n\nTargeted repair mode: only repair explicitly classified records`)) {
                             return;
                           }
                           try {
+                            // P0 FIX: Submit explicit ID list for targeted repair
                             const response = await fetch('/api/admin/diagnostic/repair-media-storage', {
                               method: 'POST',
+                              headers: {
+                                'Content-Type': 'application/json',
+                              },
+                              body: JSON.stringify({
+                                mediaIds: missingIds,
+                              }),
                             });
                             const result = await response.json();
                             if (response.ok) {
@@ -2458,7 +2467,7 @@ export default function MediaWorkbench() {
                         }}
                         className="mt-2 w-full px-3 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors text-xs"
                       >
-                        Repair Missing Storage Fields
+                        Repair Missing Storage Fields ({state.mediaAudit.missingStorage})
                       </button>
                     )}
                   </div>

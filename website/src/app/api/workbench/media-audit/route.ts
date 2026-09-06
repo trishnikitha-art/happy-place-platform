@@ -43,6 +43,7 @@ export async function POST(request: Request) {
         stale: 0,
         malformedPublished: 0,
         missingStorage: 0,
+        missingStorageIds: [] as string[], // P0 FIX: Return complete ID list for targeted repair
         missingBlob: 0,
         unknown: 0,
         sampleRecords: [] as any[],
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
             // Published asset that fails public gate - classify specific failure
             if (!media.storage) {
               results.missingStorage++;
+              results.missingStorageIds.push(media.id); // P0 FIX: Track IDs for targeted repair
             } else if (media.storage === 'blob' && !media.contentHash) {
               // Blob storage without content hash indicates incomplete materialization
               results.missingBlob++;
