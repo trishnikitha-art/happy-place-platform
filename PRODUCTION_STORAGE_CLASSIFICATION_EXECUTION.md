@@ -77,9 +77,13 @@ curl -X POST https://happy-place-platform.vercel.app/api/admin/diagnostic/classi
 **Classification Logic:**
 - `DEFINITELY_STATIC`: No contentHash → `storage: static`
 - `DEFINITELY_BLOB`: Has contentHash + Blob metadata + URL match + physical hash verification → `storage: blob`
-- `STATIC_MARKED_BLOB`: Static URL but marked as blob → contract violation
-- `BLOB_MARKED_STATIC`: Blob URL but marked as static → contract violation
+- `STATIC_MARKED_BLOB`: Static URL but marked as blob → contract violation (now repairable)
+- `BLOB_MARKED_STATIC`: Blob URL but marked as static → contract violation (now repairable with Blob evidence)
 - `AMBIGUOUS`: Has contentHash but no Blob metadata → manual review
+
+**P0 FIX:** Contract violations (STATIC_MARKED_BLOB, BLOB_MARKED_STATIC) are now repairable:
+- STATIC_MARKED_BLOB: Directly corrected to `storage: static`
+- BLOB_MARKED_STATIC: Corrected to `storage: blob` only with physical Blob verification
 
 ### Step 4: Review Classification Results
 
@@ -92,17 +96,45 @@ Document the classification results:
 
 ### Step 5: Execute Storage Repair
 
-Run the repair endpoint to apply the classification:
+**P0 FIX:** The repair endpoint now requires either:
+1. Explicit ID list for targeted repair, OR
+2. `confirm: true` for bulk repair
+
+This prevents accidental bulk mutation without operator intent.
+
+**Option A: Targeted Repair (Recommended)**
+
+After classification, copy the IDs from `definitelyStatic` and `definitelyBlob` categories:
 
 ```bash
 curl -X POST https://happy-place-platform.vercel.app/api/admin/diagnostic/repair-media-storage \
   -H "Cookie: drive_session_id=<your-session-cookie>" \
-  -H "Content-Type: application/json"
+  -H "Content-Type: application/json" \
+  -d '{
+    "mediaIds": [
+      "id-from-definitely-static-1",
+      "id-from-definitely-static-2",
+      "id-from-definitely-blob-1",
+      "id-from-definitely-blob-2"
+    ]
+  }'
+```
+
+**Option B: Bulk Repair (Requires Explicit Confirmation)**
+
+```bash
+curl -X POST https://happy-place-platform.vercel.app/api/admin/diagnostic/repair-media-storage \
+  -H "Cookie: drive_session_id=<your-session-cookie>" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "confirm": true
+  }'
 ```
 
 **Expected Response Structure:**
 ```json
 {
+  "mode": "targeted" | "bulk",
   "totalRecords": 114,
   "repaired": <number>,
   "skipped": <number>,
@@ -131,6 +163,12 @@ curl -X POST https://happy-place-platform.vercel.app/api/admin/diagnostic/repair
   - `contentHash` exists
   - Blob metadata exists for that contentHash
   - `media.variants.original === blobMetadata.url`
+  - Physical Blob hash verification succeeds
+- For `STATIC_MARKED_BLOB`: Sets `storage: static` (static URL marked as blob)
+- For `BLOB_MARKED_STATIC`: Sets `storage: blob` only if:
+  - `contentHash` exists
+  - Blob metadata exists
+  - URL matches
   - Physical Blob hash verification succeeds
 - For all other cases: Skips with reason
 
