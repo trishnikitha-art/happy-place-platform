@@ -1,51 +1,37 @@
-fix(auth): architectural corrections for Drive OAuth authority
+P0 FIX: Properly classify missing storage into repairable vs materialization paths
 
-CRITICAL ARCHITECTURAL FIXES:
-- Removed singleton pattern from DriveOAuthManager, DriveDiscovery, DriveSession
-- OAuth client now created per request with explicit authorizationId passing
-- Token refresh callback no longer calls cookies() in background context
-- Proactive refresh failures now throw explicit errors instead of being swallowed
-- Session revocation uses atomic Lua script with index deletion as barrier
-- Re-exported decrypt and EncryptionEnvelope from oauth-credential-store for oauth-manager
+The previous implementation incorrectly assumed all missingStorage records were repairable via storage field mutation. This violates the architectural invariant that Drive records without Blob evidence require materialization, not storage repair.
 
-SECURITY IMPROVEMENTS:
-- AuthorizationId passed explicitly to token refresh (no ambient cookies)
-- Process-level state eliminated (no singleton mutable oauth2Client)
-- Refresh failure semantics explicit (permanent vs transient classification)
-- Revocation race condition closed (atomic barrier prevents session resurrection)
-- Request isolation guaranteed (per-request OAuth client creation)
+ARCHITECTURAL FIX:
 
-BACKWARD COMPATIBILITY:
-- DriveSession.setCredentials() is now a documented no-op
-- DriveSession.getSessionId() made public for authorization resolution
-- getSessionIdFromCookies() utility function added for external callers
-- Legacy cookie deletions remain in callback and drive-session (cleanup only)
+1. Audit contract now returns separate actionable categories:
+   - repairableStaticIds: Local source with static manifest evidence
+   - repairableBlobIds: Local source with full Blob evidence chain
+   - requiresMaterializationIds: Drive source without Blob evidence
+   - ambiguousIds: Insufficient evidence for any repair
 
-TYPE SAFETY:
-- Added proper TypeScript types for OAuth client and Drive client returns
-- Fixed all eslint no-explicit-any errors with proper suppression comments
-- Removed driveSession dependency from oauth-manager (direct credential resolution)
+2. UI shows actual safe action counts with separate buttons:
+   - "Repair Static Records (X)" → submits repairableStaticIds
+   - "Repair Blob Records (Y)" → submits repairableBlobIds
+   - "⚠️ N Drive records require materialization via Drive browser panel"
+   - "⚠️ M records require manual review"
 
-TEST VERIFICATION:
-- TypeScript compilation: PASS (0 errors)
-- ESLint: PASS (0 errors)  
-- Unit tests: Redis-dependent tests blocked (missing KV_REST_API_URL)
-- Cookie-only tests: PASS (7/7)
+3. Repair endpoint updated to skip Drive records without Blob evidence:
+   - Changed skip reason from "insufficient evidence" to "requires Drive materialization (not storage repair)"
+   - Makes clear that storage repair is NOT the correct operation for Drive records
 
-FORENSIC AUDIT:
-- All singleton patterns removed from Drive OAuth authority
-- No legacy cookie writes (only deletions remain)
-- No cookies() calls in background callbacks
-- No drive_access_token or drive_refresh_token writes
-- /api/auth/google confirmed as separate OAuth authority (no changes needed)
+4. Classification and repair evidence chains aligned:
+   - Static: requires manifest evidence only
+   - Blob: requires contentHash + Blob metadata + URL match + physical hash verification
+   - Drive without Blob: never repairable via storage field mutation
 
-This resolves the architectural contradictions identified in the CEO forensic audit:
-1. Token refresh callback context violation - FIXED
-2. Proactive refresh failure swallowed - FIXED  
-3. Session revocation race surface - FIXED
-4. Singleton process-level state - FIXED
-5. Error classification fragile - FIXED
-6. Test architecture - FIXED
+INVARIANTS PRESERVED:
+
+- Drive provenance alone NEVER implies Blob storage
+- Storage field is not inferred from source type
+- Public gate remains fail-closed for missing storage
+- Repair mutations are explicit and targeted
+- Drive materialization path is the correct operation for Drive source records
 
 Generated with [Devin](https://devin.ai)
 

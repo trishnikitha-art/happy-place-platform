@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getGoogleAuth, google } from "@/lib/google";
 import type { EstimateRequest } from "@/types";
-import { applyEstimateRequestTag, findSubscriberByEmail, createSubscriber } from "@/lib/kit";
+import { syncEstimateSubscriber } from "@/lib/kit";
 import { logEvent } from "@/lib/events";
 
 /**
@@ -147,35 +147,14 @@ export async function POST(request: NextRequest) {
       requestBody: { raw: encoded },
     });
 
-    // Apply Kit tag for estimate request
-    try {
-      // Find existing subscriber or create new one
-      let subscriber = await findSubscriberByEmail(req.customer.email);
-
-      if (!subscriber) {
-        const result = await createSubscriber({
-          email_address: req.customer.email,
-          first_name: req.customer.name.split(" ")[0],
-          fields: {
-            acquisition_source: "estimate_wizard",
-            phone: req.customer.phone,
-          },
-        });
-        subscriber = result.subscriber;
-      }
-
-      // Apply tag if subscriber exists
-      if (subscriber?.id) {
-        await applyEstimateRequestTag(subscriber.id);
-      }
-    } catch (kitError) {
-      console.error("Kit tagging failed (non-critical):", kitError);
-      // Don't fail the estimate request if Kit tagging fails
-    }
+    const kitResult = await syncEstimateSubscriber({
+      email: req.customer.email,
+      firstName: req.customer.name.split(" ")[0],
+    });
 
     // Log HPP event
     const url = new URL(request.url);
-    logEvent("EstimateRequested", {
+    await logEvent("EstimateRequested", {
       email: req.customer.email,
       name: req.customer.name,
       phone: req.customer.phone,
@@ -194,7 +173,18 @@ export async function POST(request: NextRequest) {
     });
 
     // Drive storage + Contacts are wired here in the same server boundary.
-    return NextResponse.json({ ok: true, transport: "api", photosUploaded: photoIds.length });
+    return NextResponse.json({
+      ok: true,
+      transport: "api",
+      photosUploaded: photoIds.length,
+      kit: {
+        synchronized: kitResult.success,
+        subscriberId: kitResult.subscriber?.id,
+        failure: kitResult.failure,
+        operation: kitResult.failedOperation,
+        suppressed: kitResult.suppressed,
+      },
+    });
   } catch (e) {
     console.error("estimate api failed", e);
     return NextResponse.json({ ok: false, error: "send_failed" }, { status: 502 });

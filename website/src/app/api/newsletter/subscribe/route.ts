@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createSubscriber, applyWebsiteSubscriberTag, applyHomepageSignupTag, enrollInWelcomeSequence } from "@/lib/kit";
+import { syncNewsletterSubscriber } from "@/lib/kit";
 import { logEvent } from "@/lib/events";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { email, firstName, source } = body;
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const firstName = typeof body.firstName === "string" ? body.firstName.trim() : undefined;
+    const source = typeof body.source === "string" ? body.source.trim() : undefined;
 
     // Extract acquisition metadata
     const referrer = request.headers.get("referer") || undefined;
@@ -22,66 +24,62 @@ export async function POST(request: NextRequest) {
     const utmTerm = url.searchParams.get("utm_term") || undefined;
 
     // Validate email
-    if (!email || typeof email !== "string" || !email.includes("@")) {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json(
         { error: "Invalid email address" },
         { status: 400 }
       );
     }
 
-    // Create subscriber in Kit
-    const result = await createSubscriber({
-      email_address: email,
-      first_name: firstName || undefined,
+    const kitResult = await syncNewsletterSubscriber({
+      email,
+      firstName,
+      source,
       fields: {
         acquisition_source: source || "website",
         signup_date: new Date().toISOString(),
       },
     });
 
-    if (!result.success) {
+    if (!kitResult.success) {
+      const status = kitResult.failure === "validation" ? 503 : kitResult.suppressed ? 409 : 502;
       return NextResponse.json(
-        { error: result.message || "Failed to subscribe" },
-        { status: 500 }
+        {
+          error: kitResult.suppressed ? "subscription_suppressed" : "kit_sync_failed",
+          failure: kitResult.failure,
+          operation: kitResult.failedOperation,
+          message: kitResult.message,
+        },
+        { status }
       );
     }
 
-    // Automatically apply tags
-    const subscriberId = result.subscriber.id;
-    if (subscriberId) {
-      // Apply "Website Subscriber" tag
-      await applyWebsiteSubscriberTag(subscriberId);
-
-      // Apply source-specific tag
-      if (source === "homepage") {
-        await applyHomepageSignupTag(subscriberId);
-      }
-
-      // Enroll in welcome sequence
-      await enrollInWelcomeSequence(subscriberId);
-
-      // Log HPP event
-      logEvent("NewsletterSignup", {
-        email,
-        firstName,
-        subscriberId,
-        tags: ["Website Subscriber", source === "homepage" ? "Homepage Signup" : null].filter(Boolean),
-      }, {
-        acquisitionSource: source || "website",
-        landingPage,
-        referrer,
-        utmSource,
-        utmMedium,
-        utmCampaign,
-        utmContent,
-        utmTerm,
-        deviceClass,
-      });
-    }
+    await logEvent("NewsletterSignup", {
+      email,
+      firstName,
+      subscriberId: kitResult.subscriber?.id,
+      tagsApplied: kitResult.tagsApplied,
+      sequenceEnrolled: kitResult.sequenceEnrolled,
+    }, {
+      acquisitionSource: source || "website",
+      landingPage,
+      referrer,
+      utmSource,
+      utmMedium,
+      utmCampaign,
+      utmContent,
+      utmTerm,
+      deviceClass,
+    });
 
     return NextResponse.json({
       success: true,
-      subscriber: result.subscriber,
+      subscriber: kitResult.subscriber,
+      kit: {
+        created: kitResult.created,
+        tagsApplied: kitResult.tagsApplied,
+        sequenceEnrolled: kitResult.sequenceEnrolled,
+      },
     });
   } catch (error) {
     console.error("Newsletter subscription error:", error);

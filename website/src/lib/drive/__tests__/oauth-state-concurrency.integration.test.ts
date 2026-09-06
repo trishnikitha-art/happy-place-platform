@@ -204,26 +204,30 @@ describe('OAuth State Concurrency - Real Redis Integration', () => {
 
       const mockCookieStore = await cookies();
       
-      // Note: This test requires time manipulation or waiting for actual expiry
-      // For integration tests, we may need to add a method to manually expire states
-      const state = await createState(mockCookieStore);
-      expect(state).toBeDefined();
+      // P0 FIX: Removed misleading expiry test
+      // The previous test only validated that state is valid immediately after creation,
+      // which does not prove expiry behavior.
+      // 
+      // The security-boundaries suite (oauth-security-boundaries.integration.test.ts)
+      // has a proper TTL expiry test that actually waits for expiry using a 1-second TTL.
+      // That test proves the actual expiry invariant.
+      //
+      // This test was removed to avoid giving a false sense of security coverage.
       
-      // State should be valid immediately after creation
-      const validResult = await validateState(state, mockCookieStore);
-      expect(validResult).toBe(StateValidationResult.STATE_VALID);
-      
-      console.log('[OAUTH_STATE_INTEGRATION] State expiry validation test passed');
+      console.log('[OAUTH_STATE_INTEGRATION] Misleading expiry test removed - see security-boundaries suite for actual TTL proof');
     });
   });
 
-  describe('Redis Failure Semantics', () => {
-    it('should handle Redis failures with infrastructure errors', async () => {
-      // This test would require mocking Redis to simulate failures
-      // For integration tests, we rely on actual Redis reliability
-      // Infrastructure errors are logged but don't return false
-      
-      console.log('[OAUTH_STATE_INTEGRATION] Redis failure semantics test passed');
-    });
-  });
+  // P0 FIX: Removed placeholder Redis failure semantics test
+  // A proper fail-closed Redis failure test now exists in:
+  // redis-failure-semantics.integration.test.ts
+  // 
+  // The previous test was a placeholder that logged "would require mocking Redis"
+  // without actually proving the fail-closed invariant.
+  //
+  // The new test explicitly invalidates Redis credentials and verifies:
+  // - Operations throw explicit errors
+  // - No silent fallback to legacy cookies
+  // - No false returns (which could be misinterpreted)
+  // - Fail-closed behavior is maintained
 });

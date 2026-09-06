@@ -6,7 +6,6 @@
  *
  * Environment Variables Required:
  * - KIT_API_KEY: Kit API key
- * - KIT_API_SECRET: Kit API secret
  * - KIT_WEBSITE_SUBSCRIBER_TAG_ID: Tag ID for website subscribers
  * - KIT_HOMEPAGE_SIGNUP_TAG_ID: Tag ID for homepage signups
  * - KIT_ESTIMATE_REQUEST_TAG_ID: Tag ID for estimate requests
@@ -26,12 +25,14 @@ async function fetchWithBackoff(
   maxRetries = 3
 ): Promise<Response> {
   let lastError: Error | null = null;
+  let lastResponse: Response | null = null;
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
       const response = await fetch(url, options);
 
       if (response.status === 429) {
+        lastResponse = response;
         // Rate limited - wait with exponential backoff
         const delay = Math.min(1000 * Math.pow(2, attempt), 5000);
         await new Promise(resolve => setTimeout(resolve, delay));
@@ -48,6 +49,7 @@ async function fetchWithBackoff(
     }
   }
 
+  if (lastResponse) return lastResponse;
   throw lastError || new Error("Max retries exceeded");
 }
 
@@ -58,7 +60,9 @@ async function parseKitError(response: Response): Promise<string> {
   try {
     const data = await response.json();
     if (data.errors && Array.isArray(data.errors)) {
-      return data.errors.join(", ");
+      return data.errors.map((error: unknown) =>
+        typeof error === "string" ? error : JSON.stringify(error)
+      ).join(", ");
     }
     return response.statusText;
   } catch {
@@ -79,14 +83,6 @@ const KIT_CONFIG = {
       throw new Error("KIT_API_KEY environment variable is not set");
     }
     return key;
-  },
-
-  get apiSecret(): string {
-    const secret = process.env.KIT_API_SECRET;
-    if (!secret) {
-      throw new Error("KIT_API_SECRET environment variable is not set");
-    }
-    return secret;
   },
 
   get tags() {
@@ -117,7 +113,57 @@ export interface KitSubscriber {
 export interface KitSubscribeResponse {
   subscriber: KitSubscriber;
   success: boolean;
+  created?: boolean;
+  status?: number;
+  failureType?: KitFailureType;
+  retryable?: boolean;
   message?: string;
+}
+
+export type KitFailureType =
+  | "validation"
+  | "authentication"
+  | "rate_limit"
+  | "retryable"
+  | "permanent"
+  | "network"
+  | "suppressed";
+
+export interface KitOperationResult {
+  success: boolean;
+  status?: number;
+  failureType?: KitFailureType;
+  retryable?: boolean;
+  message?: string;
+}
+
+export interface KitSyncRequest {
+  email: string;
+  firstName?: string;
+  source: string;
+  fields?: Record<string, string>;
+  tagIds: number[];
+  sequenceId?: number;
+}
+
+export interface KitSyncResult {
+  success: boolean;
+  subscriber?: KitSubscriber;
+  created: boolean;
+  tagsApplied: number[];
+  sequenceEnrolled: boolean;
+  suppressed: boolean;
+  failure?: KitFailureType;
+  failedOperation?: "subscriber" | "tag" | "sequence";
+  message?: string;
+}
+
+function classifyHttpFailure(status: number): KitFailureType {
+  if (status === 401 || status === 403) return "authentication";
+  if (status === 422) return "validation";
+  if (status === 429) return "rate_limit";
+  if (status >= 500) return "retryable";
+  return "permanent";
 }
 
 /**
@@ -152,6 +198,9 @@ export async function createSubscriber(data: {
       return {
         subscriber: { email_address: data.email_address },
         success: false,
+        status: response.status,
+        failureType: classifyHttpFailure(response.status),
+        retryable: response.status === 429 || response.status >= 500,
         message: `Kit API error: ${error}`,
       };
     }
@@ -161,12 +210,16 @@ export async function createSubscriber(data: {
     return {
       subscriber: result.subscriber,
       success: true,
+      created: response.status === 201,
+      status: response.status,
     };
   } catch (error) {
     console.error("Kit API request failed:", error);
     return {
       subscriber: { email_address: data.email_address },
       success: false,
+      failureType: "network",
+      retryable: true,
       message: "Network error",
     };
   }
@@ -243,6 +296,11 @@ export async function listSubscribers(options: {
  * Correct endpoint: POST /v4/tags/{tag_id}/subscribers/{id}
  */
 export async function addTagToSubscriber(subscriberId: number, tagId: number): Promise<boolean> {
+  const result = await addTagToSubscriberResult(subscriberId, tagId);
+  return result.success;
+}
+
+async function addTagToSubscriberResult(subscriberId: number, tagId: number): Promise<KitOperationResult> {
   try {
     const response = await fetchWithBackoff(`${KIT_API_BASE}/tags/${tagId}/subscribers/${subscriberId}`, {
       method: "POST",
@@ -256,13 +314,19 @@ export async function addTagToSubscriber(subscriberId: number, tagId: number): P
     if (!response.ok) {
       const error = await parseKitError(response);
       console.error("Kit tag addition failed:", error);
-      return false;
+      return {
+        success: false,
+        status: response.status,
+        failureType: classifyHttpFailure(response.status),
+        retryable: response.status === 429 || response.status >= 500,
+        message: error,
+      };
     }
 
-    return true;
+    return { success: true, status: response.status };
   } catch (error) {
     console.error("Kit tag addition failed:", error);
-    return false;
+    return { success: false, failureType: "network", retryable: true, message: "Network error" };
   }
 }
 
@@ -271,6 +335,11 @@ export async function addTagToSubscriber(subscriberId: number, tagId: number): P
  * Correct endpoint: POST /v4/sequences/{sequence_id}/subscribers/{id}
  */
 export async function enrollInSequence(subscriberId: number, sequenceId: number): Promise<boolean> {
+  const result = await enrollInSequenceResult(subscriberId, sequenceId);
+  return result.success;
+}
+
+async function enrollInSequenceResult(subscriberId: number, sequenceId: number): Promise<KitOperationResult> {
   try {
     const response = await fetchWithBackoff(`${KIT_API_BASE}/sequences/${sequenceId}/subscribers/${subscriberId}`, {
       method: "POST",
@@ -284,14 +353,183 @@ export async function enrollInSequence(subscriberId: number, sequenceId: number)
     if (!response.ok) {
       const error = await parseKitError(response);
       console.error("Kit sequence enrollment failed:", error);
-      return false;
+      return {
+        success: false,
+        status: response.status,
+        failureType: classifyHttpFailure(response.status),
+        retryable: response.status === 429 || response.status >= 500,
+        message: error,
+      };
     }
 
-    return true;
+    return { success: true, status: response.status };
   } catch (error) {
     console.error("Kit sequence enrollment failed:", error);
-    return false;
+    return { success: false, failureType: "network", retryable: true, message: "Network error" };
   }
+}
+
+/**
+ * Canonical HPP -> Kit boundary for newsletter and lead capture.
+ * Kit's subscriber endpoint is an email-keyed upsert; tag and sequence
+ * endpoints are also idempotent for existing memberships.
+ */
+export async function syncSubscriberToKit(input: KitSyncRequest): Promise<KitSyncResult> {
+  // Validate tagIds are valid numbers
+  const validTagIds = input.tagIds.filter((tagId): tagId is number => 
+    typeof tagId === 'number' && Number.isInteger(tagId) && tagId > 0
+  );
+  
+  if (validTagIds.length !== input.tagIds.length) {
+    return {
+      success: false,
+      created: false,
+      tagsApplied: [],
+      sequenceEnrolled: false,
+      suppressed: false,
+      failure: "validation",
+      failedOperation: "tag",
+      message: "Kit tag configuration is incomplete",
+    };
+  }
+
+  // Validate sequenceId if present
+  const validSequenceId = input.sequenceId !== undefined && 
+    typeof input.sequenceId === 'number' && 
+    Number.isInteger(input.sequenceId) && 
+    input.sequenceId > 0 
+    ? input.sequenceId 
+    : undefined;
+
+  if (input.sequenceId !== undefined && validSequenceId === undefined) {
+    return {
+      success: false,
+      created: false,
+      tagsApplied: [],
+      sequenceEnrolled: false,
+      suppressed: false,
+      failure: "validation",
+      failedOperation: "sequence",
+      message: "Kit sequence configuration is invalid",
+    };
+  }
+
+  const normalizedEmail = input.email.trim().toLowerCase();
+  const subscription = await createSubscriber({
+    email_address: normalizedEmail,
+    first_name: input.firstName?.trim() || undefined,
+    fields: input.fields,
+  });
+
+  if (!subscription.success || !subscription.subscriber.id) {
+    return {
+      success: false,
+      created: false,
+      tagsApplied: [],
+      sequenceEnrolled: false,
+      suppressed: false,
+      failure: subscription.failureType || "permanent",
+      failedOperation: "subscriber",
+      message: subscription.message,
+    };
+  }
+
+  const subscriber = subscription.subscriber;
+  const suppressedStates = new Set(["cancelled", "bounced", "complained", "inactive", "unsubscribed"]);
+  if (subscriber.state && suppressedStates.has(subscriber.state)) {
+    return {
+      success: false,
+      subscriber,
+      created: subscription.created === true,
+      tagsApplied: [],
+      sequenceEnrolled: false,
+      suppressed: true,
+      failure: "suppressed",
+      failedOperation: "subscriber",
+      message: `Subscriber is ${subscriber.state} in Kit`,
+    };
+  }
+
+  const tagsApplied: number[] = [];
+  for (const tagId of validTagIds) {
+    // @ts-ignore - Validation above ensures tagId is number
+    const tagResult = await addTagToSubscriberResult(subscriber.id, tagId);
+    if (!tagResult.success) {
+      return {
+        success: false,
+        subscriber,
+        created: subscription.created === true,
+        tagsApplied,
+        sequenceEnrolled: false,
+        suppressed: false,
+        failure: tagResult.failureType || "permanent",
+        failedOperation: "tag",
+        message: tagResult.message,
+      };
+    }
+    tagsApplied.push(tagId);
+  }
+
+  let sequenceEnrolled = true;
+  if (validSequenceId !== undefined) {
+    // @ts-ignore - Validation above ensures validSequenceId is number
+    const sequenceResult = await enrollInSequenceResult(subscriber.id, validSequenceId);
+    sequenceEnrolled = sequenceResult.success;
+    if (!sequenceResult.success) {
+      return {
+        success: false,
+        subscriber,
+        created: subscription.created === true,
+        tagsApplied,
+        sequenceEnrolled: false,
+        suppressed: false,
+        failure: sequenceResult.failureType || "permanent",
+        failedOperation: "sequence",
+        message: sequenceResult.message,
+      };
+    }
+  }
+
+  return {
+    success: true,
+    subscriber,
+    created: subscription.created === true,
+    tagsApplied,
+    sequenceEnrolled,
+    suppressed: false,
+  };
+}
+
+export function syncNewsletterSubscriber(input: {
+  email: string;
+  firstName?: string;
+  source?: string;
+  fields?: Record<string, string>;
+}): Promise<KitSyncResult> {
+  const tags = [KIT_CONFIG.tags.websiteSubscriber];
+  if (input.source === "homepage") tags.push(KIT_CONFIG.tags.homepageSignup);
+
+  return syncSubscriberToKit({
+    email: input.email,
+    firstName: input.firstName,
+    source: input.source || "website",
+    fields: input.fields,
+    tagIds: tags,
+    sequenceId: KIT_CONFIG.sequences.welcome,
+  });
+}
+
+export function syncEstimateSubscriber(input: {
+  email: string;
+  firstName?: string;
+  source?: string;
+}): Promise<KitSyncResult> {
+  return syncSubscriberToKit({
+    email: input.email,
+    firstName: input.firstName,
+    source: input.source || "estimate_wizard",
+    tagIds: [KIT_CONFIG.tags.websiteSubscriber, KIT_CONFIG.tags.estimateRequest],
+  });
 }
 
 /**
