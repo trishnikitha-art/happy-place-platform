@@ -54,6 +54,12 @@ export function WorkbenchShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(true);
 
+  // P0 FIX: Preview routes must escape Workbench shell to render real website as visual control surface
+  // The iframe at /workbench/media loads /workbench/preview/our-work which should render ONLY the actual website
+  if (pathname.startsWith('/workbench/preview')) {
+    return <>{children}</>;
+  }
+
   return (
     <div className="flex h-screen bg-background">
       {/* Sidebar */}
