@@ -178,8 +178,10 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                 const mediaId = photo.id;
                 
                 return (
-                  <button
+                  <div
                     key={`${project.id}-${mediaId}`}
+                    role="button"
+                    tabIndex={0}
                     className="group relative block aspect-[4/3] overflow-hidden cursor-pointer break-inside-avoid mb-4"
                     onClick={() => {
                       console.log('[OUR_WORK] GALLERY_BUTTON_CLICK', {
@@ -208,6 +210,35 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                       });
                       const globalIndex = allGalleryImages.findIndex(img => img.src === src);
                       openLightbox(allGalleryImages, globalIndex);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        console.log('[OUR_WORK] GALLERY_KEYBOARD_ACTION', {
+                          projectId: project.id,
+                          mediaId,
+                          slotId: `our-work-gallery::${project.id}::${mediaId}`,
+                          key: e.key,
+                          timestamp: Date.now(),
+                        });
+
+                        const allGalleryImages = allProjects.flatMap(p => {
+                          const pGalleryMedia = p.media.galleryMedia || [];
+                          return pGalleryMedia.map(m => {
+                            const responsiveVariants = m.variants?.responsive;
+                            const highestQuality = responsiveVariants && responsiveVariants.length > 0
+                              ? responsiveVariants[responsiveVariants.length - 1].webp
+                              : (m.variants.web || m.variants.original || m.variants.thumbnail!);
+                            return {
+                              src: highestQuality,
+                              alt: m.alt,
+                              blurDataURL: m.variants?.blur
+                            };
+                          });
+                        });
+                        const globalIndex = allGalleryImages.findIndex(img => img.src === src);
+                        openLightbox(allGalleryImages, globalIndex);
+                      }
                     }}
                     aria-label={`View ${photo!.alt} in full screen`}
                   >
@@ -244,7 +275,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                         {project.title}
                       </span>
                     </CraftCard>
-                  </button>
+                  </div>
                 );
               });
             })}

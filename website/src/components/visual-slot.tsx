@@ -265,22 +265,16 @@ export function VisualSlot({
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     
-    // LOGGING: Expose the semantic mismatch
-    const incomingEffectAllowed = e.dataTransfer.effectAllowed;
-    const isGalleryReorder = isGallerySlot;
-    
-    e.dataTransfer.dropEffect = 'copy';
-    e.dataTransfer.effectAllowed = 'copy';
+    // PROTOCOL SEMANTICS: dragstart owns effectAllowed, dragover owns dropEffect
+    // Do NOT mutate effectAllowed in dragover
+    const dropEffect = isGallerySlot ? 'move' : 'copy';
+    e.dataTransfer.dropEffect = dropEffect;
     
     console.log('[VS_DND] DRAG_OVER', {
       slotId: id,
       isGallerySlot,
-      isGalleryReorder,
-      incomingEffectAllowed,
-      outgoingDropEffect: 'copy',
-      outgoingEffectAllowed: 'copy',
-      semanticMismatch: isGalleryReorder && incomingEffectAllowed === 'move',
-      warning: isGalleryReorder && incomingEffectAllowed === 'move' ? 'SEMANTIC_MISMATCH: gallery reorder should be move, not copy' : null,
+      dropEffect,
+      incomingEffectAllowed: e.dataTransfer.effectAllowed,
       windowIsIframe: window.parent !== window,
       timestamp: Date.now(),
     });
@@ -355,19 +349,25 @@ export function VisualSlot({
       timestamp: Date.now(),
     });
 
-    // Check for gallery reorder data first
-    const galleryReorderData = e.dataTransfer.getData('text/plain');
-    
-    console.log('[VS_DND] PROTOCOL_DECISION', {
-      slotId: id,
-      isGallerySlot,
-      hasGalleryReorderData: !!galleryReorderData,
-      dataPreview: galleryReorderData?.substring(0, 200),
-      attemptingGalleryReorder: isGallerySlot && !!galleryReorderData,
-      willFallThroughToAssetDrop: !isGallerySlot || !galleryReorderData,
-    });
+    // PROTOCOL SEPARATION: Gallery slots ONLY accept GALLERY_REORDER
+    if (isGallerySlot) {
+      const galleryReorderData = e.dataTransfer.getData('text/plain');
+      
+      console.log('[VS_DND] GALLERY_PROTOCOL_CHECK', {
+        slotId: id,
+        hasGalleryReorderData: !!galleryReorderData,
+        dataPreview: galleryReorderData?.substring(0, 200),
+      });
 
-    if (galleryReorderData && isGallerySlot && projectId) {
+      if (!galleryReorderData) {
+        console.error('[VS_DND] GALLERY_PROTOCOL_REJECTED', {
+          slotId: id,
+          reason: 'NO_GALLERY_REORDER_DATA',
+          message: 'Gallery slots only accept GALLERY_REORDER protocol',
+        });
+        return;
+      }
+
       try {
         const parsed = JSON.parse(galleryReorderData);
         
@@ -382,59 +382,83 @@ export function VisualSlot({
           protocolMatch: parsed.type === 'GALLERY_REORDER',
         });
 
-        if (parsed.type === 'GALLERY_REORDER') {
-          console.log('[VS_DND] GALLERY_REORDER_POSTING', {
+        if (parsed.type !== 'GALLERY_REORDER') {
+          console.error('[VS_DND] GALLERY_PROTOCOL_REJECTED', {
+            slotId: id,
+            reason: 'WRONG_PROTOCOL_TYPE',
+            expectedType: 'GALLERY_REORDER',
+            actualType: parsed.type,
+            message: 'Gallery slots only accept GALLERY_REORDER protocol',
+          });
+          return;
+        }
+
+        if (!parsed.sourceSlotId || !parsed.sourceMediaId || !parsed.projectId) {
+          console.error('[VS_DND] GALLERY_PROTOCOL_REJECTED', {
+            slotId: id,
+            reason: 'MALFORMED_PAYLOAD',
+            missingFields: {
+              sourceSlotId: !parsed.sourceSlotId,
+              sourceMediaId: !parsed.sourceMediaId,
+              projectId: !parsed.projectId,
+            },
+          });
+          return;
+        }
+
+        console.log('[VS_DND] GALLERY_REORDER_POSTING', {
+          sourceSlotId: parsed.sourceSlotId,
+          sourceMediaId: parsed.sourceMediaId,
+          targetSlotId: id,
+          targetMediaId: currentMediaId,
+          projectId: parsed.projectId,
+          targetOrigin: window.parent.location.origin,
+          hasParent: !!window.parent,
+          parentMatchesIframe: window.parent !== window,
+        });
+
+        // Send reorder event to parent
+        if (window.parent !== window) {
+          const targetOrigin = window.parent.location.origin;
+          window.parent.postMessage({
+            type: 'SLOT_REORDER',
             sourceSlotId: parsed.sourceSlotId,
             sourceMediaId: parsed.sourceMediaId,
             targetSlotId: id,
             targetMediaId: currentMediaId,
             projectId: parsed.projectId,
-            targetOrigin: window.parent.location.origin,
-            hasParent: !!window.parent,
-            parentMatchesIframe: window.parent !== window,
+          }, targetOrigin);
+          
+          console.log('[VS_DND] GALLERY_REORDER_POSTED', {
+            messageType: 'SLOT_REORDER',
+            targetOrigin,
+            timestamp: Date.now(),
           });
-
-          // Send reorder event to parent
-          if (window.parent !== window) {
-            const targetOrigin = window.parent.location.origin;
-            window.parent.postMessage({
-              type: 'SLOT_REORDER',
-              sourceSlotId: parsed.sourceSlotId,
-              sourceMediaId: parsed.sourceMediaId,
-              targetSlotId: id,
-              targetMediaId: currentMediaId,
-              projectId: parsed.projectId,
-            }, targetOrigin);
-            
-            console.log('[VS_DND] GALLERY_REORDER_POSTED', {
-              messageType: 'SLOT_REORDER',
-              targetOrigin,
-              timestamp: Date.now(),
-            });
-          } else {
-            console.error('[VS_DND] GALLERY_REORDER_FAILED', {
-              reason: 'NOT_IN_IFRAME',
-              hasParent: !!window.parent,
-              parentEqualsWindow: window.parent === window,
-            });
-          }
-          return;
+        } else {
+          console.error('[VS_DND] GALLERY_REORDER_FAILED', {
+            reason: 'NOT_IN_IFRAME',
+            hasParent: !!window.parent,
+            parentEqualsWindow: window.parent === window,
+          });
         }
+        return;
       } catch (err) {
-        console.error('[VS_DND] GALLERY_REORDER_PARSE_FAILED', { 
+        console.error('[VS_DND] GALLERY_PROTOCOL_REJECTED', { 
           slotId: id,
+          reason: 'PARSE_FAILURE',
           error: err instanceof Error ? err.message : String(err),
           rawData: galleryReorderData?.substring(0, 500),
         });
+        return;
       }
     }
 
-    // Regular asset drop (from right panel) - FALLTHROUGH PATH
-    console.log('[VS_DND] FALLING_THROUGH_TO_ASSET_DROP', {
+    // PROTOCOL SEPARATION: Non-gallery slots ONLY accept ASSET_ASSIGNMENT
+    // Never attempt gallery reorder
+    console.log('[VS_DND] ASSET_PROTOCOL_CHECK', {
       slotId: id,
-      reason: !isGallerySlot ? 'NOT_GALLERY_SLOT' : !galleryReorderData ? 'NO_GALLERY_DATA' : 'PARSE_FAILED_OR_TYPE_MISMATCH',
-      isGallerySlot,
-      hasGalleryReorderData: !!galleryReorderData,
+      isGallerySlot: false,
+      reason: 'NON_GALLERY_SLOT',
     });
 
     const assetId = e.dataTransfer.getData('text/plain');

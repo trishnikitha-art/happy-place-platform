@@ -691,6 +691,7 @@ export default function MediaWorkbench() {
         console.log('[DND] IFRAME_RELOAD_TRIGGERED', {
           slotId: slot.id,
           assetId: media.id,
+          currentSrc: iframeRef.current.src,
         });
         iframeRef.current.src = iframeRef.current.src;
       }
@@ -1191,7 +1192,7 @@ export default function MediaWorkbench() {
       });
 
       // Filter: Only process Workbench protocol messages from same origin
-      // Note: iframe.source reference may not be stable, so rely on origin + message type
+      // For mutation messages, also validate source is the expected iframe
       if (!event.data || typeof event.data.type !== 'string') {
         console.log('[WB_FORENSIC] MESSAGE_REJECTED', {
           reason: 'INVALID_DATA_TYPE',
@@ -1212,12 +1213,33 @@ export default function MediaWorkbench() {
         return;
       }
 
+      // Validate source is the expected iframe for mutation messages
+      const messageType = event.data?.type;
+      const mutationMessageTypes = ['SLOT_REGISTER', 'SLOT_CLICK', 'SLOT_DROP', 'SLOT_REORDER'];
+      
+      if (mutationMessageTypes.includes(messageType)) {
+        if (event.source !== iframeRef.current?.contentWindow) {
+          console.error('[WB_FORENSIC] MESSAGE_REJECTED', {
+            reason: 'SOURCE_MISMATCH',
+            messageType,
+            expectedSource: 'iframe.contentWindow',
+            actualSource: event.source === window ? 'window' : event.source === iframeRef.current?.contentWindow ? 'iframe.contentWindow' : 'unknown',
+            iframeExists: !!iframeRef.current,
+            iframeContentWindowExists: !!iframeRef.current?.contentWindow,
+            eventSourceExists: !!event.source,
+          });
+          return;
+        }
+        console.log('[WB_FORENSIC] SOURCE_VALIDATED', {
+          messageType,
+          sourceMatch: true,
+        });
+      }
+
       console.log('[WB_FORENSIC] MESSAGE_ACCEPTED', {
         reason: 'VALID_ORIGIN_AND_TYPE',
         messageType: event.data.type,
       });
-
-      const messageType = event.data.type;
 
       // Filter to only process application's known message types
       const knownMessageTypes = ['SLOT_REGISTER', 'SLOT_DROP', 'SLOT_CLICK', 'SLOT_REORDER', 'REFRESH_SLOTS'];
@@ -2185,17 +2207,17 @@ export default function MediaWorkbench() {
             {/* Website Preview Iframe */}
             <iframe
               ref={iframeRef}
-              src={`${window.location.origin}${state.selectedPage}?workbench=true`}
+              src={`${window.location.origin}/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`}
               className="w-full h-full border-0"
               title="Website Preview"
               sandbox="allow-same-origin allow-scripts allow-popups"
               onLoad={() => {
                 console.log('[SLOT] IFRAME_LOADED', {
-                  iframeSrc: `${window.location.origin}${state.selectedPage}?workbench=true`,
+                  iframeSrc: `${window.location.origin}/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`,
                   contentWindowExists: !!iframeRef.current?.contentWindow,
                   selectedPage: state.selectedPage,
                   actualSrc: iframeRef.current?.src,
-                  previewRouteExpected: `/workbench/preview${state.selectedPage}?workbench=true`,
+                  previewRouteExpected: `/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`,
                   usesPreviewRoute: iframeRef.current?.src?.includes('/workbench/preview/'),
                   timestamp: Date.now(),
                 });
