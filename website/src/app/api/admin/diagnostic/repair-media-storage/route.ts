@@ -224,8 +224,9 @@ export async function POST(request: Request) {
             continue;
           }
         } else if (media.source === 'google-drive') {
-          // P0 FIX: Only set storage: blob with actual physical Blob evidence
+          // P0 FIX: Drive source without storage → REQUIRES MATERIALIZATION, NOT STORAGE REPAIR
           // NEVER infer blob merely from Drive provenance
+          // Only repair to blob if FULL Blob evidence chain exists (rare edge case)
           if (media.lifecycleState === 'published' && media.contentHash) {
             // Published Drive asset with content hash → check for Blob evidence
             const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
@@ -241,41 +242,42 @@ export async function POST(request: Request) {
                 
                 if (verification.success) {
                   // Physical Blob hash verified → safe to set storage: blob
+                  // This is the rare case where a Drive record was materialized but storage field was not set
                   storage = 'blob';
                   reason = 'Drive source with published state + contentHash + Blob metadata + URL match + physical hash verification → blob storage';
                 } else {
-                  // Hash verification failed → skip to avoid false inference
+                  // Hash verification failed → requires materialization
                   skipped++;
                   skips.push({ 
                     mediaId, 
-                    reason: `Drive source with Blob metadata but physical hash verification failed (${verification.errorType}) - requires manual review` 
+                    reason: 'Drive source without sufficient Blob evidence - requires Drive materialization (not storage repair)' 
                   });
                   continue;
                 }
               } else {
-                // URL mismatch → skip to avoid false inference
+                // URL mismatch → requires materialization
                 skipped++;
                 skips.push({ 
                   mediaId, 
-                  reason: 'Drive source with Blob metadata but URL mismatch - requires manual review' 
+                  reason: 'Drive source without sufficient Blob evidence - requires Drive materialization (not storage repair)' 
                 });
                 continue;
               }
             } else {
-              // No Blob metadata → skip
+              // No Blob metadata → requires materialization
               skipped++;
               skips.push({ 
                 mediaId, 
-                reason: 'Drive source with contentHash but no Blob metadata - requires manual verification' 
+                reason: 'Drive source without Blob evidence - requires Drive materialization (not storage repair)' 
               });
               continue;
             }
           } else {
-            // Drive record without clear evidence → skip to avoid incorrect inference
+            // Drive record without clear evidence → requires materialization
             skipped++;
             skips.push({ 
               mediaId, 
-              reason: 'Drive source without sufficient evidence for storage classification' 
+              reason: 'Drive source without sufficient evidence - requires Drive materialization (not storage repair)' 
             });
             continue;
           }

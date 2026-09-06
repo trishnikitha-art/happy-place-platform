@@ -54,8 +54,15 @@ interface MediaWorkbenchState {
     stale: number;
     malformedPublished: number;
     missingStorage: number;
-    missingStorageIds: string[]; // P0 FIX: Track IDs for targeted repair
-    missingBlob: number;
+    missingStorageIds: string[]; // All records missing storage
+    repairableStatic: number;
+    repairableStaticIds: string[]; // Can be repaired to static with manifest evidence
+    repairableBlob: number;
+    repairableBlobIds: string[]; // Can be repaired to blob with full evidence
+    requiresMaterialization: number;
+    requiresMaterializationIds: string[]; // Drive records need materialization
+    ambiguous: number;
+    ambiguousIds: string[]; // Insufficient evidence, manual review
     unknown: number;
   } | null;
   legacyStaticEvidence: VisualAsset[]; // P0 FIX: Track static registry separately as legacy evidence
@@ -2430,45 +2437,110 @@ export default function MediaWorkbench() {
                       {state.mediaAudit.missingStorage > 0 && (
                         <div className="text-red-600">Missing Storage: {state.mediaAudit.missingStorage} ⚠️</div>
                       )}
-                      {state.mediaAudit.missingBlob > 0 && (
-                        <div className="text-red-600">Missing Blob: {state.mediaAudit.missingBlob} ⚠️</div>
-                      )}
                     </div>
                     {state.mediaAudit && state.mediaAudit.missingStorage > 0 && (
-                      <button
-                        onClick={async () => {
-                          if (!state.mediaAudit) return;
-                          const missingIds = state.mediaAudit.missingStorageIds || [];
-                          
-                          if (!confirm(`Repair ${state.mediaAudit.missingStorage} records missing storage field?\n\nThis will use evidence-based classification to determine correct storage type.\nLocal source → static storage\nDrive source → requires Blob evidence\n\nTargeted repair mode: only repair explicitly classified records`)) {
-                            return;
-                          }
-                          try {
-                            // P0 FIX: Submit explicit ID list for targeted repair
-                            const response = await fetch('/api/admin/diagnostic/repair-media-storage', {
-                              method: 'POST',
-                              headers: {
-                                'Content-Type': 'application/json',
-                              },
-                              body: JSON.stringify({
-                                mediaIds: missingIds,
-                              }),
-                            });
-                            const result = await response.json();
-                            if (response.ok) {
-                              alert(`Storage repair complete:\n\nRepaired: ${result.repaired}\nSkipped: ${result.skipped}\nFailed: ${result.failed}\n\nReloading audit...`);
-                              loadMediaAudit();
-                            } else {
-                              alert(`Storage repair failed: ${result.error}`);
-                            }
-                          } catch (error) {
-                            alert(`Storage repair error: ${error instanceof Error ? error.message : String(error)}`);
-                          }
-                        }}
-                        className="mt-2 w-full px-3 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors text-xs"
-                      >
-                        Repair Missing Storage Fields ({state.mediaAudit.missingStorage})
-                      </button>
+                      <div className="mt-2 space-y-2">
+                        {/* P0 FIX: Show actual safe action counts */}
+                        <div className="text-xs space-y-1">
+                          {state.mediaAudit.repairableStatic > 0 && (
+                            <div className="text-green-600">Repairable (static): {state.mediaAudit.repairableStatic}</div>
+                          )}
+                          {state.mediaAudit.repairableBlob > 0 && (
+                            <div className="text-green-600">Repairable (blob): {state.mediaAudit.repairableBlob}</div>
+                          )}
+                          {state.mediaAudit.requiresMaterialization > 0 && (
+                            <div className="text-amber-600">Requires Drive materialization: {state.mediaAudit.requiresMaterialization}</div>
+                          )}
+                          {state.mediaAudit.ambiguous > 0 && (
+                            <div className="text-orange-600">Ambiguous / manual review: {state.mediaAudit.ambiguous}</div>
+                          )}
+                        </div>
+                        
+                        {/* P0 FIX: Separate buttons for each repairable category */}
+                        {state.mediaAudit.repairableStatic > 0 && (
+                          <button
+                            onClick={async () => {
+                              if (!state.mediaAudit) return;
+                              const repairableIds = state.mediaAudit.repairableStaticIds || [];
+                              
+                              if (!confirm(`Repair ${state.mediaAudit.repairableStatic} records to static storage?\n\nThese records have manifest evidence proving they are static.\n\nTargeted repair: only explicitly classified records`)) {
+                                return;
+                              }
+                              try {
+                                const response = await fetch('/api/admin/diagnostic/repair-media-storage', {
+                                  method: 'POST',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                  },
+                                  body: JSON.stringify({
+                                    mediaIds: repairableIds,
+                                  }),
+                                });
+                                const result = await response.json();
+                                if (response.ok) {
+                                  alert(`Static repair complete:\n\nRepaired: ${result.repaired}\nSkipped: ${result.skipped}\nFailed: ${result.failed}\n\nReloading audit...`);
+                                  loadMediaAudit();
+                                } else {
+                                  alert(`Static repair failed: ${result.error}`);
+                                }
+                              } catch (error) {
+                                alert(`Static repair error: ${error instanceof Error ? error.message : String(error)}`);
+                              }
+                            }}
+                            className="w-full px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
+                          >
+                            Repair Static Records ({state.mediaAudit.repairableStatic})
+                          </button>
+                        )}
+                        
+                        {state.mediaAudit.repairableBlob > 0 && (
+                          <button
+                            onClick={async () => {
+                              if (!state.mediaAudit) return;
+                              const repairableIds = state.mediaAudit.repairableBlobIds || [];
+                              
+                              if (!confirm(`Repair ${state.mediaAudit.repairableBlob} records to blob storage?\n\nThese records have full Blob evidence chain:\n- contentHash\n- Blob metadata\n- URL match\n- Physical hash verification\n\nTargeted repair: only explicitly classified records`)) {
+                                return;
+                              }
+                              try {
+                                const response = await fetch('/api/admin/diagnostic/repair-media-storage', {
+                                  method: 'POST',
+                                  headers: {
+                                    'Content-Type': 'application/json',
+                                  },
+                                  body: JSON.stringify({
+                                    mediaIds: repairableIds,
+                                  }),
+                                });
+                                const result = await response.json();
+                                if (response.ok) {
+                                  alert(`Blob repair complete:\n\nRepaired: ${result.repaired}\nSkipped: ${result.skipped}\nFailed: ${result.failed}\n\nReloading audit...`);
+                                  loadMediaAudit();
+                                } else {
+                                  alert(`Blob repair failed: ${result.error}`);
+                                }
+                              } catch (error) {
+                                alert(`Blob repair error: ${error instanceof Error ? error.message : String(error)}`);
+                              }
+                            }}
+                            className="w-full px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                          >
+                            Repair Blob Records ({state.mediaAudit.repairableBlob})
+                          </button>
+                        )}
+                        
+                        {state.mediaAudit.requiresMaterialization > 0 && (
+                          <div className="text-xs text-amber-700 mt-2">
+                            ⚠️ {state.mediaAudit.requiresMaterialization} Drive records require materialization via Drive browser panel (not storage repair)
+                          </div>
+                        )}
+                        
+                        {state.mediaAudit.ambiguous > 0 && (
+                          <div className="text-xs text-orange-700 mt-2">
+                            ⚠️ {state.mediaAudit.ambiguous} records require manual review (insufficient evidence)
+                          </div>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}

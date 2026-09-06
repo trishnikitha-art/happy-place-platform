@@ -10,6 +10,8 @@
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { listMediaIds, getMediaRecordRaw, verifyPublicMediaAuthority } from '@/lib/media-kv-store';
+import { loadMediaManifest } from '@/lib/media';
+import { getBlobMetadataByContentHash, verifyBlobHash } from '@/lib/blob-storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -33,18 +35,28 @@ export async function POST(request: Request) {
     if (action === 'auditPublicGate') {
       console.log('[MEDIA_AUDIT] Starting public media gate audit');
       
+      // Load static manifest for evidence-based classification
+      const manifest = loadMediaManifest();
+      const staticMediaMap = new Map(manifest.media.map(m => [m.id, m]));
+      
       const mediaIds = await listMediaIds();
       const results = {
         totalRecords: mediaIds.length,
         validPublished: 0,
-        // P0 FIX: Classify records instead of merely rejecting them
         sourceReferences: 0,
         materializing: 0,
         stale: 0,
         malformedPublished: 0,
         missingStorage: 0,
-        missingStorageIds: [] as string[], // P0 FIX: Return complete ID list for targeted repair
-        missingBlob: 0,
+        missingStorageIds: [] as string[], // All records missing storage
+        repairableStatic: 0,
+        repairableStaticIds: [] as string[], // Can be repaired to static with manifest evidence
+        repairableBlob: 0,
+        repairableBlobIds: [] as string[], // Can be repaired to blob with full evidence
+        requiresMaterialization: 0,
+        requiresMaterializationIds: [] as string[], // Drive records need materialization
+        ambiguous: 0,
+        ambiguousIds: [] as string[], // Insufficient evidence, manual review
         unknown: 0,
         sampleRecords: [] as any[],
       };
@@ -74,10 +86,69 @@ export async function POST(request: Request) {
             // Published asset that fails public gate - classify specific failure
             if (!media.storage) {
               results.missingStorage++;
-              results.missingStorageIds.push(media.id); // P0 FIX: Track IDs for targeted repair
+              results.missingStorageIds.push(media.id);
+              
+              // P0 FIX: Classify missing storage into actionable categories
+              // First check source type to determine correct repair path
+              if (media.source === 'google-drive') {
+                // P0 FIX: Drive source without storage → requires materialization, NOT storage repair
+                // Do NOT infer blob from Drive provenance
+                results.requiresMaterialization++;
+                results.requiresMaterializationIds.push(mediaId);
+              } else if (media.source === 'local') {
+                // Local source - check for static manifest evidence
+                if (!media.contentHash) {
+                  // No contentHash → cannot be blob-backed
+                  if (staticMediaMap.has(mediaId)) {
+                    // Has static manifest evidence → repairable to static
+                    results.repairableStatic++;
+                    results.repairableStaticIds.push(mediaId);
+                  } else {
+                    // No static manifest evidence → ambiguous
+                    results.ambiguous++;
+                    results.ambiguousIds.push(mediaId);
+                  }
+                } else {
+                  // Has contentHash - check for Blob evidence
+                  try {
+                    const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
+                    if (blobMetadata) {
+                      const originalUrl = media.variants?.original || '';
+                      if (originalUrl === blobMetadata.url) {
+                        const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
+                        if (verification.success) {
+                          // Full Blob evidence chain → repairable to blob
+                          results.repairableBlob++;
+                          results.repairableBlobIds.push(mediaId);
+                        } else {
+                          // Hash verification failed → ambiguous
+                          results.ambiguous++;
+                          results.ambiguousIds.push(mediaId);
+                        }
+                      } else {
+                        // URL mismatch → ambiguous
+                        results.ambiguous++;
+                        results.ambiguousIds.push(mediaId);
+                      }
+                    } else {
+                      // No Blob metadata → ambiguous
+                      results.ambiguous++;
+                      results.ambiguousIds.push(mediaId);
+                    }
+                  } catch (error) {
+                    console.error('[MEDIA_AUDIT] Blob verification failed:', { mediaId, error });
+                    results.ambiguous++;
+                    results.ambiguousIds.push(mediaId);
+                  }
+                }
+              } else {
+                // Unknown source → ambiguous
+                results.ambiguous++;
+                results.ambiguousIds.push(mediaId);
+              }
             } else if (media.storage === 'blob' && !media.contentHash) {
               // Blob storage without content hash indicates incomplete materialization
-              results.missingBlob++;
+              results.malformedPublished++;
             } else {
               results.malformedPublished++;
             }
@@ -108,7 +179,10 @@ export async function POST(request: Request) {
         stale: results.stale,
         malformedPublished: results.malformedPublished,
         missingStorage: results.missingStorage,
-        missingBlob: results.missingBlob,
+        repairableStatic: results.repairableStatic,
+        repairableBlob: results.repairableBlob,
+        requiresMaterialization: results.requiresMaterialization,
+        ambiguous: results.ambiguous,
       });
       
       return NextResponse.json({
