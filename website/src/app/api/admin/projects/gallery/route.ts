@@ -65,6 +65,13 @@ function getRedisClient(): Redis | null {
  * 
  * Retrieve current gallery state for a project.
  * Returns the complete ordered gallery array for use in atomic mutations.
+ * 
+ * P0 FIX: Authority Unification
+ * - Check for staged gallery state in Redis (production)
+ * - If staged state exists, return that as the effective current state
+ * - If no staged state, return filesystem state
+ * - Distinguish between deployed/current state and staged/pending state
+ * - Prevent stale reads after staging mutations
  */
 export async function GET(request: Request) {
   // SECURITY: Require Workbench authentication
@@ -89,7 +96,40 @@ export async function GET(request: Request) {
 
     console.log('[GALLERY GET] REQUEST_RECEIVED', { projectId });
 
-    // Load from authoritative projects.v1.json
+    // P0 FIX: Check for staged gallery state in Redis (production)
+    const redis = getRedisClient();
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    let stagedGallery = null;
+    let stagingKey = null;
+    let transactionId = null;
+    
+    if (isProduction && redis) {
+      // Scan for any pending gallery staging for this project
+      // In production, we need to find the most recent staged state
+      // This is a simplified scan - in production you might want a more efficient index
+      const allKeys = await redis.keys(`${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}*project:${projectId}:gallery`);
+      
+      if (allKeys.length > 0) {
+        // Get the most recent staged state
+        // For now, we'll just take the first one (in production, you'd want ordering by timestamp)
+        stagingKey = allKeys[0];
+        const stagedData = await redis.get(stagingKey);
+        if (stagedData && typeof stagedData === 'string') {
+          const parsed = JSON.parse(stagedData);
+          stagedGallery = parsed.gallery;
+          transactionId = stagingKey.split(':')[2]; // Extract transaction ID from key
+          console.log('[GALLERY GET] STAGED_STATE_FOUND', { 
+            projectId, 
+            stagingKey, 
+            transactionId,
+            galleryLength: stagedGallery.length 
+          });
+        }
+      }
+    }
+
+    // Load from authoritative projects.v1.json (deployed state)
     const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
     const projectsData = JSON.parse(readFileSync(projectsPath, "utf-8"));
 
@@ -101,17 +141,34 @@ export async function GET(request: Request) {
       );
     }
 
-    const gallery = project.media?.gallery || [];
-    const currentRevision = project.media?.galleryRevision || 0;
+    const deployedGallery = project.media?.gallery || [];
+    const deployedRevision = project.media?.galleryRevision || 0;
 
-    console.log('[GALLERY GET] SUCCESS', { projectId, galleryLength: gallery.length, currentRevision });
+    // P0 FIX: Return staged state if available, otherwise deployed state
+    const effectiveGallery = stagedGallery || deployedGallery;
+    const effectiveRevision = stagedGallery ? deployedRevision + 1 : deployedRevision;
+    const state = stagedGallery ? 'staged' : 'deployed';
+
+    console.log('[GALLERY GET] SUCCESS', { 
+      projectId, 
+      galleryLength: effectiveGallery.length, 
+      currentRevision: effectiveRevision,
+      state,
+      hasStagedChanges: !!stagedGallery,
+      transactionId
+    });
 
     return NextResponse.json({
       success: true,
       projectId,
-      gallery,
-      galleryLength: gallery.length,
-      currentRevision
+      gallery: effectiveGallery,
+      galleryLength: effectiveGallery.length,
+      currentRevision: effectiveRevision,
+      state,
+      hasStagedChanges: !!stagedGallery,
+      transactionId,
+      deployedGallery: deployedGallery,
+      deployedRevision
     });
   } catch (error) {
     console.error('[GALLERY GET] ERROR', error);

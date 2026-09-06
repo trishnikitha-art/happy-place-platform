@@ -57,6 +57,20 @@ interface MediaWorkbenchState {
     missingBlob: number;
     unknown: number;
   } | null;
+  // P0 FIX: Gallery editor state
+  galleryEditor: {
+    enabled: boolean;
+    selectedProjectId: string | null;
+    gallery: string[];
+    currentRevision: number;
+    originalGallery: string[];
+    isDirty: boolean;
+    isSaving: boolean;
+    hasConflict: boolean;
+    conflictMessage: string | null;
+    state: 'deployed' | 'staged' | 'unsaved';
+    transactionId: string | null;
+  };
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -73,6 +87,9 @@ export default function MediaWorkbench() {
   const mediaPanelRef = useRef<HTMLDivElement>(null);
   const assetsRef = useRef<VisualAsset[]>([]);
   const registeredSlotsRef = useRef<RegisteredSlot[]>([]);
+  
+  // P0 FIX: Projects list for gallery editor
+  const [projectsList, setProjectsList] = useState<Array<{id: string, title: string}>>([]);
 
   const [state, setState] = useState<MediaWorkbenchState>({
     loading: true,
@@ -107,6 +124,19 @@ export default function MediaWorkbench() {
     selectedSlotForContext: null,
     authorizationConfig: null,
     mediaAudit: null,
+    galleryEditor: {
+      enabled: false,
+      selectedProjectId: null,
+      gallery: [],
+      currentRevision: 0,
+      originalGallery: [],
+      isDirty: false,
+      isSaving: false,
+      hasConflict: false,
+      conflictMessage: null,
+      state: 'deployed',
+      transactionId: null,
+    },
   });
 
   // Keep refs in sync with state
@@ -117,6 +147,22 @@ export default function MediaWorkbench() {
   useEffect(() => {
     registeredSlotsRef.current = state.registeredSlots;
   }, [state.registeredSlots]);
+
+  // P0 FIX: Load projects list for gallery editor
+  useEffect(() => {
+    const loadProjectsList = async () => {
+      try {
+        const response = await fetch('/api/admin/projects');
+        if (response.ok) {
+          const data = await response.json();
+          setProjectsList(data.projects || []);
+        }
+      } catch (error) {
+        console.error('[GALLERY EDITOR] LOAD_PROJECTS_ERROR', error);
+      }
+    };
+    loadProjectsList();
+  }, []);
 
   // P0 FIX: Load authorization configuration for diagnostic purposes
   const loadAuthorizationConfig = async () => {
@@ -163,6 +209,204 @@ export default function MediaWorkbench() {
       setState(prev => ({ ...prev, mediaAudit: data.audit }));
     } catch (error) {
       console.warn('[WORKBENCH] MEDIA_AUDIT_ERROR', error);
+    }
+  };
+
+  // P0 FIX: Gallery editor functions
+  const loadGalleryForProject = async (projectId: string) => {
+    try {
+      console.log('[GALLERY EDITOR] LOAD_GALLERY_START', { projectId });
+      
+      const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+      if (!response.ok) {
+        throw new Error('Failed to load gallery');
+      }
+      
+      const data = await response.json();
+      
+      console.log('[GALLERY EDITOR] LOAD_GALLERY_SUCCESS', {
+        projectId,
+        galleryLength: data.gallery.length,
+        currentRevision: data.currentRevision,
+        state: data.state,
+        hasStagedChanges: data.hasStagedChanges,
+      });
+      
+      setState(prev => ({
+        ...prev,
+        galleryEditor: {
+          ...prev.galleryEditor,
+          selectedProjectId: projectId,
+          gallery: data.gallery,
+          currentRevision: data.currentRevision,
+          originalGallery: data.gallery,
+          isDirty: false,
+          hasConflict: false,
+          conflictMessage: null,
+          state: data.state || 'deployed',
+          transactionId: data.transactionId || null,
+        },
+      }));
+    } catch (error) {
+      console.error('[GALLERY EDITOR] LOAD_GALLERY_ERROR', error);
+      alert(`Failed to load gallery: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const saveGallery = async () => {
+    const { galleryEditor } = state;
+    if (!galleryEditor.selectedProjectId) return;
+    
+    try {
+      console.log('[GALLERY EDITOR] SAVE_GALLERY_START', {
+        projectId: galleryEditor.selectedProjectId,
+        galleryLength: galleryEditor.gallery.length,
+        currentRevision: galleryEditor.currentRevision,
+      });
+      
+      setState(prev => ({
+        ...prev,
+        galleryEditor: { ...prev.galleryEditor, isSaving: true },
+      }));
+      
+      const response = await fetch('/api/admin/projects/gallery', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: galleryEditor.selectedProjectId,
+          gallery: galleryEditor.gallery,
+          expectedRevision: galleryEditor.currentRevision,
+        }),
+      });
+      
+      if (!response.ok) {
+        const error = await response.json();
+        if (response.status === 409) {
+          setState(prev => ({
+            ...prev,
+            galleryEditor: {
+              ...prev.galleryEditor,
+              hasConflict: true,
+              conflictMessage: `Concurrent modification detected. Current revision: ${error.currentRevision}, your revision: ${error.expectedRevision}. Please reload.`,
+              isSaving: false,
+            },
+          }));
+          throw new Error(error.message || 'Concurrent modification detected');
+        }
+        throw new Error(error.error || 'Failed to save gallery');
+      }
+      
+      const result = await response.json();
+      
+      console.log('[GALLERY EDITOR] SAVE_GALLERY_SUCCESS', {
+        projectId: galleryEditor.selectedProjectId,
+        galleryLength: result.gallery.length,
+        currentRevision: result.currentRevision,
+        staged: result.staged,
+      });
+      
+      setState(prev => ({
+        ...prev,
+        galleryEditor: {
+          ...prev.galleryEditor,
+          currentRevision: result.currentRevision,
+          originalGallery: result.gallery,
+          isDirty: false,
+          isSaving: false,
+          hasConflict: false,
+          conflictMessage: null,
+          state: result.staged ? 'staged' : 'deployed',
+          transactionId: result.transactionId || null,
+        },
+      }));
+      
+      // Reload canonical data to reflect changes
+      loadCanonicalData();
+      
+      alert(`Gallery saved successfully.\n\n${result.staged ? 'Staged for deployment. Transaction ID: ' + result.transactionId : 'Saved immediately (development mode).'}`);
+    } catch (error) {
+      console.error('[GALLERY EDITOR] SAVE_GALLERY_ERROR', error);
+      setState(prev => ({
+        ...prev,
+        galleryEditor: { ...prev.galleryEditor, isSaving: false },
+      }));
+      alert(`Failed to save gallery: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const cancelGalleryEdit = () => {
+    if (!state.galleryEditor.isDirty) {
+      setState(prev => ({
+        ...prev,
+        galleryEditor: {
+          ...prev.galleryEditor,
+          enabled: false,
+          selectedProjectId: null,
+          gallery: [],
+          isDirty: false,
+        },
+      }));
+      return;
+    }
+    
+    if (confirm('You have unsaved changes. Cancel and lose changes?')) {
+      setState(prev => ({
+        ...prev,
+        galleryEditor: {
+          ...prev.galleryEditor,
+          gallery: prev.galleryEditor.originalGallery,
+          isDirty: false,
+          hasConflict: false,
+          conflictMessage: null,
+        },
+      }));
+    }
+  };
+
+  const addToGallery = (mediaId: string) => {
+    if (!state.galleryEditor.selectedProjectId) return;
+    
+    setState(prev => ({
+      ...prev,
+      galleryEditor: {
+        ...prev.galleryEditor,
+        gallery: [...prev.galleryEditor.gallery, mediaId],
+        isDirty: true,
+      },
+    }));
+  };
+
+  const removeFromGallery = (index: number) => {
+    setState(prev => ({
+      ...prev,
+      galleryEditor: {
+        ...prev.galleryEditor,
+        gallery: prev.galleryEditor.gallery.filter((_, i) => i !== index),
+        isDirty: true,
+      },
+    }));
+  };
+
+  const moveInGallery = (fromIndex: number, toIndex: number) => {
+    setState(prev => {
+      const newGallery = [...prev.galleryEditor.gallery];
+      const [movedItem] = newGallery.splice(fromIndex, 1);
+      newGallery.splice(toIndex, 0, movedItem);
+      
+      return {
+        ...prev,
+        galleryEditor: {
+          ...prev.galleryEditor,
+          gallery: newGallery,
+          isDirty: true,
+        },
+      };
+    });
+  };
+
+  const reloadGallery = () => {
+    if (state.galleryEditor.selectedProjectId) {
+      loadGalleryForProject(state.galleryEditor.selectedProjectId);
     }
   };
 
@@ -1193,6 +1437,15 @@ export default function MediaWorkbench() {
         const galleryData = await getResponse.json();
         const currentGallery = galleryData.gallery || [];
         const currentRevision = galleryData.currentRevision || 0;
+        const galleryState = galleryData.state || 'deployed';
+        const hasStagedChanges = galleryData.hasStagedChanges || false;
+
+        // P0 FIX: Warn if editing staged state
+        if (hasStagedChanges) {
+          if (!confirm(`This gallery has staged changes not yet deployed.\n\nState: ${galleryState}\nTransaction ID: ${galleryData.transactionId}\n\nEditing now will create a new staged version.\nContinue?`)) {
+            return;
+          }
+        }
 
         // Remove media by mediaId (stable identity, not index)
         const newGallery = currentGallery.filter((id: string) => id !== mediaId);
@@ -1205,6 +1458,9 @@ export default function MediaWorkbench() {
 
         if (!response.ok) {
           const error = await response.json();
+          if (response.status === 409) {
+            throw new Error(`Concurrent modification detected. The gallery was changed by another operation.\n\nCurrent revision: ${error.currentRevision}\nYour revision: ${error.expectedRevision}\n\nPlease reload the gallery and try again.`);
+          }
           throw new Error(error.error || 'Failed to delete gallery assignment');
         }
 
@@ -1253,6 +1509,15 @@ export default function MediaWorkbench() {
         const galleryData = await getResponse.json();
         const currentGallery = galleryData.gallery || [];
         const currentRevision = galleryData.currentRevision || 0;
+        const galleryState = galleryData.state || 'deployed';
+        const hasStagedChanges = galleryData.hasStagedChanges || false;
+
+        // P0 FIX: Warn if editing staged state
+        if (hasStagedChanges) {
+          if (!confirm(`This gallery has staged changes not yet deployed.\n\nState: ${galleryState}\nTransaction ID: ${galleryData.transactionId}\n\nEditing now will create a new staged version.\nContinue?`)) {
+            return;
+          }
+        }
 
         // Append mediaId to gallery
         const newGallery = [...currentGallery, asset.id];
@@ -1265,6 +1530,9 @@ export default function MediaWorkbench() {
 
         if (!response.ok) {
           const error = await response.json();
+          if (response.status === 409) {
+            throw new Error(`Concurrent modification detected. The gallery was changed by another operation.\n\nCurrent revision: ${error.currentRevision}\nYour revision: ${error.expectedRevision}\n\nPlease reload the gallery and try again.`);
+          }
           throw new Error(error.error || 'Failed to add to gallery');
         }
 
@@ -2113,6 +2381,178 @@ export default function MediaWorkbench() {
               ))}
             </div>
 
+            {/* P0 FIX: Gallery Editor Toggle */}
+            <div className="mb-4">
+              <button
+                onClick={() => {
+                  if (state.galleryEditor.enabled) {
+                    cancelGalleryEdit();
+                  } else {
+                    setState(prev => ({
+                      ...prev,
+                      galleryEditor: {
+                        ...prev.galleryEditor,
+                        enabled: true,
+                      },
+                    }));
+                  }
+                }}
+                className={`w-full px-3 py-2 rounded text-sm font-medium transition-colors ${
+                  state.galleryEditor.enabled
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-surface hover:bg-surface/80'
+                }`}
+              >
+                {state.galleryEditor.enabled ? 'Close Gallery Editor' : 'Open Gallery Editor'}
+              </button>
+            </div>
+
+            {/* P0 FIX: Gallery Editor */}
+            {state.galleryEditor.enabled && (
+              <div className="mb-4 p-4 bg-surface rounded-lg border border-border">
+                {/* Project Selector */}
+                <div className="mb-3">
+                  <label className="block text-xs font-medium mb-1">Select Project</label>
+                  <select
+                    value={state.galleryEditor.selectedProjectId || ''}
+                    onChange={(e) => {
+                      const projectId = e.target.value;
+                      if (projectId) {
+                        loadGalleryForProject(projectId);
+                      }
+                    }}
+                    className="w-full px-2 py-1.5 bg-background border border-border rounded text-sm"
+                  >
+                    <option value="">Choose a project...</option>
+                    {projectsList.map(project => (
+                      <option key={project.id} value={project.id}>
+                        {project.title}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Gallery State Indicator */}
+                {state.galleryEditor.selectedProjectId && (
+                  <div className={`mb-3 p-2 rounded text-xs ${
+                    state.galleryEditor.state === 'staged' ? 'bg-amber-50 text-amber-900' :
+                    state.galleryEditor.state === 'unsaved' ? 'bg-blue-50 text-blue-900' :
+                    'bg-green-50 text-green-900'
+                  }`}>
+                    <div className="font-semibold mb-1">
+                      {state.galleryEditor.state === 'staged' ? 'Staged for deployment' :
+                       state.galleryEditor.state === 'unsaved' ? 'Unsaved changes' :
+                       'Published'}
+                    </div>
+                    {state.galleryEditor.transactionId && (
+                      <div className="text-xs opacity-75">Transaction: {state.galleryEditor.transactionId}</div>
+                    )}
+                    <div className="text-xs opacity-75">Revision: {state.galleryEditor.currentRevision}</div>
+                  </div>
+                )}
+
+                {/* Conflict Warning */}
+                {state.galleryEditor.hasConflict && (
+                  <div className="mb-3 p-3 bg-red-50 text-red-900 rounded text-xs">
+                    <div className="font-semibold mb-1">⚠️ Conflict Detected</div>
+                    <div>{state.galleryEditor.conflictMessage}</div>
+                    <button
+                      onClick={reloadGallery}
+                      className="mt-2 px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
+                    >
+                      Reload Gallery
+                    </button>
+                  </div>
+                )}
+
+                {/* Gallery Grid */}
+                {state.galleryEditor.selectedProjectId && (
+                  <div className="mb-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="text-xs font-medium">
+                        Gallery ({state.galleryEditor.gallery.length} photos)
+                      </div>
+                      {state.galleryEditor.isDirty && (
+                        <div className="text-xs text-blue-600 font-medium">
+                          {state.galleryEditor.gallery.length - state.galleryEditor.originalGallery.length > 0 ? '+' : ''}
+                          {state.galleryEditor.gallery.length - state.galleryEditor.originalGallery.length} changes
+                        </div>
+                      )}
+                    </div>
+                    
+                    {state.galleryEditor.gallery.length === 0 ? (
+                      <div className="text-xs text-muted-foreground italic py-4 text-center">
+                        No photos in gallery. Add photos from the media panel below.
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
+                        {state.galleryEditor.gallery.map((mediaId, index) => {
+                          const media = state.assets.find(a => a.id === mediaId);
+                          const thumbnailUrl = media?.variants?.thumbnail || media?.variants?.web || media?.variants?.webp || media?.variants?.original;
+                          return (
+                            <div
+                              key={mediaId}
+                              draggable
+                              onDragStart={(e) => {
+                                e.dataTransfer.setData('text/plain', index.toString());
+                              }}
+                              onDragOver={(e) => {
+                                e.preventDefault();
+                              }}
+                              onDrop={(e) => {
+                                e.preventDefault();
+                                const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                                moveInGallery(fromIndex, index);
+                              }}
+                              className="relative group p-1 bg-background border border-border rounded hover:border-primary cursor-move"
+                            >
+                              {thumbnailUrl && (
+                                <img
+                                  src={thumbnailUrl}
+                                  alt={media?.filename || mediaId}
+                                  className="w-full h-16 object-cover rounded"
+                                />
+                              )}
+                              <div className="absolute top-0 left-0 bg-black/50 text-white text-xs px-1 rounded-tl">
+                                {index + 1}
+                              </div>
+                              <button
+                                onClick={() => removeFromGallery(index)}
+                                className="absolute top-1 right-1 p-0.5 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 text-xs"
+                              >
+                                ×
+                              </button>
+                              <div className="text-xs truncate mt-1">{media?.filename || mediaId}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Action Buttons */}
+                {state.galleryEditor.selectedProjectId && (
+                  <div className="flex gap-2">
+                    <button
+                      onClick={cancelGalleryEdit}
+                      disabled={!state.galleryEditor.isDirty || state.galleryEditor.isSaving}
+                      className="flex-1 px-3 py-2 bg-surface hover:bg-surface/80 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={saveGallery}
+                      disabled={!state.galleryEditor.isDirty || state.galleryEditor.isSaving || state.galleryEditor.hasConflict}
+                      className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {state.galleryEditor.isSaving ? 'Saving...' : 'Save Gallery'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Drive Browser */}
             {state.driveBrowsing && (
               <div className="mb-4 p-4 bg-surface rounded-lg">
@@ -2472,6 +2912,41 @@ export default function MediaWorkbench() {
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
                       <p className="text-xs text-white truncate">{asset.filename}</p>
                     </div>
+
+                    {/* P0 FIX: Add to Gallery button (when gallery editor is open) */}
+                    {state.galleryEditor.enabled && state.galleryEditor.selectedProjectId && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isDriveOnly) {
+                            alert('Drive source must be materialized before adding to gallery. Select this asset and use the materialize option.');
+                            return;
+                          }
+                          addToGallery(asset.id);
+                        }}
+                        className="absolute top-1 left-1 px-2 py-1 bg-primary text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        + Add
+                      </button>
+                    )}
+
+                    {/* P0 FIX: Materialize button for Drive-only assets */}
+                    {isDriveOnly && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!confirm(`Materialize "${asset.filename}" from Drive?\n\nThis will download the file and create a PublishedMediaAsset.`)) {
+                            return;
+                          }
+                          // Trigger materialization
+                          handleAssetClick(asset);
+                          // The existing materialization flow will handle it
+                        }}
+                        className="absolute bottom-8 left-1 px-2 py-1 bg-blue-600 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        Materialize
+                      </button>
+                    )}
                   </div>
                 );
               })}
