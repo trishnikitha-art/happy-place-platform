@@ -349,7 +349,7 @@ export function VisualSlot({
       timestamp: Date.now(),
     });
 
-    // PROTOCOL SEPARATION: Gallery slots ONLY accept GALLERY_REORDER
+    // PROTOCOL SEPARATION: Gallery slots accept GALLERY_REORDER and GALLERY_ADD
     if (isGallerySlot) {
       const galleryReorderData = e.dataTransfer.getData('text/plain');
       
@@ -359,15 +359,49 @@ export function VisualSlot({
         dataPreview: galleryReorderData?.substring(0, 200),
       });
 
+      // GALLERY_ADD: Accept regular asset drops for gallery addition
       if (!galleryReorderData) {
-        console.error('[VS_DND] GALLERY_PROTOCOL_REJECTED', {
+        console.log('[VS_DND] GALLERY_ADD_ACCEPTED', {
           slotId: id,
-          reason: 'NO_GALLERY_REORDER_DATA',
-          message: 'Gallery slots only accept GALLERY_REORDER protocol',
+          projectId,
+          reason: 'NO_GALLERY_REORDER_DATA - treating as GALLERY_ADD',
         });
+
+        const assetId = e.dataTransfer.getData('text/plain');
+
+        console.log('[VS_DND] GALLERY_ADD_DATA', {
+          slotId: id,
+          projectId,
+          assetId,
+          windowIsIframe: window.parent !== window,
+        });
+
+        // Send GALLERY_ADD event to parent
+        if (window.parent !== window) {
+          const targetOrigin = window.parent.location.origin;
+          window.parent.postMessage({
+            type: 'GALLERY_ADD',
+            slotId: id,
+            projectId,
+            assetId,
+          }, targetOrigin);
+
+          console.log('[VS_DND] GALLERY_ADD_POSTED', {
+            messageType: 'GALLERY_ADD',
+            targetOrigin,
+            timestamp: Date.now(),
+          });
+        } else {
+          console.error('[VS_DND] GALLERY_ADD_FAILED', {
+            reason: 'NOT_IN_IFRAME',
+            hasParent: !!window.parent,
+            parentEqualsWindow: window.parent === window,
+          });
+        }
         return;
       }
 
+      // GALLERY_REORDER: Accept gallery-to-gallery reordering
       try {
         const parsed = JSON.parse(galleryReorderData);
         

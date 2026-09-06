@@ -1215,7 +1215,7 @@ export default function MediaWorkbench() {
 
       // Validate source is the expected iframe for mutation messages
       const messageType = event.data?.type;
-      const mutationMessageTypes = ['SLOT_REGISTER', 'SLOT_CLICK', 'SLOT_DROP', 'SLOT_REORDER'];
+      const mutationMessageTypes = ['SLOT_REGISTER', 'SLOT_CLICK', 'SLOT_DROP', 'SLOT_REORDER', 'GALLERY_ADD'];
       
       if (mutationMessageTypes.includes(messageType)) {
         if (event.source !== iframeRef.current?.contentWindow) {
@@ -1242,7 +1242,7 @@ export default function MediaWorkbench() {
       });
 
       // Filter to only process application's known message types
-      const knownMessageTypes = ['SLOT_REGISTER', 'SLOT_DROP', 'SLOT_CLICK', 'SLOT_REORDER', 'REFRESH_SLOTS'];
+      const knownMessageTypes = ['SLOT_REGISTER', 'SLOT_DROP', 'SLOT_CLICK', 'SLOT_REORDER', 'GALLERY_ADD', 'REFRESH_SLOTS'];
       if (!knownMessageTypes.includes(messageType)) {
         console.log('[WB_FORENSIC] MESSAGE_REJECTED', {
           reason: 'UNKNOWN_MESSAGE_TYPE',
@@ -1793,6 +1793,153 @@ export default function MediaWorkbench() {
             stack: error instanceof Error ? error.stack : undefined,
           });
           alert(`Failed to reorder gallery: ${error instanceof Error ? error.message : String(error)}`);
+        }
+      } else if (messageType === 'GALLERY_ADD') {
+        const requestId = `gallery-add-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+        console.log('[WB_DND] GALLERY_ADD_RECEIVED', {
+          requestId,
+          messageType,
+          origin: event.origin,
+          slotId: event.data.slotId,
+          projectId: event.data.projectId,
+          assetId: event.data.assetId,
+          timestamp: Date.now(),
+        });
+
+        const { slotId, projectId, assetId } = event.data;
+
+        if (!projectId || !assetId) {
+          console.error('[WB_DND] GALLERY_ADD_MISSING_FIELDS', {
+            requestId,
+            projectId,
+            assetId,
+            hasProjectId: !!projectId,
+            hasAssetId: !!assetId,
+          });
+          return;
+        }
+
+        // Fetch current gallery state
+        try {
+          const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+          
+          console.log('[WB_DND] GALLERY_ADD_FETCH_RESPONSE', {
+            requestId,
+            projectId,
+            status: response.status,
+            ok: response.ok,
+          });
+
+          if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[WB_DND] GALLERY_ADD_FETCH_FAILED', {
+              requestId,
+              projectId,
+              status: response.status,
+              errorText,
+            });
+            throw new Error('Failed to load gallery');
+          }
+
+          const data = await response.json();
+          const currentGallery = data.gallery || [];
+          const currentRevision = data.currentRevision;
+
+          console.log('[WB_DND] CURRENT_GALLERY_LOADED_FOR_ADD', {
+            requestId,
+            projectId,
+            galleryLength: currentGallery.length,
+            currentRevision,
+            state: data.state,
+            hasStagedChanges: data.hasStagedChanges,
+          });
+
+          // Check if asset already in gallery
+          if (currentGallery.includes(assetId)) {
+            console.log('[WB_DND] GALLERY_ADD_DUPLICATE', {
+              requestId,
+              projectId,
+              assetId,
+              message: 'Asset already in gallery',
+            });
+            alert('This asset is already in the gallery.');
+            return;
+          }
+
+          // Add asset to end of gallery
+          const newGallery = [...currentGallery, assetId];
+
+          console.log('[WB_DND] NEW_GALLERY_COMPUTED_FOR_ADD', {
+            requestId,
+            projectId,
+            addedAssetId: assetId,
+            oldLength: currentGallery.length,
+            newLength: newGallery.length,
+            newGallery,
+          });
+
+          // Save with CAS
+          const saveResponse = await fetch('/api/admin/projects/gallery', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectId,
+              gallery: newGallery,
+              expectedRevision: currentRevision,
+            }),
+          });
+
+          console.log('[WB_DND] GALLERY_ADD_SAVE_RESPONSE', {
+            requestId,
+            projectId,
+            status: saveResponse.status,
+            ok: saveResponse.ok,
+          });
+
+          if (!saveResponse.ok) {
+            const error = await saveResponse.json();
+            console.error('[WB_DND] GALLERY_ADD_SAVE_FAILED', {
+              requestId,
+              projectId,
+              status: saveResponse.status,
+              error,
+            });
+            
+            if (saveResponse.status === 409) {
+              console.error('[WB_DND] CAS_CONFLICT', { requestId, error });
+              alert('Concurrent modification detected. Please reload and try again.');
+            } else {
+              throw new Error(error.error || 'Failed to add to gallery');
+            }
+            return;
+          }
+
+          const result = await saveResponse.json();
+          console.log('[WB_DND] GALLERY_ADD_SUCCESS', {
+            requestId,
+            projectId,
+            newRevision: result.currentRevision,
+            staged: result.staged,
+            result,
+          });
+
+          // Reload canonical data and refresh preview
+          loadCanonicalData();
+          if (iframeRef.current?.contentWindow) {
+            iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
+            console.log('[WB_DND] IFRAME_REFRESH_POSTED', { requestId });
+          }
+
+          alert(`Asset added to gallery successfully.\n\n${result.staged ? 'Staged for deployment.' : 'Saved immediately (development mode).'}`);
+        } catch (error) {
+          console.error('[WB_DND] GALLERY_ADD_ERROR', { 
+            requestId,
+            projectId,
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+          });
+          alert(`Failed to add to gallery: ${error instanceof Error ? error.message : String(error)}`);
         }
       } else if (messageType === 'REFRESH_SLOTS') {
         console.log('[WB_FORENSIC] REFRESH_SLOTS_RECEIVED');
