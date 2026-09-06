@@ -11,11 +11,8 @@ import { getServiceBySlug } from "@/lib/registries";
 import { ProjectLightbox } from "@/components/project-lightbox";
 import { BlueprintGrid } from "@/components/blueprint-grid";
 import { VisualSlot } from "@/components/visual-slot";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import type { Project } from "@/types/projects";
-
-// Only enable workbench features in development or when explicitly enabled
-const ENABLE_WORKBENCH = process.env.NODE_ENV === 'development' || typeof window !== 'undefined' && window.location.search.includes('workbench=true');
 
 interface OurWorkClientProps {
   company: {
@@ -32,64 +29,12 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxImages, setLightboxImages] = useState<Array<{src: string; alt: string; blurDataURL?: string}>>([]);
-  const [contextMenu, setContextMenu] = useState<{ x: number; y: number; slotId: string } | null>(null);
 
   const openLightbox = (images: Array<{src: string; alt: string; blurDataURL?: string}>, index: number) => {
     setLightboxImages(images);
     setLightboxIndex(index);
     setLightboxOpen(true);
   };
-
-  const handleContextMenu = (e: React.MouseEvent, slotId: string) => {
-    if (!ENABLE_WORKBENCH) return;
-    e.preventDefault();
-    setContextMenu({ x: e.clientX, y: e.clientY, slotId });
-  };
-
-  const handleDeleteGallery = () => {
-    if (contextMenu && ENABLE_WORKBENCH) {
-      // Send delete request to workbench
-      window.postMessage({
-        type: 'delete-gallery',
-        slotId: contextMenu.slotId,
-      }, '*');
-      setContextMenu(null);
-    }
-  };
-
-  const handleAddToGallery = () => {
-    if (contextMenu && ENABLE_WORKBENCH) {
-      // Send add-to-gallery request to workbench with project ID
-      const slotId = contextMenu.slotId;
-      // Extract project ID from slot ID (format: our-work-gallery::{projectId}::{mediaId})
-      const idPart = slotId.replace('our-work-gallery::', '');
-      const lastDoubleColonIndex = idPart.lastIndexOf('::');
-      const projectId = idPart.substring(0, lastDoubleColonIndex);
-
-      window.postMessage({
-        type: 'add-to-gallery',
-        slotId,
-        projectId,
-      }, '*');
-      setContextMenu(null);
-    }
-  };
-
-  const closeContextMenu = () => {
-    setContextMenu(null);
-  };
-
-  // Close context menu on click outside
-  useEffect(() => {
-    const handleClickOutside = () => {
-      if (contextMenu) {
-        closeContextMenu();
-      }
-    };
-
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }, [contextMenu]);
 
   return (
     <>
@@ -257,7 +202,6 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                       const globalIndex = allGalleryImages.findIndex(img => img.src === src);
                       openLightbox(allGalleryImages, globalIndex);
                     }}
-                    onContextMenu={(e) => handleContextMenu(e, `our-work-gallery::${project.id}::${mediaId}`)}
                     aria-label={`View ${photo!.alt} in full screen`}
                   >
                     <CraftCard className="overflow-hidden">
@@ -269,6 +213,8 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                         slotName={`${project.title} Gallery Photo ${photoIndex + 1}`}
                         currentMediaId={mediaId || null}
                         component="GalleryPhoto"
+                        isGallerySlot={true}
+                        projectId={project.id}
                       >
                         <img
                           src={src}
@@ -302,28 +248,6 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
         title="Ready to love coming home again?"
         subtitle="Let's start building your happy place."
       />
-
-      {/* Context Menu for Gallery Delete/Add */}
-      {contextMenu && ENABLE_WORKBENCH && (
-        <div
-          className="fixed z-50 bg-surface border border-border rounded-lg shadow-lg py-1 min-w-40"
-          style={{ left: contextMenu.x, top: contextMenu.y }}
-          onClick={closeContextMenu}
-        >
-          <button
-            onClick={handleAddToGallery}
-            className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-accent transition-colors"
-          >
-            Add Photo to Gallery
-          </button>
-          <button
-            onClick={handleDeleteGallery}
-            className="w-full px-4 py-2 text-left text-sm text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors"
-          >
-            Delete from Gallery
-          </button>
-        </div>
-      )}
     </>
   );
 }

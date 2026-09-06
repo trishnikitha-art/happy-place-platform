@@ -1220,7 +1220,7 @@ export default function MediaWorkbench() {
       const messageType = event.data.type;
 
       // Filter to only process application's known message types
-      const knownMessageTypes = ['SLOT_REGISTER', 'SLOT_DROP', 'SLOT_CLICK', 'REFRESH_SLOTS'];
+      const knownMessageTypes = ['SLOT_REGISTER', 'SLOT_DROP', 'SLOT_CLICK', 'SLOT_REORDER', 'REFRESH_SLOTS'];
       if (!knownMessageTypes.includes(messageType)) {
         console.log('[WB_FORENSIC] MESSAGE_REJECTED', {
           reason: 'UNKNOWN_MESSAGE_TYPE',
@@ -1528,6 +1528,125 @@ export default function MediaWorkbench() {
           handleDriveDropToSlot(slot, asset, slot.currentMediaId, requestId);
         } else {
           console.error('[DND] NO_ASSET_ID', { requestId });
+        }
+      } else if (messageType === 'SLOT_REORDER') {
+        const requestId = `reorder-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+        console.log('[WB_FORENSIC] SLOT_REORDER_RECEIVED', {
+          requestId,
+          messageType,
+          origin: event.origin,
+          sourceSlotId: event.data.sourceSlotId,
+          sourceMediaId: event.data.sourceMediaId,
+          targetSlotId: event.data.targetSlotId,
+          targetMediaId: event.data.targetMediaId,
+          projectId: event.data.projectId,
+          timestamp: Date.now(),
+        });
+
+        const { sourceSlotId, sourceMediaId, targetSlotId, targetMediaId, projectId } = event.data;
+
+        if (!projectId || !sourceMediaId || !targetMediaId) {
+          console.error('[REORDER] MISSING_REQUIRED_FIELDS', { projectId, sourceMediaId, targetMediaId });
+          return;
+        }
+
+        // Parse project and media IDs from slot IDs
+        // Format: our-work-gallery::{projectId}::{mediaId}
+        const sourceIdMatch = sourceSlotId.match(/our-work-gallery::(.+)::(.+)/);
+        const targetIdMatch = targetSlotId.match(/our-work-gallery::(.+)::(.+)/);
+
+        if (!sourceIdMatch || !targetIdMatch) {
+          console.error('[REORDER] INVALID_SLOT_ID_FORMAT', { sourceSlotId, targetSlotId });
+          return;
+        }
+
+        const [, sourceProjectId, sourceMediaIdExtracted] = sourceIdMatch;
+        const [, targetProjectId, targetMediaIdExtracted] = targetIdMatch;
+
+        if (sourceProjectId !== targetProjectId || sourceProjectId !== projectId) {
+          console.error('[REORDER] PROJECT_MISMATCH', { sourceProjectId, targetProjectId, projectId });
+          return;
+        }
+
+        // Fetch current gallery state
+        try {
+          const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+          if (!response.ok) {
+            throw new Error('Failed to load gallery');
+          }
+
+          const data = await response.json();
+          const currentGallery = data.gallery || [];
+          const currentRevision = data.currentRevision;
+
+          console.log('[REORDER] CURRENT_GALLERY_LOADED', {
+            projectId,
+            galleryLength: currentGallery.length,
+            currentRevision,
+          });
+
+          // Find indices of source and target media
+          const sourceIndex = currentGallery.indexOf(sourceMediaId);
+          const targetIndex = currentGallery.indexOf(targetMediaId);
+
+          if (sourceIndex === -1 || targetIndex === -1) {
+            console.error('[REORDER] MEDIA_NOT_IN_GALLERY', { sourceIndex, targetIndex, sourceMediaId, targetMediaId });
+            return;
+          }
+
+          // Reorder array
+          const newGallery = [...currentGallery];
+          const [movedItem] = newGallery.splice(sourceIndex, 1);
+          newGallery.splice(targetIndex, 0, movedItem);
+
+          console.log('[REORDER] NEW_GALLERY_COMPUTED', {
+            sourceIndex,
+            targetIndex,
+            movedItem,
+            oldGallery: currentGallery,
+            newGallery,
+          });
+
+          // Save with CAS
+          const saveResponse = await fetch('/api/admin/projects/gallery', {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              projectId,
+              gallery: newGallery,
+              expectedRevision: currentRevision,
+            }),
+          });
+
+          if (!saveResponse.ok) {
+            const error = await saveResponse.json();
+            if (saveResponse.status === 409) {
+              console.error('[REORDER] CAS_CONFLICT', error);
+              alert('Concurrent modification detected. Please reload and try again.');
+            } else {
+              throw new Error(error.error || 'Failed to save gallery');
+            }
+            return;
+          }
+
+          const result = await saveResponse.json();
+          console.log('[REORDER] SAVE_SUCCESS', {
+            projectId,
+            newRevision: result.currentRevision,
+            staged: result.staged,
+          });
+
+          // Reload canonical data and refresh preview
+          loadCanonicalData();
+          if (iframeRef.current?.contentWindow) {
+            iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
+          }
+
+          alert(`Gallery reordered successfully.\n\n${result.staged ? 'Staged for deployment.' : 'Saved immediately (development mode).'}`);
+        } catch (error) {
+          console.error('[REORDER] ERROR', error);
+          alert(`Failed to reorder gallery: ${error instanceof Error ? error.message : String(error)}`);
         }
       } else if (messageType === 'REFRESH_SLOTS') {
         console.log('[WB_FORENSIC] REFRESH_SLOTS_RECEIVED');

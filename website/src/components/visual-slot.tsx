@@ -37,6 +37,9 @@ interface VisualSlotProps {
   component: string;
   children: React.ReactNode;
   className?: string;
+  // Gallery drag support
+  isGallerySlot?: boolean;
+  projectId?: string;
 }
 
 export function VisualSlot({
@@ -49,6 +52,8 @@ export function VisualSlot({
   component,
   children,
   className = '',
+  isGallerySlot = false,
+  projectId,
 }: VisualSlotProps) {
   const elementRef = useRef<HTMLDivElement>(null);
   const [isWorkbenchMode, setIsWorkbenchMode] = useState(false);
@@ -275,6 +280,28 @@ export function VisualSlot({
     }
   };
 
+  const handleDragStart = (e: React.DragEvent) => {
+    if (!isGallerySlot || !currentMediaId || !projectId) return;
+
+    console.log('[VS_FORENSIC] GALLERY_DRAG_START', {
+      slotId: id,
+      currentMediaId,
+      projectId,
+      windowIsIframe: window.parent !== window,
+      timestamp: Date.now(),
+    });
+
+    // Set drag data for cross-frame communication
+    e.dataTransfer.setData('text/plain', JSON.stringify({
+      type: 'GALLERY_REORDER',
+      sourceSlotId: id,
+      sourceMediaId: currentMediaId,
+      projectId,
+    }));
+
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     console.log('[VS_FORENSIC] DROP_RECEIVED', {
@@ -284,7 +311,40 @@ export function VisualSlot({
       timestamp: Date.now(),
     });
 
-    // Extract asset ID from DataTransfer (same key used in parent handleDragStart)
+    // Check for gallery reorder data first
+    const galleryReorderData = e.dataTransfer.getData('text/plain');
+    if (galleryReorderData && isGallerySlot && projectId) {
+      try {
+        const parsed = JSON.parse(galleryReorderData);
+        if (parsed.type === 'GALLERY_REORDER') {
+          console.log('[VS_FORENSIC] GALLERY_REORDER_DETECTED', {
+            sourceSlotId: parsed.sourceSlotId,
+            sourceMediaId: parsed.sourceMediaId,
+            targetSlotId: id,
+            targetMediaId: currentMediaId,
+            projectId: parsed.projectId,
+          });
+
+          // Send reorder event to parent
+          if (window.parent !== window) {
+            const targetOrigin = window.parent.location.origin;
+            window.parent.postMessage({
+              type: 'SLOT_REORDER',
+              sourceSlotId: parsed.sourceSlotId,
+              sourceMediaId: parsed.sourceMediaId,
+              targetSlotId: id,
+              targetMediaId: currentMediaId,
+              projectId: parsed.projectId,
+            }, targetOrigin);
+          }
+          return;
+        }
+      } catch (err) {
+        console.log('[VS_FORENSIC] GALLERY_REORDER_PARSE_FAILED', { error: err });
+      }
+    }
+
+    // Regular asset drop (from right panel)
     const assetId = e.dataTransfer.getData('text/plain');
     
     // Also try application/x-workbench-asset for structured data
@@ -364,6 +424,8 @@ export function VisualSlot({
       onClick={isWorkbenchMode ? handleClick : undefined}
       onDragOver={isWorkbenchMode ? handleDragOver : undefined}
       onDrop={isWorkbenchMode ? handleDrop : undefined}
+      draggable={isWorkbenchMode && isGallerySlot}
+      onDragStart={isWorkbenchMode && isGallerySlot ? handleDragStart : undefined}
     >
       {children}
     </div>
