@@ -2256,6 +2256,217 @@ export default function MediaWorkbench() {
                   <LayoutGrid size={14} />
                   Visual Slots for {PAGE_LABELS[state.selectedPage]}
                 </h3>
+                
+                {/* P0 FIX: Gallery Editor Integration in Left Panel */}
+                {state.selectedPage === '/our-work' && (
+                  <div className="mb-4 p-3 bg-surface border border-border rounded pointer-events-auto">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-semibold">Gallery Editor</span>
+                      <button
+                        onClick={() => {
+                          if (state.galleryEditor.enabled) {
+                            cancelGalleryEdit();
+                          } else {
+                            setState(prev => ({
+                              ...prev,
+                              galleryEditor: {
+                                ...prev.galleryEditor,
+                                enabled: true,
+                              },
+                            }));
+                          }
+                        }}
+                        className={`px-2 py-1 rounded text-xs ${
+                          state.galleryEditor.enabled
+                            ? 'bg-primary text-primary-foreground'
+                            : 'bg-surface hover:bg-surface/80'
+                        }`}
+                      >
+                        {state.galleryEditor.enabled ? 'Close' : 'Open'}
+                      </button>
+                    </div>
+                    
+                    {state.galleryEditor.enabled && (
+                      <>
+                        {/* Project Selector */}
+                        <div className="mb-2">
+                          <select
+                            value={state.galleryEditor.selectedProjectId || ''}
+                            onChange={(e) => {
+                              const projectId = e.target.value;
+                              if (projectId) {
+                                loadGalleryForProject(projectId);
+                              }
+                            }}
+                            className="w-full px-2 py-1 bg-background border border-border rounded text-xs"
+                          >
+                            <option value="">Select project...</option>
+                            {projectsList.map(project => (
+                              <option key={project.id} value={project.id}>
+                                {project.title}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+
+                        {/* Gallery State */}
+                        {state.galleryEditor.selectedProjectId && (
+                          <div className={`mb-2 p-2 rounded text-xs ${
+                            state.galleryEditor.state === 'staged' ? 'bg-amber-50 text-amber-900' :
+                            state.galleryEditor.state === 'unsaved' ? 'bg-blue-50 text-blue-900' :
+                            'bg-green-50 text-green-900'
+                          }`}>
+                            <div className="font-semibold">
+                              {state.galleryEditor.state === 'staged' ? 'Staged' :
+                               state.galleryEditor.state === 'unsaved' ? 'Unsaved' :
+                               'Published'}
+                            </div>
+                            {state.galleryEditor.transactionId && (
+                              <div className="text-xs opacity-75 truncate">TX: {state.galleryEditor.transactionId}</div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Conflict Warning */}
+                        {state.galleryEditor.hasConflict && (
+                          <div className="mb-2 p-2 bg-red-50 text-red-900 rounded text-xs">
+                            <div className="font-semibold">⚠️ Conflict</div>
+                            <div className="truncate">{state.galleryEditor.conflictMessage}</div>
+                            <button
+                              onClick={reloadGallery}
+                              className="mt-1 px-2 py-0.5 bg-red-600 text-white rounded text-xs"
+                            >
+                              Reload
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Gallery Grid */}
+                        {state.galleryEditor.selectedProjectId && (
+                          <div className="mb-2">
+                            <div className="flex items-center justify-between mb-1">
+                              <span className="text-xs">Gallery ({state.galleryEditor.gallery.length})</span>
+                              {state.galleryEditor.isDirty && (
+                                <span className="text-xs text-blue-600">
+                                  {state.galleryEditor.gallery.length - state.galleryEditor.originalGallery.length > 0 ? '+' : ''}
+                                  {state.galleryEditor.gallery.length - state.galleryEditor.originalGallery.length}
+                                </span>
+                              )}
+                            </div>
+                            
+                            {state.galleryEditor.gallery.length === 0 ? (
+                              <div className="text-xs text-muted-foreground italic py-2 text-center">
+                                Empty gallery. Add photos from right panel.
+                              </div>
+                            ) : (
+                              <div className="grid grid-cols-4 gap-1 max-h-32 overflow-y-auto">
+                                {state.galleryEditor.gallery.map((mediaId, index) => {
+                                  const media = state.assets.find(a => a.id === mediaId);
+                                  const thumbnailUrl = media?.variants?.thumbnail || media?.variants?.web || media?.variants?.webp || media?.variants?.original;
+                                  return (
+                                    <div
+                                      key={mediaId}
+                                      draggable
+                                      onDragStart={(e) => {
+                                        e.dataTransfer.setData('text/plain', index.toString());
+                                      }}
+                                      onDragOver={(e) => {
+                                        e.preventDefault();
+                                      }}
+                                      onDrop={(e) => {
+                                        e.preventDefault();
+                                        const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
+                                        moveInGallery(fromIndex, index);
+                                      }}
+                                      className="relative group p-0.5 bg-background border border-border rounded hover:border-primary cursor-move"
+                                    >
+                                      {thumbnailUrl && (
+                                        <img
+                                          src={thumbnailUrl}
+                                          alt={media?.filename || mediaId}
+                                          className="w-full h-12 object-cover rounded"
+                                        />
+                                      )}
+                                      <div className="absolute top-0 left-0 bg-black/50 text-white text-xs px-0.5 rounded-tl">
+                                        {index + 1}
+                                      </div>
+                                      <button
+                                        onClick={() => removeFromGallery(index)}
+                                        className="absolute top-0 right-0 p-0.5 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 text-xs"
+                                      >
+                                        ×
+                                      </button>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Action Buttons */}
+                        {state.galleryEditor.selectedProjectId && (
+                          <div className="flex gap-1">
+                            <button
+                              onClick={cancelGalleryEdit}
+                              disabled={!state.galleryEditor.isDirty || state.galleryEditor.isSaving}
+                              className="flex-1 px-2 py-1 bg-surface hover:bg-surface/80 rounded text-xs disabled:opacity-50"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={saveGallery}
+                              disabled={!state.galleryEditor.isDirty || state.galleryEditor.isSaving || state.galleryEditor.hasConflict}
+                              className="flex-1 px-2 py-1 bg-primary text-primary-foreground rounded text-xs hover:bg-primary/90 disabled:opacity-50"
+                            >
+                              {state.galleryEditor.isSaving ? 'Saving...' : 'Save'}
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Deploy Button */}
+                        {state.galleryEditor.state === 'staged' && state.galleryEditor.transactionId && (
+                          <div className="mt-2 p-2 bg-amber-50 text-amber-900 rounded border border-amber-200">
+                            <div className="text-xs font-semibold mb-1">Staged for deployment</div>
+                            <button
+                              onClick={async () => {
+                                if (!state.galleryEditor.transactionId) {
+                                  alert('Cannot deploy: no transaction ID');
+                                  return;
+                                }
+                                if (!confirm('Deploy staged changes?')) return;
+                                try {
+                                  const response = await fetch('/api/admin/deploy', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ 
+                                      reason: 'Gallery changes',
+                                      transactionIds: [state.galleryEditor.transactionId]
+                                    }),
+                                  });
+                                  if (!response.ok) {
+                                    const error = await response.json();
+                                    throw new Error(error.error || 'Deploy failed');
+                                  }
+                                  const result = await response.json();
+                                  alert(`Deployed: ${result.commitSha}`);
+                                  loadGalleryForProject(state.galleryEditor.selectedProjectId!);
+                                } catch (error) {
+                                  alert(`Deploy failed: ${error instanceof Error ? error.message : String(error)}`);
+                                }
+                              }}
+                              className="w-full px-2 py-1 bg-amber-600 text-white rounded text-xs hover:bg-amber-700"
+                            >
+                              Deploy
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+                
+                {/* Regular Visual Slots */}
                 {(() => {
                   const currentPage = getPageByRoute(state.selectedPage);
                   if (!currentPage) return <p className="text-xs text-muted-foreground">No structure defined for this route</p>;
@@ -2380,222 +2591,6 @@ export default function MediaWorkbench() {
                 </button>
               ))}
             </div>
-
-            {/* P0 FIX: Gallery Editor Toggle */}
-            <div className="mb-4">
-              <button
-                onClick={() => {
-                  if (state.galleryEditor.enabled) {
-                    cancelGalleryEdit();
-                  } else {
-                    setState(prev => ({
-                      ...prev,
-                      galleryEditor: {
-                        ...prev.galleryEditor,
-                        enabled: true,
-                      },
-                    }));
-                  }
-                }}
-                className={`w-full px-3 py-2 rounded text-sm font-medium transition-colors ${
-                  state.galleryEditor.enabled
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-surface hover:bg-surface/80'
-                }`}
-              >
-                {state.galleryEditor.enabled ? 'Close Gallery Editor' : 'Open Gallery Editor'}
-              </button>
-            </div>
-
-            {/* P0 FIX: Gallery Editor */}
-            {state.galleryEditor.enabled && (
-              <div className="mb-4 p-4 bg-surface rounded-lg border border-border">
-                {/* Project Selector */}
-                <div className="mb-3">
-                  <label className="block text-xs font-medium mb-1">Select Project</label>
-                  <select
-                    value={state.galleryEditor.selectedProjectId || ''}
-                    onChange={(e) => {
-                      const projectId = e.target.value;
-                      if (projectId) {
-                        loadGalleryForProject(projectId);
-                      }
-                    }}
-                    className="w-full px-2 py-1.5 bg-background border border-border rounded text-sm"
-                  >
-                    <option value="">Choose a project...</option>
-                    {projectsList.map(project => (
-                      <option key={project.id} value={project.id}>
-                        {project.title}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* Gallery State Indicator */}
-                {state.galleryEditor.selectedProjectId && (
-                  <div className={`mb-3 p-2 rounded text-xs ${
-                    state.galleryEditor.state === 'staged' ? 'bg-amber-50 text-amber-900' :
-                    state.galleryEditor.state === 'unsaved' ? 'bg-blue-50 text-blue-900' :
-                    'bg-green-50 text-green-900'
-                  }`}>
-                    <div className="font-semibold mb-1">
-                      {state.galleryEditor.state === 'staged' ? 'Staged for deployment' :
-                       state.galleryEditor.state === 'unsaved' ? 'Unsaved changes' :
-                       'Published'}
-                    </div>
-                    {state.galleryEditor.transactionId && (
-                      <div className="text-xs opacity-75">Transaction: {state.galleryEditor.transactionId}</div>
-                    )}
-                    <div className="text-xs opacity-75">Revision: {state.galleryEditor.currentRevision}</div>
-                  </div>
-                )}
-
-                {/* Conflict Warning */}
-                {state.galleryEditor.hasConflict && (
-                  <div className="mb-3 p-3 bg-red-50 text-red-900 rounded text-xs">
-                    <div className="font-semibold mb-1">⚠️ Conflict Detected</div>
-                    <div>{state.galleryEditor.conflictMessage}</div>
-                    <button
-                      onClick={reloadGallery}
-                      className="mt-2 px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700"
-                    >
-                      Reload Gallery
-                    </button>
-                  </div>
-                )}
-
-                {/* Gallery Grid */}
-                {state.galleryEditor.selectedProjectId && (
-                  <div className="mb-3">
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="text-xs font-medium">
-                        Gallery ({state.galleryEditor.gallery.length} photos)
-                      </div>
-                      {state.galleryEditor.isDirty && (
-                        <div className="text-xs text-blue-600 font-medium">
-                          {state.galleryEditor.gallery.length - state.galleryEditor.originalGallery.length > 0 ? '+' : ''}
-                          {state.galleryEditor.gallery.length - state.galleryEditor.originalGallery.length} changes
-                        </div>
-                      )}
-                    </div>
-                    
-                    {state.galleryEditor.gallery.length === 0 ? (
-                      <div className="text-xs text-muted-foreground italic py-4 text-center">
-                        No photos in gallery. Add photos from the media panel below.
-                      </div>
-                    ) : (
-                      <div className="grid grid-cols-3 gap-2 max-h-64 overflow-y-auto">
-                        {state.galleryEditor.gallery.map((mediaId, index) => {
-                          const media = state.assets.find(a => a.id === mediaId);
-                          const thumbnailUrl = media?.variants?.thumbnail || media?.variants?.web || media?.variants?.webp || media?.variants?.original;
-                          return (
-                            <div
-                              key={mediaId}
-                              draggable
-                              onDragStart={(e) => {
-                                e.dataTransfer.setData('text/plain', index.toString());
-                              }}
-                              onDragOver={(e) => {
-                                e.preventDefault();
-                              }}
-                              onDrop={(e) => {
-                                e.preventDefault();
-                                const fromIndex = parseInt(e.dataTransfer.getData('text/plain'));
-                                moveInGallery(fromIndex, index);
-                              }}
-                              className="relative group p-1 bg-background border border-border rounded hover:border-primary cursor-move"
-                            >
-                              {thumbnailUrl && (
-                                <img
-                                  src={thumbnailUrl}
-                                  alt={media?.filename || mediaId}
-                                  className="w-full h-16 object-cover rounded"
-                                />
-                              )}
-                              <div className="absolute top-0 left-0 bg-black/50 text-white text-xs px-1 rounded-tl">
-                                {index + 1}
-                              </div>
-                              <button
-                                onClick={() => removeFromGallery(index)}
-                                className="absolute top-1 right-1 p-0.5 bg-red-500 text-white rounded opacity-0 group-hover:opacity-100 text-xs"
-                              >
-                                ×
-                              </button>
-                              <div className="text-xs truncate mt-1">{media?.filename || mediaId}</div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Action Buttons */}
-                {state.galleryEditor.selectedProjectId && (
-                  <div className="flex gap-2">
-                    <button
-                      onClick={cancelGalleryEdit}
-                      disabled={!state.galleryEditor.isDirty || state.galleryEditor.isSaving}
-                      className="flex-1 px-3 py-2 bg-surface hover:bg-surface/80 rounded text-sm disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={saveGallery}
-                      disabled={!state.galleryEditor.isDirty || state.galleryEditor.isSaving || state.galleryEditor.hasConflict}
-                      className="flex-1 px-3 py-2 bg-primary text-primary-foreground rounded text-sm hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      {state.galleryEditor.isSaving ? 'Saving...' : 'Save Gallery'}
-                    </button>
-                  </div>
-                )}
-
-                {/* P0 FIX: Deploy button for staged changes */}
-                {state.galleryEditor.state === 'staged' && state.galleryEditor.transactionId && (
-                  <div className="mt-3 p-3 bg-amber-50 text-amber-900 rounded border border-amber-200">
-                    <div className="font-semibold mb-2">Gallery is staged for deployment</div>
-                    <div className="text-xs mb-2">Transaction ID: {state.galleryEditor.transactionId}</div>
-                    <button
-                      onClick={async () => {
-                        // P0 FIX: Fail-closed check - cannot deploy without authoritative transaction ID
-                        if (!state.galleryEditor.transactionId) {
-                          alert('Cannot deploy: no authoritative transaction ID. This should not happen - please reload the gallery.');
-                          return;
-                        }
-                        
-                        if (!confirm('Deploy all staged changes to production?\n\nThis will promote staged changes to deployed authority and trigger a new deployment.')) {
-                          return;
-                        }
-                        try {
-                          const response = await fetch('/api/admin/deploy', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ 
-                              reason: 'Gallery order changes',
-                              transactionIds: [state.galleryEditor.transactionId]
-                            }),
-                          });
-                          if (!response.ok) {
-                            const error = await response.json();
-                            throw new Error(error.error || 'Deployment failed');
-                          }
-                          const result = await response.json();
-                          alert(`Deployment initiated successfully.\n\nCommit SHA: ${result.commitSha}\n\nVercel will deploy this commit automatically.`);
-                          // Reload gallery to show deployed state
-                          loadGalleryForProject(state.galleryEditor.selectedProjectId!);
-                        } catch (error) {
-                          alert(`Deployment failed: ${error instanceof Error ? error.message : String(error)}`);
-                        }
-                      }}
-                      className="w-full px-3 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors text-sm"
-                    >
-                      Deploy Staged Changes
-                    </button>
-                  </div>
-                )}
-              </div>
-            )}
 
             {/* Drive Browser */}
             {state.driveBrowsing && (
@@ -2956,6 +2951,41 @@ export default function MediaWorkbench() {
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
                       <p className="text-xs text-white truncate">{asset.filename}</p>
                     </div>
+
+                    {/* P0 FIX: Add to Gallery button (when gallery editor is open) */}
+                    {state.galleryEditor.enabled && state.galleryEditor.selectedProjectId && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isDriveOnly) {
+                            alert('Drive source must be materialized before adding to gallery. Select this asset and use the materialize option.');
+                            return;
+                          }
+                          addToGallery(asset.id);
+                        }}
+                        className="absolute top-1 left-1 px-2 py-1 bg-primary text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        + Add
+                      </button>
+                    )}
+
+                    {/* P0 FIX: Materialize button for Drive-only assets */}
+                    {isDriveOnly && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!confirm(`Materialize "${asset.filename}" from Drive?\n\nThis will download the file and create a PublishedMediaAsset.`)) {
+                            return;
+                          }
+                          // Trigger materialization
+                          handleAssetClick(asset);
+                          // The existing materialization flow will handle it
+                        }}
+                        className="absolute bottom-8 left-1 px-2 py-1 bg-blue-600 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        Materialize
+                      </button>
+                    )}
 
                     {/* P0 FIX: Add to Gallery button (when gallery editor is open) */}
                     {state.galleryEditor.enabled && state.galleryEditor.selectedProjectId && (
