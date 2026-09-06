@@ -29,6 +29,14 @@
  * - Either all assignments promoted or none promoted
  * - Prevents partial assignment state
  * 
+ * GIT/REDIS FAILURE SEMANTICS:
+ * - Git commit and Redis promotion are SEPARATE atomic domains
+ * - NOT one atomic transaction across systems
+ * - If Git succeeds but Redis fails: Git committed, transaction marked failed
+ * - This is a recoverable state: retry promotion against same Git commit
+ * - Transaction state machine explicitly represents this failure mode
+ * - No false claim of atomicity across Git and Redis
+ * 
  * DEPLOYMENT STATE:
  * - Git commit ≠ Vercel deployment ≠ live website
  * - Git commit → runtime promotion → Vercel deployment → website
@@ -40,7 +48,7 @@
  * - Staging keys are only deleted after Git commit succeeds
  * - This prevents data loss if GitHub commit fails
  * - Runtime assignments promoted atomically after Git commit
- * - If promotion fails, transaction fails (no split-brain between Git and Redis)
+ * - If promotion fails, transaction fails (Git committed but Redis not updated)
  */
 
 import { NextResponse } from "next/server";
@@ -64,11 +72,38 @@ import {
 
 export const runtime = 'nodejs';
 
+// SECURITY: Require authentication for ALL admin deploy endpoints
+async function requireWorkbenchAuth() {
+  const isDevBypass = process.env.DRIVE_AUTH_BYPASS === 'true';
+  
+  if (process.env.NODE_ENV !== 'development' || !isDevBypass) {
+    const isAuthenticated = await workbenchSession.isAuthenticated();
+    if (!isAuthenticated) {
+      return false;
+    }
+  } else {
+    console.warn('[DEPLOY API] DEV_MODE_BYPASS_ACTIVE', { 
+      reason: 'DRIVE_AUTH_BYPASS=true',
+      securityNote: 'This bypass is for development only'
+    });
+  }
+  return true;
+}
+
 /**
  * GET endpoint: Check deployment status for a specific commit
  * Used by Workbench to poll for Vercel deployment readiness
  */
 export async function GET(request: Request) {
+  // P1 FIX: Require Workbench authentication for status endpoint
+  const isAuthenticated = await requireWorkbenchAuth();
+  if (!isAuthenticated) {
+    return NextResponse.json(
+      { error: "Unauthorized", message: "Workbench authentication required" },
+      { status: 401 }
+    );
+  }
+
   const { searchParams } = new URL(request.url);
   const commitSha = searchParams.get('commitSha');
   
@@ -322,24 +357,13 @@ export async function POST(request: Request) {
     }
   }
   
-  // SECURITY: Require authentication in production
-  // Development bypass requires explicit DRIVE_AUTH_BYPASS=true
-  const isDevBypass = process.env.DRIVE_AUTH_BYPASS === 'true';
-  
-  if (process.env.NODE_ENV !== 'development' || !isDevBypass) {
-    // Check Workbench authentication
-    const isAuthenticated = await workbenchSession.isAuthenticated();
-    if (!isAuthenticated) {
-      return NextResponse.json(
-        { error: "Unauthorized", message: "Workbench authentication required" },
-        { status: 401 }
-      );
-    }
-  } else {
-    console.warn('[DEPLOY API] DEV_MODE_BYPASS_ACTIVE', { 
-      reason: 'DRIVE_AUTH_BYPASS=true',
-      securityNote: 'This bypass is for development only'
-    });
+  // SECURITY: Require authentication for POST endpoint
+  const isAuthenticated = await requireWorkbenchAuth();
+  if (!isAuthenticated) {
+    return NextResponse.json(
+      { error: "Unauthorized", message: "Workbench authentication required" },
+      { status: 401 }
+    );
   }
 
   try {
@@ -348,16 +372,23 @@ export async function POST(request: Request) {
 
     console.log('[DEPLOY API] REQUEST_RECEIVED', { reason, transactionIds });
     
-    // IDEMPOTENCY: Use provided transaction IDs or generate new one
-    if (transactionIds && transactionIds.length > 0) {
-      // Use the first transaction ID as the deployment transaction ID
-      deploymentTransactionId = transactionIds[0];
-      console.log('[DEPLOY API] USING_PROVIDED_TRANSACTION_IDS', { deploymentTransactionId, transactionIds });
-    } else {
-      // Legacy fallback: generate random transaction ID
-      deploymentTransactionId = `WBDEP-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-      console.log('[DEPLOY API] GENERATED_NEW_TRANSACTION_ID', { deploymentTransactionId });
+    // P0 FIX: Require transactionIds for Gallery deployment - no random fallback
+    // Gallery PUT creates specific transaction; Deploy must use that exact transaction
+    // Fail-closed: reject deployment without authoritative transaction ID
+    if (!transactionIds || transactionIds.length === 0) {
+      console.error('[DEPLOY API] MISSING_TRANSACTION_IDS');
+      return NextResponse.json(
+        {
+          error: "Missing transaction IDs",
+          message: "Deployment requires explicit transactionIds from the staging operation. Gallery deployment must use the exact transaction created by Gallery PUT.",
+        },
+        { status: 400 }
+      );
     }
+
+    // Use the first transaction ID as the deployment transaction ID
+    deploymentTransactionId = transactionIds[0];
+    console.log('[DEPLOY API] USING_PROVIDED_TRANSACTION_IDS', { deploymentTransactionId, transactionIds });
     
     // IDEMPOTENCY CHECK: Check if transaction already exists
     const existingTransaction = await getDeploymentTransaction(deploymentTransactionId);
