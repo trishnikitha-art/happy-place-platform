@@ -1,11 +1,11 @@
 /**
  * Workbench Preview Route
  * 
- * This route renders the EXACT main@5ba201cd website components.
- * These are the actual frontend files from main@5ba201cd.
+ * This route renders the ACTUAL website pages for Workbench preview.
+ * No duplicate implementations - uses the real @/app/page components.
  * 
  * Route: /workbench/preview/[...path]
- * Purpose: Display main@5ba201cd website in Workbench iframe
+ * Purpose: Display real website in Workbench iframe with VisualSlot instrumentation
  */
 
 import { notFound } from 'next/navigation';
@@ -22,11 +22,11 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
   const { path } = await params;
   const route = '/' + path.join('/');
 
-  // Render the ACTUAL main@5ba201cd page components
+  // Render the ACTUAL website page components (no duplicates)
   switch (route) {
     case '/':
-      const MainHomePage = (await import('@/app/workbench/preview/main-page')).default;
-      return <MainHomePage />;
+      const HomePage = (await import('@/app/page')).default;
+      return <HomePage />;
     case '/about':
       const AboutPage = (await import('@/app/about/page')).default;
       return <AboutPage />;
@@ -48,6 +48,12 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
         const slug = route.replace('/services/', '');
         const ServicePage = (await import('@/app/services/[slug]/page')).default;
         return <ServicePage params={Promise.resolve({ slug })} />;
+      }
+      // Handle /projects/[slug]
+      if (route.startsWith('/projects/')) {
+        const slug = route.replace('/projects/', '');
+        const ProjectPage = (await import('@/app/projects/[slug]/page')).default;
+        return <ProjectPage params={Promise.resolve({ slug })} />;
       }
       return notFound();
   }
