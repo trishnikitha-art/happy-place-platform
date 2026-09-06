@@ -17,6 +17,7 @@ import { driveDiscovery } from '@/lib/drive/drive-discovery';
 import { workbenchSession } from '@/lib/workbench-session';
 import { driveSession } from '@/lib/drive/drive-session';
 import { verifyFolderAuthorization, verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
+import { normalizeCorpusId, isMyDrive, MY_DRIVE_CANONICAL_ID } from '@/lib/drive/corpus-normalization';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,14 +65,27 @@ export async function GET(request: Request) {
     // corpusId is the authoritative field from the UI's corpus context preservation
     const driveId = searchParams.get('corpusId') || searchParams.get('driveId') || undefined;
 
-    console.log('[Drive Files API] Request:', { folderId, driveId, pageToken });
+    // P0 FIX: Normalize corpus identity before authorization
+    // My Drive physical root IDs → canonical "root"
+    // Shared Drive IDs → passed through unchanged
+    const normalizedFolderId = normalizeCorpusId(folderId, driveId);
+    const normalizedDriveId = driveId;
+
+    console.log('[Drive Files API] Corpus Normalization:', {
+      originalFolderId: folderId,
+      normalizedFolderId,
+      driveId,
+      isMyDrive: isMyDrive(folderId),
+    });
+
+    console.log('[Drive Files API] Request:', { normalizedFolderId, normalizedDriveId, pageToken });
 
     // FORENSIC: Log Shared Drive root representation for debugging
-    if (driveId && (folderId === driveId || folderId === 'root')) {
+    if (normalizedDriveId && (normalizedFolderId === normalizedDriveId || normalizedFolderId === MY_DRIVE_CANONICAL_ID)) {
       console.log('[DRIVE_FILES_FORENSIC] Shared Drive root request:', {
-        folderId,
-        driveId,
-        representation: folderId === driveId ? 'Workbench (folderId === driveId)' : 'Legacy (folderId === root)',
+        normalizedFolderId,
+        normalizedDriveId,
+        representation: normalizedFolderId === normalizedDriveId ? 'Workbench (folderId === driveId)' : 'Legacy (folderId === root)',
       });
     }
 
@@ -81,12 +95,12 @@ export async function GET(request: Request) {
     // NO root exemption - if driveId is supplied, it must be HPP-authorized
     // This prevents driveId + root from bypassing corpus consistency check
     // Handle both Shared Drive root representations: folderId === driveId (Workbench) and folderId === 'root' (legacy)
-    if (driveId) {
-      const corpusAuth = await verifyCorpusAuthorization(folderId, driveId);
+    if (normalizedDriveId) {
+      const corpusAuth = await verifyCorpusAuthorization(normalizedFolderId, normalizedDriveId);
       if (!corpusAuth.authorized) {
         console.error('[DRIVE_AUTHORIZATION] DRIVE_ID_NOT_AUTHORIZED', {
-          folderId,
-          requestedDriveId: driveId,
+          normalizedFolderId,
+          requestedDriveId: normalizedDriveId,
           reason: corpusAuth.reason,
         });
         return NextResponse.json(
@@ -98,74 +112,67 @@ export async function GET(request: Request) {
         );
       }
       console.log('[DRIVE_AUTHORIZATION] DRIVE_ID_AUTHORIZED', {
-        folderId,
-        driveId,
+        normalizedFolderId,
+        normalizedDriveId,
         corpus: corpusAuth.corpus,
       });
-    }
-
-    // P0 FIX: Enforce My Drive authorization for root case
-    // When folderId === 'root' and driveId is undefined, this is My Drive root access
-    // Google OAuth access is NOT sufficient for HPP authorization
-    // Must verify HPP_AUTHORIZED_MY_DRIVE === true
-    if (folderId === 'root' && !driveId) {
-      const { getAuthorizedCorpora } = await import('@/lib/drive/corpus-authorization');
-      const authorizedCorpora = await getAuthorizedCorpora();
-      
-      const myDriveAuthorized = authorizedCorpora.some(c => c.type === 'my_drive' && c.authorized);
-      if (!myDriveAuthorized) {
+    } else if (isMyDrive(folderId)) {
+      // P0 FIX: Enforce My Drive authorization for root case
+      // When folderId === 'root' or physical root ID and driveId is undefined, this is My Drive root access
+      const corpusAuth = await verifyCorpusAuthorization(MY_DRIVE_CANONICAL_ID, undefined);
+      if (!corpusAuth.authorized) {
         console.error('[DRIVE_AUTHORIZATION] MY_DRIVE_NOT_AUTHORIZED', {
-          folderId,
-          reason: 'My Drive is not HPP-authorized (check HPP_AUTHORIZED_MY_DRIVE)',
+          originalFolderId: folderId,
+          normalizedFolderId,
+          reason: corpusAuth.reason,
         });
         return NextResponse.json(
           {
             error: 'MY_DRIVE_NOT_AUTHORIZED',
-            message: 'My Drive is not HPP-authorized (check HPP_AUTHORIZED_MY_DRIVE)',
+            message: corpusAuth.reason || 'My Drive is not HPP-authorized',
           },
           { status: 403 }
         );
       }
       console.log('[DRIVE_AUTHORIZATION] MY_DRIVE_AUTHORIZED', {
-        folderId,
+        originalFolderId: folderId,
+        normalizedFolderId,
+        corpus: corpusAuth.corpus,
       });
     }
 
     // P0 FIX: Verify folderId is accessible to the authenticated session
     // This prevents IDOR where an authorized user could list arbitrary folder IDs
     // even if Google technically permits the object
-    // CRITICAL: Handle both Shared Drive root representations:
-    // - Workbench: folderId === driveId
-    // - Legacy: folderId === 'root' && driveId present
-    // My Drive root: folderId === 'root' && driveId absent (handled above)
-    if (folderId !== 'root' || driveId) {
-      const folderAuth = await verifyFolderAuthorization(folderId);
+    // Use normalized folder ID for authorization check
+    if (normalizedFolderId !== MY_DRIVE_CANONICAL_ID || normalizedDriveId) {
+      const folderAuth = await verifyFolderAuthorization(normalizedFolderId);
       if (!folderAuth.authorized) {
         console.error('[DRIVE_AUTHORIZATION] FOLDER_NOT_AUTHORIZED', {
-          folderId,
-          driveId,
+          originalFolderId: folderId,
+          normalizedFolderId,
+          normalizedDriveId,
           reason: folderAuth.reason,
         });
         return NextResponse.json(
           {
-            error: 'DRIVE_FOLDER_NOT_AUTHORIZED',
-            message: folderAuth.reason || 'Drive folder is not accessible to the authenticated session',
+            error: 'FOLDER_NOT_AUTHORIZED',
+            message: folderAuth.reason || 'Folder is not accessible to the authenticated session',
           },
           { status: 403 }
         );
       }
-      
-      console.log('[DRIVE_AUTHORIZATION] FOLDER_ACCESS_VERIFIED', {
-        folderId,
-        driveId,
-        corpus: folderAuth.corpus,
+      console.log('[DRIVE_AUTHORIZATION] FOLDER_AUTHORIZED', {
+        originalFolderId: folderId,
+        normalizedFolderId,
       });
     }
 
-    const result = await driveDiscovery.listChildren(
-      { parentId: folderId, driveId },
-      pageToken
-    );
+    // Use normalized IDs for Drive discovery call
+    const result = await driveDiscovery.listChildren({
+      parentId: normalizedFolderId,
+      driveId: normalizedDriveId,
+    }, pageToken);
 
     console.log('[Drive Files API] Result:', {
       itemCount: result.items.length,

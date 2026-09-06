@@ -12,6 +12,7 @@
 import { getDriveClient, isAuthenticated } from './oauth-manager';
 import { google } from 'googleapis';
 import { verifyCorpusAuthorization } from './corpus-authorization';
+import { normalizeCorpusId, isMyDrive, MY_DRIVE_CANONICAL_ID } from './corpus-normalization';
 
 export interface DriveFolder {
   id: string;
@@ -199,21 +200,50 @@ export class DriveDiscovery {
       throw new Error('Not authenticated with Drive');
     }
 
+    // P0 FIX: Normalize corpus identity before authorization
+    // My Drive physical root IDs → canonical "root"
+    // Shared Drive IDs → passed through unchanged
+    const normalizedParentId = normalizeCorpusId(context.parentId, context.driveId);
+    const normalizedDriveId = context.driveId;
+
+    console.log('[DRIVE_DISCOVERY] CORPUS_NORMALIZATION', {
+      originalParentId: context.parentId,
+      normalizedParentId,
+      driveId: context.driveId,
+      isMyDrive: isMyDrive(context.parentId),
+    });
+
     // CRITICAL FIX: Validate driveId against authorized corpus before Drive API call
     // Google OAuth access is NOT sufficient for HPP authorization
-    if (context.driveId) {
-      const corpusAuth = await verifyCorpusAuthorization(context.parentId, context.driveId);
+    if (normalizedDriveId) {
+      const corpusAuth = await verifyCorpusAuthorization(normalizedParentId, normalizedDriveId);
       if (!corpusAuth.authorized) {
         console.error('[DRIVE_DISCOVERY] DRIVE_ID_NOT_AUTHORIZED', {
-          folderId: context.parentId,
-          requestedDriveId: context.driveId,
+          folderId: normalizedParentId,
+          requestedDriveId: normalizedDriveId,
           reason: corpusAuth.reason,
         });
-        throw new Error(`Drive ID ${context.driveId} is not authorized: ${corpusAuth.reason}`);
+        throw new Error(`Drive ID ${normalizedDriveId} is not authorized: ${corpusAuth.reason}`);
       }
       console.log('[DRIVE_DISCOVERY] DRIVE_ID_AUTHORIZED', {
+        folderId: normalizedParentId,
+        driveId: normalizedDriveId,
+        corpus: corpusAuth.corpus,
+      });
+    } else if (isMyDrive(context.parentId)) {
+      // My Drive context - verify My Drive is authorized
+      const corpusAuth = await verifyCorpusAuthorization(MY_DRIVE_CANONICAL_ID, undefined);
+      if (!corpusAuth.authorized) {
+        console.error('[DRIVE_DISCOVERY] MY_DRIVE_NOT_AUTHORIZED', {
+          folderId: context.parentId,
+          normalizedFolderId: normalizedParentId,
+          reason: corpusAuth.reason,
+        });
+        throw new Error(`My Drive is not authorized: ${corpusAuth.reason}`);
+      }
+      console.log('[DRIVE_DISCOVERY] MY_DRIVE_AUTHORIZED', {
         folderId: context.parentId,
-        driveId: context.driveId,
+        normalizedFolderId: normalizedParentId,
         corpus: corpusAuth.corpus,
       });
     }
