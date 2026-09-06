@@ -15,7 +15,7 @@
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { listMediaIds, getMediaRecordRaw } from '@/lib/media-kv-store';
-import { getBlobMetadataByContentHash } from '@/lib/blob-storage';
+import { getBlobMetadataByContentHash, verifyBlobHash } from '@/lib/blob-storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,18 +64,34 @@ export async function POST(request: Request) {
           // DEFINITELY_STATIC: No contentHash means cannot be blob-backed
           definitelyStatic.push(mediaId);
         } else {
-          // Has contentHash - check Blob metadata
+          // Has contentHash - check Blob metadata with same evidence chain as repairer
           try {
             const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
             if (blobMetadata) {
-              // DEFINITELY_BLOB: Blob metadata confirms blob storage
-              definitelyBlob.push(mediaId);
+              // Blob metadata exists → verify URL match and physical hash
+              const originalUrl = media.variants?.original || '';
+              
+              if (originalUrl === blobMetadata.url) {
+                // URL matches → verify physical hash
+                const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
+                
+                if (verification.success) {
+                  // DEFINITELY_BLOB: All evidence chain verified
+                  definitelyBlob.push(mediaId);
+                } else {
+                  // Physical hash verification failed → AMBIGUOUS
+                  ambiguous.push(mediaId);
+                }
+              } else {
+                // URL mismatch → AMBIGUOUS
+                ambiguous.push(mediaId);
+              }
             } else {
               // AMBIGUOUS: Has contentHash but no Blob metadata
               ambiguous.push(mediaId);
             }
           } catch (error) {
-            console.error('[STORAGE_CLASSIFICATION] Blob metadata check failed:', { mediaId, error });
+            console.error('[STORAGE_CLASSIFICATION] Blob verification failed:', { mediaId, error });
             ambiguous.push(mediaId);
           }
         }
@@ -101,37 +117,37 @@ export async function POST(request: Request) {
       totalRecords: mediaIds.length,
       missingStorage: {
         count: missingStorage.length,
-        ids: missingStorage.slice(0, 10),
+        ids: missingStorage, // P0 FIX: Return complete ID list for surgical repair
       },
       invalidStorage: {
         count: invalidStorage.length,
-        ids: invalidStorage.slice(0, 10),
+        ids: invalidStorage, // P0 FIX: Return complete ID list
       },
       classification: {
         definitelyStatic: {
           count: definitelyStatic.length,
-          ids: definitelyStatic.slice(0, 10),
+          ids: definitelyStatic, // P0 FIX: Return complete ID list
           description: 'No contentHash - should be storage: static',
         },
         definitelyBlob: {
           count: definitelyBlob.length,
-          ids: definitelyBlob.slice(0, 10),
-          description: 'Has contentHash + Blob metadata - should be storage: blob',
+          ids: definitelyBlob, // P0 FIX: Return complete ID list
+          description: 'Has contentHash + Blob metadata + URL match + physical hash verification - should be storage: blob',
         },
         staticMarkedBlob: {
           count: staticMarkedBlob.length,
-          ids: staticMarkedBlob.slice(0, 10),
+          ids: staticMarkedBlob, // P0 FIX: Return complete ID list
           description: 'Contract violation: static URL but marked as blob',
         },
         blobMarkedStatic: {
           count: blobMarkedStatic.length,
-          ids: blobMarkedStatic.slice(0, 10),
+          ids: blobMarkedStatic, // P0 FIX: Return complete ID list
           description: 'Contract violation: Blob URL but marked as static',
         },
         ambiguous: {
           count: ambiguous.length,
-          ids: ambiguous.slice(0, 10),
-          description: 'Has contentHash but no Blob metadata - requires manual review',
+          ids: ambiguous, // P0 FIX: Return complete ID list
+          description: 'Has contentHash but insufficient Blob evidence - requires manual review',
         },
       },
     });

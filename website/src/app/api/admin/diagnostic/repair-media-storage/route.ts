@@ -181,8 +181,31 @@ export async function POST(request: Request) {
             skips.push({ mediaId, reason: 'Storage field already valid' });
             continue;
           }
+          
+          // P0 FIX: Contract violation repair proven → persist immediately and STOP
+          // Do NOT fall through into source classifier which may overwrite or skip
+          if (storage) {
+            const repairedMedia: Media = {
+              ...media,
+              storage,
+            };
+            
+            await saveMedia(repairedMedia);
+            repaired++;
+            repairs.push({ mediaId, reason, addedStorage: storage });
+            
+            console.log('[STORAGE_REPAIR] CONTRACT_VIOLATION_REPAIRED', { 
+              mediaId, 
+              originalStorage: media.storage,
+              addedStorage: storage,
+              reason,
+            });
+            
+            continue; // STOP processing this record
+          }
         }
         
+        // Source-based classification (only if storage not yet determined)
         if (media.source === 'local') {
           // P0 FIX: Only add storage: static if record exists in static manifest
           // This ensures we only repair records that have proven static authority

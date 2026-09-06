@@ -22,9 +22,11 @@ Complete the Google OAuth flow to establish an authenticated session.
 
 ### Step 2: Extract Session Cookie
 
-After authentication, extract your `drive_session_id` cookie from the browser:
+After authentication, extract your `workbench_session_id` cookie from the browser:
 - Chrome DevTools → Application → Cookies → `https://happy-place-platform.vercel.app`
-- Copy the value of `drive_session_id`
+- Copy the value of `workbench_session_id`
+
+**NOTE:** The admin diagnostic endpoints use Workbench authentication (`workbenchSession.isAuthenticated()`), not Drive OAuth authentication. Use `workbench_session_id`, not `workbench_session_id`.
 
 ### Step 3: Execute Storage Classification Diagnostic
 
@@ -32,7 +34,7 @@ Run the classification diagnostic to inspect the 17 records with missing storage
 
 ```bash
 curl -X POST https://happy-place-platform.vercel.app/api/admin/diagnostic/classify-storage-contract \
-  -H "Cookie: drive_session_id=<your-session-cookie>" \
+  -H "Cookie: workbench_session_id=<your-session-cookie>" \
   -H "Content-Type: application/json"
 ```
 
@@ -108,7 +110,7 @@ After classification, copy the IDs from `definitelyStatic` and `definitelyBlob` 
 
 ```bash
 curl -X POST https://happy-place-platform.vercel.app/api/admin/diagnostic/repair-media-storage \
-  -H "Cookie: drive_session_id=<your-session-cookie>" \
+  -H "Cookie: workbench_session_id=<your-session-cookie>" \
   -H "Content-Type: application/json" \
   -d '{
     "mediaIds": [
@@ -124,7 +126,7 @@ curl -X POST https://happy-place-platform.vercel.app/api/admin/diagnostic/repair
 
 ```bash
 curl -X POST https://happy-place-platform.vercel.app/api/admin/diagnostic/repair-media-storage \
-  -H "Cookie: drive_session_id=<your-session-cookie>" \
+  -H "Cookie: workbench_session_id=<your-session-cookie>" \
   -H "Content-Type: application/json" \
   -d '{
     "confirm": true
@@ -191,7 +193,7 @@ Re-run the classification diagnostic to verify the repair:
 
 ```bash
 curl -X POST https://happy-place-platform.vercel.app/api/admin/diagnostic/classify-storage-contract \
-  -H "Cookie: drive_session_id=<your-session-cookie>" \
+  -H "Cookie: workbench_session_id=<your-session-cookie>" \
   -H "Content-Type: application/json"
 ```
 
@@ -206,7 +208,7 @@ Test that previously rejected records now resolve:
 
 ```bash
 curl -X POST https://happy-place-platform.vercel.app/api/media/reconciliation \
-  -H "Cookie: drive_session_id=<your-session-cookie>" \
+  -H "Cookie: workbench_session_id=<your-session-cookie>" \
   -H "Content-Type: application/json"
 ```
 
