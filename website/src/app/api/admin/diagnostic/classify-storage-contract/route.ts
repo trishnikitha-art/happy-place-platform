@@ -14,7 +14,7 @@
 
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
-import { listMediaIds, getMedia } from '@/lib/media-kv-store';
+import { listMediaIds, getMediaRecordRaw } from '@/lib/media-kv-store';
 import { getBlobMetadataByContentHash } from '@/lib/blob-storage';
 
 export const dynamic = 'force-dynamic';
@@ -43,7 +43,10 @@ export async function POST(request: Request) {
     console.log('[STORAGE_CLASSIFICATION] Starting diagnostic for', mediaIds.length, 'media records');
 
     for (const mediaId of mediaIds) {
-      const media = await getMedia(mediaId);
+      // P0 FIX: Use getMediaRecordRaw to bypass public-media gate
+      // Records with missing storage are rejected by the public gate
+      // Forensic diagnostic must inspect raw records for classification
+      const media = await getMediaRecordRaw(mediaId);
       if (!media) {
         continue;
       }

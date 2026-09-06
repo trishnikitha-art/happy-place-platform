@@ -20,6 +20,7 @@ import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { listMediaIds, getMediaRecordRaw, saveMedia } from '@/lib/media-kv-store';
 import { loadMediaManifest } from '@/lib/media';
+import { getBlobMetadataByContentHash, verifyBlobHash } from '@/lib/blob-storage';
 import type { Media } from '@/types/media';
 
 export async function POST() {
@@ -111,18 +112,52 @@ export async function POST() {
             continue;
           }
         } else if (media.source === 'google-drive') {
-          // Drive source: ONLY set storage if already published with Blob evidence
+          // P0 FIX: Only set storage: blob with actual physical Blob evidence
           // NEVER infer blob merely from Drive provenance
           if (media.lifecycleState === 'published' && media.contentHash) {
-            // Published Drive asset with content hash → likely Blob-backed
-            // But we need to be careful: only set blob if we have evidence
-            // For now, skip Drive records without explicit storage to avoid false inferences
-            skipped++;
-            skips.push({ 
-              mediaId, 
-              reason: 'Drive source without explicit storage - requires manual verification of Blob evidence' 
-            });
-            continue;
+            // Published Drive asset with content hash → check for Blob evidence
+            const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
+            
+            if (blobMetadata) {
+              // Blob metadata exists → verify physical integrity
+              const originalUrl = media.variants?.original || '';
+              
+              // Check if media URL matches Blob URL
+              if (originalUrl === blobMetadata.url) {
+                // URL matches → verify physical hash
+                const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
+                
+                if (verification.success) {
+                  // Physical Blob hash verified → safe to set storage: blob
+                  storage = 'blob';
+                  reason = 'Drive source with published state + contentHash + Blob metadata + URL match + physical hash verification → blob storage';
+                } else {
+                  // Hash verification failed → skip to avoid false inference
+                  skipped++;
+                  skips.push({ 
+                    mediaId, 
+                    reason: `Drive source with Blob metadata but physical hash verification failed (${verification.errorType}) - requires manual review` 
+                  });
+                  continue;
+                }
+              } else {
+                // URL mismatch → skip to avoid false inference
+                skipped++;
+                skips.push({ 
+                  mediaId, 
+                  reason: 'Drive source with Blob metadata but URL mismatch - requires manual review' 
+                });
+                continue;
+              }
+            } else {
+              // No Blob metadata → skip
+              skipped++;
+              skips.push({ 
+                mediaId, 
+                reason: 'Drive source with contentHash but no Blob metadata - requires manual verification' 
+              });
+              continue;
+            }
           } else {
             // Drive record without clear evidence → skip to avoid incorrect inference
             skipped++;

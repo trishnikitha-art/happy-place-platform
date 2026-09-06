@@ -21,8 +21,7 @@ export async function GET(request: Request) {
 
   console.log('[DRIVE OAUTH FORENSIC] Authorize configuration:', {
     hasClientId: !!clientId,
-    clientIdPrefix: clientId ? clientId.substring(0, 8) + '...' : 'none',
-    redirectUri: redirectUri,
+    redirectUri,
     hasExplicitRedirectUri: !!process.env.GOOGLE_REDIRECT_URI,
     vercelUrl: process.env.VERCEL_URL || 'none',
     nodeEnv: process.env.NODE_ENV || 'none',
@@ -72,8 +71,9 @@ export async function GET(request: Request) {
   ];
 
   console.log('[DRIVE OAUTH FORENSIC] OAuth scopes:', {
-    scopes,
     scopeCount: scopes.length,
+    hasOpenIdIdentityScopes: scopes.includes('openid') && scopes.includes('profile') && scopes.includes('email'),
+    hasDriveReadOnlyScopes: scopes.includes('https://www.googleapis.com/auth/drive.readonly'),
   });
 
   const authUrl = new URL('https://accounts.google.com/o/oauth2/v2/auth');
@@ -87,10 +87,8 @@ export async function GET(request: Request) {
 
   console.log('[DRIVE OAUTH FORENSIC] Redirecting to Google OAuth:', {
     hasState: !!state,
-    statePrefix: state ? state.substring(0, 8) + '...' : 'none',
     accessType: 'offline',
     prompt: 'consent',
-    authUrl: authUrl.toString().substring(0, 100) + '...',
   });
 
   return NextResponse.redirect(authUrl.toString());
