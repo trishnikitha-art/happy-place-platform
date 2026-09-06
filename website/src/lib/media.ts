@@ -335,12 +335,23 @@ export function clearMediaCache(): void {
 }
 
 /**
- * INTENT-BASED MEDIA ADAPTER
+ * INTENT-BASED MEDIA ADAPTER (LEGACY - TEST/DIAGNOSTIC USE ONLY)
  * 
- * These functions provide intent-based lookups instead of exposing media IDs.
- * UI components ask for intent (getProjectMedia, getProjectHero) rather than
- * knowing about media IDs or file paths. This creates a stable API that can
- * change its implementation without affecting UI components.
+ * ⚠️ SECURITY WARNING: These functions read directly from static media manifest
+ * They are for TEST/DIAGNOSTIC purposes only.
+ * 
+ * DO NOT use these in public rendering paths.
+ * Public rendering MUST use resolvePublicMedia() → KV authority.
+ * 
+ * These functions are kept for:
+ * - Test scripts comparing static vs KV authority
+ * - Diagnostic tools validating data integrity
+ * - Bootstrap/recovery operations
+ * 
+ * Public rendering paths currently correctly use:
+ * - resolvePublicMedia() → KV authority
+ * - getProjectWithResolvedMedia() → KV authority
+ * - getServiceCardAssignment() → KV authority
  */
 
 /**
