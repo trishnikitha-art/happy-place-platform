@@ -83,7 +83,6 @@ async function explicitTokenRefresh(
     console.log('[OAUTH_MANAGER] Token refresh - before Google API call', {
       authorizationId,
       hasExistingRefreshToken: !!existingRefreshToken,
-      existingRefreshTokenPrefix: existingRefreshToken ? existingRefreshToken.substring(0, 8) + '...' : 'none',
       currentExpiry: existingCredentials.expiry_date ? new Date(existingCredentials.expiry_date as number).toISOString() : 'none',
     });
     

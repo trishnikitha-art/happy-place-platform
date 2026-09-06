@@ -115,7 +115,7 @@ export async function GET(request: Request) {
     const contentHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
     console.log('[DRIVE_INGEST_TRACE_LOCAL] STEP_3_SUCCESS', {
       requestId,
-      contentHash: contentHash.substring(0, 16) + '...',
+      hasHash: !!contentHash,
       fullHash: contentHash,
     });
 

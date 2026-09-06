@@ -74,7 +74,7 @@ async function reconcileDriveAssignments(
     requestId,
     driveFileId,
     publishedMediaId,
-    contentHash: contentHash.substring(0, 16) + '...',
+    hasContentHash: !!contentHash,
   });
 
   try {
@@ -612,7 +612,7 @@ export async function POST(request: Request) {
     const contentHash = crypto.createHash('sha256').update(driveBytes).digest('hex');
     console.log('[MEDIA_INGEST] HASH stage succeeded', {
       requestId,
-      hash: contentHash.substring(0, 16) + '...',
+      hasHash: !!contentHash,
     });
     
     // 5. Check for existing record with matching content hash (deduplication in KV)

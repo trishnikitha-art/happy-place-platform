@@ -17,12 +17,9 @@ import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 
 /**
- * Create safe fingerprint for credential investigation
- * Prevents logging actual secrets while allowing identity verification
+ * P0 FIX: Removed createHash function - no fingerprint logging to prevent secret exposure
+ * Credential investigation now uses only boolean indicators (hasUrl, hasToken, etc.)
  */
-function createHash(input: string): string {
-  return crypto.createHash('sha256').update(input).digest('hex').substring(0, 16);
-}
 
 /**
  * P1-9: KV environment isolation
@@ -130,15 +127,15 @@ function createRedisClient(): Redis {
     token = integrationToken;
   }
   
-  // Generate safe fingerprints for credential investigation
-  const urlFingerprint = url ? createHash(url) : 'none';
-  const tokenFingerprint = token ? createHash(token) : 'none';
-  const integrationUrlFingerprint = integrationUrl ? createHash(integrationUrl) : 'none';
-  const integrationTokenFingerprint = integrationToken ? createHash(integrationToken) : 'none';
-  const readOnlyTokenFingerprint = readOnlyToken ? createHash(readOnlyToken) : 'none';
-  
+  // P0 FIX: Remove token fingerprint logging - use only boolean indicators
   const urlHost = url ? new URL(url).hostname : 'none';
   const integrationUrlHost = integrationUrl ? new URL(integrationUrl).hostname : 'none';
+  
+  const hasUrl = !!url;
+  const hasToken = !!token;
+  const hasIntegrationUrl = !!integrationUrl;
+  const hasIntegrationToken = !!integrationToken;
+  const hasReadOnlyToken = !!readOnlyToken;
   
   // Determine token type
   let tokenType = 'unknown';
@@ -153,16 +150,16 @@ function createRedisClient(): Redis {
   console.log('[CREDENTIAL_INVESTIGATION]', {
     urlHost,
     integrationUrlHost,
-    urlFingerprint,
-    tokenFingerprint,
-    integrationUrlFingerprint,
-    integrationTokenFingerprint,
-    readOnlyTokenFingerprint,
+    hasUrl,
+    hasToken,
+    hasIntegrationUrl,
+    hasIntegrationToken,
+    hasReadOnlyToken,
     tokenType,
     integrationUrlPresent: !!integrationUrl,
     integrationTokenPresent: !!integrationToken,
     readOnlyTokenPresent: !!readOnlyToken,
-    selectedCredentialFingerprint: urlFingerprint,
+    selectedCredentialHasValue: hasUrl || hasToken,
     allRedisVars: Object.keys(process.env).filter(key => 
       key.includes('KV') || key.includes('REDIS') || key.includes('UPSTASH')
     ).map(key => ({ key, hasValue: !!process.env[key] })),
