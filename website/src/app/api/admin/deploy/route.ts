@@ -4,35 +4,43 @@
  * Commits accepted Workbench changes to GitHub main via GitHub Git Data API
  * 
  * POST /api/admin/deploy
- * Body: { reason?: string }
+ * Body: { reason?: string, transactionIds?: string[] }
  * 
  * GET /api/admin/deploy/status?commitSha={sha}
  * Returns deployment status for a specific commit (Vercel readiness check)
  * 
  * Requires Workbench authentication.
- * Uses GitHub Git Data API to create a SINGLE atomic commit containing both
- * projects.v1.json and services.v1.json. This ensures true atomicity - either
- * both files land together, or neither does.
+ * Uses GitHub Git Data API to create a SINGLE atomic commit containing authority files.
  * 
  * Constitutional Architecture:
- * - Production: Pulls from KV staging area, merges into both authority files,
- *   creates one Git commit with both files, updates main branch
+ * - Production: Pulls from KV staging area, merges into authority files,
+ *   creates one Git commit with authority files, updates main branch
  * - Development: Reads local authority files and commits to GitHub
  * 
- * ATOMIC COMMIT GUARANTEE:
+ * GIT COMMIT ATOMICITY:
  * - Uses Git Data API: blobs → tree → commit → ref update
- * - Single Git commit contains BOTH projects.v1.json and services.v1.json
+ * - Single Git commit contains authority files
  * - If any step fails, main branch is NOT updated
  * - No split-brain state where only one file is committed
  * 
- * DEPLOYMENT STATE FIX:
+ * RUNTIME ASSIGNMENT ATOMICITY:
+ * - Redis promotion uses atomicPromoteAssignments() Lua script
+ * - All expected revisions validated before any writes
+ * - Either all assignments promoted or none promoted
+ * - Prevents partial assignment state
+ * 
+ * DEPLOYMENT STATE:
  * - Git commit ≠ Vercel deployment ≠ live website
+ * - Git commit → runtime promotion → Vercel deployment → website
  * - Returns COMMITTED_DEPLOYING after Git commit, not PUBLISHED
  * - Requires client to poll status endpoint for actual Vercel readiness
  * - Only transitions to PUBLISHED when Vercel confirms deployment
  * 
- * TRANSACTIONAL FIX: Staging keys are only deleted after GitHub commit succeeds
- * This prevents data loss if GitHub commit fails.
+ * TRANSACTIONAL STAGING:
+ * - Staging keys are only deleted after Git commit succeeds
+ * - This prevents data loss if GitHub commit fails
+ * - Runtime assignments promoted atomically after Git commit
+ * - If promotion fails, transaction fails (no split-brain between Git and Redis)
  */
 
 import { NextResponse } from "next/server";
@@ -49,6 +57,7 @@ import {
   failDeploymentTransaction,
   getDeploymentTransaction,
   isTransactionTerminal,
+  atomicPromoteAssignments,
   type DeploymentTransaction,
   type TransactionState
 } from "@/lib/deployment-transaction";
@@ -1809,19 +1818,19 @@ export async function POST(request: Request) {
     }
 
     // CRITICAL FIX: Promote staging assignments to authoritative runtime KV BEFORE marking transaction committed
-    // This ensures Git authority and runtime KV are one coherent transaction
+    // P0 FIX: Use atomicPromoteAssignments() instead of per-assignment loop to prevent partial promotion
+    // This ensures runtime KV promotion is atomic - either all assignments succeed or none succeed
     // If promotion fails, we can transition committing → failed (legal)
     // If promotion succeeds, we transition committing → committed (legal)
-    // PREVIOUS BUG: Git was committed before promotion, causing split-brain when promotion failed
     if (isProduction && redis) {
       console.log('[DEPLOY API] PROMOTING_STAGING_TO_RUNTIME_KV', { deploymentTransactionId });
 
-      const { storeServiceCardAssignment, getServiceCardAssignment } = await import('@/lib/assignment-store');
-      let promotionCount = 0;
-      const promotionFailures: { serviceSlug: string; reason: string }[] = [];
+      const { getServiceCardAssignment } = await import('@/lib/assignment-store');
 
-      // Re-process staging keys to promote assignments to runtime KV
+      // Collect all assignments from staging keys for atomic promotion
+      const assignmentsToPromote: Array<{ serviceSlug: string; mediaId: string; expectedRevision: number; updatedAt: string; source: string }> = [];
       const promotionKeys = transaction?.stagingKeys || stagingKeys;
+
       for (const key of promotionKeys) {
         const value = await redis.get(key);
         if (!value) continue;
@@ -1845,76 +1854,77 @@ export async function POST(request: Request) {
                                       serviceSlug; // No mapping needed for other services
 
           try {
-            // P0 FIX: Read current assignment from CANONICAL runtime target, not staging alias
+            // Read current assignment from CANONICAL runtime target, not staging alias
             const currentAssignment = await getServiceCardAssignment(canonicalServiceSlug, deploymentTransactionId);
             const expectedRevision = currentAssignment?.revision ?? 0;
 
-            const promotedAssignment = {
+            assignmentsToPromote.push({
               serviceSlug: canonicalServiceSlug,
               mediaId: stringValue,
+              expectedRevision,
               updatedAt: new Date().toISOString(),
-              source: 'workbench' as const,
-              revision: expectedRevision + 1, // Always increment
-            };
+              source: 'workbench',
+            });
 
-            // Store in authoritative runtime KV
-            await storeServiceCardAssignment(promotedAssignment, expectedRevision, deploymentTransactionId);
-
-            console.log('[DEPLOY API] ASSIGNMENT_PROMOTED', {
+            console.log('[DEPLOY API] ASSIGNMENT_COLLECTED_FOR_PROMOTION', {
               originalServiceSlug: serviceSlug,
               canonicalServiceSlug,
               mediaId: stringValue,
-              revision: promotedAssignment.revision,
+              expectedRevision,
             });
-            promotionCount++;
           } catch (error) {
-            console.error('[DEPLOY API] ASSIGNMENT_PROMOTION_FAILED', {
+            console.error('[DEPLOY API] ASSIGNMENT_COLLECTION_FAILED', {
               originalServiceSlug: serviceSlug,
               canonicalServiceSlug,
               error: error instanceof Error ? error.message : 'Unknown error',
-            });
-            promotionFailures.push({
-              serviceSlug: canonicalServiceSlug,
-              reason: error instanceof Error ? error.message : 'Unknown error',
             });
           }
         }
       }
 
-      console.log('[DEPLOY API] PROMOTION_COMPLETE', {
+      console.log('[DEPLOY API] ATOMIC_PROMOTION_START', {
         deploymentTransactionId,
-        promotionCount,
-        failureCount: promotionFailures.length,
+        assignmentCount: assignmentsToPromote.length,
       });
 
-      // FAIL-CLOSED: If promotion failed, reject deployment to prevent split-brain
-      if (promotionFailures.length > 0) {
-        console.error('[DEPLOY API] DEPLOYMENT_REJECTED_PROMOTION_FAILURES', {
-          deploymentTransactionId,
-          failureCount: promotionFailures.length,
-          promotionFailures,
-        });
+      // P0 FIX: Use atomic promotion instead of per-assignment loop
+      if (assignmentsToPromote.length > 0) {
+        const promotionResult = await atomicPromoteAssignments(assignmentsToPromote, deploymentTransactionId);
 
-        // MARK TRANSACTION AS FAILED (committing → failed is legal)
-        if (transaction) {
+        if (!promotionResult.success) {
+          console.error('[DEPLOY API] ATOMIC_PROMOTION_FAILED', {
+            deploymentTransactionId,
+            error: promotionResult.error,
+            failedServiceSlug: promotionResult.failedServiceSlug,
+          });
+
+          // FAIL-CLOSED: Reject deployment if atomic promotion fails
           await failDeploymentTransaction(
             deploymentTransactionId,
-            `Deployment rejected: ${promotionFailures.length} assignments failed to promote to runtime KV`
+            `Atomic assignment promotion failed: ${promotionResult.error}`
+          );
+
+          return NextResponse.json(
+            {
+              error: "Deployment rejected: Runtime assignment promotion failed",
+              message: `Git commit succeeded but runtime KV promotion failed atomically. No assignments were partially promoted.`,
+              forensic: {
+                deploymentTransactionId,
+                promotionError: promotionResult.error,
+                failedServiceSlug: promotionResult.failedServiceSlug,
+                assignmentCount: assignmentsToPromote.length,
+              },
+            },
+            { status: 500 }
           );
         }
 
-        return NextResponse.json(
-          {
-            error: "Deployment rejected: Assignment promotion failures",
-            message: `${promotionFailures.length} assignments could not be promoted to runtime KV. This would create split-brain state where Git has assignments but runtime KV does not.`,
-            promotionFailures,
-            forensic: {
-              deploymentTransactionId,
-              failureCount: promotionFailures.length,
-            },
-          },
-          { status: 400 }
-        );
+        console.log('[DEPLOY API] ATOMIC_PROMOTION_SUCCESS', {
+          deploymentTransactionId,
+          promotedCount: promotionResult.count,
+        });
+      } else {
+        console.log('[DEPLOY_API] NO_ASSIGNMENTS_TO_PROMOTE', { deploymentTransactionId });
       }
     }
 

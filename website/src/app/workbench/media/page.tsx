@@ -2558,6 +2558,12 @@ export default function MediaWorkbench() {
                     <div className="text-xs mb-2">Transaction ID: {state.galleryEditor.transactionId}</div>
                     <button
                       onClick={async () => {
+                        // P0 FIX: Fail-closed check - cannot deploy without authoritative transaction ID
+                        if (!state.galleryEditor.transactionId) {
+                          alert('Cannot deploy: no authoritative transaction ID. This should not happen - please reload the gallery.');
+                          return;
+                        }
+                        
                         if (!confirm('Deploy all staged changes to production?\n\nThis will promote staged changes to deployed authority and trigger a new deployment.')) {
                           return;
                         }
@@ -2565,7 +2571,10 @@ export default function MediaWorkbench() {
                           const response = await fetch('/api/admin/deploy', {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ reason: 'Gallery order changes' }),
+                            body: JSON.stringify({ 
+                              reason: 'Gallery order changes',
+                              transactionIds: [state.galleryEditor.transactionId]
+                            }),
                           });
                           if (!response.ok) {
                             const error = await response.json();
