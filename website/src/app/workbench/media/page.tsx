@@ -57,6 +57,7 @@ interface MediaWorkbenchState {
     missingBlob: number;
     unknown: number;
   } | null;
+  legacyStaticEvidence: VisualAsset[]; // P0 FIX: Track static registry separately as legacy evidence
 
 }
 
@@ -108,6 +109,7 @@ export default function MediaWorkbench() {
     selectedSlotForContext: null,
     authorizationConfig: null,
     mediaAudit: null,
+    legacyStaticEvidence: [], // P0 FIX: Track static registry separately as legacy evidence
   });
 
   // Keep refs in sync with state
@@ -226,63 +228,39 @@ export default function MediaWorkbench() {
         }));
       }
       
-      // Merge static and dynamic media (dynamic wins on ID collision)
-      // P0 FIX: Also deduplicate by content hash to prevent duplicates between static and dynamic sources
-      const mergedRegistry = [...staticRegistry];
-      const contentHashMap = new Map<string, VisualAsset>();
+      // P0 FIX: Eliminate authority split - KV is the ONLY runtime PublishedMediaAsset authority
+      // Static registry is bootstrap/recovery/evidence only, not a competing authority
+      // Drive assets are source inventory, not PublishedMediaAsset until materialized
+      // No silent authority merging - clear separation of concerns:
+      // - KV PublishedMediaAsset = runtime authority
+      // - Static registry = legacy evidence/bootstrap
+      // - Drive inventory = source-only references
       
-      // First, build content hash map from static registry
-      staticRegistry.forEach(asset => {
-        if (asset.contentHash) {
-          contentHashMap.set(asset.contentHash, asset);
-        }
+      console.log('[WORKBENCH] AUTHORITY_MODEL_KV_ONLY', {
+        kvMediaCount: dynamicMediaList.length,
+        staticEvidenceCount: staticRegistry.length,
+        note: 'KV is the ONLY runtime PublishedMediaAsset authority. Static registry is legacy evidence only.',
       });
       
-      // Then merge dynamic media, checking for content hash duplicates
-      dynamicMediaList.forEach((dynamicMedia: any) => {
-        const existingIndex = mergedRegistry.findIndex(a => a.id === dynamicMedia.id);
-        if (existingIndex >= 0) {
-          mergedRegistry[existingIndex] = dynamicMedia;
-        } else {
-          // P0 FIX: Check for content hash duplicate before adding
-          if (dynamicMedia.contentHash && contentHashMap.has(dynamicMedia.contentHash)) {
-            console.log('[WORKBENCH] DYNAMIC_MEDIA_CONTENT_HASH_DUPLICATE', {
-              contentHash: dynamicMedia.contentHash,
-              existingId: contentHashMap.get(dynamicMedia.contentHash)?.id,
-              newId: dynamicMedia.id,
-              action: 'skipping duplicate (keeping existing)',
-            });
-          } else {
-            mergedRegistry.push(dynamicMedia);
-            if (dynamicMedia.contentHash) {
-              contentHashMap.set(dynamicMedia.contentHash, dynamicMedia);
-            }
-          }
-        }
-      });
+      // Use KV as the primary authority - this is the constitutional model
+      const canonicalAssets = dynamicMediaList;
       
-      console.log('[WORKBENCH] MERGED_REGISTRY', {
-        staticCount: staticRegistry.length,
-        dynamicCount: dynamicMediaList.length,
-        mergedCount: mergedRegistry.length,
-        uniqueContentHashes: contentHashMap.size,
-        sampleMerged: mergedRegistry.slice(0, 5).map(a => ({ id: a.id, filename: a.filename, classification: a.classification, source: a.source }))
+      // Track static registry separately as legacy evidence (not merged into authority)
+      const legacyStaticEvidence = staticRegistry;
+      
+      console.log('[WORKBENCH] CANONICAL_KV_AUTHORITY_LOADED', {
+        kvPublishedAssets: canonicalAssets.length,
+        legacyStaticEvidence: legacyStaticEvidence.length,
+        sampleKV: canonicalAssets.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, source: a.source, lifecycleState: a.lifecycleState })),
+        sampleLegacy: legacyStaticEvidence.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, source: a.source })),
       });
       
       setState(prev => ({ 
         ...prev, 
-        assets: mergedRegistry, 
+        assets: canonicalAssets,
+        legacyStaticEvidence, // Track separately for evidence only
         loading: false 
       }));
-      
-      console.log('[WORKBENCH] CANONICAL_DATA_LOADED', {
-        staticCount: staticRegistry.length,
-        dynamicCount: dynamicMediaList.length,
-        mergedCount: mergedRegistry.length,
-        sampleStatic: staticRegistry.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, source: a.source })),
-        sampleDynamic: dynamicMediaList.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, source: a.source })),
-        sampleMerged: mergedRegistry.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, source: a.source })),
-      });
     } catch (error) {
       console.error('[WORKBENCH] LOAD_ERROR', error);
       setState(prev => ({ 
@@ -595,10 +573,13 @@ export default function MediaWorkbench() {
         JSON.stringify(driveReference)
       );
       
-      e.dataTransfer.setData('text/plain', `drive:${driveFile.id}`);
+      // Fallback for compatibility (legacy browsers)
+      e.dataTransfer.setData('text/plain', JSON.stringify(driveReference));
       
       console.log('[DND] DATA_TRANSFER_SET', {
         type: 'drive-reference',
+        explicitMime: 'application/x-workbench-asset',
+        fallbackMime: 'text/plain',
         driveReference,
       });
     } else if (asset) {
@@ -613,10 +594,16 @@ export default function MediaWorkbench() {
         })
       );
       
-      e.dataTransfer.setData('text/plain', assetId);
+      // Fallback for compatibility (legacy browsers)
+      e.dataTransfer.setData('text/plain', JSON.stringify({
+        assetId,
+        source: asset.source,
+      }));
       
       console.log('[DND] DATA_TRANSFER_SET', {
         type: 'asset-reference',
+        explicitMime: 'application/x-workbench-asset',
+        fallbackMime: 'text/plain',
         assetId,
         source: asset.source,
       });
