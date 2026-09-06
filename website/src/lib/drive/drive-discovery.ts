@@ -682,5 +682,7 @@ export class DriveDiscovery {
   }
 }
 
-// Per-request instance creation - no singleton
+// Stateless service object - immutable, no mutable state
+// OAuth clients are created per-request from driveSession (authorization-bound)
+// This singleton is safe because it holds no credentials or mutable state
 export const driveDiscovery = new DriveDiscovery();

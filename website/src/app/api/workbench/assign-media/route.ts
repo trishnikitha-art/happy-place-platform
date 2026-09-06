@@ -56,13 +56,26 @@ export async function POST(request: Request) {
       );
     }
 
+    // P0 FIX: Normalize service card slot IDs
+    // ServiceCard VisualSlot uses format: service-card-{serviceSlug}
+    // Assignment store expects just the serviceSlug
+    const serviceSlug = slotId.startsWith('service-card-') 
+      ? slotId.replace('service-card-', '') 
+      : slotId;
+
+    console.log('[WORKBENCH_ASSIGNMENT] Slot ID normalized', {
+      requestId,
+      originalSlotId: slotId,
+      normalizedServiceSlug: serviceSlug,
+    });
+
     // Get current assignment for CAS semantics
-    const currentAssignment = await getServiceCardAssignment(slotId);
+    const currentAssignment = await getServiceCardAssignment(serviceSlug);
     const expectedRevision = currentAssignment?.revision || 0;
 
     // Create new assignment
     const newAssignment = {
-      serviceSlug: slotId,
+      serviceSlug,
       mediaId,
       source: 'workbench' as const,
       updatedAt: new Date().toISOString(),
@@ -74,7 +87,7 @@ export async function POST(request: Request) {
 
     console.log('[WORKBENCH_ASSIGNMENT] Success', {
       requestId,
-      serviceSlug: slotId,
+      serviceSlug,
       mediaId,
       revision: expectedRevision + 1,
     });

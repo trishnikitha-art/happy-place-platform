@@ -8,8 +8,12 @@ export async function middleware(request: NextRequest) {
   // Protect Workbench routes except login page and preview routes
   // Preview routes are internal rendering surface for authenticated Workbench iframe
   if (pathname.startsWith('/workbench') && pathname !== '/workbench/login' && !pathname.startsWith('/workbench/preview')) {
-    // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
-    if (process.env.NODE_ENV === 'development') {
+    // CRITICAL: Development bypass requires explicit DRIVE_AUTH_BYPASS=true
+    // Prevents accidental development authentication bypass
+    const authBypassEnabled = process.env.NODE_ENV === 'development' && process.env.DRIVE_AUTH_BYPASS === 'true';
+    
+    if (authBypassEnabled) {
+      console.warn('[MIDDLEWARE] DEVELOPMENT_AUTH_BYPASS_ENABLED - DRIVE_AUTH_BYPASS=true');
       return NextResponse.next();
     }
 

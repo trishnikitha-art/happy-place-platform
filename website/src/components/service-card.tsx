@@ -7,6 +7,7 @@ import type { Media } from "@/types/media";
 import { Icon } from "@/components/icon";
 import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
+import { VisualSlot } from "@/components/visual-slot";
 import { useState } from "react";
 
 /**
@@ -60,13 +61,23 @@ export function ServiceCard({ service, runtimeCardMediaObject, href }: { service
         <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
           {hasImage && imageSrc ? (
             <>
-              <Image
-                src={imageSrc}
-                alt={featuredMedia.alt || service.name}
-                fill
-                sizes="(max-width: 768px) 50vw, 33vw"
-                className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
-              />
+              <VisualSlot
+                id={`service-card-${service.slug}`}
+                route="/services"
+                page="Services"
+                section="ServiceCards"
+                slotName={`${service.name} Card`}
+                component="ServiceCard"
+                currentMediaId={featuredMedia.id}
+              >
+                <Image
+                  src={imageSrc}
+                  alt={featuredMedia.alt || service.name}
+                  fill
+                  sizes="(max-width: 768px) 50vw, 33vw"
+                  className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
+                />
+              </VisualSlot>
               <div className="absolute inset-0 pointer-events-none rounded-t-xl bg-gradient-to-tr from-black/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
             </>
           ) : (
