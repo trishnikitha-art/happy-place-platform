@@ -2152,6 +2152,34 @@ export default function MediaWorkbench() {
                         <div className="text-red-600">Missing Blob: {state.mediaAudit.missingBlob} ⚠️</div>
                       )}
                     </div>
+                    {state.mediaAudit && state.mediaAudit.missingStorage > 0 && (
+                      <button
+                        onClick={async () => {
+                          if (!state.mediaAudit) return;
+                          const missingCount = state.mediaAudit.missingStorage;
+                          if (!confirm(`Repair ${missingCount} records missing storage field?\n\nThis will use evidence-based classification to determine correct storage type.\nLocal source → static storage\nDrive source → requires manual verification (will be skipped)`)) {
+                            return;
+                          }
+                          try {
+                            const response = await fetch('/api/admin/diagnostic/repair-media-storage', {
+                              method: 'POST',
+                            });
+                            const result = await response.json();
+                            if (response.ok) {
+                              alert(`Storage repair complete:\n\nRepaired: ${result.repaired}\nSkipped: ${result.skipped}\nFailed: ${result.failed}\n\nReloading audit...`);
+                              loadMediaAudit();
+                            } else {
+                              alert(`Storage repair failed: ${result.error}`);
+                            }
+                          } catch (error) {
+                            alert(`Storage repair error: ${error instanceof Error ? error.message : String(error)}`);
+                          }
+                        }}
+                        className="mt-2 w-full px-3 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors text-xs"
+                      >
+                        Repair Missing Storage Fields
+                      </button>
+                    )}
                   </div>
                 )}
 
