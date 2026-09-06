@@ -2550,6 +2550,41 @@ export default function MediaWorkbench() {
                     </button>
                   </div>
                 )}
+
+                {/* P0 FIX: Deploy button for staged changes */}
+                {state.galleryEditor.state === 'staged' && state.galleryEditor.transactionId && (
+                  <div className="mt-3 p-3 bg-amber-50 text-amber-900 rounded border border-amber-200">
+                    <div className="font-semibold mb-2">Gallery is staged for deployment</div>
+                    <div className="text-xs mb-2">Transaction ID: {state.galleryEditor.transactionId}</div>
+                    <button
+                      onClick={async () => {
+                        if (!confirm('Deploy all staged changes to production?\n\nThis will promote staged changes to deployed authority and trigger a new deployment.')) {
+                          return;
+                        }
+                        try {
+                          const response = await fetch('/api/admin/deploy', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ reason: 'Gallery order changes' }),
+                          });
+                          if (!response.ok) {
+                            const error = await response.json();
+                            throw new Error(error.error || 'Deployment failed');
+                          }
+                          const result = await response.json();
+                          alert(`Deployment initiated successfully.\n\nCommit SHA: ${result.commitSha}\n\nVercel will deploy this commit automatically.`);
+                          // Reload gallery to show deployed state
+                          loadGalleryForProject(state.galleryEditor.selectedProjectId!);
+                        } catch (error) {
+                          alert(`Deployment failed: ${error instanceof Error ? error.message : String(error)}`);
+                        }
+                      }}
+                      className="w-full px-3 py-2 bg-amber-600 text-white rounded hover:bg-amber-700 transition-colors text-sm"
+                    >
+                      Deploy Staged Changes
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

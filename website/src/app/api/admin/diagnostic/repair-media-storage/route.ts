@@ -12,11 +12,14 @@
  * - Never delete records
  * - Never overwrite a valid storage declaration
  * - Skip records that are legitimately lifecycle states without storage
+ * - For local source: only add storage: static if record exists in static media.v1.json manifest
+ * - For Drive source: skip until Blob evidence is manually verified
  */
 
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { listMediaIds, getMediaRecordRaw, saveMedia } from '@/lib/media-kv-store';
+import { loadMediaManifest } from '@/lib/media';
 import type { Media } from '@/types/media';
 
 export async function POST() {
@@ -31,6 +34,11 @@ export async function POST() {
 
   try {
     console.log('[STORAGE_REPAIR] Starting media storage field repair');
+    
+    // Load static media manifest for evidence-based classification
+    const manifest = loadMediaManifest();
+    const staticMediaMap = new Map(manifest.media.map(m => [m.id, m]));
+    console.log('[STORAGE_REPAIR] Static manifest loaded', { count: staticMediaMap.size });
     
     const mediaIds = await listMediaIds();
     console.log('[STORAGE_REPAIR] Found media records', { count: mediaIds.length });
@@ -86,9 +94,22 @@ export async function POST() {
         let reason = '';
         
         if (media.source === 'local') {
-          // Local source has physical files → static storage
-          storage = 'static';
-          reason = 'Local source with physical files → static storage';
+          // P0 FIX: Only add storage: static if record exists in static manifest
+          // This ensures we only repair records that have proven static authority
+          const staticRecord = staticMediaMap.get(mediaId);
+          if (staticRecord) {
+            // Record exists in static manifest → static storage is proven
+            storage = 'static';
+            reason = 'Local source with static manifest evidence → static storage';
+          } else {
+            // Local source but not in static manifest → skip to avoid false inference
+            skipped++;
+            skips.push({ 
+              mediaId, 
+              reason: 'Local source without static manifest evidence - requires manual verification' 
+            });
+            continue;
+          }
         } else if (media.source === 'google-drive') {
           // Drive source: ONLY set storage if already published with Blob evidence
           // NEVER infer blob merely from Drive provenance
