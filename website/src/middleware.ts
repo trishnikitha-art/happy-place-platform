@@ -5,8 +5,9 @@ import { workbenchSession } from '@/lib/workbench-session';
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Protect Workbench routes except login page
-  if (pathname.startsWith('/workbench') && pathname !== '/workbench/login') {
+  // Protect Workbench routes except login page and preview routes
+  // Preview routes are internal rendering surface for authenticated Workbench iframe
+  if (pathname.startsWith('/workbench') && pathname !== '/workbench/login' && !pathname.startsWith('/workbench/preview')) {
     // TEMPORARY LOCAL DEVELOPMENT BYPASS: Skip authentication in development
     if (process.env.NODE_ENV === 'development') {
       return NextResponse.next();
@@ -26,5 +27,9 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: '/workbench/:path*',
+  matcher: [
+    '/workbench/:path*', 
+    // Exclude preview routes from workbench authentication
+    '/((?!workbench/preview).*)',
+  ],
 };
