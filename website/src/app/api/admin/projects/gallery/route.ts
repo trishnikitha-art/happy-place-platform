@@ -105,25 +105,26 @@ export async function GET(request: Request) {
     let transactionId = null;
     
     if (isProduction && redis) {
-      // Scan for any pending gallery staging for this project
-      // In production, we need to find the most recent staged state
-      // This is a simplified scan - in production you might want a more efficient index
-      const allKeys = await redis.keys(`${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}*project:${projectId}:gallery`);
+      // P0 FIX: Use deterministic staged authority - store project-level current staged transaction ID
+      // Instead of scanning arbitrary keys, use an explicit project → current staged transaction index
+      const projectStagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}project:${projectId}:current-transaction`;
+      const currentStagedTransactionId = await redis.get(projectStagingKey);
       
-      if (allKeys.length > 0) {
-        // Get the most recent staged state
-        // For now, we'll just take the first one (in production, you'd want ordering by timestamp)
-        stagingKey = allKeys[0];
-        const stagedData = await redis.get(stagingKey);
+      if (currentStagedTransactionId && typeof currentStagedTransactionId === 'string') {
+        // Load the specific staged transaction
+        const specificStagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${currentStagedTransactionId}:project:${projectId}:gallery`;
+        const stagedData = await redis.get(specificStagingKey);
+        
         if (stagedData && typeof stagedData === 'string') {
           const parsed = JSON.parse(stagedData);
           stagedGallery = parsed.gallery;
-          transactionId = stagingKey.split(':')[2]; // Extract transaction ID from key
+          transactionId = currentStagedTransactionId;
           console.log('[GALLERY GET] STAGED_STATE_FOUND', { 
             projectId, 
-            stagingKey, 
+            stagingKey: specificStagingKey,
             transactionId,
-            galleryLength: stagedGallery.length 
+            galleryLength: stagedGallery.length,
+            stagedRevision: parsed.currentRevision
           });
         }
       }
@@ -145,8 +146,27 @@ export async function GET(request: Request) {
     const deployedRevision = project.media?.galleryRevision || 0;
 
     // P0 FIX: Return staged state if available, otherwise deployed state
+    // For staged state, use the actual currentRevision from the transaction data (not synthetic +1)
+    // This enables multiple edits of staged state without CAS failure
     const effectiveGallery = stagedGallery || deployedGallery;
-    const effectiveRevision = stagedGallery ? deployedRevision + 1 : deployedRevision;
+    let effectiveRevision = deployedRevision;
+    
+    if (stagedGallery && transactionId && redis) {
+      // The GET must return the revision from the staged transaction data
+      // so PUT can compare against it for subsequent edits
+      const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${transactionId}:project:${projectId}:gallery`;
+      const stagedData = await redis.get(stagingKey);
+      if (stagedData && typeof stagedData === 'string') {
+        const parsed = JSON.parse(stagedData);
+        effectiveRevision = parsed.currentRevision || deployedRevision + 1;
+      } else {
+        effectiveRevision = deployedRevision + 1;
+      }
+    } else if (stagedGallery && transactionId) {
+      // Fallback if Redis check failed but we have staged state info
+      effectiveRevision = deployedRevision + 1;
+    }
+    
     const state = stagedGallery ? 'staged' : 'deployed';
 
     console.log('[GALLERY GET] SUCCESS', { 
@@ -280,27 +300,59 @@ export async function PUT(request: Request) {
       );
     }
 
-    // P0: Revision/concurrency barrier - read current state
+    // P0: Load project data first to access its state
     const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
     const projectsData = JSON.parse(readFileSync(projectsPath, "utf-8"));
-    const project = projectsData.projects.find((p: any) => p.id === projectId);
+    const projectIndex = projectsData.projects.findIndex((p: any) => p.id === projectId);
     
-    if (!project) {
+    if (projectIndex === -1) {
       return NextResponse.json(
         { error: "Project not found" },
         { status: 404 }
       );
     }
+    
+    const project = projectsData.projects[projectIndex];
 
-    const currentGallery = project.media?.gallery || [];
-    const currentRevision = project.media?.galleryRevision || 0;
+    // P0: Revision/concurrency barrier - read current state
+    // P0 FIX: Check for staged state first to enable editing staged changes
+    const redis = getRedisClient();
+    const isProduction = process.env.NODE_ENV === 'production';
+    
+    let currentGallery = project.media?.gallery || [];
+    let currentRevision = project.media?.galleryRevision || 0;
+    let currentTransactionId = null;
+    
+    if (isProduction && redis) {
+      // Check if there's a current staged transaction for this project
+      const projectStagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}project:${projectId}:current-transaction`;
+      const currentStagedTransactionId = await redis.get(projectStagingKey);
+      
+      if (currentStagedTransactionId && typeof currentStagedTransactionId === 'string') {
+        const specificStagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${currentStagedTransactionId}:project:${projectId}:gallery`;
+        const stagedData = await redis.get(specificStagingKey);
+        
+        if (stagedData && typeof stagedData === 'string') {
+          const parsed = JSON.parse(stagedData);
+          currentGallery = parsed.gallery;
+          currentRevision = parsed.currentRevision;
+          currentTransactionId = currentStagedTransactionId;
+          console.log('[GALLERY V2 PUT] USING_STAGED_STATE', {
+            projectId,
+            currentRevision,
+            transactionId: currentTransactionId
+          });
+        }
+      }
+    }
     
     console.log('[GALLERY V2 PUT] CONCURRENCY_CHECK', {
       projectId,
       currentGalleryLength: currentGallery.length,
       newGalleryLength: gallery.length,
       currentRevision,
-      expectedRevision
+      expectedRevision,
+      isStagedState: !!currentTransactionId
     });
     
     // CAS: Compare current revision with expected revision (REQUIRED in production)
@@ -345,15 +397,6 @@ export async function PUT(request: Request) {
     if (isDevelopment) {
       console.log('[GALLERY V2 PUT] DEV_MODE - Direct filesystem write', { projectId, galleryLength: gallery.length });
       
-      // Find project index for direct write
-      const projectIndex = projectsData.projects.findIndex((p: any) => p.id === projectId);
-      if (projectIndex === -1) {
-        return NextResponse.json(
-          { error: "Project not found" },
-          { status: 404 }
-        );
-      }
-      
       // Directly write to projects.v1.json in development mode
       if (!projectsData.projects[projectIndex].media) {
         projectsData.projects[projectIndex].media = {};
@@ -385,13 +428,12 @@ export async function PUT(request: Request) {
     }
 
     // Use KV for production persistence to avoid EROFS errors
-    const redis = getRedisClient();
-    const isProduction = process.env.NODE_ENV === 'production';
-    
     if (isProduction && redis) {
+      // P0 FIX: Store project-level current staged transaction ID for deterministic authority
       // Production: Use transactional staging format
       const effectiveTransactionId = transactionId || `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:gallery`;
+      const projectStagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}project:${projectId}:current-transaction`;
 
       // Store the complete ordered gallery array with revision metadata
       const newRevision = currentRevision + 1;
@@ -402,6 +444,9 @@ export async function PUT(request: Request) {
         mutationTimestamp: new Date().toISOString()
       };
       await redis.set(stagingKey, JSON.stringify(galleryPayload));
+      
+      // P0 FIX: Set authoritative project-level current transaction ID
+      await redis.set(projectStagingKey, effectiveTransactionId);
 
       // Create authoritative deployment transaction record
       const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
@@ -416,9 +461,11 @@ export async function PUT(request: Request) {
         projectId,
         galleryLength: gallery.length,
         stagingKey,
+        projectStagingKey,
         transactionId: effectiveTransactionId,
         currentRevision,
-        previousGalleryLength: currentGallery.length
+        previousGalleryLength: currentGallery.length,
+        isStagedState: !!currentTransactionId
       });
 
       return NextResponse.json({
