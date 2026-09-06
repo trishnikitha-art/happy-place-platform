@@ -130,7 +130,9 @@ export async function POST(request: Request) {
     }
 
     // 1. Get Drive file metadata (using corrected API contract)
-    const driveFile = await driveDiscovery.getFile(fileId);
+    // P0 FIX: Preserve corpus identity through Drive operations
+    // fileId alone is not sufficient identity - must be (fileId, corpusId)
+    const driveFile = await driveDiscovery.getFile(fileId, sharedDriveId);
     if (!driveFile) {
       return NextResponse.json(
         { error: 'File not found in Drive' },
@@ -146,7 +148,8 @@ export async function POST(request: Request) {
     });
 
     // Construct the proxy URL for thumbnail rendering
-    const thumbnailProxyUrl = `/api/drive/files/${fileId}/thumbnail${sharedDriveId ? `?driveId=${sharedDriveId}` : ''}`;
+    // P0 FIX: Use corpusId instead of driveId for canonical vocabulary
+    const thumbnailProxyUrl = `/api/drive/files/${fileId}/thumbnail${sharedDriveId ? `?corpusId=${sharedDriveId}` : ''}`;
 
     console.log('[DRIVE_REFERENCE] THUMBNAIL_PROXY_CONSTRUCTED', {
       fileId,

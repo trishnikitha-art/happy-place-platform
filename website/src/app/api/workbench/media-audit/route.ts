@@ -2,7 +2,7 @@
  * Workbench Media Authority Audit API
  *
  * Audits KV media authority records to identify failing records.
- * Returns inventory of records that fail public media gate verification.
+ * Returns classification of records by type and failure reason.
  *
  * POST /api/workbench/media-audit
  */
@@ -36,11 +36,16 @@ export async function POST(request: Request) {
       const mediaIds = await listMediaIds();
       const results = {
         totalRecords: mediaIds.length,
-        validRecords: 0,
-        failingRecords: 0,
-        failingRecordIds: [] as string[],
-        failureReasons: {} as Record<string, string>,
-        sampleFailingRecords: [] as any[],
+        validPublished: 0,
+        // P0 FIX: Classify records instead of merely rejecting them
+        sourceReferences: 0,
+        materializing: 0,
+        stale: 0,
+        malformedPublished: 0,
+        missingStorage: 0,
+        missingBlob: 0,
+        unknown: 0,
+        sampleRecords: [] as any[],
       };
       
       for (const mediaId of mediaIds) {
@@ -49,36 +54,59 @@ export async function POST(request: Request) {
           continue;
         }
         
-        // Verify public media authority
-        const hasPublicAuthority = await verifyPublicMediaAuthority(media);
-        
-        if (hasPublicAuthority) {
-          results.validRecords++;
-        } else {
-          results.failingRecords++;
-          results.failingRecordIds.push(mediaId);
-          results.failureReasons[mediaId] = 'Failed public media authority check';
-          
-          // Collect sample of failing records (first 10)
-          if (results.sampleFailingRecords.length < 10) {
-            results.sampleFailingRecords.push({
-              id: media.id,
-              filename: media.filename,
-              source: media.source,
-              lifecycleState: media.lifecycleState,
-              storage: media.storage,
-              contentHash: media.contentHash,
-              reason: 'Failed public media authority check',
-            });
+        // P0 FIX: Classify by lifecycle state and characteristics
+        if (media.lifecycleState === 'source_reference') {
+          // Legitimate DriveReference - should fail public gate by design
+          results.sourceReferences++;
+        } else if (media.lifecycleState === 'materializing') {
+          // Intermediate materialization state
+          results.materializing++;
+        } else if (media.lifecycleState === 'stale') {
+          // Stale record requiring refresh
+          results.stale++;
+        } else if (media.lifecycleState === 'published') {
+          // Check if published asset is actually valid
+          const hasPublicAuthority = await verifyPublicMediaAuthority(media);
+          if (hasPublicAuthority) {
+            results.validPublished++;
+          } else {
+            // Published asset that fails public gate - classify specific failure
+            if (!media.storage) {
+              results.missingStorage++;
+            } else if (media.storage === 'blob' && !media.contentHash) {
+              // Blob storage without content hash indicates incomplete materialization
+              results.missingBlob++;
+            } else {
+              results.malformedPublished++;
+            }
           }
+        } else {
+          // Unknown lifecycle state
+          results.unknown++;
+        }
+        
+        // Collect sample records (first 10)
+        if (results.sampleRecords.length < 10) {
+          results.sampleRecords.push({
+            id: media.id,
+            filename: media.filename,
+            source: media.source,
+            lifecycleState: media.lifecycleState,
+            storage: media.storage,
+            contentHash: media.contentHash,
+          });
         }
       }
       
       console.log('[MEDIA_AUDIT] Audit complete:', {
         totalRecords: results.totalRecords,
-        validRecords: results.validRecords,
-        failingRecords: results.failingRecords,
-        failureRate: `${((results.failingRecords / results.totalRecords) * 100).toFixed(2)}%`,
+        validPublished: results.validPublished,
+        sourceReferences: results.sourceReferences,
+        materializing: results.materializing,
+        stale: results.stale,
+        malformedPublished: results.malformedPublished,
+        missingStorage: results.missingStorage,
+        missingBlob: results.missingBlob,
       });
       
       return NextResponse.json({

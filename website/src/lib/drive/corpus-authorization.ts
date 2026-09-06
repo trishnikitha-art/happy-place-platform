@@ -99,25 +99,33 @@ function getAuthorizedSharedDriveIds(): string[] {
  * 
  * CONSTITUTIONAL RULE: Google OAuth access ≠ HPP authorization
  * My Drive is NOT authorized by default - must be explicitly configured
+ * 
+ * P0 FIX: Normalize environment variable to handle case-insensitive "TRUE"/"true"/"True"
  */
 export function isMyDriveAuthorized(): boolean {
   const myDriveAuth = process.env.HPP_AUTHORIZED_MY_DRIVE;
-  // Explicit opt-in only - unset or any value other than "true" means NOT authorized
-  return myDriveAuth === 'true';
+  // Explicit opt-in only - normalize to lowercase for case-insensitive comparison
+  // Only "true" (case-insensitive, trimmed) means authorized
+  return myDriveAuth?.trim().toLowerCase() === 'true';
 }
 
 /**
  * Get current authorization configuration for diagnostic purposes
  * Returns the current environment variable configuration without requiring authentication
+ * P0 FIX: Returns only safe diagnostics, not raw environment values
  */
 export function getAuthorizationConfiguration() {
+  const myDriveAuth = process.env.HPP_AUTHORIZED_MY_DRIVE;
+  const myDriveAuthorized = isMyDriveAuthorized();
+  const sharedDrivesConfigured = process.env.HPP_AUTHORIZED_SHARED_DRIVES !== undefined;
+  const authorizedSharedDriveIds = getAuthorizedSharedDriveIds();
+  
   return {
-    myDriveAuthorized: isMyDriveAuthorized(),
-    myDriveConfigured: process.env.HPP_AUTHORIZED_MY_DRIVE !== undefined,
-    myDriveValue: process.env.HPP_AUTHORIZED_MY_DRIVE,
-    sharedDrivesConfigured: process.env.HPP_AUTHORIZED_SHARED_DRIVES !== undefined,
-    sharedDrivesValue: process.env.HPP_AUTHORIZED_SHARED_DRIVES,
-    authorizedSharedDriveIds: getAuthorizedSharedDriveIds(),
+    myDriveAuthorized,
+    myDriveConfigured: myDriveAuth !== undefined,
+    sharedDriveCount: authorizedSharedDriveIds.length,
+    // P0 FIX: Do not return raw environment values or internal identifiers
+    // Only return safe diagnostic information
   };
 }
 

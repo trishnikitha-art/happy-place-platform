@@ -41,7 +41,21 @@ export async function GET(
   console.log('[MEDIA_PROXY_REQUEST_STARTED]', { fileId, corpusId });
 
   try {
-    // CRITICAL: Explicit authentication check before Drive API access
+    // P0 FIX: Check Workbench authentication for preview operation
+    // Drive OAuth authenticated ≠ Workbench authorized
+    const isWorkbenchAuthenticated = await workbenchSession.isAuthenticated();
+    if (!isWorkbenchAuthenticated) {
+      console.error('[MEDIA_PROXY_REQUEST_REJECTED]', { 
+        fileId, 
+        reason: 'WORKBENCH_AUTH_REQUIRED' 
+      });
+      return NextResponse.json(
+        { error: 'Workbench authentication required' },
+        { status: 401 }
+      );
+    }
+
+    // CRITICAL: Explicit Drive authentication check before Drive API access
     const authenticated = await isAuthenticated();
     if (!authenticated) {
       console.error('[MEDIA_PROXY_REQUEST_REJECTED]', { 

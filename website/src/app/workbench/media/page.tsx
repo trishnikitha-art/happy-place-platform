@@ -44,10 +44,18 @@ interface MediaWorkbenchState {
   authorizationConfig: {
     myDriveAuthorized: boolean;
     myDriveConfigured: boolean;
-    myDriveValue: string | undefined;
-    sharedDrivesConfigured: boolean;
-    sharedDrivesValue: string | undefined;
-    authorizedSharedDriveIds: string[];
+    sharedDriveCount: number;
+  } | null;
+  mediaAudit: {
+    totalRecords: number;
+    validPublished: number;
+    sourceReferences: number;
+    materializing: number;
+    stale: number;
+    malformedPublished: number;
+    missingStorage: number;
+    missingBlob: number;
+    unknown: number;
   } | null;
 }
 
@@ -98,6 +106,7 @@ export default function MediaWorkbench() {
     websiteStructure: [],
     selectedSlotForContext: null,
     authorizationConfig: null,
+    mediaAudit: null,
   });
 
   // Keep refs in sync with state
@@ -128,6 +137,32 @@ export default function MediaWorkbench() {
       setState(prev => ({ ...prev, authorizationConfig: data.configuration }));
     } catch (error) {
       console.warn('[WORKBENCH] AUTHORIZATION_CONFIG_ERROR', error);
+    }
+  };
+
+  // P0 FIX: Load media authority audit for diagnostic purposes
+  const loadMediaAudit = async () => {
+    try {
+      console.log('[WORKBENCH] LOAD_MEDIA_AUDIT_START');
+      
+      const response = await fetch('/api/workbench/media-audit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'auditPublicGate' }),
+      });
+      
+      if (!response.ok) {
+        console.warn('[WORKBENCH] MEDIA_AUDIT_UNAVAILABLE', { status: response.status });
+        return;
+      }
+      
+      const data = await response.json();
+      
+      console.log('[WORKBENCH] MEDIA_AUDIT_LOADED', data.audit);
+      
+      setState(prev => ({ ...prev, mediaAudit: data.audit }));
+    } catch (error) {
+      console.warn('[WORKBENCH] MEDIA_AUDIT_ERROR', error);
     }
   };
 
@@ -1083,6 +1118,7 @@ export default function MediaWorkbench() {
 
     loadCanonicalData();
     loadAuthorizationConfig(); // P0 FIX: Load authorization configuration for diagnostics
+    loadMediaAudit(); // P0 FIX: Load media authority audit for diagnostics
     loadDriveCorpusStructure(); // P0 FIX: Load Drive corpus structure for source browsing
     
     // P0 FIX: Load Drive corpus and integrate into main asset list
@@ -2091,11 +2127,29 @@ export default function MediaWorkbench() {
                           Set HPP_AUTHORIZED_MY_DRIVE=true to enable My Drive access
                         </div>
                       )}
-                      <div>Shared Drives: {state.authorizationConfig.authorizedSharedDriveIds.length} configured</div>
-                      {state.authorizationConfig.authorizedSharedDriveIds.length > 0 && (
-                        <div className="text-xs text-gray-600">
-                          IDs: {state.authorizationConfig.authorizedSharedDriveIds.join(', ')}
-                        </div>
+                      <div>Shared Drives: {state.authorizationConfig.sharedDriveCount} configured</div>
+                    </div>
+                  </div>
+                )}
+
+                {/* P0 FIX: Media Authority Audit Diagnostics */}
+                {state.mediaAudit && (
+                  <div className="mb-4 p-3 bg-amber-50 text-amber-900 text-sm rounded border border-amber-200">
+                    <div className="font-semibold mb-2">Media Authority Audit:</div>
+                    <div className="space-y-1">
+                      <div>Total Records: {state.mediaAudit.totalRecords}</div>
+                      <div>Valid Published: {state.mediaAudit.validPublished} ✅</div>
+                      <div>Source References: {state.mediaAudit.sourceReferences} (legitimate Drive references)</div>
+                      <div>Materializing: {state.mediaAudit.materializing}</div>
+                      <div>Stale: {state.mediaAudit.stale}</div>
+                      {state.mediaAudit.malformedPublished > 0 && (
+                        <div className="text-red-600">Malformed Published: {state.mediaAudit.malformedPublished} ⚠️</div>
+                      )}
+                      {state.mediaAudit.missingStorage > 0 && (
+                        <div className="text-red-600">Missing Storage: {state.mediaAudit.missingStorage} ⚠️</div>
+                      )}
+                      {state.mediaAudit.missingBlob > 0 && (
+                        <div className="text-red-600">Missing Blob: {state.mediaAudit.missingBlob} ⚠️</div>
                       )}
                     </div>
                   </div>
