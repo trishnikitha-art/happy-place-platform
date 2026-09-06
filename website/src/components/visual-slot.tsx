@@ -264,65 +264,134 @@ export function VisualSlot({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    
+    // LOGGING: Expose the semantic mismatch
+    const incomingEffectAllowed = e.dataTransfer.effectAllowed;
+    const isGalleryReorder = isGallerySlot;
+    
     e.dataTransfer.dropEffect = 'copy';
-    // Force cursor to show as valid drop target
     e.dataTransfer.effectAllowed = 'copy';
+    
+    console.log('[VS_DND] DRAG_OVER', {
+      slotId: id,
+      isGallerySlot,
+      isGalleryReorder,
+      incomingEffectAllowed,
+      outgoingDropEffect: 'copy',
+      outgoingEffectAllowed: 'copy',
+      semanticMismatch: isGalleryReorder && incomingEffectAllowed === 'move',
+      warning: isGalleryReorder && incomingEffectAllowed === 'move' ? 'SEMANTIC_MISMATCH: gallery reorder should be move, not copy' : null,
+      windowIsIframe: window.parent !== window,
+      timestamp: Date.now(),
+    });
     
     // Throttle logging to prevent performance issues
     const now = Date.now();
     if (now - lastDragOverLogRef.current > 100) { // Log at most once per 100ms
-      console.log('[VS_FORENSIC] DRAGOVER_ACTIVE', {
-        slotId: id,
-        isWorkbenchMode,
-        timestamp: now,
-      });
       lastDragOverLogRef.current = now;
     }
   };
 
   const handleDragStart = (e: React.DragEvent) => {
-    if (!isGallerySlot || !currentMediaId || !projectId) return;
+    if (!isGallerySlot || !currentMediaId || !projectId) {
+      console.log('[VS_DND] DRAG_START_SKIPPED', {
+        slotId: id,
+        isGallerySlot,
+        currentMediaId,
+        projectId,
+        reason: !isGallerySlot ? 'NOT_GALLERY_SLOT' : !currentMediaId ? 'NO_MEDIA_ID' : 'NO_PROJECT_ID',
+      });
+      return;
+    }
 
-    console.log('[VS_FORENSIC] GALLERY_DRAG_START', {
+    console.log('[VS_DND] GALLERY_DRAG_START', {
       slotId: id,
       currentMediaId,
       projectId,
       windowIsIframe: window.parent !== window,
+      element: elementRef.current?.tagName,
+      parentElement: elementRef.current?.parentElement?.tagName,
+      hasButtonParent: elementRef.current?.parentElement?.tagName === 'BUTTON',
+      hasClickHandler: elementRef.current?.parentElement?.hasAttribute('onclick'),
+      draggableAttribute: elementRef.current?.getAttribute('draggable'),
       timestamp: Date.now(),
     });
 
     // Set drag data for cross-frame communication
-    e.dataTransfer.setData('text/plain', JSON.stringify({
+    const dragData = JSON.stringify({
       type: 'GALLERY_REORDER',
       sourceSlotId: id,
       sourceMediaId: currentMediaId,
       projectId,
-    }));
+    });
 
+    e.dataTransfer.setData('text/plain', dragData);
     e.dataTransfer.effectAllowed = 'move';
+
+    console.log('[VS_DND] DRAG_DATA_SET', {
+      slotId: id,
+      dataType: 'text/plain',
+      dataLength: dragData.length,
+      effectAllowed: 'move',
+      dataPreview: dragData.substring(0, 100),
+    });
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    console.log('[VS_FORENSIC] DROP_RECEIVED', {
+    
+    console.log('[VS_DND] DROP_RECEIVED', {
       slotId: id,
+      isGallerySlot,
+      projectId,
+      currentMediaId,
       windowIsIframe: window.parent !== window,
       dataTransferTypes: e.dataTransfer.types,
+      dataTransferItems: Array.from(e.dataTransfer.items).map(item => ({
+        kind: item.kind,
+        type: item.type,
+      })),
+      textPlainPreview: e.dataTransfer.getData('text/plain')?.substring(0, 200),
       timestamp: Date.now(),
     });
 
     // Check for gallery reorder data first
     const galleryReorderData = e.dataTransfer.getData('text/plain');
+    
+    console.log('[VS_DND] PROTOCOL_DECISION', {
+      slotId: id,
+      isGallerySlot,
+      hasGalleryReorderData: !!galleryReorderData,
+      dataPreview: galleryReorderData?.substring(0, 200),
+      attemptingGalleryReorder: isGallerySlot && !!galleryReorderData,
+      willFallThroughToAssetDrop: !isGallerySlot || !galleryReorderData,
+    });
+
     if (galleryReorderData && isGallerySlot && projectId) {
       try {
         const parsed = JSON.parse(galleryReorderData);
+        
+        console.log('[VS_DND] GALLERY_REORDER_PARSED', {
+          slotId: id,
+          parsedType: parsed.type,
+          sourceSlotId: parsed.sourceSlotId,
+          sourceMediaId: parsed.sourceMediaId,
+          targetSlotId: id,
+          targetMediaId: currentMediaId,
+          projectId: parsed.projectId,
+          protocolMatch: parsed.type === 'GALLERY_REORDER',
+        });
+
         if (parsed.type === 'GALLERY_REORDER') {
-          console.log('[VS_FORENSIC] GALLERY_REORDER_DETECTED', {
+          console.log('[VS_DND] GALLERY_REORDER_POSTING', {
             sourceSlotId: parsed.sourceSlotId,
             sourceMediaId: parsed.sourceMediaId,
             targetSlotId: id,
             targetMediaId: currentMediaId,
             projectId: parsed.projectId,
+            targetOrigin: window.parent.location.origin,
+            hasParent: !!window.parent,
+            parentMatchesIframe: window.parent !== window,
           });
 
           // Send reorder event to parent
@@ -336,15 +405,38 @@ export function VisualSlot({
               targetMediaId: currentMediaId,
               projectId: parsed.projectId,
             }, targetOrigin);
+            
+            console.log('[VS_DND] GALLERY_REORDER_POSTED', {
+              messageType: 'SLOT_REORDER',
+              targetOrigin,
+              timestamp: Date.now(),
+            });
+          } else {
+            console.error('[VS_DND] GALLERY_REORDER_FAILED', {
+              reason: 'NOT_IN_IFRAME',
+              hasParent: !!window.parent,
+              parentEqualsWindow: window.parent === window,
+            });
           }
           return;
         }
       } catch (err) {
-        console.log('[VS_FORENSIC] GALLERY_REORDER_PARSE_FAILED', { error: err });
+        console.error('[VS_DND] GALLERY_REORDER_PARSE_FAILED', { 
+          slotId: id,
+          error: err instanceof Error ? err.message : String(err),
+          rawData: galleryReorderData?.substring(0, 500),
+        });
       }
     }
 
-    // Regular asset drop (from right panel)
+    // Regular asset drop (from right panel) - FALLTHROUGH PATH
+    console.log('[VS_DND] FALLING_THROUGH_TO_ASSET_DROP', {
+      slotId: id,
+      reason: !isGallerySlot ? 'NOT_GALLERY_SLOT' : !galleryReorderData ? 'NO_GALLERY_DATA' : 'PARSE_FAILED_OR_TYPE_MISMATCH',
+      isGallerySlot,
+      hasGalleryReorderData: !!galleryReorderData,
+    });
+
     const assetId = e.dataTransfer.getData('text/plain');
     
     // Also try application/x-workbench-asset for structured data

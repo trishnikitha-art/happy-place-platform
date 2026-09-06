@@ -1532,7 +1532,7 @@ export default function MediaWorkbench() {
       } else if (messageType === 'SLOT_REORDER') {
         const requestId = `reorder-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-        console.log('[WB_FORENSIC] SLOT_REORDER_RECEIVED', {
+        console.log('[WB_DND] SLOT_REORDER_RECEIVED', {
           requestId,
           messageType,
           origin: event.origin,
@@ -1541,13 +1541,22 @@ export default function MediaWorkbench() {
           targetSlotId: event.data.targetSlotId,
           targetMediaId: event.data.targetMediaId,
           projectId: event.data.projectId,
+          completeData: event.data,
           timestamp: Date.now(),
         });
 
         const { sourceSlotId, sourceMediaId, targetSlotId, targetMediaId, projectId } = event.data;
 
         if (!projectId || !sourceMediaId || !targetMediaId) {
-          console.error('[REORDER] MISSING_REQUIRED_FIELDS', { projectId, sourceMediaId, targetMediaId });
+          console.error('[WB_DND] SLOT_REORDER_MISSING_FIELDS', { 
+            requestId,
+            projectId, 
+            sourceMediaId, 
+            targetMediaId,
+            hasProjectId: !!projectId,
+            hasSourceMediaId: !!sourceMediaId,
+            hasTargetMediaId: !!targetMediaId,
+          });
           return;
         }
 
@@ -1556,23 +1565,75 @@ export default function MediaWorkbench() {
         const sourceIdMatch = sourceSlotId.match(/our-work-gallery::(.+)::(.+)/);
         const targetIdMatch = targetSlotId.match(/our-work-gallery::(.+)::(.+)/);
 
+        console.log('[WB_DND] SLOT_ID_PARSING', {
+          requestId,
+          sourceSlotId,
+          targetSlotId,
+          sourceIdMatch: !!sourceIdMatch,
+          targetIdMatch: !!targetIdMatch,
+          sourceParsed: sourceIdMatch ? { projectId: sourceIdMatch[1], mediaId: sourceIdMatch[2] } : null,
+          targetParsed: targetIdMatch ? { projectId: targetIdMatch[1], mediaId: targetIdMatch[2] } : null,
+        });
+
         if (!sourceIdMatch || !targetIdMatch) {
-          console.error('[REORDER] INVALID_SLOT_ID_FORMAT', { sourceSlotId, targetSlotId });
+          console.error('[WB_DND] SLOT_REORDER_INVALID_FORMAT', { 
+            requestId,
+            sourceSlotId, 
+            targetSlotId,
+            sourceIdMatch,
+            targetIdMatch,
+          });
           return;
         }
 
         const [, sourceProjectId, sourceMediaIdExtracted] = sourceIdMatch;
         const [, targetProjectId, targetMediaIdExtracted] = targetIdMatch;
 
+        console.log('[WB_DND] PROJECT_ID_VALIDATION', {
+          requestId,
+          sourceProjectId,
+          targetProjectId,
+          projectIdFromMessage: projectId,
+          projectMatch: sourceProjectId === targetProjectId && sourceProjectId === projectId,
+          sourceMediaIdMatch: sourceMediaId === sourceMediaIdExtracted,
+          targetMediaIdMatch: targetMediaId === targetMediaIdExtracted,
+        });
+
         if (sourceProjectId !== targetProjectId || sourceProjectId !== projectId) {
-          console.error('[REORDER] PROJECT_MISMATCH', { sourceProjectId, targetProjectId, projectId });
+          console.error('[WB_DND] SLOT_REORDER_PROJECT_MISMATCH', { 
+            requestId,
+            sourceProjectId, 
+            targetProjectId, 
+            projectId 
+          });
           return;
         }
 
         // Fetch current gallery state
+        console.log('[WB_DND] FETCHING_CURRENT_GALLERY', {
+          requestId,
+          projectId,
+          endpoint: `/api/admin/projects/gallery?projectId=${projectId}`,
+        });
+
         try {
           const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+          
+          console.log('[WB_DND] GALLERY_FETCH_RESPONSE', {
+            requestId,
+            projectId,
+            status: response.status,
+            ok: response.ok,
+          });
+
           if (!response.ok) {
+            const errorText = await response.text();
+            console.error('[WB_DND] GALLERY_FETCH_FAILED', {
+              requestId,
+              projectId,
+              status: response.status,
+              errorText,
+            });
             throw new Error('Failed to load gallery');
           }
 
@@ -1580,18 +1641,39 @@ export default function MediaWorkbench() {
           const currentGallery = data.gallery || [];
           const currentRevision = data.currentRevision;
 
-          console.log('[REORDER] CURRENT_GALLERY_LOADED', {
+          console.log('[WB_DND] CURRENT_GALLERY_LOADED', {
+            requestId,
             projectId,
             galleryLength: currentGallery.length,
             currentRevision,
+            state: data.state,
+            hasStagedChanges: data.hasStagedChanges,
+            galleryPreview: currentGallery.slice(0, 5),
           });
 
           // Find indices of source and target media
           const sourceIndex = currentGallery.indexOf(sourceMediaId);
           const targetIndex = currentGallery.indexOf(targetMediaId);
 
+          console.log('[WB_DND] GALLERY_INDEX_LOOKUP', {
+            requestId,
+            sourceMediaId,
+            targetMediaId,
+            sourceIndex,
+            targetIndex,
+            sourceFound: sourceIndex !== -1,
+            targetFound: targetIndex !== -1,
+          });
+
           if (sourceIndex === -1 || targetIndex === -1) {
-            console.error('[REORDER] MEDIA_NOT_IN_GALLERY', { sourceIndex, targetIndex, sourceMediaId, targetMediaId });
+            console.error('[WB_DND] MEDIA_NOT_IN_GALLERY', { 
+              requestId,
+              sourceIndex, 
+              targetIndex, 
+              sourceMediaId, 
+              targetMediaId,
+              currentGallery,
+            });
             return;
           }
 
@@ -1600,15 +1682,28 @@ export default function MediaWorkbench() {
           const [movedItem] = newGallery.splice(sourceIndex, 1);
           newGallery.splice(targetIndex, 0, movedItem);
 
-          console.log('[REORDER] NEW_GALLERY_COMPUTED', {
+          console.log('[WB_DND] NEW_GALLERY_COMPUTED', {
+            requestId,
             sourceIndex,
             targetIndex,
             movedItem,
+            oldLength: currentGallery.length,
+            newLength: newGallery.length,
             oldGallery: currentGallery,
             newGallery,
+            previewBefore: currentGallery.slice(Math.max(0, sourceIndex - 2), sourceIndex + 3),
+            previewAfter: newGallery.slice(Math.max(0, targetIndex - 2), targetIndex + 3),
           });
 
           // Save with CAS
+          console.log('[WB_DND] SAVING_GALLERY', {
+            requestId,
+            projectId,
+            endpoint: '/api/admin/projects/gallery',
+            expectedRevision: currentRevision,
+            newGalleryLength: newGallery.length,
+          });
+
           const saveResponse = await fetch('/api/admin/projects/gallery', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
@@ -1619,10 +1714,24 @@ export default function MediaWorkbench() {
             }),
           });
 
+          console.log('[WB_DND] GALLERY_SAVE_RESPONSE', {
+            requestId,
+            projectId,
+            status: saveResponse.status,
+            ok: saveResponse.ok,
+          });
+
           if (!saveResponse.ok) {
             const error = await saveResponse.json();
+            console.error('[WB_DND] GALLERY_SAVE_FAILED', {
+              requestId,
+              projectId,
+              status: saveResponse.status,
+              error,
+            });
+            
             if (saveResponse.status === 409) {
-              console.error('[REORDER] CAS_CONFLICT', error);
+              console.error('[WB_DND] CAS_CONFLICT', { requestId, error });
               alert('Concurrent modification detected. Please reload and try again.');
             } else {
               throw new Error(error.error || 'Failed to save gallery');
@@ -1631,21 +1740,36 @@ export default function MediaWorkbench() {
           }
 
           const result = await saveResponse.json();
-          console.log('[REORDER] SAVE_SUCCESS', {
+          console.log('[WB_DND] SAVE_SUCCESS', {
+            requestId,
             projectId,
             newRevision: result.currentRevision,
             staged: result.staged,
+            result,
           });
 
           // Reload canonical data and refresh preview
+          console.log('[WB_DND] REFRESHING_AFTER_SAVE', {
+            requestId,
+            projectId,
+            reloadingCanonical: true,
+            refreshingIframe: true,
+          });
+
           loadCanonicalData();
           if (iframeRef.current?.contentWindow) {
             iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
+            console.log('[WB_DND] IFRAME_REFRESH_POSTED', { requestId });
           }
 
           alert(`Gallery reordered successfully.\n\n${result.staged ? 'Staged for deployment.' : 'Saved immediately (development mode).'}`);
         } catch (error) {
-          console.error('[REORDER] ERROR', error);
+          console.error('[WB_DND] REORDER_ERROR', { 
+            requestId,
+            projectId,
+            error: error instanceof Error ? error.message : String(error),
+            stack: error instanceof Error ? error.stack : undefined,
+          });
           alert(`Failed to reorder gallery: ${error instanceof Error ? error.message : String(error)}`);
         }
       } else if (messageType === 'REFRESH_SLOTS') {
@@ -2065,10 +2189,17 @@ export default function MediaWorkbench() {
               className="w-full h-full border-0"
               title="Website Preview"
               sandbox="allow-same-origin allow-scripts allow-popups"
-              onLoad={() => console.log('[SLOT] IFRAME_LOADED', {
-                iframeSrc: `${window.location.origin}${state.selectedPage}?workbench=true`,
-                contentWindowExists: !!iframeRef.current?.contentWindow,
-              })}
+              onLoad={() => {
+                console.log('[SLOT] IFRAME_LOADED', {
+                  iframeSrc: `${window.location.origin}${state.selectedPage}?workbench=true`,
+                  contentWindowExists: !!iframeRef.current?.contentWindow,
+                  selectedPage: state.selectedPage,
+                  actualSrc: iframeRef.current?.src,
+                  previewRouteExpected: `/workbench/preview${state.selectedPage}?workbench=true`,
+                  usesPreviewRoute: iframeRef.current?.src?.includes('/workbench/preview/'),
+                  timestamp: Date.now(),
+                });
+              }}
             />
           </section>
 

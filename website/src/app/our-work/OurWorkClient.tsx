@@ -182,6 +182,13 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                     key={`${project.id}-${mediaId}`}
                     className="group relative block aspect-[4/3] overflow-hidden cursor-pointer break-inside-avoid mb-4"
                     onClick={() => {
+                      console.log('[OUR_WORK] GALLERY_BUTTON_CLICK', {
+                        projectId: project.id,
+                        mediaId,
+                        slotId: `our-work-gallery::${project.id}::${mediaId}`,
+                        timestamp: Date.now(),
+                      });
+
                       // P0 FIX: Use pre-validated galleryMedia from server-side resolution (passed public media gate)
                       // This prevents client-side getMediaById() bypass
                       const allGalleryImages = allProjects.flatMap(p => {
@@ -221,6 +228,15 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                           alt={photo!.alt || `${project.title} photo ${photoIndex + 1}`}
                           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                           loading="lazy"
+                          onLoad={() => {
+                            console.log('[OUR_WORK] GALLERY_IMAGE_LOADED', {
+                              projectId: project.id,
+                              mediaId,
+                              slotId: `our-work-gallery::${project.id}::${mediaId}`,
+                              src: src.substring(0, 100),
+                              timestamp: Date.now(),
+                            });
+                          }}
                         />
                       </VisualSlot>
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100" />
