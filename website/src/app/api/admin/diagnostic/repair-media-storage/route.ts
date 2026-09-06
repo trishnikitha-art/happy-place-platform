@@ -6,6 +6,12 @@
  *
  * POST /api/admin/diagnostic/repair-media-storage
  *
+ * Request Body (optional):
+ * {
+ *   mediaIds: string[]  // Explicit list of IDs to repair (if omitted, requires explicit confirmation)
+ *   confirm: boolean    // Required if mediaIds is omitted to confirm bulk repair
+ * }
+ *
  * Constitutional Rules:
  * - Never infer storage: blob merely because a record has Drive provenance
  * - Preserve all existing media identity, content hashes, variants, Drive provenance, and assignments
@@ -13,7 +19,8 @@
  * - Never overwrite a valid storage declaration
  * - Skip records that are legitimately lifecycle states without storage
  * - For local source: only add storage: static if record exists in static media.v1.json manifest
- * - For Drive source: skip until Blob evidence is manually verified
+ * - For Drive source: only set storage: blob with physical Blob evidence (contentHash + Blob metadata + URL match + physical hash verification)
+ * - P0 FIX: Prefer explicit ID list over bulk mutation for safe production repair
  */
 
 import { NextResponse } from 'next/server';
@@ -23,7 +30,12 @@ import { loadMediaManifest } from '@/lib/media';
 import { getBlobMetadataByContentHash, verifyBlobHash } from '@/lib/blob-storage';
 import type { Media } from '@/types/media';
 
-export async function POST() {
+interface RepairRequest {
+  mediaIds?: string[];
+  confirm?: boolean;
+}
+
+export async function POST(request: Request) {
   // REQUIRE ADMIN AUTHORIZATION
   const isAuthenticated = await workbenchSession.isAuthenticated();
   if (!isAuthenticated) {
@@ -33,16 +45,46 @@ export async function POST() {
     );
   }
 
+  // Parse request body
+  let body: RepairRequest = {};
   try {
-    console.log('[STORAGE_REPAIR] Starting media storage field repair');
+    body = await request.json();
+  } catch {
+    // Empty body is allowed
+  }
+
+  const explicitIds = body.mediaIds;
+  const bulkConfirm = body.confirm;
+
+  // P0 FIX: Require explicit ID list OR explicit bulk confirmation
+  // This prevents accidental bulk mutation without operator intent
+  if (!explicitIds && !bulkConfirm) {
+    return NextResponse.json({
+      error: 'EXPLICIT_CONFIRMATION_REQUIRED',
+      message: 'Either provide mediaIds array for targeted repair, or set confirm: true for bulk repair',
+    }, { status: 400 });
+  }
+
+  try {
+    console.log('[STORAGE_REPAIR] Starting media storage field repair', {
+      mode: explicitIds ? 'targeted' : 'bulk',
+      targetCount: explicitIds?.length || 'all',
+    });
     
     // Load static media manifest for evidence-based classification
     const manifest = loadMediaManifest();
     const staticMediaMap = new Map(manifest.media.map(m => [m.id, m]));
     console.log('[STORAGE_REPAIR] Static manifest loaded', { count: staticMediaMap.size });
     
-    const mediaIds = await listMediaIds();
-    console.log('[STORAGE_REPAIR] Found media records', { count: mediaIds.length });
+    // Determine target media IDs
+    let mediaIds: string[];
+    if (explicitIds) {
+      mediaIds = explicitIds;
+      console.log('[STORAGE_REPAIR] Using explicit ID list', { count: mediaIds.length });
+    } else {
+      mediaIds = await listMediaIds();
+      console.log('[STORAGE_REPAIR] Scanning all media records', { count: mediaIds.length });
+    }
     
     let repaired = 0;
     let skipped = 0;
@@ -61,12 +103,12 @@ export async function POST() {
           continue;
         }
         
-        // Skip if storage field already exists (valid)
-        if (media.storage) {
-          skipped++;
-          skips.push({ mediaId, reason: 'Storage field already present' });
-          continue;
-        }
+        // Check if storage field exists
+        const hasStorage = !!media.storage;
+        
+        // Evidence-based storage classification
+        let storage: 'static' | 'blob' | null = null;
+        let reason = '';
         
         // Skip legitimate lifecycle states that should not have storage
         if (media.lifecycleState === 'source_reference') {
@@ -90,9 +132,56 @@ export async function POST() {
           continue;
         }
         
-        // Evidence-based storage classification
-        let storage: 'static' | 'blob' | null = null;
-        let reason = '';
+        // P0 FIX: Check for contract violations even when storage exists
+        if (hasStorage) {
+          const originalUrl = media.variants?.original || '';
+          
+          if (media.storage === 'blob' && (originalUrl.startsWith('/images/') || originalUrl.startsWith('/public/'))) {
+            // STATIC_MARKED_BLOB: Static URL but marked as blob
+            // Repair to storage: static
+            storage = 'static';
+            reason = 'Contract violation repair: static URL but marked as blob → corrected to static';
+          } else if (media.storage === 'static' && (originalUrl.startsWith('http://') || originalUrl.startsWith('https://'))) {
+            // BLOB_MARKED_STATIC: Blob URL but marked as static
+            // Repair to storage: blob, but only with Blob evidence
+            if (media.contentHash) {
+              const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
+              if (blobMetadata && originalUrl === blobMetadata.url) {
+                const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
+                if (verification.success) {
+                  storage = 'blob';
+                  reason = 'Contract violation repair: Blob URL but marked as static + physical Blob verification → corrected to blob';
+                } else {
+                  skipped++;
+                  skips.push({ 
+                    mediaId, 
+                    reason: `Contract violation (Blob URL marked static) but physical hash verification failed (${verification.errorType}) - requires manual review` 
+                  });
+                  continue;
+                }
+              } else {
+                skipped++;
+                skips.push({ 
+                  mediaId, 
+                  reason: 'Contract violation (Blob URL marked static) but no Blob metadata or URL mismatch - requires manual review' 
+                });
+                continue;
+              }
+            } else {
+              skipped++;
+              skips.push({ 
+                mediaId, 
+                reason: 'Contract violation (Blob URL marked static) but no contentHash - requires manual review' 
+              });
+              continue;
+            }
+          } else {
+            // Valid storage declaration, no repair needed
+            skipped++;
+            skips.push({ mediaId, reason: 'Storage field already valid' });
+            continue;
+          }
+        }
         
         if (media.source === 'local') {
           // P0 FIX: Only add storage: static if record exists in static manifest
@@ -213,6 +302,7 @@ export async function POST() {
     });
     
     return NextResponse.json({
+      mode: explicitIds ? 'targeted' : 'bulk',
       totalRecords: mediaIds.length,
       repaired,
       skipped,
