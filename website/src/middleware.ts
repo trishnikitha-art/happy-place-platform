@@ -27,9 +27,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: [
-    '/workbench/:path*', 
-    // Exclude preview routes from workbench authentication
-    '/((?!workbench/preview).*)',
-  ],
+  matcher: '/workbench/:path*',
 };
