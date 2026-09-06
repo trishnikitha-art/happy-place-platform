@@ -116,11 +116,9 @@ export async function GET(request: Request) {
     console.log('[DRIVE OAUTH FORENSIC] Exchanging authorization code for tokens...');
     console.log('[DRIVE OAUTH FORENSIC] Token exchange parameters:', {
       hasCode: !!code,
-      codePrefix: code ? code.substring(0, 8) + '...' : 'none',
       hasClientId: !!clientId,
-      clientIdPrefix: clientId ? clientId.substring(0, 8) + '...' : 'none',
       hasClientSecret: !!clientSecret,
-      redirectUri: redirectUri,
+      redirectUri,
       grantType: 'authorization_code',
     });
 
@@ -152,7 +150,7 @@ export async function GET(request: Request) {
       let errorBody = 'none';
       try {
         errorBody = await tokenResponse.text();
-        console.error('[DRIVE OAUTH FORENSIC] Token exchange error body:', errorBody.substring(0, 200));
+        console.error('[DRIVE OAUTH FORENSIC] Token exchange error body (first 200 chars):', errorBody.substring(0, 200));
       } catch (e) {
         // Error body unreadable
       }
@@ -171,7 +169,7 @@ export async function GET(request: Request) {
       hasRefreshToken: !!tokenData.refresh_token,
       expiresIn: tokenData.expires_in || 'none',
       tokenType: tokenData.token_type || 'none',
-      scope: tokenData.scope ? tokenData.scope.substring(0, 100) + '...' : 'none',
+      hasScope: !!tokenData.scope,
     });
 
     if (tokenData.error) {
@@ -223,7 +221,7 @@ export async function GET(request: Request) {
       hasRefreshToken: !!tokenData.refresh_token,
       expiresIn,
       expiryDate: new Date(expiryDate).toISOString(),
-      scope: tokenData.scope ? tokenData.scope.substring(0, 100) + '...' : 'none',
+      hasScope: !!tokenData.scope,
     });
 
     console.log('[DRIVE OAUTH FORENSIC] Integrating with authority layers...');
@@ -266,7 +264,7 @@ export async function GET(request: Request) {
       email = userInfo.email && typeof userInfo.email === 'string' ? userInfo.email : '';
       
       console.log('[DRIVE OAUTH FORENSIC] Google identity extracted:', {
-        googleSubject: googleSubject.substring(0, 8) + '...',
+        hasGoogleSubject: !!googleSubject,
         hasEmail: !!email,
       });
     } catch (error) {

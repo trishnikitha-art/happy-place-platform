@@ -164,7 +164,8 @@ describe('OAuth Security Boundaries - Real Redis Integration', () => {
         return;
       }
 
-      // Set test-only short TTL for this test
+      // Set test-only short TTL
+      // TTL is resolved at operation time via resolveStateTtl()
       const originalTtl = process.env.OAUTH_STATE_TTL_SECONDS;
       process.env.OAUTH_STATE_TTL_SECONDS = '1'; // 1 second TTL
 

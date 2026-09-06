@@ -98,8 +98,32 @@ function getStatePrefix(): string {
   return 'drive:oauth:state:';
 }
 
-// State TTL: 5 minutes (one-time use, short-lived)
-const STATE_TTL_SECONDS = 5 * 60;
+/**
+ * Resolve State TTL from environment or use production default
+ * 
+ * Production default: 5 minutes (300 seconds)
+ * Test environment can override via OAUTH_STATE_TTL_SECONDS
+ * 
+ * Must be a positive integer in seconds
+ * Resolved at operation time (not module load time) for test flexibility
+ */
+function resolveStateTtl(): number {
+  const envTtl = process.env.OAUTH_STATE_TTL_SECONDS;
+  
+  if (envTtl === undefined || envTtl === null) {
+    // Production default: 5 minutes
+    return 5 * 60;
+  }
+  
+  const parsed = parseInt(envTtl, 10);
+  
+  if (isNaN(parsed) || parsed <= 0) {
+    console.warn('[OAUTH_STATE] Invalid OAUTH_STATE_TTL_SECONDS, using default:', envTtl);
+    return 5 * 60;
+  }
+  
+  return parsed;
+}
 
 // Browser binding cookie name
 const BROWSER_BINDING_COOKIE = 'drive_oauth_binding';
@@ -248,7 +272,8 @@ export async function createState(cookieStore: Awaited<ReturnType<typeof cookies
   const state = generateState();
   const browserBinding = await getOrCreateBrowserBinding(cookieStore);
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + STATE_TTL_SECONDS * 1000);
+  const ttl = resolveStateTtl();
+  const expiresAt = new Date(now.getTime() + ttl * 1000);
 
   const record: OAuthStateRecord = {
     state,
@@ -266,7 +291,7 @@ export async function createState(cookieStore: Awaited<ReturnType<typeof cookies
     // EX: Set expiration time atomically with the value
     await client.set(`${getStatePrefix()}${state}`, record, {
       nx: true,
-      ex: STATE_TTL_SECONDS,
+      ex: ttl,
     });
 
     console.log('[OAUTH_STATE] State created');
