@@ -13,8 +13,6 @@
  */
 
 describe('OAuth Refresh Concurrency - Real Redis Integration', () => {
-  let testNamespace: string;
-  
   beforeAll(() => {
     // Skip integration tests if Redis credentials are not available
     if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
@@ -22,9 +20,8 @@ describe('OAuth Refresh Concurrency - Real Redis Integration', () => {
       return;
     }
     
-    // Generate unique test namespace to avoid conflicts with production data
-    testNamespace = `test_refresh_concurrency_${Date.now()}`;
-    console.log('[OAUTH_REFRESH_CONCURRENCY] Using test namespace:', testNamespace);
+    // P0 FIX: Use TEST_NAMESPACE set by jest.oauth.integration.setup.ts
+    console.log('[OAUTH_REFRESH_CONCURRENCY] Using test namespace from setup:', process.env.TEST_NAMESPACE);
   });
 
   // Skip all tests if Redis credentials are not available
