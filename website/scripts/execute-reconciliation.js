@@ -6,6 +6,8 @@
  * 
  * It calls the server-side reconciliation endpoint which performs
  * the complete audit → plan → repair → verify workflow.
+ * 
+ * P0 FIX: Removed 'full' action (not transactional), added plan fingerprint binding
  */
 
 async function executeReconciliation() {
@@ -40,7 +42,7 @@ async function executeReconciliation() {
     console.log('REQUIRES_MATERIALIZATION:', auditResult.counts.requiresMaterialization);
     console.log('='.repeat(80));
     
-    // Step 2: Plan - show proposed repairs
+    // Step 2: Plan - show proposed repairs with immutable fingerprint
     console.log('\n[RECONCILIATION] Step 2: Plan');
     const planResponse = await fetch('/api/admin/diagnostic/reconcile-media-storage', {
       method: 'POST',
@@ -60,6 +62,7 @@ async function executeReconciliation() {
     console.log('\n' + '='.repeat(80));
     console.log('PLAN RESULTS');
     console.log('='.repeat(80));
+    console.log('Plan Fingerprint:', planResult.plan.fingerprint);
     console.log('Eligible for Repair:', planResult.plan.eligibleForRepair.length);
     console.log('Ambiguous:', planResult.plan.ambiguous.length);
     console.log('Skipped:', planResult.plan.skipped.length);
@@ -68,6 +71,7 @@ async function executeReconciliation() {
     // Step 3: Confirm before repair
     const confirmRepair = confirm(
       `Ready to repair ${planResult.plan.eligibleForRepair.length} records.\n\n` +
+      `Plan fingerprint: ${planResult.plan.fingerprint.substring(0, 16)}...\n\n` +
       `This will perform field-level mutations to add storage metadata.\n\n` +
       `Ambiguous records (${planResult.plan.ambiguous.length}) will NOT be repaired.\n\n` +
       `Proceed?`
@@ -78,17 +82,24 @@ async function executeReconciliation() {
       return;
     }
     
-    // Step 4: Repair - execute mutations
+    // Step 4: Repair - execute mutations with plan fingerprint binding
     console.log('\n[RECONCILIATION] Step 3: Repair');
     const repairResponse = await fetch('/api/admin/diagnostic/reconcile-media-storage', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ action: 'repair' }),
+      body: JSON.stringify({ 
+        action: 'repair',
+        options: { 
+          auditFingerprint: planResult.plan.fingerprint 
+        }
+      }),
     });
     
     if (!repairResponse.ok) {
       console.error('[RECONCILIATION] Repair failed:', repairResponse.status, repairResponse.statusText);
+      const errorText = await repairResponse.text();
+      console.error('[RECONCILIATION] Error details:', errorText);
       return;
     }
     
