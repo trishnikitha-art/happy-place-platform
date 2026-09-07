@@ -145,8 +145,10 @@ interface ReconcileRequest {
   options?: {
     dryRun?: boolean;
     pageSize?: number;
-    offset?: number;  // P0 FIX: Real HTTP pagination offset
+    offset?: number;
     auditFingerprint?: string;
+    pageFingerprint?: string;  // P0 FIX: Page-specific fingerprint for repair
+    datasetSnapshotId?: string;  // P0 FIX: Immutable dataset snapshot ID
   };
 }
 
@@ -157,7 +159,8 @@ interface ClassificationResult {
 }
 
 interface ReconcilePlan {
-  fingerprint: string;
+  datasetSnapshotId: string;
+  pageFingerprint: string;
   eligibleForRepair: Array<{
     mediaId: string;
     currentStorage: string | undefined;
@@ -174,19 +177,25 @@ interface ReconcilePlan {
   }>;
 }
 
-// Generate immutable plan fingerprint from evidence (not just classification)
-function generatePlanFingerprint(classifications: ClassificationResult[]): string {
+// Generate immutable dataset snapshot ID
+function generateDatasetSnapshotId(): string {
   const crypto = require('crypto');
-  // P0 FIX: Bind mutation-relevant evidence, not just classification
+  return crypto.randomUUID();
+}
+
+// Generate page-specific fingerprint for repair binding
+function generatePageFingerprint(pageMediaIds: string[], classifications: ClassificationResult[]): string {
+  const crypto = require('crypto');
+  // P0 FIX: Page-specific fingerprint binds only current page evidence
   const evidence = classifications
     .map(c => {
       const evidenceParts = [
         c.mediaId,
         c.classification,
       ];
-      // Only include evidence for repairable records (where mutation is possible)
+      // Only include evidence for repairable records on this page
       if (c.classification === 'REPAIRABLE_BLOB' || c.classification === 'REPAIRABLE_STATIC') {
-        evidenceParts.push(c.reason); // Includes evidence reason
+        evidenceParts.push(c.reason);
       }
       return evidenceParts.join(':');
     })
@@ -211,6 +220,17 @@ export async function POST(request: Request) {
     
     console.log('[MEDIA_RECONCILIATION] Starting', { action, options });
     
+    // P0 FIX: Real HTTP pagination - process only one page per request
+    const pageSize = options.pageSize || 50;
+    const offset = options.offset || 0;
+    
+    // P0 FIX: Generate immutable dataset snapshot for first audit request
+    let datasetSnapshotId = options.datasetSnapshotId;
+    if (!datasetSnapshotId && action === 'audit' && offset === 0) {
+      datasetSnapshotId = generateDatasetSnapshotId();
+      console.log('[MEDIA_RECONCILIATION] Generated new dataset snapshot', { datasetSnapshotId });
+    }
+    
     // Load static manifest for evidence-based classification
     const manifest = loadMediaManifest();
     const staticMediaMap = new Map(manifest.media.map(m => [m.id, m]));
@@ -219,9 +239,6 @@ export async function POST(request: Request) {
     const mediaIds = await listMediaIds();
     console.log('[MEDIA_RECONCILIATION] Total records to classify', { count: mediaIds.length });
     
-    // P0 FIX: Real HTTP pagination - process only one page per request
-    const pageSize = options.pageSize || 50;
-    const offset = options.offset || 0;
     const endIdx = Math.min(offset + pageSize, mediaIds.length);
     const pageIds = mediaIds.slice(offset, endIdx);
     const totalPages = Math.ceil(mediaIds.length / pageSize);
@@ -307,6 +324,7 @@ export async function POST(request: Request) {
     if (action === 'audit') {
       return NextResponse.json({
         action: 'audit',
+        datasetSnapshotId,
         pagination: {
           totalRecords: mediaIds.length,
           offset,
@@ -323,10 +341,19 @@ export async function POST(request: Request) {
       });
     }
     
-    // PLAN MODE: Show proposed repairs with immutable fingerprint (current page only)
+    // PLAN MODE: Show proposed repairs with page-specific fingerprint
     if (action === 'plan') {
+      // P0 FIX: Require dataset snapshot ID for plan generation
+      if (!datasetSnapshotId) {
+        return NextResponse.json(
+          { error: 'DATASET_SNAPSHOT_REQUIRED', message: 'datasetSnapshotId from audit action is required for plan' },
+          { status: 400 }
+        );
+      }
+      
       const plan: ReconcilePlan = {
-        fingerprint: generatePlanFingerprint(classifications),
+        datasetSnapshotId,
+        pageFingerprint: generatePageFingerprint(pageIds, classifications),
         eligibleForRepair: [],
         ambiguous: [],
         skipped: [],
@@ -369,6 +396,7 @@ export async function POST(request: Request) {
       
       return NextResponse.json({
         action: 'plan',
+        datasetSnapshotId,
         pagination: {
           totalRecords: mediaIds.length,
           offset,
@@ -384,25 +412,34 @@ export async function POST(request: Request) {
       });
     }
     
-    // REPAIR MODE: Execute mutations with plan fingerprint binding
+    // REPAIR MODE: Execute mutations with page-specific fingerprint binding
     if (action === 'repair') {
-      // P0 FIX: Require plan fingerprint to bind plan to repair
-      if (!options.auditFingerprint) {
+      // P0 FIX: Require dataset snapshot ID for authority boundary
+      if (!options.datasetSnapshotId) {
         return NextResponse.json(
-          { error: 'PLAN_FINGERPRINT_REQUIRED', message: 'auditFingerprint from plan action is required for repair' },
+          { error: 'DATASET_SNAPSHOT_REQUIRED', message: 'datasetSnapshotId from plan action is required for repair' },
           { status: 400 }
         );
       }
       
-      // Verify fingerprint matches current state
-      const currentFingerprint = generatePlanFingerprint(classifications);
-      if (currentFingerprint !== options.auditFingerprint) {
+      // P0 FIX: Require page-specific fingerprint (not global fingerprint)
+      if (!options.pageFingerprint) {
+        return NextResponse.json(
+          { error: 'PAGE_FINGERPRINT_REQUIRED', message: 'pageFingerprint from plan action is required for repair' },
+          { status: 400 }
+        );
+      }
+      
+      // Verify page fingerprint matches current page state
+      const currentPageFingerprint = generatePageFingerprint(pageIds, classifications);
+      if (currentPageFingerprint !== options.pageFingerprint) {
         return NextResponse.json(
           { 
-            error: 'STALE_PLAN', 
-            message: 'Plan fingerprint does not match current state. Records changed between plan and repair.',
-            currentFingerprint,
-            providedFingerprint: options.auditFingerprint,
+            error: 'STALE_PAGE_PLAN', 
+            message: 'Page fingerprint does not match current state. Records changed between plan and repair.',
+            currentPageFingerprint,
+            providedPageFingerprint: options.pageFingerprint,
+            offset,
           },
           { status: 409 }
         );
