@@ -163,7 +163,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { action } = body;
+    const { action, limit, offset } = body;
 
     if (action === 'auditPublicGate') {
       console.log('[MEDIA_AUDIT] Starting forensic classification (RAW AUTHORITY)');
@@ -173,8 +173,29 @@ export async function POST(request: Request) {
       const staticMediaMap = new Map(manifest.media.map(m => [m.id, m]));
       
       const mediaIds = await listMediaIds();
+      
+      // P0 FIX: Pagination support to handle large datasets
+      const pageSize = limit || 100; // Default 100 records per batch
+      const startIndex = offset || 0;
+      const endIndex = Math.min(startIndex + pageSize, mediaIds.length);
+      const pageIds = mediaIds.slice(startIndex, endIndex);
+      
+      console.log('[MEDIA_AUDIT] Pagination parameters:', {
+        totalRecords: mediaIds.length,
+        pageSize,
+        offset: startIndex,
+        processingRecords: pageIds.length,
+        totalPages: Math.ceil(mediaIds.length / pageSize),
+        currentPage: Math.floor(startIndex / pageSize) + 1,
+      });
+      
       const results = {
         totalRecords: mediaIds.length,
+        processedRecords: pageIds.length,
+        offset: startIndex,
+        limit: pageSize,
+        totalPages: Math.ceil(mediaIds.length / pageSize),
+        currentPage: Math.floor(startIndex / pageSize) + 1,
         validPublished: 0,
         sourceReferences: 0,
         materializing: 0,
@@ -194,7 +215,7 @@ export async function POST(request: Request) {
         sampleRecords: [] as any[],
       };
       
-      for (const mediaId of mediaIds) {
+      for (const mediaId of pageIds) {
         const media = await getMediaRecordRaw(mediaId);
         if (!media) {
           continue;
@@ -245,7 +266,7 @@ export async function POST(request: Request) {
             break;
         }
         
-        // Collect sample records (first 20)
+        // Collect sample records (first 20 of this page)
         if (results.sampleRecords.length < 20) {
           results.sampleRecords.push({
             id: media.id,
@@ -260,8 +281,12 @@ export async function POST(request: Request) {
         }
       }
       
-      console.log('[MEDIA_AUDIT] Forensic classification complete:', {
+      console.log('[MEDIA_AUDIT] Forensic classification complete (page):', {
         totalRecords: results.totalRecords,
+        processedRecords: results.processedRecords,
+        offset: results.offset,
+        currentPage: results.currentPage,
+        totalPages: results.totalPages,
         validPublished: results.validPublished,
         sourceReferences: results.sourceReferences,
         materializing: results.materializing,
