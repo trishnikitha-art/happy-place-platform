@@ -51,7 +51,7 @@ export async function POST(request: Request) {
 
     // P0 FIX: Add action to find media by Drive file ID for deduplication
     if (action === 'getByDriveFileId') {
-      const { driveFileId } = body;
+      const { driveFileId, sharedDriveId } = body;
       if (!driveFileId) {
         return NextResponse.json(
           { error: 'driveFileId required' },
@@ -60,15 +60,25 @@ export async function POST(request: Request) {
       }
 
       // Find media by Drive file ID by scanning KV media records
-      // P0 FIX: Use getMediaRecordRaw for reconciliation to find records even if they fail public gate
+      // P0 FIX: Use provenance.driveFileId instead of drive.fileId
+      // PublishedMediaAsset preserves Drive provenance in provenance.driveFileId
+      // The drive field is intentionally removed from published assets
       const mediaIds = await listMediaIds();
       let foundMedia = null;
       
       for (const mediaId of mediaIds) {
         const media = await getMediaRecordRaw(mediaId);
-        if (media && media.drive?.fileId === driveFileId) {
-          foundMedia = media;
-          break;
+        if (media && media.provenance?.driveFileId === driveFileId) {
+          // P0 FIX: Match corpus exactly - require sharedDriveId to match for Shared Drive assets
+          if (media.provenance?.sharedDriveId === sharedDriveId) {
+            foundMedia = media;
+            break;
+          }
+          // For My Drive, sharedDriveId should be null/undefined
+          if (!sharedDriveId && !media.provenance?.sharedDriveId) {
+            foundMedia = media;
+            break;
+          }
         }
       }
 

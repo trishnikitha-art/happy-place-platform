@@ -429,9 +429,38 @@ export async function listMediaIds(): Promise<string[]> {
  */
 export async function saveMedia(media: Media): Promise<void> {
   try {
-    // Verify materialization state before saving (internal operations only)
-    // This is permissive for intermediate states during materialization
+    // P0 FIX: Enforce storage contract for published local records
+    // This prevents invalid PublishedMediaAsset records from being persisted
     if (media.lifecycleState === 'published' && media.source === 'local') {
+      // Storage field MUST be present for published local records
+      if (!media.storage) {
+        throw new Error(`Cannot save media ${media.id}: Published local media requires storage field (static or blob)`);
+      }
+      
+      // Storage must be either static or blob
+      if (media.storage !== 'static' && media.storage !== 'blob') {
+        throw new Error(`Cannot save media ${media.id}: Published local media storage must be 'static' or 'blob', got '${media.storage}'`);
+      }
+      
+      // Static storage must have valid static path
+      if (media.storage === 'static') {
+        if (!media.variants?.original) {
+          throw new Error(`Cannot save media ${media.id}: Static storage requires variants.original`);
+        }
+        if (!media.variants.original.startsWith('/images/')) {
+          throw new Error(`Cannot save media ${media.id}: Static storage path must start with /images/, got '${media.variants.original}'`);
+        }
+      }
+      
+      // Blob storage must have content hash
+      if (media.storage === 'blob') {
+        if (!media.contentHash) {
+          throw new Error(`Cannot save media ${media.id}: Blob storage requires content hash`);
+        }
+      }
+      
+      // Verify materialization state before saving (internal operations only)
+      // This is permissive for intermediate states during materialization
       const hasValidState = await verifyMaterializationState(media);
       if (!hasValidState) {
         throw new Error(`Cannot save media ${media.id}: Failed materialization state check`);

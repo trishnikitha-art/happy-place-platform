@@ -372,11 +372,16 @@ export default function MediaWorkbench() {
   const convertDriveFileToAsset = async (driveFile: any, explicitDriveId?: string | null): Promise<VisualAsset | null> => {
     // P0 FIX: Check if this Drive file already exists in KV media authority
     // Use contentHash or Drive file ID to find existing PublishedMediaAsset
+    // P0 FIX: Pass sharedDriveId for exact corpus matching
     try {
       const response = await fetch('/api/workbench/media-authority', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'getByDriveFileId', driveFileId: driveFile.id }),
+        body: JSON.stringify({ 
+          action: 'getByDriveFileId', 
+          driveFileId: driveFile.id,
+          sharedDriveId: explicitDriveId,
+        }),
       });
       
       if (response.ok) {
@@ -384,6 +389,7 @@ export default function MediaWorkbench() {
         if (data.media) {
           console.log('[WORKBENCH] DRIVE_FILE_ALREADY_EXISTS_IN_KV', {
             driveFileId: driveFile.id,
+            sharedDriveId: explicitDriveId,
             existingMediaId: data.media.id,
             existingFilename: data.media.filename,
             existingContentHash: data.media.contentHash,
@@ -393,7 +399,7 @@ export default function MediaWorkbench() {
         }
       }
     } catch (error) {
-      console.warn('[WORKBENCH] KV_DUPLICATE_CHECK_FAILED', { driveFileId: driveFile.id, error });
+      console.warn('[WORKBENCH] KV_DUPLICATE_CHECK_FAILED', { driveFileId: driveFile.id, sharedDriveId: explicitDriveId, error });
     }
     
     // If not found in KV, create Drive-only asset
