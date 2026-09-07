@@ -125,8 +125,8 @@ describe('Redis Failure Semantics - Real Redis Integration', () => {
       try {
         const { getAuthorization } = await import('../oauth-credential-store');
         
-        // Attempt to get authorization with invalid Redis
         // P0 FIX: Production implementation throws on Redis failure - this is correct fail-closed behavior
+        // Do NOT expect null - Redis unavailable must throw, not return null
         await expect(
           getAuthorization('nonexistent-id')
         ).rejects.toThrow();
@@ -154,8 +154,8 @@ describe('Redis Failure Semantics - Real Redis Integration', () => {
       try {
         const { getSession } = await import('../session-store');
         
-        // Attempt to get session with invalid Redis
         // P0 FIX: Production implementation throws on Redis failure - this is correct fail-closed behavior
+        // Do NOT expect null - Redis unavailable must throw, not return null
         await expect(
           getSession('nonexistent-session-id')
         ).rejects.toThrow();
@@ -194,6 +194,7 @@ describe('Redis Failure Semantics - Real Redis Integration', () => {
       try {
         // Attempt to read the authorization with broken Redis
         // P0 FIX: Production implementation throws on Redis failure - this is correct fail-closed behavior
+        // Do NOT expect null - Redis unavailable must throw, not return null
         await expect(
           getAuthorization(authorization.id)
         ).rejects.toThrow();

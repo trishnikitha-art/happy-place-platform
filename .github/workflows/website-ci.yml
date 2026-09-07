@@ -92,7 +92,7 @@ jobs:
           NODE_ENV: test
           ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           # Unit tests DO NOT use real Redis - they use mocks
-      - name: Run OAuth integration tests with real Redis
+      - name: Phase A - Run Redis-backed integration tests
         run: npx jest --config jest.oauth.integration.config.ts
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
@@ -102,8 +102,8 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
-          # Integration tests DO use real Redis - they require real credentials
-      - name: Build application for HTTP integration tests
+          # Phase A: No NEXT_PUBLIC_TEST_BASE_URL - HTTP tests will defer
+      - name: Phase B - Build application for HTTP integration tests
         run: npm run build
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
@@ -113,7 +113,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
-      - name: Start Next.js server for HTTP integration tests
+      - name: Phase B - Start Next.js server for HTTP integration tests
         run: |
           mkdir -p logs
           nohup npm start -- --port 3100 > logs/server.log 2>&1 &
@@ -128,7 +128,7 @@ jobs:
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
           PORT: 3100
-      - name: Wait for server readiness
+      - name: Phase B - Wait for server readiness
         run: |
           echo "Waiting for server to be ready..."
           timeout 60 bash -c 'until curl -s http://127.0.0.1:3100/api/health > /dev/null; do sleep 2; done'
@@ -141,7 +141,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
-      - name: Run HTTP security integration tests
+      - name: Phase B - Run HTTP security integration tests
         run: npx jest --config jest.oauth.integration.config.ts
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
@@ -152,7 +152,8 @@ jobs:
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
           NEXT_PUBLIC_TEST_BASE_URL: http://127.0.0.1:3100
-      - name: Terminate Next.js server
+          # Phase B: NEXT_PUBLIC_TEST_BASE_URL set - HTTP tests will run
+      - name: Phase B - Terminate Next.js server
         if: always()
         run: |
           if [ -f logs/server.pid ]; then

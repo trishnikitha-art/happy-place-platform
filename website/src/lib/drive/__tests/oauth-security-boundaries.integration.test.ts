@@ -196,11 +196,18 @@ describe('OAuth Security Boundaries - Real Redis Integration', () => {
         return;
       }
 
+      // P0 FIX: Require NEXT_PUBLIC_TEST_BASE_URL for HTTP tests
+      // Do NOT default to localhost - HTTP tests must explicitly target the running server
+      if (!process.env.NEXT_PUBLIC_TEST_BASE_URL) {
+        console.log('[OAUTH_SECURITY_INTEGRATION] Skipping HTTP test - NEXT_PUBLIC_TEST_BASE_URL not set');
+        return;
+      }
+
       // P0 FIX: Test against Drive auth status route which uses Drive session authentication
       // NOT against /api/drive/discovery which requires Workbench authentication
       // This is intentional: Workbench routes require Workbench auth, Drive routes require Drive session
       
-      const baseUrl = process.env.NEXT_PUBLIC_TEST_BASE_URL || 'http://localhost:3000';
+      const baseUrl = process.env.NEXT_PUBLIC_TEST_BASE_URL;
       
       // Request with legacy credential cookies but NO session cookie
       const response = await fetch(`${baseUrl}/api/drive/auth/status`, {
@@ -225,11 +232,17 @@ describe('OAuth Security Boundaries - Real Redis Integration', () => {
         return;
       }
 
+      // P0 FIX: Require NEXT_PUBLIC_TEST_BASE_URL for HTTP tests
+      if (!process.env.NEXT_PUBLIC_TEST_BASE_URL) {
+        console.log('[OAUTH_SECURITY_INTEGRATION] Skipping HTTP test - NEXT_PUBLIC_TEST_BASE_URL not set');
+        return;
+      }
+
       // P0 FIX: Test Workbench authentication boundary at /api/drive/discovery
       // This route requires Workbench session, NOT Drive session
       // This is intentional - Drive discovery is only available within the Workbench
       
-      const baseUrl = process.env.NEXT_PUBLIC_TEST_BASE_URL || 'http://localhost:3000';
+      const baseUrl = process.env.NEXT_PUBLIC_TEST_BASE_URL;
       
       // Request without any authentication
       const response = await fetch(`${baseUrl}/api/drive/discovery`, {
@@ -247,6 +260,12 @@ describe('OAuth Security Boundaries - Real Redis Integration', () => {
   describe('Revoked Session Rejection', () => {
     it('should reject Drive request after authorization revocation', async () => {
       if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+        return;
+      }
+
+      // P0 FIX: Require NEXT_PUBLIC_TEST_BASE_URL for HTTP tests
+      if (!process.env.NEXT_PUBLIC_TEST_BASE_URL) {
+        console.log('[OAUTH_SECURITY_INTEGRATION] Skipping HTTP test - NEXT_PUBLIC_TEST_BASE_URL not set');
         return;
       }
 
@@ -299,6 +318,12 @@ describe('OAuth Security Boundaries - Real Redis Integration', () => {
   describe('Cross-Session Isolation', () => {
     it('should reject deleted session at API boundary', async () => {
       if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+        return;
+      }
+
+      // P0 FIX: Require NEXT_PUBLIC_TEST_BASE_URL for HTTP tests
+      if (!process.env.NEXT_PUBLIC_TEST_BASE_URL) {
+        console.log('[OAUTH_SECURITY_INTEGRATION] Skipping HTTP test - NEXT_PUBLIC_TEST_BASE_URL not set');
         return;
       }
 
