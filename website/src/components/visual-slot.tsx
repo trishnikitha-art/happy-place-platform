@@ -442,16 +442,21 @@ export function VisualSlot({
       // GALLERY_ADD: Accept regular asset drops via explicit MIME type
       if (assetData) {
         let assetId: string;
+        let applicationData: any = null;
         
         try {
           // Parse JSON payload
           const parsed = JSON.parse(assetData);
           
+          // Preserve full applicationData for Drive references
+          applicationData = parsed;
+          
           // Handle both Drive reference and asset reference formats
           if (parsed.assetId) {
             assetId = parsed.assetId;
-          } else if (parsed.driveId) {
-            assetId = parsed.driveId;
+          } else if (parsed.fileId) {
+            // Drive reference - use drive fileId as assetId
+            assetId = `drive-${parsed.fileId}`;
           } else {
             console.error('[VS_DND] GALLERY_ADD_PARSE_FAILED', {
               slotId: id,
@@ -474,22 +479,27 @@ export function VisualSlot({
           slotId: id,
           projectId,
           assetId,
+          applicationData,
           reason: 'EXPLICIT_ASSET_MIME_TYPE',
         });
 
-        // Send GALLERY_ADD event to parent
+        // Send GALLERY_ADD event to parent with full applicationData
         if (window.parent !== window) {
           const targetOrigin = window.parent.location.origin;
           window.parent.postMessage({
             type: 'GALLERY_ADD',
+            slot: { id, route, page, section, slotName, currentMediaId, component },
             slotId: id,
             projectId,
             assetId,
+            applicationData, // P0 FIX: Preserve Drive payload through iframe boundary
           }, targetOrigin);
 
           console.log('[VS_DND] GALLERY_ADD_POSTED', {
             messageType: 'GALLERY_ADD',
             targetOrigin,
+            hasApplicationData: !!applicationData,
+            applicationDataKeys: applicationData ? Object.keys(applicationData) : [],
             timestamp: Date.now(),
           });
         } else {
@@ -517,16 +527,21 @@ export function VisualSlot({
     
     if (assetData) {
       let assetId: string;
+      let applicationData: any = null;
       
       try {
         // Parse JSON payload
         const parsed = JSON.parse(assetData);
         
+        // Preserve full applicationData for Drive references
+        applicationData = parsed;
+        
         // Handle both Drive reference and asset reference formats
         if (parsed.assetId) {
           assetId = parsed.assetId;
-        } else if (parsed.driveId) {
-          assetId = parsed.driveId;
+        } else if (parsed.fileId) {
+          // Drive reference - use drive fileId as assetId
+          assetId = `drive-${parsed.fileId}`;
         } else {
           console.error('[VS_DND] ASSET_ASSIGNMENT_PARSE_FAILED', {
             slotId: id,
@@ -548,21 +563,26 @@ export function VisualSlot({
       console.log('[VS_DND] ASSET_ASSIGNMENT_ACCEPTED', {
         slotId: id,
         assetId,
+        applicationData,
         protocol: 'application/x-workbench-asset',
       });
 
-      // Send SLOT_DROP event to parent
+      // Send SLOT_DROP event to parent with full applicationData
       if (window.parent !== window) {
         const targetOrigin = window.parent.location.origin;
         window.parent.postMessage({
           type: 'SLOT_DROP',
+          slot: { id, route, page, section, slotName, currentMediaId, component },
           slotId: id,
           assetId,
+          applicationData, // P0 FIX: Preserve Drive payload through iframe boundary
         }, targetOrigin);
 
         console.log('[VS_DND] SLOT_DROP_POSTED', {
           messageType: 'SLOT_DROP',
           targetOrigin,
+          hasApplicationData: !!applicationData,
+          applicationDataKeys: applicationData ? Object.keys(applicationData) : [],
           timestamp: Date.now(),
         });
       } else {

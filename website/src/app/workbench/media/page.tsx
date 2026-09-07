@@ -1799,10 +1799,11 @@ export default function MediaWorkbench() {
           slotId: event.data.slotId,
           projectId: event.data.projectId,
           assetId: event.data.assetId,
+          applicationData: event.data.applicationData,
           timestamp: Date.now(),
         });
 
-        const { slotId, projectId, assetId } = event.data;
+        const { slotId, projectId, assetId, applicationData } = event.data;
 
         if (!projectId || !assetId) {
           console.error('[WB_DND] GALLERY_ADD_MISSING_FIELDS', {
@@ -1813,6 +1814,79 @@ export default function MediaWorkbench() {
             hasAssetId: !!assetId,
           });
           return;
+        }
+
+        // P0 FIX: Handle Drive materialization before adding to gallery
+        let finalAssetId = assetId;
+        
+        if (applicationData?.source === 'google-drive' && applicationData?.fileId) {
+          console.log('[WB_DND] GALLERY_ADD_DRIVE_MATERIALIZATION_PATH', {
+            requestId,
+            fileId: applicationData.fileId,
+            sharedDriveId: applicationData.sharedDriveId,
+            projectId,
+            timestamp: Date.now(),
+          });
+          
+          // CRITICAL: Fail closed if Drive did not provide MIME type
+          if (!applicationData.mimeType) {
+            console.error('[WB_DND] GALLERY_ADD_DRIVE_REJECTED', {
+              requestId,
+              fileId: applicationData.fileId,
+              reason: 'MISSING_MIME_TYPE',
+            });
+            alert('Cannot add this file to gallery: Drive did not provide MIME type information');
+            return;
+          }
+          
+          try {
+            // Call materialization API
+            const materializeResponse = await fetch('/api/workbench/materialize-drive', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                action: 'materialize',
+                fileId: applicationData.fileId,
+                sharedDriveId: applicationData.sharedDriveId,
+                mimeType: applicationData.mimeType,
+                name: applicationData.name,
+                webViewUrl: applicationData.webViewUrl,
+              }),
+            });
+            
+            console.log('[WB_DND] GALLERY_ADD_MATERIALIZATION_RESPONSE', {
+              requestId,
+              status: materializeResponse.status,
+              ok: materializeResponse.ok,
+            });
+            
+            if (!materializeResponse.ok) {
+              const errorText = await materializeResponse.text();
+              console.error('[WB_DND] GALLERY_ADD_MATERIALIZATION_FAILED', {
+                requestId,
+                status: materializeResponse.status,
+                errorText,
+              });
+              throw new Error(`Drive materialization failed: ${errorText}`);
+            }
+            
+            const materializeResult = await materializeResponse.json();
+            finalAssetId = materializeResult.mediaId;
+            
+            console.log('[WB_DND] GALLERY_ADD_MATERIALIZATION_SUCCESS', {
+              requestId,
+              driveFileId: applicationData.fileId,
+              publishedMediaId: finalAssetId,
+            });
+          } catch (error) {
+            console.error('[WB_DND] GALLERY_ADD_MATERIALIZATION_ERROR', {
+              requestId,
+              error: error instanceof Error ? error.message : String(error),
+              stack: error instanceof Error ? error.stack : undefined,
+            });
+            alert(`Failed to materialize Drive file: ${error instanceof Error ? error.message : String(error)}`);
+            return;
+          }
         }
 
         // Fetch current gallery state
@@ -1851,11 +1925,12 @@ export default function MediaWorkbench() {
           });
 
           // Check if asset already in gallery
-          if (currentGallery.includes(assetId)) {
+          if (currentGallery.includes(finalAssetId)) {
             console.log('[WB_DND] GALLERY_ADD_DUPLICATE', {
               requestId,
               projectId,
-              assetId,
+              finalAssetId,
+              originalAssetId: assetId,
               message: 'Asset already in gallery',
             });
             alert('This asset is already in the gallery.');
@@ -1863,12 +1938,14 @@ export default function MediaWorkbench() {
           }
 
           // Add asset to end of gallery
-          const newGallery = [...currentGallery, assetId];
+          const newGallery = [...currentGallery, finalAssetId];
 
           console.log('[WB_DND] NEW_GALLERY_COMPUTED_FOR_ADD', {
             requestId,
             projectId,
-            addedAssetId: assetId,
+            addedAssetId: finalAssetId,
+            originalAssetId: assetId,
+            wasMaterialized: finalAssetId !== assetId,
             oldLength: currentGallery.length,
             newLength: newGallery.length,
             newGallery,
@@ -2302,10 +2379,82 @@ export default function MediaWorkbench() {
                                 e.preventDefault();
                                 e.stopPropagation();
                                 
-                                const assetId = e.dataTransfer.getData('text/plain');
-                                if (!assetId) return;
+                                // P0 FIX: Consume the explicit MIME protocol first
+                                let assetData: any = null;
+                                
+                                // Try application/x-workbench-asset first (structured JSON)
+                                const workbenchAssetData = e.dataTransfer.getData('application/x-workbench-asset');
+                                if (workbenchAssetData) {
+                                  try {
+                                    assetData = JSON.parse(workbenchAssetData);
+                                    console.log('[WORKBENCH] DROP_RECEIVED_APPLICATION_MIME', { type: 'application/x-workbench-asset', data: assetData });
+                                  } catch (error) {
+                                    console.error('[WORKBENCH] DROP_PARSE_ERROR', error);
+                                  }
+                                }
+                                
+                                // Fallback to text/plain (compatibility)
+                                if (!assetData) {
+                                  const textData = e.dataTransfer.getData('text/plain');
+                                  if (textData) {
+                                    try {
+                                      // text/plain might also be JSON (from fallback setData)
+                                      assetData = JSON.parse(textData);
+                                      console.log('[WORKBENCH] DROP_RECEIVED_TEXT_PLAIN', { type: 'text/plain', data: assetData });
+                                    } catch (error) {
+                                      // If not JSON, treat as raw asset ID (legacy)
+                                      assetData = { assetId: textData };
+                                      console.log('[WORKBENCH] DROP_RECEIVED_LEGACY_ID', { type: 'text/plain', assetId: textData });
+                                    }
+                                  }
+                                }
+                                
+                                if (!assetData) return;
 
-                                const asset = state.assets.find(a => a.id === assetId);
+                                // Handle different payload types
+                                let asset: VisualAsset | null = null;
+                                
+                                if (assetData.source === 'google-drive' && assetData.fileId) {
+                                  // Drive reference - find or create Drive asset
+                                  asset = state.assets.find(a => a.id === `drive-${assetData.fileId}`) || null;
+                                  if (!asset) {
+                                    // Create Drive asset on-the-fly
+                                    asset = {
+                                      id: `drive-${assetData.fileId}`,
+                                      filename: assetData.name,
+                                      type: 'image' as const,
+                                      orientation: 'landscape' as const,
+                                      alt: assetData.name,
+                                      description: '',
+                                      tags: [],
+                                      roles: [],
+                                      source: 'google-drive' as const,
+                                      classification: 'DRIVE_ONLY',
+                                      lifecycleState: 'source_reference' as const,
+                                      fileSize: 0,
+                                      createdAt: new Date().toISOString(),
+                                      uploadedAt: new Date().toISOString(),
+                                      format: assetData.mimeType,
+                                      drive: {
+                                        fileId: assetData.fileId,
+                                        driveId: assetData.sharedDriveId,
+                                        name: assetData.name,
+                                        mimeType: assetData.mimeType,
+                                        webViewUrl: assetData.webViewUrl,
+                                        modifiedTime: assetData.modifiedTime,
+                                      },
+                                      dimensions: { width: 0, height: 0 },
+                                      variants: {},
+                                      usageSlots: [],
+                                      physicalPath: '',
+                                      physicalStatus: 'DRIVE_ONLY',
+                                    };
+                                  }
+                                } else if (assetData.assetId) {
+                                  // Published asset reference
+                                  asset = state.assets.find(a => a.id === assetData.assetId) || null;
+                                }
+                                
                                 if (!asset) return;
 
                                 const registeredSlot = state.registeredSlots.find(s => s.id === slot.id);
