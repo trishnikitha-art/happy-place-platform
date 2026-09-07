@@ -6,9 +6,12 @@
  * This endpoint verifies that a PublishedMediaAsset has all required
  * variants and is not in an incomplete state (e.g., missing renditions,
  * synthetic hash, etc.).
+ * 
+ * P0 FIX: Added Workbench authentication to prevent information disclosure
  */
 
 import { NextResponse } from 'next/server';
+import { workbenchSession } from '@/lib/workbench-session';
 import { getMedia } from '@/lib/media-kv-store';
 import { isPubliclyComplete } from '@/lib/media-contracts';
 
@@ -17,6 +20,19 @@ export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
   const requestId = crypto.randomUUID();
+
+  // P0 FIX: Require Workbench authentication to prevent information disclosure
+  const isWorkbenchAuthenticated = await workbenchSession.isAuthenticated();
+  if (!isWorkbenchAuthenticated) {
+    return NextResponse.json(
+      {
+        error: 'WORKBENCH_AUTH_REQUIRED',
+        message: 'Workbench authentication required',
+        requestId,
+      },
+      { status: 401 }
+    );
+  }
 
   try {
     const { searchParams } = new URL(request.url);
