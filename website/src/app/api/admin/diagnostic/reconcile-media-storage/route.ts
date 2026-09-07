@@ -145,6 +145,7 @@ interface ReconcileRequest {
   options?: {
     dryRun?: boolean;
     pageSize?: number;
+    offset?: number;  // P0 FIX: Real HTTP pagination offset
     auditFingerprint?: string;
   };
 }
@@ -173,14 +174,25 @@ interface ReconcilePlan {
   }>;
 }
 
-// Generate immutable plan fingerprint from classification results
+// Generate immutable plan fingerprint from evidence (not just classification)
 function generatePlanFingerprint(classifications: ClassificationResult[]): string {
   const crypto = require('crypto');
-  const sorted = classifications
-    .map(c => `${c.mediaId}:${c.classification}`)
+  // P0 FIX: Bind mutation-relevant evidence, not just classification
+  const evidence = classifications
+    .map(c => {
+      const evidenceParts = [
+        c.mediaId,
+        c.classification,
+      ];
+      // Only include evidence for repairable records (where mutation is possible)
+      if (c.classification === 'REPAIRABLE_BLOB' || c.classification === 'REPAIRABLE_STATIC') {
+        evidenceParts.push(c.reason); // Includes evidence reason
+      }
+      return evidenceParts.join(':');
+    })
     .sort()
     .join('|');
-  return crypto.createHash('sha256').update(sorted).digest('hex');
+  return crypto.createHash('sha256').update(evidence).digest('hex');
 }
 
 export async function POST(request: Request) {
@@ -207,26 +219,29 @@ export async function POST(request: Request) {
     const mediaIds = await listMediaIds();
     console.log('[MEDIA_RECONCILIATION] Total records to classify', { count: mediaIds.length });
     
-    // P0 FIX: Add pagination to avoid timeout on large datasets
+    // P0 FIX: Real HTTP pagination - process only one page per request
     const pageSize = options.pageSize || 50;
+    const offset = options.offset || 0;
+    const endIdx = Math.min(offset + pageSize, mediaIds.length);
+    const pageIds = mediaIds.slice(offset, endIdx);
     const totalPages = Math.ceil(mediaIds.length / pageSize);
+    const currentPage = Math.floor(offset / pageSize) + 1;
     
-    // AUDIT MODE: Classify all records with pagination
+    console.log('[MEDIA_RECONCILIATION] Processing page', { 
+      currentPage, 
+      totalPages, 
+      offset, 
+      count: pageIds.length 
+    });
+    
+    // AUDIT MODE: Classify only current page (real HTTP pagination)
     const classifications: ClassificationResult[] = [];
-    for (let page = 0; page < totalPages; page++) {
-      const startIdx = page * pageSize;
-      const endIdx = Math.min(startIdx + pageSize, mediaIds.length);
-      const pageIds = mediaIds.slice(startIdx, endIdx);
+    for (const mediaId of pageIds) {
+      const media = await getMediaRecordRaw(mediaId);
+      if (!media) continue;
       
-      console.log('[MEDIA_RECONCILIATION] Processing page', { page: page + 1, totalPages, count: pageIds.length });
-      
-      for (const mediaId of pageIds) {
-        const media = await getMediaRecordRaw(mediaId);
-        if (!media) continue;
-        
-        const classification = await classifyRecord(media, staticMediaMap);
-        classifications.push(classification);
-      }
+      const classification = await classifyRecord(media, staticMediaMap);
+      classifications.push(classification);
     }
     
     // Aggregate classification counts
@@ -288,10 +303,18 @@ export async function POST(request: Request) {
     
     console.log('[MEDIA_RECONCILIATION] Classification complete', counts);
     
-    // Return early for audit-only mode
+    // Return early for audit-only mode with pagination metadata
     if (action === 'audit') {
       return NextResponse.json({
         action: 'audit',
+        pagination: {
+          totalRecords: mediaIds.length,
+          offset,
+          pageSize,
+          currentPage,
+          totalPages,
+          hasNextPage: currentPage < totalPages,
+        },
         counts,
         repairableBlobIds,
         repairableStaticIds,
@@ -300,7 +323,7 @@ export async function POST(request: Request) {
       });
     }
     
-    // PLAN MODE: Show proposed repairs with immutable fingerprint
+    // PLAN MODE: Show proposed repairs with immutable fingerprint (current page only)
     if (action === 'plan') {
       const plan: ReconcilePlan = {
         fingerprint: generatePlanFingerprint(classifications),
@@ -309,6 +332,7 @@ export async function POST(request: Request) {
         skipped: [],
       };
       
+      // Only plan current page
       for (const classification of classifications) {
         if (classification.classification === 'REPAIRABLE_BLOB') {
           const media = await getMediaRecordRaw(classification.mediaId);
@@ -345,6 +369,14 @@ export async function POST(request: Request) {
       
       return NextResponse.json({
         action: 'plan',
+        pagination: {
+          totalRecords: mediaIds.length,
+          offset,
+          pageSize,
+          currentPage,
+          totalPages,
+          hasNextPage: currentPage < totalPages,
+        },
         counts,
         plan,
         dryRun: options.dryRun || false,
@@ -386,160 +418,162 @@ export async function POST(request: Request) {
         });
       }
       
+      // P0 FIX: Repair only current page (bounded HTTP request)
+      // Filter repairable IDs to current page
+      const pageRepairableBlobIds = repairableBlobIds.filter(id => pageIds.includes(id));
+      const pageRepairableStaticIds = repairableStaticIds.filter(id => pageIds.includes(id));
+      
+      console.log('[MEDIA_RECONCILIATION] Repairing current page only', {
+        totalRepairableBlob: repairableBlobIds.length,
+        pageRepairableBlob: pageRepairableBlobIds.length,
+        totalRepairableStatic: repairableStaticIds.length,
+        pageRepairableStatic: pageRepairableStaticIds.length,
+      });
+      
+      // P0 FIX: Strengthen static evidence verification
+      const { getBlobMetadataByContentHash, verifyBlobHash } = await import('@/lib/blob-storage');
+      
       let repaired = 0;
       let skipped = 0;
       let failed = 0;
       const repairs: Array<{ mediaId: string; storage: string; reason: string; before: any; after: any }> = [];
       const errors: Record<string, string> = {};
       
-      // P0 FIX: Strengthen static evidence verification
-      const { getBlobMetadataByContentHash, verifyBlobHash } = await import('@/lib/blob-storage');
-      
-      // Repair REPAIRABLE_BLOB records with pagination
-      for (let i = 0; i < repairableBlobIds.length; i += pageSize) {
-        const batchIds = repairableBlobIds.slice(i, i + pageSize);
-        console.log('[MEDIA_RECONCILIATION] Repairing REPAIRABLE_BLOB batch', { batch: Math.floor(i / pageSize) + 1, count: batchIds.length });
-        
-        for (const mediaId of batchIds) {
-          try {
-            const media = await getMediaRecordRaw(mediaId);
-            if (!media) {
-              skipped++;
-              continue;
-            }
-            
-            // Capture before state for verification
-            const beforeState = {
-              storage: media.storage,
-              contentHash: media.contentHash,
-              variants: media.variants,
-              provenance: media.provenance,
-            };
-            
-            // Verify evidence one more time before mutation
-            if (!media.contentHash) {
-              skipped++;
-              continue;
-            }
-            
-            const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
-            const originalUrl = media.variants?.original || '';
-            
-            if (!blobMetadata || originalUrl !== blobMetadata.url) {
-              skipped++;
-              continue;
-            }
-            
-            const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
-            if (!verification.success) {
-              skipped++;
-              continue;
-            }
-            
-            // Mutation: only storage field
-            const repairedMedia: Media = {
-              ...media,
-              storage: 'blob',
-            };
-            
-            await saveMedia(repairedMedia);
-            
-            // Capture after state for verification
-            const afterMedia = await getMediaRecordRaw(mediaId);
-            const afterState = {
-              storage: afterMedia?.storage,
-              contentHash: afterMedia?.contentHash,
-              variants: afterMedia?.variants,
-              provenance: afterMedia?.provenance,
-            };
-            
-            repaired++;
-            repairs.push({
-              mediaId,
-              storage: 'blob',
-              reason: 'REPAIRABLE_BLOB with full Blob evidence',
-              before: beforeState,
-              after: afterState,
-            });
-            
-            console.log('[MEDIA_RECONCILIATION] REPAIRED', { mediaId, storage: 'blob' });
-          } catch (error) {
-            failed++;
-            errors[mediaId] = error instanceof Error ? error.message : 'Unknown error';
-            console.error('[MEDIA_RECONCILIATION] Repair failed', { mediaId, error });
+      // Repair REPAIRABLE_BLOB records (current page only)
+      for (const mediaId of pageRepairableBlobIds) {
+        try {
+          const media = await getMediaRecordRaw(mediaId);
+          if (!media) {
+            skipped++;
+            continue;
           }
+          
+          // Capture before state for verification
+          const beforeState = {
+            storage: media.storage,
+            contentHash: media.contentHash,
+            variants: media.variants,
+            provenance: media.provenance,
+          };
+          
+          // Verify evidence one more time before mutation
+          if (!media.contentHash) {
+            skipped++;
+            continue;
+          }
+          
+          const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
+          const originalUrl = media.variants?.original || '';
+          
+          if (!blobMetadata || originalUrl !== blobMetadata.url) {
+            skipped++;
+            continue;
+          }
+          
+          const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
+          if (!verification.success) {
+            skipped++;
+            continue;
+          }
+          
+          // Mutation: only storage field
+          const repairedMedia: Media = {
+            ...media,
+            storage: 'blob',
+          };
+          
+          await saveMedia(repairedMedia);
+          
+          // Capture after state for verification
+          const afterMedia = await getMediaRecordRaw(mediaId);
+          const afterState = {
+            storage: afterMedia?.storage,
+            contentHash: afterMedia?.contentHash,
+            variants: afterMedia?.variants,
+            provenance: afterMedia?.provenance,
+          };
+          
+          repaired++;
+          repairs.push({
+            mediaId,
+            storage: 'blob',
+            reason: 'REPAIRABLE_BLOB with full Blob evidence',
+            before: beforeState,
+            after: afterState,
+          });
+          
+          console.log('[MEDIA_RECONCILIATION] REPAIRED', { mediaId, storage: 'blob' });
+        } catch (error) {
+          failed++;
+          errors[mediaId] = error instanceof Error ? error.message : 'Unknown error';
+          console.error('[MEDIA_RECONCILIATION] Repair failed', { mediaId, error });
         }
       }
       
-      // Repair REPAIRABLE_STATIC records with stronger evidence verification
-      for (let i = 0; i < repairableStaticIds.length; i += pageSize) {
-        const batchIds = repairableStaticIds.slice(i, i + pageSize);
-        console.log('[MEDIA_RECONCILIATION] Repairing REPAIRABLE_STATIC batch', { batch: Math.floor(i / pageSize) + 1, count: batchIds.length });
-        
-        for (const mediaId of batchIds) {
-          try {
-            const media = await getMediaRecordRaw(mediaId);
-            if (!media) {
-              skipped++;
-              continue;
-            }
-            
-            // P0 FIX: Strengthen static evidence - verify manifest record matches
-            const staticRecord = staticMediaMap.get(mediaId);
-            if (!staticRecord) {
-              skipped++;
-              continue;
-            }
-            
-            // Verify key immutable fields match
-            if (staticRecord.contentHash && media.contentHash !== staticRecord.contentHash) {
-              skipped++;
-              continue;
-            }
-            
-            if (staticRecord.variants?.original && media.variants?.original !== staticRecord.variants.original) {
-              skipped++;
-              continue;
-            }
-            
-            // Capture before state
-            const beforeState = {
-              storage: media.storage,
-              contentHash: media.contentHash,
-              variants: media.variants,
-            };
-            
-            // Mutation: only storage field
-            const repairedMedia: Media = {
-              ...media,
-              storage: 'static',
-            };
-            
-            await saveMedia(repairedMedia);
-            
-            // Capture after state
-            const afterMedia = await getMediaRecordRaw(mediaId);
-            const afterState = {
-              storage: afterMedia?.storage,
-              contentHash: afterMedia?.contentHash,
-              variants: afterMedia?.variants,
-            };
-            
-            repaired++;
-            repairs.push({
-              mediaId,
-              storage: 'static',
-              reason: 'REPAIRABLE_STATIC with verified static manifest evidence',
-              before: beforeState,
-              after: afterState,
-            });
-            
-            console.log('[MEDIA_RECONCILIATION] REPAIRED', { mediaId, storage: 'static' });
-          } catch (error) {
-            failed++;
-            errors[mediaId] = error instanceof Error ? error.message : 'Unknown error';
-            console.error('[MEDIA_RECONCILIATION] Repair failed', { mediaId, error });
+      // Repair REPAIRABLE_STATIC records with stronger evidence verification (current page only)
+      for (const mediaId of pageRepairableStaticIds) {
+        try {
+          const media = await getMediaRecordRaw(mediaId);
+          if (!media) {
+            skipped++;
+            continue;
           }
+          
+          // P0 FIX: Strengthen static evidence - verify manifest record matches
+          const staticRecord = staticMediaMap.get(mediaId);
+          if (!staticRecord) {
+            skipped++;
+            continue;
+          }
+          
+          // Verify key immutable fields match
+          if (staticRecord.contentHash && media.contentHash !== staticRecord.contentHash) {
+            skipped++;
+            continue;
+          }
+          
+          if (staticRecord.variants?.original && media.variants?.original !== staticRecord.variants.original) {
+            skipped++;
+            continue;
+          }
+          
+          // Capture before state
+          const beforeState = {
+            storage: media.storage,
+            contentHash: media.contentHash,
+            variants: media.variants,
+          };
+          
+          // Mutation: only storage field
+          const repairedMedia: Media = {
+            ...media,
+            storage: 'static',
+          };
+          
+          await saveMedia(repairedMedia);
+          
+          // Capture after state
+          const afterMedia = await getMediaRecordRaw(mediaId);
+          const afterState = {
+            storage: afterMedia?.storage,
+            contentHash: afterMedia?.contentHash,
+            variants: afterMedia?.variants,
+          };
+          
+          repaired++;
+          repairs.push({
+            mediaId,
+            storage: 'static',
+            reason: 'REPAIRABLE_STATIC with verified static manifest evidence',
+            before: beforeState,
+            after: afterState,
+          });
+          
+          console.log('[MEDIA_RECONCILIATION] REPAIRED', { mediaId, storage: 'static' });
+        } catch (error) {
+          failed++;
+          errors[mediaId] = error instanceof Error ? error.message : 'Unknown error';
+          console.error('[MEDIA_RECONCILIATION] Repair failed', { mediaId, error });
         }
       }
       
@@ -547,6 +581,14 @@ export async function POST(request: Request) {
       
       const repairResult = {
         action: 'repair',
+        pagination: {
+          totalRecords: mediaIds.length,
+          offset,
+          pageSize,
+          currentPage,
+          totalPages,
+          hasNextPage: currentPage < totalPages,
+        },
         counts: {
           repaired,
           skipped,
@@ -560,21 +602,15 @@ export async function POST(request: Request) {
       return NextResponse.json(repairResult);
     }
     
-    // VERIFY MODE: Deep field-level verification after repair
+    // VERIFY MODE: Deep field-level verification after repair (with pagination)
     if (action === 'verify') {
       const verifyClassifications: ClassificationResult[] = [];
-      for (let page = 0; page < totalPages; page++) {
-        const startIdx = page * pageSize;
-        const endIdx = Math.min(startIdx + pageSize, mediaIds.length);
-        const pageIds = mediaIds.slice(startIdx, endIdx);
+      for (const mediaId of pageIds) {
+        const media = await getMediaRecordRaw(mediaId);
+        if (!media) continue;
         
-        for (const mediaId of pageIds) {
-          const media = await getMediaRecordRaw(mediaId);
-          if (!media) continue;
-          
-          const classification = await classifyRecord(media, staticMediaMap);
-          verifyClassifications.push(classification);
-        }
+        const classification = await classifyRecord(media, staticMediaMap);
+        verifyClassifications.push(classification);
       }
       
       const verifyCounts = {
@@ -604,6 +640,14 @@ export async function POST(request: Request) {
       
       return NextResponse.json({
         action: 'verify',
+        pagination: {
+          totalRecords: mediaIds.length,
+          offset,
+          pageSize,
+          currentPage,
+          totalPages,
+          hasNextPage: currentPage < totalPages,
+        },
         counts: verifyCounts,
         timestamp: new Date().toISOString(),
       });
