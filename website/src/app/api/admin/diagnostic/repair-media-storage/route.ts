@@ -1,8 +1,8 @@
 /**
  * Media Storage Field Repair Endpoint
  *
- * Repairs KV media records missing the 'storage' field.
- * Uses evidence-based classification to determine correct storage type.
+ * Repairs KV media records missing the 'storage' field or incorrect 'source' field.
+ * Uses evidence-based classification to determine correct storage and source types.
  *
  * POST /api/admin/diagnostic/repair-media-storage
  *
@@ -20,6 +20,7 @@
  * - Skip records that are legitimately lifecycle states without storage
  * - For local source: only add storage: static if record exists in static media.v1.json manifest
  * - For Drive source: only set storage: blob with physical Blob evidence (contentHash + Blob metadata + URL match + physical hash verification)
+ * - P0 FIX: Also repair source field from 'local' to 'blob' when full Blob evidence exists (REPAIRABLE_BLOB case)
  * - P0 FIX: Prefer explicit ID list over bulk mutation for safe production repair
  */
 
@@ -207,21 +208,39 @@ export async function POST(request: Request) {
         
         // Source-based classification (only if storage not yet determined)
         if (media.source === 'local') {
-          // P0 FIX: Only add storage: static if record exists in static manifest
-          // This ensures we only repair records that have proven static authority
-          const staticRecord = staticMediaMap.get(mediaId);
-          if (staticRecord) {
-            // Record exists in static manifest → static storage is proven
-            storage = 'static';
-            reason = 'Local source with static manifest evidence → static storage';
-          } else {
-            // Local source but not in static manifest → skip to avoid false inference
-            skipped++;
-            skips.push({ 
-              mediaId, 
-              reason: 'Local source without static manifest evidence - requires manual verification' 
-            });
-            continue;
+          // P0 FIX: Check for REPAIRABLE_BLOB case - local source with full Blob evidence
+          // This happens when media was successfully uploaded to Blob but storage field was never set
+          if (media.contentHash) {
+            const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
+            const originalUrl = media.variants?.original || '';
+            
+            if (blobMetadata && originalUrl === blobMetadata.url) {
+              const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
+              if (verification.success) {
+                // Full Blob evidence chain exists → repair storage to blob
+                // Source remains 'local' per PublishedMediaAsset contract
+                storage = 'blob';
+                reason = 'REPAIRABLE_BLOB: local source with full Blob evidence (contentHash + metadata + URL match + physical hash) → corrected to storage: blob';
+              }
+            }
+          }
+          
+          // If not REPAIRABLE_BLOB, check for static manifest evidence
+          if (!storage) {
+            const staticRecord = staticMediaMap.get(mediaId);
+            if (staticRecord) {
+              // Record exists in static manifest → static storage is proven
+              storage = 'static';
+              reason = 'Local source with static manifest evidence → static storage';
+            } else {
+              // Local source but not in static manifest → skip to avoid false inference
+              skipped++;
+              skips.push({ 
+                mediaId, 
+                reason: 'Local source without static manifest evidence or Blob evidence - requires manual verification' 
+              });
+              continue;
+            }
           }
         } else if (media.source === 'google-drive') {
           // P0 FIX: Drive source without storage → REQUIRES MATERIALIZATION, NOT STORAGE REPAIR
