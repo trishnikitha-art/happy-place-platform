@@ -7,7 +7,7 @@
  * It calls the server-side reconciliation endpoint which performs
  * the complete audit → plan → repair → verify workflow.
  * 
- * P0 FIX: Updated for dataset snapshot and page-specific fingerprints
+ * P0 FIX: Updated for server-owned dataset snapshots and page-specific fingerprints
  */
 
 async function executeReconciliation() {
@@ -24,11 +24,17 @@ async function executeReconciliation() {
     console.log('[RECONCILIATION] Step 1: Audit (paginated)');
     
     while (true) {
+      // P0 FIX: Only pass datasetSnapshotId for non-first pages
+      const auditOptions = { pageSize, offset };
+      if (offset > 0 && datasetSnapshotId) {
+        auditOptions.datasetSnapshotId = datasetSnapshotId;
+      }
+      
       const auditResponse = await fetch('/api/admin/diagnostic/reconcile-media-storage', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ action: 'audit', options: { pageSize, offset } }),
+        body: JSON.stringify({ action: 'audit', options: auditOptions }),
       });
       
       if (!auditResponse.ok) {
@@ -42,7 +48,7 @@ async function executeReconciliation() {
       // Capture dataset snapshot ID from first page
       if (!datasetSnapshotId && auditResult.datasetSnapshotId) {
         datasetSnapshotId = auditResult.datasetSnapshotId;
-        console.log('[RECONCILIATION] Dataset snapshot ID:', datasetSnapshotId);
+        console.log('[RECONCILIATION] Server-owned snapshot ID:', datasetSnapshotId);
       }
       
       console.log(`[RECONCILIATION] Audit page ${auditResult.pagination.currentPage}/${auditResult.pagination.totalPages}`);
@@ -83,7 +89,7 @@ async function executeReconciliation() {
     console.log('\n' + '='.repeat(80));
     console.log('AUDIT RESULTS (AGGREGATED)');
     console.log('='.repeat(80));
-    console.log('Dataset Snapshot ID:', datasetSnapshotId);
+    console.log('Server-Owned Snapshot ID:', datasetSnapshotId);
     console.log('Total Records:', aggregatedCounts.totalRecords);
     console.log('Valid Published:', aggregatedCounts.validPublished);
     console.log('REPAIRABLE_BLOB:', aggregatedCounts.repairableBlob);
@@ -147,7 +153,7 @@ async function executeReconciliation() {
     console.log('\n' + '='.repeat(80));
     console.log('PLAN RESULTS (AGGREGATED)');
     console.log('='.repeat(80));
-    console.log('Dataset Snapshot ID:', aggregatedPlan.datasetSnapshotId);
+    console.log('Server-Owned Snapshot ID:', aggregatedPlan.datasetSnapshotId);
     console.log('Eligible for Repair:', aggregatedPlan.eligibleForRepair.length);
     console.log('Ambiguous:', aggregatedPlan.ambiguous.length);
     console.log('Skipped:', aggregatedPlan.skipped.length);
@@ -156,7 +162,7 @@ async function executeReconciliation() {
     // Step 3: Confirm before repair
     const confirmRepair = confirm(
       `Ready to repair ${aggregatedPlan.eligibleForRepair.length} records.\n\n` +
-      `Dataset snapshot: ${aggregatedPlan.datasetSnapshotId}\n\n` +
+      `Server-owned snapshot: ${aggregatedPlan.datasetSnapshotId}\n\n` +
       `This will perform field-level mutations to add storage metadata.\n\n` +
       `Ambiguous records (${aggregatedPlan.ambiguous.length}) will NOT be repaired.\n\n` +
       `Proceed?`
@@ -193,7 +199,7 @@ async function executeReconciliation() {
           options: { 
             pageSize,
             offset,
-            datasetSnapshotId,  // P0 FIX: Pass dataset snapshot ID
+            datasetSnapshotId,  // P0 FIX: Pass server-owned snapshot ID
             pageFingerprint: pagePlan.plan.pageFingerprint  // P0 FIX: Use page-specific fingerprint
           }
         }),

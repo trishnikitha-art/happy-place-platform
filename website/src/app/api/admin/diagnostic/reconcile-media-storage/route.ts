@@ -39,6 +39,11 @@ import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { listMediaIds, getMediaRecordRaw, saveMedia } from '@/lib/media-kv-store';
 import { loadMediaManifest } from '@/lib/media';
+import { 
+  createDatasetSnapshot, 
+  getDatasetSnapshot, 
+  validateSnapshot,
+} from '@/lib/dataset-snapshots';
 import type { Media } from '@/types/media';
 
 // Import canonical forensic classifier from media-audit
@@ -177,16 +182,10 @@ interface ReconcilePlan {
   }>;
 }
 
-// Generate immutable dataset snapshot ID
-function generateDatasetSnapshotId(): string {
-  const crypto = require('crypto');
-  return crypto.randomUUID();
-}
-
 // Generate page-specific fingerprint for repair binding
 function generatePageFingerprint(pageMediaIds: string[], classifications: ClassificationResult[]): string {
   const crypto = require('crypto');
-  // P0 FIX: Page-specific fingerprint binds only current page evidence
+  // P0 FIX: Page-specific fingerprint binds current page evidence
   const evidence = classifications
     .map(c => {
       const evidenceParts = [
@@ -224,20 +223,52 @@ export async function POST(request: Request) {
     const pageSize = options.pageSize || 50;
     const offset = options.offset || 0;
     
-    // P0 FIX: Generate immutable dataset snapshot for first audit request
+    // P0 FIX: Server-owned dataset snapshot management
     let datasetSnapshotId = options.datasetSnapshotId;
-    if (!datasetSnapshotId && action === 'audit' && offset === 0) {
-      datasetSnapshotId = generateDatasetSnapshotId();
-      console.log('[MEDIA_RECONCILIATION] Generated new dataset snapshot', { datasetSnapshotId });
+    let snapshot = null;
+    
+    if (action === 'audit' && offset === 0) {
+      // First audit page: create server-owned snapshot
+      const mediaIds = await listMediaIds();
+      console.log('[MEDIA_RECONCILIATION] Total records to classify', { count: mediaIds.length });
+      
+      snapshot = await createDatasetSnapshot(mediaIds);
+      datasetSnapshotId = snapshot.snapshotId;
+      
+      console.log('[MEDIA_RECONCILIATION] Created server-owned snapshot', {
+        snapshotId: datasetSnapshotId,
+        cardinality: snapshot.cardinality,
+        datasetDigest: snapshot.datasetDigest.substring(0, 16) + '...',
+      });
+    } else if (datasetSnapshotId) {
+      // Subsequent requests: retrieve server-owned snapshot
+      snapshot = await getDatasetSnapshot(datasetSnapshotId);
+      
+      if (!snapshot) {
+        return NextResponse.json(
+          { error: 'SNAPSHOT_NOT_FOUND', message: 'Dataset snapshot not found or expired' },
+          { status: 404 }
+        );
+      }
+      
+      console.log('[MEDIA_RECONCILIATION] Retrieved server-owned snapshot', {
+        snapshotId: datasetSnapshotId,
+        cardinality: snapshot.cardinality,
+        datasetDigest: snapshot.datasetDigest.substring(0, 16) + '...',
+      });
+    } else {
+      return NextResponse.json(
+        { error: 'SNAPSHOT_REQUIRED', message: 'datasetSnapshotId required for non-first-page requests' },
+        { status: 400 }
+      );
     }
     
     // Load static manifest for evidence-based classification
     const manifest = loadMediaManifest();
     const staticMediaMap = new Map(manifest.media.map(m => [m.id, m]));
     
-    // Get all media IDs
-    const mediaIds = await listMediaIds();
-    console.log('[MEDIA_RECONCILIATION] Total records to classify', { count: mediaIds.length });
+    // Use ordered media IDs from snapshot (not fresh listMediaIds call)
+    const mediaIds = snapshot.orderedMediaIds;
     
     const endIdx = Math.min(offset + pageSize, mediaIds.length);
     const pageIds = mediaIds.slice(offset, endIdx);
@@ -343,10 +374,10 @@ export async function POST(request: Request) {
     
     // PLAN MODE: Show proposed repairs with page-specific fingerprint
     if (action === 'plan') {
-      // P0 FIX: Require dataset snapshot ID for plan generation
-      if (!datasetSnapshotId) {
+      // P0 FIX: Require valid server-owned snapshot for plan generation
+      if (!datasetSnapshotId || !snapshot) {
         return NextResponse.json(
-          { error: 'DATASET_SNAPSHOT_REQUIRED', message: 'datasetSnapshotId from audit action is required for plan' },
+          { error: 'SNAPSHOT_REQUIRED', message: 'Valid server-owned dataset snapshot required for plan' },
           { status: 400 }
         );
       }
@@ -414,11 +445,20 @@ export async function POST(request: Request) {
     
     // REPAIR MODE: Execute mutations with page-specific fingerprint binding
     if (action === 'repair') {
-      // P0 FIX: Require dataset snapshot ID for authority boundary
-      if (!options.datasetSnapshotId) {
+      // P0 FIX: Require valid server-owned snapshot for repair
+      if (!datasetSnapshotId) {
         return NextResponse.json(
-          { error: 'DATASET_SNAPSHOT_REQUIRED', message: 'datasetSnapshotId from plan action is required for repair' },
+          { error: 'SNAPSHOT_REQUIRED', message: 'Valid server-owned dataset snapshot required for repair' },
           { status: 400 }
+        );
+      }
+      
+      // P0 FIX: Verify snapshot exists and is not expired
+      const currentSnapshot = await getDatasetSnapshot(datasetSnapshotId);
+      if (!currentSnapshot) {
+        return NextResponse.json(
+          { error: 'SNAPSHOT_NOT_FOUND', message: 'Dataset snapshot not found or expired' },
+          { status: 404 }
         );
       }
       
