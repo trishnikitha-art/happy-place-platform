@@ -93,7 +93,7 @@ jobs:
           ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           # Unit tests DO NOT use real Redis - they use mocks
       - name: Phase A - Run Redis-backed integration tests
-        run: npx jest --config jest.oauth.integration.config.ts
+        run: npx jest --config jest.oauth.integration.config.ts --runInBand
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
@@ -103,6 +103,7 @@ jobs:
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
           # Phase A: No NEXT_PUBLIC_TEST_BASE_URL - HTTP tests will defer
+          # --runInBand: Run tests serially to avoid Redis credential mutation conflicts
       - name: Phase B - Build application for HTTP integration tests
         run: npm run build
         env:

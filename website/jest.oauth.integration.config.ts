@@ -2,6 +2,7 @@ import type { Config } from "jest";
 
 const config: Config = {
   testEnvironment: "node",
+  testTimeout: 30000, // P0 FIX: 30-second timeout for network-backed Redis integration tests
   transform: {
     "^.+\\.tsx?$": ["ts-jest", {
       tsconfig: "tsconfig.json",
