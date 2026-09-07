@@ -186,6 +186,27 @@ export default function MediaWorkbench() {
       console.log('[WORKBENCH] LOAD_CANONICAL_DATA_START');
       setState(prev => ({ ...prev, loading: true }));
       
+      // P0 FIX: Check Workbench authentication before loading media authority
+      // If not authenticated, show login prompt instead of blocking silently
+      try {
+        const authCheck = await fetch('/api/workbench/auth-status');
+        const authData = await authCheck.json();
+        
+        if (!authData.authenticated) {
+          console.log('[WORKBENCH] NOT_AUTHENTICATED - requiring login');
+          setState(prev => ({ 
+            ...prev, 
+            loading: false,
+            kvAvailable: false,
+            kvError: 'Workbench authentication required. Please log in to access media authority.'
+          }));
+          return;
+        }
+      } catch (error) {
+        console.warn('[WORKBENCH] AUTH_CHECK_FAILED', error);
+        // Continue with load attempt - may fail at media-authority call
+      }
+      
       // Load static visual asset registry (media.v1.json)
       console.log('[WORKBENCH] LOADING_STATIC_REGISTRY');
       const staticRegistry = await loadVisualAssetRegistry();
@@ -217,6 +238,15 @@ export default function MediaWorkbench() {
             count: dynamicMediaList.length,
             sample: dynamicMediaList.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, source: a.source }))
           });
+        } else if (response.status === 401) {
+          console.warn('[WORKBENCH] KV_UNAUTHORIZED', { status: response.status });
+          const errorText = await response.text();
+          console.warn('[WORKBENCH] KV_ERROR_RESPONSE', errorText);
+          setState(prev => ({ 
+            ...prev, 
+            kvAvailable: false, 
+            kvError: `Workbench authentication required (${response.status}): ${errorText}`
+          }));
         } else {
           console.warn('[WORKBENCH] KV_UNAVAILABLE', { status: response.status });
           const errorText = await response.text();
@@ -231,8 +261,8 @@ export default function MediaWorkbench() {
         console.warn('[WORKBENCH] KV_ERROR', error);
         setState(prev => ({ 
           ...prev, 
-          kvAvailable: false, 
-          kvError: error instanceof Error ? error.message : 'Unknown KV error' 
+          kvAvailable: false,
+          kvError: error instanceof Error ? error.message : 'Unknown KV error'
         }));
       }
       
@@ -2336,166 +2366,9 @@ export default function MediaWorkbench() {
 
       {/* Main Content - Two Panel Layout */}
       <div className="flex-1 grid grid-cols-2 min-h-0">
-          {/* LEFT: Website Preview with Slot Grid Overlay */}
+          {/* LEFT: Website Preview - No overlay blocking iframe */}
           <section className="min-h-0 min-w-0 overflow-y-auto bg-white h-full relative">
-            {/* Slot Grid Overlay */}
-            <div className="absolute inset-0 bg-black/5 p-4 overflow-y-auto pointer-events-none z-10">
-              <div className="pointer-events-auto">
-                <h3 className="text-sm font-semibold text-foreground mb-3 flex items-center gap-2">
-                  <LayoutGrid size={14} />
-                  Visual Slots for {PAGE_LABELS[state.selectedPage]}
-                </h3>
-
-                {/* Regular Visual Slots */}
-                {(() => {
-                  const currentPage = getPageByRoute(state.selectedPage);
-                  if (!currentPage) return <p className="text-xs text-muted-foreground">No structure defined for this route</p>;
-                  
-                  return currentPage.sections.map(section => (
-                    <div key={section.id} className="mb-4">
-                      <h4 className="text-xs font-medium text-muted-foreground mb-2 flex items-center gap-1">
-                        {section.name}
-                      </h4>
-                      {section.visualSlots.length === 0 ? (
-                        <p className="text-xs text-muted-foreground italic mb-2">No slots in this section</p>
-                      ) : (
-                        <div className="grid grid-cols-2 gap-2">
-                          {section.visualSlots.map(slot => (
-                            <div
-                              key={slot.id}
-                              className="relative p-2 bg-background border border-border rounded hover:border-primary cursor-pointer transition-colors"
-                              onContextMenu={(e) => handleSlotRightClick(e, slot)}
-                              onClick={() => {
-                                const registeredSlot = state.registeredSlots.find(s => s.id === slot.id);
-                                if (registeredSlot) {
-                                  handleSlotClick(registeredSlot);
-                                }
-                              }}
-                              onDragOver={(e) => {
-                                e.preventDefault();
-                                e.dataTransfer.dropEffect = 'copy';
-                              }}
-                              onDrop={(e) => {
-                                e.preventDefault();
-                                e.stopPropagation();
-                                
-                                // P0 FIX: Consume the explicit MIME protocol first
-                                let assetData: any = null;
-                                
-                                // Try application/x-workbench-asset first (structured JSON)
-                                const workbenchAssetData = e.dataTransfer.getData('application/x-workbench-asset');
-                                if (workbenchAssetData) {
-                                  try {
-                                    assetData = JSON.parse(workbenchAssetData);
-                                    console.log('[WORKBENCH] DROP_RECEIVED_APPLICATION_MIME', { type: 'application/x-workbench-asset', data: assetData });
-                                  } catch (error) {
-                                    console.error('[WORKBENCH] DROP_PARSE_ERROR', error);
-                                  }
-                                }
-                                
-                                // Fallback to text/plain (compatibility)
-                                if (!assetData) {
-                                  const textData = e.dataTransfer.getData('text/plain');
-                                  if (textData) {
-                                    try {
-                                      // text/plain might also be JSON (from fallback setData)
-                                      assetData = JSON.parse(textData);
-                                      console.log('[WORKBENCH] DROP_RECEIVED_TEXT_PLAIN', { type: 'text/plain', data: assetData });
-                                    } catch (error) {
-                                      // If not JSON, treat as raw asset ID (legacy)
-                                      assetData = { assetId: textData };
-                                      console.log('[WORKBENCH] DROP_RECEIVED_LEGACY_ID', { type: 'text/plain', assetId: textData });
-                                    }
-                                  }
-                                }
-                                
-                                if (!assetData) return;
-
-                                // Handle different payload types
-                                let asset: VisualAsset | null = null;
-                                
-                                if (assetData.source === 'google-drive' && assetData.fileId) {
-                                  // Drive reference - find or create Drive asset
-                                  asset = state.assets.find(a => a.id === `drive-${assetData.fileId}`) || null;
-                                  if (!asset) {
-                                    // Create Drive asset on-the-fly
-                                    asset = {
-                                      id: `drive-${assetData.fileId}`,
-                                      filename: assetData.name,
-                                      type: 'image' as const,
-                                      orientation: 'landscape' as const,
-                                      alt: assetData.name,
-                                      description: '',
-                                      tags: [],
-                                      roles: [],
-                                      source: 'google-drive' as const,
-                                      classification: 'DRIVE_ONLY',
-                                      lifecycleState: 'source_reference' as const,
-                                      fileSize: 0,
-                                      createdAt: new Date().toISOString(),
-                                      uploadedAt: new Date().toISOString(),
-                                      format: assetData.mimeType,
-                                      drive: {
-                                        fileId: assetData.fileId,
-                                        driveId: assetData.sharedDriveId,
-                                        name: assetData.name,
-                                        mimeType: assetData.mimeType,
-                                        webViewUrl: assetData.webViewUrl,
-                                        modifiedTime: assetData.modifiedTime,
-                                      },
-                                      dimensions: { width: 0, height: 0 },
-                                      variants: {},
-                                      usageSlots: [],
-                                      physicalPath: '',
-                                      physicalStatus: 'DRIVE_ONLY',
-                                    };
-                                  }
-                                } else if (assetData.assetId) {
-                                  // Published asset reference
-                                  asset = state.assets.find(a => a.id === assetData.assetId) || null;
-                                }
-                                
-                                if (!asset) return;
-
-                                const registeredSlot = state.registeredSlots.find(s => s.id === slot.id);
-                                if (!registeredSlot) return;
-
-                                handleAssetClick(asset);
-                                const requestId = crypto.randomUUID();
-                                handleDriveDropToSlot(registeredSlot, asset, registeredSlot.currentMediaId, requestId);
-                              }}
-                            >
-                              <div className="flex items-center justify-between mb-1">
-                                <span className="text-xs font-medium text-foreground truncate">{slot.name}</span>
-                                <span className={`text-xs px-1.5 py-0.5 rounded ${
-                                  slot.status === 'OCCUPIED' ? 'bg-green-100 text-green-800' :
-                                  slot.status === 'EMPTY' ? 'bg-gray-100 text-gray-800' :
-                                  slot.status === 'BROKEN' ? 'bg-red-100 text-red-800' :
-                                  slot.status === 'DYNAMIC' ? 'bg-blue-100 text-blue-800' :
-                                  'bg-yellow-100 text-yellow-800'
-                                }`}>
-                                  {slot.status}
-                                </span>
-                              </div>
-                              <div className="text-xs text-muted-foreground truncate">
-                                {slot.currentMediaFilename || 'No media assigned'}
-                              </div>
-                              {slot.currentMediaId && (
-                                <div className="text-xs text-primary truncate mt-1">
-                                  {slot.currentMediaId}
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  ));
-                })()}
-              </div>
-            </div>
-            
-            {/* Website Preview Iframe */}
+            {/* Website Preview Iframe - receives pointer events directly */}
             <iframe
               ref={iframeRef}
               src={`${window.location.origin}/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`}
