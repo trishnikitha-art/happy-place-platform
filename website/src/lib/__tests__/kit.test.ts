@@ -33,6 +33,7 @@ describe("Kit synchronization boundary", () => {
     (global.fetch as jest.Mock)
       .mockResolvedValueOnce(response({ subscriber: { id: 7, email_address: "a@example.com", state: "active" } }, 201))
       .mockResolvedValueOnce(response({ subscriber: { id: 7 } }, 201))
+      .mockResolvedValueOnce(response({ subscriber: { id: 7 } }, 201))
       .mockResolvedValueOnce(response({ subscriber: { id: 7 } }, 201));
 
     const result = await syncNewsletterSubscriber({

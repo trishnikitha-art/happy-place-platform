@@ -35,10 +35,6 @@ export async function POST(request: NextRequest) {
       email,
       firstName,
       source,
-      fields: {
-        acquisition_source: source || "website",
-        signup_date: new Date().toISOString(),
-      },
     });
 
     if (!kitResult.success) {
