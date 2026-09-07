@@ -19,6 +19,12 @@ export interface DatasetSnapshot {
   cardinality: number;
   createdAt: string;
   datasetDigest: string;
+  recordEvidence: Record<string, {  // P0 FIX: Store immutable record evidence
+    contentHash: string;
+    variantsOriginal: string;
+    lifecycleState: string;
+    source: string;
+  }>;
 }
 
 /**
@@ -66,6 +72,8 @@ function generateDatasetDigest(orderedMediaIds: string[]): string {
  * 
  * This is the authoritative snapshot for a reconciliation session.
  * The snapshot contains the actual dataset state at creation time.
+ * 
+ * P0 FIX: Stores immutable record evidence, not just IDs
  */
 export async function createDatasetSnapshot(orderedMediaIds: string[]): Promise<DatasetSnapshot> {
   const client = createRedisClient();
@@ -77,6 +85,33 @@ export async function createDatasetSnapshot(orderedMediaIds: string[]): Promise<
   const createdAt = new Date().toISOString();
   const cardinality = orderedMediaIds.length;
   const datasetDigest = generateDatasetDigest(orderedMediaIds);
+  
+  // P0 FIX: Capture immutable record evidence
+  const { getMediaRecordRaw } = await import('./media-kv-store');
+  const recordEvidence: Record<string, any> = {};
+  
+  for (const mediaId of orderedMediaIds) {
+    try {
+      const media = await getMediaRecordRaw(mediaId);
+      if (media) {
+        recordEvidence[mediaId] = {
+          contentHash: media.contentHash || '',
+          variantsOriginal: media.variants?.original || '',
+          lifecycleState: media.lifecycleState || '',
+          source: media.source || '',
+        };
+      }
+    } catch (error) {
+      console.warn('[DATASET_SNAPSHOT] Failed to load record evidence for', mediaId, error);
+      // Store empty evidence for missing records
+      recordEvidence[mediaId] = {
+        contentHash: '',
+        variantsOriginal: '',
+        lifecycleState: '',
+        source: '',
+      };
+    }
+  }
 
   const snapshot: DatasetSnapshot = {
     snapshotId,
@@ -84,6 +119,7 @@ export async function createDatasetSnapshot(orderedMediaIds: string[]): Promise<
     cardinality,
     createdAt,
     datasetDigest,
+    recordEvidence,
   };
 
   const namespace = getKvNamespace();
@@ -96,6 +132,7 @@ export async function createDatasetSnapshot(orderedMediaIds: string[]): Promise<
     snapshotId,
     cardinality,
     datasetDigest: datasetDigest.substring(0, 16) + '...',
+    recordEvidenceCount: Object.keys(recordEvidence).length,
   });
 
   return snapshot;

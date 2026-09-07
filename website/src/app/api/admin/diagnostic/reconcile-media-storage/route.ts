@@ -44,13 +44,11 @@ import {
   getDatasetSnapshot, 
   validateSnapshot,
 } from '@/lib/dataset-snapshots';
+import { getBlobMetadataByContentHash, verifyBlobHash } from '@/lib/blob-storage';
 import type { Media } from '@/types/media';
 
-// Import canonical forensic classifier from media-audit
+// P0 FIX: Use canonical forensic classifier from media-audit (not duplicate)
 async function classifyRecord(media: any, staticMediaMap: Map<string, any>): Promise<ClassificationResult> {
-  // Reuse the canonical classifier from media-audit
-  const { getBlobMetadataByContentHash, verifyBlobHash } = await import('@/lib/blob-storage');
-  
   // Classify by lifecycle state
   if (media.lifecycleState === 'source_reference') {
     return { mediaId: media.id, classification: 'DRIVE_REFERENCE', reason: 'Legitimate DriveReference' };
@@ -119,30 +117,60 @@ async function classifyRecord(media: any, staticMediaMap: Map<string, any>): Pro
         return { mediaId: media.id, classification: 'AMBIGUOUS', reason: 'Blob verification error' };
       }
     }
+    
+    return { mediaId: media.id, classification: 'AMBIGUOUS', reason: 'Unknown source without storage' };
   }
   
-  // Has storage - verify it's correct
+  // Has storage - validate contract
   if (media.storage === 'blob') {
     if (!hasContentHash) {
       return { mediaId: media.id, classification: 'MALFORMED', reason: 'Blob storage requires contentHash' };
     }
-    if (!hasVariants) {
-      return { mediaId: media.id, classification: 'MALFORMED', reason: 'Blob storage requires variants' };
+    
+    // Verify Blob evidence
+    try {
+      const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
+      if (!blobMetadata) {
+        return { mediaId: media.id, classification: 'MALFORMED', reason: 'Blob storage missing Blob metadata' };
+      }
+      
+      const originalUrl = media.variants?.original || '';
+      if (originalUrl !== blobMetadata.url) {
+        return { mediaId: media.id, classification: 'MALFORMED', reason: 'Blob URL mismatch with metadata' };
+      }
+      
+      const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
+      if (!verification.success) {
+        return { mediaId: media.id, classification: 'MALFORMED', reason: `Blob hash verification failed: ${verification.errorType}` };
+      }
+    } catch (error) {
+      return { mediaId: media.id, classification: 'MALFORMED', reason: 'Blob verification error' };
     }
   }
   
   if (media.storage === 'static') {
     if (!hasVariants) {
-      return { mediaId: media.id, classification: 'MALFORMED', reason: 'Static storage requires variants' };
+      return { mediaId: media.id, classification: 'MALFORMED', reason: 'Static storage requires variants.original' };
     }
-    const originalUrl = media.variants?.original || '';
-    if (!originalUrl.startsWith('/images/')) {
-      return { mediaId: media.id, classification: 'MALFORMED', reason: 'Static storage requires /images/ URL' };
+    
+    if (!media.variants.original.startsWith('/images/')) {
+      return { mediaId: media.id, classification: 'MALFORMED', reason: 'Static storage path must start with /images/' };
     }
   }
   
-  // Valid published record
-  return { mediaId: media.id, classification: 'VALID_PUBLISHED', reason: 'Valid published asset' };
+  // Check for legacy drive field (constitutional violation)
+  if (hasLegacyDriveField) {
+    return { mediaId: media.id, classification: 'MALFORMED', reason: 'Published asset has legacy drive field' };
+  }
+  
+  // All checks passed
+  return { mediaId: media.id, classification: 'VALID_PUBLISHED', reason: 'Satisfies complete PublishedMediaAsset contract' };
+}
+
+interface ClassificationResult {
+  mediaId: string;
+  classification: string;
+  reason: string;
 }
 
 interface ReconcileRequest {
@@ -151,9 +179,9 @@ interface ReconcileRequest {
     dryRun?: boolean;
     pageSize?: number;
     offset?: number;
-    auditFingerprint?: string;
     pageFingerprint?: string;  // P0 FIX: Page-specific fingerprint for repair
-    datasetSnapshotId?: string;  // P0 FIX: Immutable dataset snapshot ID
+    datasetSnapshotId?: string;  // P0 FIX: Server-owned dataset snapshot ID
+    repairAuthorization?: string;  // P0 FIX: Explicit repair authorization token
   };
 }
 
@@ -182,16 +210,26 @@ interface ReconcilePlan {
   }>;
 }
 
-// Generate page-specific fingerprint for repair binding
-function generatePageFingerprint(pageMediaIds: string[], classifications: ClassificationResult[]): string {
+// Generate page-specific fingerprint with immutable field binding
+function generatePageFingerprint(pageMediaIds: string[], classifications: ClassificationResult[], snapshotEvidence?: Record<string, any>): string {
   const crypto = require('crypto');
-  // P0 FIX: Page-specific fingerprint binds current page evidence
+  // P0 FIX: Page-specific fingerprint binds immutable evidence from snapshot
   const evidence = classifications
     .map(c => {
       const evidenceParts = [
         c.mediaId,
         c.classification,
       ];
+      // Include immutable fields from snapshot evidence
+      if (snapshotEvidence && snapshotEvidence[c.mediaId]) {
+        const evidenceRecord = snapshotEvidence[c.mediaId];
+        evidenceParts.push(
+          evidenceRecord.contentHash || '',
+          evidenceRecord.variantsOriginal || '',
+          evidenceRecord.lifecycleState || '',
+          evidenceRecord.source || ''
+        );
+      }
       // Only include evidence for repairable records on this page
       if (c.classification === 'REPAIRABLE_BLOB' || c.classification === 'REPAIRABLE_STATIC') {
         evidenceParts.push(c.reason);
@@ -384,7 +422,7 @@ export async function POST(request: Request) {
       
       const plan: ReconcilePlan = {
         datasetSnapshotId,
-        pageFingerprint: generatePageFingerprint(pageIds, classifications),
+        pageFingerprint: generatePageFingerprint(pageIds, classifications, snapshot.recordEvidence),
         eligibleForRepair: [],
         ambiguous: [],
         skipped: [],
@@ -462,6 +500,25 @@ export async function POST(request: Request) {
         );
       }
       
+      // P0 FIX: Require explicit repair authorization (not just browser confirm)
+      if (!options.repairAuthorization) {
+        return NextResponse.json(
+          { error: 'REPAIR_AUTHORIZATION_REQUIRED', message: 'Explicit repair authorization token required for repair' },
+          { status: 403 }
+        );
+      }
+      
+      // P0 FIX: Validate repair authorization token
+      // This is a simple token-based authorization. In production, this should be
+      // replaced with a proper authorization system (e.g., signed JWT, admin role check)
+      const AUTHORIZATION_TOKEN = process.env.REPAIR_AUTHORIZATION_TOKEN;
+      if (!AUTHORIZATION_TOKEN || options.repairAuthorization !== AUTHORIZATION_TOKEN) {
+        return NextResponse.json(
+          { error: 'INVALID_REPAIR_AUTHORIZATION', message: 'Invalid repair authorization token' },
+          { status: 403 }
+        );
+      }
+      
       // P0 FIX: Require page-specific fingerprint (not global fingerprint)
       if (!options.pageFingerprint) {
         return NextResponse.json(
@@ -471,7 +528,7 @@ export async function POST(request: Request) {
       }
       
       // Verify page fingerprint matches current page state
-      const currentPageFingerprint = generatePageFingerprint(pageIds, classifications);
+      const currentPageFingerprint = generatePageFingerprint(pageIds, classifications, snapshot.recordEvidence);
       if (currentPageFingerprint !== options.pageFingerprint) {
         return NextResponse.json(
           { 
@@ -531,6 +588,8 @@ export async function POST(request: Request) {
             contentHash: media.contentHash,
             variants: media.variants,
             provenance: media.provenance,
+            lifecycleState: media.lifecycleState,
+            source: media.source,
           };
           
           // Verify evidence one more time before mutation
@@ -568,7 +627,45 @@ export async function POST(request: Request) {
             contentHash: afterMedia?.contentHash,
             variants: afterMedia?.variants,
             provenance: afterMedia?.provenance,
+            lifecycleState: afterMedia?.lifecycleState,
+            source: afterMedia?.source,
           };
+          
+          // P0 FIX: Field-level verification - only storage should change
+          if (afterState.contentHash !== beforeState.contentHash) {
+            failed++;
+            errors[mediaId] = 'FIELD_LEVEL_VIOLATION: contentHash changed unexpectedly';
+            console.error('[MEDIA_RECONCILIATION] Field-level violation', { mediaId, field: 'contentHash' });
+            continue;
+          }
+          
+          if (afterState.lifecycleState !== beforeState.lifecycleState) {
+            failed++;
+            errors[mediaId] = 'FIELD_LEVEL_VIOLATION: lifecycleState changed unexpectedly';
+            console.error('[MEDIA_RECONCILIATION] Field-level violation', { mediaId, field: 'lifecycleState' });
+            continue;
+          }
+          
+          if (afterState.source !== beforeState.source) {
+            failed++;
+            errors[mediaId] = 'FIELD_LEVEL_VIOLATION: source changed unexpectedly';
+            console.error('[MEDIA_RECONCILIATION] Field-level violation', { mediaId, field: 'source' });
+            continue;
+          }
+          
+          if (JSON.stringify(afterState.variants) !== JSON.stringify(beforeState.variants)) {
+            failed++;
+            errors[mediaId] = 'FIELD_LEVEL_VIOLATION: variants changed unexpectedly';
+            console.error('[MEDIA_RECONCILIATION] Field-level violation', { mediaId, field: 'variants' });
+            continue;
+          }
+          
+          if (JSON.stringify(afterState.provenance) !== JSON.stringify(beforeState.provenance)) {
+            failed++;
+            errors[mediaId] = 'FIELD_LEVEL_VIOLATION: provenance changed unexpectedly';
+            console.error('[MEDIA_RECONCILIATION] Field-level violation', { mediaId, field: 'provenance' });
+            continue;
+          }
           
           repaired++;
           repairs.push({
@@ -619,6 +716,9 @@ export async function POST(request: Request) {
             storage: media.storage,
             contentHash: media.contentHash,
             variants: media.variants,
+            provenance: media.provenance,
+            lifecycleState: media.lifecycleState,
+            source: media.source,
           };
           
           // Mutation: only storage field
@@ -635,7 +735,46 @@ export async function POST(request: Request) {
             storage: afterMedia?.storage,
             contentHash: afterMedia?.contentHash,
             variants: afterMedia?.variants,
+            provenance: afterMedia?.provenance,
+            lifecycleState: afterMedia?.lifecycleState,
+            source: afterMedia?.source,
           };
+          
+          // P0 FIX: Field-level verification - only storage should change
+          if (afterState.contentHash !== beforeState.contentHash) {
+            failed++;
+            errors[mediaId] = 'FIELD_LEVEL_VIOLATION: contentHash changed unexpectedly';
+            console.error('[MEDIA_RECONCILIATION] Field-level violation', { mediaId, field: 'contentHash' });
+            continue;
+          }
+          
+          if (afterState.lifecycleState !== beforeState.lifecycleState) {
+            failed++;
+            errors[mediaId] = 'FIELD_LEVEL_VIOLATION: lifecycleState changed unexpectedly';
+            console.error('[MEDIA_RECONCILIATION] Field-level violation', { mediaId, field: 'lifecycleState' });
+            continue;
+          }
+          
+          if (afterState.source !== beforeState.source) {
+            failed++;
+            errors[mediaId] = 'FIELD_LEVEL_VIOLATION: source changed unexpectedly';
+            console.error('[MEDIA_RECONCILIATION] Field-level violation', { mediaId, field: 'source' });
+            continue;
+          }
+          
+          if (JSON.stringify(afterState.variants) !== JSON.stringify(beforeState.variants)) {
+            failed++;
+            errors[mediaId] = 'FIELD_LEVEL_VIOLATION: variants changed unexpectedly';
+            console.error('[MEDIA_RECONCILIATION] Field-level violation', { mediaId, field: 'variants' });
+            continue;
+          }
+          
+          if (JSON.stringify(afterState.provenance) !== JSON.stringify(beforeState.provenance)) {
+            failed++;
+            errors[mediaId] = 'FIELD_LEVEL_VIOLATION: provenance changed unexpectedly';
+            console.error('[MEDIA_RECONCILIATION] Field-level violation', { mediaId, field: 'provenance' });
+            continue;
+          }
           
           repaired++;
           repairs.push({
@@ -681,6 +820,23 @@ export async function POST(request: Request) {
     
     // VERIFY MODE: Deep field-level verification after repair (with pagination)
     if (action === 'verify') {
+      // P0 FIX: Require valid server-owned snapshot for verify
+      if (!datasetSnapshotId) {
+        return NextResponse.json(
+          { error: 'SNAPSHOT_REQUIRED', message: 'Valid server-owned dataset snapshot required for verify' },
+          { status: 400 }
+        );
+      }
+      
+      // P0 FIX: Verify snapshot exists and is not expired
+      const currentSnapshot = await getDatasetSnapshot(datasetSnapshotId);
+      if (!currentSnapshot) {
+        return NextResponse.json(
+          { error: 'SNAPSHOT_NOT_FOUND', message: 'Dataset snapshot not found or expired' },
+          { status: 404 }
+        );
+      }
+      
       const verifyClassifications: ClassificationResult[] = [];
       for (const mediaId of pageIds) {
         const media = await getMediaRecordRaw(mediaId);

@@ -7,7 +7,8 @@
  * It calls the server-side reconciliation endpoint which performs
  * the complete audit → plan → repair → verify workflow.
  * 
- * P0 FIX: Updated for server-owned dataset snapshots and page-specific fingerprints
+ * P0 FIX: Updated for server-owned dataset snapshots, page-specific fingerprints,
+ *         and explicit repair authorization (not just browser confirm)
  */
 
 async function executeReconciliation() {
@@ -159,7 +160,19 @@ async function executeReconciliation() {
     console.log('Skipped:', aggregatedPlan.skipped.length);
     console.log('='.repeat(80));
     
-    // Step 3: Confirm before repair
+    // Step 3: Request repair authorization token
+    const repairAuthorization = prompt(
+      `Enter repair authorization token to proceed with repair.\n\n` +
+      `This token must match the REPAIR_AUTHORIZATION_TOKEN environment variable.\n\n` +
+      `Leave empty to cancel.`
+    );
+    
+    if (!repairAuthorization) {
+      console.log('[RECONCILIATION] Repair cancelled by user (no authorization token)');
+      return;
+    }
+    
+    // Step 4: Confirm before repair
     const confirmRepair = confirm(
       `Ready to repair ${aggregatedPlan.eligibleForRepair.length} records.\n\n` +
       `Server-owned snapshot: ${aggregatedPlan.datasetSnapshotId}\n\n` +
@@ -200,7 +213,8 @@ async function executeReconciliation() {
             pageSize,
             offset,
             datasetSnapshotId,  // P0 FIX: Pass server-owned snapshot ID
-            pageFingerprint: pagePlan.plan.pageFingerprint  // P0 FIX: Use page-specific fingerprint
+            pageFingerprint: pagePlan.plan.pageFingerprint,  // P0 FIX: Use page-specific fingerprint
+            repairAuthorization  // P0 FIX: Pass explicit repair authorization token
           }
         }),
       });
@@ -246,7 +260,14 @@ async function executeReconciliation() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ action: 'verify', options: { pageSize, offset } }),
+        body: JSON.stringify({ 
+          action: 'verify', 
+          options: { 
+            pageSize, 
+            offset,
+            datasetSnapshotId  // P0 FIX: Pass server-owned snapshot ID for verify
+          } 
+        }),
       });
       
       if (!verifyResponse.ok) {
