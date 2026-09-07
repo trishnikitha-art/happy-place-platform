@@ -41,11 +41,18 @@ export async function POST() {
         }
         
         // P0 FIX: Ensure storage field is present for public media gate compliance
-        // Static files have local files, so storage should be 'static'
-        // Drive-ingested assets will have storage: 'blob' from ingest
-        if (!media.storage && media.source === 'local') {
-          media.storage = 'static';
-          console.log('[SYNC] STORAGE_FIX', { mediaId: media.id, addedStorage: 'static' });
+        // Published local records MUST have storage field (static or blob)
+        // This is a constitutional requirement enforced by saveMedia()
+        if (media.lifecycleState === 'published' && media.source === 'local') {
+          if (!media.storage) {
+            media.storage = 'static';
+            console.log('[SYNC] STORAGE_FIX', { mediaId: media.id, addedStorage: 'static' });
+          }
+          // Verify storage is valid
+          if (media.storage !== 'static' && media.storage !== 'blob') {
+            console.warn('[SYNC] INVALID_STORAGE', { mediaId: media.id, storage: media.storage, reason: 'Must be static or blob' });
+            media.storage = 'static';
+          }
         }
         
         // Check if already in KV

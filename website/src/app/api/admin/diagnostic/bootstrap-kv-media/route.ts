@@ -214,9 +214,12 @@ export async function POST() {
         const thumbUpload = await uploadToBlob(thumbBuffer, `${media.id}-thumb.webp`, 'image/webp');
         
         // Update media record with Blob URLs
+        // P0 FIX: Set storage to blob for rematerialized records (replacing static with blob)
+        // or preserve existing storage if it was already blob
         const updatedMedia = {
           ...media,
           contentHash,
+          storage: 'blob' as const, // Rematerialized from source → Blob storage
           variants: {
             ...media.variants,
             original: blobUpload.url,

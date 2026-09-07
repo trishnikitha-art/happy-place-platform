@@ -170,10 +170,13 @@ export async function POST() {
           // MISSING: Record doesn't exist in KV
           classification.missing++;
           
-          // Add storage field for static assets
+          // P0 FIX: Ensure storage field is present for published local records
+          // This is a constitutional requirement enforced by saveMedia()
           const reconciledMedia = {
             ...media,
-            storage: (media.source === 'local' ? 'static' : undefined) as 'static' | 'blob' | undefined,
+            storage: (media.lifecycleState === 'published' && media.source === 'local' && !media.storage)
+              ? 'static'
+              : (media.storage || (media.source === 'local' ? 'static' : undefined)) as 'static' | 'blob' | undefined,
           };
           
           // Write to KV
