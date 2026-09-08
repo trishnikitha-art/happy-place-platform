@@ -28,9 +28,10 @@
 
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
-import { getMediaRecordRaw, listMediaIds, saveMedia } from '@/lib/media-kv-store';
+import { getMediaRecordRaw, listMediaIds, updateStorageFieldCAS } from '@/lib/media-kv-store';
 import { getEnvironment } from '@/lib/environment';
 import { verifyBlobHash } from '@/lib/blob-storage';
+import { loadProjectsManifest } from '@/lib/projects';
 
 export const dynamic = 'force-dynamic';
 
@@ -58,6 +59,8 @@ interface MediaRecordClassification {
   proposedStorage: string | null;
   publicGateResult: string;
   repairAction: string;
+  projectGalleryAssignments: string[];
+  serviceAssignments: string[];
 }
 
 interface ReconciliationReport {
@@ -119,7 +122,7 @@ async function classifyRecord(record: any): Promise<MediaRecordClassification> {
   }
   // Check for Blob records with actual integrity verification
   else if (source === 'blob' || blobMetadataPresent) {
-    const blobMetadata = record.blob_metadata as any;
+    const blobMetadata = record.blob_metadata as { url?: string } | null;
     const blobUrl = blobMetadata?.url || null;
     
     if (storage === 'blob' && blobMetadataPresent && contentHash && blobUrl) {
@@ -254,11 +257,14 @@ async function classifyRecord(record: any): Promise<MediaRecordClassification> {
     proposedStorage,
     publicGateResult,
     repairAction,
+    projectGalleryAssignments: [],
+    serviceAssignments: [],
   };
 }
 
 /**
  * Enumerate all KV media records and classify them
+ * Also collects project gallery and service assignment information
  */
 async function enumerateAndClassifyRecords(): Promise<MediaRecordClassification[]> {
   const classifications: MediaRecordClassification[] = [];
@@ -271,12 +277,50 @@ async function enumerateAndClassifyRecords(): Promise<MediaRecordClassification[
     const mediaIds = await listMediaIds();
     console.log('[KV_RECONCILIATION] Found media IDs', { count: mediaIds.length });
     
+    // Load project gallery assignments from static authority
+    const projectsManifest = loadProjectsManifest();
+    const projectGalleryAssignments = new Map<string, string[]>();
+    
+    for (const project of projectsManifest.projects) {
+      const galleryIds = project.media.gallery || [];
+      const heroId = project.media.hero;
+      const afterId = project.media.after;
+      
+      const allProjectMediaIds = [...galleryIds];
+      if (heroId) allProjectMediaIds.push(heroId);
+      if (afterId) allProjectMediaIds.push(afterId);
+      
+      for (const mediaId of allProjectMediaIds) {
+        if (!projectGalleryAssignments.has(mediaId)) {
+          projectGalleryAssignments.set(mediaId, []);
+        }
+        projectGalleryAssignments.get(mediaId)!.push(project.id);
+      }
+    }
+    
+    // Load service card assignments from KV
+    const { getAllServiceCardAssignments } = await import('@/lib/assignment-store');
+    const serviceAssignments = await getAllServiceCardAssignments();
+    const serviceAssignmentMap = new Map<string, string[]>();
+    
+    for (const assignment of serviceAssignments) {
+      if (!serviceAssignmentMap.has(assignment.mediaId)) {
+        serviceAssignmentMap.set(assignment.mediaId, []);
+      }
+      serviceAssignmentMap.get(assignment.mediaId)!.push(assignment.serviceSlug);
+    }
+    
     // Fetch and classify each record
     for (const mediaId of mediaIds) {
       try {
         const record = await getMediaRecordRaw(mediaId);
         if (record) {
           const classification = await classifyRecord(record);
+          
+          // Add assignment information
+          classification.projectGalleryAssignments = projectGalleryAssignments.get(mediaId) || [];
+          classification.serviceAssignments = serviceAssignmentMap.get(mediaId) || [];
+          
           classifications.push(classification);
         } else {
           console.warn('[KV_RECONCILIATION] Missing record for ID', { mediaId });
@@ -354,14 +398,31 @@ export async function GET(request: Request) {
     // Enumerate and classify all KV records
     const classifications = await enumerateAndClassifyRecords();
     
-    // Generate summary
+    // Generate classification counts (per-class counters)
+    const classificationCounts: Record<StorageClassification, number> = {
+      VALID_STATIC: 0,
+      VALID_BLOB: 0,
+      MISSING_STORAGE: 0,
+      MISSING_BLOB_METADATA: 0,
+      INVALID_STATIC_PATH: 0,
+      SYNTHETIC_HASH: 0,
+      MISSING_CONTENT_HASH: 0,
+      STALE: 0,
+      AMBIGUOUS: 0,
+    };
+    
+    for (const record of classifications) {
+      classificationCounts[record.classification]++;
+    }
+    
+    // Generate summary (derived aggregates)
     const summary = generateSummary(classifications);
     
     const report: ReconciliationReport = {
       environment: getEnvironment(),
       timestamp: new Date().toISOString(),
       totalRecords: classifications.length,
-      classifications: summary as any,
+      classifications: classificationCounts,
       records: classifications,
       summary,
     };
@@ -420,33 +481,30 @@ export async function POST(request: Request) {
     
     for (const repair of safeRepairs) {
       try {
-        // Fetch the current record for CAS check
-        const currentRecord = await getMediaRecordRaw(repair.mediaId);
-        if (!currentRecord) {
-          console.warn('[KV_RECONCILIATION] Record not found for repair', { 
-            mediaId: repair.mediaId 
+        // P0 FIX: Use atomic Redis Lua CAS for true concurrency protection
+        // This prevents race conditions during concurrent reconciliation operations
+        const casResult = await updateStorageFieldCAS(
+          repair.mediaId,
+          repair.contentHash || '',
+          repair.proposedStorage as 'static' | 'blob'
+        );
+        
+        if (casResult.success) {
+          appliedRepairs.push(repair.mediaId);
+          console.log('[KV_RECONCILIATION] CAS repair applied', { 
+            mediaId: repair.mediaId, 
+            storage: repair.proposedStorage 
           });
+        } else {
           failedRepairs.push({ 
             mediaId: repair.mediaId, 
-            error: 'Record not found' 
+            error: `CAS violation: ${casResult.reason}` 
           });
-          continue;
+          console.warn('[KV_RECONCILIATION] CAS repair failed', { 
+            mediaId: repair.mediaId, 
+            reason: casResult.reason 
+          });
         }
-        
-        // Apply the storage field
-        const updatedRecord = {
-          ...currentRecord,
-          storage: repair.proposedStorage as "static" | "blob" | undefined,
-        };
-        
-        // Save back to KV
-        await saveMedia(updatedRecord);
-        appliedRepairs.push(repair.mediaId);
-        
-        console.log('[KV_RECONCILIATION] Applied repair', { 
-          mediaId: repair.mediaId, 
-          storage: repair.proposedStorage
-        });
         
       } catch (error) {
         console.error('[KV_RECONCILIATION] Failed to apply repair', { 
@@ -460,11 +518,28 @@ export async function POST(request: Request) {
       }
     }
     
+    // Generate classification counts (per-class counters)
+    const classificationCounts: Record<StorageClassification, number> = {
+      VALID_STATIC: 0,
+      VALID_BLOB: 0,
+      MISSING_STORAGE: 0,
+      MISSING_BLOB_METADATA: 0,
+      INVALID_STATIC_PATH: 0,
+      SYNTHETIC_HASH: 0,
+      MISSING_CONTENT_HASH: 0,
+      STALE: 0,
+      AMBIGUOUS: 0,
+    };
+    
+    for (const record of classifications) {
+      classificationCounts[record.classification]++;
+    }
+    
     const report: ReconciliationReport = {
       environment: getEnvironment(),
       timestamp: new Date().toISOString(),
       totalRecords: classifications.length,
-      classifications: summary as any,
+      classifications: classificationCounts,
       records: classifications,
       summary,
     };

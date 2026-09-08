@@ -500,6 +500,86 @@ export async function saveMedia(media: Media): Promise<void> {
 }
 
 /**
+ * Update storage field with Compare-And-Swap (CAS) protection
+ * 
+ * This is a true atomic CAS operation using Redis Lua script to prevent race conditions
+ * during concurrent reconciliation operations.
+ * 
+ * CAS Conditions:
+ * 1. Record must exist
+ * 2. Content hash must match expected value (record hasn't changed since classification)
+ * 3. Storage field must be either unset or already match proposed value (idempotent)
+ * 
+ * @param mediaId - The media record ID
+ * @param expectedContentHash - The content hash from classification (CAS condition)
+ * @param proposedStorage - The proposed storage value ("static" or "blob")
+ * @returns true if updated, false if CAS conflict (record modified or already set)
+ */
+export async function updateStorageFieldCAS(
+  mediaId: string,
+  expectedContentHash: string,
+  proposedStorage: 'static' | 'blob'
+): Promise<{ success: boolean; reason?: string }> {
+  try {
+    const client = createRedisClient();
+    
+    // Atomic Lua script for CAS-protected storage field update
+    const casScript = `
+      local mediaKey = KEYS[1]
+      local expectedHash = ARGV[1]
+      local proposedStorage = ARGV[2]
+      
+      -- Get current media record
+      local mediaJson = redis.call('GET', mediaKey)
+      
+      -- CAS Check 1: Record must exist
+      if not mediaJson then
+        return 'RECORD_NOT_FOUND'
+      end
+      
+      -- Parse current record
+      local parsed = cjson.decode(mediaJson)
+      local currentHash = parsed.contentHash
+      local currentStorage = parsed.storage
+      
+      -- CAS Check 2: Content hash must match (record hasn't changed)
+      if currentHash ~= expectedHash then
+        return 'HASH_MISMATCH'
+      end
+      
+      -- CAS Check 3: Storage must be unset or already match (idempotent)
+      if currentStorage and currentStorage ~= '' and currentStorage ~= proposedStorage then
+        return 'STORAGE_ALREADY_SET'
+      end
+      
+      -- All CAS checks passed - update storage field atomically
+      parsed.storage = proposedStorage
+      local updatedJson = cjson.encode(parsed)
+      redis.call('SET', mediaKey, updatedJson)
+      
+      return 'OK'
+    `;
+    
+    const result = await client.eval(
+      casScript,
+      [namespacedKey(`${MEDIA_PREFIX}${mediaId}`)],
+      [expectedContentHash, proposedStorage]
+    ) as string;
+    
+    if (result === 'OK') {
+      console.log('[MEDIA_KV] CAS update successful', { mediaId, storage: proposedStorage });
+      return { success: true };
+    } else {
+      console.warn('[MEDIA_KV] CAS update failed', { mediaId, reason: result });
+      return { success: false, reason: result };
+    }
+  } catch (error) {
+    console.error('[MEDIA_KV] Failed CAS update:', error);
+    throw new Error(`Failed CAS update for ${mediaId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+/**
  * Delete media from KV
  * Also removes content hash index entry
  * Uses atomic Lua script to ensure media record and index are deleted together
