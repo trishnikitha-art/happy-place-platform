@@ -2190,13 +2190,6 @@ export default function MediaWorkbench() {
             >
               <RefreshCw size={14} />
             </button>
-            <button
-              onClick={openAddSlotDialog}
-              className="px-2 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors text-xs"
-            >
-              <Plus size={14} className="inline mr-1" />
-              Add Slot
-            </button>
           </div>
         </div>
       </div>
@@ -2276,21 +2269,31 @@ export default function MediaWorkbench() {
           style={{ left: state.selectedSlotForContext.x, top: state.selectedSlotForContext.y }}
           onClick={(e) => e.stopPropagation()}
         >
-          <button
-            onClick={() => {
-              setState(prev => ({ 
-                ...prev, 
-                newSlotId: `custom-slot-${Date.now()}`, 
-                newSlotName: '', 
-                newSlotSection: 'Hero',
-                selectedSlotForContext: null
-              }));
-              setState(prev => ({ ...prev, showAddSlotDialog: true }));
-            }}
-            className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-accent transition-colors"
-          >
-            Add Visual Slot
-          </button>
+          {/* P0 FIX: Only show "Add Visual Slot" for non-Gallery slots */}
+          {/* Gallery slots are auto-generated from gallery[] - manual slot creation is wrong abstraction */}
+          {/* Detect Gallery slots by their ID pattern: our-work-gallery::{projectId}::{mediaId} */}
+          {!state.selectedSlotForContext.slot.id.startsWith('our-work-gallery::') && (
+            <button
+              onClick={() => {
+                setState(prev => ({ 
+                  ...prev, 
+                  newSlotId: `custom-slot-${Date.now()}`, 
+                  newSlotName: '', 
+                  newSlotSection: 'Hero',
+                  selectedSlotForContext: null
+                }));
+                setState(prev => ({ ...prev, showAddSlotDialog: true }));
+              }}
+              className="w-full px-4 py-2 text-left text-sm text-foreground hover:bg-accent transition-colors"
+            >
+              Add Visual Slot
+            </button>
+          )}
+          {state.selectedSlotForContext.slot.id.startsWith('our-work-gallery::') && (
+            <div className="w-full px-4 py-2 text-left text-sm text-muted-foreground bg-surface/50">
+              Gallery slots are auto-generated from your project gallery
+            </div>
+          )}
           <button
             onClick={() => {
               if (!state.selectedSlotForContext) return;
