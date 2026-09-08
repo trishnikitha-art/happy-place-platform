@@ -24,6 +24,7 @@ interface DriveExplorerState {
   selectedFile: DriveFile | null;
   nextPageToken?: string;
   loadingMore: boolean;
+  requiresReauth: boolean; // P0 FIX: Flag for authorization required
 }
 
 export default function DriveExplorerPage() {
@@ -39,6 +40,7 @@ export default function DriveExplorerPage() {
     selectedFile: null,
     nextPageToken: undefined,
     loadingMore: false,
+    requiresReauth: false, // P0 FIX: Flag for authorization required
   });
 
   useEffect(() => {
@@ -51,7 +53,20 @@ export default function DriveExplorerPage() {
 
       const response = await fetch('/api/drive/discovery');
       if (!response.ok) {
-        throw new Error('Failed to load Drive structure');
+        const errorData = await response.json();
+        
+        // Check if it's an authorization error
+        if (errorData.error === 'AUTHORIZATION_EXPIRED' || errorData.requiresReauth) {
+          setState(prev => ({
+            ...prev,
+            error: 'Google Drive authorization required. Please authorize to access Drive.',
+            loading: false,
+            requiresReauth: true,
+          }));
+          return;
+        }
+        
+        throw new Error(errorData.message || 'Failed to load Drive structure');
       }
 
       const structure = await response.json();
@@ -96,6 +111,7 @@ export default function DriveExplorerPage() {
           ...prev,
           items,
           loading: false,
+          requiresReauth: false,
         }));
       }
     } catch (err) {
@@ -382,8 +398,18 @@ export default function DriveExplorerPage() {
 
       {/* Toolbar */}
       <div className="flex items-center gap-4 mb-6">
+        {/* Authorize button when reauth required */}
+        {state.requiresReauth && (
+          <a
+            href="/api/drive/oauth/authorize"
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+          >
+            Authorize Google Drive
+          </a>
+        )}
+
         {/* My Drive button */}
-        {state.activeDriveId && (
+        {state.activeDriveId && !state.requiresReauth && (
           <button
             onClick={() => {
               console.log('[DRIVE_EXPLORER] Switching to My Drive');
@@ -447,7 +473,17 @@ export default function DriveExplorerPage() {
         </div>
       ) : state.error ? (
         <div className="flex-1 flex items-center justify-center text-destructive">
-          {state.error}
+          <div className="text-center">
+            <p className="mb-4">{state.error}</p>
+            {state.requiresReauth && (
+              <a
+                href="/api/drive/oauth/authorize"
+                className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+              >
+                Authorize Google Drive
+              </a>
+            )}
+          </div>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto">
