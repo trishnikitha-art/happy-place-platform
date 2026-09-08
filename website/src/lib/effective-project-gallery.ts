@@ -15,7 +15,7 @@
  */
 
 import { loadProjectsManifest } from './projects';
-import { getKvNamespace } from './environment';
+import { getKvNamespace, getEnvironment } from './environment';
 import { Redis } from '@upstash/redis';
 
 const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
@@ -50,11 +50,13 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
   });
 
   // In production, check for staged mutations
-  const isProduction = process.env.NODE_ENV === 'production';
-  
+  const environment = getEnvironment();
+  const isProduction = environment === 'production';
+
   if (!isProduction) {
     console.log('[EFFECTIVE_GALLERY] DEV_MODE - Returning baseline', {
       projectId,
+      environment,
       galleryLength: baselineGallery.length,
     });
     return baselineGallery;
