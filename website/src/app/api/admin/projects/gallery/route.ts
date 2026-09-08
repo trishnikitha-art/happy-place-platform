@@ -156,9 +156,18 @@ export async function GET(request: Request) {
       // so PUT can compare against it for subsequent edits
       const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${transactionId}:project:${projectId}:gallery`;
       const stagedData = await redis.get(stagingKey);
-      if (stagedData && typeof stagedData === 'string') {
-        const parsed = JSON.parse(stagedData);
-        effectiveRevision = parsed.currentRevision || deployedRevision + 1;
+      if (stagedData) {
+        // P0 FIX: Upstash automatically deserializes JSON objects
+        // Accept both string (needs JSON.parse) and object (already parsed)
+        let parsed: any;
+        if (typeof stagedData === 'string') {
+          parsed = JSON.parse(stagedData);
+        } else if (typeof stagedData === 'object') {
+          parsed = stagedData;
+        } else {
+          effectiveRevision = deployedRevision + 1;
+        }
+        effectiveRevision = parsed?.currentRevision || deployedRevision + 1;
       } else {
         effectiveRevision = deployedRevision + 1;
       }
@@ -332,16 +341,32 @@ export async function PUT(request: Request) {
         const specificStagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${currentStagedTransactionId}:project:${projectId}:gallery`;
         const stagedData = await redis.get(specificStagingKey);
         
-        if (stagedData && typeof stagedData === 'string') {
-          const parsed = JSON.parse(stagedData);
-          currentGallery = parsed.gallery;
-          currentRevision = parsed.currentRevision;
-          currentTransactionId = currentStagedTransactionId;
-          console.log('[GALLERY V2 PUT] USING_STAGED_STATE', {
-            projectId,
-            currentRevision,
-            transactionId: currentTransactionId
-          });
+        if (stagedData) {
+          // P0 FIX: Upstash automatically deserializes JSON objects
+          // Accept both string (needs JSON.parse) and object (already parsed)
+          let parsed: any;
+          if (typeof stagedData === 'string') {
+            parsed = JSON.parse(stagedData);
+          } else if (typeof stagedData === 'object') {
+            parsed = stagedData;
+          } else {
+            const dataType = typeof stagedData;
+            console.warn('[GALLERY V2 PUT] STAGED_DATA_INVALID_TYPE', {
+              dataType,
+              specificStagingKey
+            });
+          }
+          
+          if (parsed) {
+            currentGallery = parsed.gallery;
+            currentRevision = parsed.currentRevision;
+            currentTransactionId = currentStagedTransactionId;
+            console.log('[GALLERY V2 PUT] USING_STAGED_STATE', {
+              projectId,
+              currentRevision,
+              transactionId: currentTransactionId
+            });
+          }
         }
       }
     }
@@ -443,7 +468,9 @@ export async function PUT(request: Request) {
         previousGallery: currentGallery,
         mutationTimestamp: new Date().toISOString()
       };
-      await redis.set(stagingKey, JSON.stringify(galleryPayload));
+      // P0 FIX: Store as object to match Upstash automatic deserialization behavior
+      // The reader now accepts both string and object types
+      await redis.set(stagingKey, galleryPayload);
       
       // P0 FIX: Set authoritative project-level current transaction ID
       await redis.set(projectStagingKey, effectiveTransactionId);

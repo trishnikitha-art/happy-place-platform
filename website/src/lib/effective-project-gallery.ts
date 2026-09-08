@@ -90,16 +90,31 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
     const specificStagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${currentStagedTransactionId}:project:${projectId}:gallery`;
     const stagedData = await redis.get(specificStagingKey);
     
-    if (!stagedData || typeof stagedData !== 'string') {
+    if (!stagedData) {
       console.warn('[EFFECTIVE_GALLERY] STAGED_DATA_INVALID - Returning baseline', {
         projectId,
         specificStagingKey,
-        reason: 'Staged data is null or invalid',
+        reason: 'Staged data is null',
       });
       return baselineGallery;
     }
 
-    const parsed = JSON.parse(stagedData);
+    // P0 FIX: Upstash automatically deserializes JSON objects
+    // Accept both string (needs JSON.parse) and object (already parsed)
+    let parsed: any;
+    if (typeof stagedData === 'string') {
+      parsed = JSON.parse(stagedData);
+    } else if (typeof stagedData === 'object') {
+      parsed = stagedData;
+    } else {
+      console.warn('[EFFECTIVE_GALLERY] STAGED_DATA_INVALID - Returning baseline', {
+        projectId,
+        specificStagingKey,
+        reason: `Staged data has invalid type: ${typeof stagedData}`,
+      });
+      return baselineGallery;
+    }
+
     const stagedGallery = parsed.gallery;
     const stagedRevision = parsed.currentRevision;
 
