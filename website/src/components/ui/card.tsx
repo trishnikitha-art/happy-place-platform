@@ -34,6 +34,9 @@ export function CraftCard({ className, children, style }: { className?: string; 
           "bg-surface",
           "border-border/40",
           
+          // P0 FIX: position: relative for absolute children positioning
+          "relative",
+          
           // Premium shadow stack - layered depth (from homepage cards)
           "shadow-[--shadow-card]",
           

@@ -624,7 +624,8 @@ export function VisualSlot({
       data-slot-id={id}
       data-slot-route={route}
       data-slot-section={section}
-      style={isWorkbenchMode ? { cursor: 'pointer' } : undefined}
+      // P0 FIX: position: relative for absolute children positioning
+      style={isWorkbenchMode ? { cursor: 'pointer', position: 'relative' } : { position: 'relative' }}
       onClick={isWorkbenchMode ? handleClick : undefined}
       onDragOver={isWorkbenchMode ? handleDragOver : undefined}
       onDrop={isWorkbenchMode ? handleDrop : undefined}
