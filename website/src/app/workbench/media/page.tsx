@@ -1561,7 +1561,8 @@ export default function MediaWorkbench() {
                 id: a.id,
                 filename: a.filename,
                 source: a.source,
-                driveFileId: a.drive?.fileId,
+                // P0 FIX: Use provenance.driveFileId (authoritative Drive provenance)
+                driveFileId: a.provenance?.driveFileId,
               })),
             });
 
@@ -2681,7 +2682,8 @@ export default function MediaWorkbench() {
                           <div className="grid grid-cols-3 gap-2">
                             {(state.driveFiles || []).filter((item: any) => item.type !== 'folder').map((file: any) => {
                               // Check if this Drive file has already been ingested
-                              const existingAsset = state.assets.find(a => a.drive?.fileId === file.id);
+                              // P0 FIX: Use provenance.driveFileId (authoritative Drive provenance)
+                              const existingAsset = state.assets.find(a => a.provenance?.driveFileId === file.id);
                               const isIngested = !!existingAsset;
 
                               return (
@@ -2724,7 +2726,8 @@ export default function MediaWorkbench() {
                           <div className="space-y-1">
                             {(state.driveFiles || []).filter((item: any) => item.type !== 'folder').map((file: any) => {
                               // Check if this Drive file has already been ingested
-                              const existingAsset = state.assets.find(a => a.drive?.fileId === file.id);
+                              // P0 FIX: Use provenance.driveFileId (authoritative Drive provenance)
+                              const existingAsset = state.assets.find(a => a.provenance?.driveFileId === file.id);
                               const isIngested = !!existingAsset;
 
                               return (
