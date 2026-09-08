@@ -8,9 +8,11 @@
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { loadMediaManifest } from '@/lib/media';
-import { getMedia, listMediaIds } from '@/lib/media-kv-store';
+import { getMedia, getMediaRecordRaw, listMediaIds } from '@/lib/media-kv-store';
 import { getKvNamespace } from '@/lib/environment';
+import { resolvePublicMedia } from '@/lib/media';
 import type { Media } from '@/types/media';
+import { loadProjectsManifest } from '@/lib/projects';
 
 export const dynamic = 'force-dynamic';
 
@@ -65,21 +67,25 @@ export async function GET(request: Request) {
     // Load static media manifest
     const manifest = loadMediaManifest();
     
-    // Gallery IDs from projects.v1.json
-    const galleryIds = [
-      'repairs-001-drywall',
-      'repairs-001-floor',
-      'repairs-001-gutter',
-      'repairs-001-floor0',
-      'repairs-001-img0544',
-      'repairs-001-img0546',
-      'builtins-001-secondary',
-      'outdoor-living-001-2',
-      'outdoor-living-001-3',
-      'outdoor-living-001-4',
-      'outdoor-living-001-5',
-      'outdoor-living-001-6'
-    ];
+    // Load projects manifest to derive actual gallery IDs
+    const projectsManifest = loadProjectsManifest();
+    
+    // Derive gallery IDs from actual project authority
+    const galleryIds: string[] = [];
+    for (const project of projectsManifest.projects) {
+      const projectGallery = project.media?.gallery || [];
+      for (const mediaId of projectGallery) {
+        if (!galleryIds.includes(mediaId)) {
+          galleryIds.push(mediaId);
+        }
+      }
+    }
+    
+    console.log('[GALLERY_AUDIT] DERIVED_GALLERY_IDS', {
+      auditId,
+      totalProjects: projectsManifest.projects.length,
+      totalGalleryIds: galleryIds.length
+    });
     
     const auditResults = [];
     let missingFromKv = 0;
@@ -92,21 +98,22 @@ export async function GET(request: Request) {
     
     for (const mediaId of galleryIds) {
       const staticRecord = manifest.media.find((m: Media) => m.id === mediaId);
-      const kvRecord = await getMedia(mediaId);
+      const kvRecordRaw = await getMediaRecordRaw(mediaId);
+      const kvRecord = await getMedia(mediaId); // Runs public gate
       
-      // Validate KV record
+      // Validate KV record using raw accessor (not through public gate)
       let kvValidity: 'VALID' | 'INVALID' | 'MISSING' = 'MISSING';
-      if (kvRecord) {
+      if (kvRecordRaw) {
         // Check if it's a valid PublishedMediaAsset
         kvValidity = (
-          kvRecord.lifecycleState === 'published' &&
-          kvRecord.source === 'local' &&
-          kvRecord.storage === 'static' &&
-          kvRecord.contentHash &&
-          kvRecord.contentHash.length > 0 &&
-          kvRecord.variants &&
-          kvRecord.variants.original &&
-          kvRecord.variants.original.startsWith('/images/')
+          kvRecordRaw.lifecycleState === 'published' &&
+          kvRecordRaw.source === 'local' &&
+          kvRecordRaw.storage === 'static' &&
+          kvRecordRaw.contentHash &&
+          kvRecordRaw.contentHash.length > 0 &&
+          kvRecordRaw.variants &&
+          kvRecordRaw.variants.original &&
+          kvRecordRaw.variants.original.startsWith('/images/')
         ) ? 'VALID' as const : 'INVALID' as const;
         
         if (kvValidity === 'VALID') kvValidityValid++;
@@ -115,27 +122,27 @@ export async function GET(request: Request) {
         missingFromKv++;
       }
       
-      // Check public gate (simulated)
+      // Test actual public gate using resolvePublicMedia()
       let publicGate: 'PASS' | 'FAIL' | 'MISSING' = 'MISSING';
-      if (kvRecord && kvValidity === 'VALID') {
-        // Static assets pass public gate if they have valid /images/ paths
+      const publicMedia = await resolvePublicMedia(mediaId);
+      if (publicMedia) {
         publicGate = 'PASS' as const;
         publicGatePass++;
-      } else if (kvRecord) {
+      } else if (kvRecordRaw) {
         publicGate = 'FAIL' as const;
         publicGateFail++;
       }
       
       // Determine action
-      const action = !kvRecord && staticRecord ? 'BOOTSTRAP' as const : (kvRecord ? 'NOOP' as const : 'MISSING_FROM_STATIC' as const);
+      const action = !kvRecordRaw && staticRecord ? 'BOOTSTRAP' as const : (kvRecordRaw ? 'NOOP' as const : 'MISSING_FROM_STATIC' as const);
       
       if (!staticRecord) missingFromStatic++;
-      if (kvRecord) presentInKv++;
+      if (kvRecordRaw) presentInKv++;
       
       auditResults.push({
         mediaId,
         staticAuthority: staticRecord ? 'PRESENT' as const : 'MISSING' as const,
-        kvAuthority: kvRecord ? 'PRESENT' as const : 'MISSING' as const,
+        kvAuthority: kvRecordRaw ? 'PRESENT' as const : 'MISSING' as const,
         kvValidity,
         publicGate,
         action: action as 'BOOTSTRAP' | 'NOOP' | 'MISSING_FROM_STATIC',
@@ -146,12 +153,12 @@ export async function GET(request: Request) {
           contentHash: staticRecord.contentHash ? staticRecord.contentHash.substring(0, 16) + '...' : 'MISSING',
           variants: staticRecord.variants ? { original: staticRecord.variants.original } : undefined
         } : undefined,
-        kvRecord: kvRecord ? {
-          lifecycleState: kvRecord.lifecycleState,
-          source: kvRecord.source,
-          storage: kvRecord.storage,
-          contentHash: kvRecord.contentHash ? kvRecord.contentHash.substring(0, 16) + '...' : 'MISSING',
-          variants: kvRecord.variants ? { original: kvRecord.variants.original } : undefined
+        kvRecord: kvRecordRaw ? {
+          lifecycleState: kvRecordRaw.lifecycleState,
+          source: kvRecordRaw.source,
+          storage: kvRecordRaw.storage,
+          contentHash: kvRecordRaw.contentHash ? kvRecordRaw.contentHash.substring(0, 16) + '...' : 'MISSING',
+          variants: kvRecordRaw.variants ? { original: kvRecordRaw.variants.original } : undefined
         } : undefined
       });
     }
