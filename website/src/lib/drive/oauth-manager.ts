@@ -18,6 +18,7 @@ import { google } from 'googleapis';
 import { DriveCredentials, getSessionIdFromCookies } from './drive-session';
 import { revokeAuthorizationWithSessions, getAuthorization, updateAuthorizationAfterRefresh, decrypt, type EncryptionEnvelope } from './oauth-credential-store';
 import { getSession } from './session-store';
+import { workbenchSession } from '../workbench-session';
 import { cookies } from 'next/headers';
 
 /**
@@ -143,23 +144,40 @@ async function explicitTokenRefresh(
  * Authorization ID is resolved ONLY from the current authenticated session
  * This prevents caller-controlled authorization ID from reaching OAuth credentials
  * 
- * HTTP boundary → session resolution → authorization resolution → OAuth client
+ * P0 FIX: Verifies Drive authorization is bound to current Workbench principal
+ * This establishes the invariant: Drive operations must use authorizations bound to the authenticated Workbench principal
+ * 
+ * HTTP boundary → session resolution → authorization resolution → principal binding → OAuth client
  * 
  * The raw authorization ID is an internal capability, not an API-level identity selector
  */
 export async function getOAuthClient(): Promise<InstanceType<typeof google.auth.OAuth2>> {
   console.log('[OAUTH_MANAGER] Getting OAuth client for current session');
   
+  // Verify Workbench authentication
+  const workbenchIdentity = await workbenchSession.getSessionIdentity();
+  if (!workbenchIdentity || !workbenchIdentity.authenticated) {
+    throw new Error('Workbench session not authenticated - Drive operations require authenticated Workbench principal');
+  }
+  
+  // Get current Workbench principal ID from environment
+  const currentPrincipalId = process.env.HPP_WORKBENCH_PRINCIPAL_ID;
+  if (!currentPrincipalId || currentPrincipalId.trim().length === 0) {
+    throw new Error('HPP_WORKBENCH_PRINCIPAL_ID not configured - Drive authorization cannot be bound to Workbench principal');
+  }
+  
+  console.log('[OAUTH_MANAGER] Workbench principal authenticated:', currentPrincipalId);
+  
   // Resolve authorization ID ONLY from current authenticated session
   // NEVER accept authorizationId from caller - this is a security boundary
   const sessionId = await getSessionIdFromCookies();
   if (!sessionId) {
-    throw new Error('No active session found');
+    throw new Error('No active Drive session found');
   }
   
   const session = await getSession(sessionId);
   if (!session) {
-    throw new Error('Session not found');
+    throw new Error('Drive session not found');
   }
   
   const effectiveAuthorizationId = session.authorizationId;
@@ -174,6 +192,21 @@ export async function getOAuthClient(): Promise<InstanceType<typeof google.auth.
   if (!authorization || authorization.status !== 'active') {
     throw new Error('Authorization not found or inactive');
   }
+  
+  // P0 FIX: Verify authorization is bound to current Workbench principal
+  if (authorization.principalId !== currentPrincipalId) {
+    console.error('[OAUTH_MANAGER] PRINCIPAL BINDING VIOLATION:', {
+      authorizationPrincipalId: authorization.principalId,
+      currentPrincipalId,
+      authorizationId: effectiveAuthorizationId,
+    });
+    throw new Error('Drive authorization is not bound to current Workbench principal - authorization denied');
+  }
+  
+  console.log('[OAUTH_MANAGER] Principal binding verified:', {
+    authorizationPrincipalId: authorization.principalId,
+    currentPrincipalId,
+  });
   
   // Decrypt credentials
   const accessTokenEnvelope = JSON.parse(authorization.encryptedAccessToken) as EncryptionEnvelope;

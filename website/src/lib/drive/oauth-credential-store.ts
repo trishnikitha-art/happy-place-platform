@@ -125,10 +125,14 @@ const AUTH_TTL_SECONDS = 30 * 24 * 60 * 60;
  * Google Authorization Record
  * 
  * Server-side encrypted credential storage
+ * 
+ * P0 FIX: Added principalId to bind Drive authorization to Workbench principal
+ * This establishes the invariant: Drive operations must use authorizations bound to the authenticated Workbench principal
  */
 export interface GoogleAuthorizationRecord {
   id: string; // crypto.randomUUID()
   provider: 'google';
+  principalId: string; // HPP Workbench principal ID (single-admin: configured principal)
   googleSubject: string; // From Google OAuth token response
   email: string; // From Google OAuth token response
   scopes: string[]; // From Google OAuth token response
@@ -158,6 +162,11 @@ function validateAuthorizationRecord(data: unknown): data is GoogleAuthorization
   }
   
   if (record.provider !== 'google') {
+    return false;
+  }
+  
+  // P0 FIX: Validate principalId is present
+  if (typeof record.principalId !== 'string' || record.principalId.trim().length === 0) {
     return false;
   }
   
@@ -315,6 +324,22 @@ export async function findAuthorizationBySubject(googleSubject: string): Promise
 }
 
 /**
+ * Get current Workbench principal ID
+ * 
+ * For single-admin system, the principal ID is configured via environment variable
+ * This provides a stable identity that outlives ephemeral Workbench sessions
+ * 
+ * Returns the configured principal ID or throws if not configured
+ */
+function getCurrentPrincipalId(): string {
+  const principalId = process.env.HPP_WORKBENCH_PRINCIPAL_ID;
+  if (!principalId || principalId.trim().length === 0) {
+    throw new Error('HPP_WORKBENCH_PRINCIPAL_ID not configured - Drive authorization cannot be bound to Workbench principal');
+  }
+  return principalId.trim();
+}
+
+/**
  * Upsert authorization (create or update)
  *
  * Deterministic reauthorization behavior with atomic subject acquisition:
@@ -322,6 +347,9 @@ export async function findAuthorizationBySubject(googleSubject: string): Promise
  * - If authorization does not exist, create new authorization
  * - If existing authorization is revoked, create new authorization
  * - Ensures one authoritative authorization per googleSubject
+ * 
+ * P0 FIX: Binds authorization to current Workbench principal ID
+ * This establishes the invariant: Drive operations must use authorizations bound to the authenticated Workbench principal
  * 
  * Uses atomic SET NX on subject index to prevent concurrent duplicate creation
  */
@@ -460,6 +488,8 @@ export async function upsertAuthorization(
 
 /**
  * Create new authorization record
+ * 
+ * P0 FIX: Includes principalId to bind to Workbench principal
  */
 async function createNewAuthorization(
   googleSubject: string,
@@ -472,10 +502,12 @@ async function createNewAuthorization(
 ): Promise<GoogleAuthorizationRecord> {
   const id = crypto.randomUUID();
   const now = new Date();
+  const principalId = getCurrentPrincipalId();
 
   const auth: GoogleAuthorizationRecord = {
     id,
     provider: 'google',
+    principalId,
     googleSubject,
     email,
     scopes,
@@ -500,6 +532,8 @@ async function createNewAuthorization(
  * Uses Redis Lua transaction for atomic authorization + subject index write
  * Ensures only one authorization can be created per googleSubject
  * Eliminates race condition between subject acquisition and authorization storage
+ * 
+ * P0 FIX: Includes principalId to bind to Workbench principal
  */
 async function createNewAuthorizationWithAtomicSubject(
   googleSubject: string,
@@ -512,10 +546,12 @@ async function createNewAuthorizationWithAtomicSubject(
 ): Promise<GoogleAuthorizationRecord> {
   const id = crypto.randomUUID();
   const now = new Date();
+  const principalId = getCurrentPrincipalId();
 
   const auth: GoogleAuthorizationRecord = {
     id,
     provider: 'google',
+    principalId,
     googleSubject,
     email,
     scopes,

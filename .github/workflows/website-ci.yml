@@ -42,7 +42,7 @@ jobs:
       - name: Validate required secrets are present
         run: |
           echo "Validating required GitHub Actions secrets..."
-          required_secrets=("KV_REST_API_URL" "KV_REST_API_TOKEN" "GOOGLE_CLIENT_ID" "GOOGLE_CLIENT_SECRET" "GOOGLE_REDIRECT_URI" "ENCRYPTION_KEY")
+          required_secrets=("KV_REST_API_URL" "KV_REST_API_TOKEN" "GOOGLE_CLIENT_ID" "GOOGLE_CLIENT_SECRET" "GOOGLE_REDIRECT_URI" "ENCRYPTION_KEY" "WORKBENCH_PASSWORD" "HPP_WORKBENCH_PRINCIPAL_ID")
           missing_secrets=()
           for secret in "${required_secrets[@]}"; do
             if [ -z "${!secret}" ]; then
@@ -71,10 +71,12 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          WORKBENCH_PASSWORD: ${{ secrets.WORKBENCH_PASSWORD }}
+          HPP_WORKBENCH_PRINCIPAL_ID: ${{ secrets.HPP_WORKBENCH_PRINCIPAL_ID }}
       - name: Verify secrets are not empty
         run: |
           echo "Verifying secrets are not empty..."
-          if [ -z "$KV_REST_API_URL" ] || [ -z "$KV_REST_API_TOKEN" ] || [ -z "$GOOGLE_CLIENT_ID" ] || [ -z "$GOOGLE_CLIENT_SECRET" ] || [ -z "$GOOGLE_REDIRECT_URI" ] || [ -z "$ENCRYPTION_KEY" ]; then
+          if [ -z "$KV_REST_API_URL" ] || [ -z "$KV_REST_API_TOKEN" ] || [ -z "$GOOGLE_CLIENT_ID" ] || [ -z "$GOOGLE_CLIENT_SECRET" ] || [ -z "$GOOGLE_REDIRECT_URI" ] || [ -z "$ENCRYPTION_KEY" ] || [ -z "$WORKBENCH_PASSWORD" ] || [ -z "$HPP_WORKBENCH_PRINCIPAL_ID" ]; then
             echo "❌ ERROR: One or more secrets are empty strings"
             exit 1
           fi
@@ -86,6 +88,22 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
+          WORKBENCH_PASSWORD: ${{ secrets.WORKBENCH_PASSWORD }}
+          HPP_WORKBENCH_PRINCIPAL_ID: ${{ secrets.HPP_WORKBENCH_PRINCIPAL_ID }}
+      - name: Validate corpus authorization configuration
+        run: |
+          echo "Validating corpus authorization configuration..."
+          # Check if corpus configuration is present (values are not validated for security)
+          if [ -z "$HPP_AUTHORIZED_MY_DRIVE" ] && [ -z "$HPP_AUTHORIZED_SHARED_DRIVES" ]; then
+            echo "⚠️  WARNING: Neither HPP_AUTHORIZED_MY_DRIVE nor HPP_AUTHORIZED_SHARED_DRIVES is configured"
+            echo "Drive corpus access will be blocked until corpus authorization is configured"
+            echo "This is a safe fail-closed state, but may prevent Drive operations"
+          else
+            echo "✅ Corpus authorization configuration present"
+          fi
+        env:
+          HPP_AUTHORIZED_MY_DRIVE: ${{ secrets.HPP_AUTHORIZED_MY_DRIVE }}
+          HPP_AUTHORIZED_SHARED_DRIVES: ${{ secrets.HPP_AUTHORIZED_SHARED_DRIVES }}
       - name: Run OAuth unit tests with Redis mocks
         run: npx jest --config jest.oauth.unit.config.ts
         env:
