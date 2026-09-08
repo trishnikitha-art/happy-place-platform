@@ -200,24 +200,6 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                     role="button"
                     tabIndex={0}
                     className="group relative block aspect-[4/3] overflow-hidden cursor-pointer break-inside-avoid mb-4"
-                    onDragStart={() => {
-                      console.log('[OUR_WORK] GALLERY_DRAG_START', {
-                        projectId: project.id,
-                        mediaId,
-                        slotId: `our-work-gallery::${project.id}::${mediaId}`,
-                        timestamp: Date.now(),
-                      });
-                      setIsDragging(true);
-                    }}
-                    onDragEnd={() => {
-                      console.log('[OUR_WORK] GALLERY_DRAG_END', {
-                        projectId: project.id,
-                        mediaId,
-                        slotId: `our-work-gallery::${project.id}::${mediaId}`,
-                        timestamp: Date.now(),
-                      });
-                      // State will be reset by useEffect
-                    }}
                     onClick={() => {
                       console.log('[OUR_WORK] GALLERY_BUTTON_CLICK', {
                         projectId: project.id,
