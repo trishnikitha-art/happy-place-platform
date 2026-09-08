@@ -27,8 +27,6 @@ const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
  * In production, it merges the deployed baseline with staged KV mutations.
  * In development, it returns the deployed baseline directly.
  *
- * P0 FIX: Filters out invalid/null/empty gallery IDs to prevent UI rendering errors
- *
  * @param projectId - The project ID
  * @returns The effective ordered gallery array (media IDs)
  */
@@ -51,47 +49,25 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
     baselineRevision,
   });
 
-  // P0 FIX: Filter out invalid/null/empty gallery IDs at the source
-  const validBaselineGallery = baselineGallery.filter((id: any) => {
-    if (!id || typeof id !== 'string' || id.trim() === '') {
-      console.warn('[EFFECTIVE_GALLERY] FILTERING_INVALID_GALLERY_ID', {
-        projectId,
-        invalidId: id,
-        reason: !id ? 'null/undefined' : typeof id !== 'string' ? 'not a string' : 'empty string',
-      });
-      return false;
-    }
-    return true;
-  });
-
-  if (validBaselineGallery.length !== baselineGallery.length) {
-    console.warn('[EFFECTIVE_GALLERY] FILTERED_INVALID_IDS', {
-      projectId,
-      originalLength: baselineGallery.length,
-      filteredLength: validBaselineGallery.length,
-      removedCount: baselineGallery.length - validBaselineGallery.length,
-    });
-  }
-
   // In production, check for staged mutations
   const isProduction = process.env.NODE_ENV === 'production';
   
   if (!isProduction) {
-    console.log('[EFFECTIVE_GALLERY] DEV_MODE - Returning filtered baseline', {
+    console.log('[EFFECTIVE_GALLERY] DEV_MODE - Returning baseline', {
       projectId,
-      galleryLength: validBaselineGallery.length,
+      galleryLength: baselineGallery.length,
     });
-    return validBaselineGallery;
+    return baselineGallery;
   }
 
   // Production: Check for staged KV mutations
   const redis = getRedisClient();
   if (!redis) {
-    console.warn('[EFFECTIVE_GALLERY] REDIS_UNAVAILABLE - Returning filtered baseline', {
+    console.warn('[EFFECTIVE_GALLERY] REDIS_UNAVAILABLE - Returning baseline', {
       projectId,
       reason: 'KV credentials not configured or Redis unavailable',
     });
-    return validBaselineGallery;
+    return baselineGallery;
   }
 
   try {
@@ -100,11 +76,11 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
     const currentStagedTransactionId = await redis.get(projectStagingKey);
     
     if (!currentStagedTransactionId || typeof currentStagedTransactionId !== 'string') {
-      console.log('[EFFECTIVE_GALLERY] NO_STAGED_MUTATION - Returning filtered baseline', {
+      console.log('[EFFECTIVE_GALLERY] NO_STAGED_MUTATION - Returning baseline', {
         projectId,
         projectStagingKey,
       });
-      return validBaselineGallery;
+      return baselineGallery;
     }
 
     // Load the specific staged transaction
@@ -112,12 +88,12 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
     const stagedData = await redis.get(specificStagingKey);
     
     if (!stagedData || typeof stagedData !== 'string') {
-      console.warn('[EFFECTIVE_GALLERY] STAGED_DATA_INVALID - Returning filtered baseline', {
+      console.warn('[EFFECTIVE_GALLERY] STAGED_DATA_INVALID - Returning baseline', {
         projectId,
         specificStagingKey,
         reason: 'Staged data is null or invalid',
       });
-      return validBaselineGallery;
+      return baselineGallery;
     }
 
     const parsed = JSON.parse(stagedData);
@@ -126,7 +102,7 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
 
     console.log('[EFFECTIVE_GALLERY] STAGED_MUTATION_APPLIED', {
       projectId,
-      baselineGalleryLength: validBaselineGallery.length,
+      baselineGalleryLength: baselineGallery.length,
       stagedGalleryLength: stagedGallery.length,
       baselineRevision,
       stagedRevision,
@@ -135,71 +111,49 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
 
     // Validate staged gallery structure
     if (!Array.isArray(stagedGallery)) {
-      console.error('[EFFECTIVE_GALLERY] STAGED_GALLERY_INVALID - Returning filtered baseline', {
+      console.error('[EFFECTIVE_GALLERY] STAGED_GALLERY_INVALID - Returning baseline', {
         projectId,
         reason: 'Staged gallery is not an array',
       });
-      return validBaselineGallery;
+      return baselineGallery;
     }
 
     // Validate no duplicates
     const uniqueStaged = new Set(stagedGallery);
     if (uniqueStaged.size !== stagedGallery.length) {
-      console.error('[EFFECTIVE_GALLERY] STAGED_GALLERY_DUPLICATES - Returning filtered baseline', {
+      console.error('[EFFECTIVE_GALLERY] STAGED_GALLERY_DUPLICATES - Returning baseline', {
         projectId,
         reason: 'Staged gallery contains duplicates',
       });
-      return validBaselineGallery;
+      return baselineGallery;
     }
 
     // Validate no null/undefined
     if (stagedGallery.some(id => id === null || id === undefined)) {
-      console.error('[EFFECTIVE_GALLERY] STAGED_GALLERY_NULL_VALUES - Returning filtered baseline', {
+      console.error('[EFFECTIVE_GALLERY] STAGED_GALLERY_NULL_VALUES - Returning baseline', {
         projectId,
         reason: 'Staged gallery contains null/undefined values',
       });
-      return validBaselineGallery;
+      return baselineGallery;
     }
 
     // Validate no empty strings
     if (stagedGallery.some(id => typeof id === 'string' && id.trim() === '')) {
-      console.error('[EFFECTIVE_GALLERY] STAGED_GALLERY_EMPTY_STRINGS - Returning filtered baseline', {
+      console.error('[EFFECTIVE_GALLERY] STAGED_GALLERY_EMPTY_STRINGS - Returning baseline', {
         projectId,
         reason: 'Staged gallery contains empty strings',
       });
-      return validBaselineGallery;
-    }
-
-    // P0 FIX: Filter staged gallery for invalid IDs as well
-    const validStagedGallery = stagedGallery.filter((id: any) => {
-      if (!id || typeof id !== 'string' || id.trim() === '') {
-        console.warn('[EFFECTIVE_GALLERY] FILTERING_INVALID_STAGED_ID', {
-          projectId,
-          invalidId: id,
-          reason: !id ? 'null/undefined' : typeof id !== 'string' ? 'not a string' : 'empty string',
-        });
-        return false;
-      }
-      return true;
-    });
-
-    if (validStagedGallery.length !== stagedGallery.length) {
-      console.warn('[EFFECTIVE_GALLERY] FILTERED_STAGED_INVALID_IDS', {
-        projectId,
-        originalLength: stagedGallery.length,
-        filteredLength: validStagedGallery.length,
-        removedCount: stagedGallery.length - validStagedGallery.length,
-      });
+      return baselineGallery;
     }
 
     // Staged gallery is valid - return it as the effective authority
-    return validStagedGallery;
+    return stagedGallery;
   } catch (error) {
-    console.error('[EFFECTIVE_GALLERY] STAGED_MUTATION_ERROR - Returning filtered baseline', {
+    console.error('[EFFECTIVE_GALLERY] STAGED_MUTATION_ERROR - Returning baseline', {
       projectId,
       error: error instanceof Error ? error.message : String(error),
     });
-    return validBaselineGallery;
+    return baselineGallery;
   }
 }
 

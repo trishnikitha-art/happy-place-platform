@@ -62,21 +62,7 @@ export async function getProjectWithResolvedMedia(project: Project): Promise<Pro
 
   const resolveMediaArray = async (mediaIds: string[]): Promise<Media[]> => {
     const resolved = await Promise.all(mediaIds.map(resolveMedia));
-    const validMedia = resolved.filter((m): m is Media => m !== undefined);
-    
-    // P0 FIX: Log when media IDs fail to resolve to detect gallery mismatches
-    const unresolvedCount = mediaIds.length - validMedia.length;
-    if (unresolvedCount > 0) {
-      console.warn('[PROJECTS] MEDIA_RESOLUTION_FAILURE', {
-        projectId: project.id,
-        totalIds: mediaIds.length,
-        resolvedCount: validMedia.length,
-        unresolvedCount,
-        unresolvedIds: mediaIds.filter((id, i) => resolved[i] === undefined),
-      });
-    }
-    
-    return validMedia;
+    return resolved.filter((m): m is Media => m !== undefined);
   };
 
   // P0 FIX: Use effective project gallery authority (deployed + staged mutations)
