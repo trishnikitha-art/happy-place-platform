@@ -13,6 +13,15 @@ import { getKvNamespace } from '@/lib/environment';
 const SNAPSHOT_PREFIX = 'dataset_snapshot:';
 const SNAPSHOT_TTL_SECONDS = 3600; // 1 hour TTL
 
+/**
+ * Apply namespace prefix to KV key
+ * P0 FIX: Use the same namespace pattern as media-kv-store
+ */
+function namespacedKey(key: string): string {
+  const namespace = getKvNamespace();
+  return `${namespace}${key}`;
+}
+
 export interface DatasetSnapshot {
   snapshotId: string;
   orderedMediaIds: string[];
@@ -136,8 +145,8 @@ export async function createDatasetSnapshot(orderedMediaIds: string[]): Promise<
     recordEvidence,
   };
 
-  const namespace = getKvNamespace();
-  const key = namespace + SNAPSHOT_PREFIX + snapshotId;
+  // P0 FIX: Use namespacedKey function for consistency
+  const key = namespacedKey(SNAPSHOT_PREFIX + snapshotId);
 
   // Persist snapshot with TTL
   await client.set(key, JSON.stringify(snapshot), { ex: SNAPSHOT_TTL_SECONDS });
@@ -163,8 +172,8 @@ export async function getDatasetSnapshot(snapshotId: string): Promise<DatasetSna
     throw new Error('KV unavailable for snapshot retrieval');
   }
 
-  const namespace = getKvNamespace();
-  const key = namespace + SNAPSHOT_PREFIX + snapshotId;
+  // P0 FIX: Use namespacedKey function for consistency
+  const key = namespacedKey(SNAPSHOT_PREFIX + snapshotId);
 
   const data = await client.get(key);
   if (!data || typeof data !== 'string') {
@@ -196,8 +205,8 @@ export async function deleteDatasetSnapshot(snapshotId: string): Promise<void> {
     throw new Error('KV unavailable for snapshot deletion');
   }
 
-  const namespace = getKvNamespace();
-  const key = namespace + SNAPSHOT_PREFIX + snapshotId;
+  // P0 FIX: Use namespacedKey function for consistency
+  const key = namespacedKey(SNAPSHOT_PREFIX + snapshotId);
 
   await client.del(key);
 
