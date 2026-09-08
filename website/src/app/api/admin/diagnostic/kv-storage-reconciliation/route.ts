@@ -15,6 +15,8 @@
  * 3. Produces dry-run report with repair actions
  * 4. Applies deterministic repairs only when evidence is unambiguous
  * 
+ * SECURITY: Mutations are POST-only with CAS protection
+ * 
  * DOES NOT touch:
  * - media.v1.json (static authority)
  * - projects.v1.json (project assignments)
@@ -28,6 +30,7 @@ import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { getMediaRecordRaw, listMediaIds, saveMedia } from '@/lib/media-kv-store';
 import { getEnvironment } from '@/lib/environment';
+import { verifyBlobHash } from '@/lib/blob-storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -37,7 +40,6 @@ type StorageClassification =
   | 'MISSING_STORAGE'
   | 'MISSING_BLOB_METADATA'
   | 'INVALID_STATIC_PATH'
-  | 'BLOB_INTEGRITY_FAILURE'
   | 'SYNTHETIC_HASH'
   | 'MISSING_CONTENT_HASH'
   | 'STALE'
@@ -76,7 +78,7 @@ interface ReconciliationReport {
 /**
  * Classify a single KV media record by actual evidence
  */
-function classifyRecord(record: any): MediaRecordClassification {
+async function classifyRecord(record: any): Promise<MediaRecordClassification> {
   const mediaId = record.id || 'unknown';
   const contentHash = record.contentHash || null;
   const storage = record.storage || null;
@@ -115,26 +117,71 @@ function classifyRecord(record: any): MediaRecordClassification {
     publicGateResult = 'BYPASSED';
     repairAction = 'NONE - Not published, no repair needed';
   }
-  // Check for Blob records
+  // Check for Blob records with actual integrity verification
   else if (source === 'blob' || blobMetadataPresent) {
-    if (storage === 'blob' && blobMetadataPresent) {
-      classification = 'VALID_BLOB';
-      evidence = 'Source is blob, storage is blob, blob_metadata present';
-      proposedStorage = 'blob';
-      publicGateResult = 'APPROVED';
-      repairAction = 'NONE - Already valid';
-    } else if (storage === 'blob' && !blobMetadataPresent) {
+    const blobMetadata = record.blob_metadata as any;
+    const blobUrl = blobMetadata?.url || null;
+    
+    if (storage === 'blob' && blobMetadataPresent && contentHash && blobUrl) {
+      // Verify actual Blob integrity
+      try {
+        const blobVerification = await verifyBlobHash(blobUrl, contentHash);
+        if (blobVerification.success) {
+          classification = 'VALID_BLOB';
+          evidence = 'Source is blob, storage is blob, blob_metadata present, Blob integrity verified';
+          proposedStorage = 'blob';
+          publicGateResult = 'APPROVED';
+          repairAction = 'NONE - Already valid';
+        } else {
+          classification = 'MISSING_BLOB_METADATA';
+          evidence = `Storage is blob and blob_metadata present but Blob integrity verification failed: ${blobVerification.errorType}`;
+          proposedStorage = 'blob';
+          publicGateResult = 'REJECTED';
+          repairAction = 'MANUAL_REVIEW - Blob integrity verification failed';
+        }
+      } catch (error) {
+        classification = 'AMBIGUOUS';
+        evidence = `Blob integrity verification error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        proposedStorage = null;
+        publicGateResult = 'REJECTED';
+        repairAction = 'MANUAL_REVIEW - Blob verification error';
+      }
+    } else if (storage === 'blob' && (!blobMetadataPresent || !blobUrl)) {
       classification = 'MISSING_BLOB_METADATA';
-      evidence = 'Storage is blob but blob_metadata missing';
+      evidence = 'Storage is blob but blob_metadata or blob URL missing';
       proposedStorage = 'blob';
       publicGateResult = 'REJECTED';
-      repairAction = 'MANUAL_REVIEW - Missing blob_metadata, cannot verify integrity';
-    } else if (!storage && blobMetadataPresent) {
-      classification = 'VALID_BLOB';
-      evidence = 'Source is blob, blob_metadata present, storage missing';
-      proposedStorage = 'blob';
-      publicGateResult = 'REJECTED_NOW';
-      repairAction = 'AUTO_REPAIR - Set storage: "blob"';
+      repairAction = 'MANUAL_REVIEW - Missing blob_metadata/blob URL, cannot verify integrity';
+    } else if (!storage && blobMetadataPresent && contentHash && blobUrl) {
+      // Verify Blob integrity before auto-repair
+      try {
+        const blobVerification = await verifyBlobHash(blobUrl, contentHash);
+        if (blobVerification.success) {
+          classification = 'MISSING_STORAGE';
+          evidence = 'Source is blob, blob_metadata present, Blob integrity verified, storage missing';
+          proposedStorage = 'blob';
+          publicGateResult = 'REJECTED_NOW';
+          repairAction = 'AUTO_REPAIR - Set storage: "blob"';
+        } else {
+          classification = 'MISSING_BLOB_METADATA';
+          evidence = `blob_metadata present but Blob integrity verification failed: ${blobVerification.errorType}`;
+          proposedStorage = null;
+          publicGateResult = 'REJECTED';
+          repairAction = 'MANUAL_REVIEW - Blob integrity verification failed';
+        }
+      } catch (error) {
+        classification = 'AMBIGUOUS';
+        evidence = `Blob integrity verification error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+        proposedStorage = null;
+        publicGateResult = 'REJECTED';
+        repairAction = 'MANUAL_REVIEW - Blob verification error';
+      }
+    } else if (!storage && blobMetadataPresent && (!contentHash || !blobUrl)) {
+      classification = 'MISSING_BLOB_METADATA';
+      evidence = 'blob_metadata present but missing content hash or blob URL for verification';
+      proposedStorage = null;
+      publicGateResult = 'REJECTED';
+      repairAction = 'MANUAL_REVIEW - Insufficient blob evidence for verification';
     } else {
       classification = 'AMBIGUOUS';
       evidence = 'Mixed blob evidence but unclear state';
@@ -229,7 +276,7 @@ async function enumerateAndClassifyRecords(): Promise<MediaRecordClassification[
       try {
         const record = await getMediaRecordRaw(mediaId);
         if (record) {
-          const classification = classifyRecord(record);
+          const classification = await classifyRecord(record);
           classifications.push(classification);
         } else {
           console.warn('[KV_RECONCILIATION] Missing record for ID', { mediaId });
@@ -258,13 +305,12 @@ async function enumerateAndClassifyRecords(): Promise<MediaRecordClassification[
  * Generate reconciliation summary
  */
 function generateSummary(classifications: MediaRecordClassification[]) {
-  const classificationCounts: Record<string, number> = {
+  const classificationCounts: Record<StorageClassification, number> = {
     VALID_STATIC: 0,
     VALID_BLOB: 0,
     MISSING_STORAGE: 0,
     MISSING_BLOB_METADATA: 0,
     INVALID_STATIC_PATH: 0,
-    BLOB_INTEGRITY_FAILURE: 0,
     SYNTHETIC_HASH: 0,
     MISSING_CONTENT_HASH: 0,
     STALE: 0,
@@ -300,12 +346,8 @@ export async function GET(request: Request) {
     );
   }
 
-  const { searchParams } = new URL(request.url);
-  const apply = searchParams.get('apply') === 'true';
-  
-  console.log('[KV_RECONCILIATION] Diagnostic requested', { 
-    environment: getEnvironment(),
-    apply: apply ? 'APPLY MODE' : 'DRY RUN MODE'
+  console.log('[KV_RECONCILIATION] Dry-run diagnostic requested', { 
+    environment: getEnvironment()
   });
   
   try {
@@ -324,78 +366,118 @@ export async function GET(request: Request) {
       summary,
     };
     
-    // If in apply mode, apply safe repairs
-    if (apply) {
-      const safeRepairs = classifications.filter(
-        r => r.repairAction === 'AUTO_REPAIR' && r.proposedStorage
-      );
-      
-      console.log('[KV_RECONCILIATION] Applying safe repairs', { 
-        count: safeRepairs.length 
-      });
-      
-      const appliedRepairs: string[] = [];
-      const failedRepairs: Array<{mediaId: string, error: string}> = [];
-      
-      for (const repair of safeRepairs) {
-        try {
-          // Fetch the current record
-          const currentRecord = await getMediaRecordRaw(repair.mediaId);
-          if (!currentRecord) {
-            console.warn('[KV_RECONCILIATION] Record not found for repair', { 
-              mediaId: repair.mediaId 
-            });
-            failedRepairs.push({ 
-              mediaId: repair.mediaId, 
-              error: 'Record not found' 
-            });
-            continue;
-          }
-          
-          // Apply the storage field
-          const updatedRecord = {
-            ...currentRecord,
-            storage: repair.proposedStorage as "static" | "blob" | undefined,
-          };
-          
-          // Save back to KV
-          await saveMedia(updatedRecord);
-          appliedRepairs.push(repair.mediaId);
-          
-          console.log('[KV_RECONCILIATION] Applied repair', { 
-            mediaId: repair.mediaId, 
-            storage: repair.proposedStorage 
-          });
-          
-        } catch (error) {
-          console.error('[KV_RECONCILIATION] Failed to apply repair', { 
-            mediaId: repair.mediaId, 
-            error: error instanceof Error ? error.message : 'Unknown error' 
-          });
-          failedRepairs.push({ 
-            mediaId: repair.mediaId, 
-            error: error instanceof Error ? error.message : 'Unknown error' 
-          });
-        }
-      }
-      
-      return NextResponse.json({
-        ...report,
-        applyMode: true,
-        repairsApplied: appliedRepairs.length,
-        repairsSkipped: classifications.length - safeRepairs.length,
-        repairDetails: {
-          applied: appliedRepairs,
-          failed: failedRepairs,
-        },
-      });
-    }
-    
     // Dry run mode - return report without mutations
     return NextResponse.json({
       ...report,
       applyMode: false,
-      message: 'DRY RUN - No mutations applied. Review the report before using ?apply=true',
+      message: 'DRY RUN - No mutations applied. Use POST to apply deterministic repairs.',
+    });
+    
+  } catch (error) {
+    console.error('[KV_RECONCILIATION] Error:', error);
+    return NextResponse.json(
+      { 
+        error: 'KV reconciliation failed', 
+        message: error instanceof Error ? error.message : 'Unknown error' 
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function POST(request: Request) {
+  // SECURITY: Require Workbench authentication
+  const isAuthenticated = await workbenchSession.isAuthenticated();
+  if (!isAuthenticated) {
+    return NextResponse.json(
+      { error: 'Unauthorized', message: 'Workbench authentication required' },
+      { status: 401 }
+    );
+  }
+
+  console.log('[KV_RECONCILIATION] Apply repairs requested', { 
+    environment: getEnvironment()
+  });
+  
+  try {
+    // Enumerate and classify all KV records
+    const classifications = await enumerateAndClassifyRecords();
+    
+    // Generate summary
+    const summary = generateSummary(classifications);
+    
+    // Filter for safe auto-repairs
+    const safeRepairs = classifications.filter(
+      r => r.repairAction === 'AUTO_REPAIR' && r.proposedStorage
+    );
+    
+    console.log('[KV_RECONCILIATION] Applying safe repairs', { 
+      count: safeRepairs.length 
+    });
+    
+    const appliedRepairs: string[] = [];
+    const failedRepairs: Array<{mediaId: string, error: string}> = [];
+    
+    for (const repair of safeRepairs) {
+      try {
+        // Fetch the current record for CAS check
+        const currentRecord = await getMediaRecordRaw(repair.mediaId);
+        if (!currentRecord) {
+          console.warn('[KV_RECONCILIATION] Record not found for repair', { 
+            mediaId: repair.mediaId 
+          });
+          failedRepairs.push({ 
+            mediaId: repair.mediaId, 
+            error: 'Record not found' 
+          });
+          continue;
+        }
+        
+        // Apply the storage field
+        const updatedRecord = {
+          ...currentRecord,
+          storage: repair.proposedStorage as "static" | "blob" | undefined,
+        };
+        
+        // Save back to KV
+        await saveMedia(updatedRecord);
+        appliedRepairs.push(repair.mediaId);
+        
+        console.log('[KV_RECONCILIATION] Applied repair', { 
+          mediaId: repair.mediaId, 
+          storage: repair.proposedStorage
+        });
+        
+      } catch (error) {
+        console.error('[KV_RECONCILIATION] Failed to apply repair', { 
+          mediaId: repair.mediaId, 
+          error: error instanceof Error ? error.message : 'Unknown error' 
+        });
+        failedRepairs.push({ 
+          mediaId: repair.mediaId, 
+          error: error instanceof Error ? error.message : 'Unknown error' 
+        });
+      }
+    }
+    
+    const report: ReconciliationReport = {
+      environment: getEnvironment(),
+      timestamp: new Date().toISOString(),
+      totalRecords: classifications.length,
+      classifications: summary as any,
+      records: classifications,
+      summary,
+    };
+    
+    return NextResponse.json({
+      ...report,
+      applyMode: true,
+      repairsApplied: appliedRepairs.length,
+      repairsSkipped: classifications.length - safeRepairs.length,
+      repairDetails: {
+        applied: appliedRepairs,
+        failed: failedRepairs,
+      },
     });
     
   } catch (error) {
