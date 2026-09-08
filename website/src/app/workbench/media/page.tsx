@@ -1802,6 +1802,40 @@ export default function MediaWorkbench() {
             result,
           });
 
+          // P0 FIX: Verify effective gallery reflects the mutation
+          // The projection must consume the same authority that was just written
+          console.log('[WB_DND] VERIFYING_EFFECTIVE_GALLERY', {
+            projectId,
+            expectedGallery: newGallery,
+            expectedLength: newGallery.length,
+          });
+
+          // Re-fetch to verify effective authority
+          const verifyResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+          if (verifyResponse.ok) {
+            const verifyData = await verifyResponse.json();
+            const verifyGallery = verifyData.gallery || [];
+            const verifyMatch = JSON.stringify(verifyGallery) === JSON.stringify(newGallery);
+            
+            console.log('[WB_DND] EFFECTIVE_GALLERY_VERIFICATION', {
+              projectId,
+              verifyGalleryLength: verifyGallery.length,
+              expectedLength: newGallery.length,
+              verifyMatch,
+              verifyGallery,
+              expectedGallery: newGallery,
+            });
+
+            if (!verifyMatch) {
+              console.error('[WB_DND] EFFECTIVE_GALLERY_MISMATCH', {
+                projectId,
+                expectedGallery: newGallery,
+                actualGallery: verifyGallery,
+              });
+              alert('Gallery reordered but projection verification failed. The new order may not be visible.');
+            }
+          }
+
           // Reload canonical data and refresh preview
           console.log('[WB_DND] REFRESHING_AFTER_SAVE', {
             requestId,
@@ -2032,6 +2066,40 @@ export default function MediaWorkbench() {
             staged: result.staged,
             result,
           });
+
+          // P0 FIX: Verify effective gallery reflects the mutation
+          // The projection must consume the same authority that was just written
+          console.log('[WB_DND] VERIFYING_EFFECTIVE_GALLERY', {
+            projectId,
+            expectedGallery: newGallery,
+            expectedLength: newGallery.length,
+          });
+
+          // Re-fetch to verify effective authority
+          const verifyResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+          if (verifyResponse.ok) {
+            const verifyData = await verifyResponse.json();
+            const verifyGallery = verifyData.gallery || [];
+            const verifyMatch = JSON.stringify(verifyGallery) === JSON.stringify(newGallery);
+            
+            console.log('[WB_DND] EFFECTIVE_GALLERY_VERIFICATION', {
+              projectId,
+              verifyGalleryLength: verifyGallery.length,
+              expectedLength: newGallery.length,
+              verifyMatch,
+              verifyGallery,
+              expectedGallery: newGallery,
+            });
+
+            if (!verifyMatch) {
+              console.error('[WB_DND] EFFECTIVE_GALLERY_MISMATCH', {
+                projectId,
+                expectedGallery: newGallery,
+                actualGallery: verifyGallery,
+              });
+              alert('Gallery saved but projection verification failed. The new order may not be visible.');
+            }
+          }
 
           // Reload canonical data and refresh preview
           loadCanonicalData();

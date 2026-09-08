@@ -11,6 +11,7 @@ import { Project, ProjectsManifest, ProjectService, ProjectStatus } from "@/type
 import { loadAuthority, clearAuthorityCache, queryProjects, findById, findBySlug, filterFeatured, filterHomepageEligible, filterHeroEligible, filterNonArchived } from "./authority-loader";
 import { resolvePublicMedia } from "./media";
 import type { Media } from "@/types/media";
+import { getEffectiveProjectGallery } from "./effective-project-gallery";
 
 // Load the canonical projects manifest using shared AuthorityLoader
 export function loadProjectsManifest(): ProjectsManifest {
@@ -38,6 +39,9 @@ export function getAllProjects(): Project[] {
  * This prevents callers from bypassing the public media gate by calling getMediaById directly
  * Returns a project with all media IDs resolved to validated Media objects
  * NO FALLBACK: Fails honestly when KV authority is not available
+ * 
+ * P0 FIX: Use effective project gallery authority (deployed + staged mutations)
+ * This ensures the projection always sees the current editorial state
  */
 export async function getProjectWithResolvedMedia(project: Project): Promise<Project> {
   const resolveMedia = async (mediaId: string | undefined): Promise<Media | undefined> => {
@@ -61,14 +65,26 @@ export async function getProjectWithResolvedMedia(project: Project): Promise<Pro
     return resolved.filter((m): m is Media => m !== undefined);
   };
 
+  // P0 FIX: Use effective project gallery authority (deployed + staged mutations)
+  // This ensures the projection always sees the current editorial state
+  const effectiveGallery = await getEffectiveProjectGallery(project.id);
+
+  console.log('[PROJECTS] EFFECTIVE_GALLERY_USED', {
+    projectId: project.id,
+    effectiveGalleryLength: effectiveGallery.length,
+    baselineGalleryLength: project.media.gallery.length,
+  });
+
   return {
     ...project,
     media: {
       ...project.media,
+      // P0 FIX: Use effective gallery instead of baseline gallery
+      gallery: effectiveGallery,
+      galleryMedia: await resolveMediaArray(effectiveGallery),
       heroMedia: await resolveMedia(project.media.hero),
       beforeMedia: await resolveMedia(project.media.before),
       afterMedia: await resolveMedia(project.media.after),
-      galleryMedia: await resolveMediaArray(project.media.gallery),
       detailsMedia: project.media.details ? await resolveMediaArray(project.media.details) : undefined,
       progressMedia: project.media.progress ? await resolveMediaArray(project.media.progress) : undefined,
     },

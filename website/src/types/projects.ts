@@ -39,6 +39,7 @@ export interface ProjectMedia {
   after?: string; // After state image ID
   afterMedia?: Media; // P1 FIX: Pre-validated after media object (passed public media gate)
   gallery: string[]; // Gallery image IDs
+  galleryRevision?: number; // CAS revision for gallery ordering mutations
   galleryMedia?: Media[]; // P1 FIX: Pre-validated gallery media objects (passed public media gate)
   details?: string[]; // Detail shot IDs
   detailsMedia?: Media[]; // P1 FIX: Pre-validated detail media objects (passed public media gate)
