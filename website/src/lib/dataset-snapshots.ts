@@ -29,20 +29,34 @@ export interface DatasetSnapshot {
 
 /**
  * Create a Redis client
+ * P0 FIX: Use the same credential pattern as media-kv-store.ts
  */
 function createRedisClient(): Redis | null {
   try {
-    const { getEnvironment } = require('@/lib/environment');
-    const env = getEnvironment();
+    let url = process.env.KV_REST_API_URL;
+    let token = process.env.KV_REST_API_TOKEN;
     
-    if (!env.kvRestUrl || !env.kvRestToken) {
+    // Check integration-generated variables
+    const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
+    const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
+    const readOnlyToken = process.env.KV_REST_API__KV_REST_API_READ_ONLY_TOKEN;
+    
+    // Use integration credentials if primary not set
+    if (!url && integrationUrl) {
+      url = integrationUrl;
+    }
+    if (!token && integrationToken) {
+      token = integrationToken;
+    }
+    
+    if (!url || !token) {
       console.warn('[DATASET_SNAPSHOT] KV credentials not configured');
       return null;
     }
     
     return new Redis({
-      url: env.kvRestUrl,
-      token: env.kvRestToken,
+      url,
+      token,
     });
   } catch (error) {
     console.error('[DATASET_SNAPSHOT] Failed to create Redis client:', error);
