@@ -177,14 +177,40 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
 
 /**
  * Get Redis client for KV access
+ * 
+ * P0 FIX: Support integration-generated credential namespacing
+ * Checks both primary KV_REST_API_URL/TOKEN and integration-generated variants
  */
 function getRedisClient(): Redis | null {
   try {
-    const url = process.env.KV_REST_API_URL;
-    const token = process.env.KV_REST_API_TOKEN;
+    // Primary credentials
+    let url = process.env.KV_REST_API_URL;
+    let token = process.env.KV_REST_API_TOKEN;
+    
+    // Integration-generated credentials (for CI/production deployments)
+    const integrationUrl = process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
+    const integrationToken = process.env.KV_REST_API__KV_REST_API_TOKEN;
+    
+    // Use integration credentials if primary not set
+    if (!url && integrationUrl) {
+      url = integrationUrl;
+    }
+    if (!token && integrationToken) {
+      token = integrationToken;
+    }
+    
     if (!url || !token) return null;
+    
+    console.log('[EFFECTIVE_GALLERY] KV_CREDENTIALS', {
+      hasUrl: !!url,
+      hasToken: !!token,
+      usingIntegration: !!integrationUrl || !!integrationToken,
+      urlPrefix: url ? url.substring(0, 20) + '...' : 'none'
+    });
+    
     return new Redis({ url, token });
   } catch {
+    console.error('[EFFECTIVE_GALLERY] KV_CLIENT_CREATION_FAILED');
     return null;
   }
 }

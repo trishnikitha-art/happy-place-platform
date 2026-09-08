@@ -16,8 +16,11 @@
       "media": {
         "hero": "fences-001-hero",
         "after": "fences-001-after",
-        "gallery": [],
-        "galleryRevision": 0
+        "gallery": [
+          "fences-001-hero",
+          "fences-001-after"
+        ],
+        "galleryRevision": 1
       },
       "story": {
         "challenge": "Property needed new fence installation",
@@ -81,8 +84,10 @@
       "media": {
         "hero": "pergolas-001-hero",
         "before": "pergolas-001-before",
-        "gallery": [],
-        "galleryRevision": 0
+        "gallery": [
+          "pergolas-001-before"
+        ],
+        "galleryRevision": 1
       },
       "story": {
         "challenge": "Customer wanted a custom outdoor living space with privacy",
@@ -148,9 +153,10 @@
       "media": {
         "hero": "builtins-001-hero",
         "gallery": [
+          "builtins-001-hero",
           "builtins-001-secondary"
         ],
-        "galleryRevision": 0
+        "galleryRevision": 1
       },
       "story": {
         "challenge": "Client needed custom storage solutions",
@@ -221,9 +227,10 @@
           "repairs-001-gutter",
           "repairs-001-floor0",
           "repairs-001-img0544",
-          "repairs-001-img0546"
+          "repairs-001-img0546",
+          "repairs-001-hero"
         ],
-        "galleryRevision": 0
+        "galleryRevision": 1
       },
       "story": {
         "challenge": "Multiple home repair issues needed attention",
@@ -365,8 +372,10 @@
       "completionDate": "2026-07-16",
       "media": {
         "hero": "bathroom-remodeling-001-hero",
-        "gallery": [],
-        "galleryRevision": 0
+        "gallery": [
+          "bathroom-remodeling-001-hero"
+        ],
+        "galleryRevision": 1
       },
       "story": {
         "challenge": "Bathroom needed complete remodel",
