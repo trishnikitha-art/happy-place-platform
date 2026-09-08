@@ -21,26 +21,27 @@ export const MY_DRIVE_CANONICAL_ID = 'root';
 
 // Known physical My Drive root IDs (Google implementation detail)
 // These should be normalized to MY_DRIVE_CANONICAL_ID
-const MY_DRIVE_PHYSICAL_ROOT_IDS = new Set([
+export const MY_DRIVE_PHYSICAL_ROOT_IDS = new Set([
   '0ANEhWTJ7VtPzUk9PVA', // Known Google My Drive root ID
   // Add other known physical root IDs if discovered
 ]);
 
 /**
  * Normalize folder ID to canonical corpus identity
- * 
+ *
  * @param folderId - The folder ID from Drive API or UI
  * @param driveId - The driveId (Shared Drive ID or undefined for My Drive)
  * @returns Normalized corpus identity for authorization
+ *
+ * CRITICAL: This function is for AUTHORIZATION only, not for Drive API calls
+ * It normalizes corpus identity, NOT folder identity
+ *
+ * Shared Drive folder IDs are PASSED THROUGH UNCHANGED
+ * Only My Drive physical root IDs are normalized to canonical "root"
  */
 export function normalizeCorpusId(folderId: string | undefined, driveId: string | undefined): string {
-  // If driveId is present, it's a Shared Drive - use driveId as corpus ID
-  if (driveId) {
-    return driveId;
-  }
-
-  // No driveId means My Drive context
-  // Normalize physical root IDs to canonical "root"
+  // My Drive physical root IDs → canonical "root"
+  // This is the ONLY normalization that should happen
   if (folderId && MY_DRIVE_PHYSICAL_ROOT_IDS.has(folderId)) {
     console.log('[CORPUS_NORMALIZATION] Physical root ID normalized to canonical', {
       physicalRootId: folderId,
@@ -54,8 +55,8 @@ export function normalizeCorpusId(folderId: string | undefined, driveId: string 
     return MY_DRIVE_CANONICAL_ID;
   }
 
-  // Regular folder IDs in My Drive - pass through unchanged
-  // Authorization will validate they belong to My Drive corpus
+  // All other IDs (Shared Drive folders, My Drive folders) pass through unchanged
+  // The caller is responsible for separating corpus identity from folder identity
   return folderId || MY_DRIVE_CANONICAL_ID;
 }
 
