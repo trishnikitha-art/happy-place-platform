@@ -61,8 +61,33 @@ export async function getProjectWithResolvedMedia(project: Project): Promise<Pro
   };
 
   const resolveMediaArray = async (mediaIds: string[]): Promise<Media[]> => {
-    const resolved = await Promise.all(mediaIds.map(resolveMedia));
-    return resolved.filter((m): m is Media => m !== undefined);
+    console.log('[PROJECTS] RESOLVE_MEDIA_ARRAY_START', {
+      projectId: project.id,
+      inputIds: mediaIds,
+      inputCount: mediaIds.length
+    });
+    
+    const resolved = await Promise.all(mediaIds.map(async (mediaId, index) => {
+      const media = await resolveMedia(mediaId);
+      console.log('[PROJECTS] RESOLVE_MEDIA_ITEM', {
+        projectId: project.id,
+        index,
+        mediaId,
+        resolved: !!media
+      });
+      return media;
+    }));
+    
+    const filtered = resolved.filter((m): m is Media => m !== undefined);
+    console.log('[PROJECTS] RESOLVE_MEDIA_ARRAY_END', {
+      projectId: project.id,
+      inputCount: mediaIds.length,
+      resolvedCount: resolved.length,
+      filteredCount: filtered.length,
+      outputIds: filtered.map(m => m.id)
+    });
+    
+    return filtered;
   };
 
   // P0 FIX: Use effective project gallery authority (deployed + staged mutations)

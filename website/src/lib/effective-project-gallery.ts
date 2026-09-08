@@ -46,6 +46,7 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
   console.log('[EFFECTIVE_GALLERY] BASELINE_LOADED', {
     projectId,
     baselineGalleryLength: baselineGallery.length,
+    baselineGalleryIds: baselineGallery,
     baselineRevision,
   });
 
