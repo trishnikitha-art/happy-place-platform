@@ -11,7 +11,7 @@ import { getServiceBySlug } from "@/lib/registries";
 import { ProjectLightbox } from "@/components/project-lightbox";
 import { BlueprintGrid } from "@/components/blueprint-grid";
 import { VisualSlot } from "@/components/visual-slot";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Project } from "@/types/projects";
 
 interface OurWorkClientProps {
@@ -29,8 +29,25 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxImages, setLightboxImages] = useState<Array<{src: string; alt: string; blurDataURL?: string}>>([]);
+  const [isDragging, setIsDragging] = useState(false);
+
+  // P0 FIX: Reset drag state after drag operation completes
+  useEffect(() => {
+    if (isDragging) {
+      const timeout = setTimeout(() => {
+        console.log('[OUR_WORK] DRAG_STATE_RESET');
+        setIsDragging(false);
+      }, 500);
+      return () => clearTimeout(timeout);
+    }
+  }, [isDragging]);
 
   const openLightbox = (images: Array<{src: string; alt: string; blurDataURL?: string}>, index: number) => {
+    // P0 FIX: Prevent lightbox from opening during/after drag operation
+    if (isDragging) {
+      console.log('[OUR_WORK] LIGHTBOX_PREVENTED_BY_DRAG', { isDragging });
+      return;
+    }
     setLightboxImages(images);
     setLightboxIndex(index);
     setLightboxOpen(true);
@@ -183,13 +200,38 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                     role="button"
                     tabIndex={0}
                     className="group relative block aspect-[4/3] overflow-hidden cursor-pointer break-inside-avoid mb-4"
-                    onClick={() => {
-                      console.log('[OUR_WORK] GALLERY_BUTTON_CLICK', {
+                    onDragStart={() => {
+                      console.log('[OUR_WORK] GALLERY_DRAG_START', {
                         projectId: project.id,
                         mediaId,
                         slotId: `our-work-gallery::${project.id}::${mediaId}`,
                         timestamp: Date.now(),
                       });
+                      setIsDragging(true);
+                    }}
+                    onDragEnd={() => {
+                      console.log('[OUR_WORK] GALLERY_DRAG_END', {
+                        projectId: project.id,
+                        mediaId,
+                        slotId: `our-work-gallery::${project.id}::${mediaId}`,
+                        timestamp: Date.now(),
+                      });
+                      // State will be reset by useEffect
+                    }}
+                    onClick={() => {
+                      console.log('[OUR_WORK] GALLERY_BUTTON_CLICK', {
+                        projectId: project.id,
+                        mediaId,
+                        slotId: `our-work-gallery::${project.id}::${mediaId}`,
+                        isDragging,
+                        timestamp: Date.now(),
+                      });
+
+                      // P0 FIX: Prevent lightbox from opening during/after drag operation
+                      if (isDragging) {
+                        console.log('[OUR_WORK] LIGHTBOX_PREVENTED_BY_DRAG', { isDragging });
+                        return;
+                      }
 
                       // P0 FIX: Use pre-validated galleryMedia from server-side resolution (passed public media gate)
                       // This prevents client-side getMediaById() bypass
@@ -219,8 +261,15 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                           mediaId,
                           slotId: `our-work-gallery::${project.id}::${mediaId}`,
                           key: e.key,
+                          isDragging,
                           timestamp: Date.now(),
                         });
+
+                        // P0 FIX: Prevent lightbox from opening during/after drag operation
+                        if (isDragging) {
+                          console.log('[OUR_WORK] LIGHTBOX_PREVENTED_BY_DRAG', { isDragging });
+                          return;
+                        }
 
                         const allGalleryImages = allProjects.flatMap(p => {
                           const pGalleryMedia = p.media.galleryMedia || [];

@@ -311,6 +311,17 @@ export function VisualSlot({
       timestamp: Date.now(),
     });
 
+    // P0 FIX: Prevent click event from firing after drag completes
+    // Set a flag on the element that parent click handlers can check
+    if (elementRef.current) {
+      (elementRef.current as any).__workbench_dragInProgress = true;
+      setTimeout(() => {
+        if (elementRef.current) {
+          (elementRef.current as any).__workbench_dragInProgress = false;
+        }
+      }, 200);
+    }
+
     // Set drag data for cross-frame communication
     // P0 FIX: Use explicit MIME types to avoid protocol ambiguity
     const dragData = JSON.stringify({
