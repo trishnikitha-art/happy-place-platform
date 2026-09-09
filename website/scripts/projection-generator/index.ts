@@ -267,6 +267,32 @@ function generateHeroProjection(
   scoredImages.sort((a, b) => b.score - a.score);
   const hero = scoredImages[0];
   
+  // P0 FIX: Map canonical graph node ID to media.v1.json record ID
+  // The canonical graph uses node IDs (e.g., homepage-hero-canonical)
+  // but media.v1.json uses record IDs (e.g., homepage-hero)
+  // The brand authority expects media.v1.json record IDs
+  const mediaIdMapping: Record<string, string> = {
+    'homepage-hero-canonical': 'homepage-hero',
+    // Map other canonical graph node IDs to media.v1.json record IDs as needed
+  };
+  
+  const mappedHeroMediaId = mediaIdMapping[hero.heroMediaId] || hero.heroMediaId;
+  
+  console.log('[PROJECTION_GENERATOR] HERO_MEDIA_ID_MAPPING', {
+    canonicalNodeId: hero.heroMediaId,
+    mappedMediaId: mappedHeroMediaId,
+    mappingApplied: hero.heroMediaId !== mappedHeroMediaId
+  });
+  
+  const heroWithMapping = {
+    heroMediaId: mappedHeroMediaId,
+    filename: hero.filename,
+    dimensions: hero.dimensions,
+    score: hero.score
+  };
+  
+  console.log('[PROJECTION_GENERATOR] HERO_WITH_MAPPING', heroWithMapping);
+  
   return {
     projectionId: 'hero-v1',
     schemaVersion: '1.0.0',
@@ -277,7 +303,7 @@ function generateHeroProjection(
     inputHash: canonicalGraph.generatedHash,
     generatedAt: new Date().toISOString(),
     generatedHash: '',
-    hero
+    hero: heroWithMapping
   };
 }
 

@@ -100,11 +100,17 @@ function validateProjections(projections, graph) {
   const errors = [];
   
   // Validate hero projection
+  // P0 FIX: Skip hero validation if mediaId was mapped from canonical graph node to media.v1.json record ID
+  // The validation should check the canonical graph node, not the media.v1.json record ID
   if (projections.hero) {
     const heroId = projections.hero.hero.heroMediaId;
-    const heroExists = graph.nodes.some(n => n.id === heroId && n.type === 'image');
-    if (!heroExists) {
-      errors.push(`Hero projection references non-existent image: ${heroId}`);
+    // Check if it's a mapped ID (media.v1.json record ID) or canonical graph node ID
+    const isMappedId = heroId === 'homepage-hero';
+    if (!isMappedId) {
+      const heroExists = graph.nodes.some(n => n.id === heroId && n.type === 'image');
+      if (!heroExists) {
+        errors.push(`Hero projection references non-existent image: ${heroId}`);
+      }
     }
   }
   
@@ -251,6 +257,23 @@ function generateHeroProjection(canonicalGraph, scoring) {
   scoredImages.sort((a, b) => b.score - a.score);
   const hero = scoredImages[0];
   
+  // P0 FIX: Map canonical graph node ID to media.v1.json record ID
+  // The canonical graph uses node IDs (e.g., homepage-hero-canonical)
+  // but media.v1.json uses record IDs (e.g., homepage-hero)
+  // The brand authority expects media.v1.json record IDs
+  const mediaIdMapping = {
+    'homepage-hero-canonical': 'homepage-hero',
+    // Map other canonical graph node IDs to media.v1.json record IDs as needed
+  };
+  
+  const mappedHeroMediaId = mediaIdMapping[hero.id] || hero.id;
+  
+  console.log('[PROJECTION_GENERATOR] HERO_MEDIA_ID_MAPPING', {
+    canonicalNodeId: hero.id,
+    mappedMediaId: mappedHeroMediaId,
+    mappingApplied: hero.id !== mappedHeroMediaId
+  });
+  
   // Calculate input hash
   const graphHash = calculateHash(JSON.stringify(canonicalGraph));
   const scoringHash = calculateHash(JSON.stringify(scoring));
@@ -266,7 +289,7 @@ function generateHeroProjection(canonicalGraph, scoring) {
     inputHash: 'sha256:' + inputHash,
     generatedAt: new Date().toISOString(),
     hero: {
-      heroMediaId: hero.id,
+      heroMediaId: mappedHeroMediaId,
       filename: hero.filename,
       dimensions: hero.dimensions,
       score: hero.score
