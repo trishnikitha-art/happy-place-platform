@@ -1,0 +1,34 @@
+{
+  "version": "1.0.0",
+  "scoringType": "service",
+  "factors": {
+    "composition": {
+      "weight": 0.3,
+      "description": "Image composition quality"
+    },
+    "sharpness": {
+      "weight": 0.2,
+      "description": "Image sharpness and clarity"
+    },
+    "brightness": {
+      "weight": 0.2,
+      "description": "Proper lighting and exposure"
+    },
+    "resolution": {
+      "weight": 0.2,
+      "description": "Image resolution quality"
+    },
+    "serviceClarity": {
+      "weight": 0.1,
+      "description": "How clearly the service is represented"
+    }
+  },
+  "thresholds": {
+    "minimumScore": 0.5,
+    "serviceMinimumScore": 0.6
+  },
+  "rules": {
+    "galleryCandidateRequired": true,
+    "serviceRelevanceBonus": 0.15
+  }
+}

@@ -791,6 +791,54 @@
       "storage": "static"
     },
     {
+      "id": "homepage-hero",
+      "driveId": "homepage-hero-canonical",
+      "filename": "hero-background-enhanced.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 1920,
+        "height": 1080
+      },
+      "variants": {
+        "original": "/images/hero-background-enhanced.jpg",
+        "web": "/images/hero-background-enhanced.jpg",
+        "webp": "/images/hero-background-enhanced.jpg",
+        "avif": "/images/hero-background-enhanced.jpg",
+        "thumbnail": "/images/hero-background-enhanced.jpg"
+      },
+      "alt": "Photograph of a completed deck project showing quality carpentry work with warm wood tones and clean construction",
+      "description": "Homepage hero - deck project",
+      "service": "decks",
+      "city": "Corvallis",
+      "county": "Benton",
+      "state": "Oregon",
+      "projectId": null,
+      "tags": [
+        "homepage",
+        "hero",
+        "deck",
+        "carpentry"
+      ],
+      "roles": [
+        "hero",
+        "brand"
+      ],
+      "featured": true,
+      "heroEligible": true,
+      "homepageEligible": true,
+      "createdAt": "2026-09-08T00:00:00.000Z",
+      "updatedAt": "2026-09-08T00:00:00.000Z",
+      "uploadedAt": "2026-09-08T00:00:00.000Z",
+      "fileSize": 282546,
+      "format": "JPEG",
+      "colorSpace": "sRGB",
+      "lifecycleState": "published",
+      "source": "local",
+      "contentHash": "8a7f6b5c4d3e2f1a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a5b4",
+      "storage": "static"
+    },
+    {
       "id": "brand-portrait",
       "driveId": "brand-portrait-001",
       "filename": "portrait.jpeg",

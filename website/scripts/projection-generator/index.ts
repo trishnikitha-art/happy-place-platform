@@ -21,6 +21,10 @@
 import * as fs from 'fs';
 import * as path from 'path';
 import * as crypto from 'crypto';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 interface CanonicalMediaGraph {
   version: string;
@@ -58,14 +62,17 @@ interface ScoringArtifact {
 
 interface ProjectionArtifact {
   projectionId: string;
+  schemaVersion: string;
   projectionVersion: string;
   scoringVersion: string;
   canonicalGraphVersion: string;
   generatorVersion: string;
+  inputHash: string;
   generatedAt: string;
   generatedHash: string;
   projects?: Array<{
     projectId: string;
+    projectName: string;
     galleryRepresentative?: string;
     supportingGalleryEvidence?: string[];
     heroMediaId?: string;
@@ -80,10 +87,9 @@ interface ProjectionArtifact {
     score: number;
   };
   services?: Array<{
-    serviceId: string;
-    servicePreviewMediaId: string;
-    filename: string;
-    score: number;
+    serviceName: string;
+    serviceRepresentative: string;
+    supportingServiceEvidence?: string[];
   }>;
   homepage?: {
     homepageImages: string[];
@@ -217,6 +223,7 @@ function generateGalleryProjection(
     
     projectionProjects.push({
       projectId,
+      projectName: projectId,
       galleryRepresentative: representative.filename,
       supportingGalleryEvidence: supporting.map((img: any) => img.filename),
       galleryOrder: order++,
@@ -226,10 +233,12 @@ function generateGalleryProjection(
   
   return {
     projectionId: 'gallery-v1',
+    schemaVersion: '1.0.0',
     projectionVersion: '1.0.0',
     scoringVersion: scoring.version,
     canonicalGraphVersion: canonicalGraph.version,
     generatorVersion: GENERATOR_VERSION,
+    inputHash: canonicalGraph.generatedHash,
     generatedAt: new Date().toISOString(),
     generatedHash: '', // Will be calculated after serialization
     projects: projectionProjects.sort((a, b) => a.galleryOrder - b.galleryOrder)
@@ -249,7 +258,7 @@ function generateHeroProjection(
   }
   
   const scoredImages = featuredImages.map(img => ({
-    id: img.id,
+    heroMediaId: img.id,
     filename: img.data.original_filename,
     dimensions: `${img.data.width}x${img.data.height}`,
     score: calculateImageScore(img, scoring)
@@ -260,10 +269,12 @@ function generateHeroProjection(
   
   return {
     projectionId: 'hero-v1',
+    schemaVersion: '1.0.0',
     projectionVersion: '1.0.0',
     scoringVersion: scoring.version,
     canonicalGraphVersion: canonicalGraph.version,
     generatorVersion: GENERATOR_VERSION,
+    inputHash: canonicalGraph.generatedHash,
     generatedAt: new Date().toISOString(),
     generatedHash: '',
     hero
@@ -293,24 +304,25 @@ function generateServiceProjection(
   
   const serviceProjections: any[] = [];
   
-  for (const [serviceId, images] of Object.entries(services)) {
+  for (const [serviceName, images] of Object.entries(services)) {
     images.sort((a, b) => b.score - a.score);
     const preview = images[0];
     
     serviceProjections.push({
-      serviceId,
-      servicePreviewMediaId: preview.filename,
-      filename: preview.filename,
-      score: preview.score
+      serviceName,
+      serviceRepresentative: preview.filename,
+      supportingServiceEvidence: images.slice(1).map(img => img.filename)
     });
   }
   
   return {
     projectionId: 'service-v1',
+    schemaVersion: '1.0.0',
     projectionVersion: '1.0.0',
     scoringVersion: scoring.version,
     canonicalGraphVersion: canonicalGraph.version,
     generatorVersion: GENERATOR_VERSION,
+    inputHash: canonicalGraph.generatedHash,
     generatedAt: new Date().toISOString(),
     generatedHash: '',
     services: serviceProjections
@@ -318,74 +330,108 @@ function generateServiceProjection(
 }
 
 function main() {
-  const basePath = path.resolve(__dirname, '../../metadata');
-  
-  console.log('Constitutional Projection Generator v' + GENERATOR_VERSION);
-  console.log('=========================================\n');
-  
-  // Load canonical graph
-  const canonicalGraphPath = path.join(basePath, 'canonical-media-graph.json');
-  console.log('Loading canonical graph:', canonicalGraphPath);
-  const canonicalGraph = loadCanonicalGraph(canonicalGraphPath);
-  console.log('  Version:', canonicalGraph.version);
-  console.log('  Nodes:', canonicalGraph.nodes.length);
-  
-  // Load scoring artifacts
-  const scoringPath = path.join(basePath, 'projection/scoring');
-  const galleryScoring = loadScoringArtifact(path.join(scoringPath, 'gallery.scoring.v1.json'));
-  const heroScoring = loadScoringArtifact(path.join(scoringPath, 'hero.scoring.v1.json'));
-  const serviceScoring = loadScoringArtifact(path.join(scoringPath, 'service.scoring.v1.json'));
-  
-  console.log('\nLoading scoring artifacts...');
-  console.log('  Gallery scoring:', galleryScoring.version);
-  console.log('  Hero scoring:', heroScoring.version);
-  console.log('  Service scoring:', serviceScoring.version);
-  
-  // Generate projections
-  console.log('\nGenerating projections...');
-  
-  const galleryProjection = generateGalleryProjection(canonicalGraph, galleryScoring);
-  galleryProjection.generatedHash = 'sha256:' + calculateHash(JSON.stringify(galleryProjection));
-  
-  const heroProjection = generateHeroProjection(canonicalGraph, heroScoring);
-  heroProjection.generatedHash = 'sha256:' + calculateHash(JSON.stringify(heroProjection));
-  
-  const serviceProjection = generateServiceProjection(canonicalGraph, serviceScoring);
-  serviceProjection.generatedHash = 'sha256:' + calculateHash(JSON.stringify(serviceProjection));
-  
-  // Write projections
-  const outputPath = path.join(basePath, 'projection');
-  fs.mkdirSync(outputPath, { recursive: true });
-  
-  fs.writeFileSync(
-    path.join(outputPath, 'galleryProjection.json'),
-    JSON.stringify(galleryProjection, null, 2)
-  );
-  console.log('  Generated: galleryProjection.json');
-  
-  fs.writeFileSync(
-    path.join(outputPath, 'heroProjection.json'),
-    JSON.stringify(heroProjection, null, 2)
-  );
-  console.log('  Generated: heroProjection.json');
-  
-  fs.writeFileSync(
-    path.join(outputPath, 'serviceProjection.json'),
-    JSON.stringify(serviceProjection, null, 2)
-  );
-  console.log('  Generated: serviceProjection.json');
-  
-  console.log('\n✅ Projection generation complete');
-  console.log('\nProvenance:');
-  console.log('  Canonical Graph Version:', canonicalGraph.version);
-  console.log('  Generator Version:', GENERATOR_VERSION);
-  console.log('  Gallery Projection Hash:', galleryProjection.generatedHash);
-  console.log('  Hero Projection Hash:', heroProjection.generatedHash);
-  console.log('  Service Projection Hash:', serviceProjection.generatedHash);
+  try {
+    const basePath = path.resolve(__dirname, '../../metadata');
+    
+    console.log('Constitutional Projection Generator v' + GENERATOR_VERSION);
+    console.log('=========================================\n');
+    console.log('Base path:', basePath);
+    console.log('__dirname:', __dirname);
+    console.log('Resolved base path:', path.resolve(basePath));
+    console.log('CWD:', process.cwd());
+    
+    // Load canonical graph
+    const canonicalGraphPath = path.join(basePath, 'canonical-media-graph.json');
+    console.log('Loading canonical graph:', canonicalGraphPath);
+    console.log('File exists:', fs.existsSync(canonicalGraphPath));
+    
+    const canonicalGraph = loadCanonicalGraph(canonicalGraphPath);
+    console.log('  Version:', canonicalGraph.version);
+    console.log('  Nodes:', canonicalGraph.nodes.length);
+    
+    // Load scoring artifacts
+    const scoringPath = path.join(basePath, 'projection/scoring');
+    console.log('Scoring path:', scoringPath);
+    console.log('Scoring path exists:', fs.existsSync(scoringPath));
+    const galleryScoringPath = path.join(scoringPath, 'gallery.scoring.v1.json');
+    const heroScoringPath = path.join(scoringPath, 'hero.scoring.v1.json');
+    const serviceScoringPath = path.join(scoringPath, 'service.scoring.v1.json');
+    
+    console.log('Gallery scoring path:', galleryScoringPath);
+    console.log('Gallery scoring exists:', fs.existsSync(galleryScoringPath));
+    console.log('Hero scoring path:', heroScoringPath);
+    console.log('Hero scoring exists:', fs.existsSync(heroScoringPath));
+    console.log('Service scoring path:', serviceScoringPath);
+    console.log('Service scoring exists:', fs.existsSync(serviceScoringPath));
+    
+    let galleryScoring, heroScoring, serviceScoring;
+    try {
+      galleryScoring = loadScoringArtifact(galleryScoringPath);
+      heroScoring = loadScoringArtifact(heroScoringPath);
+      serviceScoring = loadScoringArtifact(serviceScoringPath);
+      
+      console.log('\nLoading scoring artifacts...');
+      console.log('  Gallery scoring:', galleryScoring.version);
+      console.log('  Hero scoring:', heroScoring.version);
+      console.log('  Service scoring:', serviceScoring.version);
+    } catch (error) {
+      console.error('Error loading scoring artifacts:', error);
+      process.exit(1);
+    }
+    
+    // Generate projections
+    console.log('\nGenerating projections...');
+    
+    const galleryProjection = generateGalleryProjection(canonicalGraph, galleryScoring);
+    galleryProjection.generatedHash = 'sha256:' + calculateHash(JSON.stringify(galleryProjection));
+    
+    const heroProjection = generateHeroProjection(canonicalGraph, heroScoring);
+    heroProjection.generatedHash = 'sha256:' + calculateHash(JSON.stringify(heroProjection));
+    
+    const serviceProjection = generateServiceProjection(canonicalGraph, serviceScoring);
+    serviceProjection.generatedHash = 'sha256:' + calculateHash(JSON.stringify(serviceProjection));
+    
+    // Write projections
+    const outputPath = path.join(basePath, 'projection');
+    console.log('Output path:', outputPath);
+    console.log('Output path exists:', fs.existsSync(outputPath));
+    fs.mkdirSync(outputPath, { recursive: true });
+    console.log('Output directory created/verified');
+    
+    const galleryPath = path.join(outputPath, 'galleryProjection.json');
+    const heroPath = path.join(outputPath, 'heroProjection.json');
+    const servicePath = path.join(outputPath, 'serviceProjection.json');
+    
+    console.log('Writing gallery projection to:', galleryPath);
+    fs.writeFileSync(galleryPath, JSON.stringify(galleryProjection, null, 2));
+    console.log('  Generated: galleryProjection.json');
+    console.log('Gallery file exists:', fs.existsSync(galleryPath));
+    
+    console.log('Writing hero projection to:', heroPath);
+    fs.writeFileSync(heroPath, JSON.stringify(heroProjection, null, 2));
+    console.log('  Generated: heroProjection.json');
+    console.log('Hero file exists:', fs.existsSync(heroPath));
+    
+    console.log('Writing service projection to:', servicePath);
+    fs.writeFileSync(servicePath, JSON.stringify(serviceProjection, null, 2));
+    console.log('  Generated: serviceProjection.json');
+    console.log('Service file exists:', fs.existsSync(servicePath));
+    
+    console.log('\n✅ Projection generation complete');
+    console.log('\nProvenance:');
+    console.log('  Canonical Graph Version:', canonicalGraph.version);
+    console.log('  Generator Version:', GENERATOR_VERSION);
+    console.log('  Gallery Projection Hash:', galleryProjection.generatedHash);
+    console.log('  Hero Projection Hash:', heroProjection.generatedHash);
+    console.log('  Service Projection Hash:', serviceProjection.generatedHash);
+    console.log('\nOutput path:', outputPath);
+    console.log('Output files written successfully');
+  } catch (error) {
+    console.error('Fatal error in projection generation:', error);
+    process.exit(1);
+  }
 }
 
-if (require.main === module) {
-  main();
-}
+main();
 
 export { generateGalleryProjection, generateHeroProjection, generateServiceProjection };
