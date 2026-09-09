@@ -13,6 +13,7 @@ import crypto from 'crypto';
 import { revokeAuthorizationWithSessions, upsertAuthorization } from '@/lib/drive/oauth-credential-store';
 import { createSession, getSession } from '@/lib/drive/session-store';
 import { consumeState } from '@/lib/drive/oauth-state-manager';
+import { workbenchSession } from '@/lib/workbench-session';
 
 export const dynamic = 'force-dynamic';
 
@@ -84,6 +85,17 @@ export async function GET(request: Request) {
   }
 
   console.log('[DRIVE OAUTH FORENSIC] State validated and consumed successfully');
+
+  // SECURITY: Require authenticated Workbench session
+  // HPP_WORKBENCH_PRINCIPAL_ID is an identity binding, not a substitute for human authentication
+  const isAuthenticated = await workbenchSession.isAuthenticated();
+  if (!isAuthenticated) {
+    console.log('[DRIVE OAUTH CALLBACK] WORKBENCH_AUTH_REQUIRED');
+    const url = new URL('/workbench/login', request.url);
+    return NextResponse.redirect(url);
+  }
+
+  console.log('[DRIVE OAUTH CALLBACK] Workbench session authenticated');
 
   if (error) {
     console.log('[DRIVE OAUTH FORENSIC] Google OAuth error:', error);
@@ -300,6 +312,10 @@ export async function GET(request: Request) {
     cookieStore.delete('drive_expiry_date');
     cookieStore.delete('drive_scope');
     console.log('[DRIVE OAUTH FORENSIC] Legacy OAuth credential cookies cleared');
+
+    // Clear stale drive_session_id to prevent old authorization reuse
+    cookieStore.delete('drive_session_id');
+    console.log('[DRIVE OAUTH FORENSIC] Stale drive_session_id cleared');
 
     // Issue opaque session ID to browser instead of OAuth tokens
     cookieStore.set('drive_session_id', session.id, {

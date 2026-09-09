@@ -28,7 +28,7 @@ import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 // 4. Session/authorization setup in Redis
 // 5. Actual HTTP boundary verification
 
-describe('HTTP Boundary Negative Security Tests', () => {
+describe.skip('HTTP Boundary Negative Security Tests', () => {
   describe('Legacy Cookie Rejection', () => {
     it('should reject Drive files request with legacy cookies but no session', async () => {
       // TODO: Implement actual HTTP request test
@@ -39,14 +39,15 @@ describe('HTTP Boundary Negative Security Tests', () => {
       // 5. Verify response status is 401
       // 6. Verify response body contains error about missing session
       
-      expect(true).toBe(true); // Placeholder
+      // SKIPPED: Requires HTTP server infrastructure with Redis state management
+      // Current CI does not support HTTP-level Redis state setup for negative tests
     });
 
     it('should reject Drive folder request with legacy cookies but no session', async () => {
       // TODO: Implement actual HTTP request test
       // Same pattern as files test but for /api/drive/folder/[folderId]
       
-      expect(true).toBe(true); // Placeholder
+      // SKIPPED: Requires HTTP server infrastructure with Redis state management
     });
   });
 
@@ -60,14 +61,14 @@ describe('HTTP Boundary Negative Security Tests', () => {
       // 5. Verify response status is 401/403
       // 6. Verify response body contains error about revoked session
       
-      expect(true).toBe(true); // Placeholder
+      // SKIPPED: Requires HTTP server infrastructure with Redis state management
     });
 
     it('should reject Drive thumbnail request with revoked session', async () => {
       // TODO: Implement actual HTTP request test
       // Same pattern but for /api/drive/files/[fileId]/thumbnail
       
-      expect(true).toBe(true); // Placeholder
+      // SKIPPED: Requires HTTP server infrastructure with Redis state management
     });
   });
 
@@ -81,7 +82,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       // 5. Verify response status is 403
       // 6. Verify response body contains error about authorization mismatch
       
-      expect(true).toBe(true); // Placeholder
+      // SKIPPED: Requires HTTP server infrastructure with Redis state management
     });
 
     it('should reject cross-corpus Drive access', async () => {
@@ -91,7 +92,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       // 3. Verify response status is 403
       // 4. Verify response body contains error about corpus mismatch
       
-      expect(true).toBe(true); // Placeholder
+      // SKIPPED: Requires HTTP server infrastructure with Redis state management
     });
   });
 
@@ -103,7 +104,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       // 3. Verify response status is 401
       // 4. Verify response body contains error about invalid session
       
-      expect(true).toBe(true); // Placeholder
+      // SKIPPED: Requires HTTP server infrastructure with Redis state management
     });
 
     it('should prevent authorization ID enumeration attacks', async () => {
@@ -112,7 +113,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       // 2. Verify responses do not leak information about valid vs invalid IDs
       // 3. Verify timing attacks are not possible
       
-      expect(true).toBe(true); // Placeholder
+      // SKIPPED: Requires HTTP server infrastructure with Redis state management
     });
   });
 
@@ -123,7 +124,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       // 2. Verify revoked session is rejected on both
       // 3. Verify unauthorized corpus is rejected on both
       
-      expect(true).toBe(true); // Placeholder
+      // SKIPPED: Requires HTTP server infrastructure with Redis state management
     });
 
     it('should enforce same authorization on ingest route as files route', async () => {
@@ -132,7 +133,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       // 2. Verify revoked session is rejected on both
       // 3. Verify unauthorized corpus is rejected on both
       
-      expect(true).toBe(true); // Placeholder
+      // SKIPPED: Requires HTTP server infrastructure with Redis state management
     });
   });
 });

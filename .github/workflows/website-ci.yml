@@ -100,6 +100,19 @@ jobs:
         env:
           HPP_AUTHORIZED_MY_DRIVE: ${{ secrets.HPP_AUTHORIZED_MY_DRIVE }}
           HPP_AUTHORIZED_SHARED_DRIVES: ${{ secrets.HPP_AUTHORIZED_SHARED_DRIVES }}
+      - name: Validate Workbench principal configuration
+        run: |
+          echo "Validating Workbench principal configuration..."
+          # HPP_WORKBENCH_PRINCIPAL_ID is required for Drive authorization binding
+          if [ -z "$HPP_WORKBENCH_PRINCIPAL_ID" ]; then
+            echo "❌ ERROR: HPP_WORKBENCH_PRINCIPAL_ID is not configured"
+            echo "Drive authorization cannot be bound to Workbench principal without this configuration"
+            echo "To fix this, add HPP_WORKBENCH_PRINCIPAL_ID as a GitHub Actions secret"
+            exit 1
+          fi
+          echo "✅ HPP_WORKBENCH_PRINCIPAL_ID is configured"
+        env:
+          HPP_WORKBENCH_PRINCIPAL_ID: ${{ secrets.HPP_WORKBENCH_PRINCIPAL_ID }}
       - name: Run OAuth unit tests with Redis mocks
         run: npx jest --config jest.oauth.unit.config.ts
         env:

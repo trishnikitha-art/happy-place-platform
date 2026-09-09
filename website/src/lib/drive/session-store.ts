@@ -403,6 +403,20 @@ export async function getSession(id: string): Promise<BrowserSessionRecord | nul
       return null;
     }
 
+    // SECURITY: Verify authorization's principalId matches current configured principal
+    // This prevents old pre-principal authorizations from being accepted
+    const currentPrincipalId = process.env.HPP_WORKBENCH_PRINCIPAL_ID;
+    if (!currentPrincipalId) {
+      console.error('[SESSION_STORE] HPP_WORKBENCH_PRINCIPAL_ID not configured');
+      return null;
+    }
+    if (authRecord.principalId !== currentPrincipalId) {
+      console.warn('[SESSION_STORE] Principal mismatch:', id, 
+        'authPrincipalId:', authRecord.principalId, 
+        'currentPrincipalId:', currentPrincipalId);
+      return null;
+    }
+
     return sessionRecord;
   } catch (error) {
     console.error('[SESSION_STORE] Get failed:', error);

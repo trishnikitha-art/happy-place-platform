@@ -147,21 +147,14 @@ describeOrSkip('Negative Security Tests', () => {
       // Attempt to use the session - should fail
       // The oauth-manager.getOAuthClient will fail when it tries to get the authorization
       // and finds it revoked
-      try {
-        await getAuthorization(session.authorizationId);
-        // If we reach here, the test fails - revoked authorization should not be accessible
-        expect(false).toBe(true);
-      } catch (error) {
-        // Expected - authorization is revoked
-        expect(true).toBe(true);
-      }
+      await expect(getAuthorization(session.authorizationId)).rejects.toThrow();
       
       // Cleanup
       await revokeAuthorizationWithSessions(auth.id);
     });
   });
 
-  describe('Test C: Wrong Shared Drive context', () => {
+  describe.skip('Test C: Wrong Shared Drive context', () => {
     it('should reject access to Shared Drive B when authenticated against Shared Drive A', async () => {
       // This test verifies cross-corpus access prevention
       // In a real test, we would:
@@ -177,7 +170,7 @@ describeOrSkip('Negative Security Tests', () => {
       // This is a structural test - the actual enforcement is in corpus-authorization.ts
       // We verify the authorization logic exists and is called in the API routes
       
-      expect(true).toBe(true); // Placeholder - actual test requires production environment
+      // SKIPPED: Requires production Drive corpus configuration and actual Drive API access
     });
   });
 
@@ -291,22 +284,14 @@ describeOrSkip('Negative Security Tests', () => {
       expect(revokedAuth?.status).toBe('revoked');
       
       // Attempt to refresh (should fail with Lua script status check)
-      try {
-        await updateAuthorizationAfterRefresh(
+      await expect(
+        updateAuthorizationAfterRefresh(
           auth.id,
           'new_access_token',
           Date.now() + 3600000,
           'new_refresh_token'
-        );
-        // If we reach here, the test fails - refresh should not overwrite revocation
-        expect(false).toBe(true);
-      } catch (error) {
-        // Expected - refresh rejected because authorization is not active
-        expect(error).toBeInstanceOf(Error);
-        if (error instanceof Error) {
-          expect(error.message).toContain('not active');
-        }
-      }
+        )
+      ).rejects.toThrow('not active');
     });
   });
 });

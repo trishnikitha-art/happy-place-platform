@@ -26,10 +26,10 @@
 
 import { describe, it, expect } from '@jest/globals';
 
-describe('Negative Security Tests - Deprecated', () => {
+describe.skip('Negative Security Tests - Deprecated', () => {
   it('should be replaced with real request-level security tests', () => {
     // This is a placeholder until real request-level tests are implemented
     // The actual security invariants are enforced in code and tested in integration tests
-    expect(true).toBe(true);
+    // SKIPPED: This file is deprecated and contains only placeholder assertions
   });
 });

@@ -9,11 +9,22 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { createState } from '@/lib/drive/oauth-state-manager';
+import { workbenchSession } from '@/lib/workbench-session';
 
 export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   console.log('=== DRIVE OAUTH AUTHORIZE REACHED ===');
+
+  // SECURITY: Require authenticated Workbench session before initiating OAuth
+  // HPP_WORKBENCH_PRINCIPAL_ID is an identity binding, not a substitute for human authentication
+  const isAuthenticated = await workbenchSession.isAuthenticated();
+  if (!isAuthenticated) {
+    console.log('[DRIVE OAUTH AUTHORIZE] WORKBENCH_AUTH_REQUIRED');
+    return NextResponse.json({ error: 'WORKBENCH_AUTH_REQUIRED' }, { status: 401 });
+  }
+
+  console.log('[DRIVE OAUTH AUTHORIZE] Workbench session authenticated');
 
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const redirectUri = process.env.GOOGLE_REDIRECT_URI || 
