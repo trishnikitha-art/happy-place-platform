@@ -603,18 +603,58 @@ async function createNewAuthorizationWithAtomicSubject(
 
   if (result === 0) {
     // Subject already taken by another process
-    // Check if the existing authorization is revoked - if so, clean it up before retrying
+    // P0 FIX: Converge to existing authorization instead of throwing conflict
+    // This allows concurrent upserts to converge to the same authoritative authorization
     const existingAuth = await findAuthorizationBySubject(googleSubject);
-    if (existingAuth && existingAuth.status === 'revoked') {
-      console.log('[AUTH_STORE] Subject held by revoked authorization, cleaning up and retrying');
-      await revokeAuthorization(existingAuth.id);
-      // Retry after cleanup
+    
+    if (!existingAuth) {
+      // Subject index points nowhere - stale index, repair and retry
+      console.warn('[AUTH_STORE] Subject index points to missing authorization, stale index detected');
+      // Clean up stale subject index and retry
+      const client = getRedisClient();
+      await client.del(namespacedKey(`${AUTH_SUBJECT_PREFIX}${googleSubject}`));
       return upsertAuthorization(googleSubject, email, scopes, accessToken, accessTokenExpiresAt, refreshToken, keyVersion);
     }
     
-    // Subject held by active authorization - this is a genuine concurrent creation conflict
-    console.error('[AUTH_STORE] Subject already taken by active authorization, concurrent creation conflict');
-    throw new Error(`Subject ${googleSubject.substring(0, 8)}... already has an active authorization - concurrent creation conflict`);
+    if (existingAuth.status === 'revoked') {
+      // Subject held by revoked authorization - clean it up and retry
+      console.log('[AUTH_STORE] Subject held by revoked authorization, cleaning up and retrying');
+      await revokeAuthorization(existingAuth.id);
+      return upsertAuthorization(googleSubject, email, scopes, accessToken, accessTokenExpiresAt, refreshToken, keyVersion);
+    }
+    
+    // Check principal binding security invariant
+    const currentPrincipalId = process.env.HPP_WORKBENCH_PRINCIPAL_ID;
+    if (!currentPrincipalId) {
+      throw new Error('HPP_WORKBENCH_PRINCIPAL_ID not configured');
+    }
+    
+    if (existingAuth.principalId !== currentPrincipalId) {
+      // Principal mismatch - FAIL CLOSED
+      console.error('[AUTH_STORE] Principal mismatch on existing authorization, refusing convergence', {
+        existingPrincipalId: existingAuth.principalId,
+        currentPrincipalId,
+      });
+      throw new Error(`Principal mismatch - existing authorization belongs to different principal`);
+    }
+    
+    // Existing authorization is active and belongs to current principal - CONVERGE
+    // Update with new tokens to ensure fresh credentials
+    console.log('[AUTH_STORE] Converging to existing active authorization', {
+      existingAuthId: existingAuth.id,
+      googleSubject: googleSubject.substring(0, 8) + '...',
+    });
+    
+    // Update existing authorization with new tokens
+    await updateAuthorizationAfterRefresh(
+      existingAuth.id,
+      accessToken,
+      accessTokenExpiresAt,
+      refreshToken
+    );
+    
+    // Return the converged authorization
+    return await getAuthorization(existingAuth.id) || existingAuth;
   }
   
   console.log('[AUTH_STORE] Authorization created with atomic subject acquisition');
