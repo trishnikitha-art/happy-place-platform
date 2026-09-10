@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-04T12:13:06.088Z",
+  "generatedAt": "2026-09-10T00:54:31.724Z",
   "projects": [
     {
       "id": "fences-001",
@@ -83,10 +83,7 @@
       "completionDate": "2026-07-22",
       "media": {
         "hero": "pergolas-001-hero",
-        "before": "pergolas-001-before",
-        "gallery": [
-          "pergolas-001-before"
-        ],
+        "gallery": [],
         "galleryRevision": 1
       },
       "story": {
@@ -438,9 +435,9 @@
       },
       "completionDate": "2026-07-16",
       "media": {
-        "hero": "davis-bathroom-remodel-001-hero",
+        "hero": "bathroom-remodeling-001-hero",
         "gallery": [
-          "davis-bathroom-remodel-001-hero"
+          "bathroom-remodeling-001-hero"
         ],
         "galleryRevision": 0
       },
@@ -505,11 +502,11 @@
       },
       "completionDate": "2026-07-20",
       "media": {
-        "hero": "johnson-cedar-fence-001-hero",
+        "hero": "fences-001-hero",
         "after": "johnson-cedar-fence-001-after",
         "gallery": [
-          "johnson-cedar-fence-001-hero",
-          "johnson-cedar-fence-001-after"
+          "fences-001-hero",
+          "fences-001-after"
         ],
         "galleryRevision": 0
       },
@@ -574,11 +571,8 @@
       },
       "completionDate": "2026-07-22",
       "media": {
-        "hero": "martinez-pergola-001-hero",
-        "before": "martinez-pergola-001-before",
-        "gallery": [
-          "martinez-pergola-001-before"
-        ],
+        "hero": "pergolas-001-hero",
+        "gallery": [],
         "galleryRevision": 0
       },
       "story": {
@@ -643,10 +637,10 @@
       },
       "completionDate": "2026-07-19",
       "media": {
-        "hero": "smith-built-ins-001-hero",
+        "hero": "builtins-001-hero",
         "gallery": [
-          "smith-built-ins-001-hero",
-          "smith-built-ins-001-secondary"
+          "builtins-001-hero",
+          "builtins-001-secondary"
         ],
         "galleryRevision": 0
       },
@@ -710,13 +704,13 @@
       },
       "completionDate": "2026-07-18",
       "media": {
-        "hero": "wilson-home-repairs-001-hero",
+        "hero": "repairs-001-hero",
         "gallery": [
-          "wilson-home-repairs-001-drywall",
-          "wilson-home-repairs-001-floor",
-          "wilson-home-repairs-001-gutter",
-          "wilson-home-repairs-001-floor0",
-          "wilson-home-repairs-001-hero"
+          "repairs-001-drywall",
+          "repairs-001-floor",
+          "repairs-001-gutter",
+          "repairs-001-floor0",
+          "repairs-001-hero"
         ],
         "galleryRevision": 0
       },
