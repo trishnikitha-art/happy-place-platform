@@ -46,6 +46,7 @@ interface MediaWorkbenchState {
     myDriveConfigured: boolean;
     sharedDriveCount: number;
   } | null;
+  oauthInProgress: boolean; // P0 FIX: Prevent duplicate OAuth initiations
   mediaAudit: {
     totalRecords: number;
     validPublished: number;
@@ -97,9 +98,10 @@ export default function MediaWorkbench() {
     isAccepting: false,
     driveBrowsing: true, // P0 FIX: Always show Drive source in main panel
     driveStructure: null,
-    driveFiles: [],
     driveLoading: false,
     driveError: null,
+    oauthInProgress: false, // P0 FIX: Prevent duplicate OAuth initiations
+    driveFiles: [],
     driveCurrentFolderId: 'root',
     driveCurrentDriveId: null,
     driveBreadcrumb: [{ id: 'root', name: 'My Drive' }],
@@ -810,9 +812,18 @@ export default function MediaWorkbench() {
     return loadDriveCorpusStructure();
   };
 
-  // P0 FIX: Explicit Drive Connect/Reconnect action
+  // P0 FIX: Explicit Drive Connect/Reconnect action with in-flight guard
   const handleConnectDrive = async () => {
+    // P0 FIX: Prevent duplicate OAuth initiations
+    if (state.oauthInProgress) {
+      console.warn('[WORKBENCH] DRIVE_OAUTH_ALREADY_IN_PROGRESS - ignoring duplicate request');
+      return;
+    }
+
     console.log('[WORKBENCH] INITIATING_DRIVE_OAUTH');
+    
+    // Set in-flight flag
+    setState(prev => ({ ...prev, oauthInProgress: true }));
     
     try {
       const response = await fetch('/api/drive/oauth/authorize', {
@@ -827,6 +838,7 @@ export default function MediaWorkbench() {
           error: errorText,
         });
         alert(`Failed to initiate Drive OAuth: ${errorText}`);
+        setState(prev => ({ ...prev, oauthInProgress: false }));
         return;
       }
       
@@ -839,10 +851,12 @@ export default function MediaWorkbench() {
       } else {
         console.error('[WORKBENCH] DRIVE_OAUTH_NO_AUTH_URL', data);
         alert('OAuth authorization did not return an auth URL');
+        setState(prev => ({ ...prev, oauthInProgress: false }));
       }
     } catch (error) {
       console.error('[WORKBENCH] DRIVE_OAUTH_ERROR', error);
       alert(`Failed to connect Drive: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setState(prev => ({ ...prev, oauthInProgress: false }));
     }
   };
 
@@ -1166,6 +1180,36 @@ export default function MediaWorkbench() {
 
     document.addEventListener('click', handleClickOutside);
     return () => document.removeEventListener('click', handleClickOutside);
+  }, []);
+
+  // P0 FIX: Check for OAuth error in URL and display user-friendly message
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const driveOAuthError = urlParams.get('driveOAuthError');
+    
+    if (driveOAuthError) {
+      console.warn('[WORKBENCH] DRIVE_OAUTH_ERROR_DETECTED', { errorCode: driveOAuthError });
+      
+      let errorMessage = 'Google Drive authorization failed. Please try connecting again.';
+      
+      if (driveOAuthError === 'invalid_grant') {
+        errorMessage = 'Google Drive authorization failed: Invalid authorization code. Please try connecting again.';
+      } else if (driveOAuthError === 'malformed_auth_code') {
+        errorMessage = 'Google Drive authorization failed: Malformed authorization code. Please try connecting again.';
+      } else if (driveOAuthError === 'token_revoked') {
+        errorMessage = 'Google Drive authorization failed: Token was revoked. Please try connecting again.';
+      }
+      
+      alert(errorMessage);
+      
+      // Clean up URL to remove error parameter
+      const cleanUrl = new URL(window.location.href);
+      cleanUrl.searchParams.delete('driveOAuthError');
+      window.history.replaceState({}, '', cleanUrl.toString());
+      
+      // Reset OAuth in-flight flag
+      setState(prev => ({ ...prev, oauthInProgress: false }));
+    }
   }, []);
 
   const removeSlot = (slotId: string, route: string) => {
@@ -2712,10 +2756,11 @@ export default function MediaWorkbench() {
                   <div className="space-y-2">
                     <button
                       onClick={handleConnectDrive}
-                      className="w-full py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                      disabled={state.oauthInProgress}
+                      className="w-full py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <Database className="inline mr-2" size={16} />
-                      Connect Google Drive
+                      {state.oauthInProgress ? 'Connecting...' : 'Connect Google Drive'}
                     </button>
                     <p className="text-xs text-muted-foreground text-center">
                       Authorize Google Drive to browse and select images

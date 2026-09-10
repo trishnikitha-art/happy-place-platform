@@ -334,7 +334,21 @@ export async function GET(request: Request) {
     return NextResponse.redirect(url);
   } catch (error) {
     console.error('[DRIVE OAUTH FORENSIC] OAuth token exchange error:', error);
+    
+    // P0 FIX: Return safe error classification to Workbench for user feedback
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    let errorCode = 'unknown_error';
+    
+    if (errorMessage.includes('invalid_grant')) {
+      errorCode = 'invalid_grant';
+    } else if (errorMessage.includes('Malformed auth code')) {
+      errorCode = 'malformed_auth_code';
+    } else if (errorMessage.includes('Token has been revoked')) {
+      errorCode = 'token_revoked';
+    }
+    
     const url = new URL('/workbench/media', request.url);
+    url.searchParams.set('driveOAuthError', errorCode);
     return NextResponse.redirect(url);
   }
 }
