@@ -36,6 +36,15 @@ export async function POST(request: Request) {
       );
     }
   } catch (error) {
+    // Handle JSON parsing errors specifically
+    if (error instanceof SyntaxError && error.message.includes('JSON')) {
+      console.error('Workbench login JSON parse error:', error);
+      return NextResponse.json(
+        { error: 'Invalid request body' },
+        { status: 400 }
+      );
+    }
+    
     console.error('Workbench login error:', error);
     return NextResponse.json(
       { error: 'Login failed' },
