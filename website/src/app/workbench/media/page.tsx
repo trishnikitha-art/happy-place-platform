@@ -17,7 +17,7 @@ interface MediaWorkbenchState {
   selectedSlot: RegisteredSlot | null;
   selectedAsset: VisualAsset | null;
   searchQuery: string;
-  filter: 'all' | 'used' | 'unused' | 'drive' | 'published' | 'legacy' | 'source';
+  filter: 'all' | 'in-use' | 'available' | 'from-drive' | 'local';
   registeredSlots: RegisteredSlot[];
   pendingAssignments: Map<string, { slot: RegisteredSlot; asset: VisualAsset }>;
   isAccepting: boolean;
@@ -2247,22 +2247,16 @@ export default function MediaWorkbench() {
       if (!matchesSearch) return false;
     }
 
-    // Category filter
+    // Category filter - user-facing terminology
     switch (state.filter) {
-      case 'used':
+      case 'in-use':
         return (state.registeredSlots || []).some(s => s.currentMediaId === asset.id);
-      case 'unused':
+      case 'available':
         return !(state.registeredSlots || []).some(s => s.currentMediaId === asset.id);
-      case 'drive':
+      case 'from-drive':
         return asset.classification === 'DRIVE_ONLY';
-      case 'published':
-        return asset.classification === 'PUBLISHED';
-      case 'legacy':
-        return asset.classification !== 'PUBLISHED' && asset.classification !== 'DRIVE_ONLY';
-      case 'source':
-        // P0 FIX: Show all source assets (Drive-only + not published)
-        return asset.classification === 'DRIVE_ONLY' || 
-               (asset.classification !== 'PUBLISHED' && asset.source !== 'local');
+      case 'local':
+        return asset.source === 'local';
       default:
         return true; // Show all assets when filter is 'all'
     }
@@ -2586,19 +2580,25 @@ export default function MediaWorkbench() {
               />
             </div>
 
-            {/* Filters */}
+            {/* Filters - user-facing terminology */}
             <div className="flex gap-1 mb-4">
-              {(['all', 'used', 'unused', 'drive', 'published', 'legacy', 'source'] as const).map((filter) => (
+              {([
+                { value: 'all', label: 'All Photos' },
+                { value: 'in-use', label: 'In Use' },
+                { value: 'available', label: 'Available' },
+                { value: 'from-drive', label: 'From Drive' },
+                { value: 'local', label: 'Local' },
+              ] as const).map(({ value, label }) => (
                 <button
-                  key={filter}
-                  onClick={() => setState(prev => ({ ...prev, filter }))}
-                  className={`px-2 py-1 rounded text-xs capitalize transition-colors ${
-                    state.filter === filter
+                  key={value}
+                  onClick={() => setState(prev => ({ ...prev, filter: value }))}
+                  className={`px-2 py-1 rounded text-xs transition-colors ${
+                    state.filter === value
                       ? 'bg-primary text-primary-foreground'
                       : 'bg-surface hover:bg-surface/80'
                   }`}
                 >
-                  {filter}
+                  {label}
                 </button>
               ))}
             </div>
@@ -2974,9 +2974,6 @@ export default function MediaWorkbench() {
               {filteredAssets.map((asset) => {
                 const isSelected = state.selectedAsset?.id === asset.id;
                 const isUsed = state.registeredSlots.some(s => s.currentMediaId === asset.id);
-                const isDriveOnly = asset.classification === 'DRIVE_ONLY';
-                const isPublished = asset.classification === 'PUBLISHED';
-                const isLegacy = asset.classification !== 'PUBLISHED' && asset.classification !== 'DRIVE_ONLY';
 
                 return (
                   <div
@@ -3015,26 +3012,11 @@ export default function MediaWorkbench() {
                       </div>
                     )}
                     
-                    {/* Status badges */}
+                    {/* Status badges - user-facing terminology only */}
                     <div className="absolute top-1 right-1 flex gap-1">
                       {isUsed && (
                         <span className="px-1.5 py-0.5 bg-green-500 text-white text-xs rounded-full">
-                          Used
-                        </span>
-                      )}
-                      {isDriveOnly && (
-                        <span className="px-1.5 py-0.5 bg-blue-500 text-white text-xs rounded-full">
-                          Drive
-                        </span>
-                      )}
-                      {isPublished && (
-                        <span className="px-1.5 py-0.5 bg-purple-500 text-white text-xs rounded-full">
-                          Published
-                        </span>
-                      )}
-                      {isLegacy && (
-                        <span className="px-1.5 py-0.5 bg-gray-500 text-white text-xs rounded-full">
-                          Legacy
+                          In Use
                         </span>
                       )}
                     </div>
@@ -3043,24 +3025,6 @@ export default function MediaWorkbench() {
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
                       <p className="text-xs text-white truncate">{asset.filename}</p>
                     </div>
-
-                    {/* Materialize button for Drive-only assets */}
-                    {isDriveOnly && (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          if (!confirm(`Materialize "${asset.filename}" from Drive?\n\nThis will download the file and create a PublishedMediaAsset.`)) {
-                            return;
-                          }
-                          // Trigger materialization
-                          handleAssetClick(asset);
-                          // The existing materialization flow will handle it
-                        }}
-                        className="absolute bottom-8 left-1 px-2 py-1 bg-blue-600 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        Materialize
-                      </button>
-                    )}
                   </div>
                 );
               })}
