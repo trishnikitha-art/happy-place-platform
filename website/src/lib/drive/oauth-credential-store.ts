@@ -602,9 +602,19 @@ async function createNewAuthorizationWithAtomicSubject(
   );
 
   if (result === 0) {
-    // Subject already taken by another process, retry from the beginning
-    console.log('[AUTH_STORE] Subject already taken, retrying');
-    return upsertAuthorization(googleSubject, email, scopes, accessToken, accessTokenExpiresAt, refreshToken, keyVersion);
+    // Subject already taken by another process
+    // Check if the existing authorization is revoked - if so, clean it up before retrying
+    const existingAuth = await findAuthorizationBySubject(googleSubject);
+    if (existingAuth && existingAuth.status === 'revoked') {
+      console.log('[AUTH_STORE] Subject held by revoked authorization, cleaning up and retrying');
+      await revokeAuthorization(existingAuth.id);
+      // Retry after cleanup
+      return upsertAuthorization(googleSubject, email, scopes, accessToken, accessTokenExpiresAt, refreshToken, keyVersion);
+    }
+    
+    // Subject held by active authorization - this is a genuine concurrent creation conflict
+    console.error('[AUTH_STORE] Subject already taken by active authorization, concurrent creation conflict');
+    throw new Error(`Subject ${googleSubject.substring(0, 8)}... already has an active authorization - concurrent creation conflict`);
   }
   
   console.log('[AUTH_STORE] Authorization created with atomic subject acquisition');

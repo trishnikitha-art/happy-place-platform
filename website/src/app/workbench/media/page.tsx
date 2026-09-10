@@ -810,6 +810,42 @@ export default function MediaWorkbench() {
     return loadDriveCorpusStructure();
   };
 
+  // P0 FIX: Explicit Drive Connect/Reconnect action
+  const handleConnectDrive = async () => {
+    console.log('[WORKBENCH] INITIATING_DRIVE_OAUTH');
+    
+    try {
+      const response = await fetch('/api/drive/oauth/authorize', {
+        method: 'GET',
+        credentials: 'include', // Include cookies for Workbench session
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[WORKBENCH] DRIVE_OAUTH_AUTHORIZE_FAILED', {
+          status: response.status,
+          error: errorText,
+        });
+        alert(`Failed to initiate Drive OAuth: ${errorText}`);
+        return;
+      }
+      
+      const data = await response.json();
+      console.log('[WORKBENCH] DRIVE_OAUTH_AUTHORIZE_SUCCESS', data);
+      
+      // Redirect to Google OAuth consent page
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        console.error('[WORKBENCH] DRIVE_OAUTH_NO_AUTH_URL', data);
+        alert('OAuth authorization did not return an auth URL');
+      }
+    } catch (error) {
+      console.error('[WORKBENCH] DRIVE_OAUTH_ERROR', error);
+      alert(`Failed to connect Drive: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   const loadDriveFiles = async (folderId: string, pageToken?: string, driveId?: string | null): Promise<{ items: any[], count: number }> => {
     console.log('[WORKBENCH_DRIVE_NAVIGATION] loadDriveFiles called', {
       folderId,
@@ -2673,13 +2709,18 @@ export default function MediaWorkbench() {
                 )}
 
                 {!state.driveStructure && !state.driveLoading && (
-                  <button
-                    onClick={loadDriveStructure}
-                    className="w-full py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
-                  >
-                    <Database className="inline mr-2" size={16} />
-                    Load Drive Structure
-                  </button>
+                  <div className="space-y-2">
+                    <button
+                      onClick={handleConnectDrive}
+                      className="w-full py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
+                    >
+                      <Database className="inline mr-2" size={16} />
+                      Connect Google Drive
+                    </button>
+                    <p className="text-xs text-muted-foreground text-center">
+                      Authorize Google Drive to browse and select images
+                    </p>
+                  </div>
                 )}
 
                 {state.driveStructure && (
