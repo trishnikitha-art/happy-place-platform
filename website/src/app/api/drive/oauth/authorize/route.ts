@@ -102,5 +102,10 @@ export async function GET(request: Request) {
     prompt: 'consent',
   });
 
-  return NextResponse.redirect(authUrl.toString());
+  // P0 FIX: Return JSON with authUrl instead of HTTP redirect
+  // Workbench expects JSON response with data.authUrl to programmatically redirect browser
+  // This preserves all security checks, state creation, scopes, and redirect URI validation
+  return NextResponse.json({
+    authUrl: authUrl.toString(),
+  });
 }
