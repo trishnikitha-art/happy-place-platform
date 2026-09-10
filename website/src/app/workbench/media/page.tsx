@@ -2134,8 +2134,29 @@ export default function MediaWorkbench() {
     };
   }, []);
 
+  // Group assets by content hash to show only canonical assets (one per real photo)
+  const getCanonicalAssets = (assets: any[]) => {
+    const canonicalMap = new Map<string, any>();
+    
+    for (const asset of assets) {
+      const hash = asset.contentHash;
+      if (!hash) {
+        // No hash - include as-is (likely Drive-only or incomplete)
+        canonicalMap.set(asset.id, asset);
+        continue;
+      }
+      
+      // If this hash already exists, keep the existing canonical asset
+      if (!canonicalMap.has(hash)) {
+        canonicalMap.set(hash, asset);
+      }
+    }
+    
+    return Array.from(canonicalMap.values());
+  };
+
   // Filter assets based on search and filter state
-  const filteredAssets = (state.assets || []).filter(asset => {
+  const filteredAssets = getCanonicalAssets(state.assets || []).filter(asset => {
     // Search filter
     if (state.searchQuery) {
       const query = state.searchQuery.toLowerCase();
