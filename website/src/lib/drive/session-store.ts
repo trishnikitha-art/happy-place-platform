@@ -222,6 +222,18 @@ export function generateSessionId(): string {
 }
 
 /**
+ * Generate safe correlation identifier for logging
+ * 
+ * Returns a short one-way hash of sensitive identifiers for correlation purposes.
+ * This allows tracing without exposing bearer credentials in logs.
+ * 
+ * NEVER log the actual session ID, authorization ID, or other bearer credentials.
+ */
+function safeCorrelationId(identifier: string): string {
+  return crypto.createHash('sha256').update(identifier).digest('hex').substring(0, 8);
+}
+
+/**
  * Create session record with atomic authorization verification
  *
  * CRITICAL: Atomically verifies authorization exists and is active before creating session
@@ -297,14 +309,14 @@ export async function createSession(
     );
 
     if (result === 0) {
-      throw new Error(`Authorization ${authorizationId} not found or not active - session creation rejected`);
+      throw new Error(`Authorization ${safeCorrelationId(authorizationId)} not found or not active - session creation rejected`);
     }
 
-    console.log('[SESSION_STORE] Session created with atomic authorization verification:', sessionId);
+    console.log('[SESSION_STORE] Session created with atomic authorization verification');
     return record;
   } catch (error) {
     console.error('[SESSION_STORE] Create failed:', error);
-    throw new Error(`Failed to create session ${sessionId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to create session: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -348,7 +360,7 @@ export async function getSession(id: string): Promise<BrowserSessionRecord | nul
 
     // Validate session record schema
     if (!validateSessionRecord(session)) {
-      console.error('[SESSION_STORE] Invalid session record:', id);
+      console.error('[SESSION_STORE] Invalid session record');
       return null;
     }
 
@@ -356,7 +368,7 @@ export async function getSession(id: string): Promise<BrowserSessionRecord | nul
 
     // Check if session is revoked
     if (sessionRecord.revokedAt) {
-      console.warn('[SESSION_STORE] Session revoked:', id);
+      console.warn('[SESSION_STORE] Session revoked');
       return null;
     }
 
@@ -364,14 +376,14 @@ export async function getSession(id: string): Promise<BrowserSessionRecord | nul
     const now = new Date();
     const expiresAt = new Date(sessionRecord.expiresAt);
     if (now > expiresAt) {
-      console.warn('[SESSION_STORE] Session expired:', id);
+      console.warn('[SESSION_STORE] Session expired');
       return null;
     }
 
     // Read authorization data
     const authData = await client.get(namespacedKey(`drive:auth:${sessionRecord.authorizationId}`));
     if (!authData) {
-      console.warn('[SESSION_STORE] Authorization not found:', id);
+      console.warn('[SESSION_STORE] Authorization not found');
       return null;
     }
 
@@ -393,13 +405,13 @@ export async function getSession(id: string): Promise<BrowserSessionRecord | nul
 
     // Verify authorization is active
     if (!auth || typeof auth !== 'object') {
-      console.error('[SESSION_STORE] Invalid authorization data:', id);
+      console.error('[SESSION_STORE] Invalid authorization data');
       return null;
     }
 
     const authRecord = auth as Record<string, unknown>;
     if (authRecord.status !== 'active') {
-      console.warn('[SESSION_STORE] Authorization not active:', id, 'status:', authRecord.status);
+      console.warn('[SESSION_STORE] Authorization not active', 'status:', authRecord.status);
       return null;
     }
 
@@ -411,16 +423,16 @@ export async function getSession(id: string): Promise<BrowserSessionRecord | nul
       return null;
     }
     if (authRecord.principalId !== currentPrincipalId) {
-      console.warn('[SESSION_STORE] Principal mismatch:', id, 
-        'authPrincipalId:', authRecord.principalId, 
-        'currentPrincipalId:', currentPrincipalId);
+      console.warn('[SESSION_STORE] Principal mismatch', 
+        'authPrincipalId:', safeCorrelationId(String(authRecord.principalId)), 
+        'currentPrincipalId:', safeCorrelationId(currentPrincipalId));
       return null;
     }
 
     return sessionRecord;
   } catch (error) {
     console.error('[SESSION_STORE] Get failed:', error);
-    throw new Error(`Failed to retrieve session ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to retrieve session: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -501,14 +513,14 @@ export async function updateSessionLastSeen(id: string): Promise<void> {
     );
 
     if (result === 0) {
-      console.warn('[SESSION_STORE] Session update rejected: session or authorization no longer active', id);
+      console.warn('[SESSION_STORE] Session update rejected: session or authorization no longer active');
       return;
     }
 
-    console.log('[SESSION_STORE] Session last seen updated atomically:', id);
+    console.log('[SESSION_STORE] Session last seen updated atomically');
   } catch (error) {
     console.error('[SESSION_STORE] Last seen update failed:', error);
-    throw new Error(`Failed to update session last seen ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to update session last seen: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -583,14 +595,14 @@ export async function revokeSession(id: string): Promise<void> {
     );
 
     if (result === 0) {
-      console.warn('[SESSION_STORE] Session revocation rejected: session or authorization no longer active', id);
+      console.warn('[SESSION_STORE] Session revocation rejected: session or authorization no longer active');
       return;
     }
 
-    console.log('[SESSION_STORE] Session revoked atomically:', id);
+    console.log('[SESSION_STORE] Session revoked atomically');
   } catch (error) {
     console.error('[SESSION_STORE] Revoke failed:', error);
-    throw new Error(`Failed to revoke session ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to revoke session: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -639,10 +651,10 @@ export async function revokeAllSessionsForAuthorization(authorizationId: string)
     );
 
     const revokedCount = result as number;
-    console.log('[SESSION_STORE] Revoked all sessions for authorization:', authorizationId, 'count:', revokedCount);
+    console.log('[SESSION_STORE] Revoked all sessions for authorization:', 'count:', revokedCount);
   } catch (error) {
     console.error('[SESSION_STORE] Revoke all failed:', error);
-    throw new Error(`Failed to revoke all sessions for authorization ${authorizationId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to revoke all sessions for authorization: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -663,11 +675,11 @@ export async function deleteSession(id: string): Promise<void> {
       // Remove from authorization's session index
       await client.srem(namespacedKey(`${AUTH_SESSIONS_PREFIX}${record.authorizationId}`), id);
 
-      console.log('[SESSION_STORE] Session deleted:', id);
+      console.log('[SESSION_STORE] Session deleted');
     }
   } catch (error) {
     console.error('[SESSION_STORE] Delete failed:', error);
-    throw new Error(`Failed to delete session ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to delete session: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -752,13 +764,13 @@ export async function renewSession(id: string): Promise<void> {
     );
 
     if (result === 0) {
-      console.warn('[SESSION_STORE] Session renewal rejected: session or authorization no longer active', id);
+      console.warn('[SESSION_STORE] Session renewal rejected: session or authorization no longer active');
       return;
     }
 
-    console.log('[SESSION_STORE] Session renewed atomically:', id);
+    console.log('[SESSION_STORE] Session renewed atomically');
   } catch (error) {
     console.error('[SESSION_STORE] Renew failed:', error);
-    throw new Error(`Failed to renew session ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to renew session: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

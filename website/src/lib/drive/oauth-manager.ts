@@ -20,6 +20,19 @@ import { revokeAuthorizationWithSessions, getAuthorization, updateAuthorizationA
 import { getSession } from './session-store';
 import { workbenchSession } from '../workbench-session';
 import { cookies } from 'next/headers';
+import crypto from 'crypto';
+
+/**
+ * Generate safe correlation identifier for logging
+ * 
+ * Returns a short one-way hash of sensitive identifiers for correlation purposes.
+ * This allows tracing without exposing bearer credentials in logs.
+ * 
+ * NEVER log the actual session ID, authorization ID, or other bearer credentials.
+ */
+function safeCorrelationId(identifier: string): string {
+  return crypto.createHash('sha256').update(identifier).digest('hex').substring(0, 8);
+}
 
 /**
  * Create OAuth2 client with explicit credentials
@@ -73,7 +86,7 @@ async function explicitTokenRefresh(
   oauth2Client: InstanceType<typeof google.auth.OAuth2>,
   authorizationId: string
 ): Promise<void> {
-  console.log('[OAUTH_MANAGER] Explicit token refresh for authorization:', authorizationId);
+  console.log('[OAUTH_MANAGER] Explicit token refresh for authorization');
   
   try {
     // P0 FIX: Preserve existing refresh token before refresh
@@ -126,9 +139,9 @@ async function explicitTokenRefresh(
       refreshToken
     );
     
-    console.log('[OAUTH_MANAGER] Explicit token refresh succeeded:', authorizationId);
+    console.log('[OAUTH_MANAGER] Explicit token refresh succeeded');
   } catch (error) {
-    console.error('[OAUTH_MANAGER] Explicit token refresh failed:', authorizationId, error);
+    console.error('[OAUTH_MANAGER] Explicit token refresh failed:', error);
     console.error('[OAUTH_MANAGER] Refresh error details:', {
       errorMessage: error instanceof Error ? error.message : String(error),
       errorStack: error instanceof Error ? error.stack : 'none',
@@ -185,7 +198,7 @@ export async function getOAuthClient(): Promise<InstanceType<typeof google.auth.
     throw new Error('Session has no associated authorization');
   }
   
-  console.log('[OAUTH_MANAGER] Resolved authorization ID from session:', effectiveAuthorizationId);
+  console.log('[OAUTH_MANAGER] Resolved authorization ID from session');
   
   // Resolve credentials from authorization repository
   const authorization = await getAuthorization(effectiveAuthorizationId);
@@ -196,9 +209,8 @@ export async function getOAuthClient(): Promise<InstanceType<typeof google.auth.
   // P0 FIX: Verify authorization is bound to current Workbench principal
   if (authorization.principalId !== currentPrincipalId) {
     console.error('[OAUTH_MANAGER] PRINCIPAL BINDING VIOLATION:', {
-      authorizationPrincipalId: authorization.principalId,
-      currentPrincipalId,
-      authorizationId: effectiveAuthorizationId,
+      authorizationPrincipalId: safeCorrelationId(authorization.principalId),
+      currentPrincipalId: safeCorrelationId(currentPrincipalId),
     });
     throw new Error('Drive authorization is not bound to current Workbench principal - authorization denied');
   }
@@ -228,43 +240,42 @@ export async function getOAuthClient(): Promise<InstanceType<typeof google.auth.
 
   if (needsRefresh) {
     console.log('[OAUTH_MANAGER] Token needs refresh (expired or near expiry), performing explicit refresh:', {
-      authorizationId: effectiveAuthorizationId,
       currentExpiry: credentials.expiry_date ? new Date(credentials.expiry_date).toISOString() : 'unknown',
     });
     await explicitTokenRefresh(oauth2Client, effectiveAuthorizationId);
-    console.log('[OAUTH_MANAGER] Token refresh successful for authorization:', effectiveAuthorizationId);
+    console.log('[OAUTH_MANAGER] Token refresh successful for authorization');
   }
 
   // Validate token is accessible without triggering internal refresh
   try {
     const tokens = await oauth2Client.getAccessToken();
     if (!tokens.token) {
-      console.log('[OAUTH_MANAGER] Token validation failed, attempting recovery refresh:', effectiveAuthorizationId);
+      console.log('[OAUTH_MANAGER] Token validation failed, attempting recovery refresh');
       await explicitTokenRefresh(oauth2Client, effectiveAuthorizationId);
-      console.log('[OAUTH_MANAGER] Recovery refresh successful for authorization:', effectiveAuthorizationId);
+      console.log('[OAUTH_MANAGER] Recovery refresh successful for authorization');
     }
   } catch (error) {
-    console.error('[OAUTH_MANAGER] Token validation failed, attempting recovery refresh:', effectiveAuthorizationId, error);
-    
+    console.error('[OAUTH_MANAGER] Token validation failed, attempting recovery refresh:', error);
+
     // Attempt explicit refresh as recovery
     try {
       await explicitTokenRefresh(oauth2Client, effectiveAuthorizationId);
-      console.log('[OAUTH_MANAGER] Recovery refresh succeeded:', effectiveAuthorizationId);
+      console.log('[OAUTH_MANAGER] Recovery refresh succeeded');
     } catch (refreshError) {
-      console.error('[OAUTH_MANAGER] Recovery refresh failed:', effectiveAuthorizationId, refreshError);
-      
+      console.error('[OAUTH_MANAGER] Recovery refresh failed:', refreshError);
+
       // Classify error type with explicit semantics
       const errorMessage = refreshError instanceof Error ? refreshError.message : String(refreshError);
-      const isPermanentFailure = errorMessage.includes('invalid_grant') || 
+      const isPermanentFailure = errorMessage.includes('invalid_grant') ||
                                   errorMessage.includes('revoked') ||
                                   errorMessage.includes('Token has been revoked');
-      
+
       if (isPermanentFailure) {
-        console.log('[OAUTH_MANAGER] Permanent authorization failure, revoking authorization:', effectiveAuthorizationId);
-        
+        console.log('[OAUTH_MANAGER] Permanent authorization failure, revoking authorization');
+
         // Use authoritative revocation path
         await revokeAuthorizationWithSessions(effectiveAuthorizationId);
-        console.log('[OAUTH_MANAGER] Authorization revoked:', effectiveAuthorizationId);
+        console.log('[OAUTH_MANAGER] Authorization revoked');
         
         // Clear session cookie
         const cookieStore = await cookies();
@@ -273,8 +284,8 @@ export async function getOAuthClient(): Promise<InstanceType<typeof google.auth.
         throw new Error('OAuth authorization failed. Please re-authenticate with Google Drive.');
       } else {
         // Transient failure - explicit error, not swallowed
-        console.log('[OAUTH_MANAGER] Transient token refresh failure for authorization:', effectiveAuthorizationId);
-        throw new Error(`Token refresh failed (transient) for authorization ${effectiveAuthorizationId}: ${errorMessage}`);
+        console.log('[OAUTH_MANAGER] Transient token refresh failure for authorization');
+        throw new Error(`Token refresh failed (transient): ${errorMessage}`);
       }
     }
   }

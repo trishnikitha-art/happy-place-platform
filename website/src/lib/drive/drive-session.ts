@@ -16,6 +16,19 @@ import { cookies } from 'next/headers';
 import { getAuthorization } from './oauth-credential-store';
 import { getSession } from './session-store';
 import { decrypt, type EncryptionEnvelope } from './encryption';
+import crypto from 'crypto';
+
+/**
+ * Generate safe correlation identifier for logging
+ * 
+ * Returns a short one-way hash of sensitive identifiers for correlation purposes.
+ * This allows tracing without exposing bearer credentials in logs.
+ * 
+ * NEVER log the actual session ID, authorization ID, or other bearer credentials.
+ */
+function safeCorrelationId(identifier: string): string {
+  return crypto.createHash('sha256').update(identifier).digest('hex').substring(0, 8);
+}
 
 export interface DriveCredentials {
   access_token: string;
@@ -115,7 +128,7 @@ export class DriveSession {
       const expiryDate = new Date(authorization.accessTokenExpiresAt).getTime();
 
       console.log('DriveSession.getCredentials(): credentials resolved from authorization');
-      
+
       return {
         access_token: accessToken,
         refresh_token: refreshToken,
@@ -145,7 +158,7 @@ export class DriveSession {
         const session = await getSession(sessionId);
         if (session) {
           await revokeAuthorizationWithSessions(session.authorizationId);
-          console.log('[DRIVE SESSION FORENSIC] Authorization revoked:', session.authorizationId);
+          console.log('[DRIVE SESSION FORENSIC] Authorization revoked');
         }
       } catch (error) {
         console.error('[DRIVE SESSION FORENSIC] Failed to revoke authorization:', error);

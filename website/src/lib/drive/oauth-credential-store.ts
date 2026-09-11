@@ -21,6 +21,18 @@ import { encrypt, decrypt, type EncryptionEnvelope } from './encryption';
 export { decrypt, type EncryptionEnvelope };
 
 /**
+ * Generate safe correlation identifier for logging
+ * 
+ * Returns a short one-way hash of sensitive identifiers for correlation purposes.
+ * This allows tracing without exposing bearer credentials in logs.
+ * 
+ * NEVER log the actual session ID, authorization ID, or other bearer credentials.
+ */
+function safeCorrelationId(identifier: string): string {
+  return crypto.createHash('sha256').update(identifier).digest('hex').substring(0, 8);
+}
+
+/**
  * P1-9: KV environment isolation
  * Each environment (production, preview, development, test) has a distinct namespace
  * to prevent cross-environment data access and isolation violations.
@@ -260,7 +272,7 @@ export async function storeAuthorization(record: GoogleAuthorizationRecord): Pro
       [JSON.stringify(record), record.id, AUTH_TTL_SECONDS.toString()]
     );
 
-    console.log('[AUTH_STORE] Authorization stored atomically:', record.id);
+    console.log('[AUTH_STORE] Authorization stored atomically');
   } catch (error) {
     console.error('[AUTH_STORE] Store failed:', error);
     throw new Error(`Failed to store authorization ${record.id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
@@ -450,13 +462,11 @@ export async function upsertAuthorization(
         );
 
         if (result === 0) {
-          console.warn('[AUTH_STORE] Authorization update rejected: authorization no longer active', existingAuth.id);
-          throw new Error(`Authorization ${existingAuth.id} is not active - update rejected`);
+          console.warn('[AUTH_STORE] Authorization update rejected: authorization no longer active');
+          throw new Error('Authorization is not active - update rejected');
         }
 
-        console.log('[AUTH_STORE] Authorization update succeeded', {
-          authId: existingAuth.id.substring(0, 8) + '...',
-        });
+        console.log('[AUTH_STORE] Authorization update succeeded');
 
         auth = existingAuth;
       }
@@ -743,14 +753,14 @@ export async function updateAuthorizationAfterRefresh(
     );
 
     if (result === 0) {
-      console.warn('[AUTH_STORE] Authorization refresh rejected: authorization no longer active', authId);
-      throw new Error(`Authorization ${authId} is not active - refresh rejected`);
+      console.warn('[AUTH_STORE] Authorization refresh rejected: authorization no longer active');
+      throw new Error('Authorization is not active - refresh rejected');
     }
-    
-    console.log('[AUTH_STORE] Authorization updated after refresh with status verification:', authId);
+
+    console.log('[AUTH_STORE] Authorization updated after refresh with status verification');
   } catch (error) {
     console.error('[AUTH_STORE] Update failed:', error);
-    throw new Error(`Failed to update authorization ${authId}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to update authorization: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -775,7 +785,7 @@ export async function revokeAuthorization(id: string): Promise<void> {
     // First get the authorization to extract googleSubject (non-atomic read)
     const auth = await getAuthorization(id);
     if (!auth) {
-      console.warn('[AUTH_STORE] Authorization not found for revocation:', id);
+      console.warn('[AUTH_STORE] Authorization not found for revocation');
       return;
     }
 
@@ -814,14 +824,14 @@ export async function revokeAuthorization(id: string): Promise<void> {
     );
 
     if (result === 0) {
-      console.warn('[AUTH_STORE] Authorization revocation rejected: authorization not found', id);
+      console.warn('[AUTH_STORE] Authorization revocation rejected: authorization not found');
       return;
     }
 
-    console.log('[AUTH_STORE] Authorization revoked atomically:', id);
+    console.log('[AUTH_STORE] Authorization revoked atomically');
   } catch (error) {
     console.error('[AUTH_STORE] Revoke failed:', error);
-    throw new Error(`Failed to revoke authorization ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to revoke authorization: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -847,7 +857,7 @@ export async function revokeAuthorizationWithSessions(id: string): Promise<void>
     // First get the authorization to extract googleSubject (non-atomic read)
     const auth = await getAuthorization(id);
     if (!auth) {
-      console.warn('[AUTH_STORE] Authorization not found for revocation:', id);
+      console.warn('[AUTH_STORE] Authorization not found for revocation');
       return;
     }
 
@@ -901,10 +911,10 @@ export async function revokeAuthorizationWithSessions(id: string): Promise<void>
     );
 
     const revokedCount = result as number;
-    console.log('[AUTH_STORE] Authorization and sessions revoked atomically:', id, 'sessions:', revokedCount);
+    console.log('[AUTH_STORE] Authorization and sessions revoked atomically:', 'sessions:', revokedCount);
   } catch (error) {
     console.error('[AUTH_STORE] Revoke with sessions failed:', error);
-    throw new Error(`Failed to revoke authorization with sessions ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(`Failed to revoke authorization with sessions: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
@@ -926,7 +936,7 @@ export async function deleteAuthorization(id: string): Promise<void> {
       // Clean up session index
       await client.del(namespacedKey(`drive:auth:sessions:${id}`));
 
-      console.log('[AUTH_STORE] Authorization deleted:', id);
+      console.log('[AUTH_STORE] Authorization deleted');
     }
   } catch (error) {
     console.error('[AUTH_STORE] Delete failed:', error);
