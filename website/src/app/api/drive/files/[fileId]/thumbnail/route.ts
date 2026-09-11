@@ -38,7 +38,7 @@ export async function GET(
   // P0 FIX: Accept both corpusId (authoritative) and legacy driveId
   const corpusId = searchParams.get('corpusId') || searchParams.get('driveId') || undefined;
 
-  console.log('[MEDIA_PROXY_REQUEST_STARTED]', { fileId, corpusId });
+  console.log('[MEDIA_PROXY_REQUEST_STARTED]', { fileId });
 
   try {
     // P0 FIX: Check Workbench authentication for preview operation
@@ -46,7 +46,6 @@ export async function GET(
     const isWorkbenchAuthenticated = await workbenchSession.isAuthenticated();
     if (!isWorkbenchAuthenticated) {
       console.error('[MEDIA_PROXY_REQUEST_REJECTED]', { 
-        fileId, 
         reason: 'WORKBENCH_AUTH_REQUIRED' 
       });
       return NextResponse.json(
@@ -59,7 +58,6 @@ export async function GET(
     const authenticated = await isAuthenticated();
     if (!authenticated) {
       console.error('[MEDIA_PROXY_REQUEST_REJECTED]', { 
-        fileId, 
         reason: 'NOT_AUTHENTICATED' 
       });
       return NextResponse.json(
@@ -75,7 +73,6 @@ export async function GET(
     console.log('[DRIVE_AUTHORIZATION] SESSION_IDENTITY_VERIFIED', {
       sessionEmail: sessionIdentity?.email,
       operation: 'thumbnail',
-      fileId,
     });
     
     // Verify the Drive file is accessible to the authenticated session
@@ -84,7 +81,6 @@ export async function GET(
     const fileAuth = await verifyCorpusAuthorization(fileId, corpusId);
     if (!fileAuth.authorized) {
       console.error('[DRIVE_AUTHORIZATION] FILE_NOT_AUTHORIZED', {
-        fileId,
         reason: fileAuth.reason,
       });
       return NextResponse.json(
@@ -97,18 +93,17 @@ export async function GET(
     }
     
     console.log('[DRIVE_AUTHORIZATION] FILE_ACCESS_VERIFIED', {
-      fileId,
       corpus: fileAuth.corpus,
     });
 
-    console.log('[MEDIA_PROXY_AUTH_RESOLVED]', { fileId, corpusId, hasAuth: true });
+    console.log('[MEDIA_PROXY_AUTH_RESOLVED]', { hasAuth: true });
 
     // Use Workbench user OAuth credentials
     const auth = await getOAuthClient();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const drive = google.drive({ version: 'v3', auth: auth as any });
 
-    console.log('[MEDIA_PROXY_DRIVE_FETCH_STARTED]', { fileId, corpusId });
+    console.log('[MEDIA_PROXY_DRIVE_FETCH_STARTED]');
 
     // Get file metadata including mimeType and size FIRST
     const getFileParams: Record<string, unknown> = {
@@ -126,7 +121,6 @@ export async function GET(
     // Do NOT default to 'image/jpeg' - this creates false positive evidence
     if (!mimeType) {
       console.error('[MEDIA_PROXY_REQUEST_REJECTED]', { 
-        fileId, 
         reason: 'MISSING_MIME_TYPE',
         classification: 'unknown'
       });
@@ -143,7 +137,6 @@ export async function GET(
     // CRITICAL: Reject files larger than size limit before downloading
     if (fileSize > MAX_FILE_SIZE) {
       console.error('[MEDIA_PROXY_REQUEST_REJECTED]', { 
-        fileId, 
         reason: 'FILE_TOO_LARGE',
         fileSize,
         maxSize: MAX_FILE_SIZE
@@ -160,7 +153,6 @@ export async function GET(
     }
 
     console.log('[MEDIA_PROXY_DRIVE_FETCH_SUCCESS]', { 
-      fileId, 
       mimeType,
       fileSize
     });
@@ -168,7 +160,6 @@ export async function GET(
     // Verify it's an image type BEFORE downloading
     if (!mimeType.startsWith('image/')) {
       console.log('[MEDIA_PROXY_REQUEST_REJECTED]', { 
-        fileId, 
         reason: 'NOT_AN_IMAGE',
         mimeType,
         classification: mimeType.startsWith('video/') ? 'video' : 
@@ -185,7 +176,7 @@ export async function GET(
       );
     }
 
-    console.log('[MEDIA_PROXY_MEDIA_DOWNLOAD_STARTED]', { fileId, corpusId });
+    console.log('[MEDIA_PROXY_MEDIA_DOWNLOAD_STARTED]');
 
     // Try thumbnail first, fall back to full media if thumbnail unavailable
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -201,7 +192,7 @@ export async function GET(
       const thumbnailLink = (thumbnailResponse.data as any).thumbnailLink;
       
       if (thumbnailLink) {
-        console.log('[MEDIA_PROXY_THUMBNAIL_AVAILABLE]', { fileId, thumbnailLink });
+        console.log('[MEDIA_PROXY_THUMBNAIL_AVAILABLE]', { fileId });
         
         // Fetch thumbnail bytes
         const thumbnailResponseBuffer = await fetch(thumbnailLink);
@@ -231,14 +222,12 @@ export async function GET(
     const imageBuffer = Buffer.from(mediaResponse.data as ArrayBuffer);
 
     console.log('[MEDIA_PROXY_MEDIA_DOWNLOAD_SUCCESS]', { 
-      fileId, 
       size: imageBuffer.byteLength 
     });
 
     // Validate we got actual image bytes
     if (imageBuffer.byteLength === 0) {
       console.error('[MEDIA_PROXY_REQUEST_FAILED]', { 
-        fileId, 
         reason: 'EMPTY_RESPONSE' 
       });
       return NextResponse.json(
@@ -250,7 +239,6 @@ export async function GET(
     // Validate download size against limit (safety check)
     if (imageBuffer.byteLength > MAX_FILE_SIZE) {
       console.error('[MEDIA_PROXY_REQUEST_FAILED]', { 
-        fileId, 
         reason: 'DOWNLOADED_FILE_TOO_LARGE',
         downloadedSize: imageBuffer.byteLength,
         maxSize: MAX_FILE_SIZE
@@ -287,7 +275,6 @@ export async function GET(
 
     if (!isValidImage) {
       console.error('[MEDIA_PROXY_REQUEST_FAILED]', { 
-        fileId, 
         reason: 'INVALID_IMAGE_MAGIC_BYTES',
         mimeType,
         firstBytesHex: firstBytes.slice(0, 8).toString('hex')
@@ -299,17 +286,14 @@ export async function GET(
     }
 
     console.log('[MEDIA_PROXY_RESPONSE_CONTENT_TYPE]', { 
-      fileId, 
       contentType: mimeType 
     });
 
     console.log('[MEDIA_PROXY_RESPONSE_BYTES]', { 
-      fileId, 
       size: imageBuffer.byteLength 
     });
 
     console.log('[MEDIA_PROXY_REQUEST_SUCCESS]', { 
-      fileId, 
       contentType: mimeType, 
       size: imageBuffer.byteLength 
     });
@@ -323,7 +307,6 @@ export async function GET(
     });
   } catch (error) {
     console.error('[MEDIA_PROXY_REQUEST_FAILED]', {
-      fileId,
       reason: error instanceof Error ? error.message : 'Unknown error'
     });
     // Return safe error classification, not internal details

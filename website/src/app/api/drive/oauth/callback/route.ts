@@ -297,7 +297,7 @@ export async function GET(request: Request) {
       tokenData.refresh_token
     );
 
-    console.log('[DRIVE OAUTH FORENSIC] Authorization persisted:', authorization.id);
+    console.log('[DRIVE OAUTH FORENSIC] Authorization persisted');
 
     // Create browser session
     const userAgent = request.headers.get('user-agent') || 'unknown';
@@ -315,7 +315,7 @@ export async function GET(request: Request) {
 
     // Clear stale drive_session_id to prevent old authorization reuse
     cookieStore.delete('drive_session_id');
-    console.log('[DRIVE OAUTH FORENSIC] Stale drive_session_id cleared');
+    console.log('[DRIVE OAUTH FORENSIC] Stale session cookie cleared');
 
     // Issue opaque session ID to browser instead of OAuth tokens
     cookieStore.set('drive_session_id', session.id, {

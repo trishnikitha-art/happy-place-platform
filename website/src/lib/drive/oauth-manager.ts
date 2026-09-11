@@ -41,7 +41,7 @@ function safeCorrelationId(identifier: string): string {
  * No process-level state, no background callbacks calling cookies().
  */
 export async function createOAuthClient(credentials: DriveCredentials, authorizationId: string): Promise<InstanceType<typeof google.auth.OAuth2>> {
-  console.log('[OAUTH_MANAGER] Creating OAuth client for authorization:', authorizationId);
+  console.log('[OAUTH_MANAGER] Creating OAuth client');
   
   const clientId = process.env.GOOGLE_CLIENT_ID;
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
@@ -65,7 +65,7 @@ export async function createOAuthClient(credentials: DriveCredentials, authoriza
     scope: credentials.scope,
   });
 
-  console.log('[OAUTH_MANAGER] OAuth2Client created for authorization:', authorizationId);
+  console.log('[OAUTH_MANAGER] OAuth2Client created');
 
   return oauth2Client;
 }
@@ -86,7 +86,7 @@ async function explicitTokenRefresh(
   oauth2Client: InstanceType<typeof google.auth.OAuth2>,
   authorizationId: string
 ): Promise<void> {
-  console.log('[OAUTH_MANAGER] Explicit token refresh for authorization');
+  console.log('[OAUTH_MANAGER] Explicit token refresh started');
   
   try {
     // P0 FIX: Preserve existing refresh token before refresh
@@ -95,7 +95,6 @@ async function explicitTokenRefresh(
     const existingRefreshToken = existingCredentials.refresh_token as string;
     
     console.log('[OAUTH_MANAGER] Token refresh - before Google API call', {
-      authorizationId,
       hasExistingRefreshToken: !!existingRefreshToken,
       currentExpiry: existingCredentials.expiry_date ? new Date(existingCredentials.expiry_date as number).toISOString() : 'none',
     });
@@ -125,7 +124,6 @@ async function explicitTokenRefresh(
     }
     
     console.log('[OAUTH_MANAGER] Token refresh details', {
-      authorizationId,
       newRefreshTokenProvided: !!newRefreshToken,
       existingRefreshTokenPreserved: !newRefreshToken && !!existingRefreshToken,
       expiryDate: new Date(expiryDate).toISOString()
@@ -146,7 +144,7 @@ async function explicitTokenRefresh(
       errorMessage: error instanceof Error ? error.message : String(error),
       errorStack: error instanceof Error ? error.stack : 'none',
     });
-    throw new Error(`Explicit token refresh failed for authorization ${authorizationId}: ${error instanceof Error ? error.message : String(error)}`);
+    throw new Error(`Explicit token refresh failed: ${error instanceof Error ? error.message : String(error)}`);
   }
 }
 
@@ -179,7 +177,7 @@ export async function getOAuthClient(): Promise<InstanceType<typeof google.auth.
     throw new Error('HPP_WORKBENCH_PRINCIPAL_ID not configured - Drive authorization cannot be bound to Workbench principal');
   }
   
-  console.log('[OAUTH_MANAGER] Workbench principal authenticated:', currentPrincipalId);
+  console.log('[OAUTH_MANAGER] Workbench principal authenticated');
   
   // Resolve authorization ID ONLY from current authenticated session
   // NEVER accept authorizationId from caller - this is a security boundary
@@ -240,7 +238,7 @@ export async function getOAuthClient(): Promise<InstanceType<typeof google.auth.
       currentExpiry: credentials.expiry_date ? new Date(credentials.expiry_date).toISOString() : 'unknown',
     });
     await explicitTokenRefresh(oauth2Client, effectiveAuthorizationId);
-    console.log('[OAUTH_MANAGER] Token refresh successful for authorization');
+    console.log('[OAUTH_MANAGER] Token refresh successful');
   }
 
   // Validate token is accessible without triggering internal refresh
@@ -249,7 +247,7 @@ export async function getOAuthClient(): Promise<InstanceType<typeof google.auth.
     if (!tokens.token) {
       console.log('[OAUTH_MANAGER] Token validation failed, attempting recovery refresh');
       await explicitTokenRefresh(oauth2Client, effectiveAuthorizationId);
-      console.log('[OAUTH_MANAGER] Recovery refresh successful for authorization');
+      console.log('[OAUTH_MANAGER] Recovery refresh successful');
     }
   } catch (error) {
     console.error('[OAUTH_MANAGER] Token validation failed, attempting recovery refresh:', error);
@@ -281,7 +279,7 @@ export async function getOAuthClient(): Promise<InstanceType<typeof google.auth.
         throw new Error('OAuth authorization failed. Please re-authenticate with Google Drive.');
       } else {
         // Transient failure - explicit error, not swallowed
-        console.log('[OAUTH_MANAGER] Transient token refresh failure for authorization');
+        console.log('[OAUTH_MANAGER] Transient token refresh failure');
         throw new Error(`Token refresh failed (transient): ${errorMessage}`);
       }
     }

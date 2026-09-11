@@ -66,9 +66,7 @@ export async function GET() {
     const authorization = await getAuthorization(session.authorizationId);
     console.log('[DRIVE AUTH STATUS FORENSIC] Authorization record check:', {
       hasAuthorization: !!authorization,
-      authorizationId: session.authorizationId.substring(0, 8) + '...',
       authorizationStatus: authorization?.status || 'none',
-      authorizationGoogleSubject: authorization?.googleSubject?.substring(0, 8) + '...' || 'none',
       hasAccessToken: !!authorization?.encryptedAccessToken,
       hasRefreshToken: !!authorization?.encryptedRefreshToken,
       accessTokenExpiresAt: authorization?.accessTokenExpiresAt || 'none',

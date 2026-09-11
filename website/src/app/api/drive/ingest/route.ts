@@ -404,7 +404,6 @@ export async function POST(request: Request) {
         requestId,
         sessionEmail: sessionIdentity?.email,
         operation: 'ingest',
-        fileId,
       });
       
       // Verify the Drive file is accessible to the authenticated session
@@ -415,7 +414,6 @@ export async function POST(request: Request) {
       if (!fileAuth.authorized) {
         console.error('[DRIVE_AUTHORIZATION] FILE_NOT_AUTHORIZED', {
           requestId,
-          fileId,
           reason: fileAuth.reason,
         });
         return NextResponse.json(
@@ -432,7 +430,6 @@ export async function POST(request: Request) {
       
       console.log('[DRIVE_AUTHORIZATION] FILE_ACCESS_VERIFIED', {
         requestId,
-        fileId,
         corpus: fileAuth.corpus,
       });
     }
@@ -863,7 +860,6 @@ export async function POST(request: Request) {
     console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION stage started', {
       requestId,
       mediaId,
-      fileId,
     });
 
     let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
