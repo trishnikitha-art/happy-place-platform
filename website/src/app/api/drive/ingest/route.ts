@@ -44,7 +44,7 @@ import { verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
 interface ReconciliationResult {
   reconciled: boolean;
   updated: string[];
-  error?: string;
+  error?: string; // P0 FIX: Signal when reconciliation failed with explicit error message
   incomplete?: boolean; // P0 FIX: Signal when some assignments could not be reconciled due to media lookup failures
   repaired: boolean; // P0 FIX: Signal when poisoned PublishedMediaAsset records are repaired
   brokenAssignments?: Array<{serviceSlug: string, mediaId: string}>; // P0 FIX: Track assignments pointing to nonexistent media (circular dependency)
@@ -638,9 +638,9 @@ export async function POST(request: Request) {
             reason: 'Asset passed public completeness check (shape + real hash + Blob proof + required variants)',
           });
 
-          // CRITICAL: Run assignment reconciliation for deduplicated media (optional, non-fatal)
+          // CRITICAL: Run assignment reconciliation for deduplicated media
           // This ensures DriveReference assignments are repaired when re-ingesting the same content
-          // But materialization succeeds even if reconciliation fails
+          // P0 FIX: Assignment reconciliation failures must be reported as partial success, not silent success
           let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
           if (fileId) {
             try {
@@ -651,11 +651,20 @@ export async function POST(request: Request) {
                 requestId
               );
             } catch (reconciliationError) {
-              console.warn('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION failed (non-fatal)', {
+              console.error('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION FAILED', {
                 requestId,
                 mediaId: existingMedia.id,
                 error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
               });
+              // Mark reconciliation as failed but don't fail the entire ingestion
+              // The asset is still available for manual assignment in Workbench
+              reconciliationResult = {
+                reconciled: false,
+                updated: [],
+                repaired: false,
+                brokenAssignments: [],
+                error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
+              };
             }
           }
 
@@ -849,12 +858,12 @@ export async function POST(request: Request) {
       source: mediaRecord.source,
     });
 
-    // 8. CRITICAL: Run assignment reconciliation (optional, non-fatal)
+    // 8. CRITICAL: Run assignment reconciliation
+    // P0 FIX: Assignment reconciliation failures must be reported as partial success, not silent success
     console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION stage started', {
       requestId,
       mediaId,
       fileId,
-      note: 'Reconciliation is optional - materialization succeeds even if no assignments exist'
     });
 
     let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
@@ -873,10 +882,19 @@ export async function POST(request: Request) {
           repaired: reconciliationResult.repaired,
         });
       } catch (reconciliationError) {
-        console.error('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION failed', {
+        console.error('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION FAILED', {
           requestId,
           error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
         });
+        // Mark reconciliation as failed but don't fail the entire ingestion
+        // The asset is still available for manual assignment in Workbench
+        reconciliationResult = {
+          reconciled: false,
+          updated: [],
+          repaired: false,
+          brokenAssignments: [],
+          error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
+        };
       }
     }
 
