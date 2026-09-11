@@ -48,7 +48,8 @@ export function loadBrandManifest(): BrandManifest {
 /**
  * Get homepage hero image
  * Returns brand hero or null if not set
- * Uses static configuration from brand.v1.json
+ * First checks runtime assignment store (Workbench manual assignments)
+ * Falls back to static configuration from brand.v1.json
  * Uses public media gate to ensure only PublishedMediaAsset can be returned
  */
 export async function getHomepageHero(): Promise<BrandHero | null> {
@@ -57,8 +58,52 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
   
   console.log('[PUBLIC_READER] HOMEPAGE_HERO_REQUEST', { requestId });
   
-  // Use static configuration directly for brand hero
-  // Brand media is authoritative in brand.v1.json, not through runtime assignments
+  // Check runtime assignment store first (Workbench manual assignments)
+  // Assignment key: brand-hero-background (matches slot ID from VisualSlot)
+  try {
+    const { getServiceCardAssignment } = await import('@/lib/assignment-store');
+    const assignment = await getServiceCardAssignment('brand-hero-background', requestId);
+    
+    if (assignment?.mediaId) {
+      console.log('[PUBLIC_READER] RUNTIME_ASSIGNMENT_FOUND', {
+        requestId,
+        serviceSlug: 'brand-hero-background',
+        mediaId: assignment.mediaId,
+      });
+      
+      // Resolve mediaId through public media gate (rejects Drive references)
+      const { resolvePublicMedia } = await import('@/lib/media');
+      const resolvedMedia = await resolvePublicMedia(assignment.mediaId);
+      
+      if (resolvedMedia) {
+        console.log('[PUBLIC_MEDIA_GATE] BRAND_HERO_APPROVED_FROM_ASSIGNMENT', { 
+          requestId, 
+          mediaId: assignment.mediaId,
+          resolvedMediaId: resolvedMedia.id 
+        });
+        // Return the full resolved Media object from assignment
+        return {
+          ...manifest.homepageHero,
+          mediaId: assignment.mediaId,
+          resolvedMedia,
+        };
+      } else {
+        console.error('[PUBLIC_MEDIA_GATE] BRAND_HERO_ASSIGNMENT_REJECTED', {
+          requestId,
+          mediaId: assignment.mediaId
+        });
+      }
+    } else {
+      console.log('[PUBLIC_READER] NO_RUNTIME_ASSIGNMENT - USING_STATIC_CONFIG', { requestId });
+    }
+  } catch (error) {
+    console.error('[PUBLIC_READER] ASSIGNMENT_READ_ERROR - FALLING_BACK_TO_STATIC', {
+      requestId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+  
+  // Fall back to static configuration from brand.v1.json
   if (manifest.homepageHero.mediaId) {
     console.log('[PUBLIC_READER] STATIC_BRAND_HERO_MEDIA_ID', {
       requestId,
@@ -70,7 +115,7 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
     const resolvedMedia = await resolvePublicMedia(manifest.homepageHero.mediaId);
     
     if (resolvedMedia) {
-      console.log('[PUBLIC_MEDIA_GATE] BRAND_HERO_APPROVED', { 
+      console.log('[PUBLIC_MEDIA_GATE] BRAND_HERO_APPROVED_FROM_STATIC', { 
         requestId, 
         mediaId: manifest.homepageHero.mediaId,
         resolvedMediaId: resolvedMedia.id 
@@ -90,7 +135,7 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
   }
 
   // P0 FIX: No static fallback - return null mediaId if no valid media
-  console.log('[PUBLIC_READER] NO_STATIC_MEDIA_ID - RETURNING_NULL_MEDIAID', { requestId });
+  console.log('[PUBLIC_READER] NO_VALID_MEDIA - RETURNING_NULL_MEDIAID', { requestId });
   return {
     ...manifest.homepageHero,
     mediaId: null, // No image without valid media
@@ -100,7 +145,8 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
 /**
  * Get owner portrait
  * Returns owner portrait or null if not set
- * Uses static configuration from brand.v1.json
+ * First checks runtime assignment store (Workbench manual assignments)
+ * Falls back to static configuration from brand.v1.json
  * Uses public media gate to ensure only PublishedMediaAsset can be returned
  */
 export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
@@ -109,8 +155,53 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
   
   console.log('[BRAND] OWNER_PORTRAIT_REQUEST', { requestId });
   
-  // Use static configuration directly for owner portrait
-  // Brand media is authoritative in brand.v1.json, not through runtime assignments
+  // Check runtime assignment store first (Workbench manual assignments)
+  // Assignment key: brand-portrait-homepage (matches slot ID from VisualSlot)
+  // Homepage uses slot ID: homepage-owner-portrait-slot
+  try {
+    const { getServiceCardAssignment } = await import('@/lib/assignment-store');
+    const assignment = await getServiceCardAssignment('brand-portrait-homepage', requestId);
+    
+    if (assignment?.mediaId) {
+      console.log('[BRAND] RUNTIME_ASSIGNMENT_FOUND', {
+        requestId,
+        serviceSlug: 'brand-portrait-homepage',
+        mediaId: assignment.mediaId,
+      });
+      
+      // Resolve mediaId through public media gate (rejects Drive references)
+      const { resolvePublicMedia } = await import('@/lib/media');
+      const resolvedMedia = await resolvePublicMedia(assignment.mediaId);
+      
+      if (resolvedMedia) {
+        console.log('[PUBLIC_MEDIA_GATE] BRAND_PORTRAIT_APPROVED_FROM_ASSIGNMENT', { 
+          requestId, 
+          mediaId: assignment.mediaId,
+          resolvedMediaId: resolvedMedia.id 
+        });
+        // Return the full resolved Media object from assignment
+        return {
+          ...manifest.ownerPortrait,
+          mediaId: assignment.mediaId,
+          resolvedMedia,
+        };
+      } else {
+        console.error('[PUBLIC_MEDIA_GATE] BRAND_PORTRAIT_ASSIGNMENT_REJECTED', {
+          requestId,
+          mediaId: assignment.mediaId
+        });
+      }
+    } else {
+      console.log('[BRAND] NO_RUNTIME_ASSIGNMENT - USING_STATIC_CONFIG', { requestId });
+    }
+  } catch (error) {
+    console.error('[BRAND] ASSIGNMENT_READ_ERROR - FALLING_BACK_TO_STATIC', {
+      requestId,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    });
+  }
+  
+  // Fall back to static configuration from brand.v1.json
   if (manifest.ownerPortrait.mediaId) {
     console.log('[BRAND] STATIC_OWNER_PORTRAIT_MEDIA_ID', {
       requestId,
@@ -122,7 +213,7 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
     const resolvedMedia = await resolvePublicMedia(manifest.ownerPortrait.mediaId);
     
     if (resolvedMedia) {
-      console.log('[PUBLIC_MEDIA_GATE] BRAND_PORTRAIT_APPROVED', { 
+      console.log('[PUBLIC_MEDIA_GATE] BRAND_PORTRAIT_APPROVED_FROM_STATIC', { 
         requestId, 
         mediaId: manifest.ownerPortrait.mediaId,
         resolvedMediaId: resolvedMedia.id 
@@ -142,7 +233,7 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
   }
 
   // P0 FIX: No static fallback - return null mediaId if no valid media
-  console.log('[BRAND] NO_STATIC_MEDIA_ID - RETURNING_NULL_MEDIAID', { requestId });
+  console.log('[BRAND] NO_VALID_MEDIA - RETURNING_NULL_MEDIAID', { requestId });
   return {
     ...manifest.ownerPortrait,
     mediaId: null, // No image without valid media

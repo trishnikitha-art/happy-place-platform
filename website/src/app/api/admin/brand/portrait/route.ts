@@ -132,7 +132,9 @@ export async function POST(request: Request) {
 
     // P0 FIX: Calculate slot identity once per request, before production/development split
     // One request → one resolved slot identity → every persistence layer uses that identity
-    const slotSpecificKey = slotId === 'about-owner-portrait-slot' ? 'brand-portrait-about' : 'brand-portrait-homepage';
+    const slotSpecificKey = slotId === 'about-owner-portrait-slot' ? 'brand-portrait-about' :
+                          slotId === 'homepage-owner-portrait-slot' ? 'brand-portrait-homepage' :
+                          'brand-portrait-homepage';
 
     // Initialize shared Redis client and transaction ID before branching
     const redis = getRedisClient();
