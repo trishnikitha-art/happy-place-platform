@@ -75,11 +75,18 @@ const AUGUST_3_BASELINE = [
 // Website visual slots from semantic analysis
 const WEBSITE_VISUAL_SLOTS: VisualSlot[] = [
   // Homepage
-  { id: 'homepage-hero-slot', route: '/', page: 'Homepage', component: 'HeroSection', section: 'Hero', slotName: 'Hero Background', currentMediaId: 'homepage-hero-canonical', physicalStatus: 'PRESENT' },
+  { id: 'hero-background', route: '/', page: 'Homepage', component: 'HeroSection', section: 'Hero', slotName: 'Hero Background', currentMediaId: 'homepage-hero', physicalStatus: 'PRESENT' },
   { id: 'homepage-logo-slot', route: '/', page: 'Homepage', component: 'SiteHeader', section: 'Header', slotName: 'Logo', currentMediaId: null, physicalStatus: 'PRESENT' },
   { id: 'homepage-owner-portrait-slot', route: '/', page: 'Homepage', component: 'HeroSection', section: 'Hero', slotName: 'Owner Portrait', currentMediaId: 'brand-portrait', physicalStatus: 'MISSING', augustDriveId: 'brand-portrait-001' },
-  { id: 'homepage-service-card-slot-fences', route: '/', page: 'Homepage', component: 'ServiceCard', section: 'Services', slotName: 'Fences Service Card', currentMediaId: null, physicalStatus: 'PRESENT' },
-  { id: 'homepage-service-card-slot-painting', route: '/', page: 'Homepage', component: 'ServiceCard', section: 'Services', slotName: 'Painting Service Card', currentMediaId: null, physicalStatus: 'PRESENT' },
+  { id: 'homepage-service-card-slot-decks', route: '/', page: 'Homepage', component: 'ServiceCard', section: 'Services', slotName: 'Decks Service Card', currentMediaId: null, physicalStatus: 'PRESENT' },
+  { id: 'homepage-service-card-slot-fences', route: '/', page: 'Homepage', component: 'ServiceCard', section: 'Services', slotName: 'Fences Service Card', currentMediaId: 'fences-001-hero', physicalStatus: 'PRESENT' },
+  { id: 'homepage-service-card-slot-bathrooms', route: '/', page: 'Homepage', component: 'ServiceCard', section: 'Services', slotName: 'Bathroom Remodeling Service Card', currentMediaId: 'bathroom-remodeling-001-hero', physicalStatus: 'PRESENT' },
+  { id: 'homepage-service-card-slot-painting', route: '/', page: 'Homepage', component: 'ServiceCard', section: 'Services', slotName: 'Painting Service Card', currentMediaId: 'outdoor-living-001-hero', physicalStatus: 'PRESENT' },
+  { id: 'homepage-service-card-slot-finish-carpentry', route: '/', page: 'Homepage', component: 'ServiceCard', section: 'Services', slotName: 'Built-Ins Service Card', currentMediaId: 'builtins-001-hero', physicalStatus: 'PRESENT' },
+  { id: 'homepage-service-card-slot-historic-restoration', route: '/', page: 'Homepage', component: 'ServiceCard', section: 'Services', slotName: 'Historic Restoration Service Card', currentMediaId: 'repairs-001-hero', physicalStatus: 'PRESENT' },
+  { id: 'homepage-service-card-slot-pergolas', route: '/', page: 'Homepage', component: 'ServiceCard', section: 'Services', slotName: 'Pergolas Service Card', currentMediaId: 'pergolas-001-hero', physicalStatus: 'PRESENT' },
+  { id: 'homepage-service-card-slot-adus', route: '/', page: 'Homepage', component: 'ServiceCard', section: 'Services', slotName: 'ADUs Service Card', currentMediaId: 'fences-001-hero', physicalStatus: 'PRESENT' },
+  { id: 'homepage-service-card-slot-drywall', route: '/', page: 'Homepage', component: 'ServiceCard', section: 'Services', slotName: 'Drywall Service Card', currentMediaId: 'repairs-001-hero', physicalStatus: 'PRESENT' },
   { id: 'homepage-featured-transformation-before-slot', route: '/', page: 'Homepage', component: 'BeforeAfterSlider', section: 'Featured Transformation', slotName: 'Before Image', currentMediaId: null, physicalStatus: 'MISSING', augustDriveId: 'painting-001-variant-001' },
   { id: 'homepage-featured-transformation-after-slot', route: '/', page: 'Homepage', component: 'BeforeAfterSlider', section: 'Featured Transformation', slotName: 'After Image', currentMediaId: null, physicalStatus: 'MISSING', augustDriveId: 'painting-001-master' },
   
@@ -247,8 +254,9 @@ function classifyAsset(media: Media, augustData?: any): VisualAsset['classificat
 function getUsageSlots(media: Media): VisualSlot[] {
   const slots: VisualSlot[] = [];
   
-  if (media.filename === 'hero-background-enhanced.jpg') {
-    slots.push(WEBSITE_VISUAL_SLOTS.find(s => s.id === 'homepage-hero-slot')!);
+  // P0 FIX: Use canonical media ID instead of filename for hero
+  if (media.id === 'homepage-hero') {
+    slots.push(WEBSITE_VISUAL_SLOTS.find(s => s.id === 'hero-background')!);
   }
   
   if (media.filename === 'logo.png') {

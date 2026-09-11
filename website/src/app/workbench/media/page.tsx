@@ -268,30 +268,47 @@ export default function MediaWorkbench() {
         }));
       }
       
-      // P0 FIX: Eliminate authority split - KV is the ONLY runtime PublishedMediaAsset authority
-      // Static registry is bootstrap/recovery/evidence only, not a competing authority
-      // Drive assets are source inventory, not PublishedMediaAsset until materialized
-      // No silent authority merging - clear separation of concerns:
-      // - KV PublishedMediaAsset = runtime authority
-      // - Static registry = legacy evidence/bootstrap
-      // - Drive inventory = source-only references
+      // P0 FIX: Authority and visibility are not the same thing
+      // KV is the authoritative runtime mutation store for assignments
+      // But the Workbench should display ALL valid human-selectable media
+      // Union of: valid static published assets + valid KV published assets
+      // Drive-only/source-reference records visible as Drive inventory, not assignable public media
       
-      console.log('[WORKBENCH] AUTHORITY_MODEL_KV_ONLY', {
+      console.log('[WORKBENCH] AUTHORITY_MODEL_UNION', {
         kvMediaCount: dynamicMediaList.length,
         staticEvidenceCount: staticRegistry.length,
-        note: 'KV is the ONLY runtime PublishedMediaAsset authority. Static registry is legacy evidence only.',
+        note: 'Display union of valid static + KV published assets. KV remains authoritative for runtime mutations.',
       });
       
-      // Use KV as the primary authority - this is the constitutional model
-      const canonicalAssets = dynamicMediaList;
+      // Merge static published assets + KV published assets for display
+      // Deduplicate by canonical media ID and content hash
+      const combinedAssets = new Map<string, VisualAsset>();
+      
+      // Add static published assets first (bootstrap/static authority)
+      staticRegistry.forEach(asset => {
+        // Only include valid published assets from static authority
+        if (asset.source === 'local' && asset.lifecycleState === 'published') {
+          combinedAssets.set(asset.id, asset);
+        }
+      });
+      
+      // Add/override with KV published assets (runtime authority takes precedence)
+      dynamicMediaList.forEach(asset => {
+        // Only include valid published assets from KV
+        if (asset.source === 'local' && asset.lifecycleState === 'published') {
+          combinedAssets.set(asset.id, asset);
+        }
+      });
+      
+      const canonicalAssets = Array.from(combinedAssets.values());
       
       // Track static registry separately as legacy evidence (not merged into authority)
       const legacyStaticEvidence = staticRegistry;
       
-      console.log('[WORKBENCH] CANONICAL_KV_AUTHORITY_LOADED', {
-        kvPublishedAssets: canonicalAssets.length,
+      console.log('[WORKBENCH] CANONICAL_UNION_LOADED', {
+        combinedPublishedAssets: canonicalAssets.length,
         legacyStaticEvidence: legacyStaticEvidence.length,
-        sampleKV: canonicalAssets.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, source: a.source, lifecycleState: a.lifecycleState })),
+        sampleUnion: canonicalAssets.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, source: a.source, lifecycleState: a.lifecycleState })),
         sampleLegacy: legacyStaticEvidence.slice(0, 3).map(a => ({ id: a.id, filename: a.filename, source: a.source })),
       });
       

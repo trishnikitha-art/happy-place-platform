@@ -617,6 +617,7 @@ export function VisualSlot({
 
   // Always render same structure to avoid hydration mismatch
   // Only conditionally apply handlers and cursor style
+  // P0 FIX: Do NOT override caller geometry - VisualSlot should be invisible wrapper
   return (
     <div
       ref={elementRef}
@@ -624,8 +625,7 @@ export function VisualSlot({
       data-slot-id={id}
       data-slot-route={route}
       data-slot-section={section}
-      // P0 FIX: position: relative for absolute children positioning
-      style={isWorkbenchMode ? { cursor: 'pointer', position: 'relative' } : { position: 'relative' }}
+      style={isWorkbenchMode ? { cursor: 'pointer' } : undefined}
       onClick={isWorkbenchMode ? handleClick : undefined}
       onDragOver={isWorkbenchMode ? handleDragOver : undefined}
       onDrop={isWorkbenchMode ? handleDrop : undefined}
