@@ -16,19 +16,6 @@ import { cookies } from 'next/headers';
 import { getAuthorization } from './oauth-credential-store';
 import { getSession } from './session-store';
 import { decrypt, type EncryptionEnvelope } from './encryption';
-import crypto from 'crypto';
-
-/**
- * Generate safe correlation identifier for logging
- * 
- * Returns a short one-way hash of sensitive identifiers for correlation purposes.
- * This allows tracing without exposing bearer credentials in logs.
- * 
- * NEVER log the actual session ID, authorization ID, or other bearer credentials.
- */
-function safeCorrelationId(identifier: string): string {
-  return crypto.createHash('sha256').update(identifier).digest('hex').substring(0, 8);
-}
 
 export interface DriveCredentials {
   access_token: string;

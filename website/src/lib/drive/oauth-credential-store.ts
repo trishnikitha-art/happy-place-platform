@@ -642,8 +642,8 @@ async function createNewAuthorizationWithAtomicSubject(
     if (existingAuth.principalId !== currentPrincipalId) {
       // Principal mismatch - FAIL CLOSED
       console.error('[AUTH_STORE] Principal mismatch on existing authorization, refusing convergence', {
-        existingPrincipalId: existingAuth.principalId,
-        currentPrincipalId,
+        existingPrincipalId: safeCorrelationId(existingAuth.principalId),
+        currentPrincipalId: safeCorrelationId(currentPrincipalId),
       });
       throw new Error(`Principal mismatch - existing authorization belongs to different principal`);
     }

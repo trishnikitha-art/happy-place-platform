@@ -215,10 +215,7 @@ export async function getOAuthClient(): Promise<InstanceType<typeof google.auth.
     throw new Error('Drive authorization is not bound to current Workbench principal - authorization denied');
   }
   
-  console.log('[OAUTH_MANAGER] Principal binding verified:', {
-    authorizationPrincipalId: authorization.principalId,
-    currentPrincipalId,
-  });
+  console.log('[OAUTH_MANAGER] Principal binding verified');
   
   // Decrypt credentials
   const accessTokenEnvelope = JSON.parse(authorization.encryptedAccessToken) as EncryptionEnvelope;
