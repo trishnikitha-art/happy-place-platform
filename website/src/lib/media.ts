@@ -131,6 +131,25 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
       });
       return null;
     }
+    
+    // DEV_MODE_SKIP_KV: Fall back to static media authority for development testing
+    if (error instanceof Error && (error.message.includes('DEV_MODE_SKIP_KV') || error.name === 'KvUnavailableError')) {
+      console.log('[MEDIA] DEV_MODE_SKIP_KV - falling back to static media authority', {
+        mediaId: id,
+      });
+      
+      // Use static media authority as fallback
+      const staticMedia = getStaticMediaForBootstrap(id);
+      
+      if (staticMedia) {
+        console.log('[MEDIA] DEV_MODE_SKIP_KV - using static media', { mediaId: id });
+        return staticMedia;
+      }
+      
+      console.log('[MEDIA] DEV_MODE_SKIP_KV - static media not found', { mediaId: id });
+      return null;
+    }
+    
     // During runtime, this is a real dependency failure - fail closed with null
     console.error('[MEDIA] KV_RUNTIME_DEPENDENCY_FAILURE - FAILING_CLOSED:', {
       error: error instanceof Error ? error.message : 'Unknown error',
@@ -200,6 +219,29 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
     }
 
     console.log('[PUBLIC_MEDIA_GATE] APPROVED: static published media', { id });
+    return staticMedia;
+  }
+
+  // DEV_MODE_SKIP_KV: Use static authority during development without KV
+  if (process.env.DEV_MODE_SKIP_KV === 'true') {
+    console.log('[PUBLIC_MEDIA_GATE] DEV_MODE_SKIP_KV - using static authority', { id });
+    const staticMedia = getStaticMediaForBootstrap(id);
+    if (!staticMedia) {
+      console.log('[PUBLIC_MEDIA_GATE] DEV_MODE_SKIP_KV - static media not found', { id });
+      return null;
+    }
+
+    // Apply public media gate validation to static media
+    if (!isPublishedMediaAsset(staticMedia)) {
+      console.error('[PUBLIC_MEDIA_GATE] REJECTED: static media not a valid PublishedMediaAsset', { 
+        id, 
+        lifecycleState: staticMedia.lifecycleState,
+        source: staticMedia.source,
+      });
+      return null;
+    }
+
+    console.log('[PUBLIC_MEDIA_GATE] DEV_MODE_SKIP_KV - APPROVED: static published media', { id });
     return staticMedia;
   }
 

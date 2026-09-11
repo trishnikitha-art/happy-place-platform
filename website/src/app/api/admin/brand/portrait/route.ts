@@ -14,6 +14,7 @@ import { workbenchSession } from "@/lib/workbench-session";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
 import { getMediaByIdAsync } from "@/lib/media";
 import { isDriveReference, isPublishedMediaAsset } from "@/types/media";
+import type { Media } from "@/types/media";
 import { Redis } from '@upstash/redis';
 import { getKvNamespace } from '@/lib/environment';
 
@@ -80,7 +81,30 @@ export async function POST(request: Request) {
     // WORKBENCH ACCEPTANCE CONTRACT: DriveReference must be materialized before assignment
     // Check if mediaId is a DriveReference
     const media = await getMediaByIdAsync(mediaId);
+    let staticMedia = null;
+    
+    // DEV_MODE_SKIP_KV: Fall back to static media if KV is unavailable
     if (!media) {
+      console.log('[BRAND PORTRAIT] KV media not found, checking static authority', { mediaId });
+      
+      // Try static media authority as fallback
+      const { getStaticMediaForBootstrap } = await import('@/lib/media');
+      staticMedia = getStaticMediaForBootstrap(mediaId);
+      
+      if (staticMedia) {
+        console.log('[BRAND PORTRAIT] Using static media from authority', { mediaId });
+      } else {
+        console.error('[BRAND PORTRAIT] Media not found in KV or static authority', { mediaId });
+        return NextResponse.json(
+          { error: "Media not found", message: "The specified media ID does not exist in KV or static authority" },
+          { status: 404 }
+        );
+      }
+    }
+    
+    const resolvedMedia = media || staticMedia;
+    
+    if (!resolvedMedia) {
       return NextResponse.json(
         { error: "Media not found", message: "The specified media ID does not exist" },
         { status: 404 }
@@ -88,17 +112,17 @@ export async function POST(request: Request) {
     }
 
     // REJECT: DriveReference cannot be directly assigned - must be materialized first
-    if (isDriveReference(media)) {
+    if (isDriveReference(resolvedMedia)) {
       console.error('[WORKBENCH_ACCEPTANCE] REJECTED: DriveReference cannot be directly assigned', {
         requestId,
         mediaId,
-        lifecycleState: media.lifecycleState,
+        lifecycleState: resolvedMedia.lifecycleState,
       });
       return NextResponse.json(
         { 
           error: "Asset must be materialized", 
           message: "DriveReference cannot be directly assigned to public presentation. The asset must be materialized to a PublishedMediaAsset before assignment.",
-          lifecycleState: media.lifecycleState,
+          lifecycleState: resolvedMedia.lifecycleState,
           requiresMaterialization: true,
         },
         { status: 400 }
@@ -106,19 +130,19 @@ export async function POST(request: Request) {
     }
 
     // VALIDATE: Only PublishedMediaAsset can be assigned
-    if (!isPublishedMediaAsset(media)) {
+    if (!isPublishedMediaAsset(resolvedMedia)) {
       console.error('[WORKBENCH_ACCEPTANCE] REJECTED: Media is not a PublishedMediaAsset', {
         requestId,
         mediaId,
-        lifecycleState: media.lifecycleState,
-        source: media.source,
+        lifecycleState: resolvedMedia.lifecycleState,
+        source: resolvedMedia.source,
       });
       return NextResponse.json(
         { 
           error: "Invalid media lifecycle state", 
           message: "Only PublishedMediaAsset can be assigned to public presentation",
-          lifecycleState: media.lifecycleState,
-          source: media.source,
+          lifecycleState: resolvedMedia.lifecycleState,
+          source: resolvedMedia.source,
         },
         { status: 400 }
       );
@@ -127,7 +151,7 @@ export async function POST(request: Request) {
     console.log('[WORKBENCH_ACCEPTANCE] APPROVED: PublishedMediaAsset can be assigned', {
       requestId,
       mediaId,
-      lifecycleState: media.lifecycleState,
+      lifecycleState: resolvedMedia.lifecycleState,
     });
 
     // P0 FIX: Calculate slot identity once per request, before production/development split
@@ -191,7 +215,7 @@ export async function POST(request: Request) {
 
     // Development: Use assignment store directly
     const currentAssignment = await getServiceCardAssignment(slotSpecificKey, requestId);
-    const expectedRevision = currentAssignment?.revision;
+    const expectedRevision = currentAssignment?.revision ?? 0; // Default to 0 for create
 
     console.log('[BRAND PORTRAIT] CAS_READ', {
       requestId,
@@ -208,6 +232,20 @@ export async function POST(request: Request) {
       source: 'workbench' as const,
     };
 
+    // VALIDATE: static media must be a valid PublishedMediaAsset
+    // DEV_MODE_SKIP_KV: We already validated that resolvedMedia is a PublishedMediaAsset above
+    // Just check the static media has the required fields
+    if (resolvedMedia.lifecycleState !== 'published' || resolvedMedia.source !== 'local') {
+      console.error('[ASSIGNMENT_WRITE] REJECTED: static media is not a valid PublishedMediaAsset', {
+        operationId: requestId,
+        serviceSlug: assignment.serviceSlug,
+        mediaId: assignment.mediaId,
+        lifecycleState: resolvedMedia.lifecycleState,
+        source: resolvedMedia.source,
+      });
+      throw new Error(`Media is not a valid PublishedMediaAsset: lifecycleState=${resolvedMedia.lifecycleState}, source=${resolvedMedia.source}`);
+    }
+    
     await storeServiceCardAssignment(assignment, expectedRevision, requestId);
 
     console.log('[BRAND PORTRAIT] ASSIGNMENT_STORED', {

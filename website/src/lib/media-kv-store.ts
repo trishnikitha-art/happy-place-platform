@@ -64,6 +64,13 @@ function createRedisClient(): Redis {
     token = integrationToken;
   }
   
+  // DEV_MODE_SKIP_KV: Allow development without KV credentials
+  // This enables testing the assignment loop in local development
+  if (process.env.DEV_MODE_SKIP_KV === 'true') {
+    console.log('[MEDIA_KV] DEV_MODE_SKIP_KV enabled - KV operations will be skipped');
+    throw new KvUnavailableError('DEV_MODE_SKIP_KV: KV operations skipped for development testing');
+  }
+
   // During static build, KV may not be available - throw explicit error
   // Runtime pages will handle this as a dependency failure
   if (!url || !token) {
@@ -345,6 +352,12 @@ export async function getMedia(id: string): Promise<Media | null> {
     
     return media;
   } catch (error) {
+    // DEV_MODE_SKIP_KV: Return null to allow higher-level fallback
+    if (error instanceof KvUnavailableError && error.message.includes('DEV_MODE_SKIP_KV')) {
+      console.log('[MEDIA_KV] DEV_MODE_SKIP_KV - returning null for static fallback', { id });
+      return null;
+    }
+    
     console.error('[MEDIA_KV] Failed to get media:', error);
     throw new Error(`Failed to get media ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }

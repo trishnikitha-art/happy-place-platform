@@ -5,6 +5,8 @@
  * Stores assignments independently of static services.v1.json configuration.
  * Uses Upstash Redis for durable runtime storage.
  *
+ * DEV_MODE_SKIP_KV: In development without KV credentials, uses in-memory Map for testing.
+ *
  * ARCHITECTURAL BOUNDARIES:
  * - Read operations are PURE (no side effects)
  * - Cleanup operations are EXPLICIT MUTATION (clear intent)
@@ -15,6 +17,18 @@
 
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
+
+// In-memory store for DEV_MODE_SKIP_KV testing
+// Use global to survive Next.js hot module reloading in development
+declare global {
+  var __inMemoryAssignments: Map<string, ServiceCardAssignment> | undefined;
+}
+
+const inMemoryAssignments = global.__inMemoryAssignments || new Map<string, ServiceCardAssignment>();
+
+if (process.env.NODE_ENV === 'development') {
+  global.__inMemoryAssignments = inMemoryAssignments;
+}
 
 /**
  * P0 FIX: Removed createHash function - no fingerprint logging to prevent secret exposure
@@ -165,6 +179,13 @@ function createRedisClient(): Redis {
     ).map(key => ({ key, hasValue: !!process.env[key] })),
   });
   
+  // DEV_MODE_SKIP_KV: Allow development without KV credentials
+  // This enables testing the assignment loop in local development
+  if (process.env.DEV_MODE_SKIP_KV === 'true') {
+    console.log('[ASSIGNMENT_KV] DEV_MODE_SKIP_KV enabled - KV operations will be skipped');
+    throw new KvUnavailableError('DEV_MODE_SKIP_KV: KV operations skipped for development testing');
+  }
+
   // During static build, KV may not be available - throw explicit error
   // Runtime pages will handle this as a dependency failure
   if (!url || !token) {
@@ -521,6 +542,42 @@ export async function storeServiceCardAssignment(
     // Last-write-wins still applies when expectedRevision is not provided
     
   } catch (error) {
+    // DEV_MODE_SKIP_KV: Use in-memory store for development testing
+    if (error instanceof KvUnavailableError && error.message.includes('DEV_MODE_SKIP_KV')) {
+      console.log('[ASSIGNMENT_WRITE] DEV_MODE_SKIP_KV - using in-memory store', {
+        operationId,
+        serviceSlug: assignment.serviceSlug,
+      });
+      
+      const current = inMemoryAssignments.get(assignment.serviceSlug);
+      const currentRevision = current?.revision || 0;
+      
+      // CAS check for in-memory store
+      if (expectedRevision !== undefined && currentRevision !== expectedRevision) {
+        console.error('[ASSIGNMENT_WRITE] IN_MEMORY_CAS_FAILURE', {
+          operationId,
+          serviceSlug: assignment.serviceSlug,
+          expectedRevision,
+          actualRevision: currentRevision,
+        });
+        throw new Error(`CAS failure for ${assignment.serviceSlug}: expected revision ${expectedRevision}, got ${currentRevision}`);
+      }
+      
+      // Store with incremented revision
+      const newAssignment = {
+        ...assignment,
+        revision: currentRevision + 1,
+      };
+      inMemoryAssignments.set(assignment.serviceSlug, newAssignment);
+      
+      console.log('[ASSIGNMENT_WRITE] IN_MEMORY_SET_SUCCESS', {
+        operationId,
+        serviceSlug: assignment.serviceSlug,
+        revision: newAssignment.revision,
+      });
+      return;
+    }
+    
     console.error('[ASSIGNMENT_WRITE] FAILURE', {
       operationId,
       serviceSlug: assignment.serviceSlug,
@@ -584,12 +641,49 @@ export async function getServiceCardAssignment(serviceSlug: string, requestId?: 
 
     return assignment;
   } catch (error) {
+    // DEV_MODE_SKIP_KV: Use in-memory store for development testing
+    if (error instanceof KvUnavailableError && error.message.includes('DEV_MODE_SKIP_KV')) {
+      console.log('[ASSIGNMENT_READ] DEV_MODE_SKIP_KV - using in-memory store', {
+        operationId,
+        serviceSlug,
+      });
+      
+      const assignment = inMemoryAssignments.get(serviceSlug);
+      
+      if (!assignment) {
+        console.log('[ASSIGNMENT_READ] IN_MEMORY_NOT_FOUND', {
+          operationId,
+          serviceSlug,
+        });
+        return null;
+      }
+
+      // Validate readback schema
+      if (!validateServiceCardAssignment(assignment)) {
+        console.error('[ASSIGNMENT_READ] IN_MEMORY_SCHEMA_VALIDATION_FAILED', {
+          operationId,
+          serviceSlug,
+          assignment,
+          validationError: 'Readback failed schema validation',
+        });
+        return null;
+      }
+
+      console.log('[ASSIGNMENT_READ] IN_MEMORY_SUCCESS', {
+        operationId,
+        serviceSlug,
+        mediaId: assignment.mediaId,
+      });
+
+      return assignment;
+    }
+    
     console.error('[ASSIGNMENT_READ] FAILURE', {
       operationId,
       serviceSlug,
       error: error instanceof Error ? error.message : 'Unknown error',
     });
-    throw new Error(`Failed to retrieve assignment for ${serviceSlug}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return null;
   }
 }
 
