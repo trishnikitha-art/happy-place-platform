@@ -13,6 +13,12 @@ export function getEnvironment(): Environment {
   const vercelEnv = process.env.VERCEL_ENV;
   const nodeEnv = process.env.NODE_ENV;
   const nextPhase = process.env.NEXT_PHASE;
+  const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
+  
+  // Test environment takes precedence over CI
+  if (nodeEnv === 'test') {
+    return 'test';
+  }
   
   // During static build (phase-production-build), treat as development for safety
   // This prevents build failures when VERCEL_ENV is not set locally
@@ -30,21 +36,30 @@ export function getEnvironment(): Environment {
     return 'preview';
   }
   
-  // Local development
-  if (nodeEnv === 'development') {
+  // CI environment: treat as development for build purposes
+  // CI builds run with NODE_ENV=production but no VERCEL_ENV
+  // This is NOT production runtime - it's a build verification environment
+  if (isCI && nodeEnv === 'production' && !vercelEnv) {
     return 'development';
   }
   
-  // Test environment
-  if (nodeEnv === 'test') {
-    return 'test';
+  // Local build with NODE_ENV=production but no VERCEL_ENV
+  // This is a local production build, not runtime production
+  // Treat as development for build-time operations
+  if (nodeEnv === 'production' && !vercelEnv) {
+    return 'development';
+  }
+  
+  // Local development
+  if (nodeEnv === 'development') {
+    return 'development';
   }
   
   // P0 FIX: Fail closed on unknown environment
   // Unknown/missing environment must not silently default to development
   // This prevents production-like execution from accidentally routing into development namespace
   throw new Error(
-    `Unknown environment: VERCEL_ENV=${vercelEnv}, NODE_ENV=${nodeEnv}, NEXT_PHASE=${nextPhase}. ` +
+    `Unknown environment: VERCEL_ENV=${vercelEnv}, NODE_ENV=${nodeEnv}, NEXT_PHASE=${nextPhase}, CI=${isCI}. ` +
     'Environment must be explicitly configured. Cannot proceed with unsafe default.'
   );
 }

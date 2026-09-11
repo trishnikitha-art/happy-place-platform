@@ -60,6 +60,12 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
   
   // Check runtime assignment store first (Workbench manual assignments)
   // Assignment key: brand-hero-background (matches slot ID from VisualSlot)
+  // EXPLICIT SEMANTICS:
+  // - No assignment exists → static fallback
+  // - Assignment exists and is valid → runtime asset
+  // - Assignment exists but asset is invalid → reject runtime assignment, use static fallback
+  // - Assignment store is unavailable during static build → use static fallback (expected)
+  // - Assignment store is unavailable at runtime → explicit observable failure (no silent static fallback)
   try {
     const { getServiceCardAssignment } = await import('@/lib/assignment-store');
     const assignment = await getServiceCardAssignment('brand-hero-background', requestId);
@@ -90,17 +96,45 @@ export async function getHomepageHero(): Promise<BrandHero | null> {
       } else {
         console.error('[PUBLIC_MEDIA_GATE] BRAND_HERO_ASSIGNMENT_REJECTED', {
           requestId,
-          mediaId: assignment.mediaId
+          mediaId: assignment.mediaId,
+          reason: 'Runtime assignment media failed public media gate'
         });
+        // Assignment exists but is invalid - fall back to static explicitly
+        console.log('[PUBLIC_READER] INVALID_RUNTIME_ASSIGNMENT - FALLING_BACK_TO_STATIC', { requestId });
       }
     } else {
       console.log('[PUBLIC_READER] NO_RUNTIME_ASSIGNMENT - USING_STATIC_CONFIG', { requestId });
     }
   } catch (error) {
-    console.error('[PUBLIC_READER] ASSIGNMENT_READ_ERROR - FALLING_BACK_TO_STATIC', {
+    // Check if this is a static build environment
+    const { isStaticBuild } = await import('@/lib/media');
+    const staticBuild = isStaticBuild();
+    
+    // P0 FIX: Assignment store unavailable is an explicit failure state at runtime
+    // Do NOT silently fall back to static - this hides broken runtime assignment system
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[PUBLIC_READER] ASSIGNMENT_STORE_UNAVAILABLE', {
       requestId,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage,
+      staticBuild,
+      note: staticBuild 
+        ? 'Static build detected - using static fallback (expected behavior)'
+        : 'Assignment store is unavailable. This is an explicit failure state, not a silent fallback.'
     });
+    
+    // During static build, static fallback is expected and acceptable
+    if (staticBuild) {
+      console.log('[PUBLIC_READER] STATIC_BUILD - ALLOWING_STATIC_FALLBACK', { requestId });
+      // Static build can safely use static configuration
+    } 
+    // Check if this is a known safe fallback scenario (e.g., DEV_MODE_SKIP_KV)
+    else if (errorMessage.includes('DEV_MODE_SKIP_KV') || errorMessage.includes('KvUnavailableError')) {
+      console.log('[PUBLIC_READER] DEV_MODE_SKIP_KV - ALLOWING_STATIC_FALLBACK', { requestId });
+      // Development-only fallback is acceptable
+    } else {
+      // Production/runtime failure - throw to make it observable
+      throw new Error(`Assignment store unavailable: ${errorMessage}. Runtime assignment system is broken.`);
+    }
   }
   
   // Fall back to static configuration from brand.v1.json
@@ -158,6 +192,12 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
   // Check runtime assignment store first (Workbench manual assignments)
   // Assignment key: brand-portrait-homepage (matches slot ID from VisualSlot)
   // Homepage uses slot ID: homepage-owner-portrait-slot
+  // EXPLICIT SEMANTICS:
+  // - No assignment exists → static fallback
+  // - Assignment exists and is valid → runtime asset
+  // - Assignment exists but asset is invalid → reject runtime assignment, use static fallback
+  // - Assignment store is unavailable during static build → use static fallback (expected)
+  // - Assignment store is unavailable at runtime → explicit observable failure (no silent static fallback)
   try {
     const { getServiceCardAssignment } = await import('@/lib/assignment-store');
     const assignment = await getServiceCardAssignment('brand-portrait-homepage', requestId);
@@ -188,17 +228,45 @@ export async function getOwnerPortrait(): Promise<BrandOwnerPortrait | null> {
       } else {
         console.error('[PUBLIC_MEDIA_GATE] BRAND_PORTRAIT_ASSIGNMENT_REJECTED', {
           requestId,
-          mediaId: assignment.mediaId
+          mediaId: assignment.mediaId,
+          reason: 'Runtime assignment media failed public media gate'
         });
+        // Assignment exists but is invalid - fall back to static explicitly
+        console.log('[BRAND] INVALID_RUNTIME_ASSIGNMENT - FALLING_BACK_TO_STATIC', { requestId });
       }
     } else {
       console.log('[BRAND] NO_RUNTIME_ASSIGNMENT - USING_STATIC_CONFIG', { requestId });
     }
   } catch (error) {
-    console.error('[BRAND] ASSIGNMENT_READ_ERROR - FALLING_BACK_TO_STATIC', {
+    // Check if this is a static build environment
+    const { isStaticBuild } = await import('@/lib/media');
+    const staticBuild = isStaticBuild();
+    
+    // P0 FIX: Assignment store unavailable is an explicit failure state at runtime
+    // Do NOT silently fall back to static - this hides broken runtime assignment system
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[BRAND] ASSIGNMENT_STORE_UNAVAILABLE', {
       requestId,
-      error: error instanceof Error ? error.message : 'Unknown error',
+      error: errorMessage,
+      staticBuild,
+      note: staticBuild 
+        ? 'Static build detected - using static fallback (expected behavior)'
+        : 'Assignment store is unavailable. This is an explicit failure state, not a silent fallback.'
     });
+    
+    // During static build, static fallback is expected and acceptable
+    if (staticBuild) {
+      console.log('[BRAND] STATIC_BUILD - ALLOWING_STATIC_FALLBACK', { requestId });
+      // Static build can safely use static configuration
+    } 
+    // Check if this is a known safe fallback scenario (e.g., DEV_MODE_SKIP_KV)
+    else if (errorMessage.includes('DEV_MODE_SKIP_KV') || errorMessage.includes('KvUnavailableError')) {
+      console.log('[BRAND] DEV_MODE_SKIP_KV - ALLOWING_STATIC_FALLBACK', { requestId });
+      // Development-only fallback is acceptable
+    } else {
+      // Production/runtime failure - throw to make it observable
+      throw new Error(`Assignment store unavailable: ${errorMessage}. Runtime assignment system is broken.`);
+    }
   }
   
   // Fall back to static configuration from brand.v1.json

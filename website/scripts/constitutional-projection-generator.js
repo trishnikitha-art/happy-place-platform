@@ -198,7 +198,18 @@ function generateGalleryProjection(canonicalGraph, scoring) {
       coverage = 'BEFORE_ONLY';
     }
     
-    const sortedImages = [...images].sort((a, b) => b.score - a.score);
+    // P0 FIX: Deduplicate images by canonical ID to enforce ONE REAL PHOTO = ONE CANONICAL MEDIA ASSET
+    // The graph may contain multiple references to the same physical file (e.g., different edges, contexts)
+    // Gallery projections should only reference each unique photo once
+    const uniqueImagesMap = new Map();
+    for (const img of images) {
+      if (!uniqueImagesMap.has(img.id)) {
+        uniqueImagesMap.set(img.id, img);
+      }
+    }
+    const uniqueImages = Array.from(uniqueImagesMap.values());
+
+    const sortedImages = [...uniqueImages].sort((a, b) => b.score - a.score);
     const representative = sortedImages[0];
     const supporting = sortedImages.slice(1);
     
