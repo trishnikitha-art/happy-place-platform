@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-10T00:54:31.724Z",
+  "generatedAt": "2026-09-10T23:55:00.000Z",
   "projects": [
     {
       "id": "fences-001",
@@ -83,8 +83,11 @@
       "completionDate": "2026-07-22",
       "media": {
         "hero": "pergolas-001-hero",
-        "gallery": [],
-        "galleryRevision": 1
+        "gallery": [
+          "pergolas-001-hero",
+          "pergolas-001-before"
+        ],
+        "galleryRevision": 2
       },
       "story": {
         "challenge": "Customer wanted a custom outdoor living space with privacy",
@@ -293,13 +296,14 @@
       "media": {
         "hero": "outdoor-living-001-hero",
         "gallery": [
+          "outdoor-living-001-hero",
           "outdoor-living-001-2",
           "outdoor-living-001-3",
           "outdoor-living-001-4",
           "outdoor-living-001-5",
           "outdoor-living-001-6"
         ],
-        "galleryRevision": 0
+        "galleryRevision": 1
       },
       "story": {
         "challenge": "The home's exterior had years of weather exposure, peeling paint, failing caulk, and worn surfaces that made the entire property look older than it really was.",
@@ -572,8 +576,11 @@
       "completionDate": "2026-07-22",
       "media": {
         "hero": "pergolas-001-hero",
-        "gallery": [],
-        "galleryRevision": 0
+        "gallery": [
+          "pergolas-001-hero",
+          "pergolas-001-before"
+        ],
+        "galleryRevision": 1
       },
       "story": {
         "challenge": "Customer wanted a custom outdoor living space with privacy",
