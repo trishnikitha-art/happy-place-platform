@@ -391,44 +391,14 @@ export default function MediaWorkbench() {
   };
 
   // P0 FIX: Convert Drive files to VisualAsset format for main panel integration
-  // Accepts explicit driveId parameter to avoid React state race conditions
-  // P0 FIX: Deduplicates against existing KV media by contentHash to prevent duplicate human-facing entries
-  const convertDriveFileToAsset = async (driveFile: any, explicitDriveId?: string | null): Promise<VisualAsset | null> => {
-    // P0 FIX: Check if this Drive file already exists in KV media authority
-    // Use contentHash or Drive file ID to find existing PublishedMediaAsset
-    // P0 FIX: Pass sharedDriveId for exact corpus matching
-    try {
-      const response = await fetch('/api/workbench/media-authority', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          action: 'getByDriveFileId', 
-          driveFileId: driveFile.id,
-          sharedDriveId: explicitDriveId,
-        }),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        if (data.media) {
-          console.log('[WORKBENCH] DRIVE_FILE_ALREADY_EXISTS_IN_KV', {
-            driveFileId: driveFile.id,
-            sharedDriveId: explicitDriveId,
-            existingMediaId: data.media.id,
-            existingFilename: data.media.filename,
-            existingContentHash: data.media.contentHash,
-          });
-          // Return null to indicate this file should not be added as a duplicate
-          return null;
-        }
-      }
-    } catch (error) {
-      console.warn('[WORKBENCH] KV_DUPLICATE_CHECK_FAILED', { driveFileId: driveFile.id, sharedDriveId: explicitDriveId, error });
-    }
-    
-    // If not found in KV, create Drive-only asset
+  // REMOVED: N+1 authority pattern that caused per-file HTTP requests
+  // Drive browser should display Drive files without materializing or checking KV authority
+  // Materialization only happens when user clicks "Use This Asset"
+  const convertDriveFileToAsset = (driveFile: any, explicitDriveId?: string | null): VisualAsset => {
+    // Create a lightweight VisualAsset for display purposes only
+    // This does NOT materialize or check KV authority
     return {
-      id: `drive-${driveFile.id}`,
+      id: `drive-${driveFile.id}`, // Temporary ID for display
       filename: driveFile.name,
       type: 'image' as const,
       orientation: 'landscape' as const,
@@ -483,7 +453,6 @@ export default function MediaWorkbench() {
       let totalDriveFiles = 0;
       let totalDriveFolders = 0;
       let integratedDriveAssets = 0;
-      let skippedDriveAssets = 0; // P0 FIX: Track duplicates skipped
       
       // P0 FIX: Load files from each authorized root explicitly
       // My Drive root
@@ -492,16 +461,11 @@ export default function MediaWorkbench() {
         const myDriveResult = await loadDriveFiles(structure.myDrive.id, undefined, null);
         totalDriveFiles += myDriveResult.count;
         
-        // Convert My Drive files with explicit driveId=null, checking for duplicates
-        // P0 FIX: Use returned items instead of stale React state
+        // Convert My Drive files - no longer does N+1 authority checks
         const myDriveAssets: VisualAsset[] = [];
         for (const file of myDriveResult.items.filter((item: any) => item.type !== 'folder')) {
-          const asset = await convertDriveFileToAsset(file, null);
-          if (asset) {
-            myDriveAssets.push(asset);
-          } else {
-            skippedDriveAssets++;
-          }
+          const asset = convertDriveFileToAsset(file, null);
+          myDriveAssets.push(asset);
         }
         
         // Integrate My Drive assets
@@ -534,16 +498,11 @@ export default function MediaWorkbench() {
           const sharedDriveResult = await loadDriveFiles(sharedDrive.id, undefined, sharedDrive.id);
           totalDriveFiles += sharedDriveResult.count;
           
-          // Convert Shared Drive files with explicit driveId, checking for duplicates
-          // P0 FIX: Use returned items instead of stale React state
+          // Convert Shared Drive files - no longer does N+1 authority checks
           const sharedDriveAssets: VisualAsset[] = [];
           for (const file of sharedDriveResult.items.filter((item: any) => item.type !== 'folder')) {
-            const asset = await convertDriveFileToAsset(file, sharedDrive.id);
-            if (asset) {
-              sharedDriveAssets.push(asset);
-            } else {
-              skippedDriveAssets++;
-            }
+            const asset = convertDriveFileToAsset(file, sharedDrive.id);
+            sharedDriveAssets.push(asset);
           }
           
           // Integrate Shared Drive assets
@@ -944,13 +903,11 @@ export default function MediaWorkbench() {
         hasMore: !!data.nextPageToken 
       });
       
-      // P0 FIX: Integrate newly loaded Drive files into main asset list
+      // P0 FIX: Integrate newly loaded Drive files into main asset list - no N+1 authority checks
       const newDriveAssets: VisualAsset[] = [];
       for (const file of items.filter((item: any) => item.type !== 'folder')) {
-        const asset = await convertDriveFileToAsset(file, driveId);
-        if (asset) {
-          newDriveAssets.push(asset);
-        }
+        const asset = convertDriveFileToAsset(file, driveId);
+        newDriveAssets.push(asset);
       }
       
       if (newDriveAssets.length > 0) {
@@ -1762,33 +1719,18 @@ export default function MediaWorkbench() {
         });
 
         // Handle Drive file (direct drag from Drive)
-        // CONSTITUTIONAL FIX: Invoke materialization instead of creating assignable DriveReference
+        // P0 FIX: Route ALL Drive → slot operations through authoritative use-drive-asset transaction
+        // Legacy materialize-drive → assign-media path removed to prevent duplicate execution
         if (applicationData?.source === 'google-drive' && applicationData?.fileId) {
-          console.log('[WB_FORENSIC] DRIVE_MATERIALIZATION_PATH', {
+          console.log('[WB_FORENSIC] DRIVE_AUTHORITATIVE_PATH', {
             requestId,
             fileId: applicationData.fileId,
             sharedDriveId: applicationData.sharedDriveId,
             slotId,
             timestamp: Date.now(),
           });
-          
-          console.log('[DND] DRIVE_FILE_DETECTED', {
-            requestId,
-            fileId: applicationData.fileId,
-            sharedDriveId: applicationData.sharedDriveId,
-            slotId,
-          });
-          
-          console.log('[DND] DRIVE_FILE_VALIDATED', {
-            requestId,
-            hasFileId: !!applicationData.fileId,
-            hasSharedDriveId: !!applicationData.sharedDriveId,
-            hasSlotId: !!slotId,
-            hasMimeType: !!applicationData.mimeType,
-          });
 
           // CRITICAL: Fail closed if Drive did not provide MIME type
-          // Do NOT proceed with materialization without knowing file type
           if (!applicationData.mimeType) {
             console.error('[DND] DRIVE_FILE_REJECTED', {
               requestId,
@@ -1798,53 +1740,30 @@ export default function MediaWorkbench() {
             alert('Cannot use this file: Drive did not provide MIME type information');
             return;
           }
-          
-          // Check if Drive file already exists as PublishedMediaAsset
-          // CRITICAL FIX: Use the same provenance fields that ingestion writes
-          // Ingestion writes: provenance.driveFileId and provenance.sharedDriveId
-          // Workbench must match on the same fields
-          const existingAsset = assetsRef.current.find(a => {
-            const assetDriveFileId = a.provenance?.driveFileId;
-            const assetSharedDriveId = a.provenance?.sharedDriveId;
-            const fileId = applicationData.fileId;
-            const sharedDriveId = applicationData.sharedDriveId;
 
-            // Match both fileId and sharedDriveId for shared files
-            if (sharedDriveId) {
-              return assetDriveFileId === fileId && assetSharedDriveId === sharedDriveId;
-            }
-            // Match fileId only for non-shared files
-            return assetDriveFileId === fileId && !assetSharedDriveId;
+          // P0 FIX: Instead of legacy materialize-drive → assign-media, set up for authoritative transaction
+          // Select the Drive file and target slot, then trigger Use This Asset
+          selectDriveFile({
+            id: applicationData.fileId,
+            name: applicationData.name,
+            mimeType: applicationData.mimeType,
+            webViewLink: applicationData.webViewLink,
+            thumbnailLink: applicationData.thumbnailLink,
+          });
+          setState(prev => ({ ...prev, selectedSlot: slot }));
+
+          // Auto-trigger the authoritative transaction
+          console.log('[DND] AUTO_TRIGGERING_AUTHORITATIVE_TRANSACTION', {
+            requestId,
+            fileId: applicationData.fileId,
+            slotId: slot.id,
           });
 
-          if (existingAsset) {
-            console.log('[DND] DRIVE_ALREADY_MATERIALIZED', { requestId, assetId: existingAsset.id });
+          // Call handleUseDriveAsset after a short delay to allow state to update
+          setTimeout(() => {
+            handleUseDriveAsset();
+          }, 100);
 
-            // P0 FIX: Verify existing asset is materially complete before using it
-            // If it's incomplete (missing renditions, synthetic hash), re-materialize it
-            const isComplete = await verifyMediaMaterializationComplete(existingAsset.id);
-            if (!isComplete) {
-              console.log('[DND] DRIVE_ASSET_INCOMPLETE - RE-MATERIALIZING', {
-                requestId,
-                assetId: existingAsset.id,
-                reason: 'Existing asset fails materialization completeness check',
-              });
-              // Re-materialize instead of using incomplete asset
-              materializeDriveFile(applicationData, slot, requestId);
-              return;
-            }
-
-            // Use existing PublishedMediaAsset - route through replacement confirmation
-            handleDriveDropToSlot(slot, existingAsset, slot.currentMediaId, requestId);
-          } else {
-            console.log('[DND] DRIVE_MATERIALIZATION_REQUIRED', {
-              requestId,
-              fileId: applicationData.fileId,
-              sharedDriveId: applicationData.sharedDriveId,
-            });
-            // Invoke materialization via ingest API, then route through replacement confirmation
-            materializeDriveFile(applicationData, slot, requestId);
-          }
           return;
         }
 
