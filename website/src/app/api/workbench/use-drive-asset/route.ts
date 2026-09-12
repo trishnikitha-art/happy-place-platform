@@ -8,6 +8,23 @@
  * - Target: Explicit Visual Slot ID
  * - Result: Canonical PublishedMediaAsset ID assigned to target slot
  *
+ * AUTHORIZATION MODEL (P1 #6):
+ * 
+ * This endpoint uses TWO SEPARATE authorization systems:
+ * 1. Workbench Session: Authenticates human/admin to Workbench
+ * 2. Drive OAuth: Authenticates to Google Drive
+ * 
+ * CRITICAL LIMITATION: These systems are NOT cryptographically bound together.
+ * Workbench session identity ≠ Drive authorization identity ≠ Google subject
+ * 
+ * This is architecturally acceptable ONLY under the assumption:
+ * - Workbench access is strictly controlled (single trusted admin)
+ * - Drive OAuth is strictly scoped (read-only, no write permissions)
+ * - Corpus allowlist is environment-configured (not user-configurable)
+ * 
+ * DO NOT claim this is a universal multi-user authorization model.
+ * FUTURE: Implement explicit binding of Workbench ↔ Drive identity if multi-user support is needed.
+ * 
  * ATOMICITY MODEL (P1 #9):
  * 
  * This transaction is NOT strictly atomic across all operations. The honest model is:
@@ -53,42 +70,117 @@
  */
 
 /**
- * Determine the slot type and normalize to authority key
- * Returns { type, authorityKey, supported }
+ * SERVER-SIDE VISUAL SLOT AUTHORITY REGISTRY
+ * 
+ * This is the authoritative mapping of writable Visual Slots to their mutation authorities.
+ * This is NOT the client-side slotRegistry (which is for UI discovery).
+ * 
+ * Architecture:
+ * Visual Slot ID → Authority Type → Authority Key → Mutation Adapter
+ * 
+ * Authority Types:
+ * - service-card-assignment: Mutates via Service Card Assignment Store (KV)
+ * - static-project: Static-only (projects.v1.json) - NOT writable at runtime
+ * - decorative: Intentionally non-assignable
+ * 
+ * Mutation Adapters:
+ * - service-card-assignment: storeServiceCardAssignment() with CAS
+ * - static-project: NONE (reject at runtime)
+ * - decorative: NONE (reject always)
  */
-function resolveSlotAuthority(targetSlotId: string): { type: string; authorityKey: string; supported: boolean } {
-  // Brand slots - map VisualSlot IDs to Service Card Assignment keys
-  if (targetSlotId === 'hero-background') {
-    return { type: 'brand', authorityKey: 'brand-hero-background', supported: true };
-  }
-  if (targetSlotId === 'homepage-owner-portrait-slot') {
-    return { type: 'brand', authorityKey: 'brand-portrait-homepage', supported: true };
-  }
 
-  // Service card slots - extract slug from VisualSlot ID
+interface SlotAuthorityMapping {
+  visualSlotId: string;
+  authorityType: 'service-card-assignment' | 'static-project' | 'decorative';
+  authorityKey: string;
+  writable: boolean;
+  description: string;
+}
+
+/**
+ * Authoritative allowlist of writable Visual Slots
+ * This is the server-side source of truth for which slots can be mutated via Drive handoff
+ */
+const VISUAL_SLOT_AUTHORITY: SlotAuthorityMapping[] = [
+  // Brand slots - writable via Service Card Assignment Store
+  {
+    visualSlotId: 'hero-background',
+    authorityType: 'service-card-assignment',
+    authorityKey: 'brand-hero-background',
+    writable: true,
+    description: 'Homepage hero background image',
+  },
+  {
+    visualSlotId: 'homepage-owner-portrait-slot',
+    authorityType: 'service-card-assignment',
+    authorityKey: 'brand-portrait-homepage',
+    writable: true,
+    description: 'Homepage owner portrait',
+  },
+];
+
+/**
+ * Resolve Visual Slot ID to its authoritative mutation mapping
+ * Returns null if slot is not in the authoritative registry
+ */
+function resolveVisualSlotAuthority(targetSlotId: string): SlotAuthorityMapping | null {
+  const mapping = VISUAL_SLOT_AUTHORITY.find(slot => slot.visualSlotId === targetSlotId);
+  return mapping || null;
+}
+
+/**
+ * Service card slot authority resolution
+ * Service cards use slug-based authority keys
+ * Returns null if the slot format is invalid
+ */
+function resolveServiceCardAuthority(targetSlotId: string): SlotAuthorityMapping | null {
+  // Service card slots have format: homepage-service-card-slot-{slug}
   if (targetSlotId.startsWith('homepage-service-card-slot-')) {
     const slug = targetSlotId.replace('homepage-service-card-slot-', '');
-    return { type: 'service-card', authorityKey: slug, supported: true };
+    return {
+      visualSlotId: targetSlotId,
+      authorityType: 'service-card-assignment',
+      authorityKey: slug,
+      writable: true,
+      description: `Service card slot for ${slug}`,
+    };
   }
 
-  // Service card direct slot IDs (legacy format)
+  // Legacy format: service-card-{slug}
   if (targetSlotId.startsWith('service-card-')) {
     const slug = targetSlotId.replace('service-card-', '');
-    return { type: 'service-card', authorityKey: slug, supported: true };
+    return {
+      visualSlotId: targetSlotId,
+      authorityType: 'service-card-assignment',
+      authorityKey: slug,
+      writable: true,
+      description: `Service card slot for ${slug} (legacy format)`,
+    };
   }
 
-  // Project slots - not yet supported (require projects.v1.json mutation)
-  if (targetSlotId.startsWith('homepage-featured-project-')) {
-    return { type: 'project', authorityKey: targetSlotId, supported: false };
+  return null;
+}
+
+/**
+ * Resolve target slot to its authoritative mutation mapping
+ * Checks both explicit Visual Slot registry and service card authority
+ * Returns null if slot is not writable or not recognized
+ */
+function resolveTargetSlotAuthority(targetSlotId: string): SlotAuthorityMapping | null {
+  // First check explicit Visual Slot registry
+  const explicitMapping = resolveVisualSlotAuthority(targetSlotId);
+  if (explicitMapping) {
+    return explicitMapping;
   }
 
-  // Decorative slots - not assignable
-  if (targetSlotId === 'homepage-newsletter-slot' || targetSlotId === 'homepage-cta-slot') {
-    return { type: 'decorative', authorityKey: targetSlotId, supported: false };
+  // Then check service card authority
+  const serviceCardMapping = resolveServiceCardAuthority(targetSlotId);
+  if (serviceCardMapping) {
+    return serviceCardMapping;
   }
 
-  // Unknown slot type
-  return { type: 'unknown', authorityKey: targetSlotId, supported: false };
+  // Slot not recognized - reject
+  return null;
 }
 
 
@@ -161,10 +253,8 @@ async function recordIdempotency(idempotencyKey: string, result: any, ttlSeconds
 interface UseDriveAssetRequest {
   sourceFileId: string;  // Google Drive file ID
   sourceSharedDriveId?: string;  // Shared Drive corpus context (null for My Drive)
-  sourceFileName: string;
-  sourceMimeType: string;
   targetSlotId: string;  // Explicit target Visual Slot ID
-  expectedRevision: number;  // CAS revision for the target slot (required)
+  expectedRevision: number;  // CAS revision for the target slot (REQUIRED - no fallback)
   idempotencyKey?: string;  // Stable client-generated key for idempotency
 }
 
@@ -189,8 +279,6 @@ export async function POST(request: Request) {
     const { 
       sourceFileId, 
       sourceSharedDriveId, 
-      sourceFileName, 
-      sourceMimeType,
       targetSlotId,
       expectedRevision,
       idempotencyKey
@@ -218,9 +306,6 @@ export async function POST(request: Request) {
 
     console.log('[USE_DRIVE_ASSET] Transaction initiated', {
       requestId,
-      sourceFileId,
-      sourceSharedDriveId,
-      sourceFileName,
       targetSlotId,
       expectedRevision,
     });
@@ -253,8 +338,6 @@ export async function POST(request: Request) {
     // P1 FIX: Fetch authoritative Drive metadata server-side, don't trust browser-supplied values
     console.log('[USE_DRIVE_ASSET] Fetching authoritative Drive metadata', {
       requestId,
-      sourceFileId,
-      sourceSharedDriveId,
     });
 
     const driveClient = await getDriveClient();
@@ -352,7 +435,6 @@ export async function POST(request: Request) {
     console.log('[USE_DRIVE_ASSET] Resolving canonical asset', {
       requestId,
       ingestUrl,
-      ingestBody,
     });
 
     const ingestResponse = await fetch(ingestUrl, {
@@ -434,26 +516,28 @@ export async function POST(request: Request) {
     }
 
     // Step 5: Mutate exactly the requested target slot with CAS/revision protection
-    // P0 FIX: Resolve slot authority type and check support
-    const slotAuthority = resolveSlotAuthority(targetSlotId);
+    // P0 FIX: Resolve target slot through authoritative registry
+    const slotAuthority = resolveTargetSlotAuthority(targetSlotId);
     
-    console.log('[USE_DRIVE_ASSET] Slot authority resolved', {
+    console.log('[USE_DRIVE_ASSET] Target slot authority resolved', {
       requestId,
       targetSlotId,
-      slotType: slotAuthority.type,
-      authorityKey: slotAuthority.authorityKey,
-      supported: slotAuthority.supported,
+      authorityFound: !!slotAuthority,
     });
 
-    if (!slotAuthority.supported) {
+    if (!slotAuthority) {
+      console.error('[USE_DRIVE_ASSET] Unknown or unsupported target slot', {
+        requestId,
+        targetSlotId,
+        reason: 'Slot not in authoritative registry or not writable',
+      });
       return NextResponse.json(
         {
-          error: 'SLOT_TYPE_NOT_SUPPORTED',
-          message: `Slot type '${slotAuthority.type}' is not supported for Drive assignment. Supported types: brand, service-card`,
+          error: 'UNKNOWN_TARGET_SLOT',
+          message: `Target slot '${targetSlotId}' is not in the authoritative Visual Slot registry or is not writable at runtime`,
           details: {
             targetSlotId,
-            slotType: slotAuthority.type,
-            authorityKey: slotAuthority.authorityKey,
+            note: 'Only brand slots and service card slots are writable via Drive handoff. Project slots are static-only.',
           },
           requestId,
         },
@@ -461,12 +545,59 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!slotAuthority.writable) {
+      console.error('[USE_DRIVE_ASSET] Target slot is not writable', {
+        requestId,
+        targetSlotId,
+        authorityType: slotAuthority.authorityType,
+        reason: 'Slot is static-only or intentionally non-assignable',
+      });
+      return NextResponse.json(
+        {
+          error: 'SLOT_NOT_WRITABLE',
+          message: `Target slot '${targetSlotId}' is not writable at runtime (authority type: ${slotAuthority.authorityType})`,
+          details: {
+            targetSlotId,
+            authorityType: slotAuthority.authorityType,
+            note: 'Static slots cannot be mutated via Drive handoff',
+          },
+          requestId,
+        },
+        { status: 400 }
+      );
+    }
+
+    // P0 FIX: Only service-card-assignment authority is currently supported
+    if (slotAuthority.authorityType !== 'service-card-assignment') {
+      console.error('[USE_DRIVE_ASSET] Unsupported authority type', {
+        requestId,
+        targetSlotId,
+        authorityType: slotAuthority.authorityType,
+        reason: 'Only service-card-assignment authority is currently implemented',
+      });
+      return NextResponse.json(
+        {
+          error: 'UNSUPPORTED_AUTHORITY_TYPE',
+          message: `Target slot '${targetSlotId}' has authority type '${slotAuthority.authorityType}' which is not yet implemented`,
+          details: {
+            targetSlotId,
+            authorityType: slotAuthority.authorityType,
+            note: 'Only service-card-assignment authority is currently supported',
+          },
+          requestId,
+        },
+        { status: 501 }
+      );
+    }
+
     const serviceSlug = slotAuthority.authorityKey;
 
-    console.log('[USE_DRIVE_ASSET] Target slot normalized', {
+    console.log('[USE_DRIVE_ASSET] Authority mapping confirmed', {
       requestId,
-      originalSlotId: targetSlotId,
-      normalizedServiceSlug: serviceSlug,
+      targetSlotId,
+      authorityType: slotAuthority.authorityType,
+      authorityKey: serviceSlug,
+      writable: slotAuthority.writable,
     });
 
     // Get current assignment for CAS semantics
@@ -533,7 +664,6 @@ export async function POST(request: Request) {
     // Step 8: Return success only if all steps complete
     console.log('[USE_DRIVE_ASSET] Transaction complete', {
       requestId,
-      sourceFileId,
       targetSlotId,
       canonicalMediaId,
       revision: readbackAssignment?.revision,

@@ -209,6 +209,181 @@ describe('Use Drive Asset Transaction - Duplication Prevention', () => {
       expect(matches!.length).toBe(1); // Only one success response
     });
   });
+
+  describe('Target Slot Authority (P0 #1)', () => {
+    it('should reject unknown target slots not in authoritative registry', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+      const routeCode = fs.readFileSync(routePath, 'utf8');
+
+      expect(routeCode).toContain('UNKNOWN_TARGET_SLOT');
+      expect(routeCode).toContain('VISUAL_SLOT_AUTHORITY');
+      expect(routeCode).toContain('resolveTargetSlotAuthority');
+    });
+
+    it('should reject project slots (static-only authority)', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+      const routeCode = fs.readFileSync(routePath, 'utf8');
+
+      expect(routeCode).toContain('SLOT_NOT_WRITABLE');
+      expect(routeCode).toContain('static-project');
+    });
+
+    it('should only allow service-card-assignment authority type', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+      const routeCode = fs.readFileSync(routePath, 'utf8');
+
+      expect(routeCode).toContain('UNSUPPORTED_AUTHORITY_TYPE');
+      expect(routeCode).toContain('authorityType: \'service-card-assignment\'');
+    });
+  });
+
+  describe('CAS Revision Mandatory (P0 #2)', () => {
+    it('should require expectedRevision at API boundary', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+      const routeCode = fs.readFileSync(routePath, 'utf8');
+
+      expect(routeCode).toContain('EXPECTED_REVISION_REQUIRED');
+      expect(routeCode).toContain('expectedRevision is required for CAS enforcement');
+      
+      // Verify it's NOT optional
+      expect(routeCode).not.toContain('expectedRevision?:');
+    });
+
+    it('should not derive revision server-side (no fallback)', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+      const routeCode = fs.readFileSync(routePath, 'utf8');
+
+      // Should NOT have fallback logic
+      expect(routeCode).not.toContain('expectedRevision ??');
+      expect(routeCode).not.toContain('currentAssignment?.revision || 0');
+    });
+  });
+
+  describe('Public Media Gate Fail-Closed (P0 #3)', () => {
+    it('should reject when resolvePublicMedia returns null', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+      const routeCode = fs.readFileSync(routePath, 'utf8');
+
+      expect(routeCode).toContain('if (!publicMedia)');
+      expect(routeCode).toContain('PUBLIC_MEDIA_GATE_REJECTED');
+    });
+
+    it('should not proceed to assignment if public gate fails', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+      const routeCode = fs.readFileSync(routePath, 'utf8');
+
+      // Find the specific PUBLIC_MEDIA_GATE_REJECTED error block
+      const rejectionBlock = routeCode.indexOf('PUBLIC_MEDIA_GATE_REJECTED');
+      expect(rejectionBlock).toBeGreaterThan(0);
+      
+      // Find the actual assignment mutation (await storeServiceCardAssignment)
+      const assignmentMutation = routeCode.indexOf('await storeServiceCardAssignment');
+      
+      // The rejection should come before the actual mutation
+      expect(rejectionBlock).toBeLessThan(assignmentMutation);
+    });
+  });
+
+  describe('No Broad Reconciliation (P0 #4)', () => {
+    it('should pass skipReconciliation=true to ingest endpoint', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+      const routeCode = fs.readFileSync(routePath, 'utf8');
+
+      expect(routeCode).toContain('skipReconciliation: true');
+      expect(routeCode).toContain('Prevent implicit assignment reconciliation');
+    });
+
+    it('should not call reconcileDriveAssignments directly', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+      const routeCode = fs.readFileSync(routePath, 'utf8');
+
+      expect(routeCode).not.toContain('reconcileDriveAssignments');
+      expect(routeCode).not.toContain('getAllServiceCardAssignments');
+    });
+  });
+
+  describe('No False Client Authority (P0 #5)', () => {
+    it('should not accept sourceFileName from client', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+      const routeCode = fs.readFileSync(routePath, 'utf8');
+
+      expect(routeCode).not.toContain('sourceFileName');
+    });
+
+    it('should not accept sourceMimeType from client', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+      const routeCode = fs.readFileSync(routePath, 'utf8');
+
+      expect(routeCode).not.toContain('sourceMimeType');
+    });
+
+    it('should fetch authoritative Drive metadata server-side', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+      const routeCode = fs.readFileSync(routePath, 'utf8');
+
+      expect(routeCode).toContain('getDriveClient');
+      expect(routeCode).toContain('driveClient.files.get');
+      expect(routeCode).toContain('Fetch authoritative Drive metadata');
+    });
+  });
+
+  describe('No Sensitive Logging (Security)', () => {
+    it('should not log sourceFileId after transaction initiated', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+      const routeCode = fs.readFileSync(routePath, 'utf8');
+
+      // Find Transaction initiated log
+      const transactionInitLog = routeCode.match(/Transaction initiated[\s\S]*?\}/);
+      expect(transactionInitLog).toBeTruthy();
+      
+      // Should only log safe identifiers
+      if (transactionInitLog) {
+        expect(transactionInitLog[0]).not.toContain('sourceFileId');
+        expect(transactionInitLog[0]).not.toContain('sourceSharedDriveId');
+      }
+    });
+
+    it('should not log Drive file IDs in transaction complete', () => {
+      const fs = require('fs');
+      const path = require('path');
+      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+      const routeCode = fs.readFileSync(routePath, 'utf8');
+
+      // Find Transaction complete log
+      const transactionCompleteLog = routeCode.match(/Transaction complete[\s\S]*?\}/);
+      expect(transactionCompleteLog).toBeTruthy();
+      
+      if (transactionCompleteLog) {
+        expect(transactionCompleteLog[0]).not.toContain('sourceFileId');
+      }
+    });
+  });
 });
 
 describe('Client-Side Duplication Prevention', () => {

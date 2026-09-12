@@ -1111,10 +1111,9 @@ export default function MediaWorkbench() {
         body: JSON.stringify({
           sourceFileId: driveFile.id,
           sourceSharedDriveId: state.driveCurrentDriveId,
-          sourceFileName: driveFile.name,
-          sourceMimeType: driveFile.mimeType,
           targetSlotId: targetSlot.id,
           expectedRevision,
+          idempotencyKey: `${driveFile.id}:${targetSlot.id}`, // Stable key for idempotency
         }),
       });
 
