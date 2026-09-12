@@ -263,6 +263,7 @@ interface IngestRequest {
   sharedDriveId?: string;  // The Shared Drive ID (corpus context)
   projectId?: string;
   roles?: MediaRole[];
+  skipReconciliation?: boolean; // P0 FIX: Skip assignment reconciliation for explicit target mutation
 }
 
 /**
@@ -331,7 +332,7 @@ export async function POST(request: Request) {
 
   try {
     const body: IngestRequest = await request.json();
-    const { fileId, sharedDriveId, projectId, roles = ['gallery'] } = body;
+    const { fileId, sharedDriveId, projectId, roles = ['gallery'], skipReconciliation = false } = body;
 
     console.log('[MEDIA_INGEST] REQUEST stage succeeded', {
       requestId,
@@ -638,8 +639,10 @@ export async function POST(request: Request) {
           // CRITICAL: Run assignment reconciliation for deduplicated media
           // This ensures DriveReference assignments are repaired when re-ingesting the same content
           // P0 FIX: Assignment reconciliation failures must be reported as partial success, not silent success
+          // P0 FIX: Skip reconciliation if skipReconciliation=true (for explicit target mutation)
           let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
-          if (fileId) {
+          
+          if (!skipReconciliation && fileId) {
             try {
               reconciliationResult = await reconcileDriveAssignments(
                 existingMedia.id,
@@ -663,10 +666,24 @@ export async function POST(request: Request) {
                 error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
               };
             }
+          } else if (skipReconciliation) {
+            console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION skipped in deduplication (skipReconciliation=true)', {
+              requestId,
+              mediaId: existingMedia.id,
+            });
+            // When skipped, treat as "reconciliation not needed" (not a failure)
+            reconciliationResult = {
+              reconciled: true, // Treat skipped as successful for deduplication response
+              updated: [],
+              repaired: false,
+              brokenAssignments: [],
+            };
           }
 
           // P0 FIX: Make reconciliation state explicit in deduplication path
-          const materializationState = reconciliationResult.reconciled ? 'materialized_reconciled' : 
+          // When skipReconciliation=true, we treat it as "not needed" which is a success state
+          const materializationState = skipReconciliation ? 'materialized_reconciliation_skipped' :
+                                       reconciliationResult.reconciled ? 'materialized_reconciled' : 
                                        reconciliationResult.error ? 'materialized_reconciliation_failed' : 
                                        'materialized_reconciliation_pending';
           
@@ -675,9 +692,11 @@ export async function POST(request: Request) {
             action: 'existing',
             media: existingMedia,
             mediaId: existingMedia.id,
-            message: reconciliationResult.reconciled 
-              ? 'Media already exists with matching content hash and assignments reconciled'
-              : 'Media already exists with matching content hash, but assignment reconciliation incomplete',
+            message: skipReconciliation 
+              ? 'Media already exists with matching content hash (reconciliation skipped for explicit target mutation)'
+              : reconciliationResult.reconciled 
+                ? 'Media already exists with matching content hash and assignments reconciled'
+                : 'Media already exists with matching content hash, but assignment reconciliation incomplete',
             deduplicated: true,
             reconciliation: reconciliationResult,
             materializationState, // P0 FIX: Explicit state for UI handling
@@ -857,41 +876,50 @@ export async function POST(request: Request) {
 
     // 8. CRITICAL: Run assignment reconciliation
     // P0 FIX: Assignment reconciliation failures must be reported as partial success, not silent success
-    console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION stage started', {
-      requestId,
-      mediaId,
-    });
-
+    // P0 FIX: Skip reconciliation if skipReconciliation=true (for explicit target mutation)
     let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
-    if (fileId) {
-      try {
-        reconciliationResult = await reconcileDriveAssignments(
-          mediaId,
-          fileId, // Use authoritative Drive file ID for provenance reconciliation
-          contentHash,
-          requestId
-        );
-        console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION completed', {
-          requestId,
-          reconciled: reconciliationResult.reconciled,
-          updated: reconciliationResult.updated,
-          repaired: reconciliationResult.repaired,
-        });
-      } catch (reconciliationError) {
-        console.error('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION FAILED', {
-          requestId,
-          error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
-        });
-        // Mark reconciliation as failed but don't fail the entire ingestion
-        // The asset is still available for manual assignment in Workbench
-        reconciliationResult = {
-          reconciled: false,
-          updated: [],
-          repaired: false,
-          brokenAssignments: [],
-          error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
-        };
+    
+    if (!skipReconciliation) {
+      console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION stage started', {
+        requestId,
+        mediaId,
+      });
+
+      if (fileId) {
+        try {
+          reconciliationResult = await reconcileDriveAssignments(
+            mediaId,
+            fileId, // Use authoritative Drive file ID for provenance reconciliation
+            contentHash,
+            requestId
+          );
+          console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION completed', {
+            requestId,
+            reconciled: reconciliationResult.reconciled,
+            updated: reconciliationResult.updated,
+            repaired: reconciliationResult.repaired,
+          });
+        } catch (reconciliationError) {
+          console.error('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION FAILED', {
+            requestId,
+            error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
+          });
+          // Mark reconciliation as failed but don't fail the entire ingestion
+          // The asset is still available for manual assignment in Workbench
+          reconciliationResult = {
+            reconciled: false,
+            updated: [],
+            repaired: false,
+            brokenAssignments: [],
+            error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
+          };
+        }
       }
+    } else {
+      console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION skipped (skipReconciliation=true)', {
+        requestId,
+        mediaId,
+      });
     }
 
     // P0 FIX: Make reconciliation state explicit in response

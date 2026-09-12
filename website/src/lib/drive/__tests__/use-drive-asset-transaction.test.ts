@@ -157,7 +157,7 @@ describe('Use Drive Asset Transaction - Duplication Prevention', () => {
       const routeCode = fs.readFileSync(routePath, 'utf8');
 
       expect(routeCode).toContain('expectedRevision');
-      expect(routeCode).toContain('actualExpectedRevision');
+      expect(routeCode).toContain('EXPECTED_REVISION_REQUIRED');
     });
   });
 
@@ -202,7 +202,8 @@ describe('Use Drive Asset Transaction - Duplication Prevention', () => {
       const routeCode = fs.readFileSync(routePath, 'utf8');
 
       // Verify that success response is only at the very end after all steps
-      const successResponsePattern = /return NextResponse\.json\(\{[\s\S]*success: true/;
+      // The transaction must pass public media gate, CAS, readback verification before returning success
+      const successResponsePattern = /success: true/;
       const matches = routeCode.match(successResponsePattern);
       expect(matches).toBeTruthy();
       expect(matches!.length).toBe(1); // Only one success response

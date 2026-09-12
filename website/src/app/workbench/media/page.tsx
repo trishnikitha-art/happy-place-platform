@@ -1073,6 +1073,36 @@ export default function MediaWorkbench() {
     try {
       setState(prev => ({ ...prev, mutationState: 'materializing' }));
 
+      // Get current assignment revision for CAS
+      // Normalize service card slot IDs
+      const serviceSlug = targetSlot.id.startsWith('service-card-')
+        ? targetSlot.id.replace('service-card-', '')
+        : targetSlot.id;
+
+      // Read current assignment to get revision
+      const verifyResponse = await fetch('/api/workbench/media-authority', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'getAssignment',
+          slotSlug: serviceSlug,
+        }),
+      });
+
+      let expectedRevision = 0; // Default to 0 for create
+      if (verifyResponse.ok) {
+        const verifyData = await verifyResponse.json();
+        if (verifyData.assignment?.revision !== undefined) {
+          expectedRevision = verifyData.assignment.revision;
+        }
+      }
+
+      console.log('[WORKBENCH] USE_ASSET_CAS_REVISION', {
+        requestId,
+        serviceSlug,
+        expectedRevision,
+      });
+
       // Call the authoritative server-side transaction
       // This endpoint handles: Drive authorization → materialization → assignment → CAS → readback → verification
       const response = await fetch('/api/workbench/use-drive-asset', {
@@ -1084,6 +1114,7 @@ export default function MediaWorkbench() {
           sourceFileName: driveFile.name,
           sourceMimeType: driveFile.mimeType,
           targetSlotId: targetSlot.id,
+          expectedRevision,
         }),
       });
 
