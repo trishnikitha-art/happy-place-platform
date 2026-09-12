@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from 'react';
-import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, ChevronRight, Loader2, List, AlertCircle, LayoutGrid, Plus, X, Info, MoreVertical } from 'lucide-react';
+import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, ChevronRight, Loader2, List, AlertCircle, LayoutGrid, Plus, X, Info, MoreVertical, Check } from 'lucide-react';
 import { loadVisualAssetRegistry, addDriveAssetToRegistry, type VisualAsset } from '@/lib/visual-asset-registry';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
@@ -67,7 +67,9 @@ interface MediaWorkbenchState {
     unknown: number;
   } | null;
   legacyStaticEvidence: VisualAsset[]; // P0 FIX: Track static registry separately as legacy evidence
-
+  mutationState: 'idle' | 'confirming' | 'materializing' | 'assigning' | 'verifying' | 'complete';
+  mutationRequestId: string | null;
+  mutationError: string | null;
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -120,6 +122,9 @@ export default function MediaWorkbench() {
     authorizationConfig: null,
     mediaAudit: null,
     legacyStaticEvidence: [], // P0 FIX: Track static registry separately as legacy evidence
+    mutationState: 'idle',
+    mutationRequestId: null,
+    mutationError: null,
   });
 
   // Keep refs in sync with state
@@ -987,7 +992,170 @@ export default function MediaWorkbench() {
   };
 
   const selectDriveFile = (file: DriveFile) => {
+    console.log('[WORKBENCH] DRIVE_FILE_SELECTED', {
+      fileId: file.id,
+      filename: file.name,
+      driveId: state.driveCurrentDriveId,
+    });
     setState(prev => ({ ...prev, driveSelectedFile: file }));
+  };
+
+  const handleDriveFileClick = (e: React.MouseEvent, file: DriveFile) => {
+    // Prevent drag start from also firing on click
+    e.preventDefault();
+    selectDriveFile(file);
+  };
+
+  const handleUseDriveAsset = async () => {
+    // Guard: Must have both source Drive file and target slot selected
+    const driveFile = state.driveSelectedFile;
+    const targetSlot = state.selectedSlot;
+
+    if (!driveFile) {
+      console.warn('[WORKBENCH] USE_ASSET_NO_SOURCE - no Drive file selected');
+      alert('Please select a Drive file first');
+      return;
+    }
+
+    if (!targetSlot) {
+      console.warn('[WORKBENCH] USE_ASSET_NO_TARGET - no slot selected');
+      alert('Please select a target slot first');
+      return;
+    }
+
+    // Guard: Prevent duplicate mutations
+    if (state.mutationState !== 'idle') {
+      console.warn('[WORKBENCH] USE_ASSET_MUTATION_IN_PROGRESS', {
+        currentState: state.mutationState,
+        requestId: state.mutationRequestId,
+      });
+      return;
+    }
+
+    const requestId = crypto.randomUUID();
+    console.log('[WORKBENCH] USE_ASSET_INITIATED', {
+      requestId,
+      sourceFileId: driveFile.id,
+      sourceFilename: driveFile.name,
+      targetSlotId: targetSlot.id,
+      targetSlotName: targetSlot.slotName,
+      currentMediaId: targetSlot.currentMediaId,
+    });
+
+    // Check if Drive file is already ingested (for confirmation dialog only)
+    const existingAsset = state.assets.find(a => a.provenance?.driveFileId === driveFile.id);
+
+    // Show confirmation dialog
+    const currentFilename = targetSlot.currentMediaId
+      ? state.assets.find(a => a.id === targetSlot.currentMediaId)?.filename || 'Unknown'
+      : 'No image';
+
+    const confirmed = confirm(
+      `Replace "${targetSlot.slotName}"?\n\n` +
+      `Current: ${currentFilename}\n` +
+      `New: ${driveFile.name}\n\n` +
+      `${existingAsset ? '(Asset already ingested)' : '(Will ingest from Drive)'}`
+    );
+
+    if (!confirmed) {
+      console.log('[WORKBENCH] USE_ASSET_CANCELLED', { requestId });
+      return;
+    }
+
+    // Set mutation state
+    setState(prev => ({
+      ...prev,
+      mutationState: 'confirming',
+      mutationRequestId: requestId,
+      mutationError: null,
+    }));
+
+    try {
+      setState(prev => ({ ...prev, mutationState: 'materializing' }));
+
+      // Call the authoritative server-side transaction
+      // This endpoint handles: Drive authorization → materialization → assignment → CAS → readback → verification
+      const response = await fetch('/api/workbench/use-drive-asset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sourceFileId: driveFile.id,
+          sourceSharedDriveId: state.driveCurrentDriveId,
+          sourceFileName: driveFile.name,
+          sourceMimeType: driveFile.mimeType,
+          targetSlotId: targetSlot.id,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to use Drive asset');
+      }
+
+      const result = await response.json();
+      console.log('[WORKBENCH] USE_ASSET_TRANSACTION_SUCCESS', {
+        requestId,
+        canonicalMediaId: result.canonicalMediaId,
+        targetSlotId: result.targetSlotId,
+        serviceSlug: result.serviceSlug,
+        revision: result.assignment?.revision,
+      });
+
+      setState(prev => ({ ...prev, mutationState: 'complete' }));
+
+      // Reload canonical data to include any new asset
+      await loadCanonicalData();
+
+      // Update local state
+      setState(prev => {
+        const updatedSlots = prev.registeredSlots.map(s =>
+          s.id === targetSlot.id ? { ...s, currentMediaId: result.canonicalMediaId } : s
+        );
+        return {
+          ...prev,
+          registeredSlots: updatedSlots,
+          selectedSlot: { ...targetSlot, currentMediaId: result.canonicalMediaId },
+          selectedAsset: state.assets.find(a => a.id === result.canonicalMediaId) || null,
+        };
+      });
+
+      // Force iframe reload to pick up authority changes
+      if (iframeRef.current) {
+        console.log('[WORKBENCH] USE_ASSET_IFRAME_RELOAD', {
+          requestId,
+          slotId: targetSlot.id,
+          assetId: result.canonicalMediaId,
+        });
+        iframeRef.current.src = iframeRef.current.src;
+      }
+
+      console.log('[WORKBENCH] USE_ASSET_COMPLETE', {
+        requestId,
+        slotId: targetSlot.id,
+        mediaId: result.canonicalMediaId,
+      });
+
+      // Reset mutation state after delay
+      setTimeout(() => {
+        setState(prev => ({
+          ...prev,
+          mutationState: 'idle',
+          mutationRequestId: null,
+        }));
+      }, 2000);
+    } catch (error) {
+      console.error('[WORKBENCH] USE_ASSET_ERROR', {
+        requestId,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      setState(prev => ({
+        ...prev,
+        mutationState: 'idle',
+        mutationRequestId: null,
+        mutationError: error instanceof Error ? error.message : 'Unknown error',
+      }));
+      alert(`Failed to use asset: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
   };
 
   const navigateToFolder = (folder: DriveFolder) => {
@@ -1095,10 +1263,14 @@ export default function MediaWorkbench() {
     }
   };
 
-  const loadMoreDriveFiles = () => {
+  const loadMoreDriveFiles = async () => {
     if (state.driveNextPageToken && !state.driveLoadingMore) {
       setState(prev => ({ ...prev, driveLoadingMore: true }));
-      loadDriveFiles(state.driveCurrentFolderId, state.driveNextPageToken, state.driveCurrentDriveId);
+      try {
+        await loadDriveFiles(state.driveCurrentFolderId, state.driveNextPageToken, state.driveCurrentDriveId);
+      } finally {
+        setState(prev => ({ ...prev, driveLoadingMore: false }));
+      }
     }
   };
 
@@ -2787,6 +2959,47 @@ export default function MediaWorkbench() {
 
                 {state.driveStructure && (
                   <div className="space-y-3">
+                    {/* Source/Target Status Panel */}
+                    {(state.driveSelectedFile || state.selectedSlot) && (
+                      <div className="p-3 bg-muted/50 border border-border rounded-lg space-y-2">
+                        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
+                          Selection Status
+                        </div>
+                        
+                        {state.driveSelectedFile && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Database size={14} className="text-blue-500" />
+                            <span className="text-muted-foreground">Source:</span>
+                            <span className="font-medium text-foreground truncate max-w-[200px]">
+                              {state.driveSelectedFile.name}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              ({state.driveCurrentDriveId ? 'Shared Drive' : 'My Drive'})
+                            </span>
+                          </div>
+                        )}
+                        
+                        {state.selectedSlot && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <Layers size={14} className="text-green-500" />
+                            <span className="text-muted-foreground">Target:</span>
+                            <span className="font-medium text-foreground">
+                              {state.selectedSlot.slotName}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              ({state.selectedSlot.page})
+                            </span>
+                          </div>
+                        )}
+                        
+                        {!state.selectedSlot && state.driveSelectedFile && (
+                          <div className="text-xs text-amber-600">
+                            ⚠️ Select a target slot to use this asset
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {/* Drive selection */}
                     <div className="flex gap-2">
                       {state.driveStructure!.myDrive && (
@@ -2887,7 +3100,7 @@ export default function MediaWorkbench() {
                                   draggable={true}
                                   data-asset-id={file.id}
                                   onDragStart={(e) => handleDragStart(e, existingAsset, file)}
-                                  onClick={() => selectDriveFile(file)}
+                                  onClick={(e) => handleDriveFileClick(e, file)}
                                   className={`p-3 bg-background border rounded-lg transition-colors text-left ${
                                     state.driveSelectedFile?.id === file.id
                                       ? 'border-primary ring-2 ring-primary'
@@ -2931,7 +3144,7 @@ export default function MediaWorkbench() {
                                   draggable={true}
                                   data-asset-id={file.id}
                                   onDragStart={(e) => handleDragStart(e, existingAsset, file)}
-                                  onClick={() => selectDriveFile(file)}
+                                  onClick={(e) => handleDriveFileClick(e, file)}
                                   className={`w-full p-3 bg-background border rounded-lg transition-colors text-left flex items-center gap-3 ${
                                     state.driveSelectedFile?.id === file.id
                                       ? 'border-primary ring-2 ring-primary'
@@ -2964,6 +3177,95 @@ export default function MediaWorkbench() {
                             })}
                           </div>
                         )}
+                        {/* Use This Asset button - shown when Drive file is selected */}
+                        {state.driveSelectedFile && (
+                          <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                            <div className="flex items-center gap-3 mb-3">
+                              <div className="w-12 h-12 bg-muted rounded flex items-center justify-center overflow-hidden">
+                                {state.driveSelectedFile.thumbnailLink && state.driveSelectedFile.mimeType?.startsWith('image/') ? (
+                                  <img
+                                    src={`/api/drive/files/${state.driveSelectedFile.id}/thumbnail${state.driveCurrentDriveId ? `?corpusId=${state.driveCurrentDriveId}` : ''}`}
+                                    alt={state.driveSelectedFile.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                ) : (
+                                  <FileImage size={20} className="text-muted-foreground" />
+                                )}
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-medium text-foreground truncate">{state.driveSelectedFile.name}</div>
+                                <div className="text-xs text-muted-foreground">
+                                  {state.driveCurrentDriveId ? 'Shared Drive' : 'My Drive'}
+                                </div>
+                              </div>
+                            </div>
+
+                            <div className="space-y-2">
+                              <div className="text-xs text-muted-foreground">
+                                <span className="font-medium">Source:</span> {state.driveSelectedFile.name}
+                              </div>
+                              {state.selectedSlot ? (
+                                <div className="text-xs text-muted-foreground">
+                                  <span className="font-medium">Target:</span> {state.selectedSlot.slotName}
+                                </div>
+                              ) : (
+                                <div className="text-xs text-amber-600">
+                                  ⚠️ Select a target slot first
+                                </div>
+                              )}
+
+                              <button
+                                onClick={handleUseDriveAsset}
+                                disabled={!state.selectedSlot || state.mutationState !== 'idle'}
+                                className="w-full mt-2 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                              >
+                                {state.mutationState === 'idle' && (
+                                  <>
+                                    <Database size={16} />
+                                    Use This Asset
+                                  </>
+                                )}
+                                {state.mutationState === 'confirming' && (
+                                  <>
+                                    <Loader2 size={16} className="animate-spin" />
+                                    Confirming...
+                                  </>
+                                )}
+                                {state.mutationState === 'materializing' && (
+                                  <>
+                                    <Loader2 size={16} className="animate-spin" />
+                                    Materializing...
+                                  </>
+                                )}
+                                {state.mutationState === 'assigning' && (
+                                  <>
+                                    <Loader2 size={16} className="animate-spin" />
+                                    Assigning...
+                                  </>
+                                )}
+                                {state.mutationState === 'verifying' && (
+                                  <>
+                                    <Loader2 size={16} className="animate-spin" />
+                                    Verifying...
+                                  </>
+                                )}
+                                {state.mutationState === 'complete' && (
+                                  <>
+                                    <Check size={16} />
+                                    Complete
+                                  </>
+                                )}
+                              </button>
+
+                              {state.mutationError && (
+                                <div className="text-xs text-destructive mt-2">
+                                  Error: {state.mutationError}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
                         {state.driveNextPageToken && (
                           <button
                             onClick={loadMoreDriveFiles}
