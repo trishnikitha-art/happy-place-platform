@@ -59,10 +59,10 @@ export async function POST(request: Request) {
         expectedQuery: `'${sharedDriveId}' in parents and trashed = false`,
       },
       findings: {
-        rootFolderParentId: null as string | null,
         rootFileParentIds: [] as string[],
         subfolderFileParentIds: [] as string[],
-        rootFolderId: null as string | null,
+        uniqueParentIds: [] as string[],
+        currentQueryFileCount: 0,
       },
       validation: {
         assumptionCorrect: false,
@@ -70,30 +70,49 @@ export async function POST(request: Request) {
       },
     };
 
-    // STEP 1: Get the Shared Drive root folder metadata
-    console.log('[SHARED_DRIVE_PARENT_SEMANTICS] STEP 1: Get Shared Drive root folder');
+    // STEP 1: List files using current implementation assumption (Files API only)
+    console.log('[SHARED_DRIVE_PARENT_SEMANTICS] STEP 1: Test current implementation query');
     try {
-      const driveResponse = await driveClient.drives.get({
+      const currentQueryFiles = await driveClient.files.list({
+        corpora: 'drive',
         driveId: sharedDriveId,
-        fields: 'id,name,rootFolderId',
+        q: `'${sharedDriveId}' in parents and trashed = false`,
+        pageSize: 100,
+        fields: 'files(id,name,parents,mimeType)',
+        supportsAllDrives: true,
+        includeItemsFromAllDrives: true,
       });
 
-      results.findings.rootFolderId = driveResponse.data.rootFolderId;
-      console.log('[SHARED_DRIVE_PARENT_SEMANTICS] Shared Drive root folder ID:', results.findings.rootFolderId);
+      const files = currentQueryFiles.data.files || [];
+      results.findings.currentQueryFileCount = files.length;
+      console.log('[SHARED_DRIVE_PARENT_SEMANTICS] Files returned by current query:', files.length);
 
-      results.validation.evidence.push(`Shared Drive root folder ID: ${results.findings.rootFolderId}`);
-      results.validation.evidence.push(`Shared Drive ID: ${sharedDriveId}`);
-      results.validation.evidence.push(`Are they equal? ${results.findings.rootFolderId === sharedDriveId}`);
+      // Collect parent IDs from returned files
+      const parentIds = new Set<string>();
+      files.forEach((file: any) => {
+        if (file.parents && file.parents.length > 0) {
+          file.parents.forEach((parentId: string) => {
+            parentIds.add(parentId);
+            results.findings.rootFileParentIds.push(parentId);
+          });
+        }
+      });
 
-      if (results.findings.rootFolderId !== sharedDriveId) {
-        results.validation.evidence.push('CRITICAL: Shared Drive ID ≠ root folder ID');
+      results.findings.uniqueParentIds = Array.from(parentIds);
+      results.validation.evidence.push(`Current query returned ${files.length} files`);
+      results.validation.evidence.push(`Unique parent IDs found: ${results.findings.uniqueParentIds.join(', ')}`);
+      results.validation.evidence.push(`Does any file have Shared Drive ID as parent? ${parentIds.has(sharedDriveId)}`);
+
+      if (files.length === 0) {
+        results.validation.evidence.push('WARNING: Current query returned ZERO files');
+        results.validation.evidence.push('This suggests the assumption may be WRONG');
       }
     } catch (error) {
-      console.error('[SHARED_DRIVE_PARENT_SEMANTICS] Failed to get Shared Drive metadata:', error);
-      results.validation.evidence.push(`Failed to get Shared Drive metadata: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.error('[SHARED_DRIVE_PARENT_SEMANTICS] Failed to list files with current query:', error);
+      results.validation.evidence.push(`Current query failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
-    // STEP 2: List files using current implementation assumption
+    // STEP 2: Find a subfolder and test its children
     console.log('[SHARED_DRIVE_PARENT_SEMANTICS] STEP 2: Test current implementation query');
     try {
       const currentQueryFiles = await driveClient.files.list({
@@ -133,35 +152,7 @@ export async function POST(request: Request) {
       results.validation.evidence.push(`Current query failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
-    // STEP 3: List files using root folder ID (alternative approach)
-    if (results.findings.rootFolderId) {
-      console.log('[SHARED_DRIVE_PARENT_SEMANTICS] STEP 3: Test root folder ID query');
-      try {
-        const rootFolderQueryFiles = await driveClient.files.list({
-          corpora: 'drive',
-          driveId: sharedDriveId,
-          q: `'${results.findings.rootFolderId}' in parents and trashed = false`,
-          pageSize: 10,
-          fields: 'files(id,name,parents,mimeType)',
-          supportsAllDrives: true,
-          includeItemsFromAllDrives: true,
-        });
-
-        const files = rootFolderQueryFiles.data.files || [];
-        console.log('[SHARED_DRIVE_PARENT_SEMANTICS] Files returned by root folder ID query:', files.length);
-
-        results.validation.evidence.push(`Root folder ID query returned ${files.length} files`);
-
-        if (files.length > 0) {
-          results.validation.evidence.push('This suggests root folder ID is the correct parent');
-        }
-      } catch (error) {
-        console.error('[SHARED_DRIVE_PARENT_SEMANTICS] Failed to list files with root folder ID:', error);
-        results.validation.evidence.push(`Root folder ID query failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-      }
-    }
-
-    // STEP 4: Find a subfolder and test its children
+    // STEP 3: Find a subfolder and test its children
     console.log('[SHARED_DRIVE_PARENT_SEMANTICS] STEP 4: Find subfolder and test its children');
     try {
       const folders = await driveClient.files.list({
@@ -214,27 +205,28 @@ export async function POST(request: Request) {
       results.validation.evidence.push(`Subfolder test failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
 
-    // STEP 5: Determine if assumption is correct
-    console.log('[SHARED_DRIVE_PARENT_SEMANTICS] STEP 5: Validate assumption');
+    // STEP 4: Determine if assumption is correct
+    console.log('[SHARED_DRIVE_PARENT_SEMANTICS] STEP 4: Validate assumption');
     
     // Assumption is correct if:
-    // 1. Shared Drive ID equals root folder ID
-    // 2. Current query returns files
-    // 3. Returned files have Shared Drive ID as parent
+    // 1. Current query returns files
+    // 2. Returned files have Shared Drive ID as parent
     const assumptionCorrect = 
-      results.findings.rootFolderId === sharedDriveId &&
-      results.findings.rootFileParentIds.length > 0 &&
+      results.findings.currentQueryFileCount > 0 &&
       results.findings.rootFileParentIds.includes(sharedDriveId);
 
     results.validation.assumptionCorrect = assumptionCorrect;
 
     if (assumptionCorrect) {
       results.validation.evidence.push('VALIDATION: Current implementation assumption is CORRECT');
+      results.validation.evidence.push('Shared Drive ID works as parent ID for root-level files');
     } else {
       results.validation.evidence.push('VALIDATION: Current implementation assumption is INCORRECT');
       
-      if (results.findings.rootFolderId && results.findings.rootFolderId !== sharedDriveId) {
-        results.validation.evidence.push('RECOMMENDATION: Use rootFolderId instead of driveId for Shared Drive root query');
+      if (results.findings.currentQueryFileCount === 0) {
+        results.validation.evidence.push('RECOMMENDATION: Investigate alternative parent ID for Shared Drive root files');
+      } else if (!results.findings.rootFileParentIds.includes(sharedDriveId)) {
+        results.validation.evidence.push('RECOMMENDATION: Files use different parent ID - update query accordingly');
       }
     }
 

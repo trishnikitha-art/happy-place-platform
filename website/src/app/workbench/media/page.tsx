@@ -1074,10 +1074,11 @@ export default function MediaWorkbench() {
       setState(prev => ({ ...prev, mutationState: 'materializing' }));
 
       // Get current assignment revision for CAS
-      // Normalize service card slot IDs
-      const serviceSlug = targetSlot.id.startsWith('service-card-')
-        ? targetSlot.id.replace('service-card-', '')
-        : targetSlot.id;
+      // P0 FIX: Use server-side authority mapping instead of local normalization
+      // The server resolves Visual Slot IDs to authoritative assignment keys
+      // hero-background → brand-hero-background
+      // homepage-owner-portrait-slot → brand-portrait-homepage
+      // service-card-{slug} → {slug}
 
       // Read current assignment to get revision
       const verifyResponse = await fetch('/api/workbench/media-authority', {
@@ -1085,7 +1086,7 @@ export default function MediaWorkbench() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'getAssignment',
-          slotSlug: serviceSlug,
+          slotSlug: targetSlot.id, // Pass raw Visual Slot ID, let server resolve authority mapping
         }),
       });
 
@@ -1095,11 +1096,17 @@ export default function MediaWorkbench() {
         if (verifyData.assignment?.revision !== undefined) {
           expectedRevision = verifyData.assignment.revision;
         }
+      } else {
+        console.warn('[WORKBENCH] CAS revision read failed', {
+          status: verifyResponse.status,
+          targetSlotId: targetSlot.id,
+        });
+        // Continue with expectedRevision = 0, server will reject if assignment exists
       }
 
       console.log('[WORKBENCH] USE_ASSET_CAS_REVISION', {
         requestId,
-        serviceSlug,
+        targetSlotId: targetSlot.id,
         expectedRevision,
       });
 
@@ -1127,7 +1134,6 @@ export default function MediaWorkbench() {
         requestId,
         canonicalMediaId: result.canonicalMediaId,
         targetSlotId: result.targetSlotId,
-        serviceSlug: result.serviceSlug,
         revision: result.assignment?.revision,
       });
 

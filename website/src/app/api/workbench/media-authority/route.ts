@@ -19,6 +19,29 @@ import { NextResponse } from 'next/server';
 import { getPublishedMediaAssets } from '@/lib/visual-asset-registry';
 import { workbenchSession } from '@/lib/workbench-session';
 import { getMediaRecordRaw, listMediaIds } from '@/lib/media-kv-store';
+import { getServiceCardAssignment } from '@/lib/assignment-store';
+
+// Visual Slot Authority Registry (matches use-drive-asset transaction)
+const VISUAL_SLOT_REGISTRY: Record<string, string> = {
+  'hero-background': 'brand-hero-background',
+  'homepage-owner-portrait-slot': 'brand-portrait-homepage',
+} as const;
+
+function resolveAssignmentKey(targetSlotId: string): string | null {
+  // Check explicit registry first
+  if (VISUAL_SLOT_REGISTRY[targetSlotId]) {
+    return VISUAL_SLOT_REGISTRY[targetSlotId];
+  }
+  
+  // Service card slots: service-card-{slug} → {slug}
+  if (targetSlotId.startsWith('service-card-')) {
+    const serviceSlug = targetSlotId.replace('service-card-', '');
+    return serviceSlug;
+  }
+  
+  // Reject unknown slots
+  return null;
+}
 
 export const dynamic = 'force-dynamic';
 
@@ -85,6 +108,41 @@ export async function POST(request: Request) {
       return NextResponse.json({
         media: foundMedia,
         found: !!foundMedia,
+      });
+    }
+
+    // P0 FIX: Add getAssignment action for CAS revision read
+    // This resolves the broken architectural seam where UI calls getAssignment
+    // but the server endpoint does not implement it
+    if (action === 'getAssignment') {
+      const { slotSlug } = body;
+      if (!slotSlug) {
+        return NextResponse.json(
+          { error: 'slotSlug required' },
+          { status: 400 }
+        );
+      }
+
+      // Resolve Visual Slot ID to authoritative assignment key
+      const assignmentKey = resolveAssignmentKey(slotSlug);
+      if (!assignmentKey) {
+        return NextResponse.json(
+          { 
+            error: 'INVALID_TARGET_SLOT',
+            message: `Target slot '${slotSlug}' is not a valid writable target. Valid targets: hero-background, homepage-owner-portrait-slot, or service-card-{slug}`,
+          },
+          { status: 400 }
+        );
+      }
+
+      // Fetch current assignment with revision
+      const assignment = await getServiceCardAssignment(assignmentKey);
+      
+      return NextResponse.json({
+        assignment,
+        revision: assignment?.revision || 0, // 0 for create
+        assignmentKey,
+        slotSlug,
       });
     }
 
