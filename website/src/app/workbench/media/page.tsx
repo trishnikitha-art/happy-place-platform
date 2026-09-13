@@ -415,11 +415,12 @@ export default function MediaWorkbench() {
       format: driveFile.mimeType,
       drive: {
         fileId: driveFile.id,
-        driveId: explicitDriveId || undefined,
+        driveId: explicitDriveId || driveFile.corpusId || undefined,
         name: driveFile.name,
         mimeType: driveFile.mimeType,
         webViewUrl: driveFile.webViewLink,
         modifiedTime: driveFile.modifiedTime,
+        corpusId: driveFile.corpusId, // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
       },
       dimensions: { width: 0, height: 0 }, // Placeholder for Drive source
       variants: {
@@ -898,7 +899,7 @@ export default function MediaWorkbench() {
     console.log('[WORKBENCH] DRIVE_FILE_SELECTED', {
       fileId: file.id,
       filename: file.name,
-      driveId: state.driveCurrentDriveId,
+      corpusId: file.corpusId, // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
     });
     setState(prev => ({ ...prev, driveSelectedFile: file }));
   };
@@ -1705,6 +1706,7 @@ export default function MediaWorkbench() {
             mimeType: applicationData.mimeType,
             webViewLink: applicationData.webViewLink,
             thumbnailLink: applicationData.thumbnailLink,
+            corpusId: applicationData.corpusId, // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
           });
           setState(prev => ({ ...prev, selectedSlot: slot }));
 
@@ -2956,7 +2958,7 @@ export default function MediaWorkbench() {
                       <div className="flex items-center gap-1 text-sm">
                         {state.driveBreadcrumb.map((crumb, index) => (
                           <button
-                            key={crumb.id}
+                            key={state.driveCurrentDriveId ? `${state.driveCurrentDriveId}:${crumb.id}` : `my-drive:${crumb.id}`}
                             onClick={() => navigateBreadcrumb(index)}
                             className="hover:text-primary transition-colors"
                           >
@@ -2973,7 +2975,7 @@ export default function MediaWorkbench() {
                         <div className="space-y-1">
                           {(state.driveFiles || []).filter((item: any) => item.type === 'folder').map((folder: any) => (
                             <button
-                              key={folder.id}
+                              key={folder.corpusId ? `${folder.corpusId}:${folder.id}` : `my-drive:${folder.id}`}
                               onClick={() => navigateToFolder(folder)}
                               className="w-full p-3 bg-background border border-border rounded-lg hover:border-primary transition-colors text-left flex items-center gap-3"
                             >
@@ -3002,7 +3004,7 @@ export default function MediaWorkbench() {
 
                               return (
                                 <button
-                                  key={file.id}
+                                  key={file.corpusId ? `${file.corpusId}:${file.id}` : `my-drive:${file.id}`}
                                   draggable={true}
                                   data-asset-id={file.id}
                                   onDragStart={(e) => handleDragStart(e, existingAsset, file)}
@@ -3015,7 +3017,7 @@ export default function MediaWorkbench() {
                                 >
                                   {file.thumbnailLink && file.mimeType?.startsWith('image/') ? (
                                     <img
-                                      src={`/api/drive/files/${file.id}/thumbnail${state.driveCurrentDriveId ? `?corpusId=${state.driveCurrentDriveId}` : ''}`}
+                                      src={`/api/drive/files/${file.id}/thumbnail${file.corpusId ? `?corpusId=${file.corpusId}` : ''}`}
                                       alt={file.name}
                                       className="w-full aspect-square object-cover rounded mb-2"
                                       draggable={false}
@@ -3046,7 +3048,7 @@ export default function MediaWorkbench() {
 
                               return (
                                 <button
-                                  key={file.id}
+                                  key={file.corpusId ? `${file.corpusId}:${file.id}` : `my-drive:${file.id}`}
                                   draggable={true}
                                   data-asset-id={file.id}
                                   onDragStart={(e) => handleDragStart(e, existingAsset, file)}
@@ -3059,7 +3061,7 @@ export default function MediaWorkbench() {
                                 >
                                   {file.thumbnailLink && file.mimeType?.startsWith('image/') ? (
                                     <img
-                                      src={`/api/drive/files/${file.id}/thumbnail${state.driveCurrentDriveId ? `?corpusId=${state.driveCurrentDriveId}` : ''}`}
+                                      src={`/api/drive/files/${file.id}/thumbnail${file.corpusId ? `?corpusId=${file.corpusId}` : ''}`}
                                       alt={file.name}
                                       className="w-12 h-12 object-cover rounded"
                                       draggable={false}
@@ -3090,7 +3092,7 @@ export default function MediaWorkbench() {
                               <div className="w-12 h-12 bg-muted rounded flex items-center justify-center overflow-hidden">
                                 {state.driveSelectedFile.thumbnailLink && state.driveSelectedFile.mimeType?.startsWith('image/') ? (
                                   <img
-                                    src={`/api/drive/files/${state.driveSelectedFile.id}/thumbnail${state.driveCurrentDriveId ? `?corpusId=${state.driveCurrentDriveId}` : ''}`}
+                                    src={`/api/drive/files/${state.driveSelectedFile.id}/thumbnail${state.driveSelectedFile.corpusId ? `?corpusId=${state.driveSelectedFile.corpusId}` : ''}`}
                                     alt={state.driveSelectedFile.name}
                                     className="w-full h-full object-cover"
                                   />

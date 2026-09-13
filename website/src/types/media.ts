@@ -94,6 +94,7 @@ export interface DriveReference extends BaseMedia {
   drive: {
     fileId: string;
     driveId?: string; // Shared Drive ID if applicable
+    corpusId?: string; // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
     name: string;
     mimeType: string;
     webViewUrl?: string;
@@ -116,6 +117,7 @@ export interface MaterializingMedia extends BaseMedia {
   drive?: {
     fileId: string;
     driveId?: string;
+    corpusId?: string; // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
     name: string;
     mimeType: string;
     webViewUrl?: string;
@@ -174,6 +176,7 @@ export interface StaleMedia extends BaseMedia {
   drive?: {
     fileId: string;
     driveId?: string;
+    corpusId?: string; // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
     name: string;
     mimeType: string;
     webViewUrl?: string;
@@ -199,6 +202,7 @@ export interface Media extends BaseMedia {
   drive?: {
     fileId: string;
     driveId?: string; // Shared Drive ID if applicable
+    corpusId?: string; // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
     name: string;
     mimeType: string;
     webViewUrl?: string;

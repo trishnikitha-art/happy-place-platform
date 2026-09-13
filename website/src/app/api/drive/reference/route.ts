@@ -44,6 +44,7 @@ interface DriveReference {
   drive: {
     fileId: string;
     driveId?: string;
+    corpusId?: string; // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
     name: string;
     mimeType: string;
     webViewUrl: string;
@@ -189,6 +190,7 @@ export async function POST(request: Request) {
       drive: {
         fileId: fileId,
         driveId: sharedDriveId,
+        corpusId: driveFile.corpusId, // P0 FIX: Preserve corpus context from Drive file
         name: driveFile.name || '',
         mimeType: driveFile.mimeType || '',
         webViewUrl: driveFile.webViewLink || '',
@@ -214,6 +216,7 @@ export async function POST(request: Request) {
       drive: {
         fileId: fileId,
         driveId: sharedDriveId,
+        corpusId: driveFile.corpusId, // P0 FIX: Preserve corpus context from Drive file
         name: driveFile.name || '',
         mimeType: driveFile.mimeType || '',
         webViewUrl: driveFile.webViewLink || '',

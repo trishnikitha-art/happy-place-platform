@@ -44,6 +44,7 @@ export interface DriveFile {
   webViewLink?: string;
   description?: string;
   parent?: string;
+  corpusId?: string; // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
 }
 
 export class DriveDiscovery {
@@ -359,6 +360,7 @@ export class DriveDiscovery {
               webViewLink: item.webViewLink,
               description: item.description,
               parent: item.parents?.[0],
+              corpusId: context.driveId, // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
             });
           }
         }
@@ -441,6 +443,7 @@ export class DriveDiscovery {
           webViewLink: response.data.webViewLink,
           description: response.data.description,
           parent: response.data.parents?.[0],
+          corpusId: corpusId, // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
         };
       }
     } catch (error) {
@@ -685,6 +688,7 @@ export class DriveDiscovery {
               type: 'folder',
               parent: file.parents?.[0],
               modifiedTime: file.modifiedTime,
+              corpusId: corpusId, // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
             });
           } else {
             items.push({
@@ -696,6 +700,7 @@ export class DriveDiscovery {
               thumbnailLink: file.thumbnailLink,
               webViewLink: file.webViewLink,
               parent: file.parents?.[0],
+              corpusId: corpusId, // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
             });
           }
         }
