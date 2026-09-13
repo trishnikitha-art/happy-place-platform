@@ -529,16 +529,14 @@ export default function MediaWorkbench() {
         totalDriveFiles,
         totalDriveFolders,
         integratedDriveAssets,
-        skippedDriveAssets, // P0 FIX: Report skipped duplicates
       });
-      
+
       console.log('[WORKBENCH] DRIVE_CORPUS_INTEGRATION_COMPLETE', {
         myDrive: !!structure.myDrive,
         sharedDrives: structure.sharedDrives?.length || 0,
         totalFilesLoaded: totalDriveFiles,
         totalFoldersLoaded: totalDriveFolders,
         totalAssetsIntegrated: integratedDriveAssets,
-        totalDuplicatesSkipped: skippedDriveAssets, // P0 FIX: Report duplicates skipped
       });
     } catch (error) {
       console.error('[WORKBENCH] DRIVE_CORPUS_INTEGRATION_ERROR', error);
@@ -717,61 +715,9 @@ export default function MediaWorkbench() {
     }
   };
 
-  const materializeDriveFile = async (
-    applicationData: any,
-    slot: RegisteredSlot,
-    requestId: string
-  ) => {
-    console.log('[DND] MATERIALIZING_DRIVE_FILE', {
-      requestId,
-      fileId: applicationData.fileId,
-      sharedDriveId: applicationData.sharedDriveId,
-      slotId: slot.id,
-    });
-
-    try {
-      setState(prev => ({ ...prev, isAccepting: true }));
-
-      // Call materialization API
-      const response = await fetch('/api/workbench/materialize-drive', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fileId: applicationData.fileId,
-          sharedDriveId: applicationData.sharedDriveId,
-          fileName: applicationData.name,
-          mimeType: applicationData.mimeType,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to materialize Drive file');
-      }
-
-      const result = await response.json();
-      console.log('[DND] MATERIALIZATION_SUCCESS', {
-        requestId,
-        assetId: result.asset.id,
-        filename: result.asset.filename,
-      });
-
-      // Add to registry
-      addDriveAssetToRegistry(result.asset);
-
-      // Reload canonical data to include new asset
-      await loadCanonicalData();
-
-      // Now assign to slot
-      const asset = result.asset;
-      await handleDriveDropToSlot(slot, asset, slot.currentMediaId, requestId);
-    } catch (error) {
-      console.error('[DND] MATERIALIZATION_ERROR', { requestId, error });
-      alert(`Failed to materialize Drive file: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setState(prev => ({ ...prev, isAccepting: false }));
-    }
-  };
+  // P0 FIX: Legacy materializeDriveFile removed - all Drive → slot operations now route through handleUseDriveAsset
+  // The gallery add path still uses direct materialize-drive endpoint for project gallery additions
+  // but slot assignment is now exclusively through the authoritative use-drive-asset transaction
 
   const verifyMediaMaterializationComplete = async (assetId: string): Promise<boolean> => {
     try {
@@ -1054,11 +1000,20 @@ export default function MediaWorkbench() {
           expectedRevision = verifyData.assignment.revision;
         }
       } else {
-        console.warn('[WORKBENCH] CAS revision read failed', {
+        console.error('[WORKBENCH] CAS_REVISION_READ_FAILED', {
           status: verifyResponse.status,
           targetSlotId: targetSlot.id,
         });
-        // Continue with expectedRevision = 0, server will reject if assignment exists
+        // P0 FIX: Do NOT continue with revision 0 if authority read fails
+        // This violates the mandatory expectedRevision requirement
+        alert('Failed to read current assignment revision. Please try again.');
+        setState(prev => ({
+          ...prev,
+          mutationState: 'idle',
+          mutationRequestId: null,
+          mutationError: 'Authority revision read failed',
+        }));
+        return;
       }
 
       console.log('[WORKBENCH] USE_ASSET_CAS_REVISION', {
@@ -1742,7 +1697,8 @@ export default function MediaWorkbench() {
           }
 
           // P0 FIX: Instead of legacy materialize-drive → assign-media, set up for authoritative transaction
-          // Select the Drive file and target slot, then trigger Use This Asset
+          // Select the Drive file and target slot, user must manually click "Use This Asset"
+          // This prevents duplicate execution and ensures user confirmation
           selectDriveFile({
             id: applicationData.fileId,
             name: applicationData.name,
@@ -1752,17 +1708,12 @@ export default function MediaWorkbench() {
           });
           setState(prev => ({ ...prev, selectedSlot: slot }));
 
-          // Auto-trigger the authoritative transaction
-          console.log('[DND] AUTO_TRIGGERING_AUTHORITATIVE_TRANSACTION', {
+          console.log('[DND] DRIVE_FILE_SELECTED_FOR_AUTHORITATIVE_TRANSACTION', {
             requestId,
             fileId: applicationData.fileId,
             slotId: slot.id,
+            note: 'User must click "Use This Asset" to complete the transaction',
           });
-
-          // Call handleUseDriveAsset after a short delay to allow state to update
-          setTimeout(() => {
-            handleUseDriveAsset();
-          }, 100);
 
           return;
         }

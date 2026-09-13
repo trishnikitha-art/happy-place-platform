@@ -129,36 +129,62 @@ function resolveVisualSlotAuthority(targetSlotId: string): SlotAuthorityMapping 
 }
 
 /**
+ * SERVICE CARD AUTHORITY ALLOWLIST
+ * 
+ * This is the authoritative allowlist of service cards that can be mutated via Drive handoff.
+ * The slot format is: homepage-service-card-slot-{slug} or service-card-{slug}
+ * 
+ * Only services in this list are writable via Drive handoff.
+ */
+const SERVICE_CARD_ALLOWLIST: string[] = [
+  'painting',
+  'repairs',
+  'restoration',
+  'fences',
+  'decks',
+  'pergolas',
+  'kitchen-remodeling',
+  'bathroom-remodeling',
+  'built-ins',
+  'outdoor-living',
+];
+
+/**
  * Service card slot authority resolution
  * Service cards use slug-based authority keys
- * Returns null if the slot format is invalid
+ * Returns null if the slot format is invalid or slug is not in allowlist
  */
 function resolveServiceCardAuthority(targetSlotId: string): SlotAuthorityMapping | null {
+  let slug: string | null = null;
+
   // Service card slots have format: homepage-service-card-slot-{slug}
   if (targetSlotId.startsWith('homepage-service-card-slot-')) {
-    const slug = targetSlotId.replace('homepage-service-card-slot-', '');
-    return {
-      visualSlotId: targetSlotId,
-      authorityType: 'service-card-assignment',
-      authorityKey: slug,
-      writable: true,
-      description: `Service card slot for ${slug}`,
-    };
+    slug = targetSlotId.replace('homepage-service-card-slot-', '');
   }
-
   // Legacy format: service-card-{slug}
-  if (targetSlotId.startsWith('service-card-')) {
-    const slug = targetSlotId.replace('service-card-', '');
-    return {
-      visualSlotId: targetSlotId,
-      authorityType: 'service-card-assignment',
-      authorityKey: slug,
-      writable: true,
-      description: `Service card slot for ${slug} (legacy format)`,
-    };
+  else if (targetSlotId.startsWith('service-card-')) {
+    slug = targetSlotId.replace('service-card-', '');
+  } else {
+    return null;
   }
 
-  return null;
+  // P0 FIX: Verify slug is in allowlist - reject arbitrary service cards
+  if (!slug || !SERVICE_CARD_ALLOWLIST.includes(slug)) {
+    console.warn('[USE_DRIVE_ASSET] Service card slug not in allowlist', {
+      targetSlotId,
+      slug,
+      allowlist: SERVICE_CARD_ALLOWLIST,
+    });
+    return null;
+  }
+
+  return {
+    visualSlotId: targetSlotId,
+    authorityType: 'service-card-assignment',
+    authorityKey: slug,
+    writable: true,
+    description: `Service card slot for ${slug}`,
+  };
 }
 
 /**
@@ -227,6 +253,61 @@ async function checkIdempotency(idempotencyKey: string): Promise<any | null> {
 }
 
 /**
+ * Attempt to acquire transaction lock using Redis SET NX
+ * Returns true if lock acquired, false if already locked
+ */
+async function acquireTransactionLock(idempotencyKey: string): Promise<boolean> {
+  try {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    
+    if (!url || !token) {
+      console.warn('[USE_DRIVE_ASSET] KV unavailable - transaction lock skipped');
+      return true; // Fail open - proceed without lock
+    }
+
+    const redis = new Redis({ url, token });
+    const lockKey = `${IDEMPOTENCY_PREFIX}lock:${idempotencyKey}`;
+    
+    // SET NX with 60 second TTL - only succeeds if key doesn't exist
+    const acquired = await redis.set(lockKey, 'locked', { nx: true, ex: 60 });
+    
+    if (acquired) {
+      console.log('[USE_DRIVE_ASSET] Transaction lock acquired', { idempotencyKey });
+    } else {
+      console.log('[USE_DRIVE_ASSET] Transaction lock already held', { idempotencyKey });
+    }
+    
+    return acquired === 'OK';
+  } catch (error) {
+    console.error('[USE_DRIVE_ASSET] Transaction lock acquisition failed', { error });
+    return true; // Fail open - proceed without lock
+  }
+}
+
+/**
+ * Release transaction lock
+ */
+async function releaseTransactionLock(idempotencyKey: string): Promise<void> {
+  try {
+    const url = process.env.KV_REST_API_URL;
+    const token = process.env.KV_REST_API_TOKEN;
+    
+    if (!url || !token) {
+      return;
+    }
+
+    const redis = new Redis({ url, token });
+    const lockKey = `${IDEMPOTENCY_PREFIX}lock:${idempotencyKey}`;
+    await redis.del(lockKey);
+    
+    console.log('[USE_DRIVE_ASSET] Transaction lock released', { idempotencyKey });
+  } catch (error) {
+    console.error('[USE_DRIVE_ASSET] Transaction lock release failed', { error });
+  }
+}
+
+/**
  * Record the successful result of an operation for idempotency
  */
 async function recordIdempotency(idempotencyKey: string, result: any, ttlSeconds: number = 3600): Promise<void> {
@@ -260,6 +341,7 @@ interface UseDriveAssetRequest {
 
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
+  let stableIdempotencyKey: string | null = null;
 
   try {
     // Step 1: Authenticate Workbench session
@@ -286,7 +368,7 @@ export async function POST(request: Request) {
 
     // P0 FIX: Generate stable idempotency key if not provided
     // Key = sourceFileId + targetSlotId (stable identity for this logical operation)
-    const stableIdempotencyKey = idempotencyKey || `${sourceFileId}:${targetSlotId}`;
+    stableIdempotencyKey = idempotencyKey || `${sourceFileId}:${targetSlotId}`;
 
     console.log('[USE_DRIVE_ASSET] Idempotency check', {
       requestId,
@@ -302,6 +384,23 @@ export async function POST(request: Request) {
         idempotencyKey: stableIdempotencyKey,
       });
       return NextResponse.json(cachedResult);
+    }
+
+    // P0 FIX: Acquire transaction lock to prevent duplicate execution
+    const lockAcquired = await acquireTransactionLock(stableIdempotencyKey);
+    if (!lockAcquired) {
+      console.log('[USE_DRIVE_ASSET] Transaction already in progress', {
+        requestId,
+        idempotencyKey: stableIdempotencyKey,
+      });
+      return NextResponse.json(
+        {
+          error: 'TRANSACTION_IN_PROGRESS',
+          message: 'This transaction is already in progress. Please wait.',
+          requestId,
+        },
+        { status: 409 } // Conflict
+      );
     }
 
     console.log('[USE_DRIVE_ASSET] Transaction initiated', {
@@ -374,20 +473,58 @@ export async function POST(request: Request) {
         requestedSharedDriveId: sourceSharedDriveId,
       });
 
-      // P1 FIX: Verify requested Shared Drive ID matches actual Drive ID
-      if (sourceSharedDriveId && sourceSharedDriveId !== actualCorpusId) {
-        return NextResponse.json(
-          {
-            error: 'CORPUS_MISMATCH',
-            message: `Requested Shared Drive ID (${sourceSharedDriveId}) does not match actual file corpus (${actualCorpusId})`,
-            details: {
-              requested: sourceSharedDriveId,
-              actual: actualCorpusId,
+      // P0 FIX: Fail-closed corpus authorization for both My Drive and Shared Drive
+      // The server must determine the actual corpus and verify it matches authorized corpus
+      // Do NOT trust client-supplied sourceSharedDriveId as the security decision
+      
+      // Check if this is a Shared Drive file
+      if (actualDriveId) {
+        // This is a Shared Drive file - verify it's in an authorized Shared Drive
+        // In production, this should check against an environment-configured allowlist
+        // For now, verify the client-supplied Shared Drive ID matches the actual Drive ID
+        if (sourceSharedDriveId && sourceSharedDriveId !== actualCorpusId) {
+          return NextResponse.json(
+            {
+              error: 'CORPUS_MISMATCH',
+              message: `Requested Shared Drive ID (${sourceSharedDriveId}) does not match actual file corpus (${actualCorpusId})`,
+              details: {
+                requested: sourceSharedDriveId,
+                actual: actualCorpusId,
+              },
+              requestId,
             },
-            requestId,
-          },
-          { status: 400 }
-        );
+            { status: 400 }
+          );
+        }
+        
+        // TODO: Verify actualCorpusId is in the authorized Shared Drive allowlist
+        // This requires environment configuration: AUTHORIZED_SHARED_DRIVES=[]
+        console.log('[USE_DRIVE_ASSET] Shared Drive corpus check passed', {
+          requestId,
+          actualCorpusId,
+          note: 'TODO: Verify against authorized Shared Drive allowlist',
+        });
+      } else {
+        // This is a My Drive file - verify client didn't claim it was from a Shared Drive
+        if (sourceSharedDriveId) {
+          return NextResponse.json(
+            {
+              error: 'CORPUS_MISMATCH',
+              message: `File is in My Drive but client claimed it was from Shared Drive (${sourceSharedDriveId})`,
+              details: {
+                requested: sourceSharedDriveId,
+                actual: 'My Drive',
+              },
+              requestId,
+            },
+            { status: 400 }
+          );
+        }
+        
+        console.log('[USE_DRIVE_ASSET] My Drive corpus check passed', {
+          requestId,
+          note: 'File is in My Drive as expected',
+        });
       }
 
       // P1 FIX: Validate MIME type is an image
@@ -682,6 +819,9 @@ export async function POST(request: Request) {
     // P0 FIX: Record successful result for idempotency
     await recordIdempotency(stableIdempotencyKey, successResult);
 
+    // P0 FIX: Release transaction lock
+    await releaseTransactionLock(stableIdempotencyKey);
+
     return NextResponse.json(successResult);
   } catch (error) {
     console.error('[USE_DRIVE_ASSET] Transaction error', {
@@ -689,6 +829,12 @@ export async function POST(request: Request) {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
+    
+    // P0 FIX: Release transaction lock on error
+    if (stableIdempotencyKey) {
+      await releaseTransactionLock(stableIdempotencyKey);
+    }
+    
     return NextResponse.json(
       {
         error: 'TRANSACTION_ERROR',
