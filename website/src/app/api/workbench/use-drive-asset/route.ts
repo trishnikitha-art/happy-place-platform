@@ -71,34 +71,38 @@
 
 /**
  * SERVER-SIDE VISUAL SLOT AUTHORITY REGISTRY
- * 
+ *
  * This is the authoritative mapping of writable Visual Slots to their mutation authorities.
  * This is NOT the client-side slotRegistry (which is for UI discovery).
- * 
+ *
  * Architecture:
  * Visual Slot ID → Authority Type → Authority Key → Mutation Adapter
- * 
+ *
  * Authority Types:
  * - service-card-assignment: Mutates via Service Card Assignment Store (KV)
  * - static-project: Static-only (projects.v1.json) - NOT writable at runtime
  * - decorative: Intentionally non-assignable
- * 
+ *
  * Mutation Adapters:
  * - service-card-assignment: storeServiceCardAssignment() with CAS
  * - static-project: NONE (reject at runtime)
  * - decorative: NONE (reject always)
+ *
+ * CRITICAL: Only slots explicitly listed here are writable via Drive handoff
+ * UI may have additional VisualSlots for display purposes (project cards, galleries)
+ * but those are static-only and NOT writable through this endpoint
  */
 
 /**
  * P0 FIX: Authorized Drive Corpora Configuration
- * 
+ *
  * This endpoint now uses the centralized corpus-authorization.ts module
  * for consistent authorization across all Drive routes.
- * 
+ *
  * Environment Variables (configured in corpus-authorization.ts):
  * - HPP_AUTHORIZED_SHARED_DRIVES: Comma-separated list of authorized Shared Drive IDs
  * - HPP_AUTHORIZED_MY_DRIVE: 'true' if My Drive is authorized (default: false - fail-closed)
- * 
+ *
  * If a corpus is not in this allowlist, the endpoint rejects with 403 Forbidden.
  */
 
@@ -111,8 +115,32 @@ interface SlotAuthorityMapping {
 }
 
 /**
+ * SERVICE CARD AUTHORITY ALLOWLIST
+ *
+ * This is the authoritative allowlist of service cards that can be mutated via Drive handoff.
+ * The slot format is: homepage-service-card-slot-{slug}
+ *
+ * Only services in this list are writable via Drive handoff.
+ */
+const SERVICE_CARD_ALLOWLIST: string[] = [
+  'painting',
+  'repairs',
+  'restoration',
+  'fences',
+  'decks',
+  'pergolas',
+  'kitchen-remodeling',
+  'bathroom-remodeling',
+  'built-ins',
+  'outdoor-living',
+];
+
+/**
  * Authoritative allowlist of writable Visual Slots
  * This is the server-side source of truth for which slots can be mutated via Drive handoff
+ *
+ * NOTE: UI has additional VisualSlots for display (project cards, galleries, featured projects)
+ * but those are static-only and NOT writable through this endpoint
  */
 const VISUAL_SLOT_AUTHORITY: SlotAuthorityMapping[] = [
   // Brand slots - writable via Service Card Assignment Store
@@ -130,6 +158,9 @@ const VISUAL_SLOT_AUTHORITY: SlotAuthorityMapping[] = [
     writable: true,
     description: 'Homepage owner portrait',
   },
+  // Service card slots - writable via Service Card Assignment Store
+  // These are dynamically generated for each service in SERVICE_CARD_ALLOWLIST
+  // Format: homepage-service-card-slot-{slug}
 ];
 
 /**
@@ -140,27 +171,6 @@ function resolveVisualSlotAuthority(targetSlotId: string): SlotAuthorityMapping 
   const mapping = VISUAL_SLOT_AUTHORITY.find(slot => slot.visualSlotId === targetSlotId);
   return mapping || null;
 }
-
-/**
- * SERVICE CARD AUTHORITY ALLOWLIST
- * 
- * This is the authoritative allowlist of service cards that can be mutated via Drive handoff.
- * The slot format is: homepage-service-card-slot-{slug} or service-card-{slug}
- * 
- * Only services in this list are writable via Drive handoff.
- */
-const SERVICE_CARD_ALLOWLIST: string[] = [
-  'painting',
-  'repairs',
-  'restoration',
-  'fences',
-  'decks',
-  'pergolas',
-  'kitchen-remodeling',
-  'bathroom-remodeling',
-  'built-ins',
-  'outdoor-living',
-];
 
 /**
  * Service card slot authority resolution
