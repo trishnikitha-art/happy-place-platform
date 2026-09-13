@@ -27,9 +27,9 @@ import { getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib
 import { VisualSlot } from "@/components/visual-slot";
 import type { Media } from "@/types/media";
 
-// Mark homepage as static for build safety
-// Brand media and service cards now use static configuration
-export const dynamic = 'force-static';
+// P0 FIX: Use force-dynamic to enable VisualSlot client-side hydration in workbench iframe
+// Homepage already loads runtime data (reviews, owner portrait, hero) so static setting was incorrect
+export const dynamic = 'force-dynamic';
 
 const siteUrl = "https://happyplacecarpentry.com";
 
