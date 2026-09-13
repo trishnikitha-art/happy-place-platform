@@ -315,7 +315,7 @@ export async function findAuthorizationBySubject(googleSubject: string): Promise
     const authId = await client.get<string>(namespacedKey(`${AUTH_SUBJECT_PREFIX}${googleSubject}`));
 
     if (!authId) {
-      console.log('[AUTH_STORE] No authorization found for subject:', googleSubject.substring(0, 8) + '...');
+      console.log('[AUTH_STORE] No authorization found for subject:', safeCorrelationId(googleSubject));
       return null;
     }
 
@@ -327,7 +327,7 @@ export async function findAuthorizationBySubject(googleSubject: string): Promise
       return null;
     }
 
-    console.log('[AUTH_STORE] Authorization found for subject:', googleSubject.substring(0, 8) + '...');
+    console.log('[AUTH_STORE] Authorization found for subject:', safeCorrelationId(googleSubject));
     return auth;
   } catch (error) {
     console.error('[AUTH_STORE] Subject lookup failed:', error);
@@ -376,7 +376,7 @@ export async function upsertAuthorization(
 ): Promise<GoogleAuthorizationRecord> {
   try {
     console.log('[AUTH_STORE] Upsert authorization called', {
-      googleSubject: googleSubject.substring(0, 8) + '...',
+      googleSubject: safeCorrelationId(googleSubject),
       email,
       scopesCount: scopes.length,
       hasAccessToken: !!accessToken,
@@ -390,7 +390,7 @@ export async function upsertAuthorization(
 
     console.log('[AUTH_STORE] Existing authorization check', {
       hasExistingAuth: !!existingAuth,
-      existingAuthId: existingAuth?.id?.substring(0, 8) + '...' || 'none',
+      existingAuthId: existingAuth?.id ? safeCorrelationId(existingAuth.id) : 'none',
       existingAuthStatus: existingAuth?.status || 'none',
       existingAuthLastUsed: existingAuth?.lastUsedAt || 'none',
     });
@@ -651,8 +651,8 @@ async function createNewAuthorizationWithAtomicSubject(
     // Existing authorization is active and belongs to current principal - CONVERGE
     // Update with new tokens to ensure fresh credentials
     console.log('[AUTH_STORE] Converging to existing active authorization', {
-      existingAuthId: existingAuth.id,
-      googleSubject: googleSubject.substring(0, 8) + '...',
+      existingAuthId: safeCorrelationId(existingAuth.id),
+      googleSubject: safeCorrelationId(googleSubject),
     });
     
     // Update existing authorization with new tokens
