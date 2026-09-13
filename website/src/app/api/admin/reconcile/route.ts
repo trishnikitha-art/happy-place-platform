@@ -248,7 +248,7 @@ export async function POST(request: Request) {
     // Verify the public media authority would accept the target BEFORE mutating assignment
     evidence.push({ stage: 'PRE_CAS_PUBLIC_MEDIA_GATE', result: 'started' });
     
-    const preCasPublicAuthority = await verifyPublicMediaAuthority(targetMedia);
+    const preCasPublicAuthority = await verifyPublicMediaAuthority(targetMedia, { verifyPhysicalBytes: true });
     
     if (!preCasPublicAuthority) {
       evidence.push({
@@ -330,7 +330,7 @@ export async function POST(request: Request) {
     // Verify the public media authority still accepts the new assignment after mutation
     evidence.push({ stage: 'POST_CAS_PUBLIC_MEDIA_GATE', result: 'started' });
     
-    const postCasPublicAuthority = await verifyPublicMediaAuthority(targetMedia);
+    const postCasPublicAuthority = await verifyPublicMediaAuthority(targetMedia, { verifyPhysicalBytes: true });
     
     if (!postCasPublicAuthority) {
       evidence.push({

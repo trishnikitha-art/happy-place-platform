@@ -227,6 +227,7 @@ import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { storeServiceCardAssignment, getServiceCardAssignment } from '@/lib/assignment-store';
 import { resolvePublicMedia } from '@/lib/media';
+import { verifyPublicMediaAuthority } from '@/lib/media-kv-store';
 import { Redis } from '@upstash/redis';
 import { getDriveClient } from '@/lib/drive/oauth-manager';
 import { verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
@@ -711,6 +712,34 @@ export async function POST(request: Request) {
           {
             error: 'PUBLIC_MEDIA_GATE_REJECTED',
             message: 'Canonical asset failed public media gate validation (null resolution)',
+            requestId,
+          },
+          { status: 400 }
+        );
+      }
+
+      // Step 6b-ii: Physical byte proof before an authoritative mutation.
+      // resolvePublicMedia() applies the mandatory structural gate but, on the
+      // read/list path, defers Blob byte re-verification. A mutation must not
+      // proceed on structural proof alone, so re-derive SHA256 from the actual
+      // Blob bytes for this single record before touching the assignment.
+      const physicalProof = await verifyPublicMediaAuthority(publicMedia, { verifyPhysicalBytes: true });
+      console.log('[USE_DRIVE_ASSET] Physical byte proof', {
+        requestId,
+        canonicalMediaId,
+        verified: physicalProof,
+      });
+
+      if (!physicalProof) {
+        console.error('[USE_DRIVE_ASSET] Public media gate rejected - physical byte proof failed', {
+          requestId,
+          canonicalMediaId,
+          reason: 'Blob bytes did not verify against stored contentHash',
+        });
+        return NextResponse.json(
+          {
+            error: 'PUBLIC_MEDIA_GATE_REJECTED',
+            message: 'Canonical asset failed physical byte verification',
             requestId,
           },
           { status: 400 }
