@@ -92,173 +92,15 @@
 /**
  * P0 FIX: Authorized Drive Corpora Configuration
  * 
- * This defines which Drive corpora are authorized for Workbench Drive handoff.
- * The server makes the authorization decision based on environment configuration,
- * NOT based on client-supplied claims.
+ * This endpoint now uses the centralized corpus-authorization.ts module
+ * for consistent authorization across all Drive routes.
  * 
- * Environment Variables:
- * - AUTHORIZED_SHARED_DRIVES: Comma-separated list of authorized Shared Drive IDs
- * - MY_DRIVE_AUTHORIZED: 'true' if My Drive is authorized (default: true)
+ * Environment Variables (configured in corpus-authorization.ts):
+ * - HPP_AUTHORIZED_SHARED_DRIVES: Comma-separated list of authorized Shared Drive IDs
+ * - HPP_AUTHORIZED_MY_DRIVE: 'true' if My Drive is authorized (default: false - fail-closed)
  * 
  * If a corpus is not in this allowlist, the endpoint rejects with 403 Forbidden.
  */
-
-/**
- * Parse authorized Shared Drive IDs from environment
- * Returns empty array if not configured (fail-closed: no Shared Drives authorized)
- */
-function getAuthorizedSharedDrives(): string[] {
-  const envValue = process.env.AUTHORIZED_SHARED_DRIVES;
-  if (!envValue) {
-    console.warn('[USE_DRIVE_ASSET] AUTHORIZED_SHARED_DRIVES not configured - no Shared Drives authorized');
-    return [];
-  }
-  
-  const drives = envValue.split(',').map(id => id.trim()).filter(id => id.length > 0);
-  console.log('[USE_DRIVE_ASSET] Authorized Shared Drives loaded', { count: drives.length, drives });
-  return drives;
-}
-
-/**
- * Check if My Drive is authorized
- * Default: true (My Drive is always authorized unless explicitly disabled)
- */
-function isMyDriveAuthorized(): boolean {
-  const envValue = process.env.MY_DRIVE_AUTHORIZED;
-  if (envValue === 'false') {
-    console.log('[USE_DRIVE_ASSET] My Drive authorization explicitly disabled');
-    return false;
-  }
-  return true; // Default to authorized
-}
-
-/**
- * P0 FIX: Verify Drive corpus authorization
- * 
- * This is the SERVER-SIDE authorization decision.
- * The client-supplied sourceSharedDriveId is ONLY used for early mismatch detection.
- * The actual authorization decision is based on:
- * 1. Actual corpus from Google Drive metadata
- * 2. Server-configured authorized corpus allowlist
- * 
- * Returns 403 if the corpus is not authorized.
- */
-function verifyCorpusAuthorization(
-  actualCorpusId: string,
-  actualDriveId: string | null,
-  sourceSharedDriveId: string | undefined,
-  requestId: string
-): NextResponse | null {
-  const authorizedSharedDrives = getAuthorizedSharedDrives();
-  const myDriveAuthorized = isMyDriveAuthorized();
-  
-  console.log('[USE_DRIVE_ASSET] Corpus authorization check', {
-    requestId,
-    actualCorpusId,
-    actualDriveId,
-    requestedSharedDriveId: sourceSharedDriveId,
-    authorizedSharedDrives,
-    myDriveAuthorized,
-  });
-  
-  // Case 1: This is a Shared Drive file
-  if (actualDriveId) {
-    // Verify the Shared Drive is in the authorized allowlist
-    if (!authorizedSharedDrives.includes(actualCorpusId)) {
-      console.error('[USE_DRIVE_ASSET] Shared Drive not authorized', {
-        requestId,
-        actualCorpusId,
-        authorizedSharedDrives,
-      });
-      return NextResponse.json(
-        {
-          error: 'CORPUS_NOT_AUTHORIZED',
-          message: `Shared Drive '${actualCorpusId}' is not in the authorized Shared Drive allowlist`,
-          details: {
-            actualCorpusId,
-            authorizedSharedDrives,
-            note: 'Contact administrator to authorize this Shared Drive for Workbench use',
-          },
-          requestId,
-        },
-        { status: 403 }
-      );
-    }
-    
-    // Early mismatch detection: if client claimed a different Shared Drive, reject
-    if (sourceSharedDriveId && sourceSharedDriveId !== actualCorpusId) {
-      console.error('[USE_DRIVE_ASSET] Shared Drive ID mismatch', {
-        requestId,
-        requested: sourceSharedDriveId,
-        actual: actualCorpusId,
-      });
-      return NextResponse.json(
-        {
-          error: 'CORPUS_MISMATCH',
-          message: `Requested Shared Drive ID (${sourceSharedDriveId}) does not match actual file corpus (${actualCorpusId})`,
-          details: {
-            requested: sourceSharedDriveId,
-            actual: actualCorpusId,
-          },
-          requestId,
-        },
-        { status: 400 }
-      );
-    }
-    
-    console.log('[USE_DRIVE_ASSET] Shared Drive authorized', {
-      requestId,
-      actualCorpusId,
-    });
-    
-    return null; // Authorized
-  }
-  
-  // Case 2: This is a My Drive file
-  if (!myDriveAuthorized) {
-    console.error('[USE_DRIVE_ASSET] My Drive not authorized', {
-      requestId,
-    });
-    return NextResponse.json(
-      {
-        error: 'CORPUS_NOT_AUTHORIZED',
-        message: 'My Drive is not authorized for Workbench Drive handoff',
-        details: {
-          note: 'Set MY_DRIVE_AUTHORIZED=true to enable My Drive access',
-        },
-        requestId,
-      },
-      { status: 403 }
-    );
-  }
-  
-  // Early mismatch detection: if client claimed a Shared Drive but file is in My Drive
-  if (sourceSharedDriveId) {
-    console.error('[USE_DRIVE_ASSET] Corpus mismatch: client claimed Shared Drive but file is in My Drive', {
-      requestId,
-      requested: sourceSharedDriveId,
-      actual: 'My Drive',
-    });
-    return NextResponse.json(
-      {
-        error: 'CORPUS_MISMATCH',
-        message: `File is in My Drive but client claimed it was from Shared Drive (${sourceSharedDriveId})`,
-        details: {
-          requested: sourceSharedDriveId,
-          actual: 'My Drive',
-        },
-        requestId,
-      },
-      { status: 400 }
-    );
-  }
-  
-  console.log('[USE_DRIVE_ASSET] My Drive authorized', {
-    requestId,
-  });
-  
-  return null; // Authorized
-}
 
 interface SlotAuthorityMapping {
   visualSlotId: string;
@@ -387,6 +229,7 @@ import { storeServiceCardAssignment, getServiceCardAssignment } from '@/lib/assi
 import { resolvePublicMedia } from '@/lib/media';
 import { Redis } from '@upstash/redis';
 import { getDriveClient } from '@/lib/drive/oauth-manager';
+import { verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -653,6 +496,24 @@ export async function POST(request: Request) {
       );
     }
 
+    // P0 FIX: Recheck idempotency AFTER acquiring lock
+    // This prevents the race where:
+    // A checks: no result
+    // B checks: no result
+    // A locks and completes
+    // A unlocks
+    // B acquires lock and proceeds using stale pre-lock observation
+    const cachedResultAfterLock = await checkIdempotency(stableIdempotencyKey);
+    if (cachedResultAfterLock) {
+      console.log('[USE_DRIVE_ASSET] Transaction already completed (recheck after lock)', {
+        requestId,
+        idempotencyKey: stableIdempotencyKey,
+      });
+      // Release lock before returning cached result
+      await releaseTransactionLock(stableIdempotencyKey, ownershipToken);
+      return NextResponse.json(cachedResultAfterLock);
+    }
+
     console.log('[USE_DRIVE_ASSET] Transaction initiated', {
       requestId,
       targetSlotId,
@@ -699,19 +560,35 @@ export async function POST(request: Request) {
         requestedSharedDriveId: sourceSharedDriveId,
       });
 
-      // P0 FIX: Server-side corpus authorization decision
-      // The server determines authorization based on actual corpus and environment configuration
-      // Client-supplied sourceSharedDriveId is only used for early mismatch detection
-      const authError = verifyCorpusAuthorization(
-        actualCorpusId,
-        actualDriveId,
-        sourceSharedDriveId,
-        requestId
-      );
+      // P0 FIX: Use centralized corpus authorization module
+      // This ensures consistent authorization across all Drive routes
+      const corpusAuth = await verifyCorpusAuthorization(sourceFileId, actualCorpusId);
       
-      if (authError) {
-        return authError;
+      if (!corpusAuth.authorized) {
+        console.error('[USE_DRIVE_ASSET] Corpus authorization failed', {
+          requestId,
+          actualCorpusId,
+          reason: corpusAuth.reason,
+        });
+        return NextResponse.json(
+          {
+            error: 'CORPUS_NOT_AUTHORIZED',
+            message: corpusAuth.reason || 'Drive corpus is not authorized for Workbench handoff',
+            details: {
+              actualCorpusId,
+              requestedSharedDriveId: sourceSharedDriveId,
+            },
+            requestId,
+          },
+          { status: 403 }
+        );
       }
+      
+      console.log('[USE_DRIVE_ASSET] Corpus authorization verified', {
+        requestId,
+        actualCorpusId,
+        corpus: corpusAuth.corpus,
+      });
 
       // P1 FIX: Validate MIME type is an image
       if (!actualMimeType || !actualMimeType.startsWith('image/')) {
