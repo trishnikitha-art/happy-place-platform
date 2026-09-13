@@ -28,9 +28,16 @@ export const dynamic = 'force-dynamic';
  * P0 FIX: Fail-closed allowlist for quarantine operations
  * Only known problematic records can be deleted via this endpoint
  * Prevents authenticated Workbench users from deleting arbitrary production media
+ * 
+ * CEO-identified malformed production records (storage: undefined):
+ * - 07c0eae184dc5a375f943a3ac2b67e95
+ * - 2df4fe450b3b35d38be23538e2fdcf0d
+ * - c148cedee481f1e3a5fa13d85efbac1c
  */
 const QUARANTINE_ALLOWLIST: string[] = [
   '07c0eae184dc5a375f943a3ac2b67e95', // Known malformed record with missing storage field
+  '2df4fe450b3b35d38be23538e2fdcf0d', // CEO-identified malformed record
+  'c148cedee481f1e3a5fa13d85efbac1c', // CEO-identified malformed record
 ];
 
 export async function POST(request: Request) {
