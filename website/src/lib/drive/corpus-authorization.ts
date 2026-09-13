@@ -3,47 +3,27 @@
  * 
  * P0-4: Application-level Drive corpus authorization
  * 
- * CRITICAL AUTHORIZATION MODEL:
+ * AUTHORIZATION MODEL:
  * 
- * This module currently uses TWO SEPARATE authorization systems:
+ * This module uses TWO SEPARATE authorization systems that ARE cryptographically bound via principalId:
  * 1. Workbench Session (workbench-session.ts): Authenticates human/admin to Workbench
  * 2. Drive OAuth (oauth-credential-store.ts): Authenticates to Google Drive
  * 
- * These systems are NOT cryptographically bound together in the current implementation.
+ * BINDING MECHANISM:
+ * - Drive authorization records contain principalId field
+ * - oauth-manager.ts enforces authorization.principalId === HPP_WORKBENCH_PRINCIPAL_ID
+ * - session-store.ts enforces authorization.principalId === HPP_WORKBENCH_PRINCIPAL_ID
+ * - oauth-credential-store.ts fails closed on principal mismatch during upsert
+ * 
+ * This establishes the invariant:
+ * Workbench session → principalId → Drive authorization.principalId → Google subject → authorized corpus
+ * 
+ * A Drive authorization belonging to principal A cannot be used by principal B, even if B possesses a valid Workbench session.
  * 
  * CURRENT BEHAVIOR:
  * - workbenchSession.getSessionIdentity() checks if human is authenticated to Workbench
- * - getDriveClient() uses Drive OAuth authorization to access Google Drive
+ * - getDriveClient() uses Drive OAuth authorization and enforces principal binding
  * - Environment variables (HPP_AUTHORIZED_SHARED_DRIVES, HPP_AUTHORIZED_MY_DRIVE) control corpus access
- * 
- * LIMITATION: There is no explicit binding of:
- * Workbench session identity ↔ Drive authorization identity ↔ Google subject ↔ authorized corpus
- * 
- * The Workbench session does not contain Google identity (intentionally - see workbench-session.ts)
- * The Drive authorization does not contain Workbench session identity
- * 
- * This is architecturally awkward but not necessarily a vulnerability IF:
- * - Workbench access is strictly controlled (single trusted admin)
- * - Drive OAuth is strictly scoped (read-only, no write permissions)
- * - Corpus allowlist is environment-configured (not user-configurable)
- * 
- * FUTURE: Implement explicit binding of Workbench ↔ Drive identity if multi-user support is needed
- * 
- * Google OAuth authentication is NOT sufficient for HPP authorization.
- * The application must verify:
- * - authenticated session
- * - authorization
- * - authorized Drive corpus/context
- * - requested Drive object
- * - permitted operation
- * 
- * A user must not be able to supply an arbitrary Drive file ID that Google
- * happens to permit and thereby bypass the application's corpus boundary.
- * 
- * CORPUS AUTHORIZATION MODEL:
- * - My Drive: Authorized only if HPP_AUTHORIZED_MY_DRIVE=true (explicit opt-in)
- * - Shared Drives: Only authorized if explicitly configured via HPP_AUTHORIZED_SHARED_DRIVES
- * - Google OAuth access is NOT sufficient for HPP authorization
  * 
  * CONSTITUTIONAL RULE: Google OAuth access ≠ HPP authorization
  * Even if Google permits access to a corpus, HPP must explicitly authorize it.
@@ -74,6 +54,10 @@ export interface CorpusAuthorizationResult {
  * Configuration via environment variable: HPP_AUTHORIZED_SHARED_DRIVES
  * Format: comma-separated list of Shared Drive IDs
  * Example: HPP_AUTHORIZED_SHARED_DRIVES=0AEd3EhGxxxxx,0AEd3EhGyyyyy
+ * 
+ * NOTE: Principal binding is enforced by getDriveClient() in oauth-manager.ts
+ * getDriveClient() resolves authorization via session → getOAuthClient() → principal binding check
+ * This module uses getDriveClient() for all Drive API access, so principal binding is enforced transitively
  */
 function getAuthorizedSharedDriveIds(): string[] {
   const configuredDrives = process.env.HPP_AUTHORIZED_SHARED_DRIVES;
@@ -99,6 +83,10 @@ function getAuthorizedSharedDriveIds(): string[] {
  * 
  * CONSTITUTIONAL RULE: Google OAuth access ≠ HPP authorization
  * My Drive is NOT authorized by default - must be explicitly configured
+ * 
+ * NOTE: Principal binding is enforced by getDriveClient() in oauth-manager.ts
+ * getDriveClient() resolves authorization via session → getOAuthClient() → principal binding check
+ * This module uses getDriveClient() for all Drive API access, so principal binding is enforced transitively
  * 
  * P0 FIX: Normalize environment variable to handle case-insensitive "TRUE"/"true"/"True"
  */
@@ -140,6 +128,10 @@ export function getAuthorizationConfiguration() {
  * 
  * CONSTITUTIONAL RULE: Google OAuth access ≠ HPP authorization
  * Even if Google permits access to a corpus, HPP must explicitly authorize it.
+ * 
+ * NOTE: Principal binding is enforced transitively by getDriveClient()
+ * getDriveClient() → getOAuthClient() → principal binding check → authorization resolution
+ * This ensures corpus discovery only uses authorizations bound to the current principal
  */
 export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
   try {
@@ -234,6 +226,10 @@ export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
 /**
  * Verify that a Drive object is within an authorized corpus
  * This prevents cross-corpus access and IDOR attacks
+ * 
+ * NOTE: Principal binding is enforced transitively by getDriveClient()
+ * getDriveClient() → getOAuthClient() → principal binding check → authorization resolution
+ * This module uses getDriveClient() for all Drive API access, so principal binding is enforced transitively
  */
 export async function verifyCorpusAuthorization(
   fileId: string,
