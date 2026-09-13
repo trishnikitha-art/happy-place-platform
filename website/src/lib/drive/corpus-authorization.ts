@@ -178,7 +178,7 @@ export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
       });
 
       if (drivesResponse.data.drives) {
-        console.log('[CORPUS_AUTHORIZATION] Google-accessible Shared Drives:', drivesResponse.data.drives.map((d: any) => ({ id: d.id, name: d.name })));
+        console.log('[CORPUS_AUTHORIZATION] Google-accessible Shared Drives count:', drivesResponse.data.drives.length);
         
         for (const drive of drivesResponse.data.drives) {
           // Only authorize Shared Drives that are explicitly configured
@@ -191,11 +191,7 @@ export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
             });
           } else {
             // Shared Drive exists in Google but is NOT HPP-authorized
-            console.warn('[CORPUS_AUTHORIZATION] Shared Drive NOT authorized by HPP configuration:', {
-              driveId: drive.id,
-              driveName: drive.name,
-              reason: 'Not in HPP_AUTHORIZED_SHARED_DRIVES environment variable',
-            });
+            // Count unauthorized drives without logging specific identifiers
           }
         }
       }
@@ -206,7 +202,7 @@ export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
       });
 
       if (drivesResponse.data.drives) {
-        console.log('[CORPUS_AUTHORIZATION] Google-accessible Shared Drives (NOT HPP-authorized):', drivesResponse.data.drives.map((d: any) => ({ id: d.id, name: d.name })));
+        console.log('[CORPUS_AUTHORIZATION] Google-accessible Shared Drives (NOT HPP-authorized) count:', drivesResponse.data.drives.length);
       }
       
       console.log('[CORPUS_AUTHORIZATION] No Shared Drives configured for HPP authorization', {

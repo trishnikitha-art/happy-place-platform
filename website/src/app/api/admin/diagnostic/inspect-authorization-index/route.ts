@@ -80,31 +80,38 @@ export async function POST(request: Request) {
     const subjectPrefix = `${namespace}drive:auth:subject:`;
 
     // Step 1: Scan all authorization records
+    // Use explicit pattern to avoid matching subject indexes or session indexes
     const authKeys = [];
-    let cursor = 0;
+    let cursor = '0';
     do {
       const result = await redis.scan(cursor, {
         match: `${authPrefix}*`,
         count: 100,
       });
-      cursor = result[0];
-      authKeys.push(...result[1]);
-    } while (cursor !== 0);
+      cursor = result[0] as string;
+      const keys = result[1] as string[];
+      // Filter out subject indexes and session indexes
+      const pureAuthKeys = keys.filter(key => 
+        !key.includes(':subject:') && !key.includes(':sessions:')
+      );
+      authKeys.push(...pureAuthKeys);
+    } while (cursor !== '0');
 
     totalAuthorizations = authKeys.length;
     console.log('[AUTHORIZATION_INDEX_INSPECTION] Authorizations scanned', { testId, count: totalAuthorizations });
 
     // Step 2: Scan all subject indexes
     const subjectKeys = [];
-    cursor = 0;
+    cursor = '0';
     do {
       const result = await redis.scan(cursor, {
         match: `${subjectPrefix}*`,
         count: 100,
       });
-      cursor = result[0];
-      subjectKeys.push(...result[1]);
-    } while (cursor !== 0);
+      cursor = result[0] as string;
+      const keys = result[1] as string[];
+      subjectKeys.push(...keys);
+    } while (cursor !== '0');
 
     totalSubjectIndexes = subjectKeys.length;
     console.log('[AUTHORIZATION_INDEX_INSPECTION] Subject indexes scanned', { testId, count: totalSubjectIndexes });
@@ -139,7 +146,8 @@ export async function POST(request: Request) {
       }
 
       try {
-        const authRecord = JSON.parse(auth as string);
+        // Handle both string and already-deserialized Redis objects
+        const authRecord = typeof auth === 'string' ? JSON.parse(auth) : auth;
         
         // Check if authorization is valid
         if (authRecord.status === 'revoked' || authRecord.status === 'expired') {
@@ -170,7 +178,8 @@ export async function POST(request: Request) {
       if (!auth) continue;
 
       try {
-        const authRecord = JSON.parse(auth as string);
+        // Handle both string and already-deserialized Redis objects
+        const authRecord = typeof auth === 'string' ? JSON.parse(auth) : auth;
         const subjectKey = `${subjectPrefix}${authRecord.googleSubject}`;
         const subjectIndexExists = await redis.exists(subjectKey);
 
