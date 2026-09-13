@@ -1070,6 +1070,16 @@ export default function MediaWorkbench() {
           slotId: targetSlot.id,
           assetId: canonicalMediaId,
         });
+        // P0 FIX: Reset bridge readiness before manual iframe reload
+        setState(prev => ({
+          ...prev,
+          bridgeReady: false,
+          bridgeReadySlots: new Set<string>(),
+        }));
+        console.log('[WB_FORENSIC] BRIDGE_READY_RESET', {
+          reason: 'Manual iframe reload after use-drive-asset',
+          timestamp: Date.now(),
+        });
         iframeRef.current.src = iframeRef.current.src;
       }
 
@@ -1459,7 +1469,7 @@ export default function MediaWorkbench() {
 
       // Validate source is the expected iframe for mutation messages
       const messageType = event.data?.type;
-      const mutationMessageTypes = ['SLOT_REGISTER', 'SLOT_CLICK', 'SLOT_DROP', 'SLOT_REORDER', 'GALLERY_ADD'];
+      const mutationMessageTypes = ['SLOT_REGISTER', 'SLOT_CLICK', 'SLOT_DROP', 'SLOT_REORDER', 'GALLERY_ADD', 'BRIDGE_READY'];
       
       if (mutationMessageTypes.includes(messageType)) {
         if (event.source !== iframeRef.current?.contentWindow) {
@@ -1499,6 +1509,14 @@ export default function MediaWorkbench() {
       // P0 FIX: Handle BRIDGE_READY handshake
       if (messageType === 'BRIDGE_READY') {
         const slotId = event.data.slotId;
+        if (!slotId || typeof slotId !== 'string') {
+          console.error('[WB_FORENSIC] BRIDGE_READY_REJECTED', {
+            reason: 'INVALID_SCHEMA',
+            slotId,
+            schema: { slotId: 'string (required)' },
+          });
+          return;
+        }
         console.log('[WB_FORENSIC] BRIDGE_READY_RECEIVED', {
           slotId,
           timestamp: Date.now(),
@@ -2672,6 +2690,17 @@ export default function MediaWorkbench() {
                   actualSrc: iframeRef.current?.src,
                   previewRouteExpected: `/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`,
                   usesPreviewRoute: iframeRef.current?.src?.includes('/workbench/preview/'),
+                  timestamp: Date.now(),
+                });
+                // P0 FIX: Reset bridge readiness on iframe reload/navigation
+                // This prevents DRAG_START from being sent before the new iframe listener is attached
+                setState(prev => ({
+                  ...prev,
+                  bridgeReady: false,
+                  bridgeReadySlots: new Set<string>(),
+                }));
+                console.log('[WB_FORENSIC] BRIDGE_READY_RESET', {
+                  reason: 'Iframe reload/navigation',
                   timestamp: Date.now(),
                 });
               }}
