@@ -27,10 +27,11 @@ function namespacedKey(key: string): string {
  * During runtime, KV is a required dependency
  */
 function isStaticBuild(): boolean {
-  // Check if we're in Next.js build phase
-  // During build, NODE_ENV is 'production' but we're not actually running
-  const isBuilding = process.env.NEXT_PHASE === 'build';
-  return isBuilding;
+  // Check if we're in Next.js build phase.
+  // Next.js sets NEXT_PHASE='phase-production-build' during `next build`.
+  // It never sets the value 'build', so the previous check was always false and
+  // the KvUnavailableError degradation path below was unreachable.
+  return process.env.NEXT_PHASE === 'phase-production-build';
 }
 
 class KvUnavailableError extends Error {
@@ -47,6 +48,20 @@ class KvUnavailableError extends Error {
  * Each client is bound to the current environment namespace at creation time.
  * This prevents identity leaks when environments change or credentials rotate.
  */
+/**
+ * Memoized client handle.
+ *
+ * This is a connection handle, NOT an authority cache: no media records, no
+ * authorization decisions, and no derived state are retained. The handle is
+ * keyed on (url, token, environment) so that a credential rotation or an
+ * environment change produces a new client instead of reusing a stale one,
+ * preserving the original environment-binding guarantee.
+ *
+ * Rationale: the Upstash REST client is stateless HTTP. Constructing one per
+ * record turned a list operation into N client constructions and N log lines.
+ */
+let cachedClient: { key: string; client: Redis } | null = null;
+
 function createRedisClient(): Redis {
   let url = process.env.KV_REST_API_URL;
   let token = process.env.KV_REST_API_TOKEN;
@@ -80,15 +95,23 @@ function createRedisClient(): Redis {
     throw new Error('Missing required environment variables: KV_REST_API_URL and KV_REST_API_TOKEN');
   }
   
-  // Create fresh client bound to current environment
+  // Client bound to current environment + credentials
   const env = getEnvironment();
+  const namespace = getKvNamespace();
+  const bindingKey = `${env}|${namespace}|${url}|${token}`;
+
+  if (cachedClient && cachedClient.key === bindingKey) {
+    return cachedClient.client;
+  }
+
   const client = new Redis({ url, token });
-  
+  cachedClient = { key: bindingKey, client };
+
   console.log('[MEDIA_KV] Created environment-bound client', {
     environment: env,
-    namespace: getKvNamespace(),
+    namespace,
   });
-  
+
   return client;
 }
 
@@ -204,7 +227,45 @@ async function verifyMaterializationState(media: Media): Promise<boolean> {
  * source_reference and materializing are NOT publicly assignable
  * Exported for use by reconciliation API and other authority checks
  */
-export async function verifyPublicMediaAuthority(media: Media): Promise<boolean> {
+export interface PublicMediaAuthorityOptions {
+  /**
+   * Re-download the physical Blob bytes and re-derive SHA256 to confirm the
+   * stored contentHash.
+   *
+   * This is WRITE-PATH proof, not read-path proof. Content identity is
+   * established from real bytes at materialization time
+   * (api/drive/ingest/route.ts computes sha256 over the downloaded Drive bytes
+   * before the Blob upload and before storeMedia). Re-deriving it on every read
+   * turned a list operation into a full content re-audit: one authenticated
+   * Blob HEAD plus a complete image download plus a SHA256 per record, per
+   * request.
+   *
+   * Default false. The structural gate below is ALWAYS enforced and is
+   * unchanged: published+local only, contentHash required, synthetic
+   * contentHash rejected, storage field must be 'static' or 'blob', blob-backed
+   * records must have a blob_metadata record. Nothing that previously failed
+   * the structural gate can now pass it.
+   *
+   * Set true for mutation/reconciliation paths and integrity audits.
+   */
+  verifyPhysicalBytes?: boolean;
+
+  /**
+   * Pre-resolved blob_metadata records, keyed by contentHash.
+   *
+   * When supplied, the blob_metadata existence check reads from this map
+   * instead of issuing its own Redis GET. Used by getMediaBatch() so that N
+   * records cost one MGET instead of N GETs. A key that is present with a
+   * falsy value is treated exactly as a missing record (fail closed).
+   */
+  blobMetadataLookup?: Map<string, unknown>;
+}
+
+export async function verifyPublicMediaAuthority(
+  media: Media,
+  options: PublicMediaAuthorityOptions = {}
+): Promise<boolean> {
+  const { verifyPhysicalBytes = false } = options;
   // ONLY published + local is publicly assignable
   if (media.lifecycleState !== 'published' || media.source !== 'local') {
     console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Not published local media', {
@@ -239,8 +300,9 @@ export async function verifyPublicMediaAuthority(media: Media): Promise<boolean>
   // Static storage: served from /public/images/, no Blob metadata required
   // Blob storage: materialized from Drive, requires Blob metadata
   if (media.storage === 'blob') {
-    const client = createRedisClient();
-    const blobMetadata = await client.get(namespacedKey(`${BLOB_METADATA_PREFIX}${media.contentHash}`));
+    const blobMetadata = options.blobMetadataLookup
+      ? options.blobMetadataLookup.get(media.contentHash)
+      : await createRedisClient().get(namespacedKey(`${BLOB_METADATA_PREFIX}${media.contentHash}`));
     
     if (!blobMetadata) {
       console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Missing Blob metadata', {
@@ -263,6 +325,13 @@ export async function verifyPublicMediaAuthority(media: Media): Promise<boolean>
       return false;
     }
     
+    if (!verifyPhysicalBytes) {
+      // Structural proof satisfied: blob_metadata record exists and an original
+      // variant URL is present. Physical byte re-verification is deferred to the
+      // mutation and audit paths (see PublicMediaAuthorityOptions).
+      return true;
+    }
+
     const verificationResult = await verifyBlobHash(blobUrl, media.contentHash);
     
     if (!verificationResult.success) {
@@ -337,6 +406,7 @@ export async function getMedia(id: string): Promise<Media | null> {
     
     // Verify public media authority before returning (strict public gate)
     if (media.lifecycleState === 'published' && media.source === 'local') {
+      // Read path: structural gate only. See PublicMediaAuthorityOptions.
       const hasPublicAuthority = await verifyPublicMediaAuthority(media);
       if (!hasPublicAuthority) {
         console.warn('[MEDIA_KV] Media failed public media authority check', { id });
@@ -361,6 +431,94 @@ export async function getMedia(id: string): Promise<Media | null> {
     console.error('[MEDIA_KV] Failed to get media:', error);
     throw new Error(`Failed to get media ${id}: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
+}
+
+/**
+ * Batch variant of getMedia().
+ *
+ * Applies exactly the same public-media gate and the same stale-record
+ * rejection as getMedia(), but resolves N records with a bounded number of
+ * round trips instead of N client constructions and 2N GETs:
+ *
+ *   1 MGET for the media records
+ * + 1 MGET for the blob_metadata records of blob-backed candidates
+ *
+ * Ordering is not guaranteed; callers should use the returned Map.
+ * Records that fail the gate are ABSENT from the result, identically to
+ * getMedia() returning null. Rejections are still logged individually, so
+ * PUBLIC_GATE_REJECTED telemetry is preserved.
+ */
+export async function getMediaBatch(ids: string[]): Promise<Map<string, Media>> {
+  const result = new Map<string, Media>();
+  if (ids.length === 0) return result;
+
+  try {
+    return await getMediaBatchInner(ids, result);
+  } catch (error) {
+    // Mirror getMedia()'s failure semantics exactly.
+    if (error instanceof KvUnavailableError && error.message.includes('DEV_MODE_SKIP_KV')) {
+      console.log('[MEDIA_KV] DEV_MODE_SKIP_KV - returning empty batch for static fallback');
+      return result;
+    }
+
+    console.error('[MEDIA_KV] Failed to get media batch:', error);
+    throw new Error(`Failed to get media batch: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
+async function getMediaBatchInner(ids: string[], result: Map<string, Media>): Promise<Map<string, Media>> {
+  const client = createRedisClient();
+  const CHUNK = 100;
+
+  const raw: Array<{ id: string; media: any }> = [];
+  for (let i = 0; i < ids.length; i += CHUNK) {
+    const slice = ids.slice(i, i + CHUNK);
+    const values = await client.mget<any[]>(...slice.map(id => namespacedKey(`media:${id}`)));
+    slice.forEach((id, idx) => {
+      const data = values?.[idx];
+      if (!data) return;
+      try {
+        raw.push({ id, media: typeof data === 'string' ? JSON.parse(data) : data });
+      } catch (error) {
+        console.error('[MEDIA_KV] BATCH_PARSE_FAILED', { id });
+      }
+    });
+  }
+
+  // Pre-resolve blob_metadata for blob-backed published records in one pass.
+  const hashes = Array.from(new Set(
+    raw
+      .filter(r => r.media?.storage === 'blob' && typeof r.media?.contentHash === 'string')
+      .map(r => r.media.contentHash as string)
+  ));
+
+  const blobMetadataLookup = new Map<string, unknown>();
+  for (let i = 0; i < hashes.length; i += CHUNK) {
+    const slice = hashes.slice(i, i + CHUNK);
+    const values = await client.mget<any[]>(...slice.map(h => namespacedKey(`${BLOB_METADATA_PREFIX}${h}`)));
+    slice.forEach((h, idx) => blobMetadataLookup.set(h, values?.[idx] ?? null));
+  }
+
+  // Check order is identical to getMedia(): authority gate first, then stale,
+  // so rejection logging matches the single-record path record for record.
+  for (const { id, media } of raw) {
+    if (media.lifecycleState === 'published' && media.source === 'local') {
+      const ok = await verifyPublicMediaAuthority(media, { blobMetadataLookup });
+      if (!ok) {
+        console.warn('[MEDIA_KV] Media failed public media authority check', { id });
+        continue;
+      }
+    }
+
+    if (media.lifecycleState === 'stale') {
+      console.warn('[MEDIA_KV] Rejecting stale media record', { id });
+      continue;
+    }
+
+    result.set(id, media as Media);
+  }
+
+  return result;
 }
 
 /**

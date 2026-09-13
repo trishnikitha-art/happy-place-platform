@@ -414,9 +414,16 @@ export async function getPublishedMediaAssets(): Promise<PublishedMediaAssetsRes
       mediaAssignments.get(assignment.mediaId)!.push(assignment);
     }
     
+    // Resolve every record in a bounded number of round trips.
+    // Previously this loop performed a dynamic import, a Redis client
+    // construction, a media GET and a blob_metadata GET per record, so a
+    // 127-record production population cost 127 client constructions and
+    // ~254 sequential round trips on the Workbench's initial load.
+    const { getMediaBatch } = await import('./media-kv-store');
+    const mediaBatch = await getMediaBatch(mediaIds);
+
     for (const mediaId of mediaIds) {
-      const { getMedia } = await import('./media-kv-store');
-      const media = await getMedia(mediaId);
+      const media = mediaBatch.get(mediaId) ?? null;
       
       if (media && media.source === 'local' && media.lifecycleState === 'published') {
         // This is a PublishedMediaAsset (materialized from Drive or other sources)
