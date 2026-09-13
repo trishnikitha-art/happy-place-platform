@@ -5,25 +5,61 @@
  * 
  * AUTHORIZATION MODEL:
  * 
- * This module uses TWO SEPARATE authorization systems that ARE cryptographically bound via principalId:
- * 1. Workbench Session (workbench-session.ts): Authenticates human/admin to Workbench
- * 2. Drive OAuth (oauth-credential-store.ts): Authenticates to Google Drive
- * 
- * BINDING MECHANISM:
- * - Drive authorization records contain principalId field
- * - oauth-manager.ts enforces authorization.principalId === HPP_WORKBENCH_PRINCIPAL_ID
- * - session-store.ts enforces authorization.principalId === HPP_WORKBENCH_PRINCIPAL_ID
- * - oauth-credential-store.ts fails closed on principal mismatch during upsert
- * 
- * This establishes the invariant:
- * Workbench session → principalId → Drive authorization.principalId → Google subject → authorized corpus
- * 
- * A Drive authorization belonging to principal A cannot be used by principal B, even if B possesses a valid Workbench session.
- * 
+ * This module uses TWO SEPARATE authorization systems:
+ * 1. Workbench Session (workbench-session.ts): Authenticates a human to the Workbench
+ * 2. Drive OAuth (oauth-credential-store.ts): Authorizes this deployment to Google Drive
+ *
+ * THESE TWO SYSTEMS ARE NOT CRYPTOGRAPHICALLY BOUND TO EACH OTHER.
+ *
+ * This deployment is intentionally modelled as SINGLE-ADMIN. There is exactly
+ * one Workbench principal per deployment, identified by the deployment-global
+ * environment variable HPP_WORKBENCH_PRINCIPAL_ID. Anyone who authenticates to
+ * the Workbench is that principal. Do not read the code below as multi-tenant.
+ *
+ * WHAT principalId ACTUALLY DOES:
+ * - Write: oauth-credential-store.ts getCurrentPrincipalId() reads
+ *   process.env.HPP_WORKBENCH_PRINCIPAL_ID and stamps it onto the authorization
+ *   record at upsert time.
+ * - Read: session-store.ts getSession() rejects the session when
+ *   authRecord.principalId !== process.env.HPP_WORKBENCH_PRINCIPAL_ID.
+ * - oauth-manager.ts getDriveClient() asserts only that the variable is
+ *   CONFIGURED. It does not itself compare it to the authorization record.
+ *
+ * Both ends therefore read the SAME deployment-global value. The comparison
+ * cannot fail within a deployment whose HPP_WORKBENCH_PRINCIPAL_ID has not
+ * changed. Its real and only security function is STALE-AUTHORIZATION
+ * INVALIDATION: rotating HPP_WORKBENCH_PRINCIPAL_ID invalidates every
+ * previously issued Drive authorization, including pre-principal records. That
+ * is a useful property. It is not identity binding.
+ *
+ * The Workbench session contributes no principal identity at all:
+ * workbenchSession.getSessionIdentity() returns only { sessionId, authenticated }.
+ * It carries no principal ID, no email, and no Google subject. There is nothing
+ * session-derived for the authorization record to be bound to.
+ *
+ * DO NOT claim that a Drive authorization belonging to principal A cannot be
+ * used by principal B. That claim is false as written: the model admits exactly
+ * one principal value per deployment, and the session supplies none. Real
+ * principal binding would require a per-principal identity minted by the
+ * Workbench session itself and compared against the authorization record —
+ * not an environment-global constant read by both sides.
+ *
+ * WHAT IS ACTUALLY ENFORCED (and is a genuine boundary):
+ * - Session → authorization binding: getDriveClient() resolves
+ *   effectiveAuthorizationId ONLY from the server-side session record reached
+ *   via the session cookie. A caller-supplied authorizationId is never honored.
+ * - Corpus authorization: HPP_AUTHORIZED_SHARED_DRIVES / HPP_AUTHORIZED_MY_DRIVE
+ *   gate which corpora may be touched, independent of what Google would permit.
+ * - Revocation and TTL are enforced in session-store.ts / oauth-credential-store.ts.
+ *
  * CURRENT BEHAVIOR:
- * - workbenchSession.getSessionIdentity() checks if human is authenticated to Workbench
- * - getDriveClient() uses Drive OAuth authorization and enforces principal binding
- * - Environment variables (HPP_AUTHORIZED_SHARED_DRIVES, HPP_AUTHORIZED_MY_DRIVE) control corpus access
+ * - workbenchSession.getSessionIdentity() checks whether a human is
+ *   authenticated to the Workbench. It does not identify which human.
+ * - getDriveClient() requires an authenticated Workbench session, requires
+ *   HPP_WORKBENCH_PRINCIPAL_ID to be configured, and resolves the authorization
+ *   solely from the session.
+ * - Environment variables (HPP_AUTHORIZED_SHARED_DRIVES, HPP_AUTHORIZED_MY_DRIVE)
+ *   control corpus access.
  * 
  * CONSTITUTIONAL RULE: Google OAuth access ≠ HPP authorization
  * Even if Google permits access to a corpus, HPP must explicitly authorize it.

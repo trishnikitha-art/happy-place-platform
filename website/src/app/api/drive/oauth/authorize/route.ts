@@ -17,7 +17,8 @@ export async function GET(request: Request) {
   console.log('=== DRIVE OAUTH AUTHORIZE REACHED ===');
 
   // SECURITY: Require authenticated Workbench session before initiating OAuth
-  // HPP_WORKBENCH_PRINCIPAL_ID is an identity binding, not a substitute for human authentication
+  // HPP_WORKBENCH_PRINCIPAL_ID is a deployment-global constant used for stale-authorization
+  // invalidation. It is NOT an identity binding and NOT a substitute for human authentication.
   const isAuthenticated = await workbenchSession.isAuthenticated();
   if (!isAuthenticated) {
     console.log('[DRIVE OAUTH AUTHORIZE] WORKBENCH_AUTH_REQUIRED');
