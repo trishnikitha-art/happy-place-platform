@@ -264,8 +264,9 @@ describe('HTTP Boundary Negative Security Tests', () => {
       expect(response.status).toBe(401); // Since we don't have real Google credentials, it will fail at the Google level
 
       // Cleanup
-      await getAuthorization().then((fn: any) => fn(authA.id)).catch(() => {});
-      await getAuthorization().then((fn: any) => fn(authB.id)).catch(() => {});
+      const { deleteAuthorization } = await import('../oauth-credential-store');
+      await deleteAuthorization(authA.id).catch(() => {});
+      await deleteAuthorization(authB.id).catch(() => {});
     });
 
     it('should reject cross-corpus Drive access', async () => {
