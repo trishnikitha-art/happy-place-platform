@@ -917,6 +917,7 @@ export async function POST(request: Request) {
         stagingKey,
         serviceSlug,
         canonicalMediaId,
+        expectedRevision, // P0 FIX: Log caller's expectedRevision for CAS enforcement
       });
 
       // Write to staging area
@@ -925,7 +926,16 @@ export async function POST(request: Request) {
         token: process.env.KV_REST_API_TOKEN 
       });
       
-      await redis.set(stagingKey, canonicalMediaId);
+      // P0 FIX: Store both mediaId AND expectedRevision in staging for CAS enforcement
+      // The caller's expectedRevision must be preserved through the deployment transaction
+      const stagingValue = JSON.stringify({
+        mediaId: canonicalMediaId,
+        expectedRevision, // Caller's expectedRevision for CAS
+        updatedAt: new Date().toISOString(),
+        source: 'workbench',
+      });
+      
+      await redis.set(stagingKey, stagingValue);
       
       // Create deployment transaction
       await createDeploymentTransaction(

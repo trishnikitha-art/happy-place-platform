@@ -70,16 +70,18 @@ async function verifyQuarantineSafety() {
     console.log(`  - Assignment references: ${assignmentReferences.length > 0 ? assignmentReferences.join(', ') : 'NONE'}`);
     
     // 3. Check if public media gate can resolve it
+    let publicGateResolves = false;
     try {
       const response = await fetch(`/api/media/resolve/${mediaId}`);
-      const publicResolution = response.ok;
-      console.log(`  - Public gate resolution: ${publicResolution ? 'RESOLVES (UNSAFE)' : 'REJECTED (SAFE)'}`);
+      publicGateResolves = response.ok;
+      console.log(`  - Public gate resolution: ${publicGateResolves ? 'RESOLVES (UNSAFE)' : 'REJECTED (SAFE)'}`);
     } catch (error) {
       console.log(`  - Public gate error: ${error.message}`);
     }
     
     // Safety determination
-    const isSafeToQuarantine = !assignmentReferences.length;
+    // P0 FIX: SAFE TO QUARANTINE requires BOTH no assignment references AND public gate rejection
+    const isSafeToQuarantine = !assignmentReferences.length && !publicGateResolves;
     
     console.log(`  - SAFE TO QUARANTINE: ${isSafeToQuarantine ? 'YES' : 'NO'}`);
     

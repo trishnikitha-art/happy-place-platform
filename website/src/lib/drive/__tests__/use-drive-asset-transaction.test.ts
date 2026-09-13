@@ -384,6 +384,100 @@ describe('Use Drive Asset Transaction - Duplication Prevention', () => {
       }
     });
   });
+
+  describe('CAS Enforcement (P0 #1)', () => {
+    it('should reject Drive handoff with stale expectedRevision', async () => {
+      // Skip if Redis credentials not available
+      if (!OAUTH_SECURITY_REDIS_AVAILABLE) {
+        console.log('[USE_DRIVE_ASSET_TRANSACTION] Skipping test - Redis credentials not available');
+        return;
+      }
+
+      const { storeServiceCardAssignment, getServiceCardAssignment } = await import('../../assignment-store');
+      const { atomicPromoteAssignments } = await import('../../deployment-transaction');
+
+      const serviceSlug = 'test-cas-service';
+      const namespace = process.env.TEST_NAMESPACE || 'hpp:test:';
+      const deploymentTransactionId = `test_cas_tx_${Date.now()}`;
+
+      // Step 1: Create initial assignment (revision 0)
+      await storeServiceCardAssignment(serviceSlug, 'initial-media-id', deploymentTransactionId);
+      const assignment1 = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
+      expect(assignment1?.revision).toBe(1); // Revision increments on first write
+
+      // Step 2: Simulate concurrent writer updating to revision 2
+      await storeServiceCardAssignment(serviceSlug, 'concurrent-media-id', deploymentTransactionId);
+      const assignment2 = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
+      expect(assignment2?.revision).toBe(2);
+
+      // Step 3: Attempt Drive handoff with stale expectedRevision (revision 1)
+      // This should fail CAS because current revision is 2
+      const staleExpectedRevision = 1;
+      const promotionResult = await atomicPromoteAssignments([
+        {
+          serviceSlug,
+          mediaId: 'drive-handoff-media-id',
+          expectedRevision: staleExpectedRevision,
+          updatedAt: new Date().toISOString(),
+          source: 'workbench',
+        }
+      ], deploymentTransactionId);
+
+      // Verify CAS failure
+      expect(promotionResult.success).toBe(false);
+      expect(promotionResult.error).toContain('CAS_FAILURE');
+      expect(promotionResult.failedServiceSlug).toBe(serviceSlug);
+
+      // Step 4: Verify concurrent write remains intact (still revision 2)
+      const assignmentAfter = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
+      expect(assignmentAfter?.mediaId).toBe('concurrent-media-id');
+      expect(assignmentAfter?.revision).toBe(2);
+
+      console.log('[USE_DRIVE_ASSET_TRANSACTION] CAS enforcement test passed: Stale expectedRevision rejected');
+    });
+
+    it('should accept Drive handoff with correct expectedRevision', async () => {
+      // Skip if Redis credentials not available
+      if (!OAUTH_SECURITY_REDIS_AVAILABLE) {
+        console.log('[USE_DRIVE_ASSET_TRANSACTION] Skipping test - Redis credentials not available');
+        return;
+      }
+
+      const { storeServiceCardAssignment, getServiceCardAssignment } = await import('../../assignment-store');
+      const { atomicPromoteAssignments } = await import('../../deployment-transaction');
+
+      const serviceSlug = 'test-cas-correct-service';
+      const namespace = process.env.TEST_NAMESPACE || 'hpp:test:';
+      const deploymentTransactionId = `test_cas_correct_tx_${Date.now()}`;
+
+      // Step 1: Create initial assignment
+      await storeServiceCardAssignment(serviceSlug, 'initial-media-id', deploymentTransactionId);
+      const assignment1 = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
+      const currentRevision = assignment1?.revision ?? 0;
+
+      // Step 2: Attempt Drive handoff with correct expectedRevision
+      const promotionResult = await atomicPromoteAssignments([
+        {
+          serviceSlug,
+          mediaId: 'drive-handoff-media-id',
+          expectedRevision: currentRevision,
+          updatedAt: new Date().toISOString(),
+          source: 'workbench',
+        }
+      ], deploymentTransactionId);
+
+      // Verify success
+      expect(promotionResult.success).toBe(true);
+      expect(promotionResult.count).toBe(1);
+
+      // Step 3: Verify assignment was updated
+      const assignmentAfter = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
+      expect(assignmentAfter?.mediaId).toBe('drive-handoff-media-id');
+      expect(assignmentAfter?.revision).toBe(currentRevision + 1);
+
+      console.log('[USE_DRIVE_ASSET_TRANSACTION] CAS enforcement test passed: Correct expectedRevision accepted');
+    });
+  });
 });
 
 describe('Client-Side Duplication Prevention', () => {

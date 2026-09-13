@@ -1885,14 +1885,40 @@ export async function POST(request: Request) {
                                       serviceSlug; // No mapping needed for other services
 
           try {
-            // Read current assignment from CANONICAL runtime target, not staging alias
-            const currentAssignment = await getServiceCardAssignment(canonicalServiceSlug, deploymentTransactionId);
-            const expectedRevision = currentAssignment?.revision ?? 0;
+            // P0 FIX: Parse staging value to extract mediaId and expectedRevision
+            // The staging value now contains the caller's expectedRevision for CAS enforcement
+            let mediaId: string;
+            let expectedRevision: number;
+            
+            try {
+              const stagingData = JSON.parse(stringValue);
+              mediaId = stagingData.mediaId;
+              expectedRevision = stagingData.expectedRevision;
+              
+              console.log('[DEPLOY API] STAGING_DATA_PARSED', {
+                serviceSlug,
+                canonicalServiceSlug,
+                mediaId,
+                expectedRevision,
+              });
+            } catch (parseError) {
+              // Legacy staging format: just the mediaId as a string
+              // Fallback to reading current revision (old behavior)
+              console.warn('[DEPLOY API] LEGACY_STAGING_FORMAT', {
+                serviceSlug,
+                stringValue,
+                fallback: 'Reading current revision from assignment store',
+              });
+              
+              mediaId = stringValue;
+              const currentAssignment = await getServiceCardAssignment(canonicalServiceSlug, deploymentTransactionId);
+              expectedRevision = currentAssignment?.revision ?? 0;
+            }
 
             assignmentsToPromote.push({
               serviceSlug: canonicalServiceSlug,
-              mediaId: stringValue,
-              expectedRevision,
+              mediaId,
+              expectedRevision, // P0 FIX: Use caller's expectedRevision from staging, not current revision
               updatedAt: new Date().toISOString(),
               source: 'workbench',
             });
@@ -1900,7 +1926,7 @@ export async function POST(request: Request) {
             console.log('[DEPLOY API] ASSIGNMENT_COLLECTED_FOR_PROMOTION', {
               originalServiceSlug: serviceSlug,
               canonicalServiceSlug,
-              mediaId: stringValue,
+              mediaId,
               expectedRevision,
             });
           } catch (error) {
