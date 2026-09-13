@@ -245,6 +245,7 @@ import { verifyPublicMediaAuthority } from '@/lib/media-kv-store';
 import { Redis } from '@upstash/redis';
 import { getDriveClient } from '@/lib/drive/oauth-manager';
 import { verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
+import { failDeploymentTransaction } from '@/lib/deployment-transaction';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -690,11 +691,12 @@ export async function POST(request: Request) {
 
     // Step 6: Execute transaction with lock protection
     try {
-      // Step 6a: Resolve or materialize Drive file to canonical PublishedMediaAsset
+      // Base URL for internal API calls
       const baseUrl = process.env.VERCEL_URL
         ? `https://${process.env.VERCEL_URL}`
         : 'http://localhost:3000';
 
+      // Step 6a: Resolve or materialize Drive file to canonical PublishedMediaAsset
       const ingestUrl = `${baseUrl}/api/drive/ingest`;
       const ingestBody = {
         fileId: sourceFileId,
@@ -814,8 +816,9 @@ export async function POST(request: Request) {
         );
       }
 
-      // Step 6c: Mutate exactly the requested target slot with CAS/revision protection
-      // P0 FIX: Resolve target slot through authoritative registry
+      // Step 6c: Write to staging area, then trigger deployment transaction for atomic promotion
+      // P0 FIX: Do NOT write directly to assignment store. Use staging → deployment transaction → atomic promotion.
+      // This ensures the same atomic promotion path used by bulk deployments.
       const slotAuthority = resolveTargetSlotAuthority(targetSlotId);
       
       console.log('[USE_DRIVE_ASSET] Target slot authority resolved', {
@@ -899,39 +902,110 @@ export async function POST(request: Request) {
         writable: slotAuthority.writable,
       });
 
-      // Get current assignment for CAS semantics
-      const currentAssignment = await getServiceCardAssignment(serviceSlug);
-
-      console.log('[USE_DRIVE_ASSET] CAS revision check', {
+      // P0 FIX: Write to staging area instead of direct assignment
+      // This ensures the same atomic promotion path used by bulk deployments
+      const { createDeploymentTransaction, claimDeploymentTransaction, commitDeploymentTransaction, consumeDeploymentTransaction } = await import('@/lib/deployment-transaction');
+      const { getKvNamespace } = await import('@/lib/environment');
+      
+      const namespace = getKvNamespace();
+      const deploymentTransactionId = crypto.randomUUID();
+      const stagingKey = `${namespace}workbench-staging:${deploymentTransactionId}:service:${serviceSlug}`;
+      
+      console.log('[USE_DRIVE_ASSET] Creating staging key', {
         requestId,
+        deploymentTransactionId,
+        stagingKey,
         serviceSlug,
-        currentRevision: currentAssignment?.revision,
-        expectedRevision,
+        canonicalMediaId,
       });
 
-      // Create new assignment
-      const newAssignment = {
-        serviceSlug,
-        mediaId: canonicalMediaId,
-        source: 'workbench' as const,
-        updatedAt: new Date().toISOString(),
-        actor: 'workbench' as const,
+      // Write to staging area
+      const redis = new Redis({ 
+        url: process.env.KV_REST_API_URL, 
+        token: process.env.KV_REST_API_TOKEN 
+      });
+      
+      await redis.set(stagingKey, canonicalMediaId);
+      
+      // Create deployment transaction
+      await createDeploymentTransaction(
+        deploymentTransactionId,
+        [stagingKey],
+        ['media.v1.json'], // Authority files affected
+        `Drive asset assignment: ${serviceSlug} → ${canonicalMediaId}`
+      );
+
+      console.log('[USE_DRIVE_ASSET] Deployment transaction created', {
+        requestId,
+        deploymentTransactionId,
+        stagingKeys: [stagingKey],
+      });
+
+      // Claim transaction
+      await claimDeploymentTransaction(deploymentTransactionId, requestId);
+
+      console.log('[USE_DRIVE_ASSET] Transaction claimed', {
+        requestId,
+        deploymentTransactionId,
+      });
+
+      // Trigger atomic promotion via deploy API
+      // This reuses the existing deployment transaction system
+      const deployUrl = `${baseUrl}/api/admin/deploy`;
+      const deployBody = {
+        transactionIds: [deploymentTransactionId],
+        reason: `Drive asset assignment via Workbench: ${serviceSlug}`,
       };
 
-      // Store with CAS semantics
-      await storeServiceCardAssignment(newAssignment, expectedRevision, requestId);
-
-      console.log('[USE_DRIVE_ASSET] Assignment committed', {
+      console.log('[USE_DRIVE_ASSET] Triggering deployment transaction', {
         requestId,
-        serviceSlug,
-        mediaId: canonicalMediaId,
-        expectedRevision,
+        deploymentTransactionId,
+        deployUrl,
       });
 
-      // Step 6d: Read assignment back from authoritative store
+      const deployResponse = await fetch(deployUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          cookie: request.headers.get('cookie') || '',
+        },
+        body: JSON.stringify(deployBody),
+      });
+
+      if (!deployResponse.ok) {
+        const deployError = await deployResponse.json();
+        console.error('[USE_DRIVE_ASSET] Deployment transaction failed', {
+          requestId,
+          deploymentTransactionId,
+          error: deployError,
+        });
+        
+        // Mark transaction as failed
+        await failDeploymentTransaction(deploymentTransactionId, `Deployment transaction failed: ${deployError.error || 'Unknown error'}`);
+        
+        return NextResponse.json(
+          {
+            error: 'DEPLOYMENT_TRANSACTION_FAILED',
+            message: 'Deployment transaction failed during atomic promotion',
+            details: deployError,
+            requestId,
+          },
+          { status: deployResponse.status }
+        );
+      }
+
+      const deployResult = await deployResponse.json();
+
+      console.log('[USE_DRIVE_ASSET] Deployment transaction succeeded', {
+        requestId,
+        deploymentTransactionId,
+        deployResult,
+      });
+
+      // Read assignment back from authoritative store to verify promotion
       const readbackAssignment = await getServiceCardAssignment(serviceSlug);
 
-      console.log('[USE_DRIVE_ASSET] Assignment readback', {
+      console.log('[USE_DRIVE_ASSET] Assignment readback after promotion', {
         requestId,
         serviceSlug,
         readbackMediaId: readbackAssignment?.mediaId,
@@ -939,9 +1013,9 @@ export async function POST(request: Request) {
         readbackRevision: readbackAssignment?.revision,
       });
 
-      // Step 6e: Verify readback media ID equals canonical media ID
+      // Verify readback media ID equals canonical media ID
       if (readbackAssignment?.mediaId !== canonicalMediaId) {
-        console.error('[USE_DRIVE_ASSET] Assignment readback mismatch', {
+        console.error('[USE_DRIVE_ASSET] Assignment readback mismatch after promotion', {
           requestId,
           readbackMediaId: readbackAssignment?.mediaId,
           expectedMediaId: canonicalMediaId,
@@ -949,7 +1023,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           {
             error: 'ASSIGNMENT_READBACK_MISMATCH',
-            message: 'Assignment readback failed: media ID mismatch',
+            message: 'Assignment readback failed after atomic promotion: media ID mismatch',
             details: {
               readbackMediaId: readbackAssignment?.mediaId,
               expectedMediaId: canonicalMediaId,
@@ -959,6 +1033,14 @@ export async function POST(request: Request) {
           { status: 500 }
         );
       }
+
+      // Consume transaction (cleanup staging)
+      await consumeDeploymentTransaction(deploymentTransactionId, requestId);
+
+      console.log('[USE_DRIVE_ASSET] Transaction consumed', {
+        requestId,
+        deploymentTransactionId,
+      });
 
       // Step 7: Return success only if all steps complete
       console.log('[USE_DRIVE_ASSET] Transaction complete', {
