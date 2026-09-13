@@ -581,7 +581,9 @@ export default function MediaWorkbench() {
       filename: driveFile?.name || asset?.filename,
       source: driveFile ? 'google-drive' : asset?.source,
     });
-    
+
+    let dragData: any;
+
     // If this is a Drive file that's not yet ingested, emit Drive identity
     if (driveFile && driveFile.id) {
       const driveReference = {
@@ -592,16 +594,19 @@ export default function MediaWorkbench() {
         mimeType: driveFile.mimeType, // Do NOT default - must be provided by Drive
         modifiedTime: driveFile.modifiedTime,
         webViewUrl: driveFile.webViewLink,
+        corpusId: driveFile.corpusId, // P0 FIX: Preserve corpus context through iframe boundary
       };
-      
+
+      dragData = driveReference;
+
       e.dataTransfer.setData(
         'application/x-workbench-asset',
         JSON.stringify(driveReference)
       );
-      
+
       // Fallback for compatibility (legacy browsers)
       e.dataTransfer.setData('text/plain', JSON.stringify(driveReference));
-      
+
       console.log('[DND] DATA_TRANSFER_SET', {
         type: 'drive-reference',
         explicitMime: 'application/x-workbench-asset',
@@ -611,21 +616,20 @@ export default function MediaWorkbench() {
     } else if (asset) {
       // Existing asset - use asset ID
       const assetId = asset.id;
-      
-      e.dataTransfer.setData(
-        'application/x-workbench-asset',
-        JSON.stringify({
-          assetId,
-          source: asset.source,
-        })
-      );
-      
-      // Fallback for compatibility (legacy browsers)
-      e.dataTransfer.setData('text/plain', JSON.stringify({
+
+      dragData = {
         assetId,
         source: asset.source,
-      }));
-      
+      };
+
+      e.dataTransfer.setData(
+        'application/x-workbench-asset',
+        JSON.stringify(dragData)
+      );
+
+      // Fallback for compatibility (legacy browsers)
+      e.dataTransfer.setData('text/plain', JSON.stringify(dragData));
+
       console.log('[DND] DATA_TRANSFER_SET', {
         type: 'asset-reference',
         explicitMime: 'application/x-workbench-asset',
@@ -638,6 +642,22 @@ export default function MediaWorkbench() {
     e.dataTransfer.effectAllowed = 'copy';
     if (asset) {
       setState(prev => ({ ...prev, selectedAsset: asset }));
+    }
+
+    // P0 FIX: Bridge drag data across iframe boundary via postMessage
+    // The native dataTransfer object does not automatically cross iframe boundaries
+    // Send the drag data to the iframe so it can accept the drop even if dataTransfer is empty
+    if (dragData && iframeRef.current?.contentWindow) {
+      const targetOrigin = iframeRef.current.src ? new URL(iframeRef.current.src).origin : window.location.origin;
+      console.log('[DND] IFRAME_BRIDGE_START', {
+        messageType: 'DRAG_START',
+        dragData,
+        targetOrigin,
+      });
+      iframeRef.current.contentWindow.postMessage({
+        type: 'DRAG_START',
+        dragData,
+      }, targetOrigin);
     }
   };
 
