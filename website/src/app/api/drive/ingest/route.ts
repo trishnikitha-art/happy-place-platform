@@ -411,6 +411,7 @@ export async function POST(request: Request) {
       // This prevents IDOR where an authorized user could access arbitrary Drive IDs
       // even if Google technically permits the object
       // P0 FIX: Use fileId (file identity) and sharedDriveId (corpus context) for authorization
+      // Note: pre-fetched metadata not available here yet - authorization happens before getFile
       const fileAuth = await verifyCorpusAuthorization(fileId, sharedDriveId);
       if (!fileAuth.authorized) {
         console.error('[DRIVE_AUTHORIZATION] FILE_NOT_AUTHORIZED', {

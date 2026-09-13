@@ -256,16 +256,30 @@ export async function getAuthorizedCorpora(): Promise<DriveCorpus[]> {
 }
 
 /**
+ * Pre-fetched Drive metadata to avoid duplicate API calls
+ * Optional parameter to verifyCorpusAuthorization to avoid re-fetching
+ */
+interface DriveMetadata {
+  driveId?: string | null;
+  id: string;
+}
+
+/**
  * Verify that a Drive object is within an authorized corpus
  * This prevents cross-corpus access and IDOR attacks
- * 
+ *
  * NOTE: Principal binding is enforced transitively by getDriveClient()
  * getDriveClient() → getOAuthClient() → principal binding check → authorization resolution
  * This module uses getDriveClient() for all Drive API access, so principal binding is enforced transitively
+ *
+ * P0 FIX: Accept optional pre-fetched metadata to avoid duplicate Drive API calls
+ * When metadata is provided, skip the duplicate fetch and use the provided data
+ * This prevents authorization revocation inconsistency between calls
  */
 export async function verifyCorpusAuthorization(
   fileId: string,
-  corpusId?: string
+  corpusId?: string,
+  preFetchedMetadata?: DriveMetadata
 ): Promise<CorpusAuthorizationResult> {
   try {
     // Check session authentication
@@ -317,15 +331,65 @@ export async function verifyCorpusAuthorization(
       // First verify corpusId is in authorized list
       const authorizedCorpora = await getAuthorizedCorpora();
       const authorizedCorpusIds = authorizedCorpora.map(c => c.id);
-      
+
       if (!authorizedCorpusIds.includes(corpusId)) {
         return {
           authorized: false,
           reason: `Corpus ${corpusId} not in authorized corpora`,
         };
       }
-      
-      // Then verify the file actually belongs to that corpus
+
+      // P0 FIX: Use pre-fetched metadata if available to avoid duplicate Drive API call
+      let fileDriveId: string | undefined;
+      if (preFetchedMetadata && preFetchedMetadata.driveId) {
+        fileDriveId = preFetchedMetadata.driveId;
+        console.log('[CORPUS_AUTHORIZATION] Using pre-fetched metadata for corpus verification');
+      } else {
+        // Then verify the file actually belongs to that corpus
+        const fileMetadata = await driveClient.files.get({
+          fileId,
+          fields: 'id,name,owners,permissions,shared,driveId',
+          supportsAllDrives: true,
+        });
+
+        if (!fileMetadata.data) {
+          return {
+            authorized: false,
+            reason: 'File not found in Drive',
+          };
+        }
+
+        fileDriveId = fileMetadata.data.driveId || undefined;
+      }
+
+      const fileCorpusId = fileDriveId || 'root';
+
+      // Verify file's corpus matches requested corpusId
+      if (fileCorpusId !== corpusId) {
+        return {
+          authorized: false,
+          reason: `File belongs to corpus ${fileCorpusId} but requested corpus ${corpusId}`,
+        };
+      }
+
+      return {
+        authorized: true,
+        corpus: {
+          id: corpusId,
+          name: `Shared Drive ${corpusId}`,
+          type: 'shared_drive',
+          authorized: true,
+        },
+      };
+    }
+
+    // P0 FIX: Use pre-fetched metadata if available to avoid duplicate Drive API call
+    let fileDriveId: string | undefined;
+    if (preFetchedMetadata && preFetchedMetadata.driveId) {
+      fileDriveId = preFetchedMetadata.driveId;
+      console.log('[CORPUS_AUTHORIZATION] Using pre-fetched metadata for corpus determination');
+    } else {
+      // Get file metadata to determine corpus
       const fileMetadata = await driveClient.files.get({
         fileId,
         fields: 'id,name,owners,permissions,shared,driveId',
@@ -339,44 +403,10 @@ export async function verifyCorpusAuthorization(
         };
       }
 
-      const fileDriveId = fileMetadata.data.driveId;
-      const fileCorpusId = fileDriveId || 'root';
-      
-      // Verify file's corpus matches requested corpusId
-      if (fileCorpusId !== corpusId) {
-        return {
-          authorized: false,
-          reason: `File belongs to corpus ${fileCorpusId} but requested corpus ${corpusId}`,
-        };
-      }
-      
-      return {
-        authorized: true,
-        corpus: {
-          id: corpusId,
-          name: `Shared Drive ${corpusId}`,
-          type: 'shared_drive',
-          authorized: true,
-        },
-      };
-    }
-
-    // Get file metadata to determine corpus
-    const fileMetadata = await driveClient.files.get({
-      fileId,
-      fields: 'id,name,owners,permissions,shared,driveId',
-      supportsAllDrives: true,
-    });
-
-    if (!fileMetadata.data) {
-      return {
-        authorized: false,
-        reason: 'File not found in Drive',
-      };
+      fileDriveId = fileMetadata.data.driveId || undefined;
     }
 
     // Determine which corpus the file belongs to
-    const fileDriveId = fileMetadata.data.driveId;
     const fileCorpusId = fileDriveId || 'root'; // 'root' for My Drive
 
     // Get authorized corpora

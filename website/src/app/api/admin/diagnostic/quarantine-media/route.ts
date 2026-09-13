@@ -2,7 +2,7 @@
  * Quarantine/Delete Media Record
  *
  * Surgical deletion of specific media records that cannot be repaired.
- * Requires Workbench authentication and explicit confirmation.
+ * Requires Workbench authentication, explicit confirmation, and allowlist match.
  *
  * POST /api/admin/diagnostic/quarantine-media
  * Body: { mediaId: string, confirm: boolean }
@@ -10,7 +10,12 @@
  * Security:
  * - Requires Workbench authentication
  * - Requires explicit confirmation (confirm: true)
+ * - Media ID must be in QUARANTINE_ALLOWLIST (fail-closed)
  * - Logs all quarantine actions for audit trail
+ * - Does NOT delete assignments or blobs - only the malformed KV record
+ *
+ * CRITICAL: This is a temporary diagnostic tool, not production infrastructure.
+ * Remove from production architecture after the repair to reduce admin attack surface.
  */
 
 import { NextResponse } from 'next/server';
@@ -18,6 +23,15 @@ import { workbenchSession } from '@/lib/workbench-session';
 import { getMediaRecordRaw, listMediaIds, deleteMedia } from '@/lib/media-kv-store';
 
 export const dynamic = 'force-dynamic';
+
+/**
+ * P0 FIX: Fail-closed allowlist for quarantine operations
+ * Only known problematic records can be deleted via this endpoint
+ * Prevents authenticated Workbench users from deleting arbitrary production media
+ */
+const QUARANTINE_ALLOWLIST: string[] = [
+  '07c0eae184dc5a375f943a3ac2b67e95', // Known malformed record with missing storage field
+];
 
 export async function POST(request: Request) {
   // SECURITY: Require Workbench authentication
@@ -44,6 +58,22 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Confirmation required', message: 'Set confirm: true to delete this record' },
         { status: 400 }
+      );
+    }
+
+    // P0 FIX: Fail-closed allowlist check
+    if (!QUARANTINE_ALLOWLIST.includes(mediaId)) {
+      console.error('[QUARANTINE_MEDIA] MEDIA_ID_NOT_IN_ALLOWLIST', {
+        mediaId,
+        reason: 'Quarantine endpoint requires explicit allowlist match',
+      });
+      return NextResponse.json(
+        {
+          error: 'MEDIA_ID_NOT_ALLOWED',
+          message: 'This media ID is not in the quarantine allowlist. This endpoint only accepts known problematic records.',
+          mediaId,
+        },
+        { status: 403 }
       );
     }
 

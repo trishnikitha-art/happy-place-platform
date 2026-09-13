@@ -244,30 +244,31 @@ const IDEMPOTENCY_PREFIX = 'use-drive-asset-idempotency:';
 /**
  * Check if operation with this idempotency key has already completed
  * Returns the cached result if present, null if not found
+ * CRITICAL: Fails closed if Redis is unavailable - idempotency is required for authoritative mutation
  */
 async function checkIdempotency(idempotencyKey: string): Promise<any | null> {
-  try {
-    const url = process.env.KV_REST_API_URL;
-    const token = process.env.KV_REST_API_TOKEN;
-    
-    if (!url || !token) {
-      console.warn('[USE_DRIVE_ASSET] KV unavailable - idempotency check skipped');
-      return null;
-    }
+  const url = process.env.KV_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN;
 
+  if (!url || !token) {
+    console.error('[USE_DRIVE_ASSET] KV unavailable - idempotency check required');
+    throw new Error('REDIS_UNAVAILABLE: Idempotency check requires Redis');
+  }
+
+  try {
     const redis = new Redis({ url, token });
     const key = `${IDEMPOTENCY_PREFIX}${idempotencyKey}`;
     const cached = await redis.get(key);
-    
+
     if (cached) {
       console.log('[USE_DRIVE_ASSET] Idempotency hit - returning cached result', { idempotencyKey });
       return JSON.parse(cached as string);
     }
-    
+
     return null;
   } catch (error) {
     console.error('[USE_DRIVE_ASSET] Idempotency check failed', { error });
-    return null; // Fail open - proceed with operation
+    throw new Error('REDIS_ERROR: Idempotency check failed - transaction cannot proceed without authoritative state');
   }
 }
 
@@ -358,25 +359,26 @@ async function releaseTransactionLock(idempotencyKey: string, ownershipToken: st
 
 /**
  * Record the successful result of an operation for idempotency
+ * CRITICAL: Fails closed if Redis is unavailable - must record before releasing lock
  */
 async function recordIdempotency(idempotencyKey: string, result: any, ttlSeconds: number = 3600): Promise<void> {
-  try {
-    const url = process.env.KV_REST_API_URL;
-    const token = process.env.KV_REST_API_TOKEN;
-    
-    if (!url || !token) {
-      console.warn('[USE_DRIVE_ASSET] KV unavailable - idempotency record skipped');
-      return;
-    }
+  const url = process.env.KV_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN;
 
+  if (!url || !token) {
+    console.error('[USE_DRIVE_ASSET] KV unavailable - idempotency record required');
+    throw new Error('REDIS_UNAVAILABLE: Idempotency record requires Redis');
+  }
+
+  try {
     const redis = new Redis({ url, token });
     const key = `${IDEMPOTENCY_PREFIX}${idempotencyKey}`;
     await redis.set(key, JSON.stringify(result), { ex: ttlSeconds });
-    
+
     console.log('[USE_DRIVE_ASSET] Idempotency recorded', { idempotencyKey, ttlSeconds });
   } catch (error) {
     console.error('[USE_DRIVE_ASSET] Idempotency record failed', { error });
-    // Non-critical - proceed even if recording fails
+    throw new Error('REDIS_ERROR: Idempotency record failed - cannot proceed without durable completion record');
   }
 }
 
@@ -412,15 +414,11 @@ export async function POST(request: Request) {
     const {
       sourceFileId,
       sourceSharedDriveId,
-      sourceCorpusId, // P0 FIX: Use explicit corpus identity from Drive file discovery
+      sourceCorpusId, // P0 FIX: Client assertion for early mismatch detection only
       targetSlotId,
       expectedRevision,
       idempotencyKey: clientProvidedKey
     } = body;
-
-    // P0 FIX: Use explicit corpus identity when available, fall back to sharedDriveId
-    // This preserves Shared Drive context through the entire chain
-    const corpusContext = sourceCorpusId || sourceSharedDriveId;
 
     // Step 2: Validate required fields BEFORE acquiring lock
     if (!sourceFileId || !targetSlotId) {
@@ -539,6 +537,9 @@ export async function POST(request: Request) {
 
     const driveClient = await getDriveClient();
     let authoritativeDriveMetadata: any = null;
+    let actualCorpusId: string;
+    let actualMimeType: string;
+    let actualDriveId: string | undefined;
 
     try {
       const fileMetadata = await driveClient.files.get({
@@ -559,9 +560,9 @@ export async function POST(request: Request) {
       }
 
       authoritativeDriveMetadata = fileMetadata.data;
-      const actualMimeType = authoritativeDriveMetadata.mimeType;
-      const actualDriveId = authoritativeDriveMetadata.driveId;
-      const actualCorpusId = actualDriveId || 'root';
+      actualMimeType = authoritativeDriveMetadata.mimeType;
+      actualDriveId = authoritativeDriveMetadata.driveId;
+      actualCorpusId = actualDriveId || 'root';
 
       console.log('[USE_DRIVE_ASSET] Authoritative Drive metadata retrieved', {
         requestId,
@@ -569,14 +570,59 @@ export async function POST(request: Request) {
         actualMimeType,
         actualCorpusId,
         requestedSharedDriveId: sourceSharedDriveId,
-        requestedCorpusId: sourceCorpusId, // P0 FIX: Log explicit corpus identity
-        usedCorpusContext: corpusContext, // P0 FIX: Log which corpus context was used
+        requestedCorpusId: sourceCorpusId,
       });
 
-      // P0 FIX: Use centralized corpus authorization module
-      // This ensures consistent authorization across all Drive routes
-      const corpusAuth = await verifyCorpusAuthorization(sourceFileId, actualCorpusId);
-      
+      // P0 FIX: Reject if client-provided corpus doesn't match server-derived authority
+      // Client corpus is useful for early mismatch detection but must not override server authority
+      if (sourceCorpusId && sourceCorpusId !== actualCorpusId) {
+        console.error('[USE_DRIVE_ASSET] Corpus mismatch - client assertion rejected', {
+          requestId,
+          clientCorpusId: sourceCorpusId,
+          serverCorpusId: actualCorpusId,
+        });
+        return NextResponse.json(
+          {
+            error: 'CORPUS_MISMATCH',
+            message: 'Client-provided corpus identity does not match server-derived authority',
+            details: {
+              clientCorpusId: sourceCorpusId,
+              serverCorpusId: actualCorpusId,
+            },
+            requestId,
+          },
+          { status: 400 }
+        );
+      }
+
+      if (sourceSharedDriveId && sourceSharedDriveId !== actualCorpusId) {
+        console.error('[USE_DRIVE_ASSET] Shared Drive ID mismatch - client assertion rejected', {
+          requestId,
+          clientSharedDriveId: sourceSharedDriveId,
+          serverCorpusId: actualCorpusId,
+        });
+        return NextResponse.json(
+          {
+            error: 'SHARED_DRIVE_MISMATCH',
+            message: 'Client-provided Shared Drive ID does not match server-derived authority',
+            details: {
+              clientSharedDriveId: sourceSharedDriveId,
+              serverCorpusId: actualCorpusId,
+            },
+            requestId,
+          },
+          { status: 400 }
+        );
+      }
+
+      // P0 FIX: Use centralized corpus authorization module with pre-fetched metadata
+      // This ensures consistent authorization across all Drive routes without duplicate Drive API calls
+      const corpusAuth = await verifyCorpusAuthorization(
+        sourceFileId,
+        actualCorpusId,
+        { driveId: actualDriveId || null, id: sourceFileId } // Pre-fetched metadata to avoid duplicate API call
+      );
+
       if (!corpusAuth.authorized) {
         console.error('[USE_DRIVE_ASSET] Corpus authorization failed', {
           requestId,
@@ -596,7 +642,7 @@ export async function POST(request: Request) {
           { status: 403 }
         );
       }
-      
+
       console.log('[USE_DRIVE_ASSET] Corpus authorization verified', {
         requestId,
         actualCorpusId,
@@ -642,7 +688,7 @@ export async function POST(request: Request) {
       const ingestUrl = `${baseUrl}/api/drive/ingest`;
       const ingestBody = {
         fileId: sourceFileId,
-        sharedDriveId: corpusContext, // P0 FIX: Use explicit corpus identity through chain
+        sharedDriveId: actualCorpusId, // P0 FIX: Use server-verified corpus identity, not client fallback
         roles: ['gallery'],
         skipReconciliation: true, // P0 FIX: Prevent implicit assignment reconciliation
       };
