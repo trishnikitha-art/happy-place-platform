@@ -194,18 +194,81 @@ export function VisualSlot({
           console.log('[VS_FORENSIC] REFRESH_REGISTER_SENT', { slotId: id, targetOrigin });
         }
       } else if (event.data.type === 'DRAG_START') {
+        // P0 FIX: Harden iframe DRAG_START bridge with origin/source/schema validation
+        // Accept only messages from the parent window at the same origin
+        const isSameOrigin = event.origin === window.location.origin;
+        const isFromParent = event.source === window.parent;
+
+        if (!isSameOrigin || !isFromParent) {
+          console.error('[VS_FORENSIC] DRAG_START_BRIDGE_REJECTED', {
+            slotId: id,
+            reason: !isSameOrigin ? 'ORIGIN_MISMATCH' : 'SOURCE_NOT_PARENT',
+            eventOrigin: event.origin,
+            expectedOrigin: window.location.origin,
+            isFromParent,
+            timestamp: Date.now(),
+          });
+          return;
+        }
+
+        // Validate payload schema
+        const dragData = event.data.dragData;
+        if (!dragData || typeof dragData !== 'object') {
+          console.error('[VS_FORENSIC] DRAG_START_BRIDGE_REJECTED', {
+            slotId: id,
+            reason: 'INVALID_PAYLOAD_TYPE',
+            payloadType: typeof dragData,
+            timestamp: Date.now(),
+          });
+          return;
+        }
+
+        // Validate Drive reference schema
+        if (dragData.source === 'google-drive') {
+          if (!dragData.fileId || !dragData.name || !dragData.mimeType) {
+            console.error('[VS_FORENSIC] DRAG_START_BRIDGE_REJECTED', {
+              slotId: id,
+              reason: 'MALFORMED_DRIVE_REFERENCE',
+              hasFileId: !!dragData.fileId,
+              hasName: !!dragData.name,
+              hasMimeType: !!dragData.mimeType,
+              timestamp: Date.now(),
+            });
+            return;
+          }
+        } else if (dragData.source === 'local') {
+          if (!dragData.assetId) {
+            console.error('[VS_FORENSIC] DRAG_START_BRIDGE_REJECTED', {
+              slotId: id,
+              reason: 'MALFORMED_ASSET_REFERENCE',
+              hasAssetId: !!dragData.assetId,
+              timestamp: Date.now(),
+            });
+            return;
+          }
+        } else {
+          console.error('[VS_FORENSIC] DRAG_START_BRIDGE_REJECTED', {
+            slotId: id,
+            reason: 'UNKNOWN_SOURCE_TYPE',
+            source: dragData.source,
+            timestamp: Date.now(),
+          });
+          return;
+        }
+
         // P0 FIX: Bridge drag data from parent across iframe boundary
         // Store the drag data so the drop handler can use it if dataTransfer is empty
-        console.log('[VS_FORENSIC] DRAG_START_BRIDGE_RECEIVED', {
+        console.log('[VS_FORENSIC] DRAG_START_BRIDGE_ACCEPTED', {
           slotId: id,
-          dragData: event.data.dragData,
+          source: dragData.source,
+          fileId: dragData.fileId || dragData.assetId,
           timestamp: Date.now(),
         });
-        bridgedDragDataRef.current = event.data.dragData;
+        bridgedDragDataRef.current = dragData;
 
         // Clear bridged data after 5 seconds if no drop occurs
         setTimeout(() => {
-          if (bridgedDragDataRef.current === event.data.dragData) {
+          if (bridgedDragDataRef.current === dragData) {
             console.log('[VS_FORENSIC] DRAG_START_BRIDGE_EXPIRED', {
               slotId: id,
               timestamp: Date.now(),

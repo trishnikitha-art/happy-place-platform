@@ -383,6 +383,7 @@ async function recordIdempotency(idempotencyKey: string, result: any, ttlSeconds
 interface UseDriveAssetRequest {
   sourceFileId: string;  // Google Drive file ID
   sourceSharedDriveId?: string;  // Shared Drive corpus context (null for My Drive)
+  sourceCorpusId?: string;  // P0 FIX: Explicit corpus identity from Drive file discovery
   targetSlotId: string;  // Explicit target Visual Slot ID
   expectedRevision: number;  // CAS revision for the target slot (REQUIRED - no fallback)
   idempotencyKey?: string;  // DEPRECATED: Server now generates authoritative key
@@ -408,13 +409,18 @@ export async function POST(request: Request) {
     }
 
     const body: UseDriveAssetRequest = await request.json();
-    const { 
-      sourceFileId, 
-      sourceSharedDriveId, 
+    const {
+      sourceFileId,
+      sourceSharedDriveId,
+      sourceCorpusId, // P0 FIX: Use explicit corpus identity from Drive file discovery
       targetSlotId,
       expectedRevision,
       idempotencyKey: clientProvidedKey
     } = body;
+
+    // P0 FIX: Use explicit corpus identity when available, fall back to sharedDriveId
+    // This preserves Shared Drive context through the entire chain
+    const corpusContext = sourceCorpusId || sourceSharedDriveId;
 
     // Step 2: Validate required fields BEFORE acquiring lock
     if (!sourceFileId || !targetSlotId) {
@@ -563,6 +569,8 @@ export async function POST(request: Request) {
         actualMimeType,
         actualCorpusId,
         requestedSharedDriveId: sourceSharedDriveId,
+        requestedCorpusId: sourceCorpusId, // P0 FIX: Log explicit corpus identity
+        usedCorpusContext: corpusContext, // P0 FIX: Log which corpus context was used
       });
 
       // P0 FIX: Use centralized corpus authorization module
@@ -634,7 +642,7 @@ export async function POST(request: Request) {
       const ingestUrl = `${baseUrl}/api/drive/ingest`;
       const ingestBody = {
         fileId: sourceFileId,
-        sharedDriveId: sourceSharedDriveId,
+        sharedDriveId: corpusContext, // P0 FIX: Use explicit corpus identity through chain
         roles: ['gallery'],
         skipReconciliation: true, // P0 FIX: Prevent implicit assignment reconciliation
       };

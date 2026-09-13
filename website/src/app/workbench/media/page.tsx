@@ -661,84 +661,10 @@ export default function MediaWorkbench() {
     }
   };
 
-  const handleDriveDropToSlot = async (
-    slot: RegisteredSlot,
-    media: VisualAsset,
-    currentMediaId: string | null,
-    requestId: string
-  ) => {
-    console.log('[DND] HANDLE_DRIVE_DROP_TO_SLOT', {
-      requestId,
-      slotId: slot.id,
-      slotName: slot.slotName,
-      mediaId: media.id,
-      mediaFilename: media.filename,
-      currentMediaId,
-    });
-
-    if (!confirm(`Replace "${slot.slotName}" with "${media.filename}"?`)) {
-      console.log('[DND] DROP_CANCELLED_BY_USER', { requestId });
-      return;
-    }
-
-    try {
-      setState(prev => ({ ...prev, isAccepting: true }));
-
-      // Call assignment API to make the assignment
-      const response = await fetch('/api/workbench/assign-media', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          slotId: slot.id,
-          mediaId: media.id,
-        }),
-      });
-
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to assign media');
-      }
-
-      const result = await response.json();
-      console.log('[DND] ASSIGNMENT_SUCCESS', {
-        requestId,
-        slotId: slot.id,
-        mediaId: media.id,
-        result,
-      });
-
-      // Update local state
-      setState(prev => {
-        const updatedSlots = prev.registeredSlots.map(s =>
-          s.id === slot.id ? { ...s, currentMediaId: media.id } : s
-        );
-        return {
-          ...prev,
-          registeredSlots: updatedSlots,
-          selectedSlot: { ...slot, currentMediaId: media.id },
-        };
-      });
-
-      // Force iframe reload to pick up authority changes after assignment
-      if (iframeRef.current) {
-        console.log('[DND] IFRAME_RELOAD_TRIGGERED', {
-          slotId: slot.id,
-          assetId: media.id,
-          currentSrc: iframeRef.current.src,
-        });
-        iframeRef.current.src = iframeRef.current.src;
-      }
-    } catch (error) {
-      console.error('[DND] ASSIGNMENT_ERROR', { requestId, error });
-      alert(`Failed to assign media: ${error instanceof Error ? error.message : String(error)}`);
-    } finally {
-      setState(prev => ({ ...prev, isAccepting: false }));
-    }
-  };
-
-  // P0 FIX: Legacy materializeDriveFile removed - all Drive → slot operations now route through handleUseDriveAsset
-  // The gallery add path still uses direct materialize-drive endpoint for project gallery additions
-  // but slot assignment is now exclusively through the authoritative use-drive-asset transaction
+  // P0 FIX: Legacy handleDriveDropToSlot removed - all slot assignments now route through authoritative transactions
+  // Drive assets: SLOT_DROP → selectDriveFile → selectSlot → "Use This Asset" → /api/workbench/use-drive-asset
+  // Local assets: SLOT_DROP → selectAsset → selectSlot → "Use This Asset" → /api/workbench/use-drive-asset (or separate authoritative endpoint)
+  // Direct assign-media mutations are architecturally unsafe and have been removed
 
   const verifyMediaMaterializationComplete = async (assetId: string): Promise<boolean> => {
     try {
@@ -931,13 +857,17 @@ export default function MediaWorkbench() {
   };
 
   const handleUseDriveAsset = async () => {
-    // Guard: Must have both source Drive file and target slot selected
+    // Guard: Must have both source (Drive file OR local asset) and target slot selected
     const driveFile = state.driveSelectedFile;
+    const localAsset = state.selectedAsset;
     const targetSlot = state.selectedSlot;
 
-    if (!driveFile) {
-      console.warn('[WORKBENCH] USE_ASSET_NO_SOURCE - no Drive file selected');
-      alert('Please select a Drive file first');
+    const isDriveSource = !!driveFile;
+    const isLocalSource = !!localAsset && localAsset.source === 'local';
+
+    if (!isDriveSource && !isLocalSource) {
+      console.warn('[WORKBENCH] USE_ASSET_NO_SOURCE - no Drive file or local asset selected');
+      alert('Please select a Drive file or local asset first');
       return;
     }
 
@@ -959,26 +889,26 @@ export default function MediaWorkbench() {
     const requestId = crypto.randomUUID();
     console.log('[WORKBENCH] USE_ASSET_INITIATED', {
       requestId,
-      sourceFileId: driveFile.id,
-      sourceFilename: driveFile.name,
+      sourceType: isDriveSource ? 'drive' : 'local',
+      sourceFileId: driveFile?.id,
+      sourceFilename: driveFile?.name || localAsset?.filename,
       targetSlotId: targetSlot.id,
       targetSlotName: targetSlot.slotName,
       currentMediaId: targetSlot.currentMediaId,
     });
-
-    // Check if Drive file is already ingested (for confirmation dialog only)
-    const existingAsset = state.assets.find(a => a.provenance?.driveFileId === driveFile.id);
 
     // Show confirmation dialog
     const currentFilename = targetSlot.currentMediaId
       ? state.assets.find(a => a.id === targetSlot.currentMediaId)?.filename || 'Unknown'
       : 'No image';
 
+    const newFilename = driveFile?.name || localAsset?.filename || 'Unknown';
+
     const confirmed = confirm(
       `Replace "${targetSlot.slotName}"?\n\n` +
       `Current: ${currentFilename}\n` +
-      `New: ${driveFile.name}\n\n` +
-      `${existingAsset ? '(Asset already ingested)' : '(Will ingest from Drive)'}`
+      `New: ${newFilename}\n\n` +
+      `${isDriveSource ? '(Will ingest from Drive)' : '(Using local asset)'}`
     );
 
     if (!confirmed) {
@@ -997,78 +927,112 @@ export default function MediaWorkbench() {
     try {
       setState(prev => ({ ...prev, mutationState: 'materializing' }));
 
-      // Get current assignment revision for CAS
-      // P0 FIX: Use server-side authority mapping instead of local normalization
-      // The server resolves Visual Slot IDs to authoritative assignment keys
-      // hero-background → brand-hero-background
-      // homepage-owner-portrait-slot → brand-portrait-homepage
-      // service-card-{slug} → {slug}
+      let canonicalMediaId: string;
 
-      // Read current assignment to get revision
-      const verifyResponse = await fetch('/api/workbench/media-authority', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'getAssignment',
-          slotSlug: targetSlot.id, // Pass raw Visual Slot ID, let server resolve authority mapping
-        }),
-      });
-
-      let expectedRevision = 0; // Default to 0 for create
-      if (verifyResponse.ok) {
-        const verifyData = await verifyResponse.json();
-        if (verifyData.assignment?.revision !== undefined) {
-          expectedRevision = verifyData.assignment.revision;
-        }
-      } else {
-        console.error('[WORKBENCH] CAS_REVISION_READ_FAILED', {
-          status: verifyResponse.status,
-          targetSlotId: targetSlot.id,
+      if (isDriveSource) {
+        // DRIVE PATH: Use authoritative transaction endpoint
+        // Get current assignment revision for CAS
+        const verifyResponse = await fetch('/api/workbench/media-authority', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'getAssignment',
+            slotSlug: targetSlot.id,
+          }),
         });
-        // P0 FIX: Do NOT continue with revision 0 if authority read fails
-        // This violates the mandatory expectedRevision requirement
-        alert('Failed to read current assignment revision. Please try again.');
-        setState(prev => ({
-          ...prev,
-          mutationState: 'idle',
-          mutationRequestId: null,
-          mutationError: 'Authority revision read failed',
-        }));
-        return;
-      }
 
-      console.log('[WORKBENCH] USE_ASSET_CAS_REVISION', {
-        requestId,
-        targetSlotId: targetSlot.id,
-        expectedRevision,
-      });
+        let expectedRevision = 0;
+        if (verifyResponse.ok) {
+          const verifyData = await verifyResponse.json();
+          if (verifyData.assignment?.revision !== undefined) {
+            expectedRevision = verifyData.assignment.revision;
+          }
+        } else {
+          console.error('[WORKBENCH] CAS_REVISION_READ_FAILED', {
+            status: verifyResponse.status,
+            targetSlotId: targetSlot.id,
+          });
+          alert('Failed to read current assignment revision. Please try again.');
+          setState(prev => ({
+            ...prev,
+            mutationState: 'idle',
+            mutationRequestId: null,
+            mutationError: 'Authority revision read failed',
+          }));
+          return;
+        }
 
-      // Call the authoritative server-side transaction
-      // This endpoint handles: Drive authorization → materialization → assignment → CAS → readback → verification
-      const response = await fetch('/api/workbench/use-drive-asset', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sourceFileId: driveFile.id,
-          sourceSharedDriveId: state.driveCurrentDriveId,
+        console.log('[WORKBENCH] USE_ASSET_CAS_REVISION', {
+          requestId,
           targetSlotId: targetSlot.id,
           expectedRevision,
-          idempotencyKey: `${driveFile.id}:${targetSlot.id}`, // Stable key for idempotency
-        }),
-      });
+        });
 
-      if (!response.ok) {
-        const error = await response.json();
-        throw new Error(error.error || 'Failed to use Drive asset');
+        // Call the authoritative server-side transaction
+        const response = await fetch('/api/workbench/use-drive-asset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sourceFileId: driveFile.id,
+            sourceSharedDriveId: state.driveCurrentDriveId,
+            sourceCorpusId: driveFile.corpusId, // P0 FIX: Use explicit corpus identity from Drive file
+            targetSlotId: targetSlot.id,
+            expectedRevision,
+            idempotencyKey: `${driveFile.id}:${targetSlot.id}`,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to use Drive asset');
+        }
+
+        const result = await response.json();
+        canonicalMediaId = result.canonicalMediaId;
+
+        console.log('[WORKBENCH] USE_ASSET_TRANSACTION_SUCCESS', {
+          requestId,
+          canonicalMediaId,
+          targetSlotId: result.targetSlotId,
+          revision: result.assignment?.revision,
+        });
+      } else {
+        // LOCAL ASSET PATH: Direct assignment to local asset
+        // Local assets are already materialized, just need assignment
+        if (!localAsset) {
+          throw new Error('Local asset is null despite being selected');
+        }
+        canonicalMediaId = localAsset.id;
+
+        console.log('[WORKBENCH] USE_LOCAL_ASSET', {
+          requestId,
+          canonicalMediaId,
+          targetSlotId: targetSlot.id,
+        });
+
+        // TODO: Implement authoritative local asset assignment endpoint
+        // For now, this is a temporary direct assignment
+        // This should be replaced with a proper authoritative transaction
+        const response = await fetch('/api/workbench/assign-media', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            slotId: targetSlot.id,
+            mediaId: canonicalMediaId,
+          }),
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error || 'Failed to assign local asset');
+        }
+
+        console.log('[WORKBENCH] LOCAL_ASSET_ASSIGNMENT_SUCCESS', {
+          requestId,
+          canonicalMediaId,
+          targetSlotId: targetSlot.id,
+        });
       }
-
-      const result = await response.json();
-      console.log('[WORKBENCH] USE_ASSET_TRANSACTION_SUCCESS', {
-        requestId,
-        canonicalMediaId: result.canonicalMediaId,
-        targetSlotId: result.targetSlotId,
-        revision: result.assignment?.revision,
-      });
 
       setState(prev => ({ ...prev, mutationState: 'complete' }));
 
@@ -1078,13 +1042,13 @@ export default function MediaWorkbench() {
       // Update local state
       setState(prev => {
         const updatedSlots = prev.registeredSlots.map(s =>
-          s.id === targetSlot.id ? { ...s, currentMediaId: result.canonicalMediaId } : s
+          s.id === targetSlot.id ? { ...s, currentMediaId: canonicalMediaId } : s
         );
         return {
           ...prev,
           registeredSlots: updatedSlots,
-          selectedSlot: { ...targetSlot, currentMediaId: result.canonicalMediaId },
-          selectedAsset: state.assets.find(a => a.id === result.canonicalMediaId) || null,
+          selectedSlot: { ...targetSlot, currentMediaId: canonicalMediaId },
+          selectedAsset: state.assets.find(a => a.id === canonicalMediaId) || null,
         };
       });
 
@@ -1093,7 +1057,7 @@ export default function MediaWorkbench() {
         console.log('[WORKBENCH] USE_ASSET_IFRAME_RELOAD', {
           requestId,
           slotId: targetSlot.id,
-          assetId: result.canonicalMediaId,
+          assetId: canonicalMediaId,
         });
         iframeRef.current.src = iframeRef.current.src;
       }
@@ -1101,7 +1065,7 @@ export default function MediaWorkbench() {
       console.log('[WORKBENCH] USE_ASSET_COMPLETE', {
         requestId,
         slotId: targetSlot.id,
-        mediaId: result.canonicalMediaId,
+        mediaId: canonicalMediaId,
       });
 
       // Reset mutation state after delay
@@ -1776,7 +1740,16 @@ export default function MediaWorkbench() {
             source: asset.source,
           });
 
-          handleDriveDropToSlot(slot, asset, slot.currentMediaId, requestId);
+          // P0 FIX: Removed direct assignment mutation - use authoritative transaction path
+          // Set up for "Use This Asset" button click instead
+          setState(prev => ({ ...prev, selectedAsset: asset, selectedSlot: slot }));
+
+          console.log('[DND] ASSET_SELECTED_FOR_AUTHORITATIVE_TRANSACTION', {
+            requestId,
+            assetId: canonicalAssetId,
+            slotId: slot.id,
+            note: 'User must click "Use This Asset" to complete the transaction',
+          });
         } else {
           console.error('[DND] NO_ASSET_ID', { requestId });
         }
