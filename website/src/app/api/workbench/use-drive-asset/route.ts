@@ -89,6 +89,177 @@
  * - decorative: NONE (reject always)
  */
 
+/**
+ * P0 FIX: Authorized Drive Corpora Configuration
+ * 
+ * This defines which Drive corpora are authorized for Workbench Drive handoff.
+ * The server makes the authorization decision based on environment configuration,
+ * NOT based on client-supplied claims.
+ * 
+ * Environment Variables:
+ * - AUTHORIZED_SHARED_DRIVES: Comma-separated list of authorized Shared Drive IDs
+ * - MY_DRIVE_AUTHORIZED: 'true' if My Drive is authorized (default: true)
+ * 
+ * If a corpus is not in this allowlist, the endpoint rejects with 403 Forbidden.
+ */
+
+/**
+ * Parse authorized Shared Drive IDs from environment
+ * Returns empty array if not configured (fail-closed: no Shared Drives authorized)
+ */
+function getAuthorizedSharedDrives(): string[] {
+  const envValue = process.env.AUTHORIZED_SHARED_DRIVES;
+  if (!envValue) {
+    console.warn('[USE_DRIVE_ASSET] AUTHORIZED_SHARED_DRIVES not configured - no Shared Drives authorized');
+    return [];
+  }
+  
+  const drives = envValue.split(',').map(id => id.trim()).filter(id => id.length > 0);
+  console.log('[USE_DRIVE_ASSET] Authorized Shared Drives loaded', { count: drives.length, drives });
+  return drives;
+}
+
+/**
+ * Check if My Drive is authorized
+ * Default: true (My Drive is always authorized unless explicitly disabled)
+ */
+function isMyDriveAuthorized(): boolean {
+  const envValue = process.env.MY_DRIVE_AUTHORIZED;
+  if (envValue === 'false') {
+    console.log('[USE_DRIVE_ASSET] My Drive authorization explicitly disabled');
+    return false;
+  }
+  return true; // Default to authorized
+}
+
+/**
+ * P0 FIX: Verify Drive corpus authorization
+ * 
+ * This is the SERVER-SIDE authorization decision.
+ * The client-supplied sourceSharedDriveId is ONLY used for early mismatch detection.
+ * The actual authorization decision is based on:
+ * 1. Actual corpus from Google Drive metadata
+ * 2. Server-configured authorized corpus allowlist
+ * 
+ * Returns 403 if the corpus is not authorized.
+ */
+function verifyCorpusAuthorization(
+  actualCorpusId: string,
+  actualDriveId: string | null,
+  sourceSharedDriveId: string | undefined,
+  requestId: string
+): NextResponse | null {
+  const authorizedSharedDrives = getAuthorizedSharedDrives();
+  const myDriveAuthorized = isMyDriveAuthorized();
+  
+  console.log('[USE_DRIVE_ASSET] Corpus authorization check', {
+    requestId,
+    actualCorpusId,
+    actualDriveId,
+    requestedSharedDriveId: sourceSharedDriveId,
+    authorizedSharedDrives,
+    myDriveAuthorized,
+  });
+  
+  // Case 1: This is a Shared Drive file
+  if (actualDriveId) {
+    // Verify the Shared Drive is in the authorized allowlist
+    if (!authorizedSharedDrives.includes(actualCorpusId)) {
+      console.error('[USE_DRIVE_ASSET] Shared Drive not authorized', {
+        requestId,
+        actualCorpusId,
+        authorizedSharedDrives,
+      });
+      return NextResponse.json(
+        {
+          error: 'CORPUS_NOT_AUTHORIZED',
+          message: `Shared Drive '${actualCorpusId}' is not in the authorized Shared Drive allowlist`,
+          details: {
+            actualCorpusId,
+            authorizedSharedDrives,
+            note: 'Contact administrator to authorize this Shared Drive for Workbench use',
+          },
+          requestId,
+        },
+        { status: 403 }
+      );
+    }
+    
+    // Early mismatch detection: if client claimed a different Shared Drive, reject
+    if (sourceSharedDriveId && sourceSharedDriveId !== actualCorpusId) {
+      console.error('[USE_DRIVE_ASSET] Shared Drive ID mismatch', {
+        requestId,
+        requested: sourceSharedDriveId,
+        actual: actualCorpusId,
+      });
+      return NextResponse.json(
+        {
+          error: 'CORPUS_MISMATCH',
+          message: `Requested Shared Drive ID (${sourceSharedDriveId}) does not match actual file corpus (${actualCorpusId})`,
+          details: {
+            requested: sourceSharedDriveId,
+            actual: actualCorpusId,
+          },
+          requestId,
+        },
+        { status: 400 }
+      );
+    }
+    
+    console.log('[USE_DRIVE_ASSET] Shared Drive authorized', {
+      requestId,
+      actualCorpusId,
+    });
+    
+    return null; // Authorized
+  }
+  
+  // Case 2: This is a My Drive file
+  if (!myDriveAuthorized) {
+    console.error('[USE_DRIVE_ASSET] My Drive not authorized', {
+      requestId,
+    });
+    return NextResponse.json(
+      {
+        error: 'CORPUS_NOT_AUTHORIZED',
+        message: 'My Drive is not authorized for Workbench Drive handoff',
+        details: {
+          note: 'Set MY_DRIVE_AUTHORIZED=true to enable My Drive access',
+        },
+        requestId,
+      },
+      { status: 403 }
+    );
+  }
+  
+  // Early mismatch detection: if client claimed a Shared Drive but file is in My Drive
+  if (sourceSharedDriveId) {
+    console.error('[USE_DRIVE_ASSET] Corpus mismatch: client claimed Shared Drive but file is in My Drive', {
+      requestId,
+      requested: sourceSharedDriveId,
+      actual: 'My Drive',
+    });
+    return NextResponse.json(
+      {
+        error: 'CORPUS_MISMATCH',
+        message: `File is in My Drive but client claimed it was from Shared Drive (${sourceSharedDriveId})`,
+        details: {
+          requested: sourceSharedDriveId,
+          actual: 'My Drive',
+        },
+        requestId,
+      },
+      { status: 400 }
+    );
+  }
+  
+  console.log('[USE_DRIVE_ASSET] My Drive authorized', {
+    requestId,
+  });
+  
+  return null; // Authorized
+}
+
 interface SlotAuthorityMapping {
   visualSlotId: string;
   authorityType: 'service-card-assignment' | 'static-project' | 'decorative';
@@ -253,57 +424,87 @@ async function checkIdempotency(idempotencyKey: string): Promise<any | null> {
 }
 
 /**
- * Attempt to acquire transaction lock using Redis SET NX
- * Returns true if lock acquired, false if already locked
+ * P0 FIX: Transaction lock with ownership token
+ * 
+ * Uses Redis SET NX with a unique ownership token to prevent lock deletion by other requests.
+ * 
+ * Returns the ownership token if lock acquired, null if already locked.
+ * Throws error if Redis is unavailable (fail-closed).
  */
-async function acquireTransactionLock(idempotencyKey: string): Promise<boolean> {
-  try {
-    const url = process.env.KV_REST_API_URL;
-    const token = process.env.KV_REST_API_TOKEN;
-    
-    if (!url || !token) {
-      console.warn('[USE_DRIVE_ASSET] KV unavailable - transaction lock skipped');
-      return true; // Fail open - proceed without lock
-    }
+async function acquireTransactionLock(idempotencyKey: string): Promise<string | null> {
+  const url = process.env.KV_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN;
+  
+  if (!url || !token) {
+    console.error('[USE_DRIVE_ASSET] Redis unavailable - cannot acquire transaction lock');
+    throw new Error('REDIS_UNAVAILABLE: Transaction lock requires Redis');
+  }
 
-    const redis = new Redis({ url, token });
-    const lockKey = `${IDEMPOTENCY_PREFIX}lock:${idempotencyKey}`;
-    
-    // SET NX with 60 second TTL - only succeeds if key doesn't exist
-    const acquired = await redis.set(lockKey, 'locked', { nx: true, ex: 60 });
-    
-    if (acquired) {
-      console.log('[USE_DRIVE_ASSET] Transaction lock acquired', { idempotencyKey });
-    } else {
-      console.log('[USE_DRIVE_ASSET] Transaction lock already held', { idempotencyKey });
-    }
-    
-    return acquired === 'OK';
-  } catch (error) {
-    console.error('[USE_DRIVE_ASSET] Transaction lock acquisition failed', { error });
-    return true; // Fail open - proceed without lock
+  const redis = new Redis({ url, token });
+  const lockKey = `${IDEMPOTENCY_PREFIX}lock:${idempotencyKey}`;
+  const ownershipToken = crypto.randomUUID();
+  
+  // SET NX with 60 second TTL - only succeeds if key doesn't exist
+  const acquired = await redis.set(lockKey, ownershipToken, { nx: true, ex: 60 });
+  
+  if (acquired === 'OK') {
+    console.log('[USE_DRIVE_ASSET] Transaction lock acquired', { 
+      idempotencyKey, 
+      ownershipToken: ownershipToken.substring(0, 8) + '...' 
+    });
+    return ownershipToken;
+  } else {
+    console.log('[USE_DRIVE_ASSET] Transaction lock already held', { idempotencyKey });
+    return null;
   }
 }
 
 /**
- * Release transaction lock
+ * P0 FIX: Release transaction lock with ownership verification
+ * 
+ * Uses Redis Lua script to atomically verify ownership before deletion.
+ * This prevents one request from deleting another request's lock.
+ * 
+ * Fails gracefully on Redis errors (lock will expire via TTL).
  */
-async function releaseTransactionLock(idempotencyKey: string): Promise<void> {
-  try {
-    const url = process.env.KV_REST_API_URL;
-    const token = process.env.KV_REST_API_TOKEN;
-    
-    if (!url || !token) {
-      return;
-    }
+async function releaseTransactionLock(idempotencyKey: string, ownershipToken: string): Promise<void> {
+  const url = process.env.KV_REST_API_URL;
+  const token = process.env.KV_REST_API_TOKEN;
+  
+  if (!url || !token) {
+    console.warn('[USE_DRIVE_ASSET] Redis unavailable - lock release skipped (will expire via TTL)');
+    return;
+  }
 
-    const redis = new Redis({ url, token });
-    const lockKey = `${IDEMPOTENCY_PREFIX}lock:${idempotencyKey}`;
-    await redis.del(lockKey);
+  const redis = new Redis({ url, token });
+  const lockKey = `${IDEMPOTENCY_PREFIX}lock:${idempotencyKey}`;
+  
+  // Lua script: only delete if value matches ownership token
+  const luaScript = `
+    if redis.call("GET", KEYS[1]) == ARGV[1] then
+      return redis.call("DEL", KEYS[1])
+    else
+      return 0
+    end
+  `;
+  
+  try {
+    const result = await redis.eval(luaScript, [lockKey], [ownershipToken]);
     
-    console.log('[USE_DRIVE_ASSET] Transaction lock released', { idempotencyKey });
+    if (result === 1) {
+      console.log('[USE_DRIVE_ASSET] Transaction lock released', { 
+        idempotencyKey, 
+        ownershipToken: ownershipToken.substring(0, 8) + '...' 
+      });
+    } else {
+      console.warn('[USE_DRIVE_ASSET] Transaction lock not released (ownership mismatch or expired)', {
+        idempotencyKey,
+        ownershipToken: ownershipToken.substring(0, 8) + '...',
+      });
+    }
   } catch (error) {
     console.error('[USE_DRIVE_ASSET] Transaction lock release failed', { error });
+    // Non-critical - lock will expire via TTL
   }
 }
 
@@ -336,12 +537,13 @@ interface UseDriveAssetRequest {
   sourceSharedDriveId?: string;  // Shared Drive corpus context (null for My Drive)
   targetSlotId: string;  // Explicit target Visual Slot ID
   expectedRevision: number;  // CAS revision for the target slot (REQUIRED - no fallback)
-  idempotencyKey?: string;  // Stable client-generated key for idempotency
+  idempotencyKey?: string;  // DEPRECATED: Server now generates authoritative key
 }
 
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   let stableIdempotencyKey: string | null = null;
+  let ownershipToken: string | null = null;
 
   try {
     // Step 1: Authenticate Workbench session
@@ -363,53 +565,10 @@ export async function POST(request: Request) {
       sourceSharedDriveId, 
       targetSlotId,
       expectedRevision,
-      idempotencyKey
+      idempotencyKey: clientProvidedKey
     } = body;
 
-    // P0 FIX: Generate stable idempotency key if not provided
-    // Key = sourceFileId + targetSlotId (stable identity for this logical operation)
-    stableIdempotencyKey = idempotencyKey || `${sourceFileId}:${targetSlotId}`;
-
-    console.log('[USE_DRIVE_ASSET] Idempotency check', {
-      requestId,
-      idempotencyKey: stableIdempotencyKey,
-      provided: !!idempotencyKey,
-    });
-
-    // P0 FIX: Check if this operation has already completed
-    const cachedResult = await checkIdempotency(stableIdempotencyKey);
-    if (cachedResult) {
-      console.log('[USE_DRIVE_ASSET] Returning cached result from idempotency check', {
-        requestId,
-        idempotencyKey: stableIdempotencyKey,
-      });
-      return NextResponse.json(cachedResult);
-    }
-
-    // P0 FIX: Acquire transaction lock to prevent duplicate execution
-    const lockAcquired = await acquireTransactionLock(stableIdempotencyKey);
-    if (!lockAcquired) {
-      console.log('[USE_DRIVE_ASSET] Transaction already in progress', {
-        requestId,
-        idempotencyKey: stableIdempotencyKey,
-      });
-      return NextResponse.json(
-        {
-          error: 'TRANSACTION_IN_PROGRESS',
-          message: 'This transaction is already in progress. Please wait.',
-          requestId,
-        },
-        { status: 409 } // Conflict
-      );
-    }
-
-    console.log('[USE_DRIVE_ASSET] Transaction initiated', {
-      requestId,
-      targetSlotId,
-      expectedRevision,
-    });
-
-    // Validate required fields
+    // Step 2: Validate required fields BEFORE acquiring lock
     if (!sourceFileId || !targetSlotId) {
       return NextResponse.json(
         {
@@ -421,7 +580,6 @@ export async function POST(request: Request) {
       );
     }
 
-    // P0 FIX: expectedRevision is required for CAS enforcement
     if (expectedRevision === undefined || expectedRevision === null) {
       return NextResponse.json(
         {
@@ -433,7 +591,75 @@ export async function POST(request: Request) {
       );
     }
 
-    // Step 2: Authorize Drive corpus access and fetch authoritative source metadata
+    // P0 FIX: Generate server-controlled idempotency key
+    // Key = sourceFileId + targetSlotId (stable identity for this logical operation)
+    // Client-provided key is ignored to prevent arbitrary key collision
+    stableIdempotencyKey = `${sourceFileId}:${targetSlotId}`;
+    
+    if (clientProvidedKey && clientProvidedKey !== stableIdempotencyKey) {
+      console.warn('[USE_DRIVE_ASSET] Client-provided idempotency key ignored', {
+        requestId,
+        clientKey: clientProvidedKey,
+        serverKey: stableIdempotencyKey,
+      });
+    }
+
+    console.log('[USE_DRIVE_ASSET] Idempotency check', {
+      requestId,
+      idempotencyKey: stableIdempotencyKey,
+    });
+
+    // Step 3: Check if this operation has already completed
+    const cachedResult = await checkIdempotency(stableIdempotencyKey);
+    if (cachedResult) {
+      console.log('[USE_DRIVE_ASSET] Returning cached result from idempotency check', {
+        requestId,
+        idempotencyKey: stableIdempotencyKey,
+      });
+      return NextResponse.json(cachedResult);
+    }
+
+    // Step 4: Acquire transaction lock to prevent duplicate execution
+    // This is inside try block, and will be released in finally
+    try {
+      ownershipToken = await acquireTransactionLock(stableIdempotencyKey);
+      if (!ownershipToken) {
+        console.log('[USE_DRIVE_ASSET] Transaction already in progress', {
+          requestId,
+          idempotencyKey: stableIdempotencyKey,
+        });
+        return NextResponse.json(
+          {
+            error: 'TRANSACTION_IN_PROGRESS',
+            message: 'This transaction is already in progress. Please wait.',
+            requestId,
+          },
+          { status: 409 } // Conflict
+        );
+      }
+    } catch (lockError) {
+      // Redis unavailable - fail closed
+      console.error('[USE_DRIVE_ASSET] Redis unavailable - cannot proceed', {
+        requestId,
+        error: lockError instanceof Error ? lockError.message : String(lockError),
+      });
+      return NextResponse.json(
+        {
+          error: 'REDIS_UNAVAILABLE',
+          message: 'Transaction lock requires Redis. Please try again later.',
+          requestId,
+        },
+        { status: 503 } // Service Unavailable
+      );
+    }
+
+    console.log('[USE_DRIVE_ASSET] Transaction initiated', {
+      requestId,
+      targetSlotId,
+      expectedRevision,
+    });
+
+    // Step 5: Authorize Drive corpus access and fetch authoritative source metadata
     // P1 FIX: Fetch authoritative Drive metadata server-side, don't trust browser-supplied values
     console.log('[USE_DRIVE_ASSET] Fetching authoritative Drive metadata', {
       requestId,
@@ -473,58 +699,18 @@ export async function POST(request: Request) {
         requestedSharedDriveId: sourceSharedDriveId,
       });
 
-      // P0 FIX: Fail-closed corpus authorization for both My Drive and Shared Drive
-      // The server must determine the actual corpus and verify it matches authorized corpus
-      // Do NOT trust client-supplied sourceSharedDriveId as the security decision
+      // P0 FIX: Server-side corpus authorization decision
+      // The server determines authorization based on actual corpus and environment configuration
+      // Client-supplied sourceSharedDriveId is only used for early mismatch detection
+      const authError = verifyCorpusAuthorization(
+        actualCorpusId,
+        actualDriveId,
+        sourceSharedDriveId,
+        requestId
+      );
       
-      // Check if this is a Shared Drive file
-      if (actualDriveId) {
-        // This is a Shared Drive file - verify it's in an authorized Shared Drive
-        // In production, this should check against an environment-configured allowlist
-        // For now, verify the client-supplied Shared Drive ID matches the actual Drive ID
-        if (sourceSharedDriveId && sourceSharedDriveId !== actualCorpusId) {
-          return NextResponse.json(
-            {
-              error: 'CORPUS_MISMATCH',
-              message: `Requested Shared Drive ID (${sourceSharedDriveId}) does not match actual file corpus (${actualCorpusId})`,
-              details: {
-                requested: sourceSharedDriveId,
-                actual: actualCorpusId,
-              },
-              requestId,
-            },
-            { status: 400 }
-          );
-        }
-        
-        // TODO: Verify actualCorpusId is in the authorized Shared Drive allowlist
-        // This requires environment configuration: AUTHORIZED_SHARED_DRIVES=[]
-        console.log('[USE_DRIVE_ASSET] Shared Drive corpus check passed', {
-          requestId,
-          actualCorpusId,
-          note: 'TODO: Verify against authorized Shared Drive allowlist',
-        });
-      } else {
-        // This is a My Drive file - verify client didn't claim it was from a Shared Drive
-        if (sourceSharedDriveId) {
-          return NextResponse.json(
-            {
-              error: 'CORPUS_MISMATCH',
-              message: `File is in My Drive but client claimed it was from Shared Drive (${sourceSharedDriveId})`,
-              details: {
-                requested: sourceSharedDriveId,
-                actual: 'My Drive',
-              },
-              requestId,
-            },
-            { status: 400 }
-          );
-        }
-        
-        console.log('[USE_DRIVE_ASSET] My Drive corpus check passed', {
-          requestId,
-          note: 'File is in My Drive as expected',
-        });
+      if (authError) {
+        return authError;
       }
 
       // P1 FIX: Validate MIME type is an image
@@ -556,273 +742,278 @@ export async function POST(request: Request) {
       );
     }
 
-    // Step 3: Resolve or materialize Drive file to canonical PublishedMediaAsset
-    const baseUrl = process.env.VERCEL_URL
-      ? `https://${process.env.VERCEL_URL}`
-      : 'http://localhost:3000';
+    // Step 6: Execute transaction with lock protection
+    try {
+      // Step 6a: Resolve or materialize Drive file to canonical PublishedMediaAsset
+      const baseUrl = process.env.VERCEL_URL
+        ? `https://${process.env.VERCEL_URL}`
+        : 'http://localhost:3000';
 
-    const ingestUrl = `${baseUrl}/api/drive/ingest`;
-    const ingestBody = {
-      fileId: sourceFileId,
-      sharedDriveId: sourceSharedDriveId,
-      roles: ['gallery'],
-      skipReconciliation: true, // P0 FIX: Prevent implicit assignment reconciliation
-    };
+      const ingestUrl = `${baseUrl}/api/drive/ingest`;
+      const ingestBody = {
+        fileId: sourceFileId,
+        sharedDriveId: sourceSharedDriveId,
+        roles: ['gallery'],
+        skipReconciliation: true, // P0 FIX: Prevent implicit assignment reconciliation
+      };
 
-    console.log('[USE_DRIVE_ASSET] Resolving canonical asset', {
-      requestId,
-      ingestUrl,
-    });
-
-    const ingestResponse = await fetch(ingestUrl, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        cookie: request.headers.get('cookie') || '',
-      },
-      body: JSON.stringify(ingestBody),
-    });
-
-    if (!ingestResponse.ok) {
-      const error = await ingestResponse.json();
-      console.error('[USE_DRIVE_ASSET] Canonical asset resolution failed', {
+      console.log('[USE_DRIVE_ASSET] Resolving canonical asset', {
         requestId,
-        error,
-        status: ingestResponse.status,
+        ingestUrl,
       });
-      return NextResponse.json(
-        {
-          error: error.error || 'CANONICAL_RESOLUTION_FAILED',
-          message: error.message || 'Failed to resolve Drive file to canonical media',
-          details: error,
-          requestId,
+
+      const ingestResponse = await fetch(ingestUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          cookie: request.headers.get('cookie') || '',
         },
-        { status: ingestResponse.status }
-      );
-    }
-
-    const ingestResult = await ingestResponse.json();
-    const canonicalMediaId = ingestResult.media?.id;
-    const canonicalAsset = ingestResult.media;
-
-    if (!canonicalMediaId || !canonicalAsset) {
-      console.error('[USE_DRIVE_ASSET] Canonical asset missing from response', {
-        requestId,
-        ingestResult,
+        body: JSON.stringify(ingestBody),
       });
-      return NextResponse.json(
-        {
-          error: 'CANONICAL_ASSET_MISSING',
-          message: 'Drive file resolved but no canonical media ID returned',
+
+      if (!ingestResponse.ok) {
+        const error = await ingestResponse.json();
+        console.error('[USE_DRIVE_ASSET] Canonical asset resolution failed', {
           requestId,
-        },
-        { status: 500 }
-      );
-    }
+          error,
+          status: ingestResponse.status,
+        });
+        return NextResponse.json(
+          {
+            error: error.error || 'CANONICAL_RESOLUTION_FAILED',
+            message: error.message || 'Failed to resolve Drive file to canonical media',
+            details: error,
+            requestId,
+          },
+          { status: ingestResponse.status }
+        );
+      }
 
-    console.log('[USE_DRIVE_ASSET] Canonical asset resolved', {
-      requestId,
-      canonicalMediaId,
-      filename: canonicalAsset.filename,
-      existingAsset: !!ingestResult.existing,
-    });
+      const ingestResult = await ingestResponse.json();
+      const canonicalMediaId = ingestResult.media?.id;
+      const canonicalAsset = ingestResult.media;
 
-    // Step 4: Validate PublishedMediaAsset through public media contract
-    // P0 FIX: Explicitly require truthy resolution - null/undefined rejection
-    const publicMedia = await resolvePublicMedia(canonicalMediaId);
-    console.log('[USE_DRIVE_ASSET] Public media gate validation', {
-      requestId,
-      canonicalMediaId,
-      resolved: !!publicMedia,
-    });
+      if (!canonicalMediaId || !canonicalAsset) {
+        console.error('[USE_DRIVE_ASSET] Canonical asset missing from response', {
+          requestId,
+          ingestResult,
+        });
+        return NextResponse.json(
+          {
+            error: 'CANONICAL_ASSET_MISSING',
+            message: 'Drive file resolved but no canonical media ID returned',
+            requestId,
+          },
+          { status: 500 }
+        );
+      }
 
-    if (!publicMedia) {
-      console.error('[USE_DRIVE_ASSET] Public media gate rejected - null resolution', {
+      console.log('[USE_DRIVE_ASSET] Canonical asset resolved', {
         requestId,
         canonicalMediaId,
-        reason: 'resolvePublicMedia returned null/undefined',
+        filename: canonicalAsset.filename,
+        existingAsset: !!ingestResult.existing,
       });
-      return NextResponse.json(
-        {
-          error: 'PUBLIC_MEDIA_GATE_REJECTED',
-          message: 'Canonical asset failed public media gate validation (null resolution)',
+
+      // Step 6b: Validate PublishedMediaAsset through public media contract
+      // P0 FIX: Explicitly require truthy resolution - null/undefined rejection
+      const publicMedia = await resolvePublicMedia(canonicalMediaId);
+      console.log('[USE_DRIVE_ASSET] Public media gate validation', {
+        requestId,
+        canonicalMediaId,
+        resolved: !!publicMedia,
+      });
+
+      if (!publicMedia) {
+        console.error('[USE_DRIVE_ASSET] Public media gate rejected - null resolution', {
           requestId,
-        },
-        { status: 400 }
-      );
-    }
+          canonicalMediaId,
+          reason: 'resolvePublicMedia returned null/undefined',
+        });
+        return NextResponse.json(
+          {
+            error: 'PUBLIC_MEDIA_GATE_REJECTED',
+            message: 'Canonical asset failed public media gate validation (null resolution)',
+            requestId,
+          },
+          { status: 400 }
+        );
+      }
 
-    // Step 5: Mutate exactly the requested target slot with CAS/revision protection
-    // P0 FIX: Resolve target slot through authoritative registry
-    const slotAuthority = resolveTargetSlotAuthority(targetSlotId);
-    
-    console.log('[USE_DRIVE_ASSET] Target slot authority resolved', {
-      requestId,
-      targetSlotId,
-      authorityFound: !!slotAuthority,
-    });
-
-    if (!slotAuthority) {
-      console.error('[USE_DRIVE_ASSET] Unknown or unsupported target slot', {
+      // Step 6c: Mutate exactly the requested target slot with CAS/revision protection
+      // P0 FIX: Resolve target slot through authoritative registry
+      const slotAuthority = resolveTargetSlotAuthority(targetSlotId);
+      
+      console.log('[USE_DRIVE_ASSET] Target slot authority resolved', {
         requestId,
         targetSlotId,
-        reason: 'Slot not in authoritative registry or not writable',
+        authorityFound: !!slotAuthority,
       });
-      return NextResponse.json(
-        {
-          error: 'UNKNOWN_TARGET_SLOT',
-          message: `Target slot '${targetSlotId}' is not in the authoritative Visual Slot registry or is not writable at runtime`,
-          details: {
-            targetSlotId,
-            note: 'Only brand slots and service card slots are writable via Drive handoff. Project slots are static-only.',
-          },
-          requestId,
-        },
-        { status: 400 }
-      );
-    }
 
-    if (!slotAuthority.writable) {
-      console.error('[USE_DRIVE_ASSET] Target slot is not writable', {
+      if (!slotAuthority) {
+        console.error('[USE_DRIVE_ASSET] Unknown or unsupported target slot', {
+          requestId,
+          targetSlotId,
+          reason: 'Slot not in authoritative registry or not writable',
+        });
+        return NextResponse.json(
+          {
+            error: 'UNKNOWN_TARGET_SLOT',
+            message: `Target slot '${targetSlotId}' is not in the authoritative Visual Slot registry or is not writable at runtime`,
+            details: {
+              targetSlotId,
+              note: 'Only brand slots and service card slots are writable via Drive handoff. Project slots are static-only.',
+            },
+            requestId,
+          },
+          { status: 400 }
+        );
+      }
+
+      if (!slotAuthority.writable) {
+        console.error('[USE_DRIVE_ASSET] Target slot is not writable', {
+          requestId,
+          targetSlotId,
+          authorityType: slotAuthority.authorityType,
+          reason: 'Slot is static-only or intentionally non-assignable',
+        });
+        return NextResponse.json(
+          {
+            error: 'SLOT_NOT_WRITABLE',
+            message: `Target slot '${targetSlotId}' is not writable at runtime (authority type: ${slotAuthority.authorityType})`,
+            details: {
+              targetSlotId,
+              authorityType: slotAuthority.authorityType,
+              note: 'Static slots cannot be mutated via Drive handoff',
+            },
+            requestId,
+          },
+          { status: 400 }
+        );
+      }
+
+      // P0 FIX: Only service-card-assignment authority is currently supported
+      if (slotAuthority.authorityType !== 'service-card-assignment') {
+        console.error('[USE_DRIVE_ASSET] Unsupported authority type', {
+          requestId,
+          targetSlotId,
+          authorityType: slotAuthority.authorityType,
+          reason: 'Only service-card-assignment authority is currently implemented',
+        });
+        return NextResponse.json(
+          {
+            error: 'UNSUPPORTED_AUTHORITY_TYPE',
+            message: `Target slot '${targetSlotId}' has authority type '${slotAuthority.authorityType}' which is not yet implemented`,
+            details: {
+              targetSlotId,
+              authorityType: slotAuthority.authorityType,
+              note: 'Only service-card-assignment authority is currently supported',
+            },
+            requestId,
+          },
+          { status: 501 }
+        );
+      }
+
+      const serviceSlug = slotAuthority.authorityKey;
+
+      console.log('[USE_DRIVE_ASSET] Authority mapping confirmed', {
         requestId,
         targetSlotId,
         authorityType: slotAuthority.authorityType,
-        reason: 'Slot is static-only or intentionally non-assignable',
+        authorityKey: serviceSlug,
+        writable: slotAuthority.writable,
       });
-      return NextResponse.json(
-        {
-          error: 'SLOT_NOT_WRITABLE',
-          message: `Target slot '${targetSlotId}' is not writable at runtime (authority type: ${slotAuthority.authorityType})`,
-          details: {
-            targetSlotId,
-            authorityType: slotAuthority.authorityType,
-            note: 'Static slots cannot be mutated via Drive handoff',
-          },
-          requestId,
-        },
-        { status: 400 }
-      );
-    }
 
-    // P0 FIX: Only service-card-assignment authority is currently supported
-    if (slotAuthority.authorityType !== 'service-card-assignment') {
-      console.error('[USE_DRIVE_ASSET] Unsupported authority type', {
+      // Get current assignment for CAS semantics
+      const currentAssignment = await getServiceCardAssignment(serviceSlug);
+
+      console.log('[USE_DRIVE_ASSET] CAS revision check', {
         requestId,
-        targetSlotId,
-        authorityType: slotAuthority.authorityType,
-        reason: 'Only service-card-assignment authority is currently implemented',
+        serviceSlug,
+        currentRevision: currentAssignment?.revision,
+        expectedRevision,
       });
-      return NextResponse.json(
-        {
-          error: 'UNSUPPORTED_AUTHORITY_TYPE',
-          message: `Target slot '${targetSlotId}' has authority type '${slotAuthority.authorityType}' which is not yet implemented`,
-          details: {
-            targetSlotId,
-            authorityType: slotAuthority.authorityType,
-            note: 'Only service-card-assignment authority is currently supported',
-          },
-          requestId,
-        },
-        { status: 501 }
-      );
-    }
 
-    const serviceSlug = slotAuthority.authorityKey;
+      // Create new assignment
+      const newAssignment = {
+        serviceSlug,
+        mediaId: canonicalMediaId,
+        source: 'workbench' as const,
+        updatedAt: new Date().toISOString(),
+        actor: 'workbench' as const,
+      };
 
-    console.log('[USE_DRIVE_ASSET] Authority mapping confirmed', {
-      requestId,
-      targetSlotId,
-      authorityType: slotAuthority.authorityType,
-      authorityKey: serviceSlug,
-      writable: slotAuthority.writable,
-    });
+      // Store with CAS semantics
+      await storeServiceCardAssignment(newAssignment, expectedRevision, requestId);
 
-    // Get current assignment for CAS semantics
-    const currentAssignment = await getServiceCardAssignment(serviceSlug);
-
-    console.log('[USE_DRIVE_ASSET] CAS revision check', {
-      requestId,
-      serviceSlug,
-      currentRevision: currentAssignment?.revision,
-      expectedRevision,
-    });
-
-    // Create new assignment
-    const newAssignment = {
-      serviceSlug,
-      mediaId: canonicalMediaId,
-      source: 'workbench' as const,
-      updatedAt: new Date().toISOString(),
-      actor: 'workbench' as const,
-    };
-
-    // Store with CAS semantics
-    await storeServiceCardAssignment(newAssignment, expectedRevision, requestId);
-
-    console.log('[USE_DRIVE_ASSET] Assignment committed', {
-      requestId,
-      serviceSlug,
-      mediaId: canonicalMediaId,
-      expectedRevision,
-    });
-
-    // Step 6: Read assignment back from authoritative store
-    const readbackAssignment = await getServiceCardAssignment(serviceSlug);
-
-    console.log('[USE_DRIVE_ASSET] Assignment readback', {
-      requestId,
-      serviceSlug,
-      readbackMediaId: readbackAssignment?.mediaId,
-      expectedMediaId: canonicalMediaId,
-      readbackRevision: readbackAssignment?.revision,
-    });
-
-    // Step 7: Verify readback media ID equals canonical media ID
-    if (readbackAssignment?.mediaId !== canonicalMediaId) {
-      console.error('[USE_DRIVE_ASSET] Assignment readback mismatch', {
+      console.log('[USE_DRIVE_ASSET] Assignment committed', {
         requestId,
+        serviceSlug,
+        mediaId: canonicalMediaId,
+        expectedRevision,
+      });
+
+      // Step 6d: Read assignment back from authoritative store
+      const readbackAssignment = await getServiceCardAssignment(serviceSlug);
+
+      console.log('[USE_DRIVE_ASSET] Assignment readback', {
+        requestId,
+        serviceSlug,
         readbackMediaId: readbackAssignment?.mediaId,
         expectedMediaId: canonicalMediaId,
+        readbackRevision: readbackAssignment?.revision,
       });
-      return NextResponse.json(
-        {
-          error: 'ASSIGNMENT_READBACK_MISMATCH',
-          message: 'Assignment readback failed: media ID mismatch',
-          details: {
-            readbackMediaId: readbackAssignment?.mediaId,
-            expectedMediaId: canonicalMediaId,
-          },
+
+      // Step 6e: Verify readback media ID equals canonical media ID
+      if (readbackAssignment?.mediaId !== canonicalMediaId) {
+        console.error('[USE_DRIVE_ASSET] Assignment readback mismatch', {
           requestId,
-        },
-        { status: 500 }
-      );
+          readbackMediaId: readbackAssignment?.mediaId,
+          expectedMediaId: canonicalMediaId,
+        });
+        return NextResponse.json(
+          {
+            error: 'ASSIGNMENT_READBACK_MISMATCH',
+            message: 'Assignment readback failed: media ID mismatch',
+            details: {
+              readbackMediaId: readbackAssignment?.mediaId,
+              expectedMediaId: canonicalMediaId,
+            },
+            requestId,
+          },
+          { status: 500 }
+        );
+      }
+
+      // Step 7: Return success only if all steps complete
+      console.log('[USE_DRIVE_ASSET] Transaction complete', {
+        requestId,
+        targetSlotId,
+        canonicalMediaId,
+        revision: readbackAssignment?.revision,
+      });
+
+      const successResult = {
+        success: true,
+        canonicalMediaId,
+        targetSlotId,
+        serviceSlug,
+        assignment: readbackAssignment,
+        asset: canonicalAsset,
+        requestId,
+      };
+
+      // P0 FIX: Record successful result for idempotency
+      await recordIdempotency(stableIdempotencyKey, successResult);
+
+      return NextResponse.json(successResult);
+    } finally {
+      // P0 FIX: Always release lock in finally block
+      if (ownershipToken && stableIdempotencyKey) {
+        await releaseTransactionLock(stableIdempotencyKey, ownershipToken);
+      }
     }
-
-    // Step 8: Return success only if all steps complete
-    console.log('[USE_DRIVE_ASSET] Transaction complete', {
-      requestId,
-      targetSlotId,
-      canonicalMediaId,
-      revision: readbackAssignment?.revision,
-    });
-
-    const successResult = {
-      success: true,
-      canonicalMediaId,
-      targetSlotId,
-      serviceSlug,
-      assignment: readbackAssignment,
-      asset: canonicalAsset,
-      requestId,
-    };
-
-    // P0 FIX: Record successful result for idempotency
-    await recordIdempotency(stableIdempotencyKey, successResult);
-
-    // P0 FIX: Release transaction lock
-    await releaseTransactionLock(stableIdempotencyKey);
-
-    return NextResponse.json(successResult);
   } catch (error) {
     console.error('[USE_DRIVE_ASSET] Transaction error', {
       requestId,
@@ -830,11 +1021,7 @@ export async function POST(request: Request) {
       stack: error instanceof Error ? error.stack : undefined,
     });
     
-    // P0 FIX: Release transaction lock on error
-    if (stableIdempotencyKey) {
-      await releaseTransactionLock(stableIdempotencyKey);
-    }
-    
+    // Lock is released in finally block, no need to release here
     return NextResponse.json(
       {
         error: 'TRANSACTION_ERROR',
