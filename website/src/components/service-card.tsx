@@ -61,23 +61,16 @@ export function ServiceCard({ service, runtimeCardMediaObject, href }: { service
         <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
           {hasImage && imageSrc ? (
             <>
-              <VisualSlot
-                id={`service-card-${service.slug}`}
-                route="/services"
-                page="Services"
-                section="ServiceCards"
-                slotName={`${service.name} Card`}
-                component="ServiceCard"
-                currentMediaId={featuredMedia.id}
-              >
-                <Image
-                  src={imageSrc}
-                  alt={featuredMedia.alt || service.name}
-                  fill
-                  sizes="(max-width: 768px) 50vw, 33vw"
-                  className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
-                />
-              </VisualSlot>
+              {/* P0 FIX: Services page slots are display-only, not interactive drop targets
+                  Only homepage service card slots (homepage-service-card-slot-{slug}) are writable.
+                  Remove VisualSlot to prevent zero-height element from intercepting drag events. */}
+              <Image
+                src={imageSrc}
+                alt={featuredMedia.alt || service.name}
+                fill
+                sizes="(max-width: 768px) 50vw, 33vw"
+                className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
+              />
               <div className="absolute inset-0 pointer-events-none rounded-t-xl bg-gradient-to-tr from-black/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
             </>
           ) : (

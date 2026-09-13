@@ -166,6 +166,9 @@ const SERVICE_CARD_ALLOWLIST: string[] = [
  * Service card slot authority resolution
  * Service cards use slug-based authority keys
  * Returns null if the slot format is invalid or slug is not in allowlist
+ *
+ * P0 FIX: Only accept homepage-service-card-slot-{slug} format
+ * Legacy service-card-{slug} format is rejected to prevent zero-height element interference
  */
 function resolveServiceCardAuthority(targetSlotId: string): SlotAuthorityMapping | null {
   let slug: string | null = null;
@@ -173,11 +176,12 @@ function resolveServiceCardAuthority(targetSlotId: string): SlotAuthorityMapping
   // Service card slots have format: homepage-service-card-slot-{slug}
   if (targetSlotId.startsWith('homepage-service-card-slot-')) {
     slug = targetSlotId.replace('homepage-service-card-slot-', '');
-  }
-  // Legacy format: service-card-{slug}
-  else if (targetSlotId.startsWith('service-card-')) {
-    slug = targetSlotId.replace('service-card-', '');
   } else {
+    // P0 FIX: Reject legacy service-card-{slug} format - only homepage slots are writable
+    console.warn('[USE_DRIVE_ASSET] Invalid service card slot format', {
+      targetSlotId,
+      reason: 'Only homepage-service-card-slot-{slug} format is accepted',
+    });
     return null;
   }
 
