@@ -162,6 +162,19 @@ export function VisualSlot({
         timestamp: Date.now(),
       });
       window.parent.postMessage(registerMessage, targetOrigin);
+      
+      // P0 FIX: Send BRIDGE_READY to indicate message listener is attached
+      // This prevents race condition where parent sends DRAG_START before child listener is ready
+      const bridgeReadyMessage = {
+        type: 'BRIDGE_READY',
+        slotId: id,
+      };
+      console.log('[VS_FORENSIC] BRIDGE_READY_SENT', {
+        slotId: id,
+        targetOrigin,
+        timestamp: Date.now(),
+      });
+      window.parent.postMessage(bridgeReadyMessage, targetOrigin);
     } else {
       console.log('[VS_FORENSIC] REGISTRATION_SKIPPED', {
         slotId: id,

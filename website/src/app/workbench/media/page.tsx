@@ -70,6 +70,8 @@ interface MediaWorkbenchState {
   mutationState: 'idle' | 'confirming' | 'materializing' | 'assigning' | 'verifying' | 'complete';
   mutationRequestId: string | null;
   mutationError: string | null;
+  bridgeReadySlots: Set<string>; // P0 FIX: Track which slots have sent BRIDGE_READY
+  bridgeReady: boolean; // P0 FIX: Global bridge readiness flag
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -125,6 +127,8 @@ export default function MediaWorkbench() {
     mutationState: 'idle',
     mutationRequestId: null,
     mutationError: null,
+    bridgeReadySlots: new Set<string>(), // P0 FIX: Track which slots have sent BRIDGE_READY
+    bridgeReady: false, // P0 FIX: Global bridge readiness flag
   });
 
   // Keep refs in sync with state
@@ -647,17 +651,24 @@ export default function MediaWorkbench() {
     // P0 FIX: Bridge drag data across iframe boundary via postMessage
     // The native dataTransfer object does not automatically cross iframe boundaries
     // Send the drag data to the iframe so it can accept the drop even if dataTransfer is empty
-    if (dragData && iframeRef.current?.contentWindow) {
+    // P0 FIX: Only send DRAG_START if bridge is ready (child has attached message listener)
+    if (dragData && iframeRef.current?.contentWindow && state.bridgeReady) {
       const targetOrigin = iframeRef.current.src ? new URL(iframeRef.current.src).origin : window.location.origin;
       console.log('[DND] IFRAME_BRIDGE_START', {
         messageType: 'DRAG_START',
         dragData,
         targetOrigin,
+        bridgeReady: state.bridgeReady,
       });
       iframeRef.current.contentWindow.postMessage({
         type: 'DRAG_START',
         dragData,
       }, targetOrigin);
+    } else if (dragData && !state.bridgeReady) {
+      console.log('[DND] IFRAME_BRIDGE_SKIPPED', {
+        reason: 'Bridge not ready - child message listener not yet attached',
+        bridgeReady: state.bridgeReady,
+      });
     }
   };
 
@@ -1475,13 +1486,28 @@ export default function MediaWorkbench() {
       });
 
       // Filter to only process application's known message types
-      const knownMessageTypes = ['SLOT_REGISTER', 'SLOT_DROP', 'SLOT_CLICK', 'SLOT_REORDER', 'GALLERY_ADD', 'REFRESH_SLOTS'];
+      const knownMessageTypes = ['SLOT_REGISTER', 'SLOT_DROP', 'SLOT_CLICK', 'SLOT_REORDER', 'GALLERY_ADD', 'REFRESH_SLOTS', 'BRIDGE_READY'];
       if (!knownMessageTypes.includes(messageType)) {
         console.log('[WB_FORENSIC] MESSAGE_REJECTED', {
           reason: 'UNKNOWN_MESSAGE_TYPE',
           messageType,
           knownMessageTypes,
         });
+        return;
+      }
+
+      // P0 FIX: Handle BRIDGE_READY handshake
+      if (messageType === 'BRIDGE_READY') {
+        const slotId = event.data.slotId;
+        console.log('[WB_FORENSIC] BRIDGE_READY_RECEIVED', {
+          slotId,
+          timestamp: Date.now(),
+        });
+        setState(prev => ({
+          ...prev,
+          bridgeReadySlots: new Set(prev.bridgeReadySlots).add(slotId),
+          bridgeReady: true, // Set global flag when any slot is ready
+        }));
         return;
       }
 
