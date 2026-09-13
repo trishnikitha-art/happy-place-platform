@@ -91,14 +91,20 @@ const TRANSACTION_PREFIX = 'deployment-transaction:';
  * Atomic Lua script for multi-assignment promotion
  * Validates all expected revisions, then atomically writes all assignments
  * Prevents partial promotion failures
+ *
+ * P0 FIX: Accepts namespace as ARGV[3] to ensure atomic promotion writes to
+ * the same namespaced keyspace as the authoritative assignment store.
+ * Previous version wrote to unnamespaced 'service-card-assignment:' keys,
+ * causing namespace isolation failure.
  */
 const ATOMIC_PROMOTION_SCRIPT = `
   local assignmentsData = cjson.decode(ARGV[1])
   local deploymentTransactionId = ARGV[2]
+  local namespace = ARGV[3]
   
   -- Phase 1: Validate all expected revisions
   for i, assignment in ipairs(assignmentsData) do
-    local assignmentKey = 'service-card-assignment:' .. assignment.serviceSlug
+    local assignmentKey = namespace .. 'service-card-assignment:' .. assignment.serviceSlug
     local current = redis.call('GET', assignmentKey)
     
     if current then
@@ -119,7 +125,7 @@ const ATOMIC_PROMOTION_SCRIPT = `
   
   -- Phase 2: Atomically write all assignments
   for i, assignment in ipairs(assignmentsData) do
-    local assignmentKey = 'service-card-assignment:' .. assignment.serviceSlug
+    local assignmentKey = namespace .. 'service-card-assignment:' .. assignment.serviceSlug
     -- Increment revision for write
     assignment.revision = assignment.expectedRevision + 1
     local assignmentValue = cjson.encode(assignment)
@@ -134,6 +140,11 @@ const ATOMIC_PROMOTION_SCRIPT = `
  * Atomic multi-assignment promotion
  * Validates all expected revisions, then atomically writes all assignments
  * Prevents partial promotion failures
+ *
+ * P0 FIX: Passes namespace from getKvNamespace() to Lua script to ensure
+ * atomic promotion writes to the same namespaced keyspace as the authoritative
+ * assignment store. This prevents namespace isolation failure where promotion
+ * writes to unnamespaced keys while normal operations use namespaced keys.
  */
 export async function atomicPromoteAssignments(
   assignments: Array<{ serviceSlug: string; mediaId: string; expectedRevision: number; updatedAt: string; source: string }>,
@@ -141,12 +152,13 @@ export async function atomicPromoteAssignments(
 ): Promise<{ success: boolean; count: number; error?: string; failedServiceSlug?: string }> {
   try {
     const redis = getRedisClient();
+    const namespace = getKvNamespace();
     const assignmentsData = JSON.stringify(assignments);
     
     const result = await redis.eval(
       ATOMIC_PROMOTION_SCRIPT,
       [], // No keys needed for this script
-      [assignmentsData, deploymentTransactionId]
+      [assignmentsData, deploymentTransactionId, namespace]
     );
     
     if (result && typeof result === 'object' && 'err' in result) {

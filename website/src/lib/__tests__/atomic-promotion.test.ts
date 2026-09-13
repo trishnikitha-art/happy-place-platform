@@ -6,12 +6,18 @@
  * 2. Atomic all-or-nothing promotion (no partial writes)
  * 3. CAS failure rollback (A valid, B valid, C fails → all unchanged)
  * 4. Multiple alias mappings (brand-portrait-homepage, brand-portrait-about → brand-portrait)
+ * 5. Namespace isolation (atomic promotion uses same namespace as authoritative store)
+ *
+ * P0 FIX: Updated to use real published media IDs (fences-001-hero, fences-001-after)
+ * instead of fake IDs. This ensures tests validate against actual public media authority
+ * contract, not legacy fixtures.
  *
  * These tests prove:
  * - Revision/CAS state is always read from canonical runtime target, not staging alias
  * - Promotion is atomic: all-or-nothing, no partial mutations
  * - Any CAS failure causes rollback of entire promotion set
  * - Multiple staging aliases map correctly to single canonical target
+ * - Atomic promotion writes to namespaced keys (hpp:{env}:service-card-assignment:)
  *
  * NOTE: This test requires actual Redis/KV connection.
  * Run with KV_REST_API_URL and KV_REST_API_TOKEN environment variables.
@@ -57,7 +63,7 @@ describe('Atomic Promotion', () => {
     // Create canonical assignment with non-zero revision
     const initialAssignment = {
       serviceSlug: CANONICAL_SLUG,
-      mediaId: 'initial-media-id',
+      mediaId: 'fences-001-hero', // Real published media ID
       updatedAt: new Date().toISOString(),
       source: 'workbench' as const,
       revision: 5, // Non-zero revision
@@ -72,7 +78,7 @@ describe('Atomic Promotion', () => {
     // Simulate staging alias promotion with expected revision from canonical target
     const promotionSet = [{
       serviceSlug: CANONICAL_SLUG, // Canonical target
-      mediaId: 'new-media-id',
+      mediaId: 'fences-001-after', // Real published media ID
       expectedRevision: 5, // Must read from canonical, not alias
       updatedAt: new Date().toISOString(),
       source: 'workbench' as const,
@@ -86,7 +92,7 @@ describe('Atomic Promotion', () => {
     // Verify revision was incremented
     const updatedAssignment = await getServiceCardAssignment(CANONICAL_SLUG, 'canonical-test');
     expect(updatedAssignment?.revision).toBe(6);
-    expect(updatedAssignment?.mediaId).toBe('new-media-id');
+    expect(updatedAssignment?.mediaId).toBe('fences-001-after');
   });
 
   it('should fail CAS when expected revision does not match canonical target', async () => {
@@ -101,7 +107,7 @@ describe('Atomic Promotion', () => {
     // Create canonical assignment with revision 10
     const initialAssignment = {
       serviceSlug: CANONICAL_SLUG,
-      mediaId: 'initial-media-id',
+      mediaId: 'fences-001-hero', // Real published media ID
       updatedAt: new Date().toISOString(),
       source: 'workbench' as const,
       revision: 10,
@@ -112,7 +118,7 @@ describe('Atomic Promotion', () => {
     // Try to promote with wrong expected revision (0 instead of 10)
     const promotionSet = [{
       serviceSlug: CANONICAL_SLUG,
-      mediaId: 'new-media-id',
+      mediaId: 'fences-001-after', // Real published media ID
       expectedRevision: 0, // WRONG - should be 10
       updatedAt: new Date().toISOString(),
       source: 'workbench' as const,
@@ -127,7 +133,7 @@ describe('Atomic Promotion', () => {
     // Verify assignment was NOT mutated
     const unchangedAssignment = await getServiceCardAssignment(CANONICAL_SLUG, 'cas-fail-test');
     expect(unchangedAssignment?.revision).toBe(10);
-    expect(unchangedAssignment?.mediaId).toBe('initial-media-id');
+    expect(unchangedAssignment?.mediaId).toBe('fences-001-hero');
   });
 
   it('should provide atomic all-or-nothing promotion', async () => {
@@ -144,7 +150,7 @@ describe('Atomic Promotion', () => {
     // Create assignments A and B with revision 0
     await storeServiceCardAssignment({
       serviceSlug: SLUG_A,
-      mediaId: 'media-a',
+      mediaId: 'fences-001-hero', // Real published media ID
       updatedAt: new Date().toISOString(),
       source: 'workbench' as const,
       revision: 0,
@@ -152,7 +158,7 @@ describe('Atomic Promotion', () => {
 
     await storeServiceCardAssignment({
       serviceSlug: SLUG_B,
-      mediaId: 'media-b',
+      mediaId: 'fences-001-after', // Real published media ID
       updatedAt: new Date().toISOString(),
       source: 'workbench' as const,
       revision: 0,
@@ -161,7 +167,7 @@ describe('Atomic Promotion', () => {
     // Create assignment C with revision 5 (will cause CAS failure)
     await storeServiceCardAssignment({
       serviceSlug: SLUG_C,
-      mediaId: 'media-c',
+      mediaId: 'fences-001-hero', // Real published media ID
       updatedAt: new Date().toISOString(),
       source: 'workbench' as const,
       revision: 5,
@@ -171,21 +177,21 @@ describe('Atomic Promotion', () => {
     const promotionSet = [
       {
         serviceSlug: SLUG_A,
-        mediaId: 'new-media-a',
+        mediaId: 'fences-001-after', // Real published media ID
         expectedRevision: 0, // Correct
         updatedAt: new Date().toISOString(),
         source: 'workbench' as const,
       },
       {
         serviceSlug: SLUG_B,
-        mediaId: 'new-media-b',
+        mediaId: 'fences-001-hero', // Real published media ID
         expectedRevision: 0, // Correct
         updatedAt: new Date().toISOString(),
         source: 'workbench' as const,
       },
       {
         serviceSlug: SLUG_C,
-        mediaId: 'new-media-c',
+        mediaId: 'fences-001-after', // Real published media ID
         expectedRevision: 0, // WRONG - should be 5
         updatedAt: new Date().toISOString(),
         source: 'workbench' as const,
@@ -203,9 +209,9 @@ describe('Atomic Promotion', () => {
     const unchangedB = await getServiceCardAssignment(SLUG_B, 'atomic-test');
     const unchangedC = await getServiceCardAssignment(SLUG_C, 'atomic-test');
 
-    expect(unchangedA?.mediaId).toBe('media-a');
-    expect(unchangedB?.mediaId).toBe('media-b');
-    expect(unchangedC?.mediaId).toBe('media-c');
+    expect(unchangedA?.mediaId).toBe('fences-001-hero');
+    expect(unchangedB?.mediaId).toBe('fences-001-after');
+    expect(unchangedC?.mediaId).toBe('fences-001-hero');
   });
 
   it('should handle multiple alias mappings to single canonical target', async () => {
@@ -220,7 +226,7 @@ describe('Atomic Promotion', () => {
     // Create canonical assignment
     await storeServiceCardAssignment({
       serviceSlug: CANONICAL_SLUG,
-      mediaId: 'initial-portrait-media',
+      mediaId: 'fences-001-hero', // Real published media ID
       updatedAt: new Date().toISOString(),
       source: 'workbench' as const,
       revision: 3,
@@ -232,7 +238,7 @@ describe('Atomic Promotion', () => {
     const promotionSet = [
       {
         serviceSlug: CANONICAL_SLUG, // Both aliases map here
-        mediaId: 'new-portrait-media',
+        mediaId: 'fences-001-after', // Real published media ID
         expectedRevision: 3, // Read from canonical target
         updatedAt: new Date().toISOString(),
         source: 'workbench' as const,
@@ -247,7 +253,7 @@ describe('Atomic Promotion', () => {
     // Verify canonical assignment was updated once
     const updatedAssignment = await getServiceCardAssignment(CANONICAL_SLUG, 'alias-test');
     expect(updatedAssignment?.revision).toBe(4);
-    expect(updatedAssignment?.mediaId).toBe('new-portrait-media');
+    expect(updatedAssignment?.mediaId).toBe('fences-001-after');
   });
 
   it('should allow create when canonical assignment does not exist', async () => {
@@ -266,7 +272,7 @@ describe('Atomic Promotion', () => {
     // Promote with expectedRevision: 0 (create)
     const promotionSet = [{
       serviceSlug: NEW_SLUG,
-      mediaId: 'new-media-id',
+      mediaId: 'fences-001-hero', // Real published media ID
       expectedRevision: 0, // Create operation
       updatedAt: new Date().toISOString(),
       source: 'workbench' as const,
@@ -280,6 +286,135 @@ describe('Atomic Promotion', () => {
     // Verify assignment was created with revision 1
     const createdAssignment = await getServiceCardAssignment(NEW_SLUG, 'create-test');
     expect(createdAssignment?.revision).toBe(1);
-    expect(createdAssignment?.mediaId).toBe('new-media-id');
+    expect(createdAssignment?.mediaId).toBe('fences-001-hero');
+  });
+
+  it('should use namespaced keys for atomic promotion (namespace isolation)', async () => {
+    if (!hasKv) {
+      console.log('Skipping: KV not configured');
+      return;
+    }
+
+    const NAMESPACE_SLUG = `${TEST_PREFIX}namespace-test-${Date.now()}`;
+    testServiceSlugs.push(NAMESPACE_SLUG);
+
+    // This test validates that atomicPromoteAssignments passes namespace to Lua script
+    // The Lua script should use namespace when constructing assignment keys
+    // Without namespace, promotion would write to 'service-card-assignment:' (wrong keyspace)
+    // With namespace, promotion writes to 'hpp:{env}:service-card-assignment:' (correct keyspace)
+
+    // Create assignment via normal store (which uses namespaced keys)
+    await storeServiceCardAssignment({
+      serviceSlug: NAMESPACE_SLUG,
+      mediaId: 'fences-001-hero',
+      updatedAt: new Date().toISOString(),
+      source: 'workbench' as const,
+      revision: 0,
+    }, undefined, 'namespace-test');
+
+    // Verify assignment exists via normal read (which uses namespaced keys)
+    const beforePromotion = await getServiceCardAssignment(NAMESPACE_SLUG, 'namespace-test');
+    expect(beforePromotion?.revision).toBe(0);
+    expect(beforePromotion?.mediaId).toBe('fences-001-hero');
+
+    // Promote via atomicPromoteAssignments (should use same namespace)
+    const promotionSet = [{
+      serviceSlug: NAMESPACE_SLUG,
+      mediaId: 'fences-001-after',
+      expectedRevision: 0,
+      updatedAt: new Date().toISOString(),
+      source: 'workbench' as const,
+    }];
+
+    const result = await atomicPromoteAssignments(promotionSet, 'namespace-test-tx');
+
+    expect(result.success).toBe(true);
+    expect(result.count).toBe(1);
+
+    // Verify assignment was updated via normal read (proves namespace isolation works)
+    const afterPromotion = await getServiceCardAssignment(NAMESPACE_SLUG, 'namespace-test');
+    expect(afterPromotion?.revision).toBe(1);
+    expect(afterPromotion?.mediaId).toBe('fences-001-after');
+  });
+
+  it('should prove failure atomicity (partial promotion rejection)', async () => {
+    if (!hasKv) {
+      console.log('Skipping: KV not configured');
+      return;
+    }
+
+    const SLUG_A = `${TEST_PREFIX}fail-atomic-a-${Date.now()}`;
+    const SLUG_B = `${TEST_PREFIX}fail-atomic-b-${Date.now()}`;
+    const SLUG_C = `${TEST_PREFIX}fail-atomic-c-${Date.now()}`;
+    testServiceSlugs.push(SLUG_A, SLUG_B, SLUG_C);
+
+    // Setup: A and B at revision 5, C at revision 3 (stale)
+    await storeServiceCardAssignment({
+      serviceSlug: SLUG_A,
+      mediaId: 'fences-001-hero',
+      updatedAt: new Date().toISOString(),
+      source: 'workbench' as const,
+      revision: 5,
+    }, 4, 'fail-atomic-test');
+
+    await storeServiceCardAssignment({
+      serviceSlug: SLUG_B,
+      mediaId: 'fences-001-after',
+      updatedAt: new Date().toISOString(),
+      source: 'workbench' as const,
+      revision: 5,
+    }, 4, 'fail-atomic-test');
+
+    await storeServiceCardAssignment({
+      serviceSlug: SLUG_C,
+      mediaId: 'fences-001-hero',
+      updatedAt: new Date().toISOString(),
+      source: 'workbench' as const,
+      revision: 3, // Stale - will cause CAS failure
+    }, 2, 'fail-atomic-test');
+
+    // Try to promote all three with C having stale expected revision
+    const promotionSet = [
+      {
+        serviceSlug: SLUG_A,
+        mediaId: 'fences-001-after',
+        expectedRevision: 5, // Correct
+        updatedAt: new Date().toISOString(),
+        source: 'workbench' as const,
+      },
+      {
+        serviceSlug: SLUG_B,
+        mediaId: 'fences-001-hero',
+        expectedRevision: 5, // Correct
+        updatedAt: new Date().toISOString(),
+        source: 'workbench' as const,
+      },
+      {
+        serviceSlug: SLUG_C,
+        mediaId: 'fences-001-after',
+        expectedRevision: 5, // WRONG - should be 3 (stale)
+        updatedAt: new Date().toISOString(),
+        source: 'workbench' as const,
+      },
+    ];
+
+    const result = await atomicPromoteAssignments(promotionSet, 'fail-atomic-test-tx');
+
+    // Promotion must fail
+    expect(result.success).toBe(false);
+    expect(result.error).toContain('CAS_FAILURE');
+    expect(result.failedServiceSlug).toBe(SLUG_C);
+
+    // ZERO partial promotion - all assignments must remain unchanged
+    const unchangedA = await getServiceCardAssignment(SLUG_A, 'fail-atomic-test');
+    const unchangedB = await getServiceCardAssignment(SLUG_B, 'fail-atomic-test');
+    const unchangedC = await getServiceCardAssignment(SLUG_C, 'fail-atomic-test');
+
+    expect(unchangedA?.revision).toBe(5);
+    expect(unchangedA?.mediaId).toBe('fences-001-hero');
+    expect(unchangedB?.revision).toBe(5);
+    expect(unchangedB?.mediaId).toBe('fences-001-after');
+    expect(unchangedC?.revision).toBe(3);
+    expect(unchangedC?.mediaId).toBe('fences-001-hero');
   });
 });
