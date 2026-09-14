@@ -12,6 +12,7 @@
 
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
+import { verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -61,6 +62,33 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // P0 FIX: Enforce corpus authorization before forwarding to core ingest
+    // This prevents cross-corpus access even through the bridge
+    const corpusAuth = await verifyCorpusAuthorization(fileId, sharedDriveId);
+    if (!corpusAuth.authorized) {
+      console.error('[WORKBENCH_MATERIALIZATION] CORPUS_AUTHORIZATION_FAILED', {
+        requestId,
+        fileId,
+        sharedDriveId,
+        reason: corpusAuth.reason,
+      });
+      return NextResponse.json(
+        {
+          error: 'CORPUS_NOT_AUTHORIZED',
+          message: corpusAuth.reason || 'Drive corpus is not authorized for this session',
+          requestId,
+        },
+        { status: 403 }
+      );
+    }
+
+    console.log('[WORKBENCH_MATERIALIZATION] Corpus authorization verified', {
+      requestId,
+      fileId,
+      sharedDriveId,
+      corpus: corpusAuth.corpus,
+    });
 
     // P0 FIX: Do NOT reject based on MIME type at this boundary
     // MIME is metadata, not content authority
