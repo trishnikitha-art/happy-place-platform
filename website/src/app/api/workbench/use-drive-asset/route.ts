@@ -1025,7 +1025,7 @@ export async function POST(request: Request) {
       await createDeploymentTransaction(
         deploymentTransactionId,
         [stagingKey],
-        ['media.v1.json'], // Authority files affected
+        ['website/src/config/projects.v1.json', 'website/src/config/services.v1.json', 'website/src/config/brand.v1.json', 'website/src/config/media.v1.json'], // Authority files affected
         `Drive asset assignment: ${serviceSlug} → ${canonicalMediaId}`
       );
 
