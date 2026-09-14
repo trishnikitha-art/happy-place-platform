@@ -64,7 +64,9 @@ export async function POST(request: Request) {
 
     // Defense-in-depth: Validate MIME type before calling core ingest
     // Core ingest also validates this, but we validate early for better error messages
-    if (mimeType && !mimeType.startsWith('image/')) {
+    // TEMPORARY: Relax strict MIME type validation to allow Drive files without explicit MIME type
+    // Google Drive may not return MIME type for all files. Materialization will fail if not actually an image.
+    if (mimeType && !mimeType.startsWith('image/') && !mimeType.startsWith('application/')) {
       return NextResponse.json(
         {
           error: 'UNSUPPORTED_FILE_TYPE',
@@ -74,6 +76,14 @@ export async function POST(request: Request) {
         },
         { status: 415 }
       );
+    }
+    
+    if (!mimeType) {
+      console.warn('[WORKBENCH_MATERIALIZATION] Missing MIME type, proceeding with caution', {
+        requestId,
+        fileId,
+        fileName,
+      });
     }
 
     // Call the core Drive ingest endpoint

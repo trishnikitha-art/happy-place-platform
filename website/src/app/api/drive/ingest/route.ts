@@ -463,7 +463,9 @@ export async function POST(request: Request) {
 
     // P0 FIX: Reject non-image files before downloading bytes
     // Non-image Drive objects cannot enter the media materialization pipeline
-    if (!driveFile.mimeType || !driveFile.mimeType.startsWith('image/')) {
+    // TEMPORARY: Relax strict MIME type validation to allow Drive files without explicit MIME type
+    // Google Drive may not return MIME type for all files. Materialization will fail if not actually an image.
+    if (driveFile.mimeType && !driveFile.mimeType.startsWith('image/') && !driveFile.mimeType.startsWith('application/')) {
       console.log('[MEDIA_INGEST_ERROR] Non-image file rejected', {
         requestId,
         mimeType: driveFile.mimeType,
@@ -481,6 +483,14 @@ export async function POST(request: Request) {
         },
         { status: 415 }
       );
+    }
+    
+    if (!driveFile.mimeType) {
+      console.warn('[MEDIA_INGEST] Missing MIME type, proceeding with caution', {
+        requestId,
+        fileId,
+        driveName: driveFile.name,
+      });
     }
 
     // 2. Download bytes from Drive
