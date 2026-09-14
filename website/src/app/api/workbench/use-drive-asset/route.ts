@@ -1035,10 +1035,11 @@ export async function POST(request: Request) {
         stagingKeys: [stagingKey],
       });
 
-      // Claim transaction
-      await claimDeploymentTransaction(deploymentTransactionId, requestId);
-
-      console.log('[USE_DRIVE_ASSET] Transaction claimed', {
+      // P0 FIX: DO NOT claim transaction here
+      // The deploy route will claim it (prepared → committing)
+      // This prevents the "concurrent deployment" deadlock where use-drive-asset
+      // claims the transaction, then deploy rejects it as "already owned"
+      console.log('[USE_DRIVE_ASSET] Transaction left in prepared state for deploy to claim', {
         requestId,
         deploymentTransactionId,
       });
