@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { createDeploymentTransaction, getDeploymentTransaction } from '../deployment-transaction';
+import { createDeploymentTransaction, getDeploymentTransaction, claimDeploymentTransaction } from '../deployment-transaction';
 
 const TEST_TRANSACTION_PREFIX = 'BULK-TEST-';
 let testTransactionIds: string[] = [];
@@ -179,7 +179,7 @@ describe('Deployment Transaction Bulk Assignment', () => {
     ]);
 
     // Final result should contain all 5 staging keys regardless of registration order
-    const finalTx = results[results.length - 1];
+    const finalTx = await getDeploymentTransaction(TRANSACTION_ID);
     expect(finalTx.stagingKeys).toHaveLength(5);
     expect(finalTx.stagingKeys).toContain(SLOT_A_KEY);
     expect(finalTx.stagingKeys).toContain(SLOT_B_KEY);
@@ -223,6 +223,6 @@ describe('Deployment Transaction Bulk Assignment', () => {
         ['website/src/config/services.v1.json'],
         'State barrier test'
       )
-    ).rejects.toThrow('TRANSACTION_NOT_PREPENDED');
+    ).rejects.toThrow('TRANSACTION_NOT_PREPARED');
   });
 });

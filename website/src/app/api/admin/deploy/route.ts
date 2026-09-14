@@ -63,6 +63,7 @@ import {
   commitDeploymentTransaction,
   consumeDeploymentTransaction,
   failDeploymentTransaction,
+  retryDeploymentTransaction,
   getDeploymentTransaction,
   isTransactionTerminal,
   atomicPromoteAssignments,
@@ -426,6 +427,27 @@ export async function POST(request: Request) {
           failureReason: existingTransaction.failureReason,
           retryCount: existingTransaction.retryCount
         }, { status: 409 });
+      }
+      
+      // If in retryable failed state, retry the transaction
+      if (existingTransaction.state === 'failed' && (existingTransaction.retryCount || 0) < 3) {
+        console.log('[DEPLOY API] RETRYING_FAILED_TRANSACTION', {
+          deploymentTransactionId,
+          retryCount: existingTransaction.retryCount,
+          failureReason: existingTransaction.failureReason,
+        });
+        
+        const { retryDeploymentTransaction } = await import('@/lib/deployment-transaction');
+        const retriedTransaction = await retryDeploymentTransaction(deploymentTransactionId);
+        
+        console.log('[DEPLOY API] TRANSACTION_RETRIED', {
+          deploymentTransactionId,
+          newState: retriedTransaction.state,
+          newRetryCount: retriedTransaction.retryCount,
+        });
+        
+        // Continue with the retried transaction (now in prepared state)
+        // Fall through to the normal deployment path
       }
       
       // If currently committing, reject concurrent deployment

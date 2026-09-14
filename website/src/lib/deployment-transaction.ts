@@ -672,6 +672,77 @@ export async function failDeploymentTransaction(
 }
 
 /**
+ * Retry a failed transaction (failed → prepared)
+ * Allows recovery from Git/Redis split-brain failures
+ * @param transactionId - Transaction ID
+ * @returns Updated transaction in prepared state
+ */
+export async function retryDeploymentTransaction(transactionId: string): Promise<DeploymentTransaction> {
+  const key = getTransactionKey(transactionId);
+  const client = getRedisClient();
+  
+  console.log('[DEPLOYMENT_TRANSACTION] RETRYING', { transactionId });
+  
+  try {
+    const current = await client.get<DeploymentTransaction>(key);
+    if (!current) {
+      throw new Error(`Transaction not found: ${transactionId}. Cannot retry non-existent transaction.`);
+    }
+    
+    // Check if retry is allowed
+    if (current.state !== 'failed') {
+      throw new Error(`Transaction must be in failed state to retry. Current state: ${current.state}`);
+    }
+    
+    // Check if max retries exceeded
+    const MAX_RETRIES = 3;
+    if ((current.retryCount || 0) >= MAX_RETRIES) {
+      throw new Error(`Transaction has exceeded maximum retry count (${MAX_RETRIES}). Terminal failure.`);
+    }
+    
+    // Reset to prepared state, preserving all other fields
+    const updated: DeploymentTransaction = {
+      ...current,
+      state: 'prepared',
+      owner: undefined, // Clear owner so deploy can claim it again
+      failureReason: undefined, // Clear previous failure reason
+      failedAt: undefined,
+      retryCount: (current.retryCount || 0) + 1,
+    };
+    
+    const result = await client.eval(
+      STATE_TRANSITION_SCRIPT,
+      [key],
+      [
+        transactionId,
+        'prepared',
+        '', // No owner for prepared state
+        current.parentCommitSha || '',
+        JSON.stringify(updated),
+      ]
+    );
+    
+    if (result && typeof result === 'object' && 'err' in result) {
+      const err = (result as any).err;
+      if (err.includes('ILLEGAL_TRANSITION')) {
+        throw new Error(`Cannot retry transaction: ${err}`);
+      }
+      throw new Error(`Failed to retry transaction: ${err}`);
+    }
+    
+    console.log('[DEPLOYMENT_TRANSACTION] RETRIED', { 
+      transactionId, 
+      retryCount: updated.retryCount,
+      stagingKeysCount: updated.stagingKeys.length 
+    });
+    return updated;
+  } catch (error) {
+    console.error('[DEPLOYMENT_TRANSACTION] RETRY_FAILED', { transactionId, error });
+    throw error;
+  }
+}
+
+/**
  * Get deployment transaction by ID (idempotent read)
  * @param transactionId - Transaction ID
  * @returns Transaction or null
