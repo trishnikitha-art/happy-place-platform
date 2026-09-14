@@ -33,7 +33,13 @@ function resolveAssignmentKey(targetSlotId: string): string | null {
     return VISUAL_SLOT_REGISTRY[targetSlotId];
   }
   
-  // Service card slots: service-card-{slug} → {slug}
+  // Service card slots: homepage-service-card-slot-{slug} → {slug}
+  if (targetSlotId.startsWith('homepage-service-card-slot-')) {
+    const serviceSlug = targetSlotId.replace('homepage-service-card-slot-', '');
+    return serviceSlug;
+  }
+  
+  // Legacy service card format: service-card-{slug} → {slug}
   if (targetSlotId.startsWith('service-card-')) {
     const serviceSlug = targetSlotId.replace('service-card-', '');
     return serviceSlug;
@@ -129,7 +135,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           { 
             error: 'INVALID_TARGET_SLOT',
-            message: `Target slot '${slotSlug}' is not a valid writable target. Valid targets: hero-background, homepage-owner-portrait-slot, or service-card-{slug}`,
+            message: `Target slot '${slotSlug}' is not a valid writable target. Valid targets: hero-background, homepage-owner-portrait-slot, homepage-service-card-slot-{slug}, or service-card-{slug}`,
           },
           { status: 400 }
         );
