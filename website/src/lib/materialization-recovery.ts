@@ -70,13 +70,20 @@ export async function detectIncompleteKvRecords(): Promise<Media[]> {
           incomplete.push(media);
           continue;
         }
-        
+
+        // P0 FIX: Check for missing storage field - this is the production failure
+        if (!media.storage) {
+          console.warn('[MATERIALIZATION_RECOVERY] INCOMPLETE_KV: missing storage field', { mediaId });
+          incomplete.push(media);
+          continue;
+        }
+
         // Verify Blob metadata exists
         const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
         if (!blobMetadata) {
-          console.warn('[MATERIALIZATION_RECOVERY] INCOMPLETE_KV: missing Blob metadata', { 
-            mediaId, 
-            contentHash: media.contentHash 
+          console.warn('[MATERIALIZATION_RECOVERY] INCOMPLETE_KV: missing Blob metadata', {
+            mediaId,
+            contentHash: media.contentHash
           });
           incomplete.push(media);
         }
@@ -322,6 +329,9 @@ export async function repairIncompleteKvRecord(media: Media): Promise<boolean> {
     const repairedMedia: Media = {
       ...media,
       variants: repairedVariants,
+      // P0 FIX: Ensure storage field is set when repairing published local records
+      // If original had Blob proof (we verified original Blob exists), this must be blob storage
+      ...(media.lifecycleState === 'published' && media.source === 'local' && !media.storage ? { storage: 'blob' } : {}),
     };
     
     await storeMedia(repairedMedia);

@@ -305,30 +305,12 @@ export async function POST(request: Request) {
       size: driveFile.size || 'unknown',
     });
 
-    // P0 FIX: Reject non-image files before downloading bytes
-    // P0 FIX: Do NOT use MIME type as proof that the file is an image
+    // P0 FIX: Do NOT reject based on MIME type at metadata stage
     // MIME is metadata, not content authority
-    // Sharp will determine whether the bytes are actually an image
-    // Only reject clearly non-image MIME types (documents, archives, etc.)
-    if (driveFile.mimeType && !driveFile.mimeType.startsWith('image/') && !driveFile.mimeType.startsWith('application/')) {
-      console.log('[MEDIA_INGEST_ERROR] Clearly not an image file rejected', {
-        requestId,
-        mimeType: driveFile.mimeType,
-        driveName: driveFile.name,
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'UNSUPPORTED_FILE_TYPE',
-          stage: 'DRIVE_METADATA',
-          message: 'File is clearly not an image (MIME type indicates document or archive)',
-          details: `File type ${driveFile.mimeType} is not supported`,
-          retryable: false,
-          requestId,
-        },
-        { status: 415 }
-      );
-    }
+    // Sharp will determine whether the bytes are actually an image after download
+    // Only clearly impossible classes (video, audio, archives) should be rejected early
+    // Google-native objects (application/vnd.google-apps.*) should be allowed through
+    // so Sharp can make the final determination based on actual bytes
 
     console.log('[MEDIA_INGEST] MIME classification', {
       requestId,
