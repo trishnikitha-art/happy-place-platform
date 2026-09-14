@@ -747,34 +747,10 @@ export async function POST(request: Request) {
         });
       }
 
-      // P0 FIX: Do NOT use MIME type as proof that the file is an image
+      // P0 FIX: Do NOT reject based on MIME type at this boundary
       // MIME is metadata, not content authority
-      // Sharp will determine whether the bytes are actually an image
-      // Only reject clearly non-image MIME types (documents, archives, etc.)
-      if (actualMimeType && !actualMimeType.startsWith('image/') && !actualMimeType.startsWith('application/')) {
-        console.error('[USE_DRIVE_ASSET] CLEARLY_NOT_IMAGE', {
-          requestId,
-          actualMimeType,
-          actualName: authoritativeDriveMetadata.name,
-          fileId: effectiveFileId,
-          objectType,
-        });
-        return NextResponse.json(
-          {
-            error: 'UNSUPPORTED_FILE_TYPE',
-            message: `Drive file is clearly not an image: ${actualMimeType}`,
-            details: {
-              actualMimeType,
-              fileId: effectiveFileId,
-              fileName: authoritativeDriveMetadata.name,
-              objectType,
-            },
-            requestId,
-          },
-          { status: 415 }
-        );
-      }
-
+      // Sharp will determine whether the bytes are actually an image after download
+      // All Drive objects (including Google-native) pass through to Sharp validation
       console.log('[USE_DRIVE_ASSET] MIME classification', {
         requestId,
         actualMimeType,
