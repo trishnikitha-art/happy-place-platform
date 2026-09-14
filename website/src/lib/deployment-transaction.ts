@@ -102,6 +102,30 @@ const ATOMIC_PROMOTION_SCRIPT = `
   local deploymentTransactionId = ARGV[2]
   local namespace = ARGV[3]
   
+  -- P0 FIX: Validate transaction state before promotion
+  local transactionKey = namespace .. 'deployment-transaction:' .. deploymentTransactionId
+  local transaction = redis.call('GET', transactionKey)
+  
+  if not transaction then
+    return {err = 'TRANSACTION_NOT_FOUND', deploymentTransactionId = deploymentTransactionId}
+  end
+  
+  local parsed = cjson.decode(transaction)
+  
+  -- Transaction must be in committing state for promotion
+  if parsed.state ~= 'committing' then
+    return {err = 'INVALID_TRANSACTION_STATE', deploymentTransactionId = deploymentTransactionId, state = parsed.state, expectedState = 'committing'}
+  end
+  
+  -- P0 FIX: Verify transaction ownership
+  -- Only the owner who claimed the transaction can promote assignments
+  local expectedOwner = ARGV[4]
+  if expectedOwner and expectedOwner ~= '' then
+    if parsed.owner ~= expectedOwner then
+      return {err = 'OWNER_MISMATCH', deploymentTransactionId = deploymentTransactionId, expectedOwner = expectedOwner, actualOwner = parsed.owner}
+    end
+  end
+  
   -- Phase 1: Validate all expected revisions
   for i, assignment in ipairs(assignmentsData) do
     local assignmentKey = namespace .. 'service-card-assignment:' .. assignment.serviceSlug
@@ -148,7 +172,8 @@ const ATOMIC_PROMOTION_SCRIPT = `
  */
 export async function atomicPromoteAssignments(
   assignments: Array<{ serviceSlug: string; mediaId: string; expectedRevision: number; updatedAt: string; source: string }>,
-  deploymentTransactionId: string
+  deploymentTransactionId: string,
+  owner?: string
 ): Promise<{ success: boolean; count: number; error?: string; failedServiceSlug?: string }> {
   try {
     const redis = getRedisClient();
@@ -158,11 +183,11 @@ export async function atomicPromoteAssignments(
     const result = await redis.eval(
       ATOMIC_PROMOTION_SCRIPT,
       [], // No keys needed for this script
-      [assignmentsData, deploymentTransactionId, namespace]
+      [assignmentsData, deploymentTransactionId, namespace, owner || '']
     );
     
     if (result && typeof result === 'object' && 'err' in result) {
-      const errorResult = result as { err: string; serviceSlug?: string };
+      const errorResult = result as { err: string; serviceSlug?: string; deploymentTransactionId?: string; state?: string; expectedState?: string };
       console.error('[ATOMIC_PROMOTION] FAILED', {
         deploymentTransactionId,
         error: errorResult.err,
@@ -313,6 +338,17 @@ const STATE_TRANSITION_SCRIPT = `
     if newState == 'committing' or newState == 'committed' or newState == 'consumed' then
       if owner ~= parsed.owner then
         return {err = 'OWNER_MISMATCH: Transaction owned by ' .. parsed.owner .. ', but attempt by ' .. owner}
+      end
+    end
+  end
+  
+  -- PARENT COMMIT VERIFICATION: Prevent committing against stale branch head
+  -- Only enforce for committing → committed transition
+  if currentState == 'committing' and newState == 'committed' then
+    if expectedParent and expectedParent ~= '' then
+      local currentParent = parsed.parentCommitSha or ''
+      if currentParent ~= expectedParent then
+        return {err = 'PARENT_COMMIT_MISMATCH: Transaction prepared against ' .. currentParent .. ', but branch is now ' .. expectedParent}
       end
     end
   end

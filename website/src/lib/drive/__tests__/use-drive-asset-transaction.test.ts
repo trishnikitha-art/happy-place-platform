@@ -293,27 +293,31 @@ describe('Use Drive Asset Transaction - Duplication Prevention', () => {
       const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
       const routeCode = fs.readFileSync(routePath, 'utf8');
 
-      // Find the specific PUBLIC_MEDIA_GATE_REJECTED error block
+      // P0 FIX: Current architecture uses deployment transactions
+      // The public gate rejection should come before deployment transaction creation
       const rejectionBlock = routeCode.indexOf('PUBLIC_MEDIA_GATE_REJECTED');
       expect(rejectionBlock).toBeGreaterThan(0);
       
-      // Find the actual assignment mutation (await storeServiceCardAssignment)
-      const assignmentMutation = routeCode.indexOf('await storeServiceCardAssignment');
+      // Find the deployment transaction creation
+      const transactionCreation = routeCode.indexOf('createDeploymentTransaction');
       
-      // The rejection should come before the actual mutation
-      expect(rejectionBlock).toBeLessThan(assignmentMutation);
+      // The rejection should come before transaction creation
+      expect(rejectionBlock).toBeLessThan(transactionCreation);
     });
   });
 
   describe('No Broad Reconciliation (P0 #4)', () => {
-    it('should pass skipReconciliation=true to ingest endpoint', () => {
+    it('should use deployment transaction staging instead of direct assignment', () => {
       const fs = require('fs');
       const path = require('path');
       const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
       const routeCode = fs.readFileSync(routePath, 'utf8');
 
-      expect(routeCode).toContain('skipReconciliation: true');
-      expect(routeCode).toContain('Prevent implicit assignment reconciliation');
+      // P0 FIX: Current architecture uses staging keys and deployment transactions
+      // instead of the old skipReconciliation parameter approach
+      expect(routeCode).toContain('workbench-staging');
+      expect(routeCode).toContain('createDeploymentTransaction');
+      expect(routeCode).toContain('atomic promotion');
     });
 
     it('should not call reconcileDriveAssignments directly', () => {
@@ -534,29 +538,68 @@ describe('Client-Side Duplication Prevention', () => {
       expect(pageCode).toContain('/api/workbench/use-drive-asset');
     });
 
-    it('should NOT independently call materialize-drive and assign-media', () => {
+    it('should NOT independently call materialize-drive and assign-media for Drive assets', () => {
       const fs = require('fs');
       const path = require('path');
       const pagePath = path.join(__dirname, '../../../app/workbench/media/page.tsx');
       const pageCode = fs.readFileSync(pagePath, 'utf8');
 
-      // After the fix, the handler should call only the authoritative endpoint
-      // Count calls to materialize-drive in handleUseDriveAsset
-      const handlerMatch = pageCode.match(/const handleUseDriveAsset = async \(\) => \{[\s\S]*?\n  \};/);
-      if (handlerMatch) {
-        const handlerCode = handlerMatch[0];
-        // Should not contain materialize-drive call (it's now handled by use-drive-asset)
-        const hasMaterializeCall = handlerCode.includes('/api/workbench/materialize-drive');
-        const hasAssignCall = handlerCode.includes('/api/workbench/assign-media');
-        const hasUseAssetCall = handlerCode.includes('/api/workbench/use-drive-asset');
-
-        expect(hasUseAssetCall).toBe(true);
-        // If it has the new endpoint, it should not have the old split calls
-        if (hasUseAssetCall) {
-          expect(hasMaterializeCall).toBe(false);
-          expect(hasAssignCall).toBe(false);
+      // After the fix, the handler should call only the authoritative endpoint for Drive assets
+      // Extract the handleUseDriveAsset function body
+      const handlerStart = pageCode.indexOf('const handleUseDriveAsset = async () => {');
+      expect(handlerStart).toBeGreaterThan(0);
+      
+      // Find the closing brace for this function
+      let braceCount = 0;
+      let handlerEnd = handlerStart;
+      let foundStart = false;
+      
+      for (let i = handlerStart; i < pageCode.length; i++) {
+        if (pageCode[i] === '{') {
+          braceCount++;
+          foundStart = true;
+        } else if (pageCode[i] === '}') {
+          braceCount--;
+          if (foundStart && braceCount === 0) {
+            handlerEnd = i + 1;
+            break;
+          }
         }
       }
+      
+      const handlerCode = pageCode.substring(handlerStart, handlerEnd);
+      
+      // Should contain the new unified endpoint
+      expect(handlerCode).toContain('/api/workbench/use-drive-asset');
+      
+      // Should NOT contain the old split endpoints for Drive path
+      // Find the Drive path section (if (isDriveSource) { ... })
+      const drivePathStart = handlerCode.indexOf('if (isDriveSource) {');
+      expect(drivePathStart).toBeGreaterThan(0);
+      
+      // Find the closing brace for the Drive path
+      let driveBraceCount = 0;
+      let drivePathEnd = drivePathStart;
+      let foundDriveStart = false;
+      
+      for (let i = drivePathStart; i < handlerCode.length; i++) {
+        if (handlerCode[i] === '{') {
+          driveBraceCount++;
+          foundDriveStart = true;
+        } else if (handlerCode[i] === '}') {
+          driveBraceCount--;
+          if (foundDriveStart && driveBraceCount === 0) {
+            drivePathEnd = i + 1;
+            break;
+          }
+        }
+      }
+      
+      const drivePathCode = handlerCode.substring(drivePathStart, drivePathEnd);
+      
+      // Drive path should NOT contain the old split endpoints
+      expect(drivePathCode).not.toContain('/api/workbench/materialize-drive');
+      expect(drivePathCode).not.toContain('/api/workbench/assign-media');
     });
   });
 

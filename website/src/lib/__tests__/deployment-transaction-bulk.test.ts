@@ -17,15 +17,27 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { createDeploymentTransaction, getDeploymentTransaction, claimDeploymentTransaction } from '../deployment-transaction';
+import { createDeploymentTransaction, getDeploymentTransaction, claimDeploymentTransaction, atomicPromoteAssignments } from '../deployment-transaction';
 
 const TEST_TRANSACTION_PREFIX = 'BULK-TEST-';
 let testTransactionIds: string[] = [];
 
 beforeAll(() => {
-  // This test requires actual KV connection
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-    console.warn('Skipping bulk assignment test: KV credentials not configured');
+  // P0 FIX: Fail loudly in CI when Redis is unavailable instead of silently skipping
+  // Local development may skip gracefully, but CI must execute against actual Redis
+  const isCI = process.env.CI === 'true'; // GitHub Actions sets CI=true
+  const hasKv = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+  
+  if (isCI && !hasKv) {
+    throw new Error(
+      'CI environment requires KV_REST_API_URL and KV_REST_API_TOKEN for Redis-backed integration tests. ' +
+      'These tests verify transaction state transitions, atomic promotion, and ownership binding against actual Redis. ' +
+      'Silent skipping in CI would miss runtime Redis incompatibilities.'
+    );
+  }
+  
+  if (!hasKv) {
+    console.warn('Skipping bulk assignment test: KV credentials not configured (non-CI environment)');
   }
 });
 
@@ -224,5 +236,116 @@ describe('Deployment Transaction Bulk Assignment', () => {
         'State barrier test'
       )
     ).rejects.toThrow('TRANSACTION_NOT_PREPARED');
+  });
+
+  it('should reject atomic promotion for non-committing transaction', async () => {
+    if (!hasKv) {
+      console.log('Skipping: KV not configured');
+      return;
+    }
+
+    const TRANSACTION_ID = `${TEST_TRANSACTION_PREFIX}PROMOTION-STATE-${Date.now()}`;
+    testTransactionIds.push(TRANSACTION_ID);
+
+    // Create transaction in prepared state
+    await createDeploymentTransaction(
+      TRANSACTION_ID,
+      [],
+      ['website/src/config/services.v1.json'],
+      'Promotion state test'
+    );
+
+    // Try to promote assignments while transaction is still in prepared state (should fail)
+    const result = await atomicPromoteAssignments(
+      [
+        {
+          serviceSlug: 'decks',
+          mediaId: 'test-media-id',
+          expectedRevision: 0,
+          updatedAt: new Date().toISOString(),
+          source: 'test'
+        }
+      ],
+      TRANSACTION_ID,
+      'test-owner'
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('INVALID_TRANSACTION_STATE');
+  });
+
+  it('should reject atomic promotion with wrong owner', async () => {
+    if (!hasKv) {
+      console.log('Skipping: KV not configured');
+      return;
+    }
+
+    const TRANSACTION_ID = `${TEST_TRANSACTION_PREFIX}PROMOTION-OWNER-${Date.now()}`;
+    testTransactionIds.push(TRANSACTION_ID);
+
+    // Create and claim transaction with owner A
+    await createDeploymentTransaction(
+      TRANSACTION_ID,
+      [],
+      ['website/src/config/services.v1.json'],
+      'Promotion owner test'
+    );
+    await claimDeploymentTransaction(TRANSACTION_ID, 'owner-A');
+
+    // Try to promote with owner B (should fail)
+    const result = await atomicPromoteAssignments(
+      [
+        {
+          serviceSlug: 'decks',
+          mediaId: 'test-media-id',
+          expectedRevision: 0,
+          updatedAt: new Date().toISOString(),
+          source: 'test'
+        }
+      ],
+      TRANSACTION_ID,
+      'owner-B'
+    );
+
+    expect(result.success).toBe(false);
+    expect(result.error).toBe('OWNER_MISMATCH');
+  });
+
+  it('should accept atomic promotion with correct owner in committing state', async () => {
+    if (!hasKv) {
+      console.log('Skipping: KV not configured');
+      return;
+    }
+
+    const TRANSACTION_ID = `${TEST_TRANSACTION_PREFIX}PROMOTION-SUCCESS-${Date.now()}`;
+    testTransactionIds.push(TRANSACTION_ID);
+
+    // Create and claim transaction
+    await createDeploymentTransaction(
+      TRANSACTION_ID,
+      [],
+      ['website/src/config/services.v1.json'],
+      'Promotion success test'
+    );
+    const owner = 'test-owner-valid';
+    await claimDeploymentTransaction(TRANSACTION_ID, owner);
+
+    // Promote with correct owner (should succeed)
+    const result = await atomicPromoteAssignments(
+      [
+        {
+          serviceSlug: 'decks',
+          mediaId: 'test-media-id',
+          expectedRevision: 0,
+          updatedAt: new Date().toISOString(),
+          source: 'test'
+        }
+      ],
+      TRANSACTION_ID,
+      owner
+    );
+
+    expect(result.success).toBe(true);
+    expect(result.count).toBe(1);
   });
 });

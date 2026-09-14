@@ -1967,8 +1967,9 @@ export async function POST(request: Request) {
       });
 
       // P0 FIX: Use atomic promotion instead of per-assignment loop
+      // P0 FIX: Pass transaction owner to enforce ownership binding in Lua script
       if (assignmentsToPromote.length > 0) {
-        const promotionResult = await atomicPromoteAssignments(assignmentsToPromote, deploymentTransactionId);
+        const promotionResult = await atomicPromoteAssignments(assignmentsToPromote, deploymentTransactionId, transactionOwner);
 
         if (!promotionResult.success) {
           console.error('[DEPLOY API] ATOMIC_PROMOTION_FAILED', {
@@ -1976,6 +1977,36 @@ export async function POST(request: Request) {
             error: promotionResult.error,
             failedServiceSlug: promotionResult.failedServiceSlug,
           });
+
+          // P0 FIX: Handle new transaction state validation errors
+          if (promotionResult.error === 'INVALID_TRANSACTION_STATE' || promotionResult.error === 'OWNER_MISMATCH') {
+            console.error('[DEPLOY API] TRANSACTION_BINDING_VIOLATION', {
+              deploymentTransactionId,
+              error: promotionResult.error,
+              owner: transactionOwner,
+            });
+            
+            // This is a corruption/concurrency violation - should not happen in normal flow
+            await failDeploymentTransaction(
+              deploymentTransactionId,
+              `Transaction binding violation: ${promotionResult.error}`
+            );
+
+            return NextResponse.json(
+              {
+                error: "Deployment rejected: Transaction binding violation",
+                message: `Atomic promotion rejected due to invalid transaction state or ownership mismatch. This indicates a concurrency or corruption issue.`,
+                forensic: {
+                  deploymentTransactionId,
+                  promotionError: promotionResult.error,
+                  failedServiceSlug: promotionResult.failedServiceSlug,
+                  assignmentCount: assignmentsToPromote.length,
+                  owner: transactionOwner,
+                },
+              },
+              { status: 409 } // Conflict
+            );
+          }
 
           // FAIL-CLOSED: Reject deployment if atomic promotion fails
           await failDeploymentTransaction(
