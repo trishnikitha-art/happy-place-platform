@@ -62,29 +62,16 @@ export async function POST(request: Request) {
       );
     }
 
-    // Defense-in-depth: Validate MIME type before calling core ingest
-    // Core ingest also validates this, but we validate early for better error messages
-    // TEMPORARY: Relax strict MIME type validation to allow Drive files without explicit MIME type
-    // Google Drive may not return MIME type for all files. Materialization will fail if not actually an image.
-    if (mimeType && !mimeType.startsWith('image/') && !mimeType.startsWith('application/')) {
-      return NextResponse.json(
-        {
-          error: 'UNSUPPORTED_FILE_TYPE',
-          message: 'Only image files can be materialized',
-          details: `File type ${mimeType} is not supported`,
-          requestId,
-        },
-        { status: 415 }
-      );
-    }
-    
-    if (!mimeType) {
-      console.warn('[WORKBENCH_MATERIALIZATION] Missing MIME type, proceeding with caution', {
-        requestId,
-        fileId,
-        fileName,
-      });
-    }
+    // P0 FIX: Do NOT reject based on MIME type at this boundary
+    // MIME is metadata, not content authority
+    // Sharp will determine whether the bytes are actually an image after download
+    // All Drive objects (including Google-native) pass through to Sharp validation
+    console.log('[WORKBENCH_MATERIALIZATION] MIME classification', {
+      requestId,
+      mimeType,
+      classification: mimeType?.startsWith('image/') ? 'image-metadata' : 'no-image-metadata',
+      note: 'Sharp will determine actual image status from bytes',
+    });
 
     // Call the core Drive ingest endpoint
     // We use fetch to call the same process API to avoid duplicating logic
