@@ -3165,7 +3165,7 @@ export default function MediaWorkbench() {
                           <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
                             <div className="flex items-center gap-3 mb-3">
                               <div className="w-12 h-12 bg-muted rounded flex items-center justify-center overflow-hidden">
-                                {state.driveSelectedFile.thumbnailLink && state.driveSelectedFile.mimeType?.startsWith('image/') ? (
+                                {state.driveSelectedFile?.thumbnailLink && state.driveSelectedFile?.mimeType?.startsWith('image/') ? (
                                   <img
                                     src={`/api/drive/files/${state.driveSelectedFile.id}/thumbnail${state.driveSelectedFile.corpusId ? `?corpusId=${state.driveSelectedFile.corpusId}` : ''}`}
                                     alt={state.driveSelectedFile.name}
@@ -3176,7 +3176,7 @@ export default function MediaWorkbench() {
                                 )}
                               </div>
                               <div className="flex-1 min-w-0">
-                                <div className="text-sm font-medium text-foreground truncate">{state.driveSelectedFile.name}</div>
+                                <div className="text-sm font-medium text-foreground truncate">{state.driveSelectedFile?.name}</div>
                                 <div className="text-xs text-muted-foreground">
                                   {state.driveCurrentDriveId ? 'Shared Drive' : 'My Drive'}
                                 </div>
@@ -3185,7 +3185,7 @@ export default function MediaWorkbench() {
 
                             <div className="space-y-2">
                               <div className="text-xs text-muted-foreground">
-                                <span className="font-medium">Source:</span> {state.driveSelectedFile.name}
+                                <span className="font-medium">Source:</span> {state.driveSelectedFile?.name}
                               </div>
                               {state.selectedSlot ? (
                                 <div className="text-xs text-muted-foreground">
