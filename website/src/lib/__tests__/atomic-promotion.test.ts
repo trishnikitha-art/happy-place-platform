@@ -2,22 +2,25 @@
  * Atomic Promotion Regression Test
  *
  * Regression test for the P0 promotion bugs:
- * 1. Alias → canonical revision lookup (brand-hero-background → brand-hero)
- * 2. Atomic all-or-nothing promotion (no partial writes)
- * 3. CAS failure rollback (A valid, B valid, C fails → all unchanged)
- * 4. Multiple alias mappings (brand-portrait-homepage, brand-portrait-about → brand-portrait)
- * 5. Namespace isolation (atomic promotion uses same namespace as authoritative store)
+ * 1. Atomic all-or-nothing promotion (no partial writes)
+ * 2. CAS failure rollback (A valid, B valid, C fails → all unchanged)
+ * 3. Namespace isolation (atomic promotion uses same namespace as authoritative store)
+ * 4. Transaction state validation (rejects promotion for non-committing transactions)
+ * 5. Ownership validation (rejects promotion with wrong owner)
  *
  * P0 FIX: Updated to use real published media IDs (fences-001-hero, fences-001-after)
  * instead of fake IDs. This ensures tests validate against actual public media authority
  * contract, not legacy fixtures.
  *
+ * P0 FIX: Removed alias mapping tests - deployment now uses actual slot IDs directly
+ * Public readers and deployment promotion use the same keys (no canonicalization)
+ *
  * These tests prove:
- * - Revision/CAS state is always read from canonical runtime target, not staging alias
  * - Promotion is atomic: all-or-nothing, no partial mutations
  * - Any CAS failure causes rollback of entire promotion set
- * - Multiple staging aliases map correctly to single canonical target
  * - Atomic promotion writes to namespaced keys (hpp:{env}:service-card-assignment:)
+ * - Transaction state is validated before promotion
+ * - Transaction ownership is validated before promotion
  *
  * NOTE: This test requires actual Redis/KV connection.
  * Run with KV_REST_API_URL and KV_REST_API_TOKEN environment variables.
@@ -212,48 +215,6 @@ describe('Atomic Promotion', () => {
     expect(unchangedA?.mediaId).toBe('fences-001-hero');
     expect(unchangedB?.mediaId).toBe('fences-001-after');
     expect(unchangedC?.mediaId).toBe('fences-001-hero');
-  });
-
-  it('should handle multiple alias mappings to single canonical target', async () => {
-    if (!hasKv) {
-      console.log('Skipping: KV not configured');
-      return;
-    }
-
-    const CANONICAL_SLUG = `${TEST_PREFIX}brand-portrait-${Date.now()}`;
-    testServiceSlugs.push(CANONICAL_SLUG);
-
-    // Create canonical assignment
-    await storeServiceCardAssignment({
-      serviceSlug: CANONICAL_SLUG,
-      mediaId: 'fences-001-hero', // Real published media ID
-      updatedAt: new Date().toISOString(),
-      source: 'workbench' as const,
-      revision: 3,
-    }, 2, 'alias-test');
-
-    // Simulate two staging aliases mapping to same canonical target
-    // brand-portrait-homepage → brand-portrait
-    // brand-portrait-about → brand-portrait
-    const promotionSet = [
-      {
-        serviceSlug: CANONICAL_SLUG, // Both aliases map here
-        mediaId: 'fences-001-after', // Real published media ID
-        expectedRevision: 3, // Read from canonical target
-        updatedAt: new Date().toISOString(),
-        source: 'workbench' as const,
-      },
-    ];
-
-    const result = await atomicPromoteAssignments(promotionSet, 'alias-test-tx');
-
-    expect(result.success).toBe(true);
-    expect(result.count).toBe(1);
-
-    // Verify canonical assignment was updated once
-    const updatedAssignment = await getServiceCardAssignment(CANONICAL_SLUG, 'alias-test');
-    expect(updatedAssignment?.revision).toBe(4);
-    expect(updatedAssignment?.mediaId).toBe('fences-001-after');
   });
 
   it('should allow create when canonical assignment does not exist', async () => {

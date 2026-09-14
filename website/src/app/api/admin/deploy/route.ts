@@ -720,34 +720,63 @@ export async function POST(request: Request) {
           else if (parts.length >= 6 && parts[2] === 'workbench-staging' && (parts[3].startsWith('WBDEP-') || parts[3].startsWith('tx-')) && parts[4] === 'service') {
             const serviceSlug = parts[5];
             
-            // Check if this is a brand assignment (brand-hero or brand-portrait)
-            if (serviceSlug === 'brand-hero' || serviceSlug === 'brand-hero-background') {
-              brandData.homepageHero.mediaId = stagingValue;
+            // P0 FIX: Extract mediaId from staging value
+            // Staging value is now a JSON object: { mediaId, expectedRevision, updatedAt, source }
+            // Git projection must receive only the mediaId string
+            let mediaId: string;
+            try {
+              const stagingData = JSON.parse(stagingValue);
+              mediaId = stagingData.mediaId;
+              console.log('[DEPLOY API] STAGING_VALUE_EXTRACTED', {
+                serviceSlug,
+                extractedMediaId: mediaId,
+                rawStagingValue: stagingValue,
+              });
+            } catch (parseError) {
+              // Legacy format: staging value is just the mediaId string
+              mediaId = stagingValue;
+              console.log('[DEPLOY API] LEGACY_STAGING_FORMAT_DETECTED', {
+                serviceSlug,
+                mediaId,
+              });
+            }
+            
+            // Check if this is a brand assignment (use actual slot IDs)
+            if (serviceSlug === 'brand-hero-background') {
+              brandData.homepageHero.mediaId = mediaId;
               console.log('[DEPLOY API] APPLIED_BRAND_HERO_ASSIGNMENT', {
-                mediaId: stagingValue,
+                mediaId,
                 serviceSlug,
                 transactionId
               });
               appliedCount++; // P0 FIX: Count brand mutations toward mutation total
               continue;
-            } else if (serviceSlug === 'brand-portrait' || serviceSlug === 'brand-portrait-homepage' || serviceSlug === 'brand-portrait-about') {
-              brandData.ownerPortrait.mediaId = stagingValue;
+            } else if (serviceSlug === 'brand-portrait-homepage') {
+              brandData.ownerPortrait.mediaId = mediaId;
               console.log('[DEPLOY API] APPLIED_BRAND_PORTRAIT_ASSIGNMENT', {
-                mediaId: stagingValue,
+                mediaId,
                 serviceSlug,
                 transactionId
               });
               appliedCount++; // P0 FIX: Count brand mutations toward mutation total
+              continue;
+            } else if (serviceSlug === 'brand-portrait-about') {
+              // About portrait is handled separately in about page logic
+              console.log('[DEPLOY API] SKIPPED_ABOUT_PORTRAIT', {
+                serviceSlug,
+                transactionId,
+                reason: 'About portrait is handled by about page reader, not Git projection'
+              });
               continue;
             }
             
             // Regular service card assignment
             const serviceIndex = servicesData.services.findIndex((s: any) => s.slug === serviceSlug);
             if (serviceIndex !== -1) {
-              servicesData.services[serviceIndex].cardMediaId = stagingValue;
+              servicesData.services[serviceIndex].cardMediaId = mediaId;
               console.log('[DEPLOY API] APPLIED_SERVICE_ASSIGNMENT', { 
                 serviceSlug, 
-                mediaId: stagingValue,
+                mediaId,
                 transactionId 
               });
               appliedCount++; // P0 FIX: Count service mutations toward mutation total
@@ -888,19 +917,43 @@ export async function POST(request: Request) {
         // Service card assignments (6 parts): hpp:{env}:workbench-staging:{txId}:service:{serviceSlug}
         if (parts.length >= 6 && parts[2] === 'workbench-staging' && parts[4] === 'service') {
           const serviceSlug = parts[5];
+          
+          // P0 FIX: Extract mediaId from staging value
+          // Staging value is now a JSON object: { mediaId, expectedRevision, updatedAt, source }
+          let extractedMediaId: string;
+          try {
+            const stagingData = JSON.parse(stringValue);
+            extractedMediaId = stagingData.mediaId;
+          } catch (parseError) {
+            // Legacy format: staging value is just the mediaId string
+            extractedMediaId = stringValue;
+          }
+          
           // Only add if this is a media assignment (value is a media ID)
-          if (stringValue && stringValue.length > 10) { // Heuristic: media IDs are hashes > 10 chars
-            mediaIdsToVerify.add(stringValue);
-            console.log('[DEPLOY API] TRANSACTION_MEDIA_ID', { source: 'service', serviceSlug, mediaId: stringValue });
+          if (extractedMediaId && extractedMediaId.length > 10) { // Heuristic: media IDs are hashes > 10 chars
+            mediaIdsToVerify.add(extractedMediaId);
+            console.log('[DEPLOY API] TRANSACTION_MEDIA_ID', { source: 'service', serviceSlug, mediaId: extractedMediaId });
           }
         }
         // Project assignments (7 parts): hpp:{env}:workbench-staging:{txId}:project:{projectId}:{field}
         else if (parts.length >= 7 && parts[2] === 'workbench-staging' && parts[4] === 'project') {
           const field = parts[6];
+          
+          // P0 FIX: Extract mediaId from staging value
+          // Staging value is now a JSON object: { mediaId, expectedRevision, updatedAt, source }
+          let extractedMediaId: string;
+          try {
+            const stagingData = JSON.parse(stringValue);
+            extractedMediaId = stagingData.mediaId;
+          } catch (parseError) {
+            // Legacy format: staging value is just the mediaId string
+            extractedMediaId = stringValue;
+          }
+          
           // Only add if this is a media assignment (value is a media ID)
-          if (stringValue && stringValue.length > 10) { // Heuristic: media IDs are hashes > 10 chars
-            mediaIdsToVerify.add(stringValue);
-            console.log('[DEPLOY API] TRANSACTION_MEDIA_ID', { source: 'project', field, mediaId: stringValue });
+          if (extractedMediaId && extractedMediaId.length > 10) { // Heuristic: media IDs are hashes > 10 chars
+            mediaIdsToVerify.add(extractedMediaId);
+            console.log('[DEPLOY API] TRANSACTION_MEDIA_ID', { source: 'project', field, mediaId: extractedMediaId });
           }
         }
       }
@@ -1898,13 +1951,9 @@ export async function POST(request: Request) {
         if (parts.length >= 6 && parts[2] === 'workbench-staging' && parts[4] === 'service') {
           const serviceSlug = parts[5];
 
-          // P0 FIX: Map slot-specific keys back to canonical brand keys for promotion
-          const canonicalServiceSlug = serviceSlug === 'brand-hero-background' ? 'brand-hero' :
-                                      serviceSlug === 'brand-portrait-homepage' ? 'brand-portrait' :
-                                      serviceSlug === 'brand-portrait-about' ? 'brand-portrait' :
-                                      serviceSlug === 'homepage-bottom-visual' ? 'homepage-bottom-visual' :
-                                      serviceSlug === 'about-bottom-visual' ? 'about-bottom-visual' :
-                                      serviceSlug; // No mapping needed for other services
+          // P0 FIX: Use actual slot IDs directly for promotion
+          // No canonicalization - public readers must use the same keys
+          const canonicalServiceSlug = serviceSlug;
 
           try {
             // P0 FIX: Parse staging value to extract mediaId and expectedRevision

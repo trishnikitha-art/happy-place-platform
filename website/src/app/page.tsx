@@ -15,6 +15,7 @@ import { PencilLine } from "@/components/pencil-line";
 import { BlueprintGrid } from "@/components/blueprint-grid";
 import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
 import { getNonArchivedServices } from "@/lib/registries";
+import { getServiceCardAssignment } from "@/lib/assignment-store";
 import { getFeaturedReviews, getFeaturedReviewsWithResolvedMedia, getReviewsWithResolvedMedia, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
 import { getHomepageHero } from "@/lib/brand";
@@ -96,46 +97,91 @@ export default async function HomePage() {
   // Group services for homepage display (show homepageEligible services first)
   const homepageServices = allServices.filter(s => s.homepageEligible);
   
-  // Load service card media from static configuration (services.v1.json)
-  // This avoids dynamic Redis reads during static generation
+  // P0 FIX: Load service card media from runtime assignment authority
+  // This is the same path used successfully by /services page
+  // The path is: assignment → mediaId → resolvePublicMedia → ServiceCard
   const serviceCardAssignments = new Map<string, { mediaId: string | null; mediaObject: Media | null }>();
   for (const service of homepageServices) {
-    if (service.cardMediaId) {
-      console.log('[STATIC_CONFIG] SERVICE_CARD_MEDIA_ID', {
+    try {
+      const assignment = await getServiceCardAssignment(service.slug, 'homepage');
+      if (assignment?.mediaId) {
+        console.log('[ASSIGNMENT_AUTHORITY] SERVICE_CARD_MEDIA_ID', {
+          serviceSlug: service.slug,
+          assignedMediaId: assignment.mediaId,
+          staticCardMediaId: service.cardMediaId,
+          revision: assignment.revision,
+        });
+        
+        // Resolve media object through public media gate (rejects Drive references, synthetic content, missing Blob metadata)
+        const mediaObject = await resolvePublicMedia(assignment.mediaId);
+        
+        console.log('[PUBLIC_MEDIA_GATE] SERVICE_CARD_RESOLUTION', {
+          serviceSlug: service.slug,
+          assignedMediaId: assignment.mediaId,
+          resolved: Boolean(mediaObject),
+          resolvedMediaId: mediaObject?.id ?? null,
+        });
+        
+        if (mediaObject) {
+          serviceCardAssignments.set(service.slug, {
+            mediaId: assignment.mediaId,
+            mediaObject,
+          });
+        } else {
+          console.log('[PUBLIC_MEDIA_GATE] ASSIGNED_MEDIA_ID_REJECTED', {
+            serviceSlug: service.slug,
+            rejectedMediaId: assignment.mediaId,
+          });
+          serviceCardAssignments.set(service.slug, {
+            mediaId: null,
+            mediaObject: null,
+          });
+        }
+      } else {
+        // Fallback to static configuration if no assignment exists
+        if (service.cardMediaId) {
+          console.log('[ASSIGNMENT_AUTHORITY] NO_ASSIGNMENT_USING_STATIC', {
+            serviceSlug: service.slug,
+            staticCardMediaId: service.cardMediaId,
+          });
+          
+          const mediaObject = await resolvePublicMedia(service.cardMediaId);
+          if (mediaObject) {
+            serviceCardAssignments.set(service.slug, {
+              mediaId: service.cardMediaId,
+              mediaObject,
+            });
+          } else {
+            serviceCardAssignments.set(service.slug, {
+              mediaId: null,
+              mediaObject: null,
+            });
+          }
+        } else {
+          serviceCardAssignments.set(service.slug, {
+            mediaId: null,
+            mediaObject: null,
+          });
+        }
+      }
+    } catch (error) {
+      console.error('[ASSIGNMENT_AUTHORITY] SERVICE_CARD_ASSIGNMENT_ERROR', {
         serviceSlug: service.slug,
-        cardMediaId: service.cardMediaId,
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
-      
-      // Resolve media object through public media gate (rejects Drive references, synthetic content, missing Blob metadata)
-      const mediaObject = await resolvePublicMedia(service.cardMediaId);
-      
-      console.log('[PUBLIC_MEDIA_GATE] SERVICE_CARD_RESOLUTION', {
-        serviceSlug: service.slug,
-        staticCardMediaId: service.cardMediaId,
-        resolved: Boolean(mediaObject),
-        resolvedMediaId: mediaObject?.id ?? null,
-      });
-      
-      if (mediaObject) {
+      // Fallback to static configuration on error
+      if (service.cardMediaId) {
+        const mediaObject = await resolvePublicMedia(service.cardMediaId);
         serviceCardAssignments.set(service.slug, {
           mediaId: service.cardMediaId,
           mediaObject,
         });
       } else {
-        console.log('[PUBLIC_MEDIA_GATE] STATIC_MEDIA_ID_REJECTED', {
-          serviceSlug: service.slug,
-          rejectedMediaId: service.cardMediaId,
-        });
         serviceCardAssignments.set(service.slug, {
           mediaId: null,
           mediaObject: null,
         });
       }
-    } else {
-      serviceCardAssignments.set(service.slug, {
-        mediaId: null,
-        mediaObject: null,
-      });
     }
   }
 
