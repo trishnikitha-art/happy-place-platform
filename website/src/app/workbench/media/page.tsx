@@ -3255,7 +3255,7 @@ export default function MediaWorkbench() {
                               )}
                             </div>
                           </div>
-                        })()}
+                        ))}
 
                         {state.driveNextPageToken && (
                           <button
