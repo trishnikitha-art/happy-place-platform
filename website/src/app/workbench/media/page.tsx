@@ -878,6 +878,16 @@ export default function MediaWorkbench() {
   };
 
   const handleUseDriveAsset = async () => {
+    console.log('[WORKBENCH] USE_ASSET_BUTTON_CLICKED', {
+      hasDriveFile: !!state.driveSelectedFile,
+      hasLocalAsset: !!state.selectedAsset,
+      hasTargetSlot: !!state.selectedSlot,
+      mutationState: state.mutationState,
+      driveFileId: state.driveSelectedFile?.id,
+      localAssetId: state.selectedAsset?.id,
+      targetSlotId: state.selectedSlot?.id,
+    });
+
     // Guard: Must have both source (Drive file OR local asset) and target slot selected
     const driveFile = state.driveSelectedFile;
     const localAsset = state.selectedAsset;
@@ -3179,7 +3189,15 @@ export default function MediaWorkbench() {
                               )}
 
                               <button
-                                onClick={handleUseDriveAsset}
+                                onClick={() => {
+                                  console.log('[WORKBENCH] USE_ASSET_BUTTON_CLICK_EVENT', {
+                                    hasDriveFile: !!state.driveSelectedFile,
+                                    hasTargetSlot: !!state.selectedSlot,
+                                    mutationState: state.mutationState,
+                                    disabled: !state.selectedSlot || state.mutationState !== 'idle',
+                                  });
+                                  handleUseDriveAsset();
+                                }}
                                 disabled={!state.selectedSlot || state.mutationState !== 'idle'}
                                 className="w-full mt-2 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                               >
