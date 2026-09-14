@@ -3152,7 +3152,16 @@ export default function MediaWorkbench() {
                           </div>
                         )}
                         {/* Use This Asset button - shown when Drive file is selected */}
-                        {state.driveSelectedFile && (
+                        {(() => {
+                          console.log('[WORKBENCH] BUTTON_RENDER_CHECK', {
+                            hasDriveSelectedFile: !!state.driveSelectedFile,
+                            driveSelectedFile: state.driveSelectedFile,
+                            hasSelectedSlot: !!state.selectedSlot,
+                            selectedSlot: state.selectedSlot,
+                            mutationState: state.mutationState,
+                          });
+                          return state.driveSelectedFile;
+                        })() && (
                           <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
                             <div className="flex items-center gap-3 mb-3">
                               <div className="w-12 h-12 bg-muted rounded flex items-center justify-center overflow-hidden">
@@ -3246,7 +3255,7 @@ export default function MediaWorkbench() {
                               )}
                             </div>
                           </div>
-                        )}
+                        })()}
 
                         {state.driveNextPageToken && (
                           <button
