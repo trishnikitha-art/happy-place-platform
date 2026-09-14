@@ -128,7 +128,7 @@ export default function MediaWorkbench() {
     mutationRequestId: null,
     mutationError: null,
     bridgeReadySlots: new Set<string>(), // P0 FIX: Track which slots have sent BRIDGE_READY
-    bridgeReady: false, // P0 FIX: Global bridge readiness flag
+    bridgeReady: true, // P0 FIX: Initialize as true to allow first drag without waiting
   });
 
   // Keep refs in sync with state
@@ -139,6 +139,16 @@ export default function MediaWorkbench() {
   useEffect(() => {
     registeredSlotsRef.current = state.registeredSlots;
   }, [state.registeredSlots]);
+
+  // P0 FIX: Set bridgeReady to true when parent message listener is attached
+  // This allows the first drag to work without waiting for child BRIDGE_READY
+  useEffect(() => {
+    console.log('[WB_FORENSIC] PARENT_LISTENER_INITIALIZED', {
+      bridgeReady: true,
+      timestamp: Date.now(),
+    });
+    setState(prev => ({ ...prev, bridgeReady: true }));
+  }, []);
 
 
 
@@ -1070,13 +1080,9 @@ export default function MediaWorkbench() {
           slotId: targetSlot.id,
           assetId: canonicalMediaId,
         });
-        // P0 FIX: Reset bridge readiness before manual iframe reload
-        setState(prev => ({
-          ...prev,
-          bridgeReady: false,
-          bridgeReadySlots: new Set<string>(),
-        }));
-        console.log('[WB_FORENSIC] BRIDGE_READY_RESET', {
+        // P0 FIX: Do NOT reset bridge readiness before manual iframe reload
+        // Child will send BRIDGE_READY again after reload completes
+        console.log('[WB_FORENSIC] IFRAME_RELOAD_INITIATED', {
           reason: 'Manual iframe reload after use-drive-asset',
           timestamp: Date.now(),
         });
@@ -2341,12 +2347,18 @@ export default function MediaWorkbench() {
     window.addEventListener('slot-click', handleSlotClickEvent);
     window.addEventListener('message', handleMessage);
 
+    // P0 FIX: Initialize bridgeReady as true to allow first drag
+    // Child slots will send BRIDGE_READY to confirm, but don't block on it
+    console.log('[WB_FORENSIC] PARENT_MESSAGE_LISTENER_ATTACHED', {
+      timestamp: Date.now(),
+    });
+
     return () => {
       unsubscribe();
       window.removeEventListener('slot-click', handleSlotClickEvent);
       window.removeEventListener('message', handleMessage);
     };
-  }, []);
+  }, [iframeRef]);
 
   // Group assets by content hash to show only canonical assets (one per real photo)
   const getCanonicalAssets = (assets: any[]) => {
@@ -2692,15 +2704,11 @@ export default function MediaWorkbench() {
                   usesPreviewRoute: iframeRef.current?.src?.includes('/workbench/preview/'),
                   timestamp: Date.now(),
                 });
-                // P0 FIX: Reset bridge readiness on iframe reload/navigation
-                // This prevents DRAG_START from being sent before the new iframe listener is attached
-                setState(prev => ({
-                  ...prev,
-                  bridgeReady: false,
-                  bridgeReadySlots: new Set<string>(),
-                }));
-                console.log('[WB_FORENSIC] BRIDGE_READY_RESET', {
-                  reason: 'Iframe reload/navigation',
+                // P0 FIX: Do NOT reset bridge readiness on iframe load
+                // Child components will send BRIDGE_READY when they mount
+                // Resetting here would create a race condition where child sends READY before reset completes
+                console.log('[WB_FORENSIC] IFRAME_LOAD_COMPLETE', {
+                  reason: 'Iframe loaded, waiting for BRIDGE_READY from child slots',
                   timestamp: Date.now(),
                 });
               }}
