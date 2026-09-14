@@ -39,177 +39,21 @@ import { applyStateTransition, isValidTransition } from '@/lib/materialization-s
 import { verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
 
 /**
- * Assignment reconciliation result
+ * P0 FIX: Assignment reconciliation removed from ingest route
+ *
+ * The canonical materialization path is now:
+ * 1. Download bytes from Drive
+ * 2. Validate with Sharp (final image authority)
+ * 3. Compute content hash
+ * 4. Generate variants
+ * 5. Upload to Blob
+ * 6. Create PublishedMediaAsset
+ * 7. Return media ID
+ *
+ * Assignment is handled exclusively by use-drive-asset with explicit CAS semantics.
+ * Ingest route no longer scans or mutates assignments.
+ * This prevents silent half-connected states and ensures atomic transaction boundaries.
  */
-interface ReconciliationResult {
-  reconciled: boolean;
-  updated: string[];
-  error?: string; // P0 FIX: Signal when reconciliation failed with explicit error message
-  incomplete?: boolean; // P0 FIX: Signal when some assignments could not be reconciled due to media lookup failures
-  repaired: boolean; // P0 FIX: Signal when poisoned PublishedMediaAsset records are repaired
-  brokenAssignments?: Array<{serviceSlug: string, mediaId: string}>; // P0 FIX: Track assignments pointing to nonexistent media (circular dependency)
-}
-
-/**
- * Assignment reconciliation for Drive materialization
- * 
- * Updates assignments that reference Drive files to point to the newly materialized PublishedMediaAsset.
- * This is the constitutional bridge: DriveReference → PublishedMediaAsset → assignment update.
- * 
- * Uses CAS semantics to prevent lost updates and validates media resolution before assignment updates.
- * 
- * Constitutional Rule: Drive file ID → explicit authorized DriveReference → explicit
- * assignment relationship → CAS mutation. Only updates assignments that explicitly reference this Drive file.
- * 
- * P0 FIX: Canonicalize to drive-<fileId> only. drive-ref- system is documented but not implemented.
- * Current implementation reconciles exact drive-<fileId> references.
- */
-async function reconcileDriveAssignments(
-  publishedMediaId: string,
-  driveFileId: string,
-  contentHash: string,
-  requestId: string
-): Promise<ReconciliationResult> {
-  console.log('[ASSIGNMENT_RECONCILIATION] Starting reconciliation', {
-    requestId,
-    driveFileId,
-    publishedMediaId,
-    hasContentHash: !!contentHash,
-  });
-
-  try {
-    // Import assignment store functions
-    const { 
-      getAllServiceCardAssignments, 
-      storeServiceCardAssignment, 
-      getServiceCardAssignment 
-    } = await import('@/lib/assignment-store');
-
-    // Get all current assignments to find Drive references
-    const allAssignments = await getAllServiceCardAssignments();
-    
-    // Find assignments that reference this specific Drive file
-    // P0 FIX: Canonicalize to drive-<fileId> pattern only
-    // drive-ref- system is documented but not implemented in current codebase
-    const exactFilePattern = new RegExp(`^drive-${driveFileId}$`);
-    const assignmentsToUpdate = allAssignments.filter(assignment => {
-      return exactFilePattern.test(assignment.mediaId);
-    });
-
-    console.log('[ASSIGNMENT_RECONCILIATION] Found Drive-referenced assignments', {
-      requestId,
-      totalAssignments: allAssignments.length,
-      driveRefAssignments: assignmentsToUpdate.length,
-      driveFileId,
-    });
-
-    if (assignmentsToUpdate.length === 0) {
-      console.log('[ASSIGNMENT_RECONCILIATION] No Drive-referenced assignments found', {
-        requestId,
-        driveFileId,
-      });
-      return {
-        reconciled: false,
-        updated: [],
-        repaired: false,
-        brokenAssignments: [],
-      };
-    }
-
-    // Update each Drive-referenced assignment to point to the PublishedMediaAsset
-    const updated: string[] = [];
-    const brokenAssignments: Array<{serviceSlug: string, mediaId: string}> = [];
-
-    for (const assignment of assignmentsToUpdate) {
-      try {
-        console.log('[ASSIGNMENT_RECONCILIATION] Updating assignment', {
-          requestId,
-          serviceSlug: assignment.serviceSlug,
-          oldMediaId: assignment.mediaId,
-          newMediaId: publishedMediaId,
-        });
-
-        // Get current assignment for CAS revision
-        const currentAssignment = await getServiceCardAssignment(assignment.serviceSlug);
-        if (!currentAssignment) {
-          console.warn('[ASSIGNMENT_RECONCILIATION] Assignment not found during update', {
-            requestId,
-            serviceSlug: assignment.serviceSlug,
-          });
-          brokenAssignments.push({
-            serviceSlug: assignment.serviceSlug,
-            mediaId: assignment.mediaId,
-          });
-          continue;
-        }
-
-        // Create updated assignment with new mediaId
-        const updatedAssignment = {
-          ...currentAssignment,
-          mediaId: publishedMediaId,
-          updatedAt: new Date().toISOString(),
-          actor: 'reconciliation' as const,
-        };
-
-        // Store with CAS semantics
-        await storeServiceCardAssignment(
-          updatedAssignment,
-          currentAssignment.revision || 0,
-          requestId
-        );
-
-        updated.push(assignment.serviceSlug);
-        console.log('[ASSIGNMENT_RECONCILIATION] Assignment updated successfully', {
-          requestId,
-          serviceSlug: assignment.serviceSlug,
-          oldMediaId: assignment.mediaId,
-          newMediaId: publishedMediaId,
-        });
-      } catch (error) {
-        console.error('[ASSIGNMENT_RECONCILIATION] Failed to update assignment', {
-          requestId,
-          serviceSlug: assignment.serviceSlug,
-          error: error instanceof Error ? error.message : 'Unknown error',
-        });
-        brokenAssignments.push({
-          serviceSlug: assignment.serviceSlug,
-          mediaId: assignment.mediaId,
-        });
-      }
-    }
-
-    console.log('[ASSIGNMENT_RECONCILIATION] Reconciliation complete', {
-      requestId,
-      driveFileId,
-      publishedMediaId,
-      totalFound: assignmentsToUpdate.length,
-      updated: updated.length,
-      failed: brokenAssignments.length,
-    });
-
-    return {
-      reconciled: updated.length > 0,
-      updated,
-      repaired: updated.length > 0,
-      brokenAssignments,
-    };
-  } catch (error) {
-    console.error('[ASSIGNMENT_RECONCILIATION] Reconciliation failed', {
-      requestId,
-      driveFileId,
-      publishedMediaId,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-    
-    return {
-      reconciled: false,
-      updated: [],
-      repaired: false,
-      brokenAssignments: [],
-      error: error instanceof Error ? error.message : 'Unknown error',
-    };
-  }
-}
 
 // Import storage modules at top level (they are ES modules)
 import { uploadToBlob, generateBlobFilename, getBlobMetadataByContentHash } from '@/lib/blob-storage';
@@ -263,7 +107,7 @@ interface IngestRequest {
   sharedDriveId?: string;  // The Shared Drive ID (corpus context)
   projectId?: string;
   roles?: MediaRole[];
-  skipReconciliation?: boolean; // P0 FIX: Skip assignment reconciliation for explicit target mutation
+  originalShortcutId?: string; // P0 FIX: Preserve shortcut provenance
 }
 
 /**
@@ -332,7 +176,7 @@ export async function POST(request: Request) {
 
   try {
     const body: IngestRequest = await request.json();
-    const { fileId, sharedDriveId, projectId, roles = ['gallery'], skipReconciliation = false } = body;
+    const { fileId, sharedDriveId, projectId, roles = ['gallery'] } = body;
 
     console.log('[MEDIA_INGEST] REQUEST stage succeeded', {
       requestId,
@@ -462,11 +306,12 @@ export async function POST(request: Request) {
     });
 
     // P0 FIX: Reject non-image files before downloading bytes
-    // Non-image Drive objects cannot enter the media materialization pipeline
-    // TEMPORARY: Relax strict MIME type validation to allow Drive files without explicit MIME type
-    // Google Drive may not return MIME type for all files. Materialization will fail if not actually an image.
+    // P0 FIX: Do NOT use MIME type as proof that the file is an image
+    // MIME is metadata, not content authority
+    // Sharp will determine whether the bytes are actually an image
+    // Only reject clearly non-image MIME types (documents, archives, etc.)
     if (driveFile.mimeType && !driveFile.mimeType.startsWith('image/') && !driveFile.mimeType.startsWith('application/')) {
-      console.log('[MEDIA_INGEST_ERROR] Non-image file rejected', {
+      console.log('[MEDIA_INGEST_ERROR] Clearly not an image file rejected', {
         requestId,
         mimeType: driveFile.mimeType,
         driveName: driveFile.name,
@@ -476,7 +321,7 @@ export async function POST(request: Request) {
           success: false,
           error: 'UNSUPPORTED_FILE_TYPE',
           stage: 'DRIVE_METADATA',
-          message: 'Only image files can be ingested as media',
+          message: 'File is clearly not an image (MIME type indicates document or archive)',
           details: `File type ${driveFile.mimeType} is not supported`,
           retryable: false,
           requestId,
@@ -484,14 +329,13 @@ export async function POST(request: Request) {
         { status: 415 }
       );
     }
-    
-    if (!driveFile.mimeType) {
-      console.warn('[MEDIA_INGEST] Missing MIME type, proceeding with caution', {
-        requestId,
-        fileId,
-        driveName: driveFile.name,
-      });
-    }
+
+    console.log('[MEDIA_INGEST] MIME classification', {
+      requestId,
+      mimeType: driveFile.mimeType,
+      classification: driveFile.mimeType?.startsWith('image/') ? 'image-metadata' : 'no-image-metadata',
+      note: 'Sharp will determine actual image status from bytes',
+    });
 
     // 2. Download bytes from Drive
     console.log('[MEDIA_INGEST] DOWNLOAD stage started', { requestId });
@@ -647,70 +491,15 @@ export async function POST(request: Request) {
             reason: 'Asset passed public completeness check (shape + real hash + Blob proof + required variants)',
           });
 
-          // CRITICAL: Run assignment reconciliation for deduplicated media
-          // This ensures DriveReference assignments are repaired when re-ingesting the same content
-          // P0 FIX: Assignment reconciliation failures must be reported as partial success, not silent success
-          // P0 FIX: Skip reconciliation if skipReconciliation=true (for explicit target mutation)
-          let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
-          
-          if (!skipReconciliation && fileId) {
-            try {
-              reconciliationResult = await reconcileDriveAssignments(
-                existingMedia.id,
-                fileId, // Use authoritative Drive file ID for provenance reconciliation
-                contentHash,
-                requestId
-              );
-            } catch (reconciliationError) {
-              console.error('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION FAILED', {
-                requestId,
-                mediaId: existingMedia.id,
-                error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
-              });
-              // Mark reconciliation as failed but don't fail the entire ingestion
-              // The asset is still available for manual assignment in Workbench
-              reconciliationResult = {
-                reconciled: false,
-                updated: [],
-                repaired: false,
-                brokenAssignments: [],
-                error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
-              };
-            }
-          } else if (skipReconciliation) {
-            console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION skipped in deduplication (skipReconciliation=true)', {
-              requestId,
-              mediaId: existingMedia.id,
-            });
-            // When skipped, treat as "reconciliation not needed" (not a failure)
-            reconciliationResult = {
-              reconciled: true, // Treat skipped as successful for deduplication response
-              updated: [],
-              repaired: false,
-              brokenAssignments: [],
-            };
-          }
-
-          // P0 FIX: Make reconciliation state explicit in deduplication path
-          // When skipReconciliation=true, we treat it as "not needed" which is a success state
-          const materializationState = skipReconciliation ? 'materialized_reconciliation_skipped' :
-                                       reconciliationResult.reconciled ? 'materialized_reconciled' : 
-                                       reconciliationResult.error ? 'materialized_reconciliation_failed' : 
-                                       'materialized_reconciliation_pending';
-          
+          // P0 FIX: Assignment reconciliation removed from ingest route
+          // Assignment is now handled exclusively by use-drive-asset with explicit CAS semantics
           return NextResponse.json({
             success: true,
             action: 'existing',
             media: existingMedia,
             mediaId: existingMedia.id,
-            message: skipReconciliation 
-              ? 'Media already exists with matching content hash (reconciliation skipped for explicit target mutation)'
-              : reconciliationResult.reconciled 
-                ? 'Media already exists with matching content hash and assignments reconciled'
-                : 'Media already exists with matching content hash, but assignment reconciliation incomplete',
+            message: 'Media already exists with matching content hash (assignment handled by caller)',
             deduplicated: true,
-            reconciliation: reconciliationResult,
-            materializationState, // P0 FIX: Explicit state for UI handling
             requestId,
           });
         } else {
@@ -844,6 +633,7 @@ export async function POST(request: Request) {
       provenance: {
         driveFileId: fileId,
         sharedDriveId: sharedDriveId,
+        originalShortcutId: body.originalShortcutId, // P0 FIX: Preserve shortcut provenance
         preserved_at: new Date().toISOString(),
       },
       filename: driveFile.name,
@@ -885,72 +675,15 @@ export async function POST(request: Request) {
       source: mediaRecord.source,
     });
 
-    // 8. CRITICAL: Run assignment reconciliation
-    // P0 FIX: Assignment reconciliation failures must be reported as partial success, not silent success
-    // P0 FIX: Skip reconciliation if skipReconciliation=true (for explicit target mutation)
-    let reconciliationResult: ReconciliationResult = { reconciled: false, updated: [], repaired: false, brokenAssignments: [] };
-    
-    if (!skipReconciliation) {
-      console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION stage started', {
-        requestId,
-        mediaId,
-      });
-
-      if (fileId) {
-        try {
-          reconciliationResult = await reconcileDriveAssignments(
-            mediaId,
-            fileId, // Use authoritative Drive file ID for provenance reconciliation
-            contentHash,
-            requestId
-          );
-          console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION completed', {
-            requestId,
-            reconciled: reconciliationResult.reconciled,
-            updated: reconciliationResult.updated,
-            repaired: reconciliationResult.repaired,
-          });
-        } catch (reconciliationError) {
-          console.error('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION FAILED', {
-            requestId,
-            error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
-          });
-          // Mark reconciliation as failed but don't fail the entire ingestion
-          // The asset is still available for manual assignment in Workbench
-          reconciliationResult = {
-            reconciled: false,
-            updated: [],
-            repaired: false,
-            brokenAssignments: [],
-            error: reconciliationError instanceof Error ? reconciliationError.message : 'Unknown error',
-          };
-        }
-      }
-    } else {
-      console.log('[MEDIA_INGEST] ASSIGNMENT_RECONCILIATION skipped (skipReconciliation=true)', {
-        requestId,
-        mediaId,
-      });
-    }
-
-    // P0 FIX: Make reconciliation state explicit in response
-    // Materialization can succeed while assignment reconciliation fails
-    // UI must distinguish between: materialized + reconciled vs materialized + reconciliation_pending
-    const materializationState = reconciliationResult.reconciled ? 'materialized_reconciled' : 
-                                 reconciliationResult.error ? 'materialized_reconciliation_failed' : 
-                                 'materialized_reconciliation_pending';
-    
+    // P0 FIX: Assignment reconciliation removed from ingest route
+    // Assignment is now handled exclusively by use-drive-asset with explicit CAS semantics
     return NextResponse.json({
       success: true,
       action: 'created',
       media: mediaRecord,
       mediaId,
-      message: reconciliationResult.reconciled 
-        ? 'Media successfully ingested, materialized, and assignments reconciled'
-        : 'Media successfully ingested and materialized, but assignment reconciliation incomplete',
+      message: 'Media successfully ingested and materialized (assignment handled by caller)',
       deduplicated: false,
-      reconciliation: reconciliationResult,
-      materializationState, // P0 FIX: Explicit state for UI handling
       requestId,
     });
 

@@ -45,6 +45,13 @@ export interface DriveFile {
   description?: string;
   parent?: string;
   corpusId?: string; // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
+  shortcutDetails?: {
+    targetId: string;
+    targetMimeType?: string;
+    targetResourceKey?: string;
+  }; // P0 FIX: Shortcut resolution information
+  objectType?: 'file' | 'shortcut' | 'google-native'; // P0 FIX: Drive object classification
+  originalDriveId?: string; // P0 FIX: For shortcuts, preserve the original Drive object ID as provenance
 }
 
 export class DriveDiscovery {
@@ -419,7 +426,7 @@ export class DriveDiscovery {
     try {
       const params: Record<string, unknown> = {
         fileId,
-        fields: 'id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,parents',
+        fields: 'id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,parents,shortcutDetails',
         supportsAllDrives: true,
       };
 
@@ -432,6 +439,13 @@ export class DriveDiscovery {
       const response = await (drive as any).files.get(params);
 
       if (response.data) {
+        // P0 FIX: Classify Drive object type
+        const isShortcut = response.data.mimeType === 'application/vnd.google-apps.shortcut';
+        const isGoogleNative = response.data.mimeType?.startsWith('application/vnd.google-apps.');
+        
+        const objectType: 'file' | 'shortcut' | 'google-native' = isShortcut ? 'shortcut' : 
+                                                                         isGoogleNative ? 'google-native' : 'file';
+
         return {
           id: response.data.id,
           name: response.data.name,
@@ -444,6 +458,13 @@ export class DriveDiscovery {
           description: response.data.description,
           parent: response.data.parents?.[0],
           corpusId: corpusId, // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
+          shortcutDetails: response.data.shortcutDetails ? {
+            targetId: response.data.shortcutDetails.targetId,
+            targetMimeType: response.data.shortcutDetails.targetMimeType,
+            targetResourceKey: response.data.shortcutDetails.targetResourceKey,
+          } : undefined,
+          objectType,
+          originalDriveId: isShortcut ? response.data.id : undefined, // P0 FIX: Preserve original ID for shortcuts
         };
       }
     } catch (error) {
@@ -451,6 +472,52 @@ export class DriveDiscovery {
     }
 
     return null;
+  }
+
+  /**
+   * Resolve Drive shortcut to target file
+   * @param fileId - The shortcut file ID
+   * @param corpusId - The corpus context (Shared Drive ID or null for My Drive)
+   * 
+   * P0 FIX: Shortcut resolution with provenance preservation
+   * Returns the target Drive file with both original and resolved IDs
+   */
+  async resolveShortcut(fileId: string, corpusId?: string): Promise<{
+    targetFile: DriveFile;
+    originalShortcutId: string;
+  } | null> {
+    console.log('[DRIVE_DISCOVERY] Resolving shortcut', { fileId, corpusId });
+
+    const shortcutFile = await this.getFile(fileId, corpusId);
+    if (!shortcutFile || !shortcutFile.shortcutDetails) {
+      console.error('[DRIVE_DISCOVERY] Not a shortcut or missing shortcutDetails', { fileId });
+      return null;
+    }
+
+    const targetId = shortcutFile.shortcutDetails.targetId;
+    console.log('[DRIVE_DISCOVERY] Shortcut target ID', { targetId });
+
+    // Fetch target file metadata
+    const targetFile = await this.getFile(targetId, corpusId);
+    if (!targetFile) {
+      console.error('[DRIVE_DISCOVERY] Target file not found', { targetId });
+      return null;
+    }
+
+    // P0 FIX: Preserve provenance - mark original shortcut ID
+    targetFile.originalDriveId = fileId;
+
+    console.log('[DRIVE_DISCOVERY] Shortcut resolved', {
+      originalShortcutId: fileId,
+      targetId,
+      targetName: targetFile.name,
+      targetMimeType: targetFile.mimeType,
+    });
+
+    return {
+      targetFile,
+      originalShortcutId: fileId,
+    };
   }
 
   /**

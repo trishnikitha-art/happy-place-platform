@@ -549,13 +549,18 @@ export async function POST(request: Request) {
     const driveClient = await getDriveClient();
     let authoritativeDriveMetadata: any = null;
     let actualCorpusId: string;
-    let actualMimeType: string;
+    let actualMimeType: string | null | undefined;
     let actualDriveId: string | undefined;
+
+    // P0 FIX: Effective source and corpus for materialization (after shortcut resolution)
+    let effectiveFileId: string;
+    let effectiveCorpusId: string;
+    let originalShortcutId: string | undefined = undefined;
 
     try {
       const fileMetadata = await driveClient.files.get({
         fileId: sourceFileId,
-        fields: 'id,name,mimeType,driveId,owners,shared,thumbnailLink,webViewLink',
+        fields: 'id,name,mimeType,driveId,owners,shared,thumbnailLink,webViewLink,shortcutDetails',
         supportsAllDrives: true,
       });
 
@@ -575,6 +580,11 @@ export async function POST(request: Request) {
       actualDriveId = authoritativeDriveMetadata.driveId;
       actualCorpusId = actualDriveId || 'root';
 
+      // P0 FIX: Classify Drive object type
+      const isShortcut = actualMimeType === 'application/vnd.google-apps.shortcut';
+      const isGoogleNative = actualMimeType?.startsWith('application/vnd.google-apps.');
+      const objectType = isShortcut ? 'shortcut' : isGoogleNative ? 'google-native' : 'file';
+
       console.log('[USE_DRIVE_ASSET] Authoritative Drive metadata retrieved', {
         requestId,
         actualName: authoritativeDriveMetadata.name,
@@ -582,9 +592,12 @@ export async function POST(request: Request) {
         actualCorpusId,
         requestedSharedDriveId: sourceSharedDriveId,
         requestedCorpusId: sourceCorpusId,
+        objectType,
+        isShortcut,
+        isGoogleNative,
+        hasShortcutDetails: !!authoritativeDriveMetadata.shortcutDetails,
+        shortcutTargetId: authoritativeDriveMetadata.shortcutDetails?.targetId,
         allFields: Object.keys(authoritativeDriveMetadata),
-        hasMimeType: !!actualMimeType,
-        mimeTypeValue: actualMimeType,
       });
 
       // P0 FIX: Reject if client-provided corpus doesn't match server-derived authority
@@ -663,40 +676,112 @@ export async function POST(request: Request) {
         corpus: corpusAuth.corpus,
       });
 
-      // P1 FIX: Validate MIME type is an image
-      // TEMPORARY: Remove strict MIME type validation to allow transaction to proceed
-      // Google Drive may not return MIME type for all files, or the format may vary
-      // Materialization will fail if the file is not actually an image
+      // P0 FIX: Resolve shortcuts before materialization
+      effectiveFileId = sourceFileId;
+      effectiveCorpusId = actualCorpusId;
+
+      if (isShortcut && authoritativeDriveMetadata.shortcutDetails) {
+        const targetId = authoritativeDriveMetadata.shortcutDetails.targetId;
+        console.log('[USE_DRIVE_ASSET] Resolving shortcut', {
+          requestId,
+          originalShortcutId: sourceFileId,
+          targetId,
+        });
+
+        // Fetch target file metadata
+        const targetMetadata = await driveClient.files.get({
+          fileId: targetId,
+          fields: 'id,name,mimeType,driveId,owners,shared,thumbnailLink,webViewLink',
+          supportsAllDrives: true,
+        });
+
+        if (!targetMetadata.data) {
+          return NextResponse.json(
+            {
+              error: 'SHORTCUT_TARGET_NOT_FOUND',
+              message: 'Shortcut target file not found or not accessible',
+              details: {
+                shortcutId: sourceFileId,
+                targetId,
+              },
+              requestId,
+            },
+            { status: 404 }
+          );
+        }
+
+        // P0 FIX: Verify target is in authorized corpus
+        const targetDriveId = targetMetadata.data.driveId;
+        const targetCorpusId = targetDriveId || 'root';
+
+        if (targetCorpusId !== actualCorpusId) {
+          return NextResponse.json(
+            {
+              error: 'SHORTCUT_TARGET_CORPUS_MISMATCH',
+              message: 'Shortcut target is in a different corpus than the shortcut',
+              details: {
+                shortcutId: sourceFileId,
+                targetId,
+                shortcutCorpusId: actualCorpusId,
+                targetCorpusId,
+              },
+              requestId,
+            },
+            { status: 403 }
+          );
+        }
+
+        // Use target for materialization
+        effectiveFileId = targetId;
+        effectiveCorpusId = targetCorpusId;
+        originalShortcutId = sourceFileId;
+        actualMimeType = targetMetadata.data.mimeType;
+
+        console.log('[USE_DRIVE_ASSET] Shortcut resolved', {
+          requestId,
+          originalShortcutId,
+          targetId,
+          targetName: targetMetadata.data.name,
+          targetMimeType: actualMimeType,
+          targetCorpusId,
+        });
+      }
+
+      // P0 FIX: Do NOT use MIME type as proof that the file is an image
+      // MIME is metadata, not content authority
+      // Sharp will determine whether the bytes are actually an image
+      // Only reject clearly non-image MIME types (documents, archives, etc.)
       if (actualMimeType && !actualMimeType.startsWith('image/') && !actualMimeType.startsWith('application/')) {
-        console.error('[USE_DRIVE_ASSET] INVALID_MIME_TYPE', {
+        console.error('[USE_DRIVE_ASSET] CLEARLY_NOT_IMAGE', {
           requestId,
           actualMimeType,
           actualName: authoritativeDriveMetadata.name,
-          fileId: sourceFileId,
-          rawMetadata: JSON.stringify(authoritativeDriveMetadata),
+          fileId: effectiveFileId,
+          objectType,
         });
         return NextResponse.json(
           {
-            error: 'INVALID_MIME_TYPE',
-            message: `Drive file is not an image: ${actualMimeType}`,
+            error: 'UNSUPPORTED_FILE_TYPE',
+            message: `Drive file is clearly not an image: ${actualMimeType}`,
             details: {
               actualMimeType,
-              fileId: sourceFileId,
+              fileId: effectiveFileId,
               fileName: authoritativeDriveMetadata.name,
+              objectType,
             },
             requestId,
           },
-          { status: 400 }
+          { status: 415 }
         );
       }
-      
-      if (!actualMimeType) {
-        console.warn('[USE_DRIVE_ASSET] Missing MIME type, proceeding with caution', {
-          requestId,
-          fileId: sourceFileId,
-          fileName: authoritativeDriveMetadata.name,
-        });
-      }
+
+      console.log('[USE_DRIVE_ASSET] MIME classification', {
+        requestId,
+        actualMimeType,
+        objectId: effectiveFileId,
+        classification: actualMimeType?.startsWith('image/') ? 'image-metadata' : 'no-image-metadata',
+        note: 'Sharp will determine actual image status from bytes',
+      });
     } catch (driveError) {
       console.error('[USE_DRIVE_ASSET] Drive metadata fetch failed', {
         requestId,
@@ -722,10 +807,10 @@ export async function POST(request: Request) {
       // Step 6a: Resolve or materialize Drive file to canonical PublishedMediaAsset
       const ingestUrl = `${baseUrl}/api/drive/ingest`;
       const ingestBody = {
-        fileId: sourceFileId,
-        sharedDriveId: actualCorpusId, // P0 FIX: Use server-verified corpus identity, not client fallback
+        fileId: effectiveFileId, // P0 FIX: Use effective file ID (target if shortcut, original otherwise)
+        sharedDriveId: effectiveCorpusId, // P0 FIX: Use effective corpus identity
+        originalShortcutId, // P0 FIX: Preserve shortcut provenance
         roles: ['gallery'],
-        skipReconciliation: true, // P0 FIX: Prevent implicit assignment reconciliation
       };
 
       console.log('[USE_DRIVE_ASSET] Resolving canonical asset', {

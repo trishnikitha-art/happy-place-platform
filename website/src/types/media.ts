@@ -153,6 +153,7 @@ export interface PublishedMediaAsset extends BaseMedia {
     august3_driveId?: string;
     sharedDriveId?: string;
     driveFileId?: string; // CONSTITUTIONAL FIX: Authoritative Drive file ID for reconciliation
+    originalShortcutId?: string; // P0 FIX: Preserve shortcut provenance for resolution tracking
     match_type?: string;
     confidence?: string;
     drive_canonical?: boolean;
@@ -237,6 +238,7 @@ export interface Media extends BaseMedia {
     august3_driveId?: string;
     sharedDriveId?: string; // Shared Drive context (corpus/metadata, not file identity)
     driveFileId?: string; // CONSTITUTIONAL FIX: Authoritative Drive file ID for reconciliation
+    originalShortcutId?: string; // P0 FIX: Preserve shortcut provenance for resolution tracking
     match_type?: string;
     confidence?: string;
     drive_canonical?: boolean;

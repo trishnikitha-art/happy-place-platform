@@ -10,6 +10,13 @@
 
 import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
 
+// Redis availability check for integration tests
+const OAUTH_SECURITY_KV_REST_API_URL = process.env.KV_REST_API_URL ||
+                         process.env.KV_REST_API__KV_REST_API_URL;
+const OAUTH_SECURITY_KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN ||
+                         process.env.KV_REST_API__KV_REST_API_TOKEN;
+const OAUTH_SECURITY_REDIS_AVAILABLE = !!(OAUTH_SECURITY_KV_REST_API_URL && OAUTH_SECURITY_KV_REST_API_TOKEN);
+
 // Set environment variables before importing modules
 process.env.KV_REST_API_URL = 'https://test.redis.com';
 process.env.KV_REST_API_TOKEN = 'test-token';
@@ -401,12 +408,22 @@ describe('Use Drive Asset Transaction - Duplication Prevention', () => {
       const deploymentTransactionId = `test_cas_tx_${Date.now()}`;
 
       // Step 1: Create initial assignment (revision 0)
-      await storeServiceCardAssignment(serviceSlug, 'initial-media-id', deploymentTransactionId);
+      await storeServiceCardAssignment({
+        serviceSlug,
+        mediaId: 'initial-media-id',
+        updatedAt: new Date().toISOString(),
+        source: 'workbench',
+      }, undefined, deploymentTransactionId);
       const assignment1 = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
       expect(assignment1?.revision).toBe(1); // Revision increments on first write
 
       // Step 2: Simulate concurrent writer updating to revision 2
-      await storeServiceCardAssignment(serviceSlug, 'concurrent-media-id', deploymentTransactionId);
+      await storeServiceCardAssignment({
+        serviceSlug,
+        mediaId: 'concurrent-media-id',
+        updatedAt: new Date().toISOString(),
+        source: 'workbench',
+      }, undefined, deploymentTransactionId);
       const assignment2 = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
       expect(assignment2?.revision).toBe(2);
 
@@ -451,7 +468,12 @@ describe('Use Drive Asset Transaction - Duplication Prevention', () => {
       const deploymentTransactionId = `test_cas_correct_tx_${Date.now()}`;
 
       // Step 1: Create initial assignment
-      await storeServiceCardAssignment(serviceSlug, 'initial-media-id', deploymentTransactionId);
+      await storeServiceCardAssignment({
+        serviceSlug,
+        mediaId: 'initial-media-id',
+        updatedAt: new Date().toISOString(),
+        source: 'workbench',
+      }, undefined, deploymentTransactionId);
       const assignment1 = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
       const currentRevision = assignment1?.revision ?? 0;
 
