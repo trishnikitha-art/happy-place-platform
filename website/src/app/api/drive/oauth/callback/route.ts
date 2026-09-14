@@ -304,7 +304,7 @@ export async function GET(request: Request) {
     const userAgent = request.headers.get('user-agent') || 'unknown';
     const session = await createSession(authorization.id, userAgent);
 
-    console.log('[DRIVE OAUTH FORENSIC] Session created:', session.id);
+    console.log('[DRIVE OAUTH FORENSIC] Session created successfully');
 
     // Clear old OAuth credential cookies (legacy cleanup)
     const cookieStore = await cookies();
