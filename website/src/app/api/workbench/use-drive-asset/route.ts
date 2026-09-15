@@ -245,7 +245,6 @@ import { verifyPublicMediaAuthority } from '@/lib/media-kv-store';
 import { Redis } from '@upstash/redis';
 import { getDriveClient } from '@/lib/drive/oauth-manager';
 import { verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
-import { failDeploymentTransaction } from '@/lib/deployment-transaction';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -1058,9 +1057,11 @@ export async function POST(request: Request) {
 
       const { createDeploymentTransaction, claimDeploymentTransaction, commitDeploymentTransaction, consumeDeploymentTransaction } = await import('@/lib/deployment-transaction');
       const { getKvNamespace } = await import('@/lib/environment');
-      
+
       const namespace = getKvNamespace();
-      const deploymentTransactionId = crypto.randomUUID();
+      // P0 FIX: Use canonical transaction ID format matching other routes
+      // Deploy route validates that transaction IDs start with WBDEP- or tx-
+      const deploymentTransactionId = `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const stagingKey = `${namespace}workbench-staging:${deploymentTransactionId}:service:${serviceSlug}`;
       
       console.log('[USE_DRIVE_ASSET] STEP_6C_CREATING_STAGING_KEY', {
@@ -1156,10 +1157,12 @@ export async function POST(request: Request) {
           deploymentTransactionId,
           error: deployError,
         });
-        
-        // Mark transaction as failed
-        await failDeploymentTransaction(deploymentTransactionId, `Deployment transaction failed: ${deployError.error || 'Unknown error'}`);
-        
+
+        // P0 FIX: Do NOT fail transaction here
+        // The deploy route owns the transaction lifecycle after being invoked
+        // Deploy route handles all state transitions including failure
+        // This prevents the "Illegal transaction state transition: prepared -> failed" error
+
         return NextResponse.json(
           {
             error: 'DEPLOYMENT_TRANSACTION_FAILED',
