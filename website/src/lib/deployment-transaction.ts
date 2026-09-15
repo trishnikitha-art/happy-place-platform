@@ -725,6 +725,41 @@ export async function retryDeploymentTransaction(transactionId: string): Promise
       throw new Error(`Transaction not found: ${transactionId}. Cannot retry non-existent transaction.`);
     }
     
+    // P0 FIX: Add crash recovery for stale committing transactions
+    // If a transaction has been in committing state for too long (> 5 minutes),
+    // it likely crashed after promotion but before Git commit
+    const COMMITTING_TIMEOUT_MS = 5 * 60 * 1000; // 5 minutes
+    if (current.state === 'committing') {
+      const claimedAt = current.claimedAt ? new Date(current.claimedAt).getTime() : 0;
+      const now = Date.now();
+      const timeInCommitting = now - claimedAt;
+      
+      if (timeInCommitting > COMMITTING_TIMEOUT_MS) {
+        console.warn('[DEPLOYMENT_TRANSACTION] STALE_COMMITTING_TRANSACTION_DETECTED', {
+          transactionId,
+          timeInCommitting,
+          claimedAt: current.claimedAt,
+          owner: current.owner,
+        });
+        
+        // P0 FIX: Fail stale committing transactions to allow recovery
+        // This prevents permanent wedging from crashes after promotion
+        const failed: DeploymentTransaction = {
+          ...current,
+          state: 'failed',
+          failedAt: new Date().toISOString(),
+          failureReason: 'STALE_COMMITTING_TIMEOUT: Transaction in committing state for too long, likely crashed after promotion',
+        };
+        
+        await client.set(key, failed);
+        console.log('[DEPLOYMENT_TRANSACTION] STALE_COMMITTING_FAILED', { transactionId });
+        
+        // Continue to retry path now that it's in failed state
+      } else {
+        throw new Error(`Transaction is in committing state but not yet timed out (${timeInCommitting}ms < ${COMMITTING_TIMEOUT_MS}ms). Cannot retry actively committing transaction.`);
+      }
+    }
+    
     // Check if retry is allowed
     if (current.state !== 'failed') {
       throw new Error(`Transaction must be in failed state to retry. Current state: ${current.state}`);

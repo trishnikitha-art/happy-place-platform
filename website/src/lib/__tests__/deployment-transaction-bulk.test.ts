@@ -17,7 +17,8 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { createDeploymentTransaction, getDeploymentTransaction, claimDeploymentTransaction, atomicPromoteAssignments } from '../deployment-transaction';
+import { createDeploymentTransaction, getDeploymentTransaction, claimDeploymentTransaction, atomicPromoteAssignments, retryDeploymentTransaction, getRedisClient } from '../deployment-transaction';
+import { getKvNamespace } from '../environment';
 
 const TEST_TRANSACTION_PREFIX = 'BULK-TEST-';
 let testTransactionIds: string[] = [];
@@ -347,5 +348,42 @@ describe('Deployment Transaction Bulk Assignment', () => {
 
     expect(result.success).toBe(true);
     expect(result.count).toBe(1);
+  });
+
+  it('should recover stale committing transactions on retry', async () => {
+    if (!hasKv) {
+      console.log('Skipping: KV not configured');
+      return;
+    }
+
+    const TRANSACTION_ID = `${TEST_TRANSACTION_PREFIX}CRASH-RECOVERY-${Date.now()}`;
+    testTransactionIds.push(TRANSACTION_ID);
+
+    // Create and claim transaction
+    await createDeploymentTransaction(
+      TRANSACTION_ID,
+      [],
+      ['website/src/config/services.v1.json'],
+      'Crash recovery test'
+    );
+    const owner = 'test-owner-crash';
+    await claimDeploymentTransaction(TRANSACTION_ID, owner);
+
+    // Simulate crash: manually set claimedAt to 6 minutes ago
+    const redis = getRedisClient();
+    const key = `${getKvNamespace()}deployment-transaction:${TRANSACTION_ID}`;
+    const current = await redis.get(key);
+    if (current) {
+      const tx = JSON.parse(current);
+      tx.claimedAt = new Date(Date.now() - 6 * 60 * 1000).toISOString(); // 6 minutes ago
+      await redis.set(key, JSON.stringify(tx));
+    }
+
+    // Retry should detect stale committing state and fail it, then retry
+    const retried = await retryDeploymentTransaction(TRANSACTION_ID);
+
+    expect(retried.state).toBe('prepared');
+    expect(retried.retryCount).toBe(1);
+    expect(retried.failureReason).toBe('STALE_COMMITTING_TIMEOUT: Transaction in committing state for too long, likely crashed after promotion');
   });
 });
