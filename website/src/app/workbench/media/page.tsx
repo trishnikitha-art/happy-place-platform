@@ -935,12 +935,25 @@ export default function MediaWorkbench() {
 
     const newFilename = driveFile?.name || localAsset?.filename || 'Unknown';
 
+    console.log('[WORKBENCH] USE_ASSET_SHOWING_CONFIRMATION', {
+      requestId,
+      targetSlotId: targetSlot.id,
+      currentFilename,
+      newFilename,
+      sourceType: isDriveSource ? 'drive' : 'local',
+    });
+
     const confirmed = confirm(
       `Replace "${targetSlot.slotName}"?\n\n` +
       `Current: ${currentFilename}\n` +
       `New: ${newFilename}\n\n` +
       `${isDriveSource ? '(Will ingest from Drive)' : '(Using local asset)'}`
     );
+
+    console.log('[WORKBENCH] USE_ASSET_CONFIRMATION_RESULT', {
+      requestId,
+      confirmed,
+    });
 
     if (!confirmed) {
       console.log('[WORKBENCH] USE_ASSET_CANCELLED', { requestId });
@@ -963,6 +976,12 @@ export default function MediaWorkbench() {
       if (isDriveSource) {
         // DRIVE PATH: Use authoritative transaction endpoint
         // Get current assignment revision for CAS
+        console.log('[WORKBENCH] USE_ASSET_REQUESTING_CAS_REVISION', {
+          requestId,
+          targetSlotId: targetSlot.id,
+          endpoint: '/api/workbench/media-authority',
+        });
+
         const verifyResponse = await fetch('/api/workbench/media-authority', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -972,12 +991,23 @@ export default function MediaWorkbench() {
           }),
         });
 
+        console.log('[WORKBENCH] USE_ASSET_CAS_REVISION_RESPONSE', {
+          requestId,
+          status: verifyResponse.status,
+          ok: verifyResponse.ok,
+        });
+
         let expectedRevision = 0;
         if (verifyResponse.ok) {
           const verifyData = await verifyResponse.json();
           if (verifyData.assignment?.revision !== undefined) {
             expectedRevision = verifyData.assignment.revision;
           }
+          console.log('[WORKBENCH] USE_ASSET_CAS_REVISION_PARSED', {
+            requestId,
+            expectedRevision,
+            hasAssignment: !!verifyData.assignment,
+          });
         } else {
           console.error('[WORKBENCH] CAS_REVISION_READ_FAILED', {
             status: verifyResponse.status,
@@ -1000,6 +1030,17 @@ export default function MediaWorkbench() {
         });
 
         // Call the authoritative server-side transaction
+        console.log('[WORKBENCH] USE_ASSET_REQUESTING_TRANSACTION', {
+          requestId,
+          endpoint: '/api/workbench/use-drive-asset',
+          sourceFileId: driveFile.id,
+          sourceSharedDriveId: driveFile.corpusId,
+          sourceCorpusId: driveFile.corpusId,
+          targetSlotId: targetSlot.id,
+          expectedRevision,
+          idempotencyKey: `${driveFile.id}:${targetSlot.id}`,
+        });
+
         const response = await fetch('/api/workbench/use-drive-asset', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -1013,8 +1054,19 @@ export default function MediaWorkbench() {
           }),
         });
 
+        console.log('[WORKBENCH] USE_ASSET_TRANSACTION_RESPONSE', {
+          requestId,
+          status: response.status,
+          ok: response.ok,
+        });
+
         if (!response.ok) {
           const error = await response.json();
+          console.error('[WORKBENCH] USE_ASSET_TRANSACTION_FAILED', {
+            requestId,
+            error: error.error || 'Failed to use Drive asset',
+            fullError: error,
+          });
           throw new Error(error.error || 'Failed to use Drive asset');
         }
 
@@ -1026,6 +1078,7 @@ export default function MediaWorkbench() {
           canonicalMediaId,
           targetSlotId: result.targetSlotId,
           revision: result.assignment?.revision,
+          fullResult: result,
         });
       } else {
         // LOCAL ASSET PATH: Direct assignment to local asset
