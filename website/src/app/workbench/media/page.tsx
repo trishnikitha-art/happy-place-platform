@@ -1005,7 +1005,7 @@ export default function MediaWorkbench() {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             sourceFileId: driveFile.id,
-            sourceSharedDriveId: state.driveCurrentDriveId,
+            sourceSharedDriveId: driveFile.corpusId, // P0 FIX: Use authoritative corpus ID from selected file, not mutable navigation state
             sourceCorpusId: driveFile.corpusId, // P0 FIX: Use explicit corpus identity from Drive file
             targetSlotId: targetSlot.id,
             expectedRevision,
