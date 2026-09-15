@@ -342,19 +342,50 @@ export function VisualSlot({
   const handleClick = () => {
     console.log('[FORENSIC] iframe VisualSlot CLICK HANDLER', { id });
 
-    // If in iframe, use postMessage to communicate with parent
-    if (window.parent !== window) {
+    const slotData = { id, route, page, section, slotName, currentMediaId };
+    const isSameOrigin = window.parent.location?.origin === window.location.origin;
+
+    // P0 FIX: Dual-path slot click protocol
+    // Primary: Direct same-origin CustomEvent (most reliable for same-origin iframes)
+    // Fallback: Validated postMessage (for cross-origin or as backup)
+
+    if (isSameOrigin) {
+      console.log('[SLOT_CLICK] SAME_ORIGIN_PRIMARY_PATH', {
+        slotId: id,
+        method: 'CustomEvent',
+        parentOrigin: window.parent.location?.origin,
+        currentOrigin: window.location.origin,
+      });
+
+      // Primary path: direct CustomEvent dispatch
+      window.dispatchEvent(new CustomEvent('slot-click', { detail: slotData }));
+
+      // Fallback: also send postMessage for redundancy
       const targetOrigin = window.parent.location.origin;
       window.parent.postMessage(
         {
           type: 'SLOT_CLICK',
-          slot: { id, route, page, section, slotName, currentMediaId },
+          slot: slotData,
         },
         targetOrigin
       );
     } else {
-      // Direct dispatch if not in iframe
-      window.dispatchEvent(new CustomEvent('slot-click', { detail: { id, route, page, section, slotName, currentMediaId } }));
+      console.log('[SLOT_CLICK] CROSS_ORIGIN_POSTMESSAGE_PATH', {
+        slotId: id,
+        method: 'postMessage',
+        parentOrigin: window.parent.location?.origin,
+        currentOrigin: window.location.origin,
+      });
+
+      // Cross-origin: only postMessage
+      const targetOrigin = window.parent.location.origin;
+      window.parent.postMessage(
+        {
+          type: 'SLOT_CLICK',
+          slot: slotData,
+        },
+        targetOrigin
+      );
     }
   };
 

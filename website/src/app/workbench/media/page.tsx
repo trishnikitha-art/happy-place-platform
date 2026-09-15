@@ -559,7 +559,7 @@ export default function MediaWorkbench() {
   };
 
   const handleSlotClick = (slot: RegisteredSlot) => {
-    console.log('[WORKBENCH] SLOT_CLICKED', {
+    console.log('[WORKBENCH] TARGET_SLOT_SELECTED', {
       slotId: slot.id,
       route: slot.route,
       page: slot.page,
@@ -567,9 +567,24 @@ export default function MediaWorkbench() {
       slotName: slot.slotName,
       currentMediaId: slot.currentMediaId,
     });
-    
-    setState(prev => ({ ...prev, selectedSlot: slot }));
-    
+
+    // P0 FIX: Hard forensic assertion - verify slot selection actually happens
+    console.log('[WORKBENCH] TARGET_SLOT_SELECTION_ASSERTION', {
+      slotId: slot.id,
+      expectedSlotId: slot.id,
+      beforeStateSelectedSlotId: state.selectedSlot?.id,
+    });
+
+    setState(prev => {
+      const newState = { ...prev, selectedSlot: slot };
+      console.log('[WORKBENCH] TARGET_SLOT_SELECTION_COMPLETE', {
+        slotId: slot.id,
+        afterStateSelectedSlotId: newState.selectedSlot?.id,
+        match: newState.selectedSlot?.id === slot.id,
+      });
+      return newState;
+    });
+
     // If slot has media, select that media
     if (slot.currentMediaId) {
       const asset = state.assets.find(a => a.id === slot.currentMediaId);
@@ -1484,6 +1499,36 @@ export default function MediaWorkbench() {
         handleSlotClick(slot);
       } else {
         console.log('[FORENSIC] WORKBENCH SLOT CLICK NOT FOUND', { slotId: id });
+      }
+    };
+
+    // P0 FIX: Listen for same-origin CustomEvent from iframe (primary path)
+    const handleSlotClickCustomEvent = (event: CustomEvent) => {
+      console.log('[WORKBENCH] SLOT_CLICK_CUSTOM_EVENT_RECEIVED', {
+        slotId: event.detail?.id,
+        route: event.detail?.route,
+        page: event.detail?.page,
+        section: event.detail?.section,
+        slotName: event.detail?.slotName,
+        currentMediaId: event.detail?.currentMediaId,
+        source: 'CustomEvent (same-origin primary path)',
+      });
+
+      const slotId = event.detail?.id;
+      if (!slotId) {
+        console.error('[WORKBENCH] SLOT_CLICK_CUSTOM_EVENT_NO_ID', { event });
+        return;
+      }
+
+      const slot = state.registeredSlots.find(s => s.id === slotId);
+      if (slot) {
+        console.log('[FORENSIC] WORKBENCH SLOT CLICK RESOLVED (CustomEvent)', {
+          slotId: slot.id,
+          currentMediaId: slot.currentMediaId,
+        });
+        handleSlotClick(slot);
+      } else {
+        console.log('[FORENSIC] WORKBENCH SLOT CLICK NOT FOUND (CustomEvent)', { slotId });
       }
     };
 
@@ -2408,6 +2453,7 @@ export default function MediaWorkbench() {
     };
 
     window.addEventListener('slot-click', handleSlotClickEvent);
+    window.addEventListener('slot-click', handleSlotClickCustomEvent as EventListener);
     window.addEventListener('message', handleMessage);
 
     // P0 FIX: Initialize bridgeReady as true to allow first drag
@@ -3166,17 +3212,21 @@ export default function MediaWorkbench() {
                               const isIngested = !!existingAsset;
 
                               return (
-                                <button
+                                <div
                                   key={file.corpusId ? `${file.corpusId}:${file.id}` : `my-drive:${file.id}`}
                                   draggable={true}
                                   data-asset-id={file.id}
                                   onDragStart={(e) => handleDragStart(e, existingAsset, file)}
-                                  onClick={(e) => handleDriveFileClick(e, file)}
-                                  className={`w-full p-3 bg-background border rounded-lg transition-colors text-left flex items-center gap-3 ${
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    e.preventDefault();
+                                    handleDriveFileClick(e, file);
+                                  }}
+                                  className={`w-full p-3 bg-background border rounded-lg transition-colors text-left flex items-center gap-3 cursor-pointer ${
                                     state.driveSelectedFile?.id === file.id
                                       ? 'border-primary ring-2 ring-primary'
                                       : 'border-border hover:border-primary'
-                                  } cursor-grab`}
+                                  }`}
                                 >
                                   {file.thumbnailLink && file.mimeType?.startsWith('image/') ? (
                                     <img
@@ -3199,7 +3249,7 @@ export default function MediaWorkbench() {
                                   {isIngested && (
                                     <div className="text-xs text-green-600 font-medium">✓</div>
                                   )}
-                                </button>
+                                </div>
                               );
                             })}
                           </div>
@@ -3251,7 +3301,9 @@ export default function MediaWorkbench() {
                               )}
 
                               <button
-                                onClick={() => {
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  e.preventDefault();
                                   console.log('[WORKBENCH] USE_ASSET_BUTTON_CLICK_EVENT', {
                                     hasDriveFile: !!state.driveSelectedFile,
                                     hasTargetSlot: !!state.selectedSlot,

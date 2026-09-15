@@ -95,7 +95,8 @@ jest.mock('next/headers', () => ({
 }));
 
 console.log('[OAUTH_INTEGRATION_SETUP] REAL_REDIS_INTEGRATION_TESTS_CONFIGURED');
-console.log('[OAUTH_INTEGRATION_SETUP] Redis URL:', process.env.KV_REST_API_URL);
+console.log('[OAUTH_INTEGRATION_SETUP] Redis credentials present:', !!process.env.KV_REST_API_URL && !!process.env.KV_REST_API_TOKEN);
+console.log('[OAUTH_INTEGRATION_SETUP] Redis endpoint configured:', !!process.env.KV_REST_API_URL);
 console.log('[OAUTH_INTEGRATION_SETUP] Environment:', process.env.NODE_ENV);
 console.log('[OAUTH_INTEGRATION_SETUP] Test namespace:', testNamespace);
 console.log('[OAUTH_INTEGRATION_SETUP] @upstash/redis: REAL (NOT MOCKED)');
