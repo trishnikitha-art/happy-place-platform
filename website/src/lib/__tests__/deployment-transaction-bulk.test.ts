@@ -384,6 +384,7 @@ describe('Deployment Transaction Bulk Assignment', () => {
 
     expect(retried.state).toBe('prepared');
     expect(retried.retryCount).toBe(1);
-    expect(retried.failureReason).toBe('STALE_COMMITTING_TIMEOUT: Transaction in committing state for too long, likely crashed after promotion');
+    expect(retried.failureReason).toBeUndefined(); // P0 FIX: failureReason is cleared on retry
+    expect(retried.owner).toBeUndefined(); // P0 FIX: owner is cleared on retry
   });
 });
