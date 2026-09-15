@@ -256,3 +256,13 @@ jobs:
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+      - name: Phase C - Diagnose malformed production media record
+        run: |
+          echo "Diagnosing malformed production media record 07c0eae184dc5a375f943a3ac2b67e95"
+          echo "Using application's namespace construction to ensure key accuracy"
+          cd website
+          node scripts/diagnose-production-media-via-app-namespace.mjs
+        env:
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
+          VERCEL_ENV: production
