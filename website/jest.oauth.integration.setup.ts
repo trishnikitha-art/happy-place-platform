@@ -79,8 +79,9 @@ console.log('[OAUTH_INTEGRATION_SETUP] ENCRYPTION_KEYS_PRESENT');
 process.env.NODE_ENV = 'test';
 
 // Set unique test namespace to avoid conflicts with production data
-// This ensures integration tests never touch production application records
-const testNamespace = `hpp:test:${Date.now()}:`;
+// P0 FIX: Use CI-supplied namespace if present, otherwise generate timestamp namespace
+// This ensures CI can control namespace for run-scoped isolation while local development still works
+const testNamespace = process.env.TEST_NAMESPACE || `hpp:test:${Date.now()}:`;
 process.env.TEST_NAMESPACE = testNamespace;
 
 // Mock browser cookies properly for integration tests
