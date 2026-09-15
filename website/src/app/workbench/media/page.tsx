@@ -1502,36 +1502,6 @@ export default function MediaWorkbench() {
       }
     };
 
-    // P0 FIX: Listen for same-origin CustomEvent from iframe (primary path)
-    const handleSlotClickCustomEvent = (event: CustomEvent) => {
-      console.log('[WORKBENCH] SLOT_CLICK_CUSTOM_EVENT_RECEIVED', {
-        slotId: event.detail?.id,
-        route: event.detail?.route,
-        page: event.detail?.page,
-        section: event.detail?.section,
-        slotName: event.detail?.slotName,
-        currentMediaId: event.detail?.currentMediaId,
-        source: 'CustomEvent (same-origin primary path)',
-      });
-
-      const slotId = event.detail?.id;
-      if (!slotId) {
-        console.error('[WORKBENCH] SLOT_CLICK_CUSTOM_EVENT_NO_ID', { event });
-        return;
-      }
-
-      const slot = state.registeredSlots.find(s => s.id === slotId);
-      if (slot) {
-        console.log('[FORENSIC] WORKBENCH SLOT CLICK RESOLVED (CustomEvent)', {
-          slotId: slot.id,
-          currentMediaId: slot.currentMediaId,
-        });
-        handleSlotClick(slot);
-      } else {
-        console.log('[FORENSIC] WORKBENCH SLOT CLICK NOT FOUND (CustomEvent)', { slotId });
-      }
-    };
-
     // Listen for iframe messages (SLOT_REGISTER and SLOT_CLICK)
     const handleMessage = async (event: MessageEvent) => {
       const iframeWindow = iframeRef.current?.contentWindow;
@@ -2453,7 +2423,6 @@ export default function MediaWorkbench() {
     };
 
     window.addEventListener('slot-click', handleSlotClickEvent);
-    window.addEventListener('slot-click', handleSlotClickCustomEvent as EventListener);
     window.addEventListener('message', handleMessage);
 
     // P0 FIX: Initialize bridgeReady as true to allow first drag
