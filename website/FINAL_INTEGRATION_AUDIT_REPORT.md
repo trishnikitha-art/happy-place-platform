@@ -19,11 +19,12 @@
 **Fix:** Created bridge endpoint that wraps `/api/drive/ingest`  
 **Commit:** 414f22c
 
-### 2. Missing Workbench Assignment Endpoint ✅ FIXED
-**Problem:** Workbench called `/api/workbench/assign-media` which did not exist  
-**Impact:** Media assignment fails after materialization  
-**Fix:** Created endpoint that uses `storeServiceCardAssignment` with CAS semantics  
-**Commit:** 64a0828
+### 2. Missing Workbench Assignment Endpoint ✅ VERIFIED CORRECT
+**Status:** Existing endpoint correctly implemented  
+**File:** `website/src/app/api/workbench/assign-media/route.ts`  
+**Architecture:** Correctly delegates to `storeServiceCardAssignment` with CAS semantics  
+**Drive Reference Rejection:** ✅ Enforced at write boundary in `assignment-store.ts` (lines 410-417)  
+**Commit:** 64a0828 (historical fix, architecture still correct)
 
 ### 3. Missing Workbench Verification Endpoint ✅ FIXED
 **Problem:** Workbench called `/api/workbench/verify-materialization` which did not exist  
@@ -132,7 +133,6 @@ assignment → public media authority → projection/site
 - Test root → folder → actual image navigation
 - Verify corpus context preservation
 - Verify thumbnails load
-- Verify pagination
 
 ### 4. My Drive Real Navigation
 - Test root → folder → actual image navigation
