@@ -24,53 +24,9 @@ const MALFORMED_MEDIA_ID = '07c0eae184dc5a375f943a3ac2b67e95';
 // Use the MEDIA_PREFIX from media-kv-store.ts
 const MEDIA_PREFIX = 'media:';
 
-// Construct the key using the application's actual namespace construction logic
-// Replicated from environment.ts to avoid TypeScript import issues in standalone script
-function getEnvironment() {
-  const vercelEnv = process.env.VERCEL_ENV;
-  const nodeEnv = process.env.NODE_ENV;
-  const nextPhase = process.env.NEXT_PHASE;
-  const isCI = process.env.CI === 'true' || process.env.GITHUB_ACTIONS === 'true';
-  
-  if (nodeEnv === 'test') {
-    return 'test';
-  }
-  
-  if (nextPhase === 'phase-production-build') {
-    return 'development';
-  }
-  
-  if (vercelEnv === 'production') {
-    return 'production';
-  }
-  
-  if (vercelEnv === 'preview') {
-    return 'preview';
-  }
-  
-  if (isCI && nodeEnv === 'production' && !vercelEnv) {
-    return 'development';
-  }
-  
-  if (nodeEnv === 'production' && !vercelEnv) {
-    return 'development';
-  }
-  
-  if (nodeEnv === 'development') {
-    return 'development';
-  }
-  
-  throw new Error('Unknown environment');
-}
-
-function getKvNamespace() {
-  if (process.env.TEST_NAMESPACE) {
-    return process.env.TEST_NAMESPACE;
-  }
-  
-  const env = getEnvironment();
-  return `hpp:${env}:`;
-}
+// Import the actual application namespace functions for ONE source of truth
+// This ensures the diagnostic uses the exact same key construction as the application
+const { getKvNamespace } = await import('../src/lib/environment.ts');
 
 const namespace = getKvNamespace();
 const mediaKey = `${namespace}${MEDIA_PREFIX}${MALFORMED_MEDIA_ID}`;
@@ -98,7 +54,9 @@ async function diagnoseMalformedRecord() {
       return;
     }
 
-    const media = JSON.parse(mediaRecord);
+    // P0 FIX: Handle both JSON string and already-deserialized object (Upstash Redis behavior)
+    // The application explicitly handles both return types
+    const media = typeof mediaRecord === 'string' ? JSON.parse(mediaRecord) : mediaRecord;
     
     console.log('[DIAGNOSTIC] Record found in KV using application namespace');
     console.log('[DIAGNOSTIC] Full record:', JSON.stringify(media, null, 2));
@@ -158,9 +116,9 @@ async function diagnoseMalformedRecord() {
   } catch (error) {
     console.error('[DIAGNOSTIC] Error inspecting record:', error);
     process.exit(1);
-  } finally {
-    await redis.quit();
   }
+  // P0 FIX: Do not call redis.quit() - Upstash REST client is stateless HTTP
+  // The application's Redis client does not call quit() for stateless REST connections
 }
 
 diagnoseMalformedRecord();
