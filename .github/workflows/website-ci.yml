@@ -130,7 +130,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
-          TEST_NAMESPACE: hpp:ci-test
+          TEST_NAMESPACE: hpp:ci-test:${{ github.run_id }}
           # CI-only test credentials for Workbench (not production secrets)
           WORKBENCH_PASSWORD: ci-workbench-password-not-production
           HPP_WORKBENCH_PRINCIPAL_ID: ci-workbench-principal
@@ -146,7 +146,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
-          TEST_NAMESPACE: hpp:ci-test
+          TEST_NAMESPACE: hpp:ci-test:${{ github.run_id }}
           # CI-only test credentials for Workbench (not production secrets)
           WORKBENCH_PASSWORD: ci-workbench-password-not-production
           HPP_WORKBENCH_PRINCIPAL_ID: ci-workbench-principal
@@ -182,7 +182,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
-          TEST_NAMESPACE: hpp:ci-test
+          TEST_NAMESPACE: hpp:ci-test:${{ github.run_id }}
           # CI-only test credentials for Workbench (not production secrets)
           WORKBENCH_PASSWORD: ci-workbench-password-not-production
           HPP_WORKBENCH_PRINCIPAL_ID: ci-workbench-principal
@@ -219,7 +219,40 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
-          TEST_NAMESPACE: hpp:ci-test
+          TEST_NAMESPACE: hpp:ci-test:${{ github.run_id }}
           # CI-only test credentials for Workbench (not production secrets)
           WORKBENCH_PASSWORD: ci-workbench-password-not-production
           HPP_WORKBENCH_PRINCIPAL_ID: ci-workbench-principal
+      - name: Phase B - Cleanup CI test namespace
+        if: always()
+        run: |
+          echo "Cleaning up CI test namespace: hpp:ci-test:${{ github.run_id }}"
+          # Scan and delete all keys in the run-scoped namespace
+          node -e "
+            const { Redis } = require('@upstash/redis');
+            const redis = new Redis({
+              url: process.env.KV_REST_API_URL,
+              token: process.env.KV_REST_API_TOKEN
+            });
+            const namespace = 'hpp:ci-test:${{ github.run_id }}';
+            let cursor = '0';
+            let deleted = 0;
+            (async () => {
+              do {
+                const result = await redis.scan(cursor, { match: namespace + '*', count: 100 });
+                cursor = result[0];
+                const keys = result[1];
+                if (keys.length > 0) {
+                  await redis.del(...keys);
+                  deleted += keys.length;
+                }
+              } while (cursor !== '0');
+              console.log('Deleted', deleted, 'keys from namespace:', namespace);
+            })().catch(err => {
+              console.error('Cleanup error:', err);
+              process.exit(1);
+            });
+          "
+        env:
+          KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
