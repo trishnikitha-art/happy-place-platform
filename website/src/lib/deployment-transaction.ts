@@ -368,12 +368,19 @@ const STATE_TRANSITION_SCRIPT = `
     end
   end
   
-  -- committing → failed: record failure reason
+  -- committing → failed: record failure reason and increment retryCount
   if currentState == 'committing' and newState == 'failed' then
     local newParsed = cjson.decode(transactionData)
     if not newParsed.failureReason then
       return {err = 'MISSING_FAILURE_REASON: Must provide failure reason'}
     end
+    newParsed.retryCount = (parsed.retryCount or 0) + 1
+    transactionData = cjson.encode(newParsed)
+  end
+
+  -- failed → prepared: increment retryCount for retry attempt
+  if currentState == 'failed' and newState == 'prepared' then
+    local newParsed = cjson.decode(transactionData)
     newParsed.retryCount = (parsed.retryCount or 0) + 1
     transactionData = cjson.encode(newParsed)
   end
@@ -671,12 +678,14 @@ export async function failDeploymentTransaction(
       throw new Error(`Transaction not found: ${transactionId}. Cannot fail non-existent transaction.`);
     }
     
+    // P0 FIX: Let Lua script be the single authoritative increment point for retryCount
+    // The STATE_TRANSITION_SCRIPT increments retryCount for committing → failed
+    // Do NOT increment here to avoid double increment
     const updated: DeploymentTransaction = {
       ...current,
       state: 'failed',
       failureReason,
       failedAt: new Date().toISOString(),
-      retryCount: (current.retryCount || 0) + 1,
     };
     
     const result = await client.eval(
@@ -716,11 +725,11 @@ export async function failDeploymentTransaction(
 export async function retryDeploymentTransaction(transactionId: string): Promise<DeploymentTransaction> {
   const key = getTransactionKey(transactionId);
   const client = getRedisClient();
-  
+
   console.log('[DEPLOYMENT_TRANSACTION] RETRYING', { transactionId });
-  
+
   try {
-    const current = await client.get<DeploymentTransaction>(key);
+    let current = await client.get<DeploymentTransaction>(key);
     if (!current) {
       throw new Error(`Transaction not found: ${transactionId}. Cannot retry non-existent transaction.`);
     }
@@ -753,13 +762,20 @@ export async function retryDeploymentTransaction(transactionId: string): Promise
         
         await client.set(key, failed);
         console.log('[DEPLOYMENT_TRANSACTION] STALE_COMMITTING_FAILED', { transactionId });
-        
+
+        // P0 FIX: Re-read transaction from Redis to get authoritative state after transition
+        // The in-memory 'current' object is stale after we write the failed state
+        current = await client.get<DeploymentTransaction>(key);
+        if (!current) {
+          throw new Error(`Transaction disappeared after stale committing recovery: ${transactionId}`);
+        }
+
         // Continue to retry path now that it's in failed state
       } else {
         throw new Error(`Transaction is in committing state but not yet timed out (${timeInCommitting}ms < ${COMMITTING_TIMEOUT_MS}ms). Cannot retry actively committing transaction.`);
       }
     }
-    
+
     // Check if retry is allowed
     if (current.state !== 'failed') {
       throw new Error(`Transaction must be in failed state to retry. Current state: ${current.state}`);
@@ -772,13 +788,14 @@ export async function retryDeploymentTransaction(transactionId: string): Promise
     }
     
     // Reset to prepared state, preserving all other fields
+    // P0 FIX: Lua script now handles retryCount increment for failed → prepared
+    // Do NOT increment here to avoid double increment
     const updated: DeploymentTransaction = {
       ...current,
       state: 'prepared',
       owner: undefined, // Clear owner so deploy can claim it again
       failureReason: undefined, // Clear previous failure reason
       failedAt: undefined,
-      retryCount: (current.retryCount || 0) + 1,
     };
     
     const result = await client.eval(

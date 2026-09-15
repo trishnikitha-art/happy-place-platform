@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { createDeploymentTransaction, getDeploymentTransaction, claimDeploymentTransaction, atomicPromoteAssignments, retryDeploymentTransaction, getRedisClient } from '../deployment-transaction';
+import { createDeploymentTransaction, getDeploymentTransaction, claimDeploymentTransaction, atomicPromoteAssignments, retryDeploymentTransaction, failDeploymentTransaction, getRedisClient } from '../deployment-transaction';
 import { getKvNamespace } from '../environment';
 
 const TEST_TRANSACTION_PREFIX = 'BULK-TEST-';
@@ -391,8 +391,47 @@ describe('Deployment Transaction Bulk Assignment', () => {
     const retried = await retryDeploymentTransaction(TRANSACTION_ID);
 
     expect(retried.state).toBe('prepared');
-    expect(retried.retryCount).toBe(1);
-    expect(retried.failureReason).toBeUndefined(); // P0 FIX: failureReason is cleared on retry
-    expect(retried.owner).toBeUndefined(); // P0 FIX: owner is cleared on retry
+    expect(retried.retryCount).toBe(1); // Lua script increments for failed → prepared
+    expect(retried.failureReason).toBeUndefined(); // failureReason is cleared on retry
+    expect(retried.owner).toBeUndefined(); // owner is cleared on retry
+  });
+
+  it('should normalize retryCount increments across state transitions', async () => {
+    if (!hasKv) {
+      console.log('Skipping: KV not configured');
+      return;
+    }
+
+    const TRANSACTION_ID = `${TEST_TRANSACTION_PREFIX}RETRY-COUNT-${Date.now()}`;
+    testTransactionIds.push(TRANSACTION_ID);
+
+    // Create and claim transaction
+    await createDeploymentTransaction(
+      TRANSACTION_ID,
+      [],
+      ['website/src/config/services.v1.json'],
+      'Retry count test'
+    );
+    const owner = 'test-owner-retry';
+    await claimDeploymentTransaction(TRANSACTION_ID, owner);
+
+    // First failure: committing → failed, retryCount should be 1
+    const failed1 = await failDeploymentTransaction(TRANSACTION_ID, 'First failure');
+    expect(failed1.state).toBe('failed');
+    expect(failed1.retryCount).toBe(1); // Lua script increments for committing → failed
+
+    // First retry: failed → prepared, retryCount should be 2
+    const retried1 = await retryDeploymentTransaction(TRANSACTION_ID);
+    expect(retried1.state).toBe('prepared');
+    expect(retried1.retryCount).toBe(2); // Lua script increments for failed → prepared
+
+    // Claim again and fail second time
+    await claimDeploymentTransaction(TRANSACTION_ID, owner);
+    const failed2 = await failDeploymentTransaction(TRANSACTION_ID, 'Second failure');
+    expect(failed2.state).toBe('failed');
+    expect(failed2.retryCount).toBe(3); // Lua script increments for committing → failed
+
+    // At retryCount = 3, MAX_RETRIES = 3, so this should be terminal
+    await expect(retryDeploymentTransaction(TRANSACTION_ID)).rejects.toThrow('has exceeded maximum retry count');
   });
 });
