@@ -29,8 +29,7 @@ const describeOrSkip = (!OAUTH_IDENTITY_REDIS_AVAILABLE && !CI) ? describe.skip 
 
 describeOrSkip('OAuth Atomic Identity - Real Redis Integration', () => {
   let testNamespace: string;
-  let originalTestNamespace: string | undefined;
-  
+
   beforeAll(() => {
     // FAIL FAST in CI: Integration tests require Redis credentials
     if (CI && !OAUTH_IDENTITY_REDIS_AVAILABLE) {
@@ -40,29 +39,22 @@ describeOrSkip('OAuth Atomic Identity - Real Redis Integration', () => {
         'These tests require real Redis connectivity to prove atomic behavior.'
       );
     }
-    
+
     // Skip if Redis credentials not available in local development
     if (!OAUTH_IDENTITY_REDIS_AVAILABLE) {
       console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping integration tests - Redis credentials not available');
       return;
     }
-    
-    // Save original TEST_NAMESPACE to restore after tests
-    originalTestNamespace = process.env.TEST_NAMESPACE;
-    
-    // Generate unique test namespace to avoid conflicts with production data
-    testNamespace = `test_oauth_identity_${Date.now()}`;
-    process.env.TEST_NAMESPACE = testNamespace;
+
+    // P0 FIX: Use CI-supplied TEST_NAMESPACE from jest.oauth.integration.setup.ts
+    // Do not generate separate namespace - this defeats run-scoped isolation
+    testNamespace = process.env.TEST_NAMESPACE || 'hpp:test:';
     console.log('[OAUTH_IDENTITY_INTEGRATION] Using test namespace:', testNamespace);
   });
 
   afterAll(() => {
-    // Restore original TEST_NAMESPACE
-    if (originalTestNamespace !== undefined) {
-      process.env.TEST_NAMESPACE = originalTestNamespace;
-    } else {
-      delete process.env.TEST_NAMESPACE;
-    }
+    // P0 FIX: Do not restore TEST_NAMESPACE - it's managed by jest.oauth.integration.setup.ts
+    // The setup file controls the namespace for the entire test run
   });
 
   // Skip all tests if Redis credentials are not available in local development

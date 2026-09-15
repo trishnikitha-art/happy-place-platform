@@ -29,14 +29,20 @@
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { atomicPromoteAssignments } from '../deployment-transaction';
 import { getServiceCardAssignment, storeServiceCardAssignment } from '../assignment-store';
+import { getKvNamespace } from '../environment';
 
 const TEST_PREFIX = 'ATOMIC-PROMOTION-TEST-';
 let testServiceSlugs: string[] = [];
+let testNamespace: string;
 
 beforeAll(() => {
   if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
     console.warn('Skipping atomic promotion test: KV credentials not configured');
   }
+
+  // P0 FIX: Use CI-supplied TEST_NAMESPACE from jest.oauth.integration.setup.ts
+  testNamespace = getKvNamespace();
+  console.log('[ATOMIC_PROMOTION] Using test namespace:', testNamespace);
 });
 
 afterAll(async () => {

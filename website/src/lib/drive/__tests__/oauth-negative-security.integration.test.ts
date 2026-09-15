@@ -31,9 +31,8 @@ const describeOrSkip = (!OAUTH_SECURITY_REDIS_AVAILABLE && !CI) ? describe.skip 
 
 describeOrSkip('OAuth Negative Security - Real Redis Integration', () => {
   let testNamespace: string;
-  let originalTestNamespace: string | undefined;
   let redis: any; // Redis client for adversarial tests
-  
+
   beforeAll(async () => {
     // FAIL FAST in CI: Integration tests require Redis credentials
     if (CI && !OAUTH_SECURITY_REDIS_AVAILABLE) {
@@ -43,37 +42,30 @@ describeOrSkip('OAuth Negative Security - Real Redis Integration', () => {
         'These tests require real Redis connectivity to prove security boundary enforcement.'
       );
     }
-    
+
     // Skip if Redis credentials not available in local development
     if (!OAUTH_SECURITY_REDIS_AVAILABLE) {
       console.log('[OAUTH_SECURITY_INTEGRATION] Skipping integration tests - Redis credentials not available');
       return;
     }
-    
-    // Save original TEST_NAMESPACE to restore after tests
-    originalTestNamespace = process.env.TEST_NAMESPACE;
-    
-    // Generate unique test namespace to avoid conflicts with production data
-    testNamespace = `test_oauth_security_${Date.now()}`;
-    process.env.TEST_NAMESPACE = testNamespace;
+
+    // P0 FIX: Use CI-supplied TEST_NAMESPACE from jest.oauth.integration.setup.ts
+    // Do not generate separate namespace - this defeats run-scoped isolation
+    testNamespace = process.env.TEST_NAMESPACE || 'hpp:test:';
     console.log('[OAUTH_SECURITY_INTEGRATION] Using test namespace:', testNamespace);
-    
+
     // Create Redis client for adversarial tests
     const { Redis } = await import('@upstash/redis');
-    redis = new Redis({ 
-      url: OAUTH_SECURITY_KV_REST_API_URL, 
-      token: OAUTH_SECURITY_KV_REST_API_TOKEN 
+    redis = new Redis({
+      url: OAUTH_SECURITY_KV_REST_API_URL,
+      token: OAUTH_SECURITY_KV_REST_API_TOKEN
     });
   });
 
   afterAll(async () => {
-    // Restore original TEST_NAMESPACE
-    if (originalTestNamespace !== undefined) {
-      process.env.TEST_NAMESPACE = originalTestNamespace;
-    } else {
-      delete process.env.TEST_NAMESPACE;
-    }
-    
+    // P0 FIX: Do not restore TEST_NAMESPACE - it's managed by jest.oauth.integration.setup.ts
+    // The setup file controls the namespace for the entire test run
+
     // P0 FIX: Remove invalid redis.quit() call
     // @upstash/redis is an HTTP REST client, not a TCP connection
     // There is no .quit() method to call

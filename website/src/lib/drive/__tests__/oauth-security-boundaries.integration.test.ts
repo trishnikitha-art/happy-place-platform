@@ -13,9 +13,19 @@
  */
 
 describe('OAuth Security Boundaries - Real Redis Integration', () => {
-  // P0 FIX: Use the TEST_NAMESPACE set by jest.oauth.integration.setup.ts
-  // Do not create a separate namespace variable - use the setup's namespace
-  // This ensures all integration tests use the same isolated namespace
+  let testNamespace: string;
+
+  beforeAll(() => {
+    // Skip integration tests if Redis credentials are not available
+    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      console.log('[OAUTH_SECURITY_INTEGRATION] Skipping integration tests - Redis credentials not available');
+      return;
+    }
+
+    // P0 FIX: Use CI-supplied TEST_NAMESPACE from jest.oauth.integration.setup.ts
+    testNamespace = process.env.TEST_NAMESPACE || 'hpp:test:';
+    console.log('[OAUTH_SECURITY_INTEGRATION] Using test namespace:', testNamespace);
+  });
 
   // Skip all tests if Redis credentials are not available
   beforeEach(() => {

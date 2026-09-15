@@ -16,18 +16,18 @@
 describe('Redis Failure Semantics - Real Redis Integration', () => {
   let originalRedisUrl: string | undefined;
   let originalRedisToken: string | undefined;
-  
+
   beforeAll(() => {
     // Skip integration tests if Redis credentials are not available
     if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
       console.log('[REDIS_FAILURE_SEMANTICS] Skipping integration tests - Redis credentials not available');
       return;
     }
-    
+
     // Save original Redis credentials
     originalRedisUrl = process.env.KV_REST_API_URL;
     originalRedisToken = process.env.KV_REST_API_TOKEN;
-    
+
     // P0 FIX: Use TEST_NAMESPACE set by jest.oauth.integration.setup.ts
     // Do not create separate namespace variable
     console.log('[REDIS_FAILURE_SEMANTICS] Using test namespace from setup:', process.env.TEST_NAMESPACE);

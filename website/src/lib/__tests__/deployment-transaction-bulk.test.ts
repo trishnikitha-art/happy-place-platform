@@ -22,6 +22,14 @@ import { getKvNamespace } from '../environment';
 
 const TEST_TRANSACTION_PREFIX = 'BULK-TEST-';
 let testTransactionIds: string[] = [];
+let testNamespace: string;
+
+beforeAll(() => {
+  // P0 FIX: Use CI-supplied TEST_NAMESPACE from jest.oauth.integration.setup.ts
+  // Do not use hardcoded hpp:production namespace - this defeats run-scoped isolation
+  testNamespace = getKvNamespace();
+  console.log('[DEPLOYMENT_TRANSACTION_BULK] Using test namespace:', testNamespace);
+});
 
 beforeAll(() => {
   // P0 FIX: Fail loudly in CI when Redis is unavailable instead of silently skipping
@@ -70,9 +78,9 @@ describe('Deployment Transaction Bulk Assignment', () => {
     const TRANSACTION_ID = `${TEST_TRANSACTION_PREFIX}MERGE-${Date.now()}`;
     testTransactionIds.push(TRANSACTION_ID);
 
-    const SLOT_A_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:service:decks`;
-    const SLOT_B_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:service:fences`;
-    const SLOT_C_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:service:pergolas`;
+    const SLOT_A_KEY = `${testNamespace}workbench-staging:${TRANSACTION_ID}:service:decks`;
+    const SLOT_B_KEY = `${testNamespace}workbench-staging:${TRANSACTION_ID}:service:fences`;
+    const SLOT_C_KEY = `${testNamespace}workbench-staging:${TRANSACTION_ID}:service:pergolas`;
 
     // Assignment #1: registers SLOT_A
     const tx1 = await createDeploymentTransaction(
@@ -120,7 +128,7 @@ describe('Deployment Transaction Bulk Assignment', () => {
     const TRANSACTION_ID = `${TEST_TRANSACTION_PREFIX}DEDUP-${Date.now()}`;
     testTransactionIds.push(TRANSACTION_ID);
 
-    const SLOT_A_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:service:decks`;
+    const SLOT_A_KEY = `${testNamespace}workbench-staging:${TRANSACTION_ID}:service:decks`;
 
     // Register SLOT_A
     await createDeploymentTransaction(
@@ -151,11 +159,11 @@ describe('Deployment Transaction Bulk Assignment', () => {
     const TRANSACTION_ID = `${TEST_TRANSACTION_PREFIX}CONCURRENT-${Date.now()}`;
     testTransactionIds.push(TRANSACTION_ID);
 
-    const SLOT_A_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:service:decks`;
-    const SLOT_B_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:service:fences`;
-    const SLOT_C_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:service:pergolas`;
-    const SLOT_D_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:service:painting`;
-    const SLOT_E_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:brand-hero`;
+    const SLOT_A_KEY = `${testNamespace}workbench-staging:${TRANSACTION_ID}:service:decks`;
+    const SLOT_B_KEY = `${testNamespace}workbench-staging:${TRANSACTION_ID}:service:fences`;
+    const SLOT_C_KEY = `${testNamespace}workbench-staging:${TRANSACTION_ID}:service:pergolas`;
+    const SLOT_D_KEY = `${testNamespace}workbench-staging:${TRANSACTION_ID}:service:painting`;
+    const SLOT_E_KEY = `${testNamespace}workbench-staging:${TRANSACTION_ID}:brand-hero`;
 
     // Register all 5 keys concurrently with Promise.all
     const results = await Promise.all([
@@ -210,8 +218,8 @@ describe('Deployment Transaction Bulk Assignment', () => {
     const TRANSACTION_ID = `${TEST_TRANSACTION_PREFIX}STATEBARRIER-${Date.now()}`;
     testTransactionIds.push(TRANSACTION_ID);
 
-    const SLOT_A_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:service:decks`;
-    const SLOT_B_KEY = `hpp:production:workbench-staging:${TRANSACTION_ID}:service:fences`;
+    const SLOT_A_KEY = `${testNamespace}workbench-staging:${TRANSACTION_ID}:service:decks`;
+    const SLOT_B_KEY = `${testNamespace}workbench-staging:${TRANSACTION_ID}:service:fences`;
 
     // Create transaction in prepared state
     await createDeploymentTransaction(
