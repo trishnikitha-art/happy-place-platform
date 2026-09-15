@@ -542,11 +542,15 @@ export async function POST(request: Request) {
 
     // Step 5: Authorize Drive corpus access and fetch authoritative source metadata
     // P1 FIX: Fetch authoritative Drive metadata server-side, don't trust browser-supplied values
-    console.log('[USE_DRIVE_ASSET] Fetching authoritative Drive metadata', {
+    console.log('[USE_DRIVE_ASSET] STEP_5_FETCH_DRIVE_CLIENT', {
       requestId,
     });
 
     const driveClient = await getDriveClient();
+    console.log('[USE_DRIVE_ASSET] STEP_5_DRIVE_CLIENT_OBTAINED', {
+      requestId,
+    });
+
     let authoritativeDriveMetadata: any = null;
     let actualCorpusId: string;
     let actualMimeType: string | null | undefined;
@@ -558,10 +562,20 @@ export async function POST(request: Request) {
     let originalShortcutId: string | undefined = undefined;
 
     try {
+      console.log('[USE_DRIVE_ASSET] STEP_5_FETCH_DRIVE_METADATA', {
+        requestId,
+        sourceFileId,
+      });
+
       const fileMetadata = await driveClient.files.get({
         fileId: sourceFileId,
         fields: 'id,name,mimeType,driveId,owners,shared,thumbnailLink,webViewLink,shortcutDetails',
         supportsAllDrives: true,
+      });
+
+      console.log('[USE_DRIVE_ASSET] STEP_5_DRIVE_METADATA_OBTAINED', {
+        requestId,
+        hasData: !!fileMetadata.data,
       });
 
       if (!fileMetadata.data) {
@@ -644,11 +658,23 @@ export async function POST(request: Request) {
 
       // P0 FIX: Use centralized corpus authorization module with pre-fetched metadata
       // This ensures consistent authorization across all Drive routes without duplicate Drive API calls
+      console.log('[USE_DRIVE_ASSET] STEP_5_VERIFY_CORPUS_AUTHORIZATION', {
+        requestId,
+        sourceFileId,
+        actualCorpusId,
+      });
+
       const corpusAuth = await verifyCorpusAuthorization(
         sourceFileId,
         actualCorpusId,
         { driveId: actualDriveId || null, id: sourceFileId } // Pre-fetched metadata to avoid duplicate API call
       );
+
+      console.log('[USE_DRIVE_ASSET] STEP_5_CORPUS_AUTHORIZATION_RESULT', {
+        requestId,
+        authorized: corpusAuth.authorized,
+        reason: corpusAuth.reason,
+      });
 
       if (!corpusAuth.authorized) {
         console.error('[USE_DRIVE_ASSET] Corpus authorization failed', {
@@ -680,6 +706,12 @@ export async function POST(request: Request) {
       effectiveFileId = sourceFileId;
       effectiveCorpusId = actualCorpusId;
 
+      console.log('[USE_DRIVE_ASSET] STEP_5_RESOLVE_SHORTCUT', {
+        requestId,
+        isShortcut,
+        hasShortcutDetails: !!authoritativeDriveMetadata.shortcutDetails,
+      });
+
       if (isShortcut && authoritativeDriveMetadata.shortcutDetails) {
         const targetId = authoritativeDriveMetadata.shortcutDetails.targetId;
         console.log('[USE_DRIVE_ASSET] Resolving shortcut', {
@@ -689,10 +721,20 @@ export async function POST(request: Request) {
         });
 
         // Fetch target file metadata
+        console.log('[USE_DRIVE_ASSET] STEP_5_FETCH_SHORTCUT_TARGET', {
+          requestId,
+          targetId,
+        });
+
         const targetMetadata = await driveClient.files.get({
           fileId: targetId,
           fields: 'id,name,mimeType,driveId,owners,shared,thumbnailLink,webViewLink',
           supportsAllDrives: true,
+        });
+
+        console.log('[USE_DRIVE_ASSET] STEP_5_SHORTCUT_TARGET_OBTAINED', {
+          requestId,
+          hasData: !!targetMetadata.data,
         });
 
         if (!targetMetadata.data) {
@@ -774,6 +816,10 @@ export async function POST(request: Request) {
     }
 
     // Step 6: Execute transaction with lock protection
+    console.log('[USE_DRIVE_ASSET] STEP_6_EXECUTE_TRANSACTION', {
+      requestId,
+    });
+
     try {
       // Base URL for internal API calls
       const baseUrl = process.env.VERCEL_URL
@@ -789,9 +835,11 @@ export async function POST(request: Request) {
         roles: ['gallery'],
       };
 
-      console.log('[USE_DRIVE_ASSET] Resolving canonical asset', {
+      console.log('[USE_DRIVE_ASSET] STEP_6A_CALL_INGEST', {
         requestId,
         ingestUrl,
+        fileId: effectiveFileId,
+        sharedDriveId: effectiveCorpusId,
       });
 
       const ingestResponse = await fetch(ingestUrl, {
@@ -801,6 +849,12 @@ export async function POST(request: Request) {
           cookie: request.headers.get('cookie') || '',
         },
         body: JSON.stringify(ingestBody),
+      });
+
+      console.log('[USE_DRIVE_ASSET] STEP_6A_INGEST_RESPONSE', {
+        requestId,
+        status: ingestResponse.status,
+        ok: ingestResponse.ok,
       });
 
       if (!ingestResponse.ok) {
@@ -824,6 +878,12 @@ export async function POST(request: Request) {
       const ingestResult = await ingestResponse.json();
       const canonicalMediaId = ingestResult.media?.id;
       const canonicalAsset = ingestResult.media;
+
+      console.log('[USE_DRIVE_ASSET] STEP_6A_CANONICAL_MEDIA_OBTAINED', {
+        requestId,
+        hasCanonicalMediaId: !!canonicalMediaId,
+        canonicalMediaId,
+      });
 
       if (!canonicalMediaId || !canonicalAsset) {
         console.error('[USE_DRIVE_ASSET] Canonical asset missing from response', {
@@ -849,10 +909,14 @@ export async function POST(request: Request) {
 
       // Step 6b: Validate PublishedMediaAsset through public media contract
       // P0 FIX: Explicitly require truthy resolution - null/undefined rejection
-      const publicMedia = await resolvePublicMedia(canonicalMediaId);
-      console.log('[USE_DRIVE_ASSET] Public media gate validation', {
+      console.log('[USE_DRIVE_ASSET] STEP_6B_VALIDATE_PUBLIC_MEDIA', {
         requestId,
         canonicalMediaId,
+      });
+
+      const publicMedia = await resolvePublicMedia(canonicalMediaId);
+      console.log('[USE_DRIVE_ASSET] STEP_6B_PUBLIC_MEDIA_RESULT', {
+        requestId,
         resolved: !!publicMedia,
       });
 
@@ -988,6 +1052,10 @@ export async function POST(request: Request) {
 
       // P0 FIX: Write to staging area instead of direct assignment
       // This ensures the same atomic promotion path used by bulk deployments
+      console.log('[USE_DRIVE_ASSET] STEP_6C_CREATE_DEPLOYMENT_TRANSACTION', {
+        requestId,
+      });
+
       const { createDeploymentTransaction, claimDeploymentTransaction, commitDeploymentTransaction, consumeDeploymentTransaction } = await import('@/lib/deployment-transaction');
       const { getKvNamespace } = await import('@/lib/environment');
       
@@ -995,13 +1063,13 @@ export async function POST(request: Request) {
       const deploymentTransactionId = crypto.randomUUID();
       const stagingKey = `${namespace}workbench-staging:${deploymentTransactionId}:service:${serviceSlug}`;
       
-      console.log('[USE_DRIVE_ASSET] Creating staging key', {
+      console.log('[USE_DRIVE_ASSET] STEP_6C_CREATING_STAGING_KEY', {
         requestId,
         deploymentTransactionId,
         stagingKey,
         serviceSlug,
         canonicalMediaId,
-        expectedRevision, // P0 FIX: Log caller's expectedRevision for CAS enforcement
+        expectedRevision,
       });
 
       // Write to staging area
@@ -1021,7 +1089,16 @@ export async function POST(request: Request) {
       
       await redis.set(stagingKey, stagingValue);
       
+      console.log('[USE_DRIVE_ASSET] STEP_6C_STAGING_KEY_WRITTEN', {
+        requestId,
+      });
+      
       // Create deployment transaction
+      console.log('[USE_DRIVE_ASSET] STEP_6C_CREATE_TRANSACTION', {
+        requestId,
+        deploymentTransactionId,
+      });
+
       await createDeploymentTransaction(
         deploymentTransactionId,
         [stagingKey],
@@ -1029,10 +1106,9 @@ export async function POST(request: Request) {
         `Drive asset assignment: ${serviceSlug} → ${canonicalMediaId}`
       );
 
-      console.log('[USE_DRIVE_ASSET] Deployment transaction created', {
+      console.log('[USE_DRIVE_ASSET] STEP_6C_TRANSACTION_CREATED', {
         requestId,
         deploymentTransactionId,
-        stagingKeys: [stagingKey],
       });
 
       // P0 FIX: DO NOT claim transaction here
@@ -1052,10 +1128,10 @@ export async function POST(request: Request) {
         reason: `Drive asset assignment via Workbench: ${serviceSlug}`,
       };
 
-      console.log('[USE_DRIVE_ASSET] Triggering deployment transaction', {
+      console.log('[USE_DRIVE_ASSET] STEP_6C_TRIGGER_DEPLOY', {
         requestId,
-        deploymentTransactionId,
         deployUrl,
+        deploymentTransactionId,
       });
 
       const deployResponse = await fetch(deployUrl, {
@@ -1065,6 +1141,12 @@ export async function POST(request: Request) {
           cookie: request.headers.get('cookie') || '',
         },
         body: JSON.stringify(deployBody),
+      });
+
+      console.log('[USE_DRIVE_ASSET] STEP_6C_DEPLOY_RESPONSE', {
+        requestId,
+        status: deployResponse.status,
+        ok: deployResponse.ok,
       });
 
       if (!deployResponse.ok) {
