@@ -226,18 +226,24 @@ describeOrSkip('OAuth Negative Security - Real Redis Integration', () => {
       expect(directAuth).toBeDefined();
       expect(directAuth?.status).toBe('revoked');
       
-      // P0 FIX: Verify that the existing session is now rejected
-      // Even though the session record still exists and points to the authorization ID,
-      // the authorization is revoked and should be rejected
+      // P0 FIX: Verify that the session cannot be used for Drive access after authorization revocation
+      // The session record may still exist, but Drive access must fail closed
+      // The actual invariant is: revoke authorization → Drive access fails closed
       const sessionAfter = await getSession(session.id);
+      
+      // Session record may still exist (not auto-deleted), but it should be rejected for Drive operations
+      // The oauth-manager principal binding check ensures revoked authorizations cannot be used
       expect(sessionAfter).toBeDefined();
       expect(sessionAfter?.authorizationId).toBe(authId);
       
-      // The session should be rejected when attempting to use it for Drive access
-      // because the authorization is revoked
+      // Verify that attempting to use this session for Drive access would fail
+      // The workbenchSession.isAuthenticated() should fail because the authorization is revoked
       // This is verified by the principal binding check in oauth-manager.ts
+      const workbenchSession = (await import('../../workbench-session')).workbenchSession;
+      const authAfterRevocation = await workbenchSession.isAuthenticated();
+      expect(authAfterRevocation).toBe(false);
       
-      console.log('[OAUTH_SECURITY_INTEGRATION] Revoked session rejection: Existing session rejected after authorization revocation');
+      console.log('[OAUTH_SECURITY_INTEGRATION] Revoked session rejection: Drive access fails closed after authorization revocation');
     });
   });
 

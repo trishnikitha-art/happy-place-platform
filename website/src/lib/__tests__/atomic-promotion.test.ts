@@ -29,20 +29,91 @@
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 import { atomicPromoteAssignments } from '../deployment-transaction';
 import { getServiceCardAssignment, storeServiceCardAssignment } from '../assignment-store';
+import { saveMedia } from '../media-kv-store';
 import { getKvNamespace } from '../environment';
+import type { Media } from '@/types/media';
 
 const TEST_PREFIX = 'ATOMIC-PROMOTION-TEST-';
 let testServiceSlugs: string[] = [];
 let testNamespace: string;
 
-beforeAll(() => {
-  if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+beforeAll(async () => {
+  const hasKv = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+  
+  if (!hasKv) {
     console.warn('Skipping atomic promotion test: KV credentials not configured');
+    return;
   }
 
   // P0 FIX: Use CI-supplied TEST_NAMESPACE from jest.oauth.integration.setup.ts
   testNamespace = getKvNamespace();
   console.log('[ATOMIC_PROMOTION] Using test namespace:', testNamespace);
+
+  // P0 FIX: Seed test media fixtures in isolated CI namespace
+  // These tests require actual PublishedMediaAsset records to pass the public media gate
+  const testMediaRecords: Media[] = [
+    {
+      id: 'fences-001-hero',
+      filename: 'fences-001-hero.jpg',
+      type: 'image',
+      orientation: 'landscape',
+      alt: 'Fences hero image',
+      description: '',
+      tags: [],
+      roles: [],
+      source: 'local',
+      classification: 'hero',
+      lifecycleState: 'published',
+      storage: 'static',
+      contentHash: 'test_hash_fences_001_hero',
+      variants: {
+        original: '/images/test/fences-001-hero.jpg',
+        webp: '/images/test/fences-001-hero.webp',
+        thumbnail: '/images/test/fences-001-hero-thumb.jpg',
+      },
+      usageSlots: [],
+      physicalPath: '/images/test/fences-001-hero.jpg',
+      physicalStatus: 'PHYSICAL_PRESENT',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+    {
+      id: 'fences-001-after',
+      filename: 'fences-001-after.jpg',
+      type: 'image',
+      orientation: 'landscape',
+      alt: 'Fences after image',
+      description: '',
+      tags: [],
+      roles: [],
+      source: 'local',
+      classification: 'hero',
+      lifecycleState: 'published',
+      storage: 'static',
+      contentHash: 'test_hash_fences_001_after',
+      variants: {
+        original: '/images/test/fences-001-after.jpg',
+        webp: '/images/test/fences-001-after.webp',
+        thumbnail: '/images/test/fences-001-after-thumb.jpg',
+      },
+      usageSlots: [],
+      physicalPath: '/images/test/fences-001-after.jpg',
+      physicalStatus: 'PHYSICAL_PRESENT',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    },
+  ];
+
+  // Seed test media records
+  for (const media of testMediaRecords) {
+    try {
+      await saveMedia(media);
+      console.log('[ATOMIC_PROMOTION] Seeded test media:', media.id);
+    } catch (error) {
+      console.error('[ATOMIC_PROMOTION] Failed to seed test media:', media.id, error);
+      throw error;
+    }
+  }
 });
 
 afterAll(async () => {

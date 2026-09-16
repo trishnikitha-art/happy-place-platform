@@ -64,6 +64,15 @@ function getRedisClient(): Redis {
   return new Redis({ url, token });
 }
 
+/**
+ * P0 FIX: Normalize Redis Lua error codes at repository boundary
+ * Upstash Redis returns errors wrapped as "Command failed: ERROR_CODE"
+ * Callers expect stable machine-readable error codes, not wrapped messages
+ */
+function normalizeRedisError(error: string): string {
+  return error.replace(/^Command failed: /, '');
+}
+
 export type TransactionState = 'prepared' | 'committing' | 'committed' | 'consumed' | 'failed';
 
 export interface DeploymentTransaction {
@@ -194,10 +203,15 @@ export async function atomicPromoteAssignments(
         failedServiceSlug: errorResult.serviceSlug,
       });
       
+      // P0 FIX: Normalize Redis Lua error codes at repository boundary
+      // Strip "Command failed:" prefix to provide stable machine-readable error codes
+      // Callers expect raw error codes like "INVALID_TRANSACTION_STATE", not wrapped messages
+      const errorCode = errorResult.err.replace(/^Command failed: /, '');
+      
       return {
         success: false,
         count: 0,
-        error: errorResult.err,
+        error: errorCode,
         failedServiceSlug: errorResult.serviceSlug,
       };
     }
@@ -431,7 +445,7 @@ export async function createDeploymentTransaction(
     );
 
     if (result && typeof result === 'object' && 'err' in result) {
-      throw new Error(`Failed to create/merge transaction: ${(result as any).err}`);
+      throw new Error(`Failed to create/merge transaction: ${normalizeRedisError((result as any).err)}`);
     }
 
     // If transaction was created fresh
@@ -516,7 +530,7 @@ export async function claimDeploymentTransaction(
       if (err.includes('TRANSACTION_NOT_FOUND')) {
         throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
       }
-      throw new Error(`Failed to claim transaction: ${err}`);
+      throw new Error(`Failed to claim transaction: ${normalizeRedisError(err)}`);
     }
     
     console.log('[DEPLOYMENT_TRANSACTION] CLAIMED', { transactionId, owner });
@@ -578,12 +592,12 @@ export async function commitDeploymentTransaction(
     if (result && typeof result === 'object' && 'err' in result) {
       const err = (result as any).err;
       if (err.includes('OWNER_MISMATCH')) {
-        throw new Error(`Ownership verification failed: ${err}`);
+        throw new Error(`Ownership verification failed: ${normalizeRedisError(err)}`);
       }
       if (err.includes('TRANSACTION_NOT_FOUND')) {
         throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
       }
-      throw new Error(`Failed to commit transaction: ${err}`);
+      throw new Error(`Failed to commit transaction: ${normalizeRedisError(err)}`);
     }
     
     console.log('[DEPLOYMENT_TRANSACTION] COMMITTED', { transactionId, commitSha, owner: effectiveOwner });
@@ -639,12 +653,12 @@ export async function consumeDeploymentTransaction(
     if (result && typeof result === 'object' && 'err' in result) {
       const err = (result as any).err;
       if (err.includes('OWNER_MISMATCH')) {
-        throw new Error(`Ownership verification failed: ${err}`);
+        throw new Error(`Ownership verification failed: ${normalizeRedisError(err)}`);
       }
       if (err.includes('TRANSACTION_NOT_FOUND')) {
         throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
       }
-      throw new Error(`Failed to consume transaction: ${err}`);
+      throw new Error(`Failed to consume transaction: ${normalizeRedisError(err)}`);
     }
     
     console.log('[DEPLOYMENT_TRANSACTION] CONSUMED', { transactionId, owner: effectiveOwner });
@@ -705,11 +719,14 @@ export async function failDeploymentTransaction(
       if (err.includes('TRANSACTION_NOT_FOUND')) {
         throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
       }
-      throw new Error(`Failed to fail transaction: ${err}`);
+      throw new Error(`Failed to fail transaction: ${normalizeRedisError(err)}`);
     }
     
-    console.log('[DEPLOYMENT_TRANSACTION] FAILED', { transactionId, failureReason, retryCount: updated.retryCount });
-    return updated;
+    // P0 FIX: Read back transaction to get actual Lua-incremented retryCount
+    // Lua script increments retryCount, so we must read it back from Redis
+    const finalTransaction = await client.get<DeploymentTransaction>(key);
+    console.log('[DEPLOYMENT_TRANSACTION] FAILED', { transactionId, failureReason, retryCount: finalTransaction?.retryCount });
+    return finalTransaction || updated;
   } catch (error) {
     console.error('[DEPLOYMENT_TRANSACTION] FAIL_OPERATION_FAILED', { transactionId, error });
     throw error;
@@ -813,17 +830,20 @@ export async function retryDeploymentTransaction(transactionId: string): Promise
     if (result && typeof result === 'object' && 'err' in result) {
       const err = (result as any).err;
       if (err.includes('ILLEGAL_TRANSITION')) {
-        throw new Error(`Cannot retry transaction: ${err}`);
+        throw new Error(`Cannot retry transaction: ${normalizeRedisError(err)}`);
       }
-      throw new Error(`Failed to retry transaction: ${err}`);
+      throw new Error(`Failed to retry transaction: ${normalizeRedisError(err)}`);
     }
     
+    // P0 FIX: Read back transaction to get actual Lua-incremented retryCount
+    // Lua script increments retryCount for failed → prepared
+    const finalTransaction = await client.get<DeploymentTransaction>(key);
     console.log('[DEPLOYMENT_TRANSACTION] RETRIED', { 
       transactionId, 
-      retryCount: updated.retryCount,
-      stagingKeysCount: updated.stagingKeys.length 
+      retryCount: finalTransaction?.retryCount,
+      stagingKeysCount: finalTransaction?.stagingKeys.length 
     });
-    return updated;
+    return finalTransaction || updated;
   } catch (error) {
     console.error('[DEPLOYMENT_TRANSACTION] RETRY_FAILED', { transactionId, error });
     throw error;
