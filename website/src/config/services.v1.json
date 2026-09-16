@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-16T11:43:56.098Z",
+  "generatedAt": "2026-09-16T11:57:05.818Z",
   "services": [
     {
       "id": "decks",
@@ -668,7 +668,7 @@
           "required": true
         }
       ],
-      "cardMediaId": "repairs-001-hero"
+      "cardMediaId": "6fd33914d4c27fbf71871bbc6405ff1c"
     },
     {
       "id": "pergolas",

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-16T11:43:56.417Z",
+  "generatedAt": "2026-09-16T11:57:06.169Z",
   "media": [
     {
       "id": "fences-001-hero",
@@ -1243,6 +1243,66 @@
         "august3_driveId": "1A7eiHXERSZ-7eq8Hdl0F6P67DZM_qVda",
         "sharedDriveId": "0ALeA98MLc-s_Uk9PVA",
         "driveFileId": "1A7eiHXERSZ-7eq8Hdl0F6P67DZM_qVda"
+      },
+      "storage": "blob"
+    },
+    {
+      "id": "6fd33914d4c27fbf71871bbc6405ff1c",
+      "contentHash": "6fd33914d4c27fbf71871bbc6405ff1c1518f72f78d5802eec541951afdaf49e",
+      "source": "local",
+      "lifecycleState": "published",
+      "filename": "HP011_SubfloorReplacement_After.jpg",
+      "type": "image",
+      "orientation": "portrait",
+      "dimensions": {
+        "width": 1536,
+        "height": 2048
+      },
+      "variants": {
+        "original": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/6fd33914d4c27fbf71871bbc6405ff1c-original-6fd33914d4c2.jpg",
+        "web": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/6fd33914d4c27fbf71871bbc6405ff1c-1080-77bad689a781.webp",
+        "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/6fd33914d4c27fbf71871bbc6405ff1c-1080-77bad689a781.webp",
+        "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/6fd33914d4c27fbf71871bbc6405ff1c-1080-838a7121946d.avif",
+        "thumbnail": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/6fd33914d4c27fbf71871bbc6405ff1c-thumb-0c7da38f1375.webp",
+        "blur": "data:image/webp;base64,UklGRpQAAABXRUJQVlA4IIgAAADQAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JYgCdMoACNB1kPM0wLkAAzem8+0qUY0mFJoxAv+g7LXBM87c+vvwuKiSvw1i48AKC6zcQMbEC70kd7I0jh2Sdpy/6q0FdMbIqzsh1iMTreCaN6GJJmte4nLnHH1AjUg/0CXdZpV+MaE1Xf8ncAAAA",
+        "responsive": [
+          {
+            "width": 480,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/6fd33914d4c27fbf71871bbc6405ff1c-480-94bec138ded8.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/6fd33914d4c27fbf71871bbc6405ff1c-480-a259a88e0122.avif"
+          },
+          {
+            "width": 768,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/6fd33914d4c27fbf71871bbc6405ff1c-768-122efe7b9891.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/6fd33914d4c27fbf71871bbc6405ff1c-768-d5dbb443dcd2.avif"
+          },
+          {
+            "width": 1080,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/6fd33914d4c27fbf71871bbc6405ff1c-1080-77bad689a781.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/6fd33914d4c27fbf71871bbc6405ff1c-1080-838a7121946d.avif"
+          }
+        ]
+      },
+      "alt": "HP011_SubfloorReplacement_After.jpg",
+      "tags": [],
+      "roles": [
+        "gallery"
+      ],
+      "order": 0,
+      "createdAt": "2026-08-03T05:27:00.838Z",
+      "updatedAt": "2026-08-28T11:23:44.750Z",
+      "uploadedAt": "2026-08-28T11:23:44.750Z",
+      "fileSize": 1024392,
+      "format": "jpeg",
+      "colorSpace": "srgb",
+      "provenance": {
+        "drive_canonical": true,
+        "current_authority": true,
+        "status": "published",
+        "preserved_at": "2026-08-28T11:23:44.750Z",
+        "august3_driveId": "1C4pSIU9K1i2oNMmBkGqnAfoFziTJ0lSa",
+        "sharedDriveId": "0ALeA98MLc-s_Uk9PVA",
+        "driveFileId": "1C4pSIU9K1i2oNMmBkGqnAfoFziTJ0lSa"
       },
       "storage": "blob"
     }
