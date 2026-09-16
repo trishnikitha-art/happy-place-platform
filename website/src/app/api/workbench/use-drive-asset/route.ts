@@ -46,10 +46,11 @@
  *   the public resolver returns a valid media object.
  * 
  * IDEMPOTENCY (P0 #5):
- * - Idempotency key = sourceFileId:targetSlotId (stable identity)
+ * - Idempotency key = sourceFileId:targetSlotId:expectedRevision (stable identity)
  * - Successful results are cached in KV with 1-hour TTL
  * - Retry with same key returns cached success result
  * - Failures are not cached (allows retry)
+ * - expectedRevision distinguishes state transitions (revision 4 vs revision 5)
  * 
  * CRITICAL: The endpoint NEVER returns success unless:
  * 1. Public media gate returns truthy (not null/undefined)
@@ -513,9 +514,10 @@ export async function POST(request: Request) {
     }
 
     // P0 FIX: Generate server-controlled idempotency key
-    // Key = sourceFileId + targetSlotId (stable identity for this logical operation)
+    // Key = sourceFileId + targetSlotId + expectedRevision (stable identity for this logical operation)
+    // expectedRevision distinguishes state transitions (revision 4 vs revision 5)
     // Client-provided key is ignored to prevent arbitrary key collision
-    stableIdempotencyKey = `${sourceFileId}:${targetSlotId}`;
+    stableIdempotencyKey = `${sourceFileId}:${targetSlotId}:${expectedRevision}`;
     
     if (clientProvidedKey && clientProvidedKey !== stableIdempotencyKey) {
       console.warn('[USE_DRIVE_ASSET] Client-provided idempotency key ignored', {
