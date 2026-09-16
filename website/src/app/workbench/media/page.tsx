@@ -2422,7 +2422,102 @@ export default function MediaWorkbench() {
       }
     };
 
+    // Handle gallery delete events from iframe
+    const handleDeleteGalleryEvent = async (event: Event) => {
+      const { slotId, projectId, mediaId } = (event as CustomEvent).detail;
+      console.log('[WB_GALLERY_DELETE] DELETE_REQUEST_RECEIVED', {
+        slotId,
+        projectId,
+        mediaId,
+      });
+
+      if (!projectId || !mediaId) {
+        console.error('[WB_GALLERY_DELETE] Missing required fields', { slotId, projectId, mediaId });
+        alert('Invalid delete request: missing project ID or media ID');
+        return;
+      }
+
+      const confirmed = confirm(`Remove this image from the gallery?\n\nThis will not delete the media asset, only remove it from the project gallery.`);
+      if (!confirmed) {
+        console.log('[WB_GALLERY_DELETE] DELETE_CANCELLED');
+        return;
+      }
+
+      try {
+        // Fetch current gallery state
+        const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+        if (!response.ok) {
+          throw new Error('Failed to load gallery');
+        }
+
+        const data = await response.json();
+        const currentGallery = data.gallery || [];
+        const currentRevision = data.currentRevision;
+
+        console.log('[WB_GALLERY_DELETE] CURRENT_GALLERY_LOADED', {
+          projectId,
+          galleryLength: currentGallery.length,
+          currentRevision,
+        });
+
+        // Remove media from gallery
+        const newGallery = currentGallery.filter((id: string) => id !== mediaId);
+
+        if (newGallery.length === currentGallery.length) {
+          console.warn('[WB_GALLERY_DELETE] MEDIA_NOT_IN_GALLERY', { mediaId, currentGallery });
+          alert('This media item is not in the gallery');
+          return;
+        }
+
+        console.log('[WB_GALLERY_DELETE] NEW_GALLERY_COMPUTED', {
+          removedMediaId: mediaId,
+          oldLength: currentGallery.length,
+          newLength: newGallery.length,
+        });
+
+        // Save with CAS
+        const saveResponse = await fetch('/api/admin/projects/gallery', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            projectId,
+            gallery: newGallery,
+            expectedRevision: currentRevision,
+          }),
+        });
+
+        if (!saveResponse.ok) {
+          const error = await saveResponse.json();
+          console.error('[WB_GALLERY_DELETE] SAVE_FAILED', { error });
+          
+          if (saveResponse.status === 409) {
+            alert('Concurrent modification detected. Please reload and try again.');
+          } else {
+            throw new Error(error.error || 'Failed to delete from gallery');
+          }
+          return;
+        }
+
+        const result = await saveResponse.json();
+        console.log('[WB_GALLERY_DELETE] DELETE_SUCCESS', {
+          projectId,
+          newRevision: result.currentRevision,
+          result,
+        });
+
+        // Reload canonical data to reflect changes
+        await loadCanonicalData();
+        alert('Image removed from gallery successfully');
+      } catch (error) {
+        console.error('[WB_GALLERY_DELETE] ERROR', {
+          error: error instanceof Error ? error.message : String(error),
+        });
+        alert(`Failed to delete from gallery: ${error instanceof Error ? error.message : String(error)}`);
+      }
+    };
+
     window.addEventListener('slot-click', handleSlotClickEvent);
+    window.addEventListener('delete-gallery', handleDeleteGalleryEvent as EventListener);
     window.addEventListener('message', handleMessage);
 
     // P0 FIX: Initialize bridgeReady as true to allow first drag
@@ -2434,6 +2529,7 @@ export default function MediaWorkbench() {
     return () => {
       unsubscribe();
       window.removeEventListener('slot-click', handleSlotClickEvent);
+      window.removeEventListener('delete-gallery', handleDeleteGalleryEvent as EventListener);
       window.removeEventListener('message', handleMessage);
     };
   }, [iframeRef]);
