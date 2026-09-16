@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-16T11:30:00.401Z",
+  "generatedAt": "2026-09-16T11:30:29.307Z",
   "services": [
     {
       "id": "decks",
@@ -553,7 +553,7 @@
           ]
         }
       ],
-      "cardMediaId": "outdoor-living-001-hero"
+      "cardMediaId": "c65e27844063e63ad2c300f88a9e7479"
     },
     {
       "id": "finish-carpentry",
@@ -829,7 +829,7 @@
           }
         }
       ],
-      "cardMediaId": "8ba3872848826e78609c7f04e02b75e7"
+      "cardMediaId": "fences-001-hero"
     },
     {
       "id": "drywall",
