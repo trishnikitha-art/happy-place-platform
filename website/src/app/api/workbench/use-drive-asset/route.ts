@@ -245,16 +245,57 @@ import { verifyPublicMediaAuthority } from '@/lib/media-kv-store';
 import { Redis } from '@upstash/redis';
 import { getDriveClient } from '@/lib/drive/oauth-manager';
 import { verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
+import { getKvNamespace } from '@/lib/environment';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+/**
+ * P0 FIX: Use authoritative environment namespace for handoff idempotency
+ * Handoff keys must use the same namespace architecture as the rest of the transaction system
+ * to prevent environment collision and maintain run-scoped isolation
+ */
 const IDEMPOTENCY_PREFIX = 'use-drive-asset-idempotency:';
 
 /**
+ * P0 FIX: Get namespaced idempotency key using authoritative namespace
+ * Prevents environment collision between production, preview, test, and development
+ */
+function getNamespacedIdempotencyKey(idempotencyKey: string): string {
+  const namespace = getKvNamespace();
+  return `${namespace}${IDEMPOTENCY_PREFIX}${idempotencyKey}`;
+}
+
+/**
+ * P0 FIX: Generic Redis value decoder for handling Upstash automatic deserialization
+ * Upstash Redis can return values as either JSON strings or already-deserialized objects
+ * This decoder normalizes both representations
+ *
+ * @param value - Value from Redis (string or object)
+ * @returns Normalized value (object or string)
+ */
+function parseRedisValue(value: unknown): unknown {
+  if (typeof value === 'string') {
+    try {
+      return JSON.parse(value);
+    } catch {
+      return value; // Return as-is if not JSON
+    }
+  } else if (typeof value === 'object' && value !== null) {
+    return value; // Return object directly
+  } else {
+    return value; // Return as-is for other types
+  }
+}
+
+/**
  * Check if operation with this idempotency key has already completed
- * Returns the cached result if present, null if not found
- * CRITICAL: Fails closed if Redis is unavailable - idempotency is required for authoritative mutation
+ *
+ * This is an OPTIMISTIC cache check, not authoritative. The actual mutation state is the assignment store.
+ * Returns the cached result if present, null if not found.
+ *
+ * If Redis is unavailable, this fails closed because idempotency is required to prevent accidental retries.
+ * However, the CAS check in the deployment transaction provides the authoritative protection against duplicates.
  */
 async function checkIdempotency(idempotencyKey: string): Promise<any | null> {
   const url = process.env.KV_REST_API_URL;
@@ -267,12 +308,19 @@ async function checkIdempotency(idempotencyKey: string): Promise<any | null> {
 
   try {
     const redis = new Redis({ url, token });
-    const key = `${IDEMPOTENCY_PREFIX}${idempotencyKey}`;
+    const key = getNamespacedIdempotencyKey(idempotencyKey);
     const cached = await redis.get(key);
 
     if (cached) {
       console.log('[USE_DRIVE_ASSET] Idempotency hit - returning cached result', { idempotencyKey });
-      return JSON.parse(cached as string);
+      // P0 FIX: Use authoritative Redis value decoder
+      // Handles both JSON strings and already-deserialized objects from Upstash
+      const decoded = parseRedisValue(cached);
+      console.log('[USE_DRIVE_ASSET] IDEMPOTENCY_VALUE_DECODED', {
+        valueType: typeof cached,
+        decodedType: typeof decoded,
+      });
+      return decoded;
     }
 
     return null;
@@ -300,7 +348,7 @@ async function acquireTransactionLock(idempotencyKey: string): Promise<string | 
   }
 
   const redis = new Redis({ url, token });
-  const lockKey = `${IDEMPOTENCY_PREFIX}lock:${idempotencyKey}`;
+  const lockKey = getNamespacedIdempotencyKey(`lock:${idempotencyKey}`);
   const ownershipToken = crypto.randomUUID();
   
   // SET NX with 60 second TTL - only succeeds if key doesn't exist
@@ -336,7 +384,7 @@ async function releaseTransactionLock(idempotencyKey: string, ownershipToken: st
   }
 
   const redis = new Redis({ url, token });
-  const lockKey = `${IDEMPOTENCY_PREFIX}lock:${idempotencyKey}`;
+  const lockKey = getNamespacedIdempotencyKey(`lock:${idempotencyKey}`);
   
   // Lua script: only delete if value matches ownership token
   const luaScript = `
@@ -369,7 +417,15 @@ async function releaseTransactionLock(idempotencyKey: string, ownershipToken: st
 
 /**
  * Record the successful result of an operation for idempotency
- * CRITICAL: Fails closed if Redis is unavailable - must record before releasing lock
+ *
+ * This cache is OPTIMISTIC, not authoritative. The actual mutation state is the assignment store.
+ * If this Redis write fails after the mutation succeeds:
+ * - The mutation is already live (CAS-protected assignment written, transaction consumed)
+ * - On retry, CAS will prevent duplicate mutation (assignment revision advanced)
+ * - Client will see error on successful mutation (suboptimal UX but safe)
+ *
+ * CRITICAL: Fails closed if Redis is unavailable - throws error to signal inconsistency
+ * See POST_COMMIT_IDEMPOTENCY_FAILURE_SEMANTICS.md for detailed failure analysis.
  */
 async function recordIdempotency(idempotencyKey: string, result: any, ttlSeconds: number = 3600): Promise<void> {
   const url = process.env.KV_REST_API_URL;
@@ -382,7 +438,7 @@ async function recordIdempotency(idempotencyKey: string, result: any, ttlSeconds
 
   try {
     const redis = new Redis({ url, token });
-    const key = `${IDEMPOTENCY_PREFIX}${idempotencyKey}`;
+    const key = getNamespacedIdempotencyKey(idempotencyKey);
     await redis.set(key, JSON.stringify(result), { ex: ttlSeconds });
 
     console.log('[USE_DRIVE_ASSET] Idempotency recorded', { idempotencyKey, ttlSeconds });
@@ -1241,6 +1297,10 @@ export async function POST(request: Request) {
       };
 
       // P0 FIX: Record successful result for idempotency
+      // NOTE: If this Redis write fails, the mutation is already live (CAS-protected assignment written, transaction consumed).
+      // On retry, CAS will prevent duplicate mutation because the assignment revision advanced.
+      // This is safe but suboptimal UX - client sees error on successful mutation.
+      // See POST_COMMIT_IDEMPOTENCY_FAILURE_SEMANTICS.md for detailed analysis.
       await recordIdempotency(stableIdempotencyKey, successResult);
 
       return NextResponse.json(successResult);
