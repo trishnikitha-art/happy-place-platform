@@ -1053,7 +1053,7 @@ export default function MediaWorkbench() {
           sourceCorpusId: driveFile.corpusId,
           targetSlotId: targetSlot.id,
           expectedRevision,
-          idempotencyKey: `${driveFile.id}:${targetSlot.id}`,
+          idempotencyKey: `${driveFile.id}:${targetSlot.id}:${expectedRevision}`,
         });
 
         const response = await fetch('/api/workbench/use-drive-asset', {
@@ -1065,7 +1065,7 @@ export default function MediaWorkbench() {
             sourceCorpusId: driveFile.corpusId, // P0 FIX: Use explicit corpus identity from Drive file
             targetSlotId: targetSlot.id,
             expectedRevision,
-            idempotencyKey: `${driveFile.id}:${targetSlot.id}`,
+            idempotencyKey: `${driveFile.id}:${targetSlot.id}:${expectedRevision}`,
           }),
         });
 

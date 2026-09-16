@@ -628,7 +628,8 @@ export class DriveDiscovery {
         params.corpora = 'drive';
         params.driveId = context.driveId;
       } else {
-        // Search within My Drive only
+        // Search within user corpus (My Drive + files shared directly with user)
+        // Note: corpora=user includes My Drive AND "Shared with me" - not My Drive only
         params.corpora = 'user';
       }
 
@@ -651,6 +652,7 @@ export class DriveDiscovery {
           thumbnailLink: file.thumbnailLink,
           webViewLink: file.webViewLink,
           parent: file.parents?.[0],
+          corpusId: context?.driveId, // P0 FIX: Preserve corpus context through search to prevent drift
         }));
       }
     } catch (error) {

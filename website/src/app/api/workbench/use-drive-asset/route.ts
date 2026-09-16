@@ -351,8 +351,10 @@ async function acquireTransactionLock(idempotencyKey: string): Promise<string | 
   const lockKey = getNamespacedIdempotencyKey(`lock:${idempotencyKey}`);
   const ownershipToken = crypto.randomUUID();
   
-  // SET NX with 60 second TTL - only succeeds if key doesn't exist
-  const acquired = await redis.set(lockKey, ownershipToken, { nx: true, ex: 60 });
+  // SET NX with 300 second TTL - only succeeds if key doesn't exist
+  // P0 FIX: Increased from 60s to 300s to prevent lock expiry during long Drive/Blob/Git operations
+  // Full transaction can include: Drive metadata → download → Sharp → Blob uploads → KV → GitHub API → Git commit → deployment → promotion → readback → idempotency
+  const acquired = await redis.set(lockKey, ownershipToken, { nx: true, ex: 300 });
   
   if (acquired === 'OK') {
     console.log('[USE_DRIVE_ASSET] Transaction lock acquired', { 
@@ -385,8 +387,9 @@ async function releaseTransactionLock(idempotencyKey: string, ownershipToken: st
 
   const redis = new Redis({ url, token });
   const lockKey = getNamespacedIdempotencyKey(`lock:${idempotencyKey}`);
-  
+
   // Lua script: only delete if value matches ownership token
+  // P0 FIX: Increased lock TTL to 300s to prevent expiry during long operations
   const luaScript = `
     if redis.call("GET", KEYS[1]) == ARGV[1] then
       return redis.call("DEL", KEYS[1])
