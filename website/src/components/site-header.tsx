@@ -115,17 +115,17 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        {estimate && (
-          <div className="hidden shrink-0 md:flex items-center gap-2">
-            <ThemeToggle />
+        <div className="hidden shrink-0 md:flex items-center gap-2">
+          <ThemeToggle />
+          {estimate && (
             <Link
               href={estimate.href}
               className={cn(buttonVariants({ variant: "primary", size: "sm" }), "bg-honey text-honey-foreground shadow-warm hover:bg-honey-hover")}
             >
               {estimate.label}
             </Link>
-          </div>
-        )}
+          )}
+        </div>
 
         <button
           type="button"

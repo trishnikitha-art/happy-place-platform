@@ -82,7 +82,9 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             __html: `
               (function() {
                 const theme = localStorage.getItem('hpp-theme');
-                if (theme === 'dark' || (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                // P1 FIX: Only explicit dark preference activates dark mode
+                // OS preference alone should NOT override public site default
+                if (theme === 'dark') {
                   document.documentElement.classList.add('dark');
                 } else {
                   document.documentElement.classList.remove('dark');
@@ -97,7 +99,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         />
       </head>
       <body className="min-h-full flex flex-col bg-background">
-        <ThemeProvider defaultTheme="system" storageKey="hpp-theme">
+        <ThemeProvider defaultTheme="light" storageKey="hpp-theme">
           <MotionProvider>
             <LenisProvider>
             <SpeculationRules />
