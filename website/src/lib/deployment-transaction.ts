@@ -542,14 +542,19 @@ export async function claimDeploymentTransaction(
 }
 
 /**
- * Mark transaction as committed with Git commit SHA (committing → committed)
+ * P0 FIX: Persist Git commit SHA BEFORE Redis promotion
+ * This enables Git/Redis split-brain recovery: if Redis promotion fails,
+ * the transaction already has commitSha and can retry Redis promotion
+ * against the same Git commit without creating a new commit.
+ * 
+ * This is an idempotent update within the committing state.
  * @param transactionId - Transaction ID
  * @param commitSha - Git commit SHA
  * @param commitUrl - Git commit URL
- * @param owner - Owner token for ownership verification
- * @returns Updated transaction
+ * @param owner - Transaction owner (for ownership verification)
+ * @returns Updated transaction with commitSha persisted
  */
-export async function commitDeploymentTransaction(
+export async function setGitCommitSha(
   transactionId: string,
   commitSha: string,
   commitUrl: string,
@@ -558,12 +563,88 @@ export async function commitDeploymentTransaction(
   const key = getTransactionKey(transactionId);
   const client = getRedisClient();
   
-  console.log('[DEPLOYMENT_TRANSACTION] COMMITTING', { transactionId, commitSha, owner });
+  console.log('[DEPLOYMENT_TRANSACTION] PERSISTING_COMMIT_SHA', { transactionId, commitSha, owner });
   
   try {
     const current = await client.get<DeploymentTransaction>(key);
     if (!current) {
       throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
+    }
+    
+    // Must be in committing state to persist commitSha
+    if (current.state !== 'committing') {
+      throw new Error(`Transaction must be in committing state to persist commitSha. Current state: ${current.state}`);
+    }
+    
+    // Use current owner if not provided (for backward compatibility)
+    const effectiveOwner = owner || current.owner;
+    
+    const updated: DeploymentTransaction = {
+      ...current,
+      commitSha,
+      commitUrl,
+      // Remain in committing state - transition to committed happens after Redis promotion
+    };
+    
+    const result = await client.eval(
+      STATE_TRANSITION_SCRIPT,
+      [key],
+      [
+        transactionId,
+        'committing', // Remain in committing state
+        effectiveOwner || '',
+        current.parentCommitSha || '',
+        JSON.stringify(updated),
+      ]
+    );
+    
+    if (result && typeof result === 'object' && 'err' in result) {
+      const err = (result as any).err;
+      if (err.includes('OWNER_MISMATCH')) {
+        throw new Error(`Ownership verification failed: ${normalizeRedisError(err)}`);
+      }
+      if (err.includes('TRANSACTION_NOT_FOUND')) {
+        throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
+      }
+      if (err.includes('ILLEGAL_TRANSITION')) {
+        throw new Error(`Invalid state transition: ${normalizeRedisError(err)}`);
+      }
+      throw new Error(`Failed to persist commitSha: ${normalizeRedisError(err)}`);
+    }
+    
+    console.log('[DEPLOYMENT_TRANSACTION] COMMIT_SHA_PERSISTED', { transactionId, commitSha });
+    return updated;
+  } catch (error) {
+    console.error('[DEPLOYMENT_TRANSACTION] PERSIST_COMMIT_SHA_FAILED', { transactionId, error });
+    throw error;
+  }
+}
+
+/**
+ * Mark transaction as committed (committing → committed)
+ * commitSha must already be set via setGitCommitSha()
+ * @param transactionId - Transaction ID
+ * @param owner - Owner token for ownership verification
+ * @returns Updated transaction
+ */
+export async function commitDeploymentTransaction(
+  transactionId: string,
+  owner?: string
+): Promise<DeploymentTransaction> {
+  const key = getTransactionKey(transactionId);
+  const client = getRedisClient();
+  
+  console.log('[DEPLOYMENT_TRANSACTION] COMMITTING', { transactionId, owner });
+  
+  try {
+    const current = await client.get<DeploymentTransaction>(key);
+    if (!current) {
+      throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
+    }
+    
+    // P0 FIX: commitSha must already be set via setGitCommitSha()
+    if (!current.commitSha) {
+      throw new Error(`Transaction must have commitSha set before committing. Call setGitCommitSha() first.`);
     }
     
     // Use current owner if not provided (for backward compatibility)
@@ -572,9 +653,8 @@ export async function commitDeploymentTransaction(
     const updated: DeploymentTransaction = {
       ...current,
       state: 'committed',
-      commitSha,
-      commitUrl,
       committedAt: new Date().toISOString(),
+      // commitSha and commitUrl are already set
     };
     
     const result = await client.eval(
@@ -597,13 +677,19 @@ export async function commitDeploymentTransaction(
       if (err.includes('TRANSACTION_NOT_FOUND')) {
         throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
       }
+      if (err.includes('ILLEGAL_TRANSITION')) {
+        throw new Error(`Invalid state transition: ${normalizeRedisError(err)}`);
+      }
+      if (err.includes('MISSING_COMMIT_SHA')) {
+        throw new Error(`commitSha must be set before committing: ${normalizeRedisError(err)}`);
+      }
       throw new Error(`Failed to commit transaction: ${normalizeRedisError(err)}`);
     }
     
-    console.log('[DEPLOYMENT_TRANSACTION] COMMITTED', { transactionId, commitSha, owner: effectiveOwner });
+    console.log('[DEPLOYMENT_TRANSACTION] COMMITTED', { transactionId, commitSha: current.commitSha, owner: effectiveOwner });
     return updated;
   } catch (error) {
-    console.error('[DEPLOYMENT_TRANSACTION] COMMIT_FAILED', { transactionId, commitSha, error });
+    console.error('[DEPLOYMENT_TRANSACTION] COMMIT_FAILED', { transactionId, error });
     throw error;
   }
 }

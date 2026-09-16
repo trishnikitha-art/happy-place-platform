@@ -60,6 +60,7 @@ import { getEnvironment, getKvNamespace } from '@/lib/environment';
 import {
   createDeploymentTransaction,
   claimDeploymentTransaction,
+  setGitCommitSha,
   commitDeploymentTransaction,
   consumeDeploymentTransaction,
   failDeploymentTransaction,
@@ -1694,7 +1695,59 @@ export async function POST(request: Request) {
     const newCommitData = await newCommitResponse.json();
     const newCommitSha = newCommitData.sha;
     console.log('[DEPLOY API] NEW_COMMIT_CREATED', { sha: newCommitSha });
-    
+
+    // EXTERNAL COMMIT POINT: Git ref update is the irreversible external side effect
+    // At this point, the deployment exists in the repository regardless of what follows
+    console.log('[DEPLOY API] EXTERNAL_COMMIT_POINT_REACHED', {
+      deploymentTransactionId,
+      commitSha: newCommitSha,
+      commitUrl: newCommitData.html_url
+    });
+
+    // P0 FIX: Persist commitSha BEFORE Redis promotion
+    // This enables Git/Redis split-brain recovery: if Redis promotion fails,
+    // the transaction already has commitSha and can retry Redis promotion
+    // against the same Git commit without creating a new commit.
+    console.log('[DEPLOY API] PERSISTING_COMMIT_SHA_BEFORE_REDIS_PROMOTION', {
+      deploymentTransactionId,
+      commitSha: newCommitSha,
+      commitUrl: newCommitData.html_url
+    });
+
+    try {
+      transaction = await setGitCommitSha(deploymentTransactionId, newCommitSha, newCommitData.html_url, transactionOwner);
+      console.log('[DEPLOY API] COMMIT_SHA_PERSISTED', {
+        deploymentTransactionId,
+        commitSha: newCommitSha,
+        state: transaction.state
+      });
+    } catch (error) {
+      console.error('[DEPLOY API] PERSIST_COMMIT_SHA_FAILED', { deploymentTransactionId, error });
+
+      // MARK TRANSACTION AS FAILED
+      await failDeploymentTransaction(
+        deploymentTransactionId,
+        `Failed to persist commitSha: ${error instanceof Error ? error.message : String(error)}`
+      );
+
+      return NextResponse.json(
+        {
+          error: "Deployment rejected: Failed to persist commitSha",
+          message: "Git commit succeeded but failed to persist commitSha to transaction record. This is a split-brain prevention measure.",
+          forensic: {
+            deploymentTransactionId,
+            commitSha: newCommitSha,
+            error: error instanceof Error ? error.message : String(error),
+          },
+        },
+        { status: 500 }
+      );
+    }
+
+    // CRITICAL: Transaction remains in 'committing' state until promotion succeeds
+    // This allows committing → failed transition if promotion fails
+    // Only after promotion succeeds do we transition committing → committed
+
     // Step 6: CAS verification - re-read current SHA before updating
     console.log('[DEPLOY API] CAS_VERIFICATION_CHECK');
     
@@ -2151,7 +2204,8 @@ export async function POST(request: Request) {
 
     // MARK TRANSACTION AS COMMITTED (committing → committed)
     // This happens AFTER promotion succeeds, ensuring Git and runtime KV are coherent
-    transaction = await commitDeploymentTransaction(deploymentTransactionId, newCommitSha, newCommitData.html_url, transactionOwner);
+    // commitSha was already persisted via setGitCommitSha() before promotion
+    transaction = await commitDeploymentTransaction(deploymentTransactionId, transactionOwner);
     console.log('[DEPLOY API] TRANSACTION_COMMITTED', { transactionId: deploymentTransactionId, commitSha: newCommitSha });
 
     // TRANSACTIONAL FIX: Only delete staging keys after durable commit verification AND promotion
