@@ -1111,7 +1111,7 @@ export async function POST(request: Request) {
         requestId,
       });
 
-      const { createDeploymentTransaction, claimDeploymentTransaction, commitDeploymentTransaction, consumeDeploymentTransaction } = await import('@/lib/deployment-transaction');
+      const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
       const { getKvNamespace } = await import('@/lib/environment');
 
       const namespace = getKvNamespace();
@@ -1270,13 +1270,10 @@ export async function POST(request: Request) {
         );
       }
 
-      // Consume transaction (cleanup staging)
-      await consumeDeploymentTransaction(deploymentTransactionId, requestId);
-
-      console.log('[USE_DRIVE_ASSET] Transaction consumed', {
-        requestId,
-        deploymentTransactionId,
-      });
+      // P0 FIX: Transaction already consumed by deploy route
+      // Deploy route owns the transaction lifecycle: prepared → committing → committed → consumed
+      // DO NOT consume again - this would cause ILLEGAL_TRANSITION: consumed -> consumed
+      // The transaction cleanup (staging deletion) happened in the deploy route
 
       // Step 7: Return success only if all steps complete
       console.log('[USE_DRIVE_ASSET] Transaction complete', {
