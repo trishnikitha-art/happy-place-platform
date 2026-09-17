@@ -99,16 +99,6 @@ if (process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true') {
   const testNamespace = process.env.TEST_NAMESPACE || `hpp:test:${Date.now()}:`;
   process.env.TEST_NAMESPACE = testNamespace;
 
-  // Mock browser cookies properly for integration tests
-  // These are safe to mock since we're testing Redis behavior, not browser behavior
-  jest.mock('next/headers', () => ({
-    cookies: jest.fn(() => ({
-      get: jest.fn(() => ({ value: 'mock-cookie-value' })),
-      set: jest.fn(),
-      delete: jest.fn(),
-    })),
-  }));
-
   console.log('[OAUTH_INTEGRATION_SETUP] REAL_REDIS_INTEGRATION_TESTS_CONFIGURED');
   console.log('[OAUTH_INTEGRATION_SETUP] Redis credentials present:', !!process.env.KV_REST_API_URL && !!process.env.KV_REST_API_TOKEN);
   console.log('[OAUTH_INTEGRATION_SETUP] Redis endpoint configured:', !!process.env.KV_REST_API_URL);
@@ -120,3 +110,13 @@ if (process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true') {
   console.log('[OAUTH_INTEGRATION_SETUP] Redis integration tests DISABLED (credentials not available in local development)');
   console.log('[OAUTH_INTEGRATION_SETUP] Tests will skip gracefully');
 }
+
+// Mock browser cookies at global scope (required by Jest, outside conditional)
+// These are safe to mock since we're testing Redis behavior, not browser behavior
+jest.mock('next/headers', () => ({
+  cookies: jest.fn(() => ({
+    get: jest.fn(() => ({ value: 'mock-cookie-value' })),
+    set: jest.fn(),
+    delete: jest.fn(),
+  })),
+}));
