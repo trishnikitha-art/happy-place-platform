@@ -105,14 +105,14 @@ describe('Media Authority API Route', () => {
       expect(routeCode).toContain("'homepage-owner-portrait-slot': 'brand-portrait-homepage'");
     });
 
-    it('should map service-card-{slug} to {slug}', () => {
+    it('should map homepage-service-card-slot-{slug} to {slug}', () => {
       const fs = require('fs');
       const path = require('path');
       const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
       const routeCode = fs.readFileSync(routePath, 'utf8');
 
-      expect(routeCode).toContain('startsWith(\'service-card-\')');
-      expect(routeCode).toContain('replace(\'service-card-\', \'\')');
+      expect(routeCode).toContain('startsWith(\'homepage-service-card-slot-\')');
+      expect(routeCode).toContain('replace(\'homepage-service-card-slot-\', \'\')');
     });
 
     it('should resolve on server-side, not client-side', () => {

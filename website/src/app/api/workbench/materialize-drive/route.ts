@@ -156,9 +156,12 @@ export async function POST(request: Request) {
     });
 
     // Return the asset in the format expected by the Workbench
+    // P0 FIX: Match ingest endpoint contract - return both media and mediaId
     return NextResponse.json({
       success: true,
-      asset: result.media,
+      media: result.media,
+      mediaId: result.mediaId,
+      asset: result.media, // Backward compatibility
       requestId,
     });
   } catch (error) {
