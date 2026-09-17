@@ -25,6 +25,8 @@ const config: Config = {
     "/src/lib/drive/__tests__/oauth-atomic-identity.test.ts", // Requires ENCRYPTION_KEY and complex setup
     "/src/lib/drive/__tests__/oauth-authority-revocation.test.ts", // Requires ENCRYPTION_KEY and complex setup
     "/src/lib/drive/__tests__/oauth-manager.test.ts", // Requires complex OAuth flow setup
+    "/src/lib/__tests__/deployment-transaction-bulk.test.ts", // Requires Redis connection, runs in oauth-tests job
+    "/src/lib/__tests__/atomic-promotion.test.ts", // Requires Redis connection, runs in oauth-tests job
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
