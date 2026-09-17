@@ -21,18 +21,19 @@ const OAUTH_IDENTITY_KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN ||
                          process.env.KV_REST_API__KV_REST_API_TOKEN;
 
 const OAUTH_IDENTITY_REDIS_AVAILABLE = !!(OAUTH_IDENTITY_KV_REST_API_URL && OAUTH_IDENTITY_KV_REST_API_TOKEN);
+const REDIS_ENABLED = process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true';
 
 // Skip entire suite if Redis credentials are missing in local development
 // In CI, these tests should fail if Redis is not configured
 const CI = process.env.CI === 'true';
-const describeOrSkip = (!OAUTH_IDENTITY_REDIS_AVAILABLE && !CI) ? describe.skip : describe;
+const describeOrSkip = (!REDIS_ENABLED && !CI) ? describe.skip : describe;
 
 describeOrSkip('OAuth Atomic Identity - Real Redis Integration', () => {
   let testNamespace: string;
 
   beforeAll(() => {
     // FAIL FAST in CI: Integration tests require Redis credentials
-    if (CI && !OAUTH_IDENTITY_REDIS_AVAILABLE) {
+    if (CI && !REDIS_ENABLED) {
       throw new Error(
         '[OAUTH_IDENTITY_INTEGRATION] CANNOT RUN: Redis credentials not available. ' +
         'Required: KV_REST_API_URL and KV_REST_API_TOKEN. ' +
@@ -41,8 +42,8 @@ describeOrSkip('OAuth Atomic Identity - Real Redis Integration', () => {
     }
 
     // Skip if Redis credentials not available in local development
-    if (!OAUTH_IDENTITY_REDIS_AVAILABLE) {
-      console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping integration tests - Redis credentials not available');
+    if (!REDIS_ENABLED) {
+      console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping integration tests - Redis not enabled');
       return;
     }
 
@@ -59,16 +60,16 @@ describeOrSkip('OAuth Atomic Identity - Real Redis Integration', () => {
 
   // Skip all tests if Redis credentials are not available in local development
   beforeEach(() => {
-    if (!OAUTH_IDENTITY_REDIS_AVAILABLE) {
-      console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping test - Redis credentials not available');
+    if (!REDIS_ENABLED) {
+      console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping test - Redis not enabled');
     }
   });
 
   describe('Concurrent Authorization Upsert', () => {
     it('should prove exactly one authoritative identity for concurrent upserts', async () => {
       // Skip if Redis credentials not available
-      if (!OAUTH_IDENTITY_REDIS_AVAILABLE) {
-        console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping test - Redis credentials not available');
+      if (!REDIS_ENABLED) {
+        console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping test - Redis not enabled');
         return;
       }
 

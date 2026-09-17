@@ -22,12 +22,12 @@ const OAUTH_SECURITY_KV_REST_API_URL = process.env.KV_REST_API_URL ||
 const OAUTH_SECURITY_KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN || 
                          process.env.KV_REST_API__KV_REST_API_TOKEN;
 
-const OAUTH_SECURITY_REDIS_AVAILABLE = !!(OAUTH_SECURITY_KV_REST_API_URL && OAUTH_SECURITY_KV_REST_API_TOKEN);
+const REDIS_ENABLED = process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true';
 
 // Skip entire suite if Redis credentials are missing in local development
 // In CI, these tests should fail if Redis is not configured
 const CI = process.env.CI === 'true';
-const describeOrSkip = (!OAUTH_SECURITY_REDIS_AVAILABLE && !CI) ? describe.skip : describe;
+const describeOrSkip = (!REDIS_ENABLED && !CI) ? describe.skip : describe;
 
 describeOrSkip('OAuth Negative Security - Real Redis Integration', () => {
   let testNamespace: string;
@@ -35,7 +35,7 @@ describeOrSkip('OAuth Negative Security - Real Redis Integration', () => {
 
   beforeAll(async () => {
     // FAIL FAST in CI: Integration tests require Redis credentials
-    if (CI && !OAUTH_SECURITY_REDIS_AVAILABLE) {
+    if (CI && !REDIS_ENABLED) {
       throw new Error(
         '[OAUTH_SECURITY_INTEGRATION] CANNOT RUN: Redis credentials not available. ' +
         'Required: KV_REST_API_URL and KV_REST_API_TOKEN. ' +
@@ -44,8 +44,8 @@ describeOrSkip('OAuth Negative Security - Real Redis Integration', () => {
     }
 
     // Skip if Redis credentials not available in local development
-    if (!OAUTH_SECURITY_REDIS_AVAILABLE) {
-      console.log('[OAUTH_SECURITY_INTEGRATION] Skipping integration tests - Redis credentials not available');
+    if (!REDIS_ENABLED) {
+      console.log('[OAUTH_SECURITY_INTEGRATION] Skipping integration tests - Redis not enabled');
       return;
     }
 

@@ -33,12 +33,12 @@ const REVOCATION_KV_REST_API_URL = process.env.KV_REST_API_URL ||
 const REVOCATION_KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN || 
                          process.env.KV_REST_API__KV_REST_API_TOKEN;
 
-const REVOCATION_REDIS_AVAILABLE = !!(REVOCATION_KV_REST_API_URL && REVOCATION_KV_REST_API_TOKEN);
+const REDIS_ENABLED = process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true';
 
 // Skip entire suite if Redis credentials are missing in local development
 // In CI, these tests should fail if Redis is not configured
 const CI = process.env.CI === 'true';
-const describeOrSkip = (!REVOCATION_REDIS_AVAILABLE && !CI) ? describe.skip : describe;
+const describeOrSkip = (!REDIS_ENABLED && !CI) ? describe.skip : describe;
 
 describeOrSkip('OAuth Authority Revocation - Real Redis Integration', () => {
   let testNamespace: string;
@@ -49,7 +49,7 @@ describeOrSkip('OAuth Authority Revocation - Real Redis Integration', () => {
   
   beforeAll(() => {
     // FAIL FAST in CI: Integration tests require Redis credentials
-    if (CI && !REVOCATION_REDIS_AVAILABLE) {
+    if (CI && !REDIS_ENABLED) {
       throw new Error(
         '[REVOCATION] CANNOT RUN: Redis credentials not available. ' +
         'Required: KV_REST_API_URL and KV_REST_API_TOKEN. ' +
@@ -58,7 +58,7 @@ describeOrSkip('OAuth Authority Revocation - Real Redis Integration', () => {
     }
     
     // Skip if Redis credentials not available in local development
-    if (!REVOCATION_REDIS_AVAILABLE) {
+    if (!REDIS_ENABLED) {
       console.log('[REVOCATION] Skipping integration tests - Redis credentials not available');
       return;
     }
@@ -87,7 +87,7 @@ describeOrSkip('OAuth Authority Revocation - Real Redis Integration', () => {
     
     // Cleanup test data
     try {
-      if (REVOCATION_REDIS_AVAILABLE) {
+      if (REDIS_ENABLED) {
         const existing = await findAuthorizationBySubject(testSubject);
         if (existing) {
           await revokeAuthorizationWithSessions(existing.id);
@@ -100,7 +100,7 @@ describeOrSkip('OAuth Authority Revocation - Real Redis Integration', () => {
 
   // Skip all tests if Redis credentials are not available in local development
   beforeEach(() => {
-    if (!REVOCATION_REDIS_AVAILABLE) {
+    if (!REDIS_ENABLED) {
       console.log('[REVOCATION] Skipping test - Redis credentials not available');
     }
   });
@@ -108,7 +108,7 @@ describeOrSkip('OAuth Authority Revocation - Real Redis Integration', () => {
   describe('Authorization Revocation', () => {
     it('should revoke authorization and mark as revoked', async () => {
       // Skip if Redis credentials not available
-      if (!REVOCATION_REDIS_AVAILABLE) {
+      if (!REDIS_ENABLED) {
         console.log('[REVOCATION] Skipping test - Redis credentials not available');
         return;
       }
@@ -148,7 +148,7 @@ describeOrSkip('OAuth Authority Revocation - Real Redis Integration', () => {
 
     it('should revoke all associated sessions', async () => {
       // Skip if Redis credentials not available
-      if (!REVOCATION_REDIS_AVAILABLE) {
+      if (!REDIS_ENABLED) {
         console.log('[REVOCATION] Skipping test - Redis credentials not available');
         return;
       }
@@ -197,7 +197,7 @@ describeOrSkip('OAuth Authority Revocation - Real Redis Integration', () => {
 
     it('should be idempotent on repeated revocation', async () => {
       // Skip if Redis credentials not available
-      if (!REVOCATION_REDIS_AVAILABLE) {
+      if (!REDIS_ENABLED) {
         console.log('[REVOCATION] Skipping test - Redis credentials not available');
         return;
       }

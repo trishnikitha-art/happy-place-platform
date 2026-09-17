@@ -13,14 +13,16 @@
  * Security invariant: Redis unavailable → explicit error → no silent fallback
  */
 
+const REDIS_ENABLED = process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true';
+
 describe('Redis Failure Semantics - Real Redis Integration', () => {
   let originalRedisUrl: string | undefined;
   let originalRedisToken: string | undefined;
 
   beforeAll(() => {
-    // Skip integration tests if Redis credentials are not available
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      console.log('[REDIS_FAILURE_SEMANTICS] Skipping integration tests - Redis credentials not available');
+    // Skip integration tests if Redis is not enabled
+    if (!REDIS_ENABLED) {
+      console.log('[REDIS_FAILURE_SEMANTICS] Skipping integration tests - Redis not enabled');
       return;
     }
 
@@ -43,16 +45,16 @@ describe('Redis Failure Semantics - Real Redis Integration', () => {
     }
   });
 
-  // Skip all tests if Redis credentials are not available
+  // Skip all tests if Redis is not enabled
   beforeEach(() => {
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      console.log('[REDIS_FAILURE_SEMANTICS] Skipping test - Redis credentials not available');
+    if (!REDIS_ENABLED) {
+      console.log('[REDIS_FAILURE_SEMANTICS] Skipping test - Redis not enabled');
     }
   });
 
   describe('Redis Unavailable - Fail Closed', () => {
     it('should throw explicit error when Redis URL is invalid', async () => {
-      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      if (!REDIS_ENABLED) {
         return;
       }
 

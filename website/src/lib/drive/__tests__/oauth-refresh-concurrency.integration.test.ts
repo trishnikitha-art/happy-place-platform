@@ -16,9 +16,9 @@ describe('OAuth Refresh Concurrency - Real Redis Integration', () => {
   let testNamespace: string;
 
   beforeAll(() => {
-    // Skip integration tests if Redis credentials are not available
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      console.log('[OAUTH_REFRESH_CONCURRENCY] Skipping integration tests - Redis credentials not available');
+    // Skip integration tests if Redis is not enabled
+    if (!process.env.REDIS_INTEGRATION_TESTS_ENABLED || process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'false') {
+      console.log('[OAUTH_REFRESH_CONCURRENCY] Skipping integration tests - Redis not enabled');
       return;
     }
 
@@ -27,10 +27,10 @@ describe('OAuth Refresh Concurrency - Real Redis Integration', () => {
     console.log('[OAUTH_REFRESH_CONCURRENCY] Using test namespace:', testNamespace);
   });
 
-  // Skip all tests if Redis credentials are not available
+  // Skip all tests if Redis is not enabled
   beforeEach(() => {
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      console.log('[OAUTH_REFRESH_CONCURRENCY] Skipping test - Redis credentials not available');
+    if (!process.env.REDIS_INTEGRATION_TESTS_ENABLED || process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'false') {
+      console.log('[OAUTH_REFRESH_CONCURRENCY] Skipping test - Redis not enabled');
     }
   });
 

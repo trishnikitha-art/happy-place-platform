@@ -38,10 +38,10 @@ let testServiceSlugs: string[] = [];
 let testNamespace: string;
 
 beforeAll(async () => {
-  const hasKv = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+  const hasKv = process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true';
   
   if (!hasKv) {
-    console.warn('Skipping atomic promotion test: KV credentials not configured');
+    console.warn('Skipping atomic promotion test: Redis integration not enabled');
     return;
   }
 

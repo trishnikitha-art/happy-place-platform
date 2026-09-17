@@ -12,13 +12,15 @@
  * They prove actual production security boundaries.
  */
 
+const REDIS_ENABLED = process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true';
+
 describe('OAuth Security Boundaries - Real Redis Integration', () => {
   let testNamespace: string;
 
   beforeAll(() => {
-    // Skip integration tests if Redis credentials are not available
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      console.log('[OAUTH_SECURITY_INTEGRATION] Skipping integration tests - Redis credentials not available');
+    // Skip integration tests if Redis is not enabled
+    if (!REDIS_ENABLED) {
+      console.log('[OAUTH_SECURITY_INTEGRATION] Skipping integration tests - Redis not enabled');
       return;
     }
 
@@ -27,16 +29,16 @@ describe('OAuth Security Boundaries - Real Redis Integration', () => {
     console.log('[OAUTH_SECURITY_INTEGRATION] Using test namespace:', testNamespace);
   });
 
-  // Skip all tests if Redis credentials are not available
+  // Skip all tests if Redis is not enabled
   beforeEach(() => {
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      console.log('[OAUTH_SECURITY_INTEGRATION] Skipping test - Redis credentials not available');
+    if (!REDIS_ENABLED) {
+      console.log('[OAUTH_SECURITY_INTEGRATION] Skipping test - Redis not enabled');
     }
   });
 
   describe('Browser Binding', () => {
     it('should accept valid browser binding', async () => {
-      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      if (!REDIS_ENABLED) {
         return;
       }
 
@@ -62,7 +64,7 @@ describe('OAuth Security Boundaries - Real Redis Integration', () => {
     });
 
     it('should reject different browser binding', async () => {
-      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      if (!REDIS_ENABLED) {
         return;
       }
 
@@ -94,7 +96,7 @@ describe('OAuth Security Boundaries - Real Redis Integration', () => {
     });
 
     it('should reject missing browser binding', async () => {
-      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
+      if (!REDIS_ENABLED) {
         return;
       }
 

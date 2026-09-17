@@ -35,7 +35,7 @@ beforeAll(() => {
   // P0 FIX: Fail loudly in CI when Redis is unavailable instead of silently skipping
   // Local development may skip gracefully, but CI must execute against actual Redis
   const isCI = process.env.CI === 'true'; // GitHub Actions sets CI=true
-  const hasKv = !!(process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN);
+  const hasKv = process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true';
   
   if (isCI && !hasKv) {
     throw new Error(
@@ -46,7 +46,7 @@ beforeAll(() => {
   }
   
   if (!hasKv) {
-    console.warn('Skipping bulk assignment test: KV credentials not configured (non-CI environment)');
+    console.warn('Skipping bulk assignment test: Redis integration not enabled (non-CI environment)');
   }
 });
 

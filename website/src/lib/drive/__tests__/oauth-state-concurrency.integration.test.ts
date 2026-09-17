@@ -15,9 +15,9 @@ describe('OAuth State Concurrency - Real Redis Integration', () => {
   let testNamespace: string;
 
   beforeAll(() => {
-    // Skip integration tests if Redis credentials are not available
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      console.log('[OAUTH_STATE_INTEGRATION] Skipping integration tests - Redis credentials not available');
+    // Skip integration tests if Redis is not enabled
+    if (!process.env.REDIS_INTEGRATION_TESTS_ENABLED || process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'false') {
+      console.log('[OAUTH_STATE_INTEGRATION] Skipping integration tests - Redis not enabled');
       return;
     }
 
@@ -26,18 +26,18 @@ describe('OAuth State Concurrency - Real Redis Integration', () => {
     console.log('[OAUTH_STATE_INTEGRATION] Using test namespace:', testNamespace);
   });
 
-  // Skip all tests if Redis credentials are not available
+  // Skip all tests if Redis is not enabled
   beforeEach(() => {
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      console.log('[OAUTH_STATE_INTEGRATION] Skipping test - Redis credentials not available');
+    if (!process.env.REDIS_INTEGRATION_TESTS_ENABLED || process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'false') {
+      console.log('[OAUTH_STATE_INTEGRATION] Skipping test - Redis not enabled');
     }
   });
 
   describe('Concurrent State Consumption', () => {
     it('should prove exactly one winner when consuming the same state concurrently', async () => {
-      // Skip if Redis credentials not available
-      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-        console.log('[OAUTH_STATE_INTEGRATION] Skipping test - Redis credentials not available');
+      // Skip if Redis not enabled
+      if (!process.env.REDIS_INTEGRATION_TESTS_ENABLED || process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'false') {
+        console.log('[OAUTH_STATE_INTEGRATION] Skipping test - Redis not enabled');
         return;
       }
 
@@ -78,9 +78,9 @@ describe('OAuth State Concurrency - Real Redis Integration', () => {
     });
 
     it('should reject state replay attempts', async () => {
-      // Skip if Redis credentials not available
-      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-        console.log('[OAUTH_STATE_INTEGRATION] Skipping test - Redis credentials not available');
+      // Skip if Redis not enabled
+      if (!process.env.REDIS_INTEGRATION_TESTS_ENABLED || process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'false') {
+        console.log('[OAUTH_STATE_INTEGRATION] Skipping test - Redis not enabled');
         return;
       }
 
@@ -111,9 +111,9 @@ describe('OAuth State Concurrency - Real Redis Integration', () => {
     });
 
     it('should validate state correctly', async () => {
-      // Skip if Redis credentials not available
-      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-        console.log('[OAUTH_STATE_INTEGRATION] Skipping test - Redis credentials not available');
+      // Skip if Redis not enabled
+      if (!process.env.REDIS_INTEGRATION_TESTS_ENABLED || process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'false') {
+        console.log('[OAUTH_STATE_INTEGRATION] Skipping test - Redis not enabled');
         return;
       }
 
@@ -151,9 +151,9 @@ describe('OAuth State Concurrency - Real Redis Integration', () => {
 
   describe('Redis Lua Atomic Operations', () => {
     it('should prove Lua eval() atomicity in state consumption', async () => {
-      // Skip if Redis credentials not available
-      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-        console.log('[OAUTH_STATE_INTEGRATION] Skipping test - Redis credentials not available');
+      // Skip if Redis not enabled
+      if (!process.env.REDIS_INTEGRATION_TESTS_ENABLED || process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'false') {
+        console.log('[OAUTH_STATE_INTEGRATION] Skipping test - Redis not enabled');
         return;
       }
 
@@ -189,9 +189,9 @@ describe('OAuth State Concurrency - Real Redis Integration', () => {
 
   describe('State Expiry', () => {
     it('should reject expired states', async () => {
-      // Skip if Redis credentials not available
-      if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-        console.log('[OAUTH_STATE_INTEGRATION] Skipping test - Redis credentials not available');
+      // Skip if Redis not enabled
+      if (!process.env.REDIS_INTEGRATION_TESTS_ENABLED || process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'false') {
+        console.log('[OAUTH_STATE_INTEGRATION] Skipping test - Redis not enabled');
         return;
       }
 
