@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-16T11:57:05.818Z",
+  "generatedAt": "2026-09-17T17:17:31.886Z",
   "services": [
     {
       "id": "decks",
@@ -829,7 +829,7 @@
           }
         }
       ],
-      "cardMediaId": "fences-001-hero"
+      "cardMediaId": "8151ae20b8c6b889b35dbd5571fa4d84"
     },
     {
       "id": "drywall",

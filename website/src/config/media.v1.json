@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-16T11:57:06.169Z",
+  "generatedAt": "2026-09-17T17:17:32.215Z",
   "media": [
     {
       "id": "fences-001-hero",
@@ -1303,6 +1303,66 @@
         "august3_driveId": "1C4pSIU9K1i2oNMmBkGqnAfoFziTJ0lSa",
         "sharedDriveId": "0ALeA98MLc-s_Uk9PVA",
         "driveFileId": "1C4pSIU9K1i2oNMmBkGqnAfoFziTJ0lSa"
+      },
+      "storage": "blob"
+    },
+    {
+      "id": "8151ae20b8c6b889b35dbd5571fa4d84",
+      "contentHash": "8151ae20b8c6b889b35dbd5571fa4d84674ea8ab69fd4d21c933ed4c40d389f1",
+      "source": "local",
+      "lifecycleState": "published",
+      "filename": "HP007_SidingRotRepair_After.jpeg",
+      "type": "image",
+      "orientation": "portrait",
+      "dimensions": {
+        "width": 1536,
+        "height": 2048
+      },
+      "variants": {
+        "original": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-original-8151ae20b8c6.jpeg",
+        "web": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-1080-93a3c6b3011d.webp",
+        "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-1080-93a3c6b3011d.webp",
+        "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-1080-c5374549cd1d.avif",
+        "thumbnail": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-thumb-b29c84f53aa5.webp",
+        "blur": "data:image/webp;base64,UklGRnAAAABXRUJQVlA4IGQAAADwAwCdASoQABUAPu1iqU2ppaOiMAgBMB2JZACdABmUblYVwXKNgUsoAP0BMvPbrtPHz88xXovMUzd1xf6wFj2i2hMh5uWpFQ6j7VS1h00drJ1/Qr1L977vW2PCdMkQ+Oxf4AAA",
+        "responsive": [
+          {
+            "width": 480,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-480-84261b6562d6.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-480-cbd62f7d8273.avif"
+          },
+          {
+            "width": 768,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-768-8a8ab83b878b.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-768-0c3edcdbee1a.avif"
+          },
+          {
+            "width": 1080,
+            "webp": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-1080-93a3c6b3011d.webp",
+            "avif": "https://8zci9xnviilmi6qj.public.blob.vercel-storage.com/8151ae20b8c6b889b35dbd5571fa4d84-1080-c5374549cd1d.avif"
+          }
+        ]
+      },
+      "alt": "HP007_SidingRotRepair_After.jpeg",
+      "tags": [],
+      "roles": [
+        "gallery"
+      ],
+      "order": 0,
+      "createdAt": "2026-08-03T01:48:00.414Z",
+      "updatedAt": "2026-08-28T01:25:53.207Z",
+      "uploadedAt": "2026-08-28T01:25:53.207Z",
+      "fileSize": 973358,
+      "format": "jpeg",
+      "colorSpace": "srgb",
+      "provenance": {
+        "drive_canonical": true,
+        "current_authority": true,
+        "status": "published",
+        "preserved_at": "2026-08-28T01:25:53.207Z",
+        "august3_driveId": "1VWD-1jtrmb2DGj1eijW-EYIG46RgxDHe",
+        "sharedDriveId": "0ALeA98MLc-s_Uk9PVA",
+        "driveFileId": "1VWD-1jtrmb2DGj1eijW-EYIG46RgxDHe"
       },
       "storage": "blob"
     }
