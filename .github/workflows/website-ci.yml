@@ -131,6 +131,7 @@ jobs:
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
           TEST_NAMESPACE: hpp:ci-test:${{ github.run_id }}
+          REDIS_INTEGRATION_TESTS_ENABLED: 'true'
           # CI-only test credentials for Workbench (not production secrets)
           WORKBENCH_PASSWORD: ci-workbench-password-not-production
           HPP_WORKBENCH_PRINCIPAL_ID: ci-workbench-principal
@@ -197,6 +198,7 @@ jobs:
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
           TEST_NAMESPACE: hpp:ci-test:${{ github.run_id }}
+          REDIS_INTEGRATION_TESTS_ENABLED: 'true'
           NEXT_PUBLIC_TEST_BASE_URL: http://127.0.0.1:3100
           # CI-only test credentials for Workbench (not production secrets)
           WORKBENCH_PASSWORD: ci-workbench-password-not-production
