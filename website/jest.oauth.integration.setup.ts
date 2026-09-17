@@ -11,16 +11,6 @@
  * the tests use REAL @upstash/redis. If credentials are missing, tests fail closed.
  */
 
-// Mock browser cookies at module level (required by Jest hoisting)
-// These are safe to mock since we're testing Redis behavior, not browser behavior
-jest.mock('next/headers', () => ({
-  cookies: jest.fn(() => ({
-    get: jest.fn(() => ({ value: 'mock-cookie-value' })),
-    set: jest.fn(),
-    delete: jest.fn(),
-  })),
-}));
-
 // P0: Fail closed if Redis credentials are missing
 const kvUrl = process.env.KV_REST_API_URL || 
              process.env.KV_REST_API__KV_REST_API_URL || 
@@ -108,6 +98,16 @@ if (process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true') {
   // This ensures CI can control namespace for run-scoped isolation while local development still works
   const testNamespace = process.env.TEST_NAMESPACE || `hpp:test:${Date.now()}:`;
   process.env.TEST_NAMESPACE = testNamespace;
+
+  // Mock browser cookies properly for integration tests
+  // These are safe to mock since we're testing Redis behavior, not browser behavior
+  jest.mock('next/headers', () => ({
+    cookies: jest.fn(() => ({
+      get: jest.fn(() => ({ value: 'mock-cookie-value' })),
+      set: jest.fn(),
+      delete: jest.fn(),
+    })),
+  }));
 
   console.log('[OAUTH_INTEGRATION_SETUP] REAL_REDIS_INTEGRATION_TESTS_CONFIGURED');
   console.log('[OAUTH_INTEGRATION_SETUP] Redis credentials present:', !!process.env.KV_REST_API_URL && !!process.env.KV_REST_API_TOKEN);

@@ -11,6 +11,17 @@
  * They prove actual Redis Lua revocation behavior and session cleanup.
  */
 
+// Mock browser cookies at module level (required by Jest hoisting)
+const mockCookieStore = {
+  set: jest.fn(),
+  get: jest.fn(),
+  delete: jest.fn(),
+};
+
+jest.mock('next/headers', () => ({
+  cookies: jest.fn(() => mockCookieStore),
+}));
+
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import { Redis } from '@upstash/redis';
 import { 
@@ -23,7 +34,6 @@ import {
   createSession,
   getSession,
 } from '../session-store';
-import { cookies } from 'next/headers';
 
 // Check if Redis credentials are available
 const REVOCATION_KV_REST_API_URL = process.env.KV_REST_API_URL || 
@@ -75,6 +85,9 @@ describeOrSkip('OAuth Authority Revocation - Real Redis Integration', () => {
     testSubject = `test-google-subject-revocation-${Date.now()}`;
     testEmail = `revocation-${Date.now()}@example.com`;
     testScopes = ['https://www.googleapis.com/auth/drive.readonly'];
+    
+    // Set up mock cookie store
+    mockCookieStore.get.mockReturnValue({ value: 'mock-session-id' });
   });
 
   afterAll(async () => {

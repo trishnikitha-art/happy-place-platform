@@ -11,6 +11,17 @@
  * They prove actual Redis Lua atomic behavior and state consistency.
  */
 
+// Mock browser cookies at module level (required by Jest hoisting)
+const mockCookieStore = {
+  set: jest.fn(),
+  get: jest.fn(),
+  delete: jest.fn(),
+};
+
+jest.mock('next/headers', () => ({
+  cookies: jest.fn(() => mockCookieStore),
+}));
+
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import { Redis } from '@upstash/redis';
 import { 
@@ -20,7 +31,6 @@ import {
   StateValidationResult,
   StateInfrastructureError,
 } from '../oauth-state-manager';
-import { cookies } from 'next/headers';
 
 // Check if Redis credentials are available
 const STATE_CONCURRENCY_KV_REST_API_URL = process.env.KV_REST_API_URL || 
@@ -67,14 +77,10 @@ describeOrSkip('OAuth State Concurrency - Real Redis Integration', () => {
     process.env.TEST_NAMESPACE = testNamespace;
     console.log('[STATE_CONCURRENCY] Using test namespace:', testNamespace);
     
-    // Mock cookies for Next.js
+    // Set up browser binding for cookies
     const crypto = require('crypto');
     browserBinding = crypto.randomBytes(16).toString('hex');
-    mockCookieStore = {
-      set: jest.fn(),
-      get: jest.fn().mockReturnValue({ value: browserBinding }),
-      delete: jest.fn(),
-    };
+    mockCookieStore.get.mockReturnValue({ value: browserBinding });
   });
 
   afterAll(() => {
