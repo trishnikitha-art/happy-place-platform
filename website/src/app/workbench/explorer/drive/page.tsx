@@ -379,6 +379,23 @@ export default function DriveExplorerPage() {
     }
   };
 
+  // P0 FIX: OAuth initiation using JSON-based flow
+  const handleAuthorize = async () => {
+    try {
+      const response = await fetch('/api/drive/oauth/authorize');
+      const data = await response.json();
+      
+      if (data.authUrl) {
+        window.location.href = data.authUrl;
+      } else {
+        alert('Failed to get authorization URL');
+      }
+    } catch (err) {
+      console.error('Failed to initiate OAuth:', err);
+      alert('Error: Failed to initiate Google Drive authorization');
+    }
+  };
+
   const filteredItems = state.items.filter((item: any) =>
     item.name.toLowerCase().includes(state.searchQuery.toLowerCase())
   );
@@ -400,12 +417,12 @@ export default function DriveExplorerPage() {
       <div className="flex items-center gap-4 mb-6">
         {/* Authorize button when reauth required */}
         {state.requiresReauth && (
-          <a
-            href="/api/drive/oauth/authorize"
+          <button
+            onClick={handleAuthorize}
             className="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
           >
             Authorize Google Drive
-          </a>
+          </button>
         )}
 
         {/* My Drive button */}
@@ -476,12 +493,12 @@ export default function DriveExplorerPage() {
           <div className="text-center">
             <p className="mb-4">{state.error}</p>
             {state.requiresReauth && (
-              <a
-                href="/api/drive/oauth/authorize"
+              <button
+                onClick={handleAuthorize}
                 className="inline-block px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
               >
                 Authorize Google Drive
-              </a>
+              </button>
             )}
           </div>
         </div>

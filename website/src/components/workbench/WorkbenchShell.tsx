@@ -17,9 +17,9 @@
 
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { 
   LayoutDashboard, 
   Clock, 
@@ -52,7 +52,53 @@ const plugins = [
 
 export function WorkbenchShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  // P0 FIX: Enforce Workbench authentication gate
+  // All /workbench/* routes except /workbench/login require authentication
+  useEffect(() => {
+    const checkAuth = async () => {
+      // Skip auth check for login page
+      if (pathname === '/workbench/login') {
+        setIsAuthenticated(true);
+        return;
+      }
+
+      try {
+        const response = await fetch('/api/workbench/auth-status');
+        const data = await response.json();
+        
+        if (data.authenticated) {
+          setIsAuthenticated(true);
+        } else {
+          setIsAuthenticated(false);
+          router.push('/workbench/login');
+        }
+      } catch (error) {
+        console.error('[WORKBENCH_SHELL] Auth check failed', error);
+        setIsAuthenticated(false);
+        router.push('/workbench/login');
+      }
+    };
+
+    checkAuth();
+  }, [pathname, router]);
+
+  // Show loading state while checking authentication
+  if (isAuthenticated === null) {
+    return (
+      <div className="flex h-screen items-center justify-center bg-background">
+        <div className="text-muted-foreground">Loading Workbench...</div>
+      </div>
+    );
+  }
+
+  // Don't render shell if not authenticated (redirect will happen)
+  if (isAuthenticated === false) {
+    return null;
+  }
 
   return (
     <div className="flex h-screen bg-background">
