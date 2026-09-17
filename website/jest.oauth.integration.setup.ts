@@ -67,14 +67,6 @@ if (!process.env.ENCRYPTION_KEY) {
   process.env.ENCRYPTION_KEY = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 }
 
-// P0: Fail closed if encryption key is missing
-// Uses current production encryption contract (ENCRYPTION_KEY = key version 0)
-if (!process.env.ENCRYPTION_KEY) {
-  console.error('[OAUTH_INTEGRATION_SETUP] ENCRYPTION_KEY_MISSING');
-  console.error('[OAUTH_INTEGRATION_SETUP] Integration tests require ENCRYPTION_KEY');
-  throw new Error('Integration tests require ENCRYPTION_KEY');
-}
-
 // Optional: ENCRYPTION_KEY_V1 only required for key rotation tests
 // If not present, key rotation tests will be skipped
 if (process.env.ENCRYPTION_KEY_V1) {
