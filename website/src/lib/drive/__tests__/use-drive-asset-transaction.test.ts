@@ -659,7 +659,9 @@ describe('Post-Write Readback Barrier', () => {
     const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
     const routeCode = fs.readFileSync(routePath, 'utf8');
 
-    expect(routeCode).toContain('independentAssignment.revision !== (readbackAssignment?.revision || 0) + 1');
+    // The independent readback must equal the promoted revision (not expectedRevision + 1)
+    // This is the correct invariant after the abf44ca2 fix
+    expect(routeCode).toContain('independentAssignment.revision !== readbackAssignment.revision');
     expect(routeCode).toContain('ASSIGNMENT_READBACK_MISMATCH');
   });
 
@@ -737,9 +739,10 @@ describe('Readback Barrier Failure Injection', () => {
     const routeCode = fs.readFileSync(routePath, 'utf8');
 
     // Verify the route validates revision advanced correctly
+    // The independent readback must equal the promoted revision (not expectedRevision + 1)
+    // This is the correct invariant after the abf44ca2 fix
     expect(routeCode).toContain('ASSIGNMENT_READBACK_MISMATCH');
-    expect(routeCode).toContain('independentAssignment.revision !== (readbackAssignment?.revision || 0) + 1');
-    expect(routeCode).toContain('Assignment revision does not match expected CAS advancement');
+    expect(routeCode).toContain('independentAssignment.revision !== readbackAssignment.revision');
   });
 
   it('should place readback barrier before idempotency recording', () => {

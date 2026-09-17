@@ -12,14 +12,14 @@
  * They prove actual production security boundaries.
  */
 
-const REDIS_ENABLED = process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true';
+const OAUTH_SECURITY_BOUNDARIES_REDIS_ENABLED = process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true';
 
 describe('OAuth Security Boundaries - Real Redis Integration', () => {
   let testNamespace: string;
 
   beforeAll(() => {
     // Skip integration tests if Redis is not enabled
-    if (!REDIS_ENABLED) {
+    if (!OAUTH_SECURITY_BOUNDARIES_REDIS_ENABLED) {
       console.log('[OAUTH_SECURITY_INTEGRATION] Skipping integration tests - Redis not enabled');
       return;
     }
@@ -31,14 +31,14 @@ describe('OAuth Security Boundaries - Real Redis Integration', () => {
 
   // Skip all tests if Redis is not enabled
   beforeEach(() => {
-    if (!REDIS_ENABLED) {
+    if (!OAUTH_SECURITY_BOUNDARIES_REDIS_ENABLED) {
       console.log('[OAUTH_SECURITY_INTEGRATION] Skipping test - Redis not enabled');
     }
   });
 
   describe('Browser Binding', () => {
     it('should accept valid browser binding', async () => {
-      if (!REDIS_ENABLED) {
+      if (!OAUTH_SECURITY_BOUNDARIES_REDIS_ENABLED) {
         return;
       }
 
@@ -64,7 +64,7 @@ describe('OAuth Security Boundaries - Real Redis Integration', () => {
     });
 
     it('should reject different browser binding', async () => {
-      if (!REDIS_ENABLED) {
+      if (!OAUTH_SECURITY_BOUNDARIES_REDIS_ENABLED) {
         return;
       }
 
@@ -96,7 +96,7 @@ describe('OAuth Security Boundaries - Real Redis Integration', () => {
     });
 
     it('should reject missing browser binding', async () => {
-      if (!REDIS_ENABLED) {
+      if (!OAUTH_SECURITY_BOUNDARIES_REDIS_ENABLED) {
         return;
       }
 

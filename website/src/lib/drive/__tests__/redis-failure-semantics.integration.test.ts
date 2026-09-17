@@ -13,7 +13,7 @@
  * Security invariant: Redis unavailable → explicit error → no silent fallback
  */
 
-const REDIS_ENABLED = process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true';
+const REDIS_FAILURE_SEMANTICS_REDIS_ENABLED = process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true';
 
 describe('Redis Failure Semantics - Real Redis Integration', () => {
   let originalRedisUrl: string | undefined;
@@ -21,7 +21,7 @@ describe('Redis Failure Semantics - Real Redis Integration', () => {
 
   beforeAll(() => {
     // Skip integration tests if Redis is not enabled
-    if (!REDIS_ENABLED) {
+    if (!REDIS_FAILURE_SEMANTICS_REDIS_ENABLED) {
       console.log('[REDIS_FAILURE_SEMANTICS] Skipping integration tests - Redis not enabled');
       return;
     }
@@ -47,14 +47,14 @@ describe('Redis Failure Semantics - Real Redis Integration', () => {
 
   // Skip all tests if Redis is not enabled
   beforeEach(() => {
-    if (!REDIS_ENABLED) {
+    if (!REDIS_FAILURE_SEMANTICS_REDIS_ENABLED) {
       console.log('[REDIS_FAILURE_SEMANTICS] Skipping test - Redis not enabled');
     }
   });
 
   describe('Redis Unavailable - Fail Closed', () => {
     it('should throw explicit error when Redis URL is invalid', async () => {
-      if (!REDIS_ENABLED) {
+      if (!REDIS_FAILURE_SEMANTICS_REDIS_ENABLED) {
         return;
       }
 

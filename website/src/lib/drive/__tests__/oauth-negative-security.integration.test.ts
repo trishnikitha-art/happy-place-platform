@@ -27,6 +27,7 @@ const REDIS_ENABLED = process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true';
 // Skip entire suite if Redis credentials are missing in local development
 // In CI, these tests should fail if Redis is not configured
 const CI = process.env.CI === 'true';
+const OAUTH_SECURITY_REDIS_AVAILABLE = REDIS_ENABLED;
 const describeOrSkip = (!REDIS_ENABLED && !CI) ? describe.skip : describe;
 
 describeOrSkip('OAuth Negative Security - Real Redis Integration', () => {
