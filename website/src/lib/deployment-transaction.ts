@@ -304,6 +304,72 @@ const CREATE_TRANSACTION_SCRIPT = `
 `;
 
 /**
+ * Atomic Lua script for metadata update (no state transition)
+ * Updates transaction metadata while preserving current state
+ * Used for setGitCommitSha to persist commit SHA before Redis promotion
+ * 
+ * CRITICAL: This is NOT a state transition - it only updates metadata
+ * 
+ * Security guarantees:
+ * - Transaction must exist
+ * - Transaction ID must match
+ * - Current state must be the expected state (e.g., committing)
+ * - Owner must match (unless owner is empty/not set)
+ * - Idempotent: allows same commitSha to be set multiple times
+ * - Rejects conflicting commitSha (CAS semantics)
+ */
+const METADATA_UPDATE_SCRIPT = `
+  local key = KEYS[1]
+  local transactionId = ARGV[1]
+  local expectedState = ARGV[2]
+  local owner = ARGV[3]
+  local commitSha = ARGV[4]
+  local commitUrl = ARGV[5]
+  local transactionData = ARGV[6]
+  
+  local current = redis.call('GET', key)
+  
+  -- REJECT if transaction doesn't exist
+  if not current then
+    return {err = 'TRANSACTION_NOT_FOUND: Use createDeploymentTransaction first'}
+  end
+  
+  local parsed = cjson.decode(current)
+  local currentState = parsed.state
+  
+  -- CRITICAL: Validate transaction ID identity
+  if parsed.transactionId ~= transactionId then
+    return {err = 'TRANSACTION_ID_MISMATCH: Expected ' .. transactionId .. ', got ' .. parsed.transactionId}
+  end
+  
+  -- REJECT if current state is not the expected state
+  if currentState ~= expectedState then
+    return {err = 'INVALID_STATE: Expected ' .. expectedState .. ', got ' .. currentState}
+  end
+  
+  -- OWNER VERIFICATION: Only the owner can update metadata
+  if parsed.owner and parsed.owner ~= '' then
+    if owner and owner ~= '' and owner ~= parsed.owner then
+      return {err = 'OWNER_MISMATCH: Transaction owned by ' .. parsed.owner .. ', but attempt by ' .. owner}
+    end
+  end
+  
+  -- CAS SEMANTICS: Reject if commitSha already exists and differs from new value
+  if parsed.commitSha and parsed.commitSha ~= '' and parsed.commitSha ~= commitSha then
+    return {err = 'CAS_FAILURE: commitSha already set to ' .. parsed.commitSha .. ', cannot change to ' .. commitSha}
+  end
+  
+  -- Update metadata while preserving state
+  local newParsed = cjson.decode(transactionData)
+  newParsed.state = currentState -- Preserve current state
+  newParsed.commitSha = commitSha
+  newParsed.commitUrl = commitUrl
+  
+  redis.call('SET', key, cjson.encode(newParsed))
+  return {ok = 'METADATA_UPDATED'}
+`;
+
+/**
  * Atomic Lua script for state transition enforcement
  * Only operates on existing transactions - rejects if transaction doesn't exist
  * Prevents illegal transitions and concurrent claims
@@ -547,7 +613,16 @@ export async function claimDeploymentTransaction(
  * the transaction already has commitSha and can retry Redis promotion
  * against the same Git commit without creating a new commit.
  * 
- * This is an idempotent update within the committing state.
+ * This is an idempotent metadata update within the committing state.
+ * Uses dedicated METADATA_UPDATE_SCRIPT to avoid illegal transition error.
+ * 
+ * Security guarantees:
+ * - Transaction must exist and be in committing state
+ * - Owner must match (if owner is set)
+ * - Idempotent: allows same commitSha to be set multiple times
+ * - CAS semantics: rejects conflicting commitSha
+ * - State remains unchanged (no transition)
+ * 
  * @param transactionId - Transaction ID
  * @param commitSha - Git commit SHA
  * @param commitUrl - Git commit URL
@@ -583,17 +658,18 @@ export async function setGitCommitSha(
       ...current,
       commitSha,
       commitUrl,
-      // Remain in committing state - transition to committed happens after Redis promotion
+      // State remains committing - no transition
     };
     
     const result = await client.eval(
-      STATE_TRANSITION_SCRIPT,
+      METADATA_UPDATE_SCRIPT,
       [key],
       [
         transactionId,
-        'committing', // Remain in committing state
+        'committing', // Expected current state
         effectiveOwner || '',
-        current.parentCommitSha || '',
+        commitSha,
+        commitUrl,
         JSON.stringify(updated),
       ]
     );
@@ -606,8 +682,11 @@ export async function setGitCommitSha(
       if (err.includes('TRANSACTION_NOT_FOUND')) {
         throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
       }
-      if (err.includes('ILLEGAL_TRANSITION')) {
-        throw new Error(`Invalid state transition: ${normalizeRedisError(err)}`);
+      if (err.includes('INVALID_STATE')) {
+        throw new Error(`Invalid state for metadata update: ${normalizeRedisError(err)}`);
+      }
+      if (err.includes('CAS_FAILURE')) {
+        throw new Error(`CAS failure: ${normalizeRedisError(err)}`);
       }
       throw new Error(`Failed to persist commitSha: ${normalizeRedisError(err)}`);
     }

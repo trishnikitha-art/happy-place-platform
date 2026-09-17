@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { createDeploymentTransaction, getDeploymentTransaction, claimDeploymentTransaction, atomicPromoteAssignments, retryDeploymentTransaction, failDeploymentTransaction, getRedisClient } from '../deployment-transaction';
+import { createDeploymentTransaction, getDeploymentTransaction, claimDeploymentTransaction, atomicPromoteAssignments, retryDeploymentTransaction, failDeploymentTransaction, setGitCommitSha, getRedisClient } from '../deployment-transaction';
 import { getKvNamespace } from '../environment';
 
 const TEST_TRANSACTION_PREFIX = 'BULK-TEST-';
@@ -245,6 +245,138 @@ describe('Deployment Transaction Bulk Assignment', () => {
         'State barrier test'
       )
     ).rejects.toThrow('TRANSACTION_NOT_PREPARED');
+  });
+
+  it('should persist commitSha without state transition (regression test for ILLEGAL_TRANSITION)', async () => {
+    if (!hasKv) {
+      console.log('Skipping: KV not configured');
+      return;
+    }
+
+    const TRANSACTION_ID = `${TEST_TRANSACTION_PREFIX}METADATA-${Date.now()}`;
+    testTransactionIds.push(TRANSACTION_ID);
+
+    const STAGING_KEY = `${testNamespace}workbench-staging:${TRANSACTION_ID}:service:decks`;
+
+    // Create transaction in prepared state
+    await createDeploymentTransaction(
+      TRANSACTION_ID,
+      [STAGING_KEY],
+      ['website/src/config/services.v1.json'],
+      'Metadata update test'
+    );
+
+    // Transition to committing state
+    await claimDeploymentTransaction(TRANSACTION_ID, 'test-owner');
+
+    // Persist commitSha using setGitCommitSha (should NOT fail with ILLEGAL_TRANSITION)
+    const COMMIT_SHA = 'abc123def456';
+    const COMMIT_URL = 'https://github.com/test/repo/commit/abc123def456';
+    
+    const updatedTx = await setGitCommitSha(
+      TRANSACTION_ID,
+      COMMIT_SHA,
+      COMMIT_URL,
+      'test-owner'
+    );
+
+    // Verify commitSha was persisted
+    expect(updatedTx.commitSha).toBe(COMMIT_SHA);
+    expect(updatedTx.commitUrl).toBe(COMMIT_URL);
+    
+    // Verify state remains committing (no transition occurred)
+    expect(updatedTx.state).toBe('committing');
+
+    // Verify idempotency: calling again with same commitSha should succeed
+    const updatedTx2 = await setGitCommitSha(
+      TRANSACTION_ID,
+      COMMIT_SHA,
+      COMMIT_URL,
+      'test-owner'
+    );
+    
+    expect(updatedTx2.commitSha).toBe(COMMIT_SHA);
+    expect(updatedTx2.state).toBe('committing');
+  });
+
+  it('should reject conflicting commitSha with CAS semantics', async () => {
+    if (!hasKv) {
+      console.log('Skipping: KV not configured');
+      return;
+    }
+
+    const TRANSACTION_ID = `${TEST_TRANSACTION_PREFIX}CAS-${Date.now()}`;
+    testTransactionIds.push(TRANSACTION_ID);
+
+    const STAGING_KEY = `${testNamespace}workbench-staging:${TRANSACTION_ID}:service:decks`;
+
+    // Create transaction in prepared state
+    await createDeploymentTransaction(
+      TRANSACTION_ID,
+      [STAGING_KEY],
+      ['website/src/config/services.v1.json'],
+      'CAS test'
+    );
+
+    // Transition to committing state
+    await claimDeploymentTransaction(TRANSACTION_ID, 'test-owner');
+
+    // Persist initial commitSha
+    const COMMIT_SHA_1 = 'abc123def456';
+    const COMMIT_URL_1 = 'https://github.com/test/repo/commit/abc123def456';
+    
+    await setGitCommitSha(
+      TRANSACTION_ID,
+      COMMIT_SHA_1,
+      COMMIT_URL_1,
+      'test-owner'
+    );
+
+    // Try to persist different commitSha (should fail with CAS_FAILURE)
+    const COMMIT_SHA_2 = 'xyz789uvw012';
+    const COMMIT_URL_2 = 'https://github.com/test/repo/commit/xyz789uvw012';
+    
+    await expect(
+      setGitCommitSha(
+        TRANSACTION_ID,
+        COMMIT_SHA_2,
+        COMMIT_URL_2,
+        'test-owner'
+      )
+    ).rejects.toThrow('CAS_FAILURE');
+  });
+
+  it('should reject setGitCommitSha in non-committing state', async () => {
+    if (!hasKv) {
+      console.log('Skipping: KV not configured');
+      return;
+    }
+
+    const TRANSACTION_ID = `${TEST_TRANSACTION_PREFIX}STATEVALIDATION-${Date.now()}`;
+    testTransactionIds.push(TRANSACTION_ID);
+
+    const STAGING_KEY = `${testNamespace}workbench-staging:${TRANSACTION_ID}:service:decks`;
+
+    // Create transaction in prepared state
+    await createDeploymentTransaction(
+      TRANSACTION_ID,
+      [STAGING_KEY],
+      ['website/src/config/services.v1.json'],
+      'State validation test'
+    );
+
+    // Try to persist commitSha while in prepared state (should fail)
+    const COMMIT_SHA = 'abc123def456';
+    const COMMIT_URL = 'https://github.com/test/repo/commit/abc123def456';
+    
+    await expect(
+      setGitCommitSha(
+        TRANSACTION_ID,
+        COMMIT_SHA,
+        COMMIT_URL,
+        'test-owner'
+      )
+    ).rejects.toThrow('INVALID_STATE');
   });
 
   it('should reject atomic promotion for non-committing transaction', async () => {
