@@ -1288,6 +1288,174 @@ export async function POST(request: Request) {
         revision: readbackAssignment?.revision,
       });
 
+      // P0 FIX: Independent post-write readback barrier
+      // Verify the authoritative state matches what the transaction intended to publish
+      console.log('[USE_DRIVE_ASSET] ASSIGNMENT_READBACK_STARTED', {
+        requestId,
+        targetSlotId,
+        serviceSlug,
+        expectedMediaId: canonicalMediaId,
+        expectedRevision: readbackAssignment?.revision,
+      });
+
+      // Independent assignment readback from authoritative store
+      const independentAssignment = await getServiceCardAssignment(serviceSlug);
+      console.log('[USE_DRIVE_ASSET] ASSIGNMENT_READBACK_RESULT', {
+        requestId,
+        hasAssignment: !!independentAssignment,
+        assignmentMediaId: independentAssignment?.mediaId,
+        assignmentRevision: independentAssignment?.revision,
+        assignmentUpdatedAt: independentAssignment?.updatedAt,
+      });
+
+      // Verify assignment points to expected media
+      if (!independentAssignment) {
+        console.error('[USE_DRIVE_ASSET] ASSIGNMENT_READBACK_MISMATCH', {
+          requestId,
+          reason: 'Assignment not found in authoritative store after write',
+          serviceSlug,
+        });
+        return NextResponse.json(
+          {
+            error: 'ASSIGNMENT_READBACK_MISMATCH',
+            message: 'Assignment not found in authoritative store after write',
+            requestId,
+          },
+          { status: 500 }
+        );
+      }
+
+      if (independentAssignment.mediaId !== canonicalMediaId) {
+        console.error('[USE_DRIVE_ASSET] ASSIGNMENT_READBACK_MISMATCH', {
+          requestId,
+          reason: 'Assignment media ID does not match expected canonical media ID',
+          expectedMediaId: canonicalMediaId,
+          actualMediaId: independentAssignment.mediaId,
+        });
+        return NextResponse.json(
+          {
+            error: 'ASSIGNMENT_READBACK_MISMATCH',
+            message: 'Assignment media ID does not match expected canonical media ID',
+            details: {
+              expectedMediaId: canonicalMediaId,
+              actualMediaId: independentAssignment.mediaId,
+            },
+            requestId,
+          },
+          { status: 500 }
+        );
+      }
+
+      // Verify revision advanced (or is 0 for first assignment)
+      if (independentAssignment.revision !== (readbackAssignment?.revision || 0) + 1) {
+        console.error('[USE_DRIVE_ASSET] ASSIGNMENT_READBACK_MISMATCH', {
+          requestId,
+          reason: 'Assignment revision does not match expected CAS advancement',
+          expectedRevision: (readbackAssignment?.revision || 0) + 1,
+          actualRevision: independentAssignment.revision,
+        });
+        return NextResponse.json(
+          {
+            error: 'ASSIGNMENT_READBACK_MISMATCH',
+            message: 'Assignment revision does not match expected CAS advancement',
+            details: {
+              expectedRevision: (readbackAssignment?.revision || 0) + 1,
+              actualRevision: independentAssignment.revision,
+            },
+            requestId,
+          },
+          { status: 500 }
+        );
+      }
+
+      // Independent public media resolution
+      console.log('[USE_DRIVE_ASSET] PUBLIC_RESOLUTION_READBACK', {
+        requestId,
+        mediaId: independentAssignment.mediaId,
+      });
+
+      const publicResolvedMedia = await resolvePublicMedia(independentAssignment.mediaId);
+      console.log('[USE_DRIVE_ASSET] PUBLIC_RESOLUTION_READBACK_RESULT', {
+        requestId,
+        hasPublicMedia: !!publicResolvedMedia,
+        publicMediaId: publicResolvedMedia?.id,
+        publicMediaSource: publicResolvedMedia?.source,
+        publicMediaStorage: publicResolvedMedia?.storage,
+      });
+
+      // Verify public resolver returns the same canonical media
+      if (!publicResolvedMedia) {
+        console.error('[USE_DRIVE_ASSET] ASSIGNMENT_READBACK_MISMATCH', {
+          requestId,
+          reason: 'Public media gate rejected the assigned media ID',
+          assignedMediaId: independentAssignment.mediaId,
+        });
+        return NextResponse.json(
+          {
+            error: 'ASSIGNMENT_READBACK_MISMATCH',
+            message: 'Public media gate rejected the assigned media ID',
+            details: {
+              assignedMediaId: independentAssignment.mediaId,
+            },
+            requestId,
+          },
+          { status: 500 }
+        );
+      }
+
+      if (publicResolvedMedia.id !== canonicalMediaId) {
+        console.error('[USE_DRIVE_ASSET] ASSIGNMENT_READBACK_MISMATCH', {
+          requestId,
+          reason: 'Public resolver returned different media ID than assigned',
+          assignedMediaId: independentAssignment.mediaId,
+          resolvedMediaId: publicResolvedMedia.id,
+          expectedMediaId: canonicalMediaId,
+        });
+        return NextResponse.json(
+          {
+            error: 'ASSIGNMENT_READBACK_MISMATCH',
+            message: 'Public resolver returned different media ID than assigned',
+            details: {
+              assignedMediaId: independentAssignment.mediaId,
+              resolvedMediaId: publicResolvedMedia.id,
+              expectedMediaId: canonicalMediaId,
+            },
+            requestId,
+          },
+          { status: 500 }
+        );
+      }
+
+      // Verify public resolver did NOT return a Drive-reference ID
+      if (publicResolvedMedia.id.startsWith('drive-') || publicResolvedMedia.id.startsWith('drive-ref-')) {
+        console.error('[USE_DRIVE_ASSET] ASSIGNMENT_READBACK_MISMATCH', {
+          requestId,
+          reason: 'Public resolver returned a Drive-reference ID instead of PublishedMediaAsset',
+          resolvedMediaId: publicResolvedMedia.id,
+        });
+        return NextResponse.json(
+          {
+            error: 'ASSIGNMENT_READBACK_MISMATCH',
+            message: 'Public resolver returned a Drive-reference ID instead of PublishedMediaAsset',
+            details: {
+              resolvedMediaId: publicResolvedMedia.id,
+            },
+            requestId,
+          },
+          { status: 500 }
+        );
+      }
+
+      console.log('[USE_DRIVE_ASSET] ASSIGNMENT_READBACK_VERIFIED', {
+        requestId,
+        targetSlotId,
+        serviceSlug,
+        verifiedMediaId: publicResolvedMedia.id,
+        verifiedRevision: independentAssignment.revision,
+        verifiedSource: publicResolvedMedia.source,
+        verifiedStorage: publicResolvedMedia.storage,
+      });
+
       const successResult = {
         success: true,
         canonicalMediaId,

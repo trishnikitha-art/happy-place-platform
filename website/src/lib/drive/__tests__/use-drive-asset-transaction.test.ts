@@ -617,3 +617,60 @@ describe('Client-Side Duplication Prevention', () => {
     });
   });
 });
+
+describe('Post-Write Readback Barrier', () => {
+  it('should verify assignment media ID matches expected canonical media ID', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+    const routeCode = fs.readFileSync(routePath, 'utf8');
+
+    expect(routeCode).toContain('ASSIGNMENT_READBACK_STARTED');
+    expect(routeCode).toContain('ASSIGNMENT_READBACK_RESULT');
+    expect(routeCode).toContain('independentAssignment.mediaId !== canonicalMediaId');
+    expect(routeCode).toContain('ASSIGNMENT_READBACK_MISMATCH');
+  });
+
+  it('should verify public resolver returns the same canonical media', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+    const routeCode = fs.readFileSync(routePath, 'utf8');
+
+    expect(routeCode).toContain('PUBLIC_RESOLUTION_READBACK');
+    expect(routeCode).toContain('PUBLIC_RESOLUTION_READBACK_RESULT');
+    expect(routeCode).toContain('publicResolvedMedia.id !== canonicalMediaId');
+  });
+
+  it('should reject Drive-reference IDs in public resolution', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+    const routeCode = fs.readFileSync(routePath, 'utf8');
+
+    expect(routeCode).toContain('startsWith(\'drive-\')');
+    expect(routeCode).toContain('startsWith(\'drive-ref-\')');
+    expect(routeCode).toContain('Drive-reference ID instead of PublishedMediaAsset');
+  });
+
+  it('should verify revision advanced correctly', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+    const routeCode = fs.readFileSync(routePath, 'utf8');
+
+    expect(routeCode).toContain('independentAssignment.revision !== (readbackAssignment?.revision || 0) + 1');
+    expect(routeCode).toContain('ASSIGNMENT_READBACK_MISMATCH');
+  });
+
+  it('should log verified state on successful readback', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
+    const routeCode = fs.readFileSync(routePath, 'utf8');
+
+    expect(routeCode).toContain('ASSIGNMENT_READBACK_VERIFIED');
+    expect(routeCode).toContain('verifiedMediaId');
+    expect(routeCode).toContain('verifiedRevision');
+  });
+});
