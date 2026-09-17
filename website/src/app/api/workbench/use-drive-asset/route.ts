@@ -1247,6 +1247,7 @@ export async function POST(request: Request) {
         readbackMediaId: readbackAssignment?.mediaId,
         expectedMediaId: canonicalMediaId,
         readbackRevision: readbackAssignment?.revision,
+        readbackNamespace: await (await import('@/lib/environment')).getKvNamespace(),
       });
 
       // Verify readback media ID equals canonical media ID
@@ -1301,6 +1302,7 @@ export async function POST(request: Request) {
         assignmentMediaId: independentAssignment?.mediaId,
         assignmentRevision: independentAssignment?.revision,
         assignmentUpdatedAt: independentAssignment?.updatedAt,
+        readbackNamespace: await (await import('@/lib/environment')).getKvNamespace(),
       });
 
       // Verify assignment points to expected media

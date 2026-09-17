@@ -2136,12 +2136,21 @@ export async function POST(request: Request) {
       console.log('[DEPLOY API] ATOMIC_PROMOTION_START', {
         deploymentTransactionId,
         assignmentCount: assignmentsToPromote.length,
+        namespace: getKvNamespace(),
       });
 
       // P0 FIX: Use atomic promotion instead of per-assignment loop
       // P0 FIX: Pass transaction owner to enforce ownership binding in Lua script
       if (assignmentsToPromote.length > 0) {
         const promotionResult = await atomicPromoteAssignments(assignmentsToPromote, deploymentTransactionId, transactionOwner);
+        
+        console.log('[DEPLOY API] ATOMIC_PROMOTION_RESULT', {
+          deploymentTransactionId,
+          success: promotionResult.success,
+          count: promotionResult.count,
+          error: promotionResult.error,
+          namespace: getKvNamespace(),
+        });
 
         if (!promotionResult.success) {
           console.error('[DEPLOY API] ATOMIC_PROMOTION_FAILED', {
