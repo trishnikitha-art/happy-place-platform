@@ -134,6 +134,7 @@ const SERVICE_CARD_ALLOWLIST: string[] = [
   'bathroom-remodeling',
   'built-ins',
   'outdoor-living',
+  'misc', // P0 FIX: Add misc to match media-authority allowlist for authority consistency
 ];
 
 /**
@@ -1276,14 +1277,6 @@ export async function POST(request: Request) {
       // DO NOT consume again - this would cause ILLEGAL_TRANSITION: consumed -> consumed
       // The transaction cleanup (staging deletion) happened in the deploy route
 
-      // Step 7: Return success only if all steps complete
-      console.log('[USE_DRIVE_ASSET] Transaction complete', {
-        requestId,
-        targetSlotId,
-        canonicalMediaId,
-        revision: readbackAssignment?.revision,
-      });
-
       // P0 FIX: Independent post-write readback barrier
       // Verify the authoritative state matches what the transaction intended to publish
       console.log('[USE_DRIVE_ASSET] ASSIGNMENT_READBACK_STARTED', {
@@ -1343,21 +1336,46 @@ export async function POST(request: Request) {
         );
       }
 
-      // Verify revision advanced (or is 0 for first assignment)
-      if (independentAssignment.revision !== (readbackAssignment?.revision || 0) + 1) {
+      // P0 FIX: Verify promotion advanced the caller's expected revision
+      // This checks that atomicPromoteAssignments correctly incremented from expectedRevision
+      if (readbackAssignment?.revision !== expectedRevision + 1) {
         console.error('[USE_DRIVE_ASSET] ASSIGNMENT_READBACK_MISMATCH', {
           requestId,
-          reason: 'Assignment revision does not match expected CAS advancement',
-          expectedRevision: (readbackAssignment?.revision || 0) + 1,
-          actualRevision: independentAssignment.revision,
+          reason: 'Promoted revision does not match expected CAS advancement',
+          expectedRevision: expectedRevision + 1,
+          actualRevision: readbackAssignment?.revision,
         });
         return NextResponse.json(
           {
             error: 'ASSIGNMENT_READBACK_MISMATCH',
-            message: 'Assignment revision does not match expected CAS advancement',
+            message: 'Promoted revision does not match expected CAS advancement',
             details: {
-              expectedRevision: (readbackAssignment?.revision || 0) + 1,
-              actualRevision: independentAssignment.revision,
+              expectedRevision: expectedRevision + 1,
+              actualRevision: readbackAssignment?.revision,
+            },
+            requestId,
+          },
+          { status: 500 }
+        );
+      }
+
+      // P0 FIX: Verify independent readback agrees with the promoted state
+      // The second read is an independent verification of the state already written
+      // It must NOT advance the revision - it should equal the promoted revision
+      if (independentAssignment.revision !== readbackAssignment.revision) {
+        console.error('[USE_DRIVE_ASSET] ASSIGNMENT_READBACK_MISMATCH', {
+          requestId,
+          reason: 'Independent readback revision does not match promoted revision',
+          promotedRevision: readbackAssignment?.revision,
+          independentRevision: independentAssignment.revision,
+        });
+        return NextResponse.json(
+          {
+            error: 'ASSIGNMENT_READBACK_MISMATCH',
+            message: 'Independent readback revision does not match promoted revision',
+            details: {
+              promotedRevision: readbackAssignment?.revision,
+              independentRevision: independentAssignment.revision,
             },
             requestId,
           },
@@ -1451,6 +1469,14 @@ export async function POST(request: Request) {
         verifiedRevision: independentAssignment.revision,
         verifiedSource: publicResolvedMedia.source,
         verifiedStorage: publicResolvedMedia.storage,
+      });
+
+      // P0 FIX: Transaction complete only after all verifications pass
+      console.log('[USE_DRIVE_ASSET] Transaction complete', {
+        requestId,
+        targetSlotId,
+        canonicalMediaId,
+        revision: independentAssignment.revision,
       });
 
       const successResult = {

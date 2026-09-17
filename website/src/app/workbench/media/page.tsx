@@ -14,7 +14,7 @@ interface MediaWorkbenchState {
   loading: boolean;
   assets: VisualAsset[];
   selectedPage: PageRoute;
-  selectedSlot: RegisteredSlot | null;
+  selectedSlots: RegisteredSlot[]; // P0 FIX: Support multiple slot selection for batch assignment
   selectedAsset: VisualAsset | null;
   searchQuery: string;
   filter: 'all' | 'in-use' | 'available' | 'from-drive' | 'local';
@@ -93,7 +93,7 @@ export default function MediaWorkbench() {
     loading: true,
     assets: [],
     selectedPage: '/',
-    selectedSlot: null,
+    selectedSlots: [], // P0 FIX: Support multiple slot selection
     selectedAsset: null,
     searchQuery: '',
     filter: 'all',
@@ -558,7 +558,9 @@ export default function MediaWorkbench() {
     }
   };
 
-  const handleSlotClick = (slot: RegisteredSlot) => {
+  const handleSlotClick = (slot: RegisteredSlot, event?: React.MouseEvent) => {
+    const isMultiSelect = event?.ctrlKey || event?.metaKey;
+    
     console.log('[WORKBENCH] TARGET_SLOT_SELECTED', {
       slotId: slot.id,
       route: slot.route,
@@ -566,27 +568,39 @@ export default function MediaWorkbench() {
       section: slot.section,
       slotName: slot.slotName,
       currentMediaId: slot.currentMediaId,
+      isMultiSelect,
     });
 
-    // P0 FIX: Hard forensic assertion - verify slot selection actually happens
-    console.log('[WORKBENCH] TARGET_SLOT_SELECTION_ASSERTION', {
-      slotId: slot.id,
-      expectedSlotId: slot.id,
-      beforeStateSelectedSlotId: state.selectedSlot?.id,
-    });
-
-    setState(prev => {
-      const newState = { ...prev, selectedSlot: slot };
-      console.log('[WORKBENCH] TARGET_SLOT_SELECTION_COMPLETE', {
-        slotId: slot.id,
-        afterStateSelectedSlotId: newState.selectedSlot?.id,
-        match: newState.selectedSlot?.id === slot.id,
+    if (isMultiSelect) {
+      // Toggle selection for multi-select mode
+      setState(prev => {
+        const isSelected = prev.selectedSlots.some(s => s.id === slot.id);
+        const newSelectedSlots = isSelected
+          ? prev.selectedSlots.filter(s => s.id !== slot.id)
+          : [...prev.selectedSlots, slot];
+        
+        console.log('[WORKBENCH] MULTI_SLOT_SELECTION', {
+          slotId: slot.id,
+          action: isSelected ? 'deselected' : 'selected',
+          totalSelected: newSelectedSlots.length,
+        });
+        
+        return { ...prev, selectedSlots: newSelectedSlots };
       });
-      return newState;
-    });
+    } else {
+      // Single selection mode
+      setState(prev => {
+        const newState = { ...prev, selectedSlots: [slot] };
+        console.log('[WORKBENCH] SINGLE_SLOT_SELECTION', {
+          slotId: slot.id,
+          totalSelected: 1,
+        });
+        return newState;
+      });
+    }
 
-    // If slot has media, select that media
-    if (slot.currentMediaId) {
+    // If slot has media, select that media (only for single selection)
+    if (!isMultiSelect && slot.currentMediaId) {
       const asset = state.assets.find(a => a.id === slot.currentMediaId);
       if (asset) {
         setState(prev => ({ ...prev, selectedAsset: asset }));
@@ -598,7 +612,7 @@ export default function MediaWorkbench() {
     setState(prev => ({ ...prev, selectedAsset: asset }));
     const usingSlots = (state.registeredSlots || []).filter(s => s.currentMediaId === asset.id);
     if (usingSlots.length > 0) {
-      setState(prev => ({ ...prev, selectedSlot: usingSlots[0] }));
+      setState(prev => ({ ...prev, selectedSlots: [usingSlots[0]] }));
     }
   };
 
@@ -896,17 +910,17 @@ export default function MediaWorkbench() {
     console.log('[WORKBENCH] USE_ASSET_BUTTON_CLICKED', {
       hasDriveFile: !!state.driveSelectedFile,
       hasLocalAsset: !!state.selectedAsset,
-      hasTargetSlot: !!state.selectedSlot,
+      hasTargetSlot: state.selectedSlots.length > 0,
       mutationState: state.mutationState,
       driveFileId: state.driveSelectedFile?.id,
       localAssetId: state.selectedAsset?.id,
-      targetSlotId: state.selectedSlot?.id,
+      targetSlotId: state.selectedSlots[0]?.id,
     });
 
     // Guard: Must have both source (Drive file OR local asset) and target slot selected
     const driveFile = state.driveSelectedFile;
     const localAsset = state.selectedAsset;
-    const targetSlot = state.selectedSlot;
+    const targetSlot = state.selectedSlots[0] || null;
 
     const isDriveSource = !!driveFile;
     const isLocalSource = !!localAsset && localAsset.source === 'local';
@@ -920,6 +934,16 @@ export default function MediaWorkbench() {
     if (!targetSlot) {
       console.warn('[WORKBENCH] USE_ASSET_NO_TARGET - no slot selected');
       alert('Please select a target slot first');
+      return;
+    }
+
+    // P0 FIX: For now, only support single slot assignment
+    // Multiple slot assignment will be implemented in a follow-up
+    if (state.selectedSlots.length > 1) {
+      console.warn('[WORKBENCH] USE_ASSET_MULTI_SLOT_NOT_YET_SUPPORTED', {
+        selectedSlotCount: state.selectedSlots.length,
+      });
+      alert('Multiple slot assignment is not yet supported. Please select only one slot.');
       return;
     }
 
@@ -1912,7 +1936,7 @@ export default function MediaWorkbench() {
             thumbnailLink: applicationData.thumbnailLink,
             corpusId: applicationData.corpusId, // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
           });
-          setState(prev => ({ ...prev, selectedSlot: slot }));
+          setState(prev => ({ ...prev, selectedSlots: [slot] }));
 
           console.log('[DND] DRIVE_FILE_SELECTED_FOR_AUTHORITATIVE_TRANSACTION', {
             requestId,
@@ -1962,7 +1986,7 @@ export default function MediaWorkbench() {
 
           // P0 FIX: Removed direct assignment mutation - use authoritative transaction path
           // Set up for "Use This Asset" button click instead
-          setState(prev => ({ ...prev, selectedAsset: asset, selectedSlot: slot }));
+          setState(prev => ({ ...prev, selectedAsset: asset, selectedSlots: [slot] }));
 
           console.log('[DND] ASSET_SELECTED_FOR_AUTHORITATIVE_TRANSACTION', {
             requestId,
@@ -3190,7 +3214,7 @@ export default function MediaWorkbench() {
                 {state.driveStructure && (
                   <div className="space-y-3">
                     {/* Source/Target Status Panel */}
-                    {(state.driveSelectedFile || state.selectedSlot) && (
+                    {(state.driveSelectedFile || state.selectedSlots.length > 0) && (
                       <div className="p-3 bg-muted/50 border border-border rounded-lg space-y-2">
                         <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                           Selection Status
@@ -3209,20 +3233,20 @@ export default function MediaWorkbench() {
                           </div>
                         )}
                         
-                        {state.selectedSlot && (
+                        {state.selectedSlots.length > 0 && (
                           <div className="flex items-center gap-2 text-sm">
                             <Layers size={14} className="text-green-500" />
                             <span className="text-muted-foreground">Target:</span>
                             <span className="font-medium text-foreground">
-                              {state.selectedSlot.slotName}
+                              {state.selectedSlots[0].slotName}
                             </span>
                             <span className="text-xs text-muted-foreground">
-                              ({state.selectedSlot.page})
+                              ({state.selectedSlots[0].page})
                             </span>
                           </div>
                         )}
                         
-                        {!state.selectedSlot && state.driveSelectedFile && (
+                        {state.selectedSlots.length === 0 && state.driveSelectedFile && (
                           <div className="text-xs text-amber-600">
                             ⚠️ Select a target slot to use this asset
                           </div>
@@ -3416,8 +3440,8 @@ export default function MediaWorkbench() {
                           console.log('[WORKBENCH] BUTTON_RENDER_CHECK', {
                             hasDriveSelectedFile: !!state.driveSelectedFile,
                             driveSelectedFile: state.driveSelectedFile,
-                            hasSelectedSlot: !!state.selectedSlot,
-                            selectedSlot: state.selectedSlot,
+                            hasSelectedSlot: state.selectedSlots.length > 0,
+                            selectedSlot: state.selectedSlots[0],
                             mutationState: state.mutationState,
                           });
                           return state.driveSelectedFile;
@@ -3447,9 +3471,9 @@ export default function MediaWorkbench() {
                               <div className="text-xs text-muted-foreground">
                                 <span className="font-medium">Source:</span> {state.driveSelectedFile?.name}
                               </div>
-                              {state.selectedSlot ? (
+                              {state.selectedSlots.length > 0 ? (
                                 <div className="text-xs text-muted-foreground">
-                                  <span className="font-medium">Target:</span> {state.selectedSlot.slotName}
+                                  <span className="font-medium">Target:</span> {state.selectedSlots[0].slotName}
                                 </div>
                               ) : (
                                 <div className="text-xs text-amber-600">
@@ -3463,13 +3487,13 @@ export default function MediaWorkbench() {
                                   e.preventDefault();
                                   console.log('[WORKBENCH] USE_ASSET_BUTTON_CLICK_EVENT', {
                                     hasDriveFile: !!state.driveSelectedFile,
-                                    hasTargetSlot: !!state.selectedSlot,
+                                    hasTargetSlot: state.selectedSlots.length > 0,
                                     mutationState: state.mutationState,
-                                    disabled: !state.selectedSlot || state.mutationState !== 'idle',
+                                    disabled: state.selectedSlots.length === 0 || state.mutationState !== 'idle',
                                   });
                                   handleUseDriveAsset();
                                 }}
-                                disabled={!state.selectedSlot || state.mutationState !== 'idle'}
+                                disabled={state.selectedSlots.length === 0 || state.mutationState !== 'idle'}
                                 className="w-full mt-2 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                               >
                                 {state.mutationState === 'idle' && (
