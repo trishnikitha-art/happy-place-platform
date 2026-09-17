@@ -43,6 +43,7 @@ describe('OAuth Refresh Concurrency - Real Redis Integration', () => {
       const {
         upsertAuthorization,
         getAuthorization,
+        updateAuthorizationAfterRefresh,
       } = await import('../oauth-credential-store');
 
       // Create authorization with expiring access token
@@ -61,22 +62,29 @@ describe('OAuth Refresh Concurrency - Real Redis Integration', () => {
       expect(authorization.encryptedRefreshToken).toBeTruthy();
 
       // P0 FIX: Simulate concurrent refresh operations
-      // In production, this would be multiple requests triggering refresh simultaneously
-      // For testing, we simulate the refresh operation directly
-      
+      // In production, multiple requests trigger refresh simultaneously
+      // Each calls updateAuthorizationAfterRefresh after getting new tokens from Google
+      // This test exercises the actual refresh-update path through the store
+
       const refreshPromises = Array.from({ length: 5 }, async (_, i) => {
-        // Simulate refresh operation for each concurrent request
-        // In a real scenario, this would call the actual Google refresh API
-        // For this test, we verify the authorization store handles concurrent updates
-        
         await new Promise(resolve => setTimeout(resolve, Math.random() * 100)); // Random delay
-        
-        // Attempt to read and verify authorization state
+
+        // Simulate Google refresh returning new access token but preserving refresh token
+        // This is the actual production path after successful Google token refresh
+        await updateAuthorizationAfterRefresh(
+          authorization.id,
+          `refreshed-access-token-${i}`,
+          Date.now() + 3600000,
+          undefined, // Preserve existing refresh token
+        );
+
+        // Verify authorization state after update
         const currentAuth = await getAuthorization(authorization.id);
-        
+
         return {
           index: i,
           hasRefreshToken: !!currentAuth?.encryptedRefreshToken,
+          accessTokenPrefix: currentAuth?.encryptedAccessToken?.substring(0, 20),
           timestamp: Date.now(),
         };
       });
@@ -84,7 +92,7 @@ describe('OAuth Refresh Concurrency - Real Redis Integration', () => {
       // Wait for all concurrent operations to complete
       const results = await Promise.all(refreshPromises);
 
-      // Verify all operations saw a valid refresh token
+      // Verify all operations preserved refresh token
       results.forEach((result, i) => {
         expect(result.hasRefreshToken).toBe(true);
       });
@@ -97,6 +105,7 @@ describe('OAuth Refresh Concurrency - Real Redis Integration', () => {
       console.log('[OAUTH_REFRESH_CONCURRENCY] Concurrent refresh test passed', {
         concurrentOperations: results.length,
         allHadRefreshToken: results.every(r => r.hasRefreshToken),
+        finalAccessTokenPrefix: finalAuth?.encryptedAccessToken?.substring(0, 20),
       });
     });
 

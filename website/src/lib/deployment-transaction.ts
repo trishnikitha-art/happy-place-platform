@@ -101,72 +101,79 @@ const TRANSACTION_PREFIX = 'deployment-transaction:';
  * Validates all expected revisions, then atomically writes all assignments
  * Prevents partial promotion failures
  *
- * P0 FIX: Accepts namespace as ARGV[3] to ensure atomic promotion writes to
- * the same namespaced keyspace as the authoritative assignment store.
- * Previous version wrote to unnamespaced 'service-card-assignment:' keys,
- * causing namespace isolation failure.
+ * KEYS[1]: transactionKey - deployment transaction key
+ * KEYS[2..N]: assignmentKeys - assignment keys to validate and write
+ *
+ * ARGV[1]: assignmentsData - JSON string of assignments to promote
+ * ARGV[2]: deploymentTransactionId - transaction ID for validation
+ * ARGV[3]: expectedOwner - owner to verify (optional)
+ *
+ * Returns indexed array for proper RESP2 serialization:
+ * ['OK', count] on success
+ * ['ERR', errorCode, details] on failure
+ *
+ * P0 FIX: Uses KEYS array per Redis contract instead of dynamically constructed keys
  */
 const ATOMIC_PROMOTION_SCRIPT = `
+  local transactionKey = KEYS[1]
   local assignmentsData = cjson.decode(ARGV[1])
   local deploymentTransactionId = ARGV[2]
-  local namespace = ARGV[3]
-  
-  -- P0 FIX: Validate transaction state before promotion
-  local transactionKey = namespace .. 'deployment-transaction:' .. deploymentTransactionId
+  local expectedOwner = ARGV[3]
+
+  -- Validate transaction state before promotion
   local transaction = redis.call('GET', transactionKey)
-  
+
   if not transaction then
-    return {err = 'TRANSACTION_NOT_FOUND', deploymentTransactionId = deploymentTransactionId}
+    return {'ERR', 'TRANSACTION_NOT_FOUND', deploymentTransactionId}
   end
-  
+
   local parsed = cjson.decode(transaction)
-  
+
   -- Transaction must be in committing state for promotion
   if parsed.state ~= 'committing' then
-    return {err = 'INVALID_TRANSACTION_STATE', deploymentTransactionId = deploymentTransactionId, state = parsed.state, expectedState = 'committing'}
+    return {'ERR', 'INVALID_TRANSACTION_STATE', parsed.state}
   end
-  
-  -- P0 FIX: Verify transaction ownership
-  -- Only the owner who claimed the transaction can promote assignments
-  local expectedOwner = ARGV[4]
+
+  -- Verify transaction ownership
   if expectedOwner and expectedOwner ~= '' then
     if parsed.owner ~= expectedOwner then
-      return {err = 'OWNER_MISMATCH', deploymentTransactionId = deploymentTransactionId, expectedOwner = expectedOwner, actualOwner = parsed.owner}
+      return {'ERR', 'OWNER_MISMATCH', parsed.owner}
     end
   end
-  
+
   -- Phase 1: Validate all expected revisions
+  -- Assignment keys start at KEYS[2]
   for i, assignment in ipairs(assignmentsData) do
-    local assignmentKey = namespace .. 'service-card-assignment:' .. assignment.serviceSlug
+    local assignmentKey = KEYS[i + 1] -- KEYS[2] onwards are assignment keys
     local current = redis.call('GET', assignmentKey)
-    
+
     if current then
       local parsed = cjson.decode(current)
       local expectedRevision = assignment.expectedRevision
-      
+
       -- Check if current revision matches expected
       if parsed.revision ~= expectedRevision then
-        return {err = 'CAS_FAILURE', serviceSlug = assignment.serviceSlug, expectedRevision = expectedRevision, actualRevision = parsed.revision}
+        return {'ERR', 'CAS_FAILURE', assignment.serviceSlug}
       end
     else
       -- Assignment doesn't exist, expectedRevision must be 0 for create
       if assignment.expectedRevision ~= 0 then
-        return {err = 'CAS_FAILURE_MISSING', serviceSlug = assignment.serviceSlug, expectedRevision = assignment.expectedRevision}
+        return {'ERR', 'CAS_FAILURE_MISSING', assignment.serviceSlug}
       end
     end
   end
-  
+
   -- Phase 2: Atomically write all assignments
   for i, assignment in ipairs(assignmentsData) do
-    local assignmentKey = namespace .. 'service-card-assignment:' .. assignment.serviceSlug
+    local assignmentKey = KEYS[i + 1]
     -- Increment revision for write
     assignment.revision = assignment.expectedRevision + 1
     local assignmentValue = cjson.encode(assignment)
-    
+
     redis.call('SET', assignmentKey, assignmentValue)
   end
-  
-  return {ok = 'PROMOTED', count = #assignmentsData}
+
+  return {'OK', #assignmentsData}
 `;
 
 /**
@@ -188,50 +195,67 @@ export async function atomicPromoteAssignments(
     const redis = getRedisClient();
     const namespace = getKvNamespace();
     const assignmentsData = JSON.stringify(assignments);
-    
+
+    // Build KEYS array: transaction key + all assignment keys
+    const transactionKey = `${namespace}deployment-transaction:${deploymentTransactionId}`;
+    const assignmentKeys = assignments.map(a => `${namespace}service-card-assignment:${a.serviceSlug}`);
+    const keys = [transactionKey, ...assignmentKeys];
+
     const result = await redis.eval(
       ATOMIC_PROMOTION_SCRIPT,
-      [], // No keys needed for this script
-      [assignmentsData, deploymentTransactionId, namespace, owner || '']
+      keys, // KEYS array
+      [assignmentsData, deploymentTransactionId, owner || ''] // ARGV array
     );
-    
-    if (result && typeof result === 'object' && 'err' in result) {
-      const errorResult = result as { err: string; serviceSlug?: string; deploymentTransactionId?: string; state?: string; expectedState?: string };
+
+    // Parse indexed array return format: ['OK', count] or ['ERR', errorCode, details]
+    if (!Array.isArray(result) || result.length < 2) {
+      console.error('[ATOMIC_PROMOTION] INVALID_RETURN', {
+        deploymentTransactionId,
+        result,
+        reason: 'Lua script did not return indexed array'
+      });
+      return {
+        success: false,
+        count: 0,
+        error: 'INVALID_LUA_RETURN',
+      };
+    }
+
+    const status = result[0];
+    if (status === 'ERR') {
+      const errorCode = result[1];
+      const details = result[2];
       console.error('[ATOMIC_PROMOTION] FAILED', {
         deploymentTransactionId,
-        error: errorResult.err,
-        failedServiceSlug: errorResult.serviceSlug,
+        errorCode,
+        details,
       });
-      
-      // P0 FIX: Normalize Redis Lua error codes at repository boundary
-      // Strip "Command failed:" prefix to provide stable machine-readable error codes
-      // Callers expect raw error codes like "INVALID_TRANSACTION_STATE", not wrapped messages
-      const errorCode = errorResult.err.replace(/^Command failed: /, '');
-      
+
       return {
         success: false,
         count: 0,
         error: errorCode,
-        failedServiceSlug: errorResult.serviceSlug,
+        failedServiceSlug: typeof details === 'string' ? details : undefined,
       };
     }
-    
-    const successResult = result as { ok: string; count: number };
+
+    // Success: ['OK', count]
+    const count = result[1];
     console.log('[ATOMIC_PROMOTION] SUCCESS', {
       deploymentTransactionId,
-      count: successResult?.count || 0,
+      count,
     });
-    
+
     return {
       success: true,
-      count: successResult?.count || 0,
+      count: count || 0,
     };
   } catch (error) {
     console.error('[ATOMIC_PROMOTION] ERROR', {
       deploymentTransactionId,
       error: error instanceof Error ? error.message : 'Unknown error',
     });
-    
+
     return {
       success: false,
       count: 0,
@@ -307,9 +331,9 @@ const CREATE_TRANSACTION_SCRIPT = `
  * Atomic Lua script for metadata update (no state transition)
  * Updates transaction metadata while preserving current state
  * Used for setGitCommitSha to persist commit SHA before Redis promotion
- * 
+ *
  * CRITICAL: This is NOT a state transition - it only updates metadata
- * 
+ *
  * Security guarantees:
  * - Transaction must exist
  * - Transaction ID must match
@@ -317,6 +341,10 @@ const CREATE_TRANSACTION_SCRIPT = `
  * - Owner must match (unless owner is empty/not set)
  * - Idempotent: allows same commitSha to be set multiple times
  * - Rejects conflicting commitSha (CAS semantics)
+ *
+ * Returns indexed array for proper RESP2 serialization:
+ * ['OK'] on success
+ * ['ERR', errorCode, details] on failure
  */
 const METADATA_UPDATE_SCRIPT = `
   local key = KEYS[1]
@@ -326,55 +354,59 @@ const METADATA_UPDATE_SCRIPT = `
   local commitSha = ARGV[4]
   local commitUrl = ARGV[5]
   local transactionData = ARGV[6]
-  
+
   local current = redis.call('GET', key)
-  
+
   -- REJECT if transaction doesn't exist
   if not current then
-    return {err = 'TRANSACTION_NOT_FOUND: Use createDeploymentTransaction first'}
+    return {'ERR', 'TRANSACTION_NOT_FOUND'}
   end
-  
+
   local parsed = cjson.decode(current)
   local currentState = parsed.state
-  
+
   -- CRITICAL: Validate transaction ID identity
   if parsed.transactionId ~= transactionId then
-    return {err = 'TRANSACTION_ID_MISMATCH: Expected ' .. transactionId .. ', got ' .. parsed.transactionId}
+    return {'ERR', 'TRANSACTION_ID_MISMATCH'}
   end
-  
+
   -- REJECT if current state is not the expected state
   if currentState ~= expectedState then
-    return {err = 'INVALID_STATE: Expected ' .. expectedState .. ', got ' .. currentState}
+    return {'ERR', 'INVALID_STATE', currentState}
   end
-  
+
   -- OWNER VERIFICATION: Only the owner can update metadata
   if parsed.owner and parsed.owner ~= '' then
     if owner and owner ~= '' and owner ~= parsed.owner then
-      return {err = 'OWNER_MISMATCH: Transaction owned by ' .. parsed.owner .. ', but attempt by ' .. owner}
+      return {'ERR', 'OWNER_MISMATCH', parsed.owner}
     end
   end
-  
+
   -- CAS SEMANTICS: Reject if commitSha already exists and differs from new value
   if parsed.commitSha and parsed.commitSha ~= '' and parsed.commitSha ~= commitSha then
-    return {err = 'CAS_FAILURE: commitSha already set to ' .. parsed.commitSha .. ', cannot change to ' .. commitSha}
+    return {'ERR', 'CAS_FAILURE', parsed.commitSha}
   end
-  
+
   -- Update metadata while preserving state
   local newParsed = cjson.decode(transactionData)
   newParsed.state = currentState -- Preserve current state
   newParsed.commitSha = commitSha
   newParsed.commitUrl = commitUrl
-  
+
   redis.call('SET', key, cjson.encode(newParsed))
-  return {ok = 'METADATA_UPDATED'}
+  return {'OK'}
 `;
 
 /**
  * Atomic Lua script for state transition enforcement
  * Only operates on existing transactions - rejects if transaction doesn't exist
  * Prevents illegal transitions and concurrent claims
- * 
+ *
  * CRITICAL: Atomically validates transaction identity before state transition
+ *
+ * Returns indexed array for proper RESP2 serialization:
+ * ['OK'] on success
+ * ['ERR', errorCode, details] on failure
  */
 const STATE_TRANSITION_SCRIPT = `
   local key = KEYS[1]
@@ -383,22 +415,22 @@ const STATE_TRANSITION_SCRIPT = `
   local owner = ARGV[3]
   local expectedParent = ARGV[4]
   local transactionData = ARGV[5]
-  
+
   local current = redis.call('GET', key)
-  
+
   -- REJECT if transaction doesn't exist (creation is separate)
   if not current then
-    return {err = 'TRANSACTION_NOT_FOUND: Use createDeploymentTransaction first'}
+    return {'ERR', 'TRANSACTION_NOT_FOUND'}
   end
-  
+
   local parsed = cjson.decode(current)
   local currentState = parsed.state
-  
+
   -- CRITICAL: Validate transaction ID identity
   if parsed.transactionId ~= transactionId then
-    return {err = 'TRANSACTION_ID_MISMATCH: Expected ' .. transactionId .. ', got ' .. parsed.transactionId}
+    return {'ERR', 'TRANSACTION_ID_MISMATCH'}
   end
-  
+
   -- Legal transition matrix
   local legalTransitions = {
     prepared = { committing = true },
@@ -407,52 +439,52 @@ const STATE_TRANSITION_SCRIPT = `
     failed = { prepared = true },
     consumed = {}
   }
-  
+
   -- Check if transition is legal
   if not legalTransitions[currentState] or not legalTransitions[currentState][newState] then
-    return {err = 'ILLEGAL_TRANSITION: ' .. currentState .. ' -> ' .. newState}
+    return {'ERR', 'ILLEGAL_TRANSITION', currentState .. ' -> ' .. newState}
   end
-  
+
   -- OWNER VERIFICATION: Only the owner who claimed can perform subsequent transitions
   if parsed.owner and parsed.owner ~= '' then
     if newState == 'committing' or newState == 'committed' or newState == 'consumed' then
       if owner ~= parsed.owner then
-        return {err = 'OWNER_MISMATCH: Transaction owned by ' .. parsed.owner .. ', but attempt by ' .. owner}
+        return {'ERR', 'OWNER_MISMATCH', parsed.owner}
       end
     end
   end
-  
+
   -- PARENT COMMIT VERIFICATION: Prevent committing against stale branch head
   -- Only enforce for committing → committed transition
   if currentState == 'committing' and newState == 'committed' then
     if expectedParent and expectedParent ~= '' then
       local currentParent = parsed.parentCommitSha or ''
       if currentParent ~= expectedParent then
-        return {err = 'PARENT_COMMIT_MISMATCH: Transaction prepared against ' .. currentParent .. ', but branch is now ' .. expectedParent}
+        return {'ERR', 'PARENT_COMMIT_MISMATCH', currentParent}
       end
     end
   end
-  
+
   -- prepared → committing: atomic claim check
   if currentState == 'prepared' and newState == 'committing' then
     if parsed.owner and parsed.owner ~= owner then
-      return {err = 'ALREADY_CLAIMED: Transaction owned by ' .. parsed.owner}
+      return {'ERR', 'ALREADY_CLAIMED', parsed.owner}
     end
   end
-  
+
   -- committing → committed: verify commit SHA is set
   if currentState == 'committing' and newState == 'committed' then
     local newParsed = cjson.decode(transactionData)
     if not newParsed.commitSha then
-      return {err = 'MISSING_COMMIT_SHA: Must provide commit SHA for committed state'}
+      return {'ERR', 'MISSING_COMMIT_SHA'}
     end
   end
-  
+
   -- committing → failed: record failure reason and increment retryCount
   if currentState == 'committing' and newState == 'failed' then
     local newParsed = cjson.decode(transactionData)
     if not newParsed.failureReason then
-      return {err = 'MISSING_FAILURE_REASON: Must provide failure reason'}
+      return {'ERR', 'MISSING_FAILURE_REASON'}
     end
     newParsed.retryCount = (parsed.retryCount or 0) + 1
     transactionData = cjson.encode(newParsed)
@@ -464,10 +496,10 @@ const STATE_TRANSITION_SCRIPT = `
     newParsed.retryCount = (parsed.retryCount or 0) + 1
     transactionData = cjson.encode(newParsed)
   end
-  
+
   -- Update transaction
   redis.call('SET', key, transactionData)
-  return {ok = 'TRANSITIONED'}
+  return {'OK'}
 `;
 
 /**
@@ -587,18 +619,26 @@ export async function claimDeploymentTransaction(
         JSON.stringify(updated),
       ]
     );
-    
-    if (result && typeof result === 'object' && 'err' in result) {
-      const err = (result as any).err;
-      if (err.includes('ALREADY_CLAIMED')) {
+
+    // Parse indexed array return format: ['OK'] or ['ERR', errorCode, details]
+    if (!Array.isArray(result) || result.length < 1) {
+      throw new Error('Invalid response from state transition script');
+    }
+
+    const status = result[0];
+    if (status === 'ERR') {
+      const errorCode = result[1];
+      const details = result[2];
+
+      if (errorCode === 'ALREADY_CLAIMED') {
         throw new Error(`Transaction already claimed by another process: ${transactionId}`);
       }
-      if (err.includes('TRANSACTION_NOT_FOUND')) {
+      if (errorCode === 'TRANSACTION_NOT_FOUND') {
         throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
       }
-      throw new Error(`Failed to claim transaction: ${normalizeRedisError(err)}`);
+      throw new Error(`Failed to claim transaction: ${errorCode}`);
     }
-    
+
     console.log('[DEPLOYMENT_TRANSACTION] CLAIMED', { transactionId, owner });
     return updated;
   } catch (error) {
@@ -673,24 +713,32 @@ export async function setGitCommitSha(
         JSON.stringify(updated),
       ]
     );
-    
-    if (result && typeof result === 'object' && 'err' in result) {
-      const err = (result as any).err;
-      if (err.includes('OWNER_MISMATCH')) {
-        throw new Error(`Ownership verification failed: ${normalizeRedisError(err)}`);
+
+    // Parse indexed array return format: ['OK'] or ['ERR', errorCode, details]
+    if (!Array.isArray(result) || result.length < 1) {
+      throw new Error('Invalid response from metadata update script');
+    }
+
+    const status = result[0];
+    if (status === 'ERR') {
+      const errorCode = result[1];
+      const details = result[2];
+
+      if (errorCode === 'OWNER_MISMATCH') {
+        throw new Error(`Ownership verification failed: ${details}`);
       }
-      if (err.includes('TRANSACTION_NOT_FOUND')) {
+      if (errorCode === 'TRANSACTION_NOT_FOUND') {
         throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
       }
-      if (err.includes('INVALID_STATE')) {
-        throw new Error(`Invalid state for metadata update: ${normalizeRedisError(err)}`);
+      if (errorCode === 'INVALID_STATE') {
+        throw new Error(`Invalid state for metadata update: ${details}`);
       }
-      if (err.includes('CAS_FAILURE')) {
-        throw new Error(`CAS failure: ${normalizeRedisError(err)}`);
+      if (errorCode === 'CAS_FAILURE') {
+        throw new Error(`CAS failure: ${details}`);
       }
-      throw new Error(`Failed to persist commitSha: ${normalizeRedisError(err)}`);
+      throw new Error(`Failed to persist commitSha: ${errorCode}`);
     }
-    
+
     console.log('[DEPLOYMENT_TRANSACTION] COMMIT_SHA_PERSISTED', { transactionId, commitSha });
     return updated;
   } catch (error) {
@@ -747,22 +795,30 @@ export async function commitDeploymentTransaction(
         JSON.stringify(updated),
       ]
     );
-    
-    if (result && typeof result === 'object' && 'err' in result) {
-      const err = (result as any).err;
-      if (err.includes('OWNER_MISMATCH')) {
-        throw new Error(`Ownership verification failed: ${normalizeRedisError(err)}`);
+
+    // Parse indexed array return format: ['OK'] or ['ERR', errorCode, details]
+    if (!Array.isArray(result) || result.length < 1) {
+      throw new Error('Invalid response from state transition script');
+    }
+
+    const status = result[0];
+    if (status === 'ERR') {
+      const errorCode = result[1];
+      const details = result[2];
+
+      if (errorCode === 'OWNER_MISMATCH') {
+        throw new Error(`Ownership verification failed: ${details}`);
       }
-      if (err.includes('TRANSACTION_NOT_FOUND')) {
+      if (errorCode === 'TRANSACTION_NOT_FOUND') {
         throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
       }
-      if (err.includes('ILLEGAL_TRANSITION')) {
-        throw new Error(`Invalid state transition: ${normalizeRedisError(err)}`);
+      if (errorCode === 'ILLEGAL_TRANSITION') {
+        throw new Error(`Invalid state transition: ${details}`);
       }
-      if (err.includes('MISSING_COMMIT_SHA')) {
-        throw new Error(`commitSha must be set before committing: ${normalizeRedisError(err)}`);
+      if (errorCode === 'MISSING_COMMIT_SHA') {
+        throw new Error(`commitSha must be set before committing`);
       }
-      throw new Error(`Failed to commit transaction: ${normalizeRedisError(err)}`);
+      throw new Error(`Failed to commit transaction: ${errorCode}`);
     }
     
     console.log('[DEPLOYMENT_TRANSACTION] COMMITTED', { transactionId, commitSha: current.commitSha, owner: effectiveOwner });
@@ -814,18 +870,26 @@ export async function consumeDeploymentTransaction(
         JSON.stringify(updated),
       ]
     );
-    
-    if (result && typeof result === 'object' && 'err' in result) {
-      const err = (result as any).err;
-      if (err.includes('OWNER_MISMATCH')) {
-        throw new Error(`Ownership verification failed: ${normalizeRedisError(err)}`);
+
+    // Parse indexed array return format: ['OK'] or ['ERR', errorCode, details]
+    if (!Array.isArray(result) || result.length < 1) {
+      throw new Error('Invalid response from state transition script');
+    }
+
+    const status = result[0];
+    if (status === 'ERR') {
+      const errorCode = result[1];
+      const details = result[2];
+
+      if (errorCode === 'OWNER_MISMATCH') {
+        throw new Error(`Ownership verification failed: ${details}`);
       }
-      if (err.includes('TRANSACTION_NOT_FOUND')) {
+      if (errorCode === 'TRANSACTION_NOT_FOUND') {
         throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
       }
-      throw new Error(`Failed to consume transaction: ${normalizeRedisError(err)}`);
+      throw new Error(`Failed to consume transaction: ${errorCode}`);
     }
-    
+
     console.log('[DEPLOYMENT_TRANSACTION] CONSUMED', { transactionId, owner: effectiveOwner });
     return updated;
   } catch (error) {
@@ -878,15 +942,23 @@ export async function failDeploymentTransaction(
         JSON.stringify(updated),
       ]
     );
-    
-    if (result && typeof result === 'object' && 'err' in result) {
-      const err = (result as any).err;
-      if (err.includes('TRANSACTION_NOT_FOUND')) {
+
+    // Parse indexed array return format: ['OK'] or ['ERR', errorCode, details]
+    if (!Array.isArray(result) || result.length < 1) {
+      throw new Error('Invalid response from state transition script');
+    }
+
+    const status = result[0];
+    if (status === 'ERR') {
+      const errorCode = result[1];
+      const details = result[2];
+
+      if (errorCode === 'TRANSACTION_NOT_FOUND') {
         throw new Error(`Transaction not found: ${transactionId}. Use createDeploymentTransaction first.`);
       }
-      throw new Error(`Failed to fail transaction: ${normalizeRedisError(err)}`);
+      throw new Error(`Failed to fail transaction: ${errorCode}`);
     }
-    
+
     // P0 FIX: Read back transaction to get actual Lua-incremented retryCount
     // Lua script increments retryCount, so we must read it back from Redis
     const finalTransaction = await client.get<DeploymentTransaction>(key);
@@ -991,19 +1063,27 @@ export async function retryDeploymentTransaction(transactionId: string): Promise
         JSON.stringify(updated),
       ]
     );
-    
-    if (result && typeof result === 'object' && 'err' in result) {
-      const err = (result as any).err;
-      if (err.includes('ILLEGAL_TRANSITION')) {
-        throw new Error(`Cannot retry transaction: ${normalizeRedisError(err)}`);
-      }
-      throw new Error(`Failed to retry transaction: ${normalizeRedisError(err)}`);
+
+    // Parse indexed array return format: ['OK'] or ['ERR', errorCode, details]
+    if (!Array.isArray(result) || result.length < 1) {
+      throw new Error('Invalid response from state transition script');
     }
-    
+
+    const status = result[0];
+    if (status === 'ERR') {
+      const errorCode = result[1];
+      const details = result[2];
+
+      if (errorCode === 'ILLEGAL_TRANSITION') {
+        throw new Error(`Cannot retry transaction: ${details}`);
+      }
+      throw new Error(`Failed to retry transaction: ${errorCode}`);
+    }
+
     // P0 FIX: Read back transaction to get actual Lua-incremented retryCount
     // Lua script increments retryCount for failed → prepared
     const finalTransaction = await client.get<DeploymentTransaction>(key);
-    console.log('[DEPLOYMENT_TRANSACTION] RETRIED', { 
+    console.log('[DEPLOYMENT_TRANSACTION] RETRIED', {
       transactionId, 
       retryCount: finalTransaction?.retryCount,
       stagingKeysCount: finalTransaction?.stagingKeys.length 

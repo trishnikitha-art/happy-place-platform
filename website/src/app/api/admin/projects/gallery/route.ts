@@ -51,36 +51,49 @@ const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
 
 /**
  * Atomic Lua script for gallery CAS (Compare-And-Set) mutation
- * 
+ *
  * This script atomically:
  * 1. Reads the current gallery state (staged or deployed)
  * 2. Compares the revision with expectedRevision
  * 3. If match, writes the new gallery with incremented revision
  * 4. Updates the project-level transaction pointer
  * 5. Returns the new revision
- * 
+ *
+ * KEYS[1]: projectStagingKey - project-level current transaction pointer
+ * KEYS[2]: specificStagingKey - new transaction's gallery staging key
+ * KEYS[3]: currentSpecificStagingKey - current transaction's gallery staging key (if any)
+ *
+ * ARGV[1]: expectedRevision - the revision the client expects
+ * ARGV[2]: newGalleryJson - JSON string of the new gallery array
+ * ARGV[3]: transactionId - the new transaction ID
+ * ARGV[4]: deployedRevision - the deployed revision from filesystem (used when no staged state)
+ * ARGV[5]: mutationTimestamp - ISO timestamp for the mutation
+ *
+ * Returns indexed array for proper RESP2 serialization:
+ * [status, newRevision, transactionId, actualRevision] on success
+ * ['ERR', errorCode, expectedRevision, actualRevision] on failure
+ *
  * Prevents race conditions where concurrent gallery mutations could
  * corrupt the revision counter or overwrite each other's changes.
  */
 const ATOMIC_GALLERY_CAS_SCRIPT = `
-  local namespace = ARGV[1]
-  local projectId = ARGV[2]
-  local expectedRevision = tonumber(ARGV[3])
-  local newGalleryJson = ARGV[4]
-  local transactionId = ARGV[5]
+  local projectStagingKey = KEYS[1]
+  local specificStagingKey = KEYS[2]
+  local currentSpecificStagingKey = KEYS[3]
   
-  -- Build keys
-  local projectStagingKey = namespace .. 'workbench-staging:project:' .. projectId .. ':current-transaction'
-  local specificStagingKey = namespace .. 'workbench-staging:' .. transactionId .. ':project:' .. projectId .. ':gallery'
+  local expectedRevision = tonumber(ARGV[1])
+  local newGalleryJson = ARGV[2]
+  local transactionId = ARGV[3]
+  local deployedRevision = tonumber(ARGV[4])
+  local mutationTimestamp = ARGV[5]
   
   -- Read current staged transaction (if any)
   local currentStagedTransactionId = redis.call('GET', projectStagingKey)
   local currentGallery = nil
-  local currentRevision = 0
+  local currentRevision = deployedRevision or 0
   
   if currentStagedTransactionId and currentStagedTransactionId ~= '' then
     -- Load the current staged gallery
-    local currentSpecificStagingKey = namespace .. 'workbench-staging:' .. currentStagedTransactionId .. ':project:' .. projectId .. ':gallery'
     local stagedData = redis.call('GET', currentSpecificStagingKey)
     
     if stagedData then
@@ -92,19 +105,19 @@ const ATOMIC_GALLERY_CAS_SCRIPT = `
         parsed = stagedData
       else
         -- Invalid data type, CAS fails
-        return {err = 'INVALID_STAGED_DATA_TYPE', dataType = type(stagedData)}
+        return {'ERR', 'INVALID_STAGED_DATA_TYPE', expectedRevision, currentRevision}
       end
       
       if parsed then
         currentGallery = parsed.gallery
-        currentRevision = tonumber(parsed.currentRevision) or 0
+        currentRevision = tonumber(parsed.currentRevision) or currentRevision
       end
     end
   end
   
   -- CAS: Compare current revision with expected revision
   if currentRevision ~= expectedRevision then
-    return {err = 'CAS_FAILURE', expectedRevision = expectedRevision, actualRevision = currentRevision}
+    return {'ERR', 'CAS_FAILURE', expectedRevision, currentRevision}
   end
   
   -- Write new gallery with incremented revision
@@ -114,7 +127,7 @@ const ATOMIC_GALLERY_CAS_SCRIPT = `
     gallery = newGallery,
     currentRevision = newRevision,
     previousGallery = currentGallery or {},
-    mutationTimestamp = ARGV[6]
+    mutationTimestamp = mutationTimestamp
   }
   
   -- Write the specific staging key
@@ -123,7 +136,8 @@ const ATOMIC_GALLERY_CAS_SCRIPT = `
   -- Update the project-level transaction pointer
   redis.call('SET', projectStagingKey, transactionId)
   
-  return {ok = 'GALLERY_UPDATED', newRevision = newRevision, transactionId = transactionId}
+  -- Return indexed array for proper RESP2 serialization
+  return {'OK', newRevision, transactionId, currentRevision}
 `;
 
 function getRedisClient(): Redis | null {
@@ -191,18 +205,32 @@ export async function GET(request: Request) {
         // Load the specific staged transaction
         const specificStagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${currentStagedTransactionId}:project:${projectId}:gallery`;
         const stagedData = await redis.get(specificStagingKey);
-        
-        if (stagedData && typeof stagedData === 'string') {
-          const parsed = JSON.parse(stagedData);
-          stagedGallery = parsed.gallery;
-          transactionId = currentStagedTransactionId;
-          console.log('[GALLERY GET] STAGED_STATE_FOUND', { 
-            projectId, 
-            stagingKey: specificStagingKey,
-            transactionId,
-            galleryLength: stagedGallery.length,
-            stagedRevision: parsed.currentRevision
-          });
+
+        // P0 FIX: Accept both string and object (Upstash may return either)
+        if (stagedData) {
+          let parsed: any;
+          if (typeof stagedData === 'string') {
+            parsed = JSON.parse(stagedData);
+          } else if (typeof stagedData === 'object') {
+            parsed = stagedData;
+          } else {
+            console.warn('[GALLERY GET] STAGED_DATA_INVALID_TYPE', {
+              projectId,
+              dataType: typeof stagedData
+            });
+          }
+
+          if (parsed && parsed.gallery) {
+            stagedGallery = parsed.gallery;
+            transactionId = currentStagedTransactionId;
+            console.log('[GALLERY GET] STAGED_STATE_FOUND', {
+              projectId,
+              stagingKey: specificStagingKey,
+              transactionId,
+              galleryLength: stagedGallery.length,
+              stagedRevision: parsed.currentRevision
+            });
+          }
         }
       }
     }
@@ -234,14 +262,17 @@ export async function GET(request: Request) {
       const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${transactionId}:project:${projectId}:gallery`;
       const stagedData = await redis.get(stagingKey);
       if (stagedData) {
-        // P0 FIX: Upstash automatically deserializes JSON objects
-        // Accept both string (needs JSON.parse) and object (already parsed)
+        // P0 FIX: Accept both string and object (Upstash may return either)
         let parsed: any;
         if (typeof stagedData === 'string') {
           parsed = JSON.parse(stagedData);
         } else if (typeof stagedData === 'object') {
           parsed = stagedData;
         } else {
+          console.warn('[GALLERY GET] SECONDARY_STAGED_DATA_INVALID_TYPE', {
+            projectId,
+            dataType: typeof stagedData
+          });
           effectiveRevision = deployedRevision + 1;
         }
         effectiveRevision = parsed?.currentRevision || deployedRevision + 1;
@@ -482,45 +513,87 @@ export async function PUT(request: Request) {
 
     // Use KV for production persistence to avoid EROFS errors
     if (isProduction && redis) {
-      // P0 FIX: Use atomic Lua script for CAS (Compare-And-Set) gallery mutation
-      // This prevents race conditions where concurrent mutations could corrupt the revision counter
+      // P0 FIX: Read deployed revision from filesystem for initial CAS check
+      const deployedRevision = project.media?.galleryRevision || 0;
+
+      // P0 FIX: Create deployment transaction BEFORE mutation to prevent split-brain
+      // If CAS fails, transaction exists but has no staging keys (safe failure state)
       const effectiveTransactionId = transactionId || `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const namespace = getKvNamespace();
       const galleryJson = JSON.stringify(gallery);
       const mutationTimestamp = new Date().toISOString();
 
+      // Build Redis keys for KEYS array (per Redis contract)
+      const projectStagingKey = `${namespace}${WORKBENCH_STAGING_PREFIX}project:${projectId}:current-transaction`;
+      const specificStagingKey = `${namespace}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:gallery`;
+
+      // Read current staged transaction to build currentSpecificStagingKey
+      const currentStagedTransactionId = await redis.get(projectStagingKey);
+      const currentSpecificStagingKey = currentStagedTransactionId
+        ? `${namespace}${WORKBENCH_STAGING_PREFIX}${currentStagedTransactionId}:project:${projectId}:gallery`
+        : projectStagingKey; // Fallback if no staged state
+
       console.log('[GALLERY V2 PUT] ATOMIC_CAS_EXECUTING', {
         projectId,
         expectedRevision,
+        deployedRevision,
         galleryLength: gallery.length,
         transactionId: effectiveTransactionId,
-        namespace
+        hasStagedState: !!currentStagedTransactionId,
+        currentStagedTransactionId
       });
 
-      // Execute atomic CAS Lua script
-      const casResult = await redis.eval(
-        ATOMIC_GALLERY_CAS_SCRIPT,
-        [], // No keys needed for this script
-        [namespace, projectId, expectedRevision.toString(), galleryJson, effectiveTransactionId, mutationTimestamp]
+      // Create deployment transaction with empty staging keys before CAS
+      // If CAS fails, transaction exists but has no staging keys (safe failure state)
+      const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
+      await createDeploymentTransaction(
+        effectiveTransactionId,
+        [], // Empty staging keys initially
+        ['projects.v1.json'],
+        `Gallery order mutation: ${projectId} (${gallery.length} items)`
       );
 
-      // Check for CAS failure
-      if (casResult && typeof casResult === 'object' && 'err' in casResult) {
-        const errorResult = casResult as { err: string; expectedRevision?: number; actualRevision?: number };
+      // Execute atomic CAS Lua script with KEYS array
+      const casResult = await redis.eval(
+        ATOMIC_GALLERY_CAS_SCRIPT,
+        [projectStagingKey, specificStagingKey, currentSpecificStagingKey], // KEYS array
+        [expectedRevision.toString(), galleryJson, effectiveTransactionId, deployedRevision.toString(), mutationTimestamp] // ARGV array
+      );
+
+      // Parse indexed array return format: ['OK', newRevision, transactionId, actualRevision] or ['ERR', errorCode, expectedRevision, actualRevision]
+      if (!Array.isArray(casResult) || casResult.length < 2) {
+        console.error('[GALLERY V2 PUT] ATOMIC_CAS_INVALID_RETURN', {
+          projectId,
+          casResult,
+          reason: 'Lua script did not return indexed array'
+        });
+        return NextResponse.json(
+          {
+            error: "Gallery mutation failed",
+            message: "Invalid response from atomic CAS operation"
+          },
+          { status: 500 }
+        );
+      }
+
+      const status = casResult[0];
+      if (status === 'ERR') {
+        const errorCode = casResult[1];
+        const actualRevision = casResult[3];
         console.error('[GALLERY V2 PUT] ATOMIC_CAS_FAILURE', {
           projectId,
-          error: errorResult.err,
-          expectedRevision: errorResult.expectedRevision,
-          actualRevision: errorResult.actualRevision
+          errorCode,
+          expectedRevision,
+          actualRevision
         });
 
-        if (errorResult.err === 'CAS_FAILURE') {
+        if (errorCode === 'CAS_FAILURE') {
           return NextResponse.json(
             {
               error: "Concurrent modification detected",
               message: "Gallery has been modified by another operation. Please reload and try again.",
-              currentRevision: errorResult.actualRevision,
-              expectedRevision: errorResult.expectedRevision
+              currentRevision: actualRevision,
+              expectedRevision
             },
             { status: 409 }
           );
@@ -528,33 +601,29 @@ export async function PUT(request: Request) {
           return NextResponse.json(
             {
               error: "Gallery mutation failed",
-              message: errorResult.err
+              message: errorCode
             },
             { status: 500 }
           );
         }
       }
 
-      // Extract new revision from successful CAS result
-      const successResult = casResult as { ok: string; newRevision: number; transactionId: string };
-      const newRevision = successResult.newRevision;
-      const stagingKey = `${namespace}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:gallery`;
-      const projectStagingKey = `${namespace}${WORKBENCH_STAGING_PREFIX}project:${projectId}:current-transaction`;
+      // Success: ['OK', newRevision, transactionId, actualRevision]
+      const newRevision = casResult[1];
+      const actualRevision = casResult[3];
 
       console.log('[GALLERY V2 PUT] ATOMIC_CAS_SUCCESS', {
         projectId,
         galleryLength: gallery.length,
         newRevision,
         transactionId: effectiveTransactionId,
-        stagingKey,
-        projectStagingKey
+        actualRevision
       });
 
-      // Create authoritative deployment transaction record after atomic write succeeds
-      const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
+      // Merge staging keys into existing transaction after successful CAS
       await createDeploymentTransaction(
         effectiveTransactionId,
-        [stagingKey],
+        [specificStagingKey], // Add staging keys now that CAS succeeded
         ['projects.v1.json'],
         `Gallery order mutation: ${projectId} (${gallery.length} items)`
       );
@@ -562,7 +631,7 @@ export async function PUT(request: Request) {
       console.log('[GALLERY V2 PUT] STAGED_IN_KV', {
         projectId,
         galleryLength: gallery.length,
-        stagingKey,
+        stagingKey: specificStagingKey,
         projectStagingKey,
         transactionId: effectiveTransactionId,
         newRevision
