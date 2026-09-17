@@ -142,9 +142,17 @@ const SERVICE_CARD_ALLOWLIST: string[] = [
  *
  * NOTE: UI has additional VisualSlots for display (project cards, galleries, featured projects)
  * but those are static-only and NOT writable through this endpoint
+ *
+ * ARCHITECTURAL NOTE: Brand slots use service-card-assignment authority type
+ * This is intentional but semantically overloaded - brand mutations use special serviceSlug values
+ * (brand-hero-background, brand-portrait-homepage) that are handled by special cases in deploy route
+ * 
+ * Future refactoring: Separate authority type for brand slots with dedicated staging namespace
+ * Current implementation is safe but creates a future failure seam if deploy route special cases are removed
  */
 const VISUAL_SLOT_AUTHORITY: SlotAuthorityMapping[] = [
-  // Brand slots - writable via Service Card Assignment Store
+  // Brand slots - writable via Service Card Assignment Store (architecturally overloaded)
+  // These use special serviceSlug values that deploy route maps to brand.v1.json
   {
     visualSlotId: 'hero-background',
     authorityType: 'service-card-assignment',
@@ -313,14 +321,10 @@ async function checkIdempotency(idempotencyKey: string): Promise<any | null> {
     const cached = await redis.get(key);
 
     if (cached) {
-      console.log('[USE_DRIVE_ASSET] Idempotency hit - returning cached result', { idempotencyKey });
+      console.log('[USE_DRIVE_ASSET] Idempotency hit - returning cached result');
       // P0 FIX: Use authoritative Redis value decoder
       // Handles both JSON strings and already-deserialized objects from Upstash
       const decoded = parseRedisValue(cached);
-      console.log('[USE_DRIVE_ASSET] IDEMPOTENCY_VALUE_DECODED', {
-        valueType: typeof cached,
-        decodedType: typeof decoded,
-      });
       return decoded;
     }
 
@@ -358,13 +362,10 @@ async function acquireTransactionLock(idempotencyKey: string): Promise<string | 
   const acquired = await redis.set(lockKey, ownershipToken, { nx: true, ex: 300 });
   
   if (acquired === 'OK') {
-    console.log('[USE_DRIVE_ASSET] Transaction lock acquired', { 
-      idempotencyKey, 
-      ownershipToken: ownershipToken.substring(0, 8) + '...' 
-    });
+    console.log('[USE_DRIVE_ASSET] Transaction lock acquired');
     return ownershipToken;
   } else {
-    console.log('[USE_DRIVE_ASSET] Transaction lock already held', { idempotencyKey });
+    console.log('[USE_DRIVE_ASSET] Transaction lock already held');
     return null;
   }
 }
@@ -403,15 +404,9 @@ async function releaseTransactionLock(idempotencyKey: string, ownershipToken: st
     const result = await redis.eval(luaScript, [lockKey], [ownershipToken]);
     
     if (result === 1) {
-      console.log('[USE_DRIVE_ASSET] Transaction lock released', { 
-        idempotencyKey, 
-        ownershipToken: ownershipToken.substring(0, 8) + '...' 
-      });
+      console.log('[USE_DRIVE_ASSET] Transaction lock released');
     } else {
-      console.warn('[USE_DRIVE_ASSET] Transaction lock not released (ownership mismatch or expired)', {
-        idempotencyKey,
-        ownershipToken: ownershipToken.substring(0, 8) + '...',
-      });
+      console.warn('[USE_DRIVE_ASSET] Transaction lock not released (ownership mismatch or expired)');
     }
   } catch (error) {
     console.error('[USE_DRIVE_ASSET] Transaction lock release failed', { error });
@@ -445,7 +440,7 @@ async function recordIdempotency(idempotencyKey: string, result: any, ttlSeconds
     const key = getNamespacedIdempotencyKey(idempotencyKey);
     await redis.set(key, JSON.stringify(result), { ex: ttlSeconds });
 
-    console.log('[USE_DRIVE_ASSET] Idempotency recorded', { idempotencyKey, ttlSeconds });
+    console.log('[USE_DRIVE_ASSET] Idempotency recorded', { ttlSeconds });
   } catch (error) {
     console.error('[USE_DRIVE_ASSET] Idempotency record failed', { error });
     throw new Error('REDIS_ERROR: Idempotency record failed - cannot proceed without durable completion record');

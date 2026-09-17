@@ -818,6 +818,14 @@ export async function POST(request: Request) {
               extractedMediaId: mediaId,
             });
             
+            // ARCHITECTURAL NOTE: Brand slot handling is semantically overloaded
+            // Brand slots (hero-background, homepage-owner-portrait-slot) use service-card-assignment authority type
+            // with special serviceSlug values (brand-hero-background, brand-portrait-homepage)
+            // These are mapped to brand.v1.json via special cases below
+            // 
+            // This is intentional but creates a future failure seam if deploy route special cases are removed
+            // Future refactoring: Separate authority type for brand slots with dedicated staging namespace
+            // 
             // Check if this is a brand assignment (use actual slot IDs)
             if (serviceSlug === 'brand-hero-background') {
               brandData.homepageHero.mediaId = mediaId;

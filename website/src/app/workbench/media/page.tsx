@@ -1012,18 +1012,11 @@ export default function MediaWorkbench() {
           ok: verifyResponse.ok,
         });
 
-        let expectedRevision = 0;
-        if (verifyResponse.ok) {
-          const verifyData = await verifyResponse.json();
-          if (verifyData.assignment?.revision !== undefined) {
-            expectedRevision = verifyData.assignment.revision;
-          }
-          console.log('[WORKBENCH] USE_ASSET_CAS_REVISION_PARSED', {
-            requestId,
-            expectedRevision,
-            hasAssignment: !!verifyData.assignment,
-          });
-        } else {
+        // P0 FIX: expectedRevision is REQUIRED - no fallback to 0
+        // Server contract: expectedRevision must be explicitly provided
+        // Client must fail closed if authority endpoint doesn't return a valid revision
+        let expectedRevision: number;
+        if (!verifyResponse.ok) {
           console.error('[WORKBENCH] CAS_REVISION_READ_FAILED', {
             status: verifyResponse.status,
             targetSlotId: targetSlot.id,
@@ -1037,6 +1030,49 @@ export default function MediaWorkbench() {
           }));
           return;
         }
+
+        const verifyData = await verifyResponse.json();
+        
+        // Fail closed if assignment is missing
+        if (!verifyData.assignment) {
+          console.error('[WORKBENCH] CAS_REVISION_MISSING_ASSIGNMENT', {
+            requestId,
+            targetSlotId: targetSlot.id,
+          });
+          alert('Target slot has no current assignment. This is unexpected - please refresh and try again.');
+          setState(prev => ({
+            ...prev,
+            mutationState: 'idle',
+            mutationRequestId: null,
+            mutationError: 'Target slot has no current assignment',
+          }));
+          return;
+        }
+
+        // Fail closed if revision is undefined or invalid
+        if (verifyData.assignment.revision === undefined || verifyData.assignment.revision === null) {
+          console.error('[WORKBENCH] CAS_REVISION_INVALID', {
+            requestId,
+            targetSlotId: targetSlot.id,
+            revision: verifyData.assignment.revision,
+          });
+          alert('Current assignment has invalid revision. This is unexpected - please refresh and try again.');
+          setState(prev => ({
+            ...prev,
+            mutationState: 'idle',
+            mutationRequestId: null,
+            mutationError: 'Current assignment has invalid revision',
+          }));
+          return;
+        }
+
+        expectedRevision = verifyData.assignment.revision;
+        
+        console.log('[WORKBENCH] USE_ASSET_CAS_REVISION_PARSED', {
+          requestId,
+          expectedRevision,
+          hasAssignment: !!verifyData.assignment,
+        });
 
         console.log('[WORKBENCH] USE_ASSET_CAS_REVISION', {
           requestId,
@@ -1109,15 +1145,71 @@ export default function MediaWorkbench() {
           targetSlotId: targetSlot.id,
         });
 
-        // TODO: Implement authoritative local asset assignment endpoint
-        // For now, this is a temporary direct assignment
-        // This should be replaced with a proper authoritative transaction
+        // P0 FIX: Local asset assignment must use same CAS semantics as Drive handoff
+        // Read current assignment revision first, then use authoritative endpoint with expectedRevision
+        const verifyResponse = await fetch('/api/workbench/media-authority', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'get',
+            slotId: targetSlot.id,
+          }),
+        });
+
+        let expectedRevision: number;
+        if (!verifyResponse.ok) {
+          console.error('[WORKBENCH] LOCAL_ASSET_CAS_REVISION_READ_FAILED', {
+            status: verifyResponse.status,
+            targetSlotId: targetSlot.id,
+          });
+          alert('Failed to read current assignment revision. Please try again.');
+          setState(prev => ({
+            ...prev,
+            mutationState: 'idle',
+            mutationRequestId: null,
+            mutationError: 'Authority revision read failed',
+          }));
+          return;
+        }
+
+        const verifyData = await verifyResponse.json();
+        
+        // For local assets, allow creation at revision 0 if no assignment exists
+        // This is the only legitimate use of revision 0 - when creating a new assignment
+        if (!verifyData.assignment) {
+          expectedRevision = 0;
+          console.log('[WORKBENCH] LOCAL_ASSET_CREATING_NEW_ASSIGNMENT', {
+            requestId,
+            targetSlotId: targetSlot.id,
+            expectedRevision,
+          });
+        } else {
+          // Fail closed if revision is undefined or invalid
+          if (verifyData.assignment.revision === undefined || verifyData.assignment.revision === null) {
+            console.error('[WORKBENCH] LOCAL_ASSET_CAS_REVISION_INVALID', {
+              requestId,
+              targetSlotId: targetSlot.id,
+              revision: verifyData.assignment.revision,
+            });
+            alert('Current assignment has invalid revision. This is unexpected - please refresh and try again.');
+            setState(prev => ({
+              ...prev,
+              mutationState: 'idle',
+              mutationRequestId: null,
+              mutationError: 'Current assignment has invalid revision',
+            }));
+            return;
+          }
+          expectedRevision = verifyData.assignment.revision;
+        }
+
         const response = await fetch('/api/workbench/assign-media', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             slotId: targetSlot.id,
             mediaId: canonicalMediaId,
+            expectedRevision,
           }),
         });
 

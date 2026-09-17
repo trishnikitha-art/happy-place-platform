@@ -17,6 +17,7 @@ export const runtime = 'nodejs';
 interface AssignMediaRequest {
   slotId: string;
   mediaId: string;
+  expectedRevision?: number;
 }
 
 export async function POST(request: Request) {
@@ -37,12 +38,13 @@ export async function POST(request: Request) {
     }
 
     const body: AssignMediaRequest = await request.json();
-    const { slotId, mediaId } = body;
+    const { slotId, mediaId, expectedRevision: clientExpectedRevision } = body;
 
     console.log('[WORKBENCH_ASSIGNMENT] Request received', {
       requestId,
       slotId,
       mediaId,
+      expectedRevision: clientExpectedRevision,
     });
 
     if (!slotId || !mediaId) {
@@ -69,9 +71,24 @@ export async function POST(request: Request) {
       normalizedServiceSlug: serviceSlug,
     });
 
-    // Get current assignment for CAS semantics
-    const currentAssignment = await getServiceCardAssignment(serviceSlug);
-    const expectedRevision = currentAssignment?.revision || 0;
+    // P0 FIX: Use client-provided expectedRevision for CAS semantics
+    // If not provided, read from store (legacy compatibility for local asset creation)
+    let expectedRevision: number;
+    if (clientExpectedRevision !== undefined) {
+      expectedRevision = clientExpectedRevision;
+      console.log('[WORKBENCH_ASSIGNMENT] Using client-provided expectedRevision', {
+        requestId,
+        expectedRevision,
+      });
+    } else {
+      // Legacy fallback: read from store
+      const currentAssignment = await getServiceCardAssignment(serviceSlug);
+      expectedRevision = currentAssignment?.revision || 0;
+      console.log('[WORKBENCH_ASSIGNMENT] Using store-derived expectedRevision (legacy)', {
+        requestId,
+        expectedRevision,
+      });
+    }
 
     // Create new assignment
     const newAssignment = {
