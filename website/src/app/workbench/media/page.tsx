@@ -1002,6 +1002,7 @@ export default function MediaWorkbench() {
       setState(prev => ({ ...prev, mutationState: 'materializing' }));
 
       let canonicalMediaId: string;
+      let result: any; // P0 FIX: Declare result in outer scope for both Drive and local asset paths
 
       if (isDriveSource) {
         // DRIVE PATH: Use authoritative transaction endpoint
@@ -1122,7 +1123,9 @@ export default function MediaWorkbench() {
           ok: response.ok,
         });
 
-        if (!response.ok) {
+        // P0 FIX: Handle HTTP 207 Multi-Status for partial success
+        // Some slots may succeed while others fail (e.g., CAS conflicts)
+        if (!response.ok && response.status !== 207) {
           const error = await response.json();
           console.error('[WORKBENCH] USE_ASSET_TRANSACTION_FAILED', {
             requestId,
@@ -1132,8 +1135,47 @@ export default function MediaWorkbench() {
           throw new Error(error.error || 'Failed to use Drive asset');
         }
 
-        const result = await response.json();
-        canonicalMediaId = result.canonicalMediaId;
+        result = await response.json();
+
+        // Handle partial success (HTTP 207)
+        if (response.status === 207) {
+          console.warn('[WORKBENCH] USE_ASSET_PARTIAL_SUCCESS', {
+            requestId,
+            result,
+          });
+
+          const succeededSlots = result.details?.succeeded || [];
+          const failedSlots = result.details?.failed || [];
+
+          if (succeededSlots.length === 0) {
+            // All slots failed
+            const errorMessage = failedSlots.length > 0
+              ? failedSlots.map((f: any) => `${f.targetSlotId}: ${f.error}`).join('; ')
+              : 'All slot assignments failed';
+            throw new Error(errorMessage);
+          }
+
+          // Partial success: use canonical media ID from successful slots
+          canonicalMediaId = result.canonicalMediaId;
+
+          // Show warning about failed slots
+          const failedSlotNames = failedSlots.map((f: any) => f.targetSlotId).join(', ');
+          console.warn('[WORKBENCH] PARTIAL_SUCCESS_WARNING', {
+            requestId,
+            succeededCount: succeededSlots.length,
+            failedCount: failedSlots.length,
+            failedSlots: failedSlotNames,
+          });
+
+          // Update state to show partial success warning
+          setState(prev => ({
+            ...prev,
+            mutationError: `Partial success: ${succeededSlots.length} slots succeeded, ${failedSlots.length} failed (${failedSlotNames})`,
+          }));
+        } else {
+          // Full success (HTTP 200)
+          canonicalMediaId = result.canonicalMediaId;
+        }
 
         console.log('[WORKBENCH] USE_ASSET_TRANSACTION_SUCCESS', {
           requestId,
@@ -1227,9 +1269,46 @@ export default function MediaWorkbench() {
           }),
         });
 
-        if (!response.ok) {
+        // P0 FIX: Handle HTTP 207 Multi-Status for partial success
+        if (!response.ok && response.status !== 207) {
           const error = await response.json();
           throw new Error(error.error || 'Failed to assign local asset');
+        }
+
+        result = await response.json();
+
+        // Handle partial success (HTTP 207)
+        if (response.status === 207) {
+          console.warn('[WORKBENCH] LOCAL_ASSET_PARTIAL_SUCCESS', {
+            requestId,
+            result,
+          });
+
+          const succeededSlots = result.details?.succeeded || [];
+          const failedSlots = result.details?.failed || [];
+
+          if (succeededSlots.length === 0) {
+            // All slots failed
+            const errorMessage = failedSlots.length > 0
+              ? failedSlots.map((f: any) => `${f.targetSlotId}: ${f.error}`).join('; ')
+              : 'All slot assignments failed';
+            throw new Error(errorMessage);
+          }
+
+          // Show warning about failed slots
+          const failedSlotNames = failedSlots.map((f: any) => f.targetSlotId).join(', ');
+          console.warn('[WORKBENCH] LOCAL_PARTIAL_SUCCESS_WARNING', {
+            requestId,
+            succeededCount: succeededSlots.length,
+            failedCount: failedSlots.length,
+            failedSlots: failedSlotNames,
+          });
+
+          // Update state to show partial success warning
+          setState(prev => ({
+            ...prev,
+            mutationError: `Partial success: ${succeededSlots.length} slots succeeded, ${failedSlots.length} failed (${failedSlotNames})`,
+          }));
         }
 
         console.log('[WORKBENCH] LOCAL_ASSET_ASSIGNMENT_SUCCESS', {
@@ -1244,15 +1323,20 @@ export default function MediaWorkbench() {
       // Reload canonical data to include any new asset
       await loadCanonicalData();
 
-      // Update local state for all selected slots
+      // P0 FIX: Update local state only for successfully assigned slots
+      // For partial success, only update slots that succeeded
+      const succeededSlotIds = result.slotResults
+        ? result.slotResults.filter((r: any) => r.success).map((r: any) => r.targetSlotId)
+        : targetSlots.map(s => s.id); // Fallback for full success
+
       setState(prev => {
         const updatedSlots = prev.registeredSlots.map(s =>
-          targetSlots.some(ts => ts.id === s.id) ? { ...s, currentMediaId: canonicalMediaId } : s
+          succeededSlotIds.includes(s.id) ? { ...s, currentMediaId: canonicalMediaId } : s
         );
         return {
           ...prev,
           registeredSlots: updatedSlots,
-          selectedSlots: targetSlots.map(s => ({ ...s, currentMediaId: canonicalMediaId })),
+          selectedSlots: targetSlots.map(s => ({ ...s, currentMediaId: succeededSlotIds.includes(s.id) ? canonicalMediaId : s.currentMediaId })),
           selectedAsset: state.assets.find(a => a.id === canonicalMediaId) || null,
         };
       });

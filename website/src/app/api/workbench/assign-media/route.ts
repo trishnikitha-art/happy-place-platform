@@ -22,6 +22,24 @@ interface AssignMediaRequest {
   slotRevisions?: Array<{ slotId: string; expectedRevision: number }>; // NEW: multi-slot CAS support
 }
 
+/**
+ * P0 FIX: CAS Invariant Strengthening
+ *
+ * This endpoint now requires explicit expectedRevision for ALL requests (single and multi-slot).
+ * The legacy fallback that derived revision from the store has been removed.
+ *
+ * Rationale:
+ * - Automatic revision derivation weakens CAS protection
+ * - Callers MUST read current state first and provide expected revision
+ * - This prevents lost updates from stale UI state
+ * - Use 0 for create (no existing assignment)
+ *
+ * Backward compatibility impact:
+ * - Old callers that omitted expectedRevision will now receive 400 error
+ * - This is intentional - the old behavior was unsafe
+ * - Callers must be updated to read current revision first
+ */
+
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
 
@@ -72,13 +90,27 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate CAS revisions based on request type
+    // P0 FIX: Require explicit CAS revisions for ALL requests (single and multi-slot)
+    // Legacy fallback that derives revision from store is removed to strengthen CAS invariant
+    // Callers MUST read current state first and provide expected revision
     if (isMultiSlot) {
       if (!slotRevisions || slotRevisions.length !== targetSlotIds.length) {
         return NextResponse.json(
           {
             error: 'SLOT_REVISIONS_REQUIRED',
             message: 'slotRevisions array must match slotIds length for multi-slot assignment',
+            requestId,
+          },
+          { status: 400 }
+        );
+      }
+    } else {
+      // Single-slot also requires explicit expectedRevision
+      if (clientExpectedRevision === undefined || clientExpectedRevision === null) {
+        return NextResponse.json(
+          {
+            error: 'EXPECTED_REVISION_REQUIRED',
+            message: 'expectedRevision is required for CAS enforcement (read current assignment first, use 0 for create)',
             requestId,
           },
           { status: 400 }
@@ -121,14 +153,8 @@ export async function POST(request: Request) {
           }
           expectedRevision = slotRevision.expectedRevision;
         } else {
-          // Backward compatibility: single-slot with expectedRevision
-          if (clientExpectedRevision !== undefined) {
-            expectedRevision = clientExpectedRevision;
-          } else {
-            // Legacy fallback: read from store
-            const currentAssignment = await getServiceCardAssignment(serviceSlug);
-            expectedRevision = currentAssignment?.revision || 0;
-          }
+          // Single-slot requires explicit expectedRevision (CAS invariant)
+          expectedRevision = clientExpectedRevision!;
         }
 
         // Create new assignment

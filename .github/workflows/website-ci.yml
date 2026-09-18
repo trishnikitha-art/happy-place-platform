@@ -129,7 +129,7 @@ jobs:
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
-          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
@@ -153,7 +153,7 @@ jobs:
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
-          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
@@ -171,7 +171,7 @@ jobs:
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
-          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
@@ -185,11 +185,18 @@ jobs:
         run: |
           echo "Waiting for server to be ready..."
           timeout 60 bash -c 'until curl -s http://127.0.0.1:3100/api/health > /dev/null; do sleep 2; done'
-          echo "Server is ready"
+          echo "Server health check passed"
+          # Verify Workbench route is loaded
+          timeout 10 bash -c 'until curl -s http://127.0.0.1:3100/api/workbench/auth-status > /dev/null; do sleep 2; done'
+          echo "Workbench route verified"
+          # Verify Drive route is loaded
+          timeout 10 bash -c 'until curl -s http://127.0.0.1:3100/api/drive/auth/status > /dev/null; do sleep 2; done'
+          echo "Drive route verified"
+          echo "Server is ready for HTTP integration tests"
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
-          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
@@ -207,7 +214,7 @@ jobs:
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
-          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
@@ -238,7 +245,7 @@ jobs:
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
-          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY || '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' }}
+          ENCRYPTION_KEY: ${{ secrets.ENCRYPTION_KEY }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}

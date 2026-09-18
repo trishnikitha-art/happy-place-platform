@@ -796,24 +796,28 @@ export async function revokeAuthorization(id: string): Promise<void> {
       local auth_key = KEYS[1]
       local subject_index_key = KEYS[2]
       local auth_ttl = ARGV[1]
-      
+
       -- Get current authorization data
       local auth_data = redis.call('GET', auth_key)
       if not auth_data then
         return 0  -- Authorization not found
       end
-      
+
       local auth = cjson.decode(auth_data)
-      
+
       -- Set authorization status to revoked
       auth.status = 'revoked'
-      auth.updatedAt = redis.call('TIME')[1]
+      -- Use ISO-8601 timestamp for consistency with TypeScript schema
+      local time = redis.call('TIME')
+      local unix_seconds = time[1]
+      local micros = time[2]
+      auth.updatedAt = os.date('!%Y-%m-%dT%H:%M:%S.', unix_seconds) .. string.format('%06d', micros) .. 'Z'
       redis.call('SET', auth_key, cjson.encode(auth))
       redis.call('EXPIRE', auth_key, auth_ttl)
-      
+
       -- Delete subject index atomically (prevents subject resurrection)
       redis.call('DEL', subject_index_key)
-      
+
       return 1  -- Success
     `;
 
@@ -870,36 +874,40 @@ export async function revokeAuthorizationWithSessions(id: string): Promise<void>
       local session_index_key = KEYS[3]
       local session_prefix = ARGV[1]
       local auth_ttl = ARGV[2]
-      
+
       -- Get current authorization data
       local auth_data = redis.call('GET', auth_key)
       if not auth_data then
         return 0  -- Authorization not found
       end
-      
+
       local auth = cjson.decode(auth_data)
-      
+
       -- Set authorization status to revoked
       auth.status = 'revoked'
-      auth.updatedAt = redis.call('TIME')[1]
+      -- Use ISO-8601 timestamp for consistency with TypeScript schema
+      local time = redis.call('TIME')
+      local unix_seconds = time[1]
+      local micros = time[2]
+      auth.updatedAt = os.date('!%Y-%m-%dT%H:%M:%S.', unix_seconds) .. string.format('%06d', micros) .. 'Z'
       redis.call('SET', auth_key, cjson.encode(auth))
       redis.call('EXPIRE', auth_key, auth_ttl)
-      
+
       -- Delete subject index (prevents reauthorization)
       redis.call('DEL', subject_index_key)
-      
+
       -- Get all session IDs from session index
       local session_ids = redis.call('SMEMBERS', session_index_key)
-      
+
       -- Delete session index
       redis.call('DEL', session_index_key)
-      
+
       -- Delete all session records
       for i, session_id in ipairs(session_ids) do
         local session_key = session_prefix .. session_id
         redis.call('DEL', session_key)
       end
-      
+
       -- Return count of revoked sessions
       return #session_ids
     `;
