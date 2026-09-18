@@ -18,6 +18,7 @@ const config: Config = {
     "/compiler/__tests__/", // Exclude constitutional-runtime compiler tests
     "/src/lib/drive/__tests__/.*\\.integration\\.test\\.ts$", // Real Redis integration tests
     "/src/lib/drive/__tests__/.*\\.real-integration\\.test\\.ts$", // Real Redis integration tests
+    "/src/lib/drive/__tests__/multi-slot-adversarial.test.ts", // HTTP integration tests for Phase B only
     "/src/lib/drive/__tests__/oauth-browser-binding.test.ts", // Requires complex Redis mocking
     "/src/lib/drive/__tests__/oauth-state-concurrency.test.ts", // Requires complex Redis mocking
     "/src/lib/drive/__tests__/oauth-state-concurrency.integration.test.ts", // Requires API signature updates
