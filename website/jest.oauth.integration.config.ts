@@ -10,11 +10,8 @@ const config: Config = {
     }],
   },
   testMatch: [
-    // TEMPORARILY DISABLED: OAuth Redis-backed integration tests (Phase A)
-    // These tests have cookie mocking conflicts that need investigation
-    // The jest.oauth.integration.setup.ts mock doesn't match Next.js RequestCookies typing
-    // Pattern below will not match any files
-    "**/__tests__/TEMPORARILY_DISABLED_INTEGRATION__/*.test.ts",
+    // OAuth Redis-backed integration tests (Phase A)
+    "**/src/lib/drive/__tests__/*.integration.test.ts",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",

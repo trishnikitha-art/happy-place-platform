@@ -101,11 +101,18 @@ if (process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true') {
 
   // Mock browser cookies properly for integration tests
   // These are safe to mock since we're testing Redis behavior, not browser behavior
+  // P0 FIX: Include all required RequestCookies members for Next.js typing compatibility
   jest.mock('next/headers', () => ({
     cookies: jest.fn(() => ({
       get: jest.fn(() => ({ value: 'mock-cookie-value' })),
+      getAll: jest.fn(() => []),
+      has: jest.fn(() => false),
       set: jest.fn(),
       delete: jest.fn(),
+      size: 0,
+      [Symbol.iterator]: function* () {
+        yield ['mock-name', { name: 'mock-name', value: 'mock-value' }];
+      },
     })),
   }));
 
