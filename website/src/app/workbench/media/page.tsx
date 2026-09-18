@@ -1002,6 +1002,7 @@ export default function MediaWorkbench() {
       setState(prev => ({ ...prev, mutationState: 'materializing' }));
 
       let canonicalMediaId: string;
+      let result: any; // P0 FIX: Declare result in outer scope for both Drive and local asset paths
 
       if (isDriveSource) {
         // DRIVE PATH: Use authoritative transaction endpoint
@@ -1134,7 +1135,7 @@ export default function MediaWorkbench() {
           throw new Error(error.error || 'Failed to use Drive asset');
         }
 
-        const result = await response.json();
+        result = await response.json();
 
         // Handle partial success (HTTP 207)
         if (response.status === 207) {
@@ -1274,7 +1275,7 @@ export default function MediaWorkbench() {
           throw new Error(error.error || 'Failed to assign local asset');
         }
 
-        const result = await response.json();
+        result = await response.json();
 
         // Handle partial success (HTTP 207)
         if (response.status === 207) {

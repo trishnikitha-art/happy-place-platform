@@ -73,7 +73,16 @@
  * - One slot's failure does not affect other slots (partial success reporting)
  * - All slots share the same canonical media ID (single asset, multiple assignments)
  * - Returns per-slot results for verification
- * 
+ *
+ * ATOMICITY MODEL:
+ * - Multi-slot writes are NOT atomic across all slots
+ * - Each slot assignment is independent with its own CAS protection
+ * - Partial success (HTTP 207) is a legitimate state: A succeeds, B fails, C succeeds
+ * - Failed slots remain in their previous state (no overwrite)
+ * - Successful slots are verified independently
+ * - Idempotency is recorded ONLY after ALL slots pass verification
+ * - Retry of failed slots is safe (successful slots remain unchanged)
+ *
  * This is NOT a scan-all-assignments operation. Targets are explicit.
  */
 
@@ -514,7 +523,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Validate CAS revisions based on request type
+    // P0 FIX: Require explicit CAS revisions for ALL requests (single and multi-slot)
+    // Legacy fallback that derives revision from store is removed to strengthen CAS invariant
+    // Callers MUST read current state first and provide expected revision
     if (isMultiSlot) {
       if (!slotRevisions || slotRevisions.length !== targetSlots.length) {
         return NextResponse.json(
@@ -527,7 +538,7 @@ export async function POST(request: Request) {
         );
       }
     } else {
-      // Backward compatibility: single-slot with expectedRevision
+      // Single-slot also requires explicit expectedRevision (CAS invariant)
       if (expectedRevision === undefined || expectedRevision === null) {
         return NextResponse.json(
           {
