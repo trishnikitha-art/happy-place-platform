@@ -66,6 +66,7 @@ beforeAll(async () => {
       lifecycleState: 'published',
       storage: 'static',
       contentHash: 'test_hash_fences_001_hero',
+      dimensions: { width: 1920, height: 1080 },
       variants: {
         original: '/images/test/fences-001-hero.jpg',
         webp: '/images/test/fences-001-hero.webp',
@@ -91,6 +92,7 @@ beforeAll(async () => {
       lifecycleState: 'published',
       storage: 'static',
       contentHash: 'test_hash_fences_001_after',
+      dimensions: { width: 1920, height: 1080 },
       variants: {
         original: '/images/test/fences-001-after.jpg',
         webp: '/images/test/fences-001-after.webp',

@@ -49,8 +49,6 @@ const describeOrSkip = (!REDIS_ENABLED && !CI) ? describe.skip : describe;
 
 describeOrSkip('OAuth State Concurrency - Real Redis Integration', () => {
   let testNamespace: string;
-  let originalTestNamespace: string | undefined;
-  let mockCookieStore: any;
   let browserBinding: string;
   
   beforeAll(() => {
@@ -69,12 +67,8 @@ describeOrSkip('OAuth State Concurrency - Real Redis Integration', () => {
       return;
     }
     
-    // Save original TEST_NAMESPACE to restore after tests
-    originalTestNamespace = process.env.TEST_NAMESPACE;
-    
-    // Generate unique test namespace to avoid conflicts with production data
-    testNamespace = `test_state_concurrency_${Date.now()}`;
-    process.env.TEST_NAMESPACE = testNamespace;
+    // Use CI-supplied TEST_NAMESPACE if available, otherwise generate unique namespace
+    testNamespace = process.env.TEST_NAMESPACE || `test_state_concurrency_${Date.now()}`;
     console.log('[STATE_CONCURRENCY] Using test namespace:', testNamespace);
     
     // Set up browser binding for cookies
@@ -83,14 +77,7 @@ describeOrSkip('OAuth State Concurrency - Real Redis Integration', () => {
     mockCookieStore.get.mockReturnValue({ value: browserBinding });
   });
 
-  afterAll(() => {
-    // Restore original TEST_NAMESPACE
-    if (originalTestNamespace !== undefined) {
-      process.env.TEST_NAMESPACE = originalTestNamespace;
-    } else {
-      delete process.env.TEST_NAMESPACE;
-    }
-  });
+
 
   // Skip all tests if Redis credentials are not available in local development
   beforeEach(() => {

@@ -52,7 +52,6 @@ const describeOrSkip = (!REDIS_ENABLED && !CI) ? describe.skip : describe;
 
 describeOrSkip('OAuth Authority Revocation - Real Redis Integration', () => {
   let testNamespace: string;
-  let originalTestNamespace: string | undefined;
   let testSubject: string;
   let testEmail: string;
   let testScopes: string[];
@@ -73,12 +72,8 @@ describeOrSkip('OAuth Authority Revocation - Real Redis Integration', () => {
       return;
     }
     
-    // Save original TEST_NAMESPACE to restore after tests
-    originalTestNamespace = process.env.TEST_NAMESPACE;
-    
-    // Generate unique test namespace to avoid conflicts with production data
-    testNamespace = `test_revocation_${Date.now()}`;
-    process.env.TEST_NAMESPACE = testNamespace;
+    // Use CI-supplied TEST_NAMESPACE if available, otherwise generate unique namespace
+    testNamespace = process.env.TEST_NAMESPACE || `test_revocation_${Date.now()}`;
     console.log('[REVOCATION] Using test namespace:', testNamespace);
     
     // Generate unique test identity
@@ -91,13 +86,6 @@ describeOrSkip('OAuth Authority Revocation - Real Redis Integration', () => {
   });
 
   afterAll(async () => {
-    // Restore original TEST_NAMESPACE
-    if (originalTestNamespace !== undefined) {
-      process.env.TEST_NAMESPACE = originalTestNamespace;
-    } else {
-      delete process.env.TEST_NAMESPACE;
-    }
-    
     // Cleanup test data
     try {
       if (REDIS_ENABLED) {

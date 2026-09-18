@@ -163,8 +163,8 @@ describeOrSkip('OAuth Atomic Identity - Real Redis Integration', () => {
 
     it('should maintain subject index consistency', async () => {
       // Skip if Redis credentials not available
-      if (!OAUTH_IDENTITY_REDIS_AVAILABLE) {
-        console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping test - Redis credentials not available');
+      if (!REDIS_ENABLED) {
+        console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping test - Redis not enabled');
         return;
       }
 
@@ -208,8 +208,8 @@ describeOrSkip('OAuth Atomic Identity - Real Redis Integration', () => {
   describe('Atomic Identity Acquisition', () => {
     it('should prove atomic identity acquisition under contention', async () => {
       // Skip if Redis credentials not available
-      if (!OAUTH_IDENTITY_REDIS_AVAILABLE) {
-        console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping test - Redis credentials not available');
+      if (!REDIS_ENABLED) {
+        console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping test - Redis not enabled');
         return;
       }
 
@@ -255,8 +255,8 @@ describeOrSkip('OAuth Atomic Identity - Real Redis Integration', () => {
   describe('Authorization Lifecycle', () => {
     it('should handle authorization creation and retrieval', async () => {
       // Skip if Redis credentials not available
-      if (!OAUTH_IDENTITY_REDIS_AVAILABLE) {
-        console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping test - Redis credentials not available');
+      if (!REDIS_ENABLED) {
+        console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping test - Redis not enabled');
         return;
       }
 
@@ -292,8 +292,8 @@ describeOrSkip('OAuth Atomic Identity - Real Redis Integration', () => {
 
     it('should handle authorization revocation', async () => {
       // Skip if Redis credentials not available
-      if (!OAUTH_IDENTITY_REDIS_AVAILABLE) {
-        console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping test - Redis credentials not available');
+      if (!REDIS_ENABLED) {
+        console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping test - Redis not enabled');
         return;
       }
 
