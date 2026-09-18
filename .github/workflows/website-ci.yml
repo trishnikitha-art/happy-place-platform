@@ -203,7 +203,10 @@ jobs:
           WORKBENCH_PASSWORD: ci-workbench-password-not-production
           HPP_WORKBENCH_PRINCIPAL_ID: ci-workbench-principal
       - name: Phase B - Run HTTP security integration tests
-        run: npx jest --config jest.oauth.integration.config.ts
+        id: phase-b-tests
+        run: |
+          npx jest --config jest.oauth.integration.config.ts --verbose --no-coverage 2>&1 | tee phase-b-test-output.log
+        continue-on-error: true
         env:
           KV_REST_API_URL: ${{ secrets.KV_REST_API_URL }}
           KV_REST_API_TOKEN: ${{ secrets.KV_REST_API_TOKEN }}
@@ -219,6 +222,18 @@ jobs:
           WORKBENCH_PASSWORD: ci-workbench-password-not-production
           HPP_WORKBENCH_PRINCIPAL_ID: ci-workbench-principal
           # Phase B: NEXT_PUBLIC_TEST_BASE_URL set - HTTP tests will run
+      - name: Upload Phase B test output
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-b-test-output-${{ github.run_id }}
+          path: website/phase-b-test-output.log
+          retention-days: 7
+      - name: Fail workflow if Phase B tests failed
+        if: steps.phase-b-tests.outcome == 'failure'
+        run: |
+          echo "❌ Phase B HTTP security integration tests failed"
+          exit 1
       - name: Phase B - Terminate Next.js server
         if: always()
         run: |
