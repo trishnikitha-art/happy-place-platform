@@ -318,13 +318,16 @@ const CREATE_TRANSACTION_SCRIPT = `
     parsed.stagingKeys = mergedKeys
     redis.call('SET', key, cjson.encode(parsed))
     
-    return {ok = 'MERGED', data = cjson.encode(parsed), stagingKeysCount = #mergedKeys}
+    -- Return the updated transaction data for caller to use
+    -- Use indexed array format for consistent RESP2 serialization
+    return {'OK', cjson.encode(parsed), #mergedKeys}
   end
   
   -- Create new transaction atomically
   redis.call('SET', key, transactionData)
   redis.call('EXPIRE', key, 86400) -- 24 hour TTL
-  return {ok = 'CREATED'}
+  -- Return indexed array format for consistency with merge case
+  return {'OK', transactionData, #newStagingKeys}
 `;
 
 /**
@@ -542,21 +545,53 @@ export async function createDeploymentTransaction(
       [JSON.stringify(transaction), JSON.stringify(stagingKeys)]
     );
 
+    // Handle legacy error format (object with 'err' field)
     if (result && typeof result === 'object' && 'err' in result) {
       throw new Error(`Failed to create/merge transaction: ${normalizeRedisError((result as any).err)}`);
     }
 
-    // If transaction was created fresh
+    // Handle indexed array return format: ['OK', transactionData, count] or ['ERR', errorCode, details]
+    if (Array.isArray(result) && result.length >= 1) {
+      const status = result[0];
+      
+      if (status === 'OK') {
+        // Transaction was created or merged successfully
+        if (result.length >= 2) {
+          const transactionData = result[1];
+          const stagingKeysCount = result[2];
+          
+          // Parse the transaction data from the script
+          const parsed = JSON.parse(transactionData) as DeploymentTransaction;
+          console.log('[DEPLOYMENT_TRANSACTION] CREATED_OR_MERGED', {
+            transactionId,
+            state: parsed.state,
+            totalStagingKeys: stagingKeysCount,
+            newKeysAdded: stagingKeys.length
+          });
+          return parsed;
+        }
+        
+        // Simple creation (no merge)
+        console.log('[DEPLOYMENT_TRANSACTION] CREATED', { transactionId, stagingKeysCount: stagingKeys.length });
+        return transaction;
+      }
+      
+      if (status === 'ERR') {
+        const errorCode = result[1];
+        throw new Error(`Failed to create/merge transaction: ${errorCode}`);
+      }
+    }
+
+    // Legacy format (should not occur with new script)
     if (result && typeof result === 'object' && 'ok' in result && (result as any).ok === 'CREATED') {
-      console.log('[DEPLOYMENT_TRANSACTION] CREATED', { transactionId, stagingKeysCount: stagingKeys.length });
+      console.log('[DEPLOYMENT_TRANSACTION] CREATED (legacy)', { transactionId, stagingKeysCount: stagingKeys.length });
       return transaction;
     }
 
-    // If transaction already existed and staging keys were merged
     if (result && typeof result === 'object' && 'ok' in result && (result as any).ok === 'MERGED') {
       const merged = JSON.parse((result as any).data) as DeploymentTransaction;
       const stagingKeysCount = (result as any).stagingKeysCount;
-      console.log('[DEPLOYMENT_TRANSACTION] MERGED_STAGING_KEYS', {
+      console.log('[DEPLOYMENT_TRANSACTION] MERGED_STAGING_KEYS (legacy)', {
         transactionId,
         state: merged.state,
         totalStagingKeys: stagingKeysCount,
@@ -565,14 +600,13 @@ export async function createDeploymentTransaction(
       return merged;
     }
 
-    // Fallback for legacy 'EXISTS' behavior (should not occur with new script)
     if (result && typeof result === 'object' && 'ok' in result && (result as any).ok === 'EXISTS') {
       const existing = JSON.parse((result as any).data) as DeploymentTransaction;
-      console.log('[DEPLOYMENT_TRANSACTION] RETURNED_EXISTING', { transactionId, state: existing.state });
+      console.log('[DEPLOYMENT_TRANSACTION] RETURNED_EXISTING (legacy)', { transactionId, state: existing.state });
       return existing;
     }
 
-    console.log('[DEPLOYMENT_TRANSACTION] CREATED', { transactionId });
+    console.log('[DEPLOYMENT_TRANSACTION] CREATED (fallback)', { transactionId });
     return transaction;
   } catch (error) {
     console.error('[DEPLOYMENT_TRANSACTION] CREATE_OR_MERGE_FAILED', { transactionId, error });
