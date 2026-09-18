@@ -396,12 +396,13 @@ async function generateEvidenceHash(payload: ServiceCardAssignment): Promise<str
  * @param assignment - Assignment to store
  * @param expectedRevision - Optional expected revision for CAS (rejects if current revision doesn't match)
  * @param requestId - Optional request ID for correlation
+ * @returns The new revision number after successful assignment
  */
 export async function storeServiceCardAssignment(
   assignment: ServiceCardAssignment, 
   expectedRevision?: number,
   requestId?: string
-): Promise<void> {
+): Promise<number> {
   const operationId = requestId || `store-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const key = namespacedKey(`${ASSIGNMENT_PREFIX}${assignment.serviceSlug}`);
   
@@ -541,6 +542,8 @@ export async function storeServiceCardAssignment(
     // CAS implemented: atomic Lua script prevents lost updates
     // Last-write-wins still applies when expectedRevision is not provided
     
+    return newRevision;
+    
   } catch (error) {
     // DEV_MODE_SKIP_KV: Use in-memory store for development testing
     if (error instanceof KvUnavailableError && error.message.includes('DEV_MODE_SKIP_KV')) {
@@ -575,7 +578,7 @@ export async function storeServiceCardAssignment(
         serviceSlug: assignment.serviceSlug,
         revision: newAssignment.revision,
       });
-      return;
+      return newAssignment.revision;
     }
     
     console.error('[ASSIGNMENT_WRITE] FAILURE', {

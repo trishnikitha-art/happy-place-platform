@@ -15,9 +15,11 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 interface AssignMediaRequest {
-  slotId: string;
+  slotId?: string; // DEPRECATED: single slot ID (backward compatibility)
+  slotIds?: string[]; // NEW: multiple slot IDs
   mediaId: string;
-  expectedRevision?: number;
+  expectedRevision?: number; // DEPRECATED: single CAS revision (backward compatibility)
+  slotRevisions?: Array<{ slotId: string; expectedRevision: number }>; // NEW: multi-slot CAS support
 }
 
 export async function POST(request: Request) {
@@ -38,80 +40,170 @@ export async function POST(request: Request) {
     }
 
     const body: AssignMediaRequest = await request.json();
-    const { slotId, mediaId, expectedRevision: clientExpectedRevision } = body;
+    const { 
+      slotId, // DEPRECATED: backward compatibility
+      slotIds, // NEW: multi-slot support
+      mediaId, 
+      expectedRevision: clientExpectedRevision, // DEPRECATED: backward compatibility
+      slotRevisions // NEW: multi-slot CAS support
+    } = body;
+
+    // Determine if this is a multi-slot or single-slot request
+    const isMultiSlot = !!slotIds && slotIds.length > 0;
+    const targetSlotIds = isMultiSlot ? slotIds : (slotId ? [slotId] : []);
 
     console.log('[WORKBENCH_ASSIGNMENT] Request received', {
       requestId,
-      slotId,
+      isMultiSlot,
+      targetSlotIds,
       mediaId,
+      slotRevisions,
       expectedRevision: clientExpectedRevision,
     });
 
-    if (!slotId || !mediaId) {
+    if (!mediaId || targetSlotIds.length === 0) {
       return NextResponse.json(
         {
           error: 'REQUIRED_FIELDS_MISSING',
-          message: 'slotId and mediaId are required',
+          message: 'mediaId and slotId(s) are required',
           requestId,
         },
         { status: 400 }
       );
     }
 
-    // P0 FIX: Normalize service card slot IDs
-    // ServiceCard VisualSlot uses format: service-card-{serviceSlug}
-    // Assignment store expects just the serviceSlug
-    const serviceSlug = slotId.startsWith('service-card-') 
-      ? slotId.replace('service-card-', '') 
-      : slotId;
-
-    console.log('[WORKBENCH_ASSIGNMENT] Slot ID normalized', {
-      requestId,
-      originalSlotId: slotId,
-      normalizedServiceSlug: serviceSlug,
-    });
-
-    // P0 FIX: Use client-provided expectedRevision for CAS semantics
-    // If not provided, read from store (legacy compatibility for local asset creation)
-    let expectedRevision: number;
-    if (clientExpectedRevision !== undefined) {
-      expectedRevision = clientExpectedRevision;
-      console.log('[WORKBENCH_ASSIGNMENT] Using client-provided expectedRevision', {
-        requestId,
-        expectedRevision,
-      });
-    } else {
-      // Legacy fallback: read from store
-      const currentAssignment = await getServiceCardAssignment(serviceSlug);
-      expectedRevision = currentAssignment?.revision || 0;
-      console.log('[WORKBENCH_ASSIGNMENT] Using store-derived expectedRevision (legacy)', {
-        requestId,
-        expectedRevision,
-      });
+    // Validate CAS revisions based on request type
+    if (isMultiSlot) {
+      if (!slotRevisions || slotRevisions.length !== targetSlotIds.length) {
+        return NextResponse.json(
+          {
+            error: 'SLOT_REVISIONS_REQUIRED',
+            message: 'slotRevisions array must match slotIds length for multi-slot assignment',
+            requestId,
+          },
+          { status: 400 }
+        );
+      }
     }
 
-    // Create new assignment
-    const newAssignment = {
-      serviceSlug,
-      mediaId,
-      source: 'workbench' as const,
-      updatedAt: new Date().toISOString(),
-      actor: 'workbench' as const,
-    };
+    // Process each slot independently
+    const slotResults: Array<{ slotId: string; serviceSlug: string; success: boolean; error?: string; revision?: number }> = [];
+    
+    for (const targetSlotId of targetSlotIds) {
+      try {
+        // Normalize service card slot IDs
+        const serviceSlug = targetSlotId.startsWith('service-card-') 
+          ? targetSlotId.replace('service-card-', '') 
+          : targetSlotId;
 
-    // Store with CAS semantics - this validates mediaId resolves to PublishedMediaAsset
-    await storeServiceCardAssignment(newAssignment, expectedRevision, requestId);
+        console.log('[WORKBENCH_ASSIGNMENT] Processing slot', {
+          requestId,
+          targetSlotId,
+          serviceSlug,
+        });
 
-    console.log('[WORKBENCH_ASSIGNMENT] Success', {
+        // Determine expected revision for this slot
+        let expectedRevision: number;
+        if (isMultiSlot) {
+          const slotRevision = slotRevisions!.find(sr => sr.slotId === targetSlotId);
+          if (!slotRevision) {
+            console.error('[WORKBENCH_ASSIGNMENT] Missing revision for slot', {
+              requestId,
+              targetSlotId,
+            });
+            slotResults.push({
+              slotId: targetSlotId,
+              serviceSlug,
+              success: false,
+              error: 'Missing expected revision',
+            });
+            continue;
+          }
+          expectedRevision = slotRevision.expectedRevision;
+        } else {
+          // Backward compatibility: single-slot with expectedRevision
+          if (clientExpectedRevision !== undefined) {
+            expectedRevision = clientExpectedRevision;
+          } else {
+            // Legacy fallback: read from store
+            const currentAssignment = await getServiceCardAssignment(serviceSlug);
+            expectedRevision = currentAssignment?.revision || 0;
+          }
+        }
+
+        // Create new assignment
+        const newAssignment = {
+          serviceSlug,
+          mediaId,
+          source: 'workbench' as const,
+          updatedAt: new Date().toISOString(),
+          actor: 'workbench' as const,
+        };
+
+        // Store with CAS semantics - this validates mediaId resolves to PublishedMediaAsset
+        const newRevision = await storeServiceCardAssignment(newAssignment, expectedRevision, requestId);
+
+        console.log('[WORKBENCH_ASSIGNMENT] Slot assignment succeeded', {
+          requestId,
+          targetSlotId,
+          serviceSlug,
+          newRevision,
+        });
+
+        slotResults.push({
+          slotId: targetSlotId,
+          serviceSlug,
+          success: true,
+          revision: newRevision,
+        });
+      } catch (slotError) {
+        console.error('[WORKBENCH_ASSIGNMENT] Slot assignment failed', {
+          requestId,
+          targetSlotId,
+          error: slotError instanceof Error ? slotError.message : String(slotError),
+        });
+
+        slotResults.push({
+          slotId: targetSlotId,
+          serviceSlug: targetSlotId.startsWith('service-card-') ? targetSlotId.replace('service-card-', '') : targetSlotId,
+          success: false,
+          error: slotError instanceof Error ? slotError.message : String(slotError),
+        });
+      }
+    }
+
+    // Check if any slot assignments failed
+    const failedSlots = slotResults.filter(r => !r.success);
+    if (failedSlots.length > 0) {
+      console.error('[WORKBENCH_ASSIGNMENT] Partial failure - some slot assignments failed', {
+        requestId,
+        failedSlots,
+        succeededSlots: slotResults.filter(r => r.success),
+      });
+      
+      return NextResponse.json(
+        {
+          error: 'PARTIAL_FAILURE',
+          message: `${failedSlots.length} of ${slotResults.length} slot assignments failed`,
+          details: {
+            succeeded: slotResults.filter(r => r.success),
+            failed: failedSlots,
+          },
+          requestId,
+        },
+        { status: 207 } // Multi-Status for partial success
+      );
+    }
+
+    console.log('[WORKBENCH_ASSIGNMENT] All slot assignments succeeded', {
       requestId,
-      serviceSlug,
-      mediaId,
-      revision: expectedRevision + 1,
+      slotCount: slotResults.length,
+      slotResults,
     });
 
     return NextResponse.json({
       success: true,
-      assignment: newAssignment,
+      slotResults,
       requestId,
     });
   } catch (error) {
