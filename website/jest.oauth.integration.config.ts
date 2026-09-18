@@ -10,11 +10,8 @@ const config: Config = {
     }],
   },
   testMatch: [
-    // TEMPORARILY DISABLED: OAuth Redis-backed integration tests (Phase A)
-    // Cookie mocking fix applied but tests still failing in CI with Redis
-    // Requires further investigation of Redis test execution in CI environment
-    // Pattern below will not match any files
-    "**/__tests__/TEMPORARILY_DISABLED_INTEGRATION__/*.test.ts",
+    // OAuth Redis-backed integration tests (Phase A)
+    "**/src/lib/drive/__tests__/*.integration.test.ts",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
