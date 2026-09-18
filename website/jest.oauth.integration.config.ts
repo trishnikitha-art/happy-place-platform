@@ -10,10 +10,8 @@ const config: Config = {
     }],
   },
   testMatch: [
-    // Temporarily disable all integration tests in Phase A
-    // These tests have cookie mocking conflicts that need investigation
-    // Use a pattern that won't match any files
-    "**/__tests__/TEMPORARILY_DISABLED__/*.test.ts",
+    // OAuth Redis-backed integration tests (Phase A)
+    "**/src/lib/drive/__tests__/*.integration.test.ts",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
