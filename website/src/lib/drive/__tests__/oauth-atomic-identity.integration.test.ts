@@ -141,9 +141,14 @@ describeOrSkip('OAuth Atomic Identity - Real Redis Integration', () => {
       // Find all authorizations for this subject
       const authRecords: any[] = [];
       for (const key of allAuthKeys) {
-        const record = await redis.get<any>(key);
-        if (record && record.googleSubject === googleSubject) {
-          authRecords.push(record);
+        try {
+          const record = await redis.get<any>(key);
+          if (record && typeof record === 'object' && record.googleSubject === googleSubject) {
+            authRecords.push(record);
+          }
+        } catch (error) {
+          // Skip keys that are not strings (e.g., SET keys for session indices)
+          console.log('[OAUTH_IDENTITY_INTEGRATION] Skipping non-string key:', key);
         }
       }
       
