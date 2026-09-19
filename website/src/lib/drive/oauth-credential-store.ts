@@ -790,12 +790,16 @@ export async function revokeAuthorization(id: string): Promise<void> {
     }
 
     const client = getRedisClient();
-    
+
+    // Generate ISO timestamp in TypeScript (Lua doesn't have os.date)
+    const now = new Date().toISOString();
+
     // Redis Lua script for atomic authorization revocation + subject index deletion
     const luaScript = `
       local auth_key = KEYS[1]
       local subject_index_key = KEYS[2]
       local auth_ttl = ARGV[1]
+      local updated_at = ARGV[2]
 
       -- Get current authorization data
       local auth_data = redis.call('GET', auth_key)
@@ -807,11 +811,7 @@ export async function revokeAuthorization(id: string): Promise<void> {
 
       -- Set authorization status to revoked
       auth.status = 'revoked'
-      -- Use ISO-8601 timestamp for consistency with TypeScript schema
-      local time = redis.call('TIME')
-      local unix_seconds = time[1]
-      local micros = time[2]
-      auth.updatedAt = os.date('!%Y-%m-%dT%H:%M:%S.', unix_seconds) .. string.format('%06d', micros) .. 'Z'
+      auth.updatedAt = updated_at
       redis.call('SET', auth_key, cjson.encode(auth))
       redis.call('EXPIRE', auth_key, auth_ttl)
 
@@ -824,7 +824,7 @@ export async function revokeAuthorization(id: string): Promise<void> {
     const result = await client.eval(
       luaScript,
       [namespacedKey(`drive:auth:${id}`), namespacedKey(`${AUTH_SUBJECT_PREFIX}${auth.googleSubject}`)],
-      [AUTH_TTL_SECONDS.toString()]
+      [AUTH_TTL_SECONDS.toString(), now]
     );
 
     if (result === 0) {
@@ -866,7 +866,10 @@ export async function revokeAuthorizationWithSessions(id: string): Promise<void>
     }
 
     const client = getRedisClient();
-    
+
+    // Generate ISO timestamp in TypeScript (Lua doesn't have os.date)
+    const now = new Date().toISOString();
+
     // Redis Lua script for atomic authorization + session revocation
     const luaScript = `
       local auth_key = KEYS[1]
@@ -874,6 +877,7 @@ export async function revokeAuthorizationWithSessions(id: string): Promise<void>
       local session_index_key = KEYS[3]
       local session_prefix = ARGV[1]
       local auth_ttl = ARGV[2]
+      local updated_at = ARGV[3]
 
       -- Get current authorization data
       local auth_data = redis.call('GET', auth_key)
@@ -885,11 +889,8 @@ export async function revokeAuthorizationWithSessions(id: string): Promise<void>
 
       -- Set authorization status to revoked
       auth.status = 'revoked'
-      -- Use ISO-8601 timestamp for consistency with TypeScript schema
-      local time = redis.call('TIME')
-      local unix_seconds = time[1]
-      local micros = time[2]
-      auth.updatedAt = os.date('!%Y-%m-%dT%H:%M:%S.', unix_seconds) .. string.format('%06d', micros) .. 'Z'
+      -- Use ISO timestamp passed from TypeScript (os.date not available in Redis Lua)
+      auth.updatedAt = updated_at
       redis.call('SET', auth_key, cjson.encode(auth))
       redis.call('EXPIRE', auth_key, auth_ttl)
 
@@ -915,7 +916,7 @@ export async function revokeAuthorizationWithSessions(id: string): Promise<void>
     const result = await client.eval(
       luaScript,
       [namespacedKey(`drive:auth:${id}`), namespacedKey(`${AUTH_SUBJECT_PREFIX}${auth.googleSubject}`), namespacedKey(`drive:auth:sessions:${id}`)],
-      [namespacedKey(`drive:session:`), AUTH_TTL_SECONDS.toString()]
+      [namespacedKey(`drive:session:`), AUTH_TTL_SECONDS.toString(), now]
     );
 
     const revokedCount = result as number;
