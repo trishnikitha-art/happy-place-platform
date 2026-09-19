@@ -10,8 +10,13 @@ const config: Config = {
     }],
   },
   testMatch: [
-    // OAuth Redis-backed integration tests (Phase A)
-    "**/src/lib/drive/__tests__/*.integration.test.ts",
+    // Phase A: Redis-backed integration tests (HTTP tests excluded)
+    "**/src/lib/drive/__tests__/oauth-atomic-identity.integration.test.ts",
+    "**/src/lib/drive/__tests__/oauth-negative-security.integration.test.ts",
+    "**/src/lib/drive/__tests__/oauth-refresh-concurrency.integration.test.ts",
+    "**/src/lib/drive/__tests__/oauth-security-boundaries.integration.test.ts",
+    "**/src/lib/drive/__tests__/oauth-state-concurrency.integration.test.ts",
+    "**/src/lib/drive/__tests__/redis-failure-semantics.integration.test.ts",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",
