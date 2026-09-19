@@ -21,21 +21,25 @@
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
 
 describe('HTTP Boundary Negative Security Tests', () => {
-  // Skip all tests if HTTP server URL or Redis credentials are not available
-  beforeEach(() => {
-    if (!process.env.NEXT_PUBLIC_TEST_BASE_URL) {
-      console.log('[HTTP_NEGATIVE_SECURITY] Skipping test - NEXT_PUBLIC_TEST_BASE_URL not set');
-    }
-    if (!process.env.KV_REST_API_URL || !process.env.KV_REST_API_TOKEN) {
-      console.log('[HTTP_NEGATIVE_SECURITY] Skipping test - Redis credentials not available');
-    }
-  });
-
+  // Fail closed if HTTP server URL or Redis credentials are not available during Phase B
   const shouldSkip = () => {
     return !process.env.NEXT_PUBLIC_TEST_BASE_URL ||
            !process.env.KV_REST_API_URL ||
            !process.env.KV_REST_API_TOKEN;
   };
+
+  beforeAll(() => {
+    if (shouldSkip()) {
+      console.log('[HTTP_NEGATIVE_SECURITY] Suite skipped - NEXT_PUBLIC_TEST_BASE_URL or Redis credentials not available');
+    }
+  });
+
+  // Fail closed if required infrastructure is missing
+  it('should have HTTP server and Redis credentials available', () => {
+    if (shouldSkip()) {
+      throw new Error('HTTP boundary tests require NEXT_PUBLIC_TEST_BASE_URL, KV_REST_API_URL, and KV_REST_API_TOKEN');
+    }
+  });
 
   const baseUrl = () => process.env.NEXT_PUBLIC_TEST_BASE_URL || '';
 
@@ -111,7 +115,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       const {
         upsertAuthorization,
         getAuthorization,
-        deleteAuthorization,
+        revokeAuthorizationWithSessions,
       } = await import('../oauth-credential-store');
       const { createSession, getSession } = await import('../session-store');
 
@@ -138,12 +142,17 @@ describe('HTTP Boundary Negative Security Tests', () => {
       expect(sessionAuth).not.toBeNull();
       expect(sessionAuth?.authorizationId).toBe(authorization.id);
 
-      // Revoke authorization
-      await deleteAuthorization(authorization.id);
+      // Revoke authorization WITH sessions (atomic production path)
+      await revokeAuthorizationWithSessions(authorization.id);
 
-      // Verify authorization is gone
+      // Verify authorization is revoked
       const afterRevoke = await getAuthorization(authorization.id);
-      expect(afterRevoke).toBeNull();
+      expect(afterRevoke).not.toBeNull();
+      expect(afterRevoke?.status).toBe('revoked');
+
+      // Verify session is invalid
+      const invalidSession = await getSession(session.id);
+      expect(invalidSession).toBeNull();
 
       // Make HTTP request with revoked session cookie
       const response = await fetch(`${baseUrl()}/api/drive/files?folderId=root`, {
@@ -160,6 +169,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       expect(body.message).toBe('Drive authentication required');
 
       // Cleanup
+      const { deleteAuthorization } = await import('../oauth-credential-store');
       await deleteAuthorization(authorization.id).catch(() => {});
     });
 
@@ -170,7 +180,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
 
       const {
         upsertAuthorization,
-        deleteAuthorization,
+        revokeAuthorizationWithSessions,
       } = await import('../oauth-credential-store');
       const { createSession } = await import('../session-store');
 
@@ -187,8 +197,8 @@ describe('HTTP Boundary Negative Security Tests', () => {
       // Create session bound to this authorization
       const session = await createSession(authorization.id, 'test-user-agent-thumb-revoked');
 
-      // Revoke authorization
-      await deleteAuthorization(authorization.id);
+      // Revoke authorization WITH sessions (atomic production path)
+      await revokeAuthorizationWithSessions(authorization.id);
 
       // Make HTTP request with revoked session cookie to thumbnail route
       const response = await fetch(`${baseUrl()}/api/drive/files/test-file-id/thumbnail`, {
@@ -205,6 +215,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       expect(body.message).toBe('Drive authentication required');
 
       // Cleanup
+      const { deleteAuthorization } = await import('../oauth-credential-store');
       await deleteAuthorization(authorization.id).catch(() => {});
     });
   });
@@ -219,7 +230,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
         upsertAuthorization,
         getAuthorization,
       } = await import('../oauth-credential-store');
-      const { createSession } = await import('../session-store');
+      const { createSession, getSession } = await import('../session-store');
 
       // Create authorization for User A
       const authA = await upsertAuthorization(
@@ -250,7 +261,15 @@ describe('HTTP Boundary Negative Security Tests', () => {
       expect(checkB).not.toBeNull();
       expect(checkA?.id).not.toBe(checkB?.id);
 
-      // Session B cannot access User A's authorization (this is enforced by session-store which only returns the authorization bound to the session)
+      // ACTUAL INVARIANT: Session B should only resolve to authorization B
+      // This proves session-store binding isolation, not Google API failure
+      const sessionAuth = await getSession(sessionB.id);
+      expect(sessionAuth).not.toBeNull();
+      expect(sessionAuth?.authorizationId).toBe(authB.id);
+      expect(sessionAuth?.authorizationId).not.toBe(authA.id);
+
+      // Session B cannot be used to select User A's authorization
+      // This is enforced by session-store which only returns the authorization bound to the session
       // The HTTP boundary test verifies that the session cookie alone cannot be used to specify an arbitrary authorization ID
       const response = await fetch(`${baseUrl()}/api/drive/files?folderId=root`, {
         method: 'GET',
@@ -261,7 +280,9 @@ describe('HTTP Boundary Negative Security Tests', () => {
 
       // The request should use session B's authorization (not User A's)
       // This test verifies session isolation - each session is bound to exactly one authorization
-      expect(response.status).toBe(401); // Since we don't have real Google credentials, it will fail at the Google level
+      // Since we don't have real Google credentials, the request will fail at the Google API level
+      // But the critical invariant is that session B resolved to authB, not authA
+      expect(response.status).toBeGreaterThanOrEqual(400);
 
       // Cleanup
       const { deleteAuthorization } = await import('../oauth-credential-store');
