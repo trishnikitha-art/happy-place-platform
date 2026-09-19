@@ -906,6 +906,19 @@ export default function MediaWorkbench() {
     selectDriveFile(file);
   };
 
+  const handleUseLocalAsset = async () => {
+    console.log('[WORKBENCH] USE_LOCAL_ASSET_BUTTON_CLICKED', {
+      hasLocalAsset: !!state.selectedAsset,
+      hasTargetSlot: state.selectedSlots.length > 0,
+      mutationState: state.mutationState,
+      localAssetId: state.selectedAsset?.id,
+      targetSlotId: state.selectedSlots[0]?.id,
+    });
+
+    // Call the same handler for both Drive and local assets
+    handleUseDriveAsset();
+  };
+
   const handleUseDriveAsset = async () => {
     console.log('[WORKBENCH] USE_ASSET_BUTTON_CLICKED', {
       hasDriveFile: !!state.driveSelectedFile,
@@ -3288,7 +3301,7 @@ export default function MediaWorkbench() {
                 {state.driveStructure && (
                   <div className="space-y-3">
                     {/* Source/Target Status Panel */}
-                    {(state.driveSelectedFile || state.selectedSlots.length > 0) && (
+                    {(state.driveSelectedFile || state.selectedAsset || state.selectedSlots.length > 0) && (
                       <div className="p-3 bg-muted/50 border border-border rounded-lg space-y-2">
                         <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
                           Selection Status
@@ -3307,20 +3320,35 @@ export default function MediaWorkbench() {
                           </div>
                         )}
                         
+                        {state.selectedAsset && state.selectedAsset.source === 'local' && (
+                          <div className="flex items-center gap-2 text-sm">
+                            <FileImage size={14} className="text-green-500" />
+                            <span className="text-muted-foreground">Source:</span>
+                            <span className="font-medium text-foreground truncate max-w-[200px]">
+                              {state.selectedAsset.filename}
+                            </span>
+                            <span className="text-xs text-muted-foreground">
+                              (Local)
+                            </span>
+                          </div>
+                        )}
+                        
                         {state.selectedSlots.length > 0 && (
                           <div className="flex items-center gap-2 text-sm">
                             <Layers size={14} className="text-green-500" />
                             <span className="text-muted-foreground">Target:</span>
                             <span className="font-medium text-foreground">
-                              {state.selectedSlots[0].slotName}
+                              {state.selectedSlots.length === 1 ? state.selectedSlots[0].slotName : `${state.selectedSlots.length} slots`}
                             </span>
-                            <span className="text-xs text-muted-foreground">
-                              ({state.selectedSlots[0].page})
-                            </span>
+                            {state.selectedSlots.length === 1 && (
+                              <span className="text-xs text-muted-foreground">
+                                ({state.selectedSlots[0].page})
+                              </span>
+                            )}
                           </div>
                         )}
                         
-                        {state.selectedSlots.length === 0 && state.driveSelectedFile && (
+                        {state.selectedSlots.length === 0 && (state.driveSelectedFile || state.selectedAsset) && (
                           <div className="text-xs text-amber-600">
                             ⚠️ Select a target slot to use this asset
                           </div>
@@ -3547,7 +3575,7 @@ export default function MediaWorkbench() {
                               </div>
                               {state.selectedSlots.length > 0 ? (
                                 <div className="text-xs text-muted-foreground">
-                                  <span className="font-medium">Target:</span> {state.selectedSlots[0].slotName}
+                                  <span className="font-medium">Target:</span> {state.selectedSlots.length === 1 ? state.selectedSlots[0].slotName : `${state.selectedSlots.length} slots`}
                                 </div>
                               ) : (
                                 <div className="text-xs text-amber-600">
@@ -3573,7 +3601,7 @@ export default function MediaWorkbench() {
                                 {state.mutationState === 'idle' && (
                                   <>
                                     <Database size={16} />
-                                    Use This Asset
+                                    {state.selectedSlots.length === 1 ? 'Use This Asset' : `Replace ${state.selectedSlots.length} Slots`}
                                   </>
                                 )}
                                 {state.mutationState === 'confirming' && (
@@ -3704,6 +3732,111 @@ export default function MediaWorkbench() {
               <div className="text-center py-8">
                 <FileImage size={48} className="mx-auto text-muted-foreground mb-4" />
                 <p className="text-sm text-muted-foreground">No media assets found</p>
+              </div>
+            )}
+
+            {/* Local Asset Selection Panel */}
+            {state.selectedAsset && state.selectedAsset.source === 'local' && (
+              <div className="mt-4 p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="w-12 h-12 bg-muted rounded flex items-center justify-center overflow-hidden">
+                    {state.selectedAsset.variants?.thumbnail ? (
+                      <img
+                        src={state.selectedAsset.variants.thumbnail}
+                        alt={state.selectedAsset.filename}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : state.selectedAsset.variants?.web ? (
+                      <img
+                        src={state.selectedAsset.variants.web}
+                        alt={state.selectedAsset.filename}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <FileImage size={20} className="text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-foreground truncate">{state.selectedAsset.filename}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Local asset
+                    </div>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="text-xs text-muted-foreground">
+                    <span className="font-medium">Source:</span> {state.selectedAsset.filename}
+                  </div>
+                  {state.selectedSlots.length > 0 ? (
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-medium">Target:</span> {state.selectedSlots.length === 1 ? state.selectedSlots[0].slotName : `${state.selectedSlots.length} slots`}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-amber-600">
+                      ⚠️ Select a target slot first
+                    </div>
+                  )}
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      e.preventDefault();
+                      console.log('[WORKBENCH] USE_LOCAL_ASSET_BUTTON_CLICK_EVENT', {
+                        hasLocalAsset: !!state.selectedAsset,
+                        hasTargetSlot: state.selectedSlots.length > 0,
+                        mutationState: state.mutationState,
+                        disabled: state.selectedSlots.length === 0 || state.mutationState !== 'idle',
+                      });
+                      handleUseLocalAsset();
+                    }}
+                    disabled={state.selectedSlots.length === 0 || state.mutationState !== 'idle'}
+                    className="w-full mt-2 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  >
+                    {state.mutationState === 'idle' && (
+                      <>
+                        <Database size={16} />
+                        {state.selectedSlots.length === 1 ? 'Use This Asset' : `Replace ${state.selectedSlots.length} Slots`}
+                      </>
+                    )}
+                    {state.mutationState === 'confirming' && (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Confirming...
+                      </>
+                    )}
+                    {state.mutationState === 'materializing' && (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Materializing...
+                      </>
+                    )}
+                    {state.mutationState === 'assigning' && (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Assigning...
+                      </>
+                    )}
+                    {state.mutationState === 'verifying' && (
+                      <>
+                        <Loader2 size={16} className="animate-spin" />
+                        Verifying...
+                      </>
+                    )}
+                    {state.mutationState === 'complete' && (
+                      <>
+                        <Check size={16} />
+                        Complete
+                      </>
+                    )}
+                  </button>
+
+                  {state.mutationError && (
+                    <div className="text-xs text-destructive mt-2">
+                      Error: {state.mutationError}
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
