@@ -609,11 +609,9 @@ export default function MediaWorkbench() {
   };
 
   const handleAssetClick = (asset: VisualAsset) => {
+    // CRITICAL: Asset selection MUST NOT mutate target slot selection
+    // Source selection and target selection are independent
     setState(prev => ({ ...prev, selectedAsset: asset }));
-    const usingSlots = (state.registeredSlots || []).filter(s => s.currentMediaId === asset.id);
-    if (usingSlots.length > 0) {
-      setState(prev => ({ ...prev, selectedSlots: [usingSlots[0]] }));
-    }
   };
 
   const handleDragStart = (e: React.DragEvent, asset: VisualAsset | any, driveFile?: any) => {
