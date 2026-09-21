@@ -157,23 +157,6 @@ function determineOrientation(width: number, height: number): 'landscape' | 'por
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
   
-  // Check environment variables for storage configuration
-  const blobConfigured = !!process.env.BLOB_READ_WRITE_TOKEN;
-
-  if (!blobConfigured) {
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'BLOB_NOT_CONFIGURED',
-        stage: 'initialization',
-        message: 'Vercel Blob storage is not configured.',
-        details: 'BLOB_READ_WRITE_TOKEN environment variable is missing.',
-        requestId,
-      },
-      { status: 500 }
-    );
-  }
-
   try {
     const body: IngestRequest = await request.json();
     const { fileId, sharedDriveId, projectId, roles = ['gallery'] } = body;
@@ -279,6 +262,24 @@ export async function POST(request: Request) {
         corpus: fileAuth.corpus,
       });
     }
+
+    // Check environment variables for storage configuration
+    const blobConfigured = !!process.env.BLOB_READ_WRITE_TOKEN;
+
+    if (!blobConfigured) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'BLOB_NOT_CONFIGURED',
+          stage: 'initialization',
+          message: 'Vercel Blob storage is not configured.',
+          details: 'BLOB_READ_WRITE_TOKEN environment variable is missing.',
+          requestId,
+        },
+        { status: 500 }
+      );
+    }
+
 
     // 1. Get Drive file metadata
     console.log('[MEDIA_INGEST] DRIVE_METADATA stage started', { requestId });

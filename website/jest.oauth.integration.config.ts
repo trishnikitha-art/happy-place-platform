@@ -17,6 +17,7 @@ const config: Config = {
     "**/src/lib/drive/__tests__/oauth-security-boundaries.integration.test.ts",
     "**/src/lib/drive/__tests__/oauth-state-concurrency.integration.test.ts",
     "**/src/lib/drive/__tests__/redis-failure-semantics.integration.test.ts",
+    "**/src/lib/drive/__tests__/assignment-batch.integration.test.ts",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",

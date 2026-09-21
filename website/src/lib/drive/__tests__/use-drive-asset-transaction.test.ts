@@ -1,751 +1,157 @@
-/**
- * Use Drive Asset Transaction Test
- *
- * Negative test for duplication prevention:
- * - One "Use This Asset" click = one confirmation = one materialization = one assignment
- * - Double-click = one transaction
- * - Click while pending = no second transaction
- * - Background Drive loading/reconciliation = no mutation
- */
-
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-
-// Redis availability check for integration tests
-const OAUTH_SECURITY_KV_REST_API_URL = process.env.KV_REST_API_URL ||
-                         process.env.KV_REST_API__KV_REST_API_URL;
-const OAUTH_SECURITY_KV_REST_API_TOKEN = process.env.KV_REST_API_TOKEN ||
-                         process.env.KV_REST_API__KV_REST_API_TOKEN;
-const OAUTH_SECURITY_REDIS_AVAILABLE = !!(OAUTH_SECURITY_KV_REST_API_URL && OAUTH_SECURITY_KV_REST_API_TOKEN);
-
-// Set environment variables before importing modules
-process.env.KV_REST_API_URL = 'https://test.redis.com';
-process.env.KV_REST_API_TOKEN = 'test-token';
-
-// Mock Next.js dependencies
-jest.mock('next/headers', () => ({
-  cookies: jest.fn(),
-}));
-
-jest.mock('@/lib/workbench-session', () => ({
-  workbenchSession: {
-    isAuthenticated: jest.fn().mockResolvedValue(true),
-  },
-}));
-
-jest.mock('@/lib/assignment-store', () => ({
-  getServiceCardAssignment: jest.fn(),
-  storeServiceCardAssignment: jest.fn(),
-}));
-
-jest.mock('@/lib/media', () => ({
-  resolvePublicMedia: jest.fn(),
-}));
-
-describe('Use Drive Asset Transaction - Duplication Prevention', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  afterEach(() => {
-    delete process.env.KV_REST_API_URL;
-    delete process.env.KV_REST_API_TOKEN;
-  });
-
-  describe('Transaction ID Uniqueness', () => {
-    it('should generate unique transaction IDs for each request', () => {
-      // Verify that the endpoint uses crypto.randomUUID() for transaction IDs
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('crypto.randomUUID()');
-      expect(routeCode).toContain('requestId');
-    });
-
-    it('should include transaction ID in all log statements', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // Verify requestId is logged at each boundary
-      const logMatches = routeCode.match(/requestId/g);
-      expect(logMatches).toBeTruthy();
-      expect(logMatches!.length).toBeGreaterThan(5);
-    });
-  });
-
-  describe('Input Validation', () => {
-    it('should reject requests without sourceFileId', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('sourceFileId');
-      expect(routeCode).toContain('REQUIRED_FIELDS_MISSING');
-    });
-
-    it('should reject requests without targetSlotId', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('targetSlotId');
-      expect(routeCode).toContain('REQUIRED_FIELDS_MISSING');
-    });
-  });
-
-  describe('Authentication Boundary', () => {
-    it('should require Workbench authentication', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('workbenchSession.isAuthenticated()');
-      expect(routeCode).toContain('WORKBENCH_AUTH_REQUIRED');
-      expect(routeCode).toContain('status: 401');
-    });
-  });
-
-  describe('Drive Resolution Boundary', () => {
-    it('should download and validate Drive file directly', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // Verify the route downloads Drive file directly (multi-slot simplification)
-      expect(routeCode).toContain('Drive file downloaded');
-      expect(routeCode).toContain('contentHash');
-    });
-
-    it('should validate canonical asset exists before proceeding', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // Multi-slot architecture uses content hash as canonical media ID
-      expect(routeCode).toContain('canonicalMediaId');
-      expect(routeCode).toContain('contentHash');
-    });
-  });
-
-  describe('Public Media Gate Validation', () => {
-    it('should validate canonical asset through public media gate after assignment', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // Multi-slot architecture validates public media after assignment
-      expect(routeCode).toContain('resolvePublicMedia');
-      expect(routeCode).toContain('PUBLIC_MEDIA_GATE_REJECTION');
-    });
-  });
-
-  describe('Assignment Boundary', () => {
-    it('should mutate only the explicit target slot', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('targetSlotId');
-      expect(routeCode).toContain('storeServiceCardAssignment');
-      expect(routeCode).toContain('serviceSlug');
-    });
-
-    it('should use CAS/revision protection', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('expectedRevision');
-      expect(routeCode).toContain('EXPECTED_REVISION_REQUIRED');
-    });
-  });
-
-  describe('Readback Verification', () => {
-    it('should read assignment back after mutation', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // Multi-slot architecture verifies each assignment independently
-      expect(routeCode).toContain('getServiceCardAssignment');
-      expect(routeCode).toContain('Assignment verification');
-    });
-
-    it('should verify readback media ID equals canonical media ID', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // Multi-slot architecture verifies assignment media ID matches canonical
-      expect(routeCode).toContain('assignment.mediaId !== canonicalMediaId');
-      expect(routeCode).toContain('Media ID mismatch');
-    });
-  });
-
-  describe('Error Propagation', () => {
-    it('should return explicit failure state for any partial operation', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('TRANSACTION_ERROR');
-      expect(routeCode).toContain('status: 500');
-    });
-
-    it('should never claim success after materialization alone', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // Verify that success response is only at the very end after all steps
-      // The transaction must pass public media gate, CAS, readback verification before returning success
-      const successResponsePattern = /success: true/;
-      const matches = routeCode.match(successResponsePattern);
-      expect(matches).toBeTruthy();
-      expect(matches!.length).toBe(1); // Only one success response
-    });
-  });
-
-  describe('Target Slot Authority (P0 #1)', () => {
-    it('should reject unknown target slots not in authoritative registry', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // Multi-slot architecture uses SLOT_NOT_FOUND error
-      expect(routeCode).toContain('SLOT_NOT_FOUND');
-      expect(routeCode).toContain('resolveTargetSlotAuthority');
-    });
-
-    it('should reject project slots (static-only authority)', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('SLOT_NOT_WRITABLE');
-      expect(routeCode).toContain('static-project');
-    });
-
-    it('should only allow service-card-assignment authority type', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('UNSUPPORTED_AUTHORITY_TYPE');
-      expect(routeCode).toContain('authorityType: \'service-card-assignment\'');
-    });
-  });
-
-  describe('CAS Revision Mandatory (P0 #2)', () => {
-    it('should require expectedRevision at API boundary', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // Multi-slot architecture uses slotRevisions array for CAS
-      expect(routeCode).toContain('SLOT_REVISIONS_REQUIRED');
-      expect(routeCode).toContain('slotRevisions array must match targetSlotIds length');
-
-      // Verify single-slot backward compatibility still requires expectedRevision
-      expect(routeCode).toContain('EXPECTED_REVISION_REQUIRED');
-      expect(routeCode).toContain('expectedRevision is required for CAS enforcement');
-    });
-
-    it('should not derive revision server-side (no fallback)', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // Multi-slot architecture requires client to provide slotRevisions
-      // Should NOT have fallback logic for deriving revisions
-      expect(routeCode).not.toContain('slotRevisions ??');
-      expect(routeCode).not.toContain('currentAssignment?.revision || 0');
-    });
-  });
-
-  describe('Public Media Gate Fail-Closed (P0 #3)', () => {
-    it('should reject when resolvePublicMedia returns null', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // Multi-slot architecture validates public media after assignment
-      expect(routeCode).toContain('if (!publicResolvedMedia)');
-      expect(routeCode).toContain('PUBLIC_MEDIA_GATE_REJECTION');
-    });
-
-    it('should not proceed to assignment if public gate fails', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // Multi-slot architecture: assignment happens first, then public media validation
-      // This is acceptable because the transaction will fail if public gate rejects
-      expect(routeCode).toContain('PUBLIC_MEDIA_GATE_REJECTION');
-      expect(routeCode).toContain('publicResolvedMedia');
-    });
-  });
-
-  describe('No Broad Reconciliation (P0 #4)', () => {
-    it('should use direct assignment store with CAS instead of deployment transactions', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // P0 FIX: Multi-slot architecture uses direct assignment store with CAS
-      // instead of deployment transactions for simplicity and slot independence
-      expect(routeCode).toContain('storeServiceCardAssignment');
-      expect(routeCode).toContain('expectedRevision');
-      expect(routeCode).toContain('CAS');
-    });
-
-    it('should not call reconcileDriveAssignments directly', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).not.toContain('reconcileDriveAssignments');
-      expect(routeCode).not.toContain('getAllServiceCardAssignments');
-    });
-  });
-
-  describe('No False Client Authority (P0 #5)', () => {
-    it('should not accept sourceFileName from client', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).not.toContain('sourceFileName');
-    });
-
-    it('should not accept sourceMimeType from client', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).not.toContain('sourceMimeType');
-    });
-
-    it('should fetch authoritative Drive metadata server-side', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('getDriveClient');
-      expect(routeCode).toContain('driveClient.files.get');
-      expect(routeCode).toContain('Authoritative Drive metadata retrieved');
-    });
-  });
-
-  describe('No Sensitive Logging (Security)', () => {
-    it('should not log sourceFileId after transaction initiated', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // Verify sourceFileId is logged only in request validation
-      expect(routeCode).toContain('sourceFileId');
-    });
-
-    it('should not log Drive file IDs in transaction complete', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // Multi-slot architecture logs success with verification results
-      expect(routeCode).toContain('All assignments verified');
-      expect(routeCode).toContain('verificationCount');
-    });
-  });
-
-  describe('CAS Enforcement (P0 #1)', () => {
-    it('should reject Drive handoff with stale expectedRevision', async () => {
-      // Skip if Redis credentials not available
-      if (!OAUTH_SECURITY_REDIS_AVAILABLE) {
-        console.log('[USE_DRIVE_ASSET_TRANSACTION] Skipping test - Redis credentials not available');
-        return;
-      }
-
-      const { storeServiceCardAssignment, getServiceCardAssignment } = await import('../../assignment-store');
-      const { atomicPromoteAssignments } = await import('../../deployment-transaction');
-
-      const serviceSlug = 'test-cas-service';
-      const namespace = process.env.TEST_NAMESPACE || 'hpp:test:';
-      const deploymentTransactionId = `test_cas_tx_${Date.now()}`;
-
-      // Step 1: Create initial assignment (revision 0)
-      await storeServiceCardAssignment({
-        serviceSlug,
-        mediaId: 'initial-media-id',
-        updatedAt: new Date().toISOString(),
-        source: 'workbench',
-      }, undefined, deploymentTransactionId);
-      const assignment1 = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
-      expect(assignment1?.revision).toBe(1); // Revision increments on first write
-
-      // Step 2: Simulate concurrent writer updating to revision 2
-      await storeServiceCardAssignment({
-        serviceSlug,
-        mediaId: 'concurrent-media-id',
-        updatedAt: new Date().toISOString(),
-        source: 'workbench',
-      }, undefined, deploymentTransactionId);
-      const assignment2 = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
-      expect(assignment2?.revision).toBe(2);
-
-      // Step 3: Attempt Drive handoff with stale expectedRevision (revision 1)
-      // This should fail CAS because current revision is 2
-      const staleExpectedRevision = 1;
-      const promotionResult = await atomicPromoteAssignments([
-        {
-          serviceSlug,
-          mediaId: 'drive-handoff-media-id',
-          expectedRevision: staleExpectedRevision,
-          updatedAt: new Date().toISOString(),
-          source: 'workbench',
-        }
-      ], deploymentTransactionId);
-
-      // Verify CAS failure
-      expect(promotionResult.success).toBe(false);
-      expect(promotionResult.error).toContain('CAS_FAILURE');
-      expect(promotionResult.failedServiceSlug).toBe(serviceSlug);
-
-      // Step 4: Verify concurrent write remains intact (still revision 2)
-      const assignmentAfter = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
-      expect(assignmentAfter?.mediaId).toBe('concurrent-media-id');
-      expect(assignmentAfter?.revision).toBe(2);
-
-      console.log('[USE_DRIVE_ASSET_TRANSACTION] CAS enforcement test passed: Stale expectedRevision rejected');
-    });
-
-    it('should accept Drive handoff with correct expectedRevision', async () => {
-      // Skip if Redis credentials not available
-      if (!OAUTH_SECURITY_REDIS_AVAILABLE) {
-        console.log('[USE_DRIVE_ASSET_TRANSACTION] Skipping test - Redis credentials not available');
-        return;
-      }
-
-      const { storeServiceCardAssignment, getServiceCardAssignment } = await import('../../assignment-store');
-      const { atomicPromoteAssignments } = await import('../../deployment-transaction');
-
-      const serviceSlug = 'test-cas-correct-service';
-      const namespace = process.env.TEST_NAMESPACE || 'hpp:test:';
-      const deploymentTransactionId = `test_cas_correct_tx_${Date.now()}`;
-
-      // Step 1: Create initial assignment
-      await storeServiceCardAssignment({
-        serviceSlug,
-        mediaId: 'initial-media-id',
-        updatedAt: new Date().toISOString(),
-        source: 'workbench',
-      }, undefined, deploymentTransactionId);
-      const assignment1 = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
-      const currentRevision = assignment1?.revision ?? 0;
-
-      // Step 2: Attempt Drive handoff with correct expectedRevision
-      const promotionResult = await atomicPromoteAssignments([
-        {
-          serviceSlug,
-          mediaId: 'drive-handoff-media-id',
-          expectedRevision: currentRevision,
-          updatedAt: new Date().toISOString(),
-          source: 'workbench',
-        }
-      ], deploymentTransactionId);
-
-      // Verify success
-      expect(promotionResult.success).toBe(true);
-      expect(promotionResult.count).toBe(1);
-
-      // Step 3: Verify assignment was updated
-      const assignmentAfter = await getServiceCardAssignment(serviceSlug, deploymentTransactionId);
-      expect(assignmentAfter?.mediaId).toBe('drive-handoff-media-id');
-      expect(assignmentAfter?.revision).toBe(currentRevision + 1);
-
-      console.log('[USE_DRIVE_ASSET_TRANSACTION] CAS enforcement test passed: Correct expectedRevision accepted');
-    });
-  });
+import { POST } from '@/app/api/workbench/use-drive-asset/route';
+import { POST as ingest } from '@/app/api/drive/ingest/route';
+import { workbenchSession } from '@/lib/workbench-session';
+import { getDriveClient } from '@/lib/drive/oauth-manager';
+import { verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
+import { assignMediaBatch } from '@/lib/assignment-store';
+import { AssignmentBatchError } from '@/lib/workbench-assignment-contract';
+import { Redis } from '@upstash/redis';
+
+const mockSet = jest.fn();
+const mockEval = jest.fn();
+const mockMetadata = jest.fn();
+jest.mock('@upstash/redis', () => ({ Redis: jest.fn().mockImplementation(() => ({ set: mockSet, eval: mockEval })) }));
+jest.mock('@/lib/workbench-session', () => ({ workbenchSession: { isAuthenticated: jest.fn() } }));
+jest.mock('@/lib/drive/oauth-manager', () => ({ getDriveClient: jest.fn() }));
+jest.mock('@/lib/drive/corpus-authorization', () => ({ verifyCorpusAuthorization: jest.fn() }));
+jest.mock('@/lib/assignment-store', () => ({ assignMediaBatch: jest.fn() }));
+jest.mock('@/app/api/drive/ingest/route', () => ({ POST: jest.fn() }));
+
+const originalEnv = { url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN };
+const input = { sourceFileId: 'source-file', sourceCorpusId: 'shared-drive', sourceSharedDriveId: 'shared-drive',
+  targetSlotIds: ['hero-background', 'homepage-service-card-slot-decks'],
+  slotRevisions: [{ slotId: 'hero-background', expectedRevision: 4 }, { slotId: 'homepage-service-card-slot-decks', expectedRevision: 2 }] };
+async function request(body: unknown = input) {
+  const response = await POST(new Request('http://localhost/api/workbench/use-drive-asset', {
+    method: 'POST', headers: { 'Content-Type': 'application/json', cookie: 'existing-session' }, body: JSON.stringify(body),
+  }));
+  return { status: response.status, body: await response.json() };
+}
+
+beforeEach(() => {
+  jest.resetAllMocks();
+  jest.mocked(Redis).mockImplementation(() => ({ set: mockSet, eval: mockEval }) as any);
+  process.env.KV_REST_API_URL = 'https://test.invalid';
+  process.env.KV_REST_API_TOKEN = 'test-only';
+  jest.mocked(workbenchSession.isAuthenticated).mockResolvedValue(true);
+  jest.mocked(getDriveClient).mockResolvedValue({ files: { get: mockMetadata } } as any);
+  mockMetadata.mockResolvedValue({ data: { id: 'source-file', name: 'source.jpg', mimeType: 'image/jpeg', driveId: 'shared-drive' } });
+  jest.mocked(verifyCorpusAuthorization).mockResolvedValue({ authorized: true });
+  mockSet.mockResolvedValue('OK');
+  mockEval.mockResolvedValue(1);
+  jest.mocked(ingest).mockImplementation(async () => Response.json({ mediaId: 'published-id', media: { id: 'published-id' } }) as any);
+  jest.mocked(assignMediaBatch).mockResolvedValue({ success: true, committed: true, verified: true,
+    operationId: 'batch-id', canonicalMediaId: 'published-id', replayed: false, slotResults: [], verificationResults: [] });
+});
+afterAll(() => {
+  if (originalEnv.url === undefined) delete process.env.KV_REST_API_URL; else process.env.KV_REST_API_URL = originalEnv.url;
+  if (originalEnv.token === undefined) delete process.env.KV_REST_API_TOKEN; else process.env.KV_REST_API_TOKEN = originalEnv.token;
 });
 
-describe('Client-Side Duplication Prevention', () => {
-  describe('Media Workbench UI', () => {
-    it('should prevent duplicate mutations while pending', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const pagePath = path.join(__dirname, '../../../app/workbench/media/page.tsx');
-      const pageCode = fs.readFileSync(pagePath, 'utf8');
-
-      expect(pageCode).toContain('mutationState');
-      expect(pageCode).toContain('mutationRequestId');
-      expect(pageCode).toContain('mutationState !== \'idle\'');
-    });
-
-    it('should generate unique request IDs for each client transaction', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const pagePath = path.join(__dirname, '../../../app/workbench/media/page.tsx');
-      const pageCode = fs.readFileSync(pagePath, 'utf8');
-
-      expect(pageCode).toContain('crypto.randomUUID()');
-      expect(pageCode).toContain('requestId');
-    });
-
-    it('should call the authoritative transaction endpoint', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const pagePath = path.join(__dirname, '../../../app/workbench/media/page.tsx');
-      const pageCode = fs.readFileSync(pagePath, 'utf8');
-
-      expect(pageCode).toContain('/api/workbench/use-drive-asset');
-    });
-
-    it('should NOT independently call materialize-drive and assign-media for Drive assets', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const pagePath = path.join(__dirname, '../../../app/workbench/media/page.tsx');
-      const pageCode = fs.readFileSync(pagePath, 'utf8');
-
-      // After the fix, the handler should call only the authoritative endpoint for Drive assets
-      // Extract the handleUseDriveAsset function body
-      const handlerStart = pageCode.indexOf('const handleUseDriveAsset = async () => {');
-      expect(handlerStart).toBeGreaterThan(0);
-      
-      // Find the closing brace for this function
-      let braceCount = 0;
-      let handlerEnd = handlerStart;
-      let foundStart = false;
-      
-      for (let i = handlerStart; i < pageCode.length; i++) {
-        if (pageCode[i] === '{') {
-          braceCount++;
-          foundStart = true;
-        } else if (pageCode[i] === '}') {
-          braceCount--;
-          if (foundStart && braceCount === 0) {
-            handlerEnd = i + 1;
-            break;
-          }
-        }
-      }
-      
-      const handlerCode = pageCode.substring(handlerStart, handlerEnd);
-      
-      // Should contain the new unified endpoint
-      expect(handlerCode).toContain('/api/workbench/use-drive-asset');
-      
-      // Should NOT contain the old split endpoints for Drive path
-      // Find the Drive path section (if (isDriveSource) { ... })
-      const drivePathStart = handlerCode.indexOf('if (isDriveSource) {');
-      expect(drivePathStart).toBeGreaterThan(0);
-      
-      // Find the closing brace for the Drive path
-      let driveBraceCount = 0;
-      let drivePathEnd = drivePathStart;
-      let foundDriveStart = false;
-      
-      for (let i = drivePathStart; i < handlerCode.length; i++) {
-        if (handlerCode[i] === '{') {
-          driveBraceCount++;
-          foundDriveStart = true;
-        } else if (handlerCode[i] === '}') {
-          driveBraceCount--;
-          if (foundDriveStart && driveBraceCount === 0) {
-            drivePathEnd = i + 1;
-            break;
-          }
-        }
-      }
-      
-      const drivePathCode = handlerCode.substring(drivePathStart, drivePathEnd);
-      
-      // Drive path should NOT contain the old split endpoints
-      expect(drivePathCode).not.toContain('/api/workbench/materialize-drive');
-      expect(drivePathCode).not.toContain('/api/workbench/assign-media');
+describe('Drive handoff behavior', () => {
+  it('authenticates before source access or assignment', async () => {
+    jest.mocked(workbenchSession.isAuthenticated).mockResolvedValue(false);
+    expect((await request()).status).toBe(401);
+    expect(mockMetadata).not.toHaveBeenCalled();
+    expect(ingest).not.toHaveBeenCalled();
+    expect(assignMediaBatch).not.toHaveBeenCalled();
+  });
+  it.each([
+    { ...input, sourceFileId: undefined },
+    { ...input, targetSlotIds: [] },
+    { ...input, slotRevisions: [] },
+    { ...input, targetSlotIds: ['not-registered'], slotRevisions: [{ slotId: 'not-registered', expectedRevision: 0 }] },
+    { ...input, targetSlotIds: ['hero-background', 'hero-background'] },
+    { ...input, slotRevisions: [{ slotId: 'hero-background', expectedRevision: '4' }, input.slotRevisions[1]] },
+  ])('rejects invalid source/targets/revisions before materialization', async body => {
+    expect((await request(body)).status).toBe(400);
+    expect(mockMetadata).not.toHaveBeenCalled();
+    expect(ingest).not.toHaveBeenCalled();
+    expect(assignMediaBatch).not.toHaveBeenCalled();
+  });
+  it('passes authoritative file/corpus and the request session to existing ingest, then assigns once', async () => {
+    const response = await request();
+    expect(response.status).toBe(200);
+    expect(ingest).toHaveBeenCalledTimes(1);
+    const ingestRequest = jest.mocked(ingest).mock.calls[0][0];
+    expect(ingestRequest.headers.get('cookie')).toBe('existing-session');
+    expect(await ingestRequest.json()).toEqual({ fileId: 'source-file', sharedDriveId: 'shared-drive', roles: ['gallery'] });
+    expect(assignMediaBatch).toHaveBeenCalledTimes(1);
+    expect(assignMediaBatch).toHaveBeenCalledWith('published-id', [
+      { slotId: 'hero-background', serviceSlug: 'brand-hero-background', expectedRevision: 4 },
+      { slotId: 'homepage-service-card-slot-decks', serviceSlug: 'decks', expectedRevision: 2 },
+    ]);
+    expect(response.body).toMatchObject({ committed: true, verified: true, operationId: 'batch-id' });
+  });
+  it('fails closed if the Drive session cannot provide a client', async () => {
+    jest.mocked(getDriveClient).mockRejectedValue(new Error('Drive session missing'));
+    expect((await request()).status).toBe(500);
+    expect(ingest).not.toHaveBeenCalled();
+    expect(assignMediaBatch).not.toHaveBeenCalled();
+  });
+  it.each([{ sourceCorpusId: 'other' }, { sourceSharedDriveId: 'other' }])('rejects mismatched corpus assertions', async overrides => {
+    expect((await request({ ...input, ...overrides })).status).toBe(400);
+    expect(ingest).not.toHaveBeenCalled();
+    expect(assignMediaBatch).not.toHaveBeenCalled();
+  });
+  it('rejects unauthorized corpus', async () => {
+    jest.mocked(verifyCorpusAuthorization).mockResolvedValue({ authorized: false });
+    expect((await request()).status).toBe(403);
+    expect(ingest).not.toHaveBeenCalled();
+    expect(assignMediaBatch).not.toHaveBeenCalled();
+  });
+  it('preserves shortcut lineage and sends its target through ingest authorization', async () => {
+    mockMetadata.mockResolvedValue({ data: { id: 'source-file', mimeType: 'application/vnd.google-apps.shortcut',
+      driveId: 'shared-drive', shortcutDetails: { targetId: 'target-file' } } });
+    expect((await request()).status).toBe(200);
+    expect(await jest.mocked(ingest).mock.calls[0][0].json()).toMatchObject({
+      fileId: 'target-file', originalShortcutId: 'source-file', sharedDriveId: 'shared-drive',
     });
   });
-
-  describe('Pagination Guard', () => {
-    it('should reset loading state after pagination completes', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const pagePath = path.join(__dirname, '../../../app/workbench/media/page.tsx');
-      const pageCode = fs.readFileSync(pagePath, 'utf8');
-
-      expect(pageCode).toContain('loadMoreDriveFiles');
-      expect(pageCode).toContain('try');
-      expect(pageCode).toContain('finally');
-      expect(pageCode).toContain('driveLoadingMore: false');
-    });
+  it('does not assign after an ingest error', async () => {
+    jest.mocked(ingest).mockImplementation(async () => Response.json({ error: 'IMAGE_INVALID' }, { status: 400 }) as any);
+    expect((await request()).status).toBe(400);
+    expect(assignMediaBatch).not.toHaveBeenCalled();
+    expect(mockEval).toHaveBeenCalledTimes(1);
   });
-});
-
-describe('Post-Write Readback Barrier', () => {
-  it('should verify assignment media ID matches expected canonical media ID', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-    const routeCode = fs.readFileSync(routePath, 'utf8');
-
-    // Multi-slot architecture uses "Assignment verification" instead of readback barrier
-    expect(routeCode).toContain('Assignment verification');
-    expect(routeCode).toContain('assignment.mediaId !== canonicalMediaId');
-    expect(routeCode).toContain('ASSIGNMENT_VERIFICATION_FAILED');
+  it('rejects a mismatched ingest identity', async () => {
+    jest.mocked(ingest).mockImplementation(async () => Response.json({ mediaId: 'a', media: { id: 'b' } }) as any);
+    expect((await request()).status).toBe(502);
+    expect(assignMediaBatch).not.toHaveBeenCalled();
   });
-
-  it('should verify public resolver returns the same canonical media', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-    const routeCode = fs.readFileSync(routePath, 'utf8');
-
-    expect(routeCode).toContain('PUBLIC_RESOLUTION_READBACK');
-    expect(routeCode).toContain('PUBLIC_RESOLUTION_READBACK_RESULT');
-    expect(routeCode).toContain('publicResolvedMedia.id !== canonicalMediaId');
+  it('propagates CAS conflicts and verification failures without claiming success', async () => {
+    jest.mocked(assignMediaBatch).mockRejectedValue(new AssignmentBatchError('REVISION_CONFLICT', 'stale', 409));
+    const response = await request();
+    expect(response.status).toBe(409);
+    expect(response.body.success).toBeUndefined();
+    expect(response.body.committed).toBe(false);
   });
-
-  it('should reject Drive-reference IDs in public resolution', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-    const routeCode = fs.readFileSync(routePath, 'utf8');
-
-    expect(routeCode).toContain('startsWith(\'drive-\')');
-    expect(routeCode).toContain('startsWith(\'drive-ref-\')');
-    expect(routeCode).toContain('Drive-reference ID instead of PublishedMediaAsset');
+  it('preserves committed/unknown outcome details from the shared operation', async () => {
+    jest.mocked(assignMediaBatch).mockRejectedValue(new AssignmentBatchError('ASSIGNMENT_VERIFICATION_UNAVAILABLE', 'readback unavailable', 503,
+      { operationId: 'receipt', committed: true, retrySameRequest: true }));
+    const response = await request();
+    expect(response.status).toBe(503);
+    expect(response.body).toMatchObject({ committed: true, operationId: 'receipt', retrySameRequest: true });
   });
-
-  it('should verify revision advanced correctly', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-    const routeCode = fs.readFileSync(routePath, 'utf8');
-
-    // Multi-slot architecture returns revision in slot results
-    expect(routeCode).toContain('revision: newRevision');
-    expect(routeCode).toContain('slotResults');
+  it('does not execute while another request owns the materialization lock', async () => {
+    mockSet.mockResolvedValue(null);
+    expect((await request()).status).toBe(409);
+    expect(ingest).not.toHaveBeenCalled();
+    expect(assignMediaBatch).not.toHaveBeenCalled();
+    expect(mockEval).not.toHaveBeenCalled();
   });
-
-  it('should log verified state on successful readback', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-    const routeCode = fs.readFileSync(routePath, 'utf8');
-
-    // Multi-slot architecture logs verification results
-    expect(routeCode).toContain('All assignments verified');
-    expect(routeCode).toContain('verificationCount');
+  it('releases only its own lock on success and tolerates release failure', async () => {
+    mockEval.mockRejectedValue(new Error('Redis unavailable after commit'));
+    expect((await request()).status).toBe(200);
+    expect(mockEval.mock.calls[0][2][0]).toBe(mockSet.mock.calls[0][1]);
+    expect(mockEval.mock.calls[0][0]).toContain("redis.call(\"GET\", KEYS[1]) == ARGV[1]");
   });
-});
-
-describe('Readback Barrier Failure Injection', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
-  });
-
-  it('should fail when assignment readback returns wrong media ID', () => {
-    // STATIC CONTRACT TEST: Verifies assignment validation after write
-    // In a real integration test, we would mock the actual readback to return wrong media ID
-    // and verify the route fails with ASSIGNMENT_VERIFICATION_FAILED
-    
-    const fs = require('fs');
-    const path = require('path');
-    const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-    const routeCode = fs.readFileSync(routePath, 'utf8');
-
-    // Verify the route validates assignment media ID against canonical media ID
-    expect(routeCode).toContain('ASSIGNMENT_VERIFICATION_FAILED');
-    expect(routeCode).toContain('Media ID mismatch');
-  });
-
-  it('should fail when public resolver returns null', () => {
-    // STATIC CONTRACT TEST: Verifies assignment validation after write
-    // In a real integration test, we would mock resolvePublicMedia to return null
-    // and verify the route fails with public gate rejection
-    
-    const fs = require('fs');
-    const path = require('path');
-    const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-    const routeCode = fs.readFileSync(routePath, 'utf8');
-
-    // Verify the route validates public resolver returns non-null
-    expect(routeCode).toContain('PUBLIC_MEDIA_GATE_REJECTION');
-    expect(routeCode).toContain('did not resolve to valid public media');
-  });
-
-  it('should fail when public resolver returns Drive-reference ID', () => {
-    // STATIC CONTRACT TEST: Verifies readback barrier rejects Drive-reference IDs
-    // In a real integration test, we would mock resolvePublicMedia to return drive-* ID
-    // and verify the route fails with Drive-reference rejection
-    
-    const fs = require('fs');
-    const path = require('path');
-    const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-    const routeCode = fs.readFileSync(routePath, 'utf8');
-
-    // Verify the route rejects Drive-reference IDs
-    expect(routeCode).toContain('startsWith(\'drive-\')');
-    expect(routeCode).toContain('startsWith(\'drive-ref-\')');
-    expect(routeCode).toContain('Drive-reference ID instead of PublishedMediaAsset');
-  });
-
-  it('should fail when assignment verification fails', () => {
-    // STATIC CONTRACT TEST: Verifies assignment verification after write
-    // In a real integration test, we would mock assignment to return wrong media ID
-    // and verify the route fails with ASSIGNMENT_VERIFICATION_FAILED
-    
-    const fs = require('fs');
-    const path = require('path');
-    const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-    const routeCode = fs.readFileSync(routePath, 'utf8');
-
-    // Verify the route validates assignment readback correctly
-    // After multi-slot implementation, we verify each assignment independently
-    expect(routeCode).toContain('ASSIGNMENT_VERIFICATION_FAILED');
-    expect(routeCode).toContain('assignment.mediaId !== canonicalMediaId');
-  });
-
-  it('should place assignment verification before idempotency recording', () => {
-    const fs = require('fs');
-    const path = require('path');
-    const routePath = path.join(__dirname, '../../../app/api/workbench/use-drive-asset/route.ts');
-    const routeCode = fs.readFileSync(routePath, 'utf8');
-
-    // Verify assignment verification comes before idempotency recording
-    const verificationStart = routeCode.indexOf('Assignment verification');
-    const idempotencyRecord = routeCode.indexOf('recordIdempotency(stableIdempotencyKey, successResult)');
-    
-    expect(verificationStart).toBeGreaterThan(0);
-    expect(idempotencyRecord).toBeGreaterThan(0);
-    expect(verificationStart).toBeLessThan(idempotencyRecord);
+  it('rechecks authorization and uses the shared receipt on retry instead of cached success', async () => {
+    expect((await request()).status).toBe(200);
+    jest.mocked(assignMediaBatch).mockResolvedValue({ success: true, committed: true, verified: true,
+      operationId: 'batch-id', canonicalMediaId: 'published-id', replayed: true, slotResults: [], verificationResults: [] });
+    expect((await request()).body.replayed).toBe(true);
+    expect(getDriveClient).toHaveBeenCalledTimes(2);
+    expect(assignMediaBatch).toHaveBeenCalledTimes(2);
   });
 });

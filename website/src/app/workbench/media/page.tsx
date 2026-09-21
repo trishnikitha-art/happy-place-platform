@@ -7,6 +7,17 @@ import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
 import { getWebsiteStructure, getPageByRoute, type WebsitePage, type WebsiteSection, type VisualSlotRef } from '@/lib/website-structure';
 import type { Media } from '@/types/media';
+import { SlotGallery } from '@/components/workbench/slot-gallery';
+import { ReplacementDialog, type ReplacementPreview } from '@/components/workbench/replacement-dialog';
+import { resolveAssignmentKey, isAssignmentRevision } from '@/lib/workbench-assignment-contract';
+import { selectTarget, selectPublishedSource, selectDriveSource } from '@/lib/workbench-selection';
+
+interface PendingReplacement {
+  preview: ReplacementPreview;
+  endpoint: string;
+  body: Record<string, unknown>;
+}
+
 
 type PageRoute = '/' | '/services' | '/our-work' | '/about' | '/reviews' | '/estimate';
 
@@ -85,6 +96,12 @@ const PAGE_LABELS: Record<PageRoute, string> = {
 
 export default function MediaWorkbench() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const mutationBusy = useRef(false);
+  const requestInFlight = useRef(false);
+  const [slotView, setSlotView] = useState<'gallery' | 'preview' | 'sources'>('gallery');
+  const [pendingReplacement, setPendingReplacement] = useState<PendingReplacement | null>(null);
+  const [retryReplacement, setRetryReplacement] = useState<PendingReplacement | null>(null);
+  const [mutationNotice, setMutationNotice] = useState<string | null>(null);
   const mediaPanelRef = useRef<HTMLDivElement>(null);
   const assetsRef = useRef<VisualAsset[]>([]);
   const registeredSlotsRef = useRef<RegisteredSlot[]>([]);
@@ -558,63 +575,20 @@ export default function MediaWorkbench() {
     }
   };
 
-  const handleSlotClick = (slot: RegisteredSlot, event?: React.MouseEvent) => {
-    const isMultiSelect = event?.ctrlKey || event?.metaKey;
-    
-    console.log('[WORKBENCH] TARGET_SLOT_SELECTED', {
-      slotId: slot.id,
-      route: slot.route,
-      page: slot.page,
-      section: slot.section,
-      slotName: slot.slotName,
-      currentMediaId: slot.currentMediaId,
-      isMultiSelect,
-    });
-
-    if (isMultiSelect) {
-      // Toggle selection for multi-select mode
-      setState(prev => {
-        const isSelected = prev.selectedSlots.some(s => s.id === slot.id);
-        const newSelectedSlots = isSelected
-          ? prev.selectedSlots.filter(s => s.id !== slot.id)
-          : [...prev.selectedSlots, slot];
-        
-        console.log('[WORKBENCH] MULTI_SLOT_SELECTION', {
-          slotId: slot.id,
-          action: isSelected ? 'deselected' : 'selected',
-          totalSelected: newSelectedSlots.length,
-        });
-        
-        return { ...prev, selectedSlots: newSelectedSlots };
-      });
-    } else {
-      // Single selection mode
-      setState(prev => {
-        const newState = { ...prev, selectedSlots: [slot] };
-        console.log('[WORKBENCH] SINGLE_SLOT_SELECTION', {
-          slotId: slot.id,
-          totalSelected: 1,
-        });
-        return newState;
-      });
-    }
-
-    // If slot has media, select that media (only for single selection)
-    if (!isMultiSelect && slot.currentMediaId) {
-      const asset = state.assets.find(a => a.id === slot.currentMediaId);
-      if (asset) {
-        setState(prev => ({ ...prev, selectedAsset: asset }));
-      }
-    }
+  const handleSlotClick = (slot: RegisteredSlot, event?: Pick<React.MouseEvent, 'ctrlKey' | 'metaKey'>) => {
+    if (mutationBusy.current || !resolveAssignmentKey(slot.id)) return;
+    setState(prev => selectTarget(prev, slot, !!(event?.ctrlKey || event?.metaKey)));
   };
 
   const handleAssetClick = (asset: VisualAsset) => {
-    // CRITICAL: Asset selection MUST NOT mutate target slot selection
-    // Source selection and target selection are independent
-    setState(prev => ({ ...prev, selectedAsset: asset }));
+    if (!mutationBusy.current) setState(prev => selectPublishedSource(prev, asset));
   };
 
   const handleDragStart = (e: React.DragEvent, asset: VisualAsset | any, driveFile?: any) => {
+    if (mutationBusy.current) {
+      e.preventDefault();
+      return;
+    }
     console.log('[DND] DRAG_START', {
       isDriveFile: !!driveFile,
       assetId: asset?.id,
@@ -682,7 +656,7 @@ export default function MediaWorkbench() {
 
     e.dataTransfer.effectAllowed = 'copy';
     if (asset) {
-      setState(prev => ({ ...prev, selectedAsset: asset }));
+      setState(prev => selectPublishedSource(prev, asset));
     }
 
     // P0 FIX: Bridge drag data across iframe boundary via postMessage
@@ -895,7 +869,7 @@ export default function MediaWorkbench() {
       filename: file.name,
       corpusId: file.corpusId, // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
     });
-    setState(prev => ({ ...prev, driveSelectedFile: file }));
+    if (!mutationBusy.current) setState(prev => selectDriveSource(prev, file));
   };
 
   const handleDriveFileClick = (e: React.MouseEvent, file: DriveFile) => {
@@ -918,482 +892,104 @@ export default function MediaWorkbench() {
   };
 
   const handleUseDriveAsset = async () => {
-    console.log('[WORKBENCH] USE_ASSET_BUTTON_CLICKED', {
-      hasDriveFile: !!state.driveSelectedFile,
-      hasLocalAsset: !!state.selectedAsset,
-      hasTargetSlot: state.selectedSlots.length > 0,
-      mutationState: state.mutationState,
-      driveFileId: state.driveSelectedFile?.id,
-      localAssetId: state.selectedAsset?.id,
-      targetSlotId: state.selectedSlots[0]?.id,
-    });
-
-    // Guard: Must have both source (Drive file OR local asset) and target slot selected
-    const driveFile = state.driveSelectedFile;
-    const localAsset = state.selectedAsset;
-    const targetSlots = state.selectedSlots;
-
-    const isDriveSource = !!driveFile;
-    const isLocalSource = !!localAsset && localAsset.source === 'local';
-
-    if (!isDriveSource && !isLocalSource) {
-      console.warn('[WORKBENCH] USE_ASSET_NO_SOURCE - no Drive file or local asset selected');
-      alert('Please select a Drive file or local asset first');
-      return;
-    }
-
-    if (targetSlots.length === 0) {
-      console.warn('[WORKBENCH] USE_ASSET_NO_TARGET - no slot selected');
-      alert('Please select a target slot first');
-      return;
-    }
-
-    // Guard: Prevent duplicate mutations
-    if (state.mutationState !== 'idle') {
-      console.warn('[WORKBENCH] USE_ASSET_MUTATION_IN_PROGRESS', {
-        currentState: state.mutationState,
-        requestId: state.mutationRequestId,
-      });
-      return;
-    }
-
-    const requestId = crypto.randomUUID();
-    console.log('[WORKBENCH] USE_ASSET_INITIATED', {
-      requestId,
-      sourceType: isDriveSource ? 'drive' : 'local',
-      sourceFileId: driveFile?.id,
-      sourceFilename: driveFile?.name || localAsset?.filename,
-      targetSlotIds: targetSlots.map(s => s.id),
-      targetSlotNames: targetSlots.map(s => s.slotName),
-      targetSlotCount: targetSlots.length,
-    });
-
-    // Show confirmation dialog
-    const newFilename = driveFile?.name || localAsset?.filename || 'Unknown';
-    
-    let confirmationMessage: string;
-    if (targetSlots.length === 1) {
-      const targetSlot = targetSlots[0];
-      const currentFilename = targetSlot.currentMediaId
-        ? state.assets.find(a => a.id === targetSlot.currentMediaId)?.filename || 'Unknown'
-        : 'No image';
-      confirmationMessage = `Replace "${targetSlot.slotName}"?\n\nCurrent: ${currentFilename}\nNew: ${newFilename}\n\n${isDriveSource ? '(Will ingest from Drive)' : '(Using local asset)'}`;
-    } else {
-      confirmationMessage = `Replace ${targetSlots.length} slots with "${newFilename}"?\n\n${isDriveSource ? '(Will ingest from Drive)' : '(Using local asset)'}\n\nSlots:\n${targetSlots.map(s => `• ${s.slotName}`).join('\n')}`;
-    }
-
-    console.log('[WORKBENCH] USE_ASSET_SHOWING_CONFIRMATION', {
-      requestId,
-      targetSlotCount: targetSlots.length,
-      newFilename,
-      sourceType: isDriveSource ? 'drive' : 'local',
-    });
-
-    const confirmed = confirm(confirmationMessage);
-
-    console.log('[WORKBENCH] USE_ASSET_CONFIRMATION_RESULT', {
-      requestId,
-      confirmed,
-    });
-
-    if (!confirmed) {
-      console.log('[WORKBENCH] USE_ASSET_CANCELLED', { requestId });
-      return;
-    }
-
-    // Set mutation state
-    setState(prev => ({
-      ...prev,
-      mutationState: 'confirming',
-      mutationRequestId: requestId,
-      mutationError: null,
-    }));
-
+    if (mutationBusy.current || !state.selectedSlots.length || (!state.driveSelectedFile && !state.selectedAsset)) return;
+    mutationBusy.current = true;
+    const targets = [...state.selectedSlots];
+    const drive = state.driveSelectedFile;
+    const asset = state.selectedAsset;
+    setMutationNotice(null);
+    setRetryReplacement(null);
+    setState(prev => ({ ...prev, mutationState: 'verifying', mutationError: null }));
     try {
-      setState(prev => ({ ...prev, mutationState: 'materializing' }));
-
-      let canonicalMediaId: string;
-      let result: any; // P0 FIX: Declare result in outer scope for both Drive and local asset paths
-
-      if (isDriveSource) {
-        // DRIVE PATH: Use authoritative transaction endpoint
-        // Get current assignment revisions for CAS for all target slots
-        console.log('[WORKBENCH] USE_ASSET_REQUESTING_CAS_REVISIONS', {
-          requestId,
-          targetSlotIds: targetSlots.map(s => s.id),
-          endpoint: '/api/workbench/media-authority',
+      const revisions: Array<{ slotId: string; expectedRevision: number }> = [];
+      for (const slot of targets) {
+        if (!resolveAssignmentKey(slot.id)) throw new Error(`Slot "${slot.slotName}" is read-only.`);
+        const response = await fetch('/api/workbench/media-authority', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'getAssignment', slotSlug: slot.id }),
         });
-
-        const slotRevisions: Array<{ slotId: string; expectedRevision: number }> = [];
-        
-        for (const slot of targetSlots) {
-          const verifyResponse = await fetch('/api/workbench/media-authority', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'getAssignment',
-              slotSlug: slot.id,
-            }),
-          });
-
-          console.log('[WORKBENCH] USE_ASSET_CAS_REVISION_RESPONSE', {
-            requestId,
-            slotId: slot.id,
-            status: verifyResponse.status,
-            ok: verifyResponse.ok,
-          });
-
-          if (!verifyResponse.ok) {
-            console.error('[WORKBENCH] CAS_REVISION_READ_FAILED', {
-              requestId,
-              slotId: slot.id,
-              status: verifyResponse.status,
-            });
-            alert(`Failed to read current assignment revision for slot "${slot.slotName}". Please try again.`);
-            setState(prev => ({
-              ...prev,
-              mutationState: 'idle',
-              mutationRequestId: null,
-              mutationError: 'Authority revision read failed',
-            }));
-            return;
-          }
-
-          const verifyData = await verifyResponse.json();
-          
-          // Fail closed if assignment is missing
-          if (!verifyData.assignment) {
-            console.error('[WORKBENCH] CAS_REVISION_MISSING_ASSIGNMENT', {
-              requestId,
-              slotId: slot.id,
-            });
-            alert(`Target slot "${slot.slotName}" has no current assignment. This is unexpected - please refresh and try again.`);
-            setState(prev => ({
-              ...prev,
-              mutationState: 'idle',
-              mutationRequestId: null,
-              mutationError: 'Target slot has no current assignment',
-            }));
-            return;
-          }
-
-          // Fail closed if revision is undefined or invalid
-          if (verifyData.assignment.revision === undefined || verifyData.assignment.revision === null) {
-            console.error('[WORKBENCH] CAS_REVISION_INVALID', {
-              requestId,
-              slotId: slot.id,
-              revision: verifyData.assignment.revision,
-            });
-            alert(`Current assignment for slot "${slot.slotName}" has invalid revision. This is unexpected - please refresh and try again.`);
-            setState(prev => ({
-              ...prev,
-              mutationState: 'idle',
-              mutationRequestId: null,
-              mutationError: 'Current assignment has invalid revision',
-            }));
-            return;
-          }
-
-          slotRevisions.push({
-            slotId: slot.id,
-            expectedRevision: verifyData.assignment.revision,
-          });
+        const result = await response.json();
+        if (!response.ok || !isAssignmentRevision(result.revision)) {
+          throw new Error(result.message || `Cannot read the revision for "${slot.slotName}".`);
         }
-
-        console.log('[WORKBENCH] USE_ASSET_CAS_REVISIONS_PARSED', {
-          requestId,
-          slotRevisions,
-        });
-
-        // Call the authoritative server-side transaction with multiple slots
-        console.log('[WORKBENCH] USE_ASSET_REQUESTING_TRANSACTION', {
-          requestId,
-          endpoint: '/api/workbench/use-drive-asset',
-          sourceFileId: driveFile.id,
-          sourceSharedDriveId: driveFile.corpusId,
-          sourceCorpusId: driveFile.corpusId,
-          targetSlotIds: targetSlots.map(s => s.id),
-          slotRevisions,
-        });
-
-        const response = await fetch('/api/workbench/use-drive-asset', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            sourceFileId: driveFile.id,
-            sourceSharedDriveId: driveFile.corpusId,
-            sourceCorpusId: driveFile.corpusId,
-            targetSlotIds: targetSlots.map(s => s.id),
-            slotRevisions,
-          }),
-        });
-
-        console.log('[WORKBENCH] USE_ASSET_TRANSACTION_RESPONSE', {
-          requestId,
-          status: response.status,
-          ok: response.ok,
-        });
-
-        // P0 FIX: Handle HTTP 207 Multi-Status for partial success
-        // Some slots may succeed while others fail (e.g., CAS conflicts)
-        if (!response.ok && response.status !== 207) {
-          const error = await response.json();
-          console.error('[WORKBENCH] USE_ASSET_TRANSACTION_FAILED', {
-            requestId,
-            error: error.error || 'Failed to use Drive asset',
-            fullError: error,
-          });
-          throw new Error(error.error || 'Failed to use Drive asset');
-        }
-
-        result = await response.json();
-
-        // Handle partial success (HTTP 207)
-        if (response.status === 207) {
-          console.warn('[WORKBENCH] USE_ASSET_PARTIAL_SUCCESS', {
-            requestId,
-            result,
-          });
-
-          const succeededSlots = result.details?.succeeded || [];
-          const failedSlots = result.details?.failed || [];
-
-          if (succeededSlots.length === 0) {
-            // All slots failed
-            const errorMessage = failedSlots.length > 0
-              ? failedSlots.map((f: any) => `${f.targetSlotId}: ${f.error}`).join('; ')
-              : 'All slot assignments failed';
-            throw new Error(errorMessage);
-          }
-
-          // Partial success: use canonical media ID from successful slots
-          canonicalMediaId = result.canonicalMediaId;
-
-          // Show warning about failed slots
-          const failedSlotNames = failedSlots.map((f: any) => f.targetSlotId).join(', ');
-          console.warn('[WORKBENCH] PARTIAL_SUCCESS_WARNING', {
-            requestId,
-            succeededCount: succeededSlots.length,
-            failedCount: failedSlots.length,
-            failedSlots: failedSlotNames,
-          });
-
-          // Update state to show partial success warning
-          setState(prev => ({
-            ...prev,
-            mutationError: `Partial success: ${succeededSlots.length} slots succeeded, ${failedSlots.length} failed (${failedSlotNames})`,
-          }));
-        } else {
-          // Full success (HTTP 200)
-          canonicalMediaId = result.canonicalMediaId;
-        }
-
-        console.log('[WORKBENCH] USE_ASSET_TRANSACTION_SUCCESS', {
-          requestId,
-          canonicalMediaId,
-          slotResults: result.slotResults,
-          fullResult: result,
-        });
-      } else {
-        // LOCAL ASSET PATH: Direct assignment to local asset
-        // Local assets are already materialized, just need assignment
-        if (!localAsset) {
-          throw new Error('Local asset is null despite being selected');
-        }
-        canonicalMediaId = localAsset.id;
-
-        console.log('[WORKBENCH] USE_LOCAL_ASSET', {
-          requestId,
-          canonicalMediaId,
-          targetSlotIds: targetSlots.map(s => s.id),
-        });
-
-        // P0 FIX: Local asset assignment must use same CAS semantics as Drive handoff
-        // Read current assignment revisions first, then use authoritative endpoint with expectedRevisions
-        const slotRevisions: Array<{ slotId: string; expectedRevision: number }> = [];
-        
-        for (const slot of targetSlots) {
-          const verifyResponse = await fetch('/api/workbench/media-authority', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              action: 'getAssignment',
-              slotSlug: slot.id,
-            }),
-          });
-
-          if (!verifyResponse.ok) {
-            console.error('[WORKBENCH] LOCAL_ASSET_CAS_REVISION_READ_FAILED', {
-              requestId,
-              slotId: slot.id,
-              status: verifyResponse.status,
-            });
-            alert(`Failed to read current assignment revision for slot "${slot.slotName}". Please try again.`);
-            setState(prev => ({
-              ...prev,
-              mutationState: 'idle',
-              mutationRequestId: null,
-              mutationError: 'Authority revision read failed',
-            }));
-            return;
-          }
-
-          const verifyData = await verifyResponse.json();
-          
-          // For local assets, allow creation at revision 0 if no assignment exists
-          // This is the only legitimate use of revision 0 - when creating a new assignment
-          if (!verifyData.assignment) {
-            slotRevisions.push({ slotId: slot.id, expectedRevision: 0 });
-            console.log('[WORKBENCH] LOCAL_ASSET_CREATING_NEW_ASSIGNMENT', {
-              requestId,
-              slotId: slot.id,
-              expectedRevision: 0,
-            });
-          } else {
-            // Fail closed if revision is undefined or invalid
-            if (verifyData.assignment.revision === undefined || verifyData.assignment.revision === null) {
-              console.error('[WORKBENCH] LOCAL_ASSET_CAS_REVISION_INVALID', {
-                requestId,
-                slotId: slot.id,
-                revision: verifyData.assignment.revision,
-              });
-              alert(`Current assignment for slot "${slot.slotName}" has invalid revision. This is unexpected - please refresh and try again.`);
-              setState(prev => ({
-                ...prev,
-                mutationState: 'idle',
-                mutationRequestId: null,
-                mutationError: 'Current assignment has invalid revision',
-              }));
-              return;
-            }
-            slotRevisions.push({ slotId: slot.id, expectedRevision: verifyData.assignment.revision });
-          }
-        }
-
-        const response = await fetch('/api/workbench/assign-media', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            slotIds: targetSlots.map(s => s.id),
-            mediaId: canonicalMediaId,
-            slotRevisions,
-          }),
-        });
-
-        // P0 FIX: Handle HTTP 207 Multi-Status for partial success
-        if (!response.ok && response.status !== 207) {
-          const error = await response.json();
-          throw new Error(error.error || 'Failed to assign local asset');
-        }
-
-        result = await response.json();
-
-        // Handle partial success (HTTP 207)
-        if (response.status === 207) {
-          console.warn('[WORKBENCH] LOCAL_ASSET_PARTIAL_SUCCESS', {
-            requestId,
-            result,
-          });
-
-          const succeededSlots = result.details?.succeeded || [];
-          const failedSlots = result.details?.failed || [];
-
-          if (succeededSlots.length === 0) {
-            // All slots failed
-            const errorMessage = failedSlots.length > 0
-              ? failedSlots.map((f: any) => `${f.targetSlotId}: ${f.error}`).join('; ')
-              : 'All slot assignments failed';
-            throw new Error(errorMessage);
-          }
-
-          // Show warning about failed slots
-          const failedSlotNames = failedSlots.map((f: any) => f.targetSlotId).join(', ');
-          console.warn('[WORKBENCH] LOCAL_PARTIAL_SUCCESS_WARNING', {
-            requestId,
-            succeededCount: succeededSlots.length,
-            failedCount: failedSlots.length,
-            failedSlots: failedSlotNames,
-          });
-
-          // Update state to show partial success warning
-          setState(prev => ({
-            ...prev,
-            mutationError: `Partial success: ${succeededSlots.length} slots succeeded, ${failedSlots.length} failed (${failedSlotNames})`,
-          }));
-        }
-
-        console.log('[WORKBENCH] LOCAL_ASSET_ASSIGNMENT_SUCCESS', {
-          requestId,
-          canonicalMediaId,
-          targetSlotIds: targetSlots.map(s => s.id),
-        });
+        revisions.push({ slotId: slot.id, expectedRevision: result.revision });
       }
-
-      setState(prev => ({ ...prev, mutationState: 'complete' }));
-
-      // Reload canonical data to include any new asset
-      await loadCanonicalData();
-
-      // P0 FIX: Update local state only for successfully assigned slots
-      // For partial success, only update slots that succeeded
-      const succeededSlotIds = result.slotResults
-        ? result.slotResults.filter((r: any) => r.success).map((r: any) => r.targetSlotId)
-        : targetSlots.map(s => s.id); // Fallback for full success
-
-      setState(prev => {
-        const updatedSlots = prev.registeredSlots.map(s =>
-          succeededSlotIds.includes(s.id) ? { ...s, currentMediaId: canonicalMediaId } : s
-        );
-        return {
-          ...prev,
-          registeredSlots: updatedSlots,
-          selectedSlots: targetSlots.map(s => ({ ...s, currentMediaId: succeededSlotIds.includes(s.id) ? canonicalMediaId : s.currentMediaId })),
-          selectedAsset: state.assets.find(a => a.id === canonicalMediaId) || null,
-        };
+      setPendingReplacement({
+        preview: {
+          name: drive?.name || asset!.filename,
+          source: drive ? 'Drive' : 'Published media',
+          thumbnail: drive
+            ? `/api/drive/files/${drive.id}/thumbnail${drive.corpusId ? `?corpusId=${encodeURIComponent(drive.corpusId)}` : ''}`
+            : asset?.variants?.thumbnail || asset?.variants?.webp || asset?.variants?.original,
+          targets: targets.map((slot, i) => ({
+            slotId: slot.id, name: slot.slotName, page: slot.page, expectedRevision: revisions[i].expectedRevision,
+          })),
+        },
+        endpoint: drive ? '/api/workbench/use-drive-asset' : '/api/workbench/assign-media',
+        body: drive ? {
+          sourceFileId: drive.id, sourceSharedDriveId: drive.corpusId === 'root' ? undefined : drive.corpusId,
+          sourceCorpusId: drive.corpusId, targetSlotIds: targets.map(t => t.id), slotRevisions: revisions,
+        } : { mediaId: asset!.id, slotIds: targets.map(t => t.id), slotRevisions: revisions },
       });
-
-      // Force iframe reload to pick up authority changes
-      if (iframeRef.current) {
-        console.log('[WORKBENCH] USE_ASSET_IFRAME_RELOAD', {
-          requestId,
-          slotIds: targetSlots.map(s => s.id),
-          assetId: canonicalMediaId,
-        });
-        // P0 FIX: Do NOT reset bridge readiness before manual iframe reload
-        // Child will send BRIDGE_READY again after reload completes
-        console.log('[WB_FORENSIC] IFRAME_RELOAD_INITIATED', {
-          reason: 'Manual iframe reload after use-drive-asset',
-          timestamp: Date.now(),
-        });
-        iframeRef.current.src = iframeRef.current.src;
-      }
-
-      console.log('[WORKBENCH] USE_ASSET_COMPLETE', {
-        requestId,
-        slotIds: targetSlots.map(s => s.id),
-        mediaId: canonicalMediaId,
-      });
-
-      // Reset mutation state after delay
-      setTimeout(() => {
-        setState(prev => ({
-          ...prev,
-          mutationState: 'idle',
-          mutationRequestId: null,
-        }));
-      }, 2000);
+      setState(prev => ({ ...prev, mutationState: 'confirming' }));
     } catch (error) {
-      console.error('[WORKBENCH] USE_ASSET_ERROR', {
-        requestId,
-        error: error instanceof Error ? error.message : String(error),
+      mutationBusy.current = false;
+      setState(prev => ({ ...prev, mutationState: 'idle', mutationError: error instanceof Error ? error.message : 'Cannot prepare replacement.' }));
+    }
+  };
+
+  const cancelReplacement = () => {
+    setPendingReplacement(null);
+    mutationBusy.current = false;
+    setState(prev => ({ ...prev, mutationState: 'idle' }));
+  };
+
+  const executeReplacement = async (operation: PendingReplacement) => {
+    if (requestInFlight.current) return;
+    requestInFlight.current = true;
+    setPendingReplacement(null);
+    setRetryReplacement(null);
+    mutationBusy.current = true;
+    setState(prev => ({ ...prev, mutationState: operation.preview.source === 'Drive' ? 'materializing' : 'assigning', mutationError: null }));
+    let acknowledged = false;
+    try {
+      const response = await fetch(operation.endpoint, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(operation.body),
       });
+      const result = await response.json();
+      acknowledged = true;
+      if (!response.ok || !result.success || !result.verified || !result.committed ||
+          result.slotResults?.length !== operation.preview.targets.length) {
+        if (result.retrySameRequest) setRetryReplacement(operation);
+        throw new Error(result.message || 'Replacement was not verified. Refresh the selection before trying again.');
+      }
+      const ids = new Set(operation.preview.targets.map(t => t.slotId));
+      if (!operation.preview.targets.every(t => result.verificationResults?.some((v: { targetSlotId: string; mediaId: string; revision: number; verified: boolean }) =>
+        v.targetSlotId === t.slotId && v.verified && v.mediaId === result.canonicalMediaId && v.revision === t.expectedRevision + 1))) {
+        throw new Error('The server result does not match the confirmed selection. Refresh before editing.');
+      }
+      // Refresh registry and UI immediately from the verified receipt, preserving the source.
+      for (const slot of registeredSlotsRef.current) {
+        if (ids.has(slot.id)) slotRegistry.register({ ...slot, currentMediaId: result.canonicalMediaId });
+      }
       setState(prev => ({
-        ...prev,
-        mutationState: 'idle',
-        mutationRequestId: null,
-        mutationError: error instanceof Error ? error.message : 'Unknown error',
+        ...prev, mutationState: 'idle', mutationRequestId: result.operationId,
+        registeredSlots: prev.registeredSlots.map(slot => ids.has(slot.id) ? { ...slot, currentMediaId: result.canonicalMediaId } : slot),
+        selectedSlots: prev.selectedSlots.map(slot => ids.has(slot.id) ? { ...slot, currentMediaId: result.canonicalMediaId } : slot),
+        assets: result.media && !prev.assets.some(a => a.id === result.media.id) ? [...prev.assets, result.media] : prev.assets,
       }));
-      alert(`Failed to use asset: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setMutationNotice(`${ids.size}/${ids.size} assignments committed and verified${result.replayed ? ' (recovered)' : ''}.`);
+      if (iframeRef.current) iframeRef.current.src = iframeRef.current.src;
+    } catch (error) {
+      if (!acknowledged) setRetryReplacement(operation);
+      setState(prev => ({
+        ...prev, mutationState: 'idle',
+        mutationError: !acknowledged ? 'Commit response unavailable. Retry the same request to recover its result.'
+          : error instanceof Error ? error.message : 'Replacement failed.',
+      }));
+    } finally {
+      requestInFlight.current = false;
+      mutationBusy.current = false;
     }
   };
 
@@ -1927,6 +1523,7 @@ export default function MediaWorkbench() {
         });
         handleSlotClick(slot);
       } else if (messageType === 'SLOT_DROP') {
+        if (mutationBusy.current) return;
         const requestId = `drop-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         
         console.log('[WB_FORENSIC] SLOT_DROP_RECEIVED', {
@@ -2794,7 +2391,7 @@ export default function MediaWorkbench() {
     });
   }
 
-  if (state.loading) {
+  if (state.loading && state.assets.length === 0) {
     return (
       <div className="h-dvh flex items-center justify-center bg-background">
         <div className="text-center">
@@ -2831,18 +2428,15 @@ export default function MediaWorkbench() {
   const currentSlots = (state.registeredSlots || []).filter(s => s.route === state.selectedPage);
 
   return (
-    <div className="h-screen flex flex-col bg-background overflow-hidden">
+    <div className="min-h-screen lg:h-screen flex flex-col bg-background lg:overflow-hidden">
       {/* Minimal Toolbar */}
       <div className="shrink-0 border-b border-border bg-card px-4 py-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-3">
-            <h1 className="text-lg font-bold text-foreground flex items-center gap-2">
+            <h1 style={{ fontSize: 18 }} className="font-bold text-foreground flex items-center gap-2">
               <Layers size={18} />
               Media Workbench
             </h1>
-            <span className="text-xs text-muted-foreground">
-              Map website visuals to media
-            </span>
           </div>
           <div className="flex items-center gap-2">
             {state.pendingAssignments.size > 0 && (
@@ -2856,15 +2450,7 @@ export default function MediaWorkbench() {
                 >
                   Clear All
                 </button>
-                <button
-                  onClick={() => {
-                    // TODO: Implement deploy all
-                    alert('Deploy all pending changes - not yet implemented');
-                  }}
-                  className="px-2 py-1 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors text-xs"
-                >
-                  Confirm All
-                </button>
+
               </div>
             )}
             <button
@@ -3004,24 +2590,45 @@ export default function MediaWorkbench() {
         </div>
       )}
 
-      {/* Page Navigation - Compact */}
-      <div className="shrink-0 border-b border-border bg-surface px-4 py-1">
-        <div className="flex gap-1">
-          {(Object.keys(PAGE_LABELS) as PageRoute[]).map((route) => (
-              <button
-                key={route}
-                onClick={() => setState(prev => ({ ...prev, selectedPage: route }))}
-                className={`px-2 py-1 rounded text-xs transition-colors ${
-                  state.selectedPage === route
-                    ? 'bg-primary text-primary-foreground'
-                    : 'bg-background hover:bg-surface'
-                }`}
-              >
-                {PAGE_LABELS[route]}
-              </button>
-            ))}
+      <div className="shrink-0 border-b border-border bg-white px-4 py-3">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            Page
+            <select aria-label="Page" value={state.selectedPage} disabled={state.mutationState !== 'idle'}
+              onChange={e => {
+                slotRegistry.clear();
+                setSlotView('gallery');
+                setState(prev => ({ ...prev, selectedPage: e.target.value as PageRoute, selectedSlots: [], registeredSlots: [] }));
+              }} className="min-h-11 max-w-44 rounded border border-border bg-white px-3">
+              {(Object.keys(PAGE_LABELS) as PageRoute[]).map(route => <option key={route} value={route}>{PAGE_LABELS[route]}</option>)}
+            </select>
+          </label>
+          <div className="flex gap-1" role="tablist" aria-label="Target view">
+            {(['gallery', 'sources', 'preview'] as const).map(view => <button type="button" role="tab" key={view}
+              aria-selected={slotView === view} aria-controls="slot-view" onClick={() => setSlotView(view)}
+              className={`min-h-11 px-3 text-sm border-b-2 ${view === 'sources' ? 'lg:hidden' : ''} ${slotView === view ? 'border-primary font-semibold' : 'border-transparent'}`}>
+              {view === 'gallery' ? 'Slots' : view === 'sources' ? 'Sources' : 'Site Preview'}
+            </button>)}
           </div>
         </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="min-w-0 flex-1 text-sm">
+            <p className="font-semibold" data-testid="target-count">{state.selectedSlots.length} slots selected</p>
+            <p className="mt-1 break-all" data-testid="replacement-source">Source: {state.driveSelectedFile ? `Drive / ${state.driveSelectedFile.name}` : state.selectedAsset?.filename || 'None selected'}</p>
+          </div>
+          <button type="button" onClick={handleUseDriveAsset}
+            disabled={!state.selectedSlots.length || (!state.selectedAsset && !state.driveSelectedFile) || state.mutationState !== 'idle'}
+            className="min-h-11 rounded bg-primary px-4 text-sm font-semibold text-white disabled:opacity-50">
+            {state.mutationState !== 'idle' && state.mutationState !== 'confirming' ? 'Working...' : `Replace ${state.selectedSlots.length} Slots`}
+          </button>
+        </div>
+        {mutationNotice && <p role="status" className="mt-3 text-sm text-primary">{mutationNotice}</p>}
+        {state.mutationError && <p role="alert" className="mt-3 text-sm text-red-700 break-words">{state.mutationError}</p>}
+        {retryReplacement && <button type="button" onClick={() => executeReplacement(retryReplacement)}
+          disabled={state.mutationState !== 'idle'} className="mt-2 min-h-11 text-sm underline">Retry same request</button>}
+      </div>
+      {pendingReplacement && <ReplacementDialog preview={pendingReplacement.preview}
+        onCancel={cancelReplacement} onConfirm={() => executeReplacement(pendingReplacement)} />}
 
       {/* Pending Assignments Bar */}
       {state.pendingAssignments.size > 0 && (
@@ -3059,14 +2666,19 @@ export default function MediaWorkbench() {
       )}
 
       {/* Main Content - Two Panel Layout */}
-      <div className="flex-1 grid grid-cols-2 min-h-0">
+      <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 min-h-0">
           {/* LEFT: Website Preview - No overlay blocking iframe */}
-          <section className="min-h-0 min-w-0 overflow-y-auto bg-white h-full relative">
+          <section id="slot-view" role="tabpanel" className={`min-h-[420px] lg:min-h-0 min-w-0 overflow-y-auto bg-white h-full relative border-r border-border ${slotView === 'sources' ? 'hidden lg:block' : ''}`}>
+            {slotView !== 'preview' && <SlotGallery slots={currentSlots} assets={state.assets}
+              selected={state.selectedSlots} disabled={state.mutationState !== 'idle'}
+              onSelect={(slot, toggle) => handleSlotClick(slot, { ctrlKey: toggle, metaKey: false })} />}
             {/* Website Preview Iframe - receives pointer events directly */}
             <iframe
               ref={iframeRef}
               src={`${window.location.origin}/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`}
-              className="w-full h-full border-0"
+              className={slotView === 'preview' ? 'w-full h-full min-h-[420px] border-0' : 'absolute inset-0 w-full h-full border-0 opacity-0 pointer-events-none'}
+              aria-hidden={slotView !== 'preview'}
+              tabIndex={slotView === 'preview' ? 0 : -1}
               title="Website Preview"
               sandbox="allow-same-origin allow-scripts allow-popups"
               onLoad={() => {
@@ -3093,7 +2705,7 @@ export default function MediaWorkbench() {
           {/* RIGHT: Media Asset Management */}
         <section 
         ref={mediaPanelRef}
-        className="min-h-0 min-w-0 overflow-y-auto bg-background h-full"
+        className={`min-h-0 min-w-0 overflow-y-auto bg-background h-full ${slotView === 'sources' ? '' : 'hidden lg:block'}`}
         >
           <div className="p-4">
             {/* Search */}
@@ -3109,7 +2721,7 @@ export default function MediaWorkbench() {
             </div>
 
             {/* Filters - user-facing terminology */}
-            <div className="flex gap-1 mb-4">
+            <div className="flex flex-wrap gap-1 mb-4">
               {([
                 { value: 'all', label: 'All Photos' },
                 { value: 'in-use', label: 'In Use' },
@@ -3135,6 +2747,8 @@ export default function MediaWorkbench() {
             {state.driveBrowsing && (
               <div className="mb-4 p-4 bg-surface rounded-lg">
                 {/* P0 FIX: Authorization Configuration Diagnostics */}
+                <details className="mb-3 text-sm">
+                  <summary className="min-h-11 cursor-pointer py-3 font-medium">Connection and media diagnostics</summary>
                 {state.authorizationConfig && (
                   <div className="mb-4 p-3 bg-blue-50 text-blue-900 text-sm rounded border border-blue-200">
                     <div className="font-semibold mb-2">Authorization Configuration:</div>
@@ -3274,6 +2888,7 @@ export default function MediaWorkbench() {
                   </div>
                 )}
 
+                </details>
                 {state.driveError && (
                   <div className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded">
                     {state.driveError}
@@ -3666,13 +3281,17 @@ export default function MediaWorkbench() {
             )}
 
             {/* Media Grid */}
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 xl:grid-cols-3 gap-3">
               {filteredAssets.map((asset) => {
                 const isSelected = state.selectedAsset?.id === asset.id;
                 const isUsed = state.registeredSlots.some(s => s.currentMediaId === asset.id);
 
                 return (
-                  <div
+                  <button
+                    type="button"
+                    aria-label={`Select source ${asset.filename}`}
+                    aria-pressed={isSelected}
+                    disabled={state.mutationState !== 'idle'}
                     key={asset.id}
                     draggable
                     data-asset-id={asset.id}
@@ -3721,7 +3340,7 @@ export default function MediaWorkbench() {
                     <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-2">
                       <p className="text-xs text-white truncate">{asset.filename}</p>
                     </div>
-                  </div>
+                  </button>
                 );
               })}
             </div>

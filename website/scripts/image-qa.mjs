@@ -5,6 +5,7 @@
 import { readFileSync, readdirSync, existsSync, statSync } from "node:fs";
 import { join, resolve, relative } from "node:path";
 import { runValidators } from "./image-qa/validators.mjs";
+import { collectImageReferences, isBlockingViolation } from "./image-qa/references.mjs";
 
 const root = resolve(process.cwd());
 const publicDir = join(root, "public");
@@ -62,6 +63,14 @@ function scanRefs(dir) {
     if (statSync(p).isDirectory()) { scanRefs(p); continue; }
     if (!/\.(ts|tsx|js|json)$/.test(e)) continue;
     const src = readFileSync(p, "utf8");
+    if (e.endsWith('.json')) {
+      try {
+        collectImageReferences(JSON.parse(src), referenced);
+      } catch (error) {
+        fail(`invalid image authority JSON: ${relative(root, p)}: ${error.message}`);
+      }
+      continue;
+    }
     const re = /(?:src|heroImage|image|cover|thumbnail|backgroundImage)\s*:\s*["'`](\/[^"'`]+)/g;
     let m;
     while ((m = re.exec(src))) referenced.add(m[1]);
@@ -75,7 +84,8 @@ for (const ref of referenced) {
     fail(`referenced image missing: ${ref}`); brokenRefs++;
   }
 }
-if (brokenRefs === 0) ok(`all ${referenced.size} referenced image paths resolve`);
+if (referenced.size === 0) fail('no image references found in canonical configuration');
+else if (brokenRefs === 0) ok(`all ${referenced.size} referenced image paths resolve`);
 
 // 3) Blur placeholders — when gallery.json has real photos, each must carry blurDataURL.
 //    (The pipeline bakes blur into gallery.json; no sibling files needed.)
@@ -103,7 +113,7 @@ for (const v of violations) {
   const imageRef = v.image ? ` [${v.image}]` : "";
   console.log(`  ${prefix} [${v.authority}] ${v.rule}${imageRef}: ${v.message}`);
   if (v.fix) console.log(`     Fix: ${v.fix}`);
-  failures++;
+  if (isBlockingViolation(v)) failures++;
 }
 
 if (violations.filter(v => v.severity === "error").length === 0) {

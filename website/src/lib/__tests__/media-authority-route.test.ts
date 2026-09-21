@@ -1,226 +1,59 @@
-/**
- * Media Authority API Route Test
- *
- * Tests for the Workbench media authority API endpoint:
- * - getAssignment action with CAS revision read
- * - Visual Slot → authority mapping
- * - Workbench authentication boundary
- */
+import { POST } from '@/app/api/workbench/media-authority/route';
+import { workbenchSession } from '@/lib/workbench-session';
+import { getServiceCardAssignment } from '@/lib/assignment-store';
+import { getPublishedMediaAssets } from '@/lib/visual-asset-registry';
+import { listMediaIds, getMediaRecordRaw } from '@/lib/media-kv-store';
 
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
+jest.mock('@/lib/workbench-session', () => ({ workbenchSession: { isAuthenticated: jest.fn() } }));
+jest.mock('@/lib/assignment-store', () => ({ getServiceCardAssignment: jest.fn() }));
+jest.mock('@/lib/visual-asset-registry', () => ({ getPublishedMediaAssets: jest.fn() }));
+jest.mock('@/lib/media-kv-store', () => ({ listMediaIds: jest.fn(), getMediaRecordRaw: jest.fn() }));
 
-// Set environment variables before importing modules
-process.env.KV_REST_API_URL = 'https://test.redis.com';
-process.env.KV_REST_API_TOKEN = 'test-token';
-
-// Mock Next.js dependencies
-jest.mock('next/headers', () => ({
-  cookies: jest.fn(),
-}));
-
-jest.mock('@/lib/workbench-session', () => ({
-  workbenchSession: {
-    isAuthenticated: jest.fn().mockResolvedValue(true),
-  },
-}));
-
-jest.mock('@/lib/visual-asset-registry', () => ({
-  getPublishedMediaAssets: jest.fn(),
-}));
-
-jest.mock('@/lib/media-kv-store', () => ({
-  getMediaRecordRaw: jest.fn(),
-  listMediaIds: jest.fn(),
-}));
-
-jest.mock('@/lib/assignment-store', () => ({
-  getServiceCardAssignment: jest.fn(),
-}));
-
-describe('Media Authority API Route', () => {
-  beforeEach(() => {
-    jest.clearAllMocks();
+async function request(body: unknown) {
+  const response = await POST(new Request('http://localhost/api/workbench/media-authority', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+  }));
+  return { status: response.status, body: await response.json() };
+}
+beforeEach(() => {
+  jest.resetAllMocks();
+  jest.mocked(workbenchSession.isAuthenticated).mockResolvedValue(true);
+  jest.mocked(getServiceCardAssignment).mockResolvedValue(null);
+});
+describe('Media authority route behavior', () => {
+  it('authenticates before reading authority', async () => {
+    jest.mocked(workbenchSession.isAuthenticated).mockResolvedValue(false);
+    expect((await request({ action: 'getAssignment', slotSlug: 'hero-background' })).status).toBe(401);
+    expect(getServiceCardAssignment).not.toHaveBeenCalled();
   });
-
-  afterEach(() => {
-    delete process.env.KV_REST_API_URL;
-    delete process.env.KV_REST_API_TOKEN;
+  it.each([
+    ['hero-background', 'brand-hero-background'],
+    ['homepage-owner-portrait-slot', 'brand-portrait-homepage'],
+    ['homepage-service-card-slot-decks', 'decks'],
+    ['homepage-service-card-slot-drywall', 'drywall'],
+  ])('reads canonical authority for %s', async (slotSlug, assignmentKey) => {
+    const result = await request({ action: 'getAssignment', slotSlug });
+    expect(result.status).toBe(200);
+    expect(getServiceCardAssignment).toHaveBeenCalledWith(assignmentKey);
+    expect(result.body).toEqual({ slotSlug, assignmentKey, assignment: null, revision: 0 });
   });
-
-  describe('getAssignment Action', () => {
-    it('should implement getAssignment action', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain("action === 'getAssignment'");
-    });
-
-    it('should require slotSlug parameter', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('slotSlug required');
-      expect(routeCode).toContain('status: 400');
-    });
-
-    it('should return revision 0 for missing assignment', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('revision: assignment?.revision || 0');
-    });
-
-    it('should return current revision for existing assignment', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('assignment?.revision');
-    });
+  it('returns the existing revision unchanged', async () => {
+    jest.mocked(getServiceCardAssignment).mockResolvedValue({ revision: 37, mediaId: 'current' } as any);
+    expect((await request({ action: 'getAssignment', slotSlug: 'hero-background' })).body.revision).toBe(37);
   });
-
-  describe('Visual Slot Authority Mapping', () => {
-    it('should map hero-background to brand-hero-background', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain("'hero-background': 'brand-hero-background'");
-    });
-
-    it('should map homepage-owner-portrait-slot to brand-portrait-homepage', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain("'homepage-owner-portrait-slot': 'brand-portrait-homepage'");
-    });
-
-    it('should map homepage-service-card-slot-{slug} to {slug}', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('startsWith(\'homepage-service-card-slot-\')');
-      expect(routeCode).toContain('replace(\'homepage-service-card-slot-\', \'\')');
-    });
-
-    it('should resolve on server-side, not client-side', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('resolveAssignmentKey');
-      expect(routeCode).toContain('VISUAL_SLOT_REGISTRY');
-    });
-
-    it('should reject unknown target slots', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('INVALID_TARGET_SLOT');
-      expect(routeCode).toContain('return null');
-    });
+  it.each([undefined, 'service-card-decks', 'unknown', 'homepage-service-card-slot-unknown'])('rejects unsupported slot %s', async slotSlug => {
+    expect((await request({ action: 'getAssignment', slotSlug })).status).toBe(400);
+    expect(getServiceCardAssignment).not.toHaveBeenCalled();
   });
-
-  describe('CAS Revision Read Integration', () => {
-    it('should return assignmentKey in response', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('assignmentKey');
-    });
-
-    it('should return slotSlug in response for verification', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('slotSlug');
-    });
-
-    it('should call getServiceCardAssignment with resolved key', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('getServiceCardAssignment(assignmentKey)');
-    });
+  it.each(['list', 'getPublishedMediaAssets'])('preserves %s', async action => {
+    jest.mocked(getPublishedMediaAssets).mockResolvedValue({ assets: [], available: true });
+    expect((await request({ action })).body).toMatchObject({ media: [], available: true });
   });
-
-  describe('Workbench Authentication Boundary', () => {
-    it('should require Workbench authentication for getAssignment', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain('workbenchSession.isAuthenticated()');
-      expect(routeCode).toContain('WORKBENCH_AUTH_REQUIRED');
-      expect(routeCode).toContain('status: 401');
-    });
-
-    it('should check authentication before processing any action', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      // Find authentication check
-      const authCheckIndex = routeCode.indexOf('workbenchSession.isAuthenticated()');
-      // Find action handling
-      const actionCheckIndex = routeCode.indexOf("action === 'getAssignment'");
-
-      // Auth check should come before action handling
-      expect(authCheckIndex).toBeLessThan(actionCheckIndex);
-    });
-  });
-
-  describe('Existing Actions Still Functional', () => {
-    it('should still implement getPublishedMediaAssets action', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain("action === 'getPublishedMediaAssets'");
-      expect(routeCode).toContain('getPublishedMediaAssets()');
-    });
-
-    it('should still implement list action', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain("action === 'list'");
-    });
-
-    it('should still implement getByDriveFileId action', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const routePath = path.join(__dirname, '../../app/api/workbench/media-authority/route.ts');
-      const routeCode = fs.readFileSync(routePath, 'utf8');
-
-      expect(routeCode).toContain("action === 'getByDriveFileId'");
-      expect(routeCode).toContain('provenance?.driveFileId');
-    });
+  it('matches Drive provenance and corpus exactly', async () => {
+    jest.mocked(listMediaIds).mockResolvedValue(['wrong', 'correct']);
+    jest.mocked(getMediaRecordRaw).mockResolvedValueOnce({ id: 'wrong', provenance: { driveFileId: 'file', sharedDriveId: 'other' } } as any)
+      .mockResolvedValueOnce({ id: 'correct', provenance: { driveFileId: 'file', sharedDriveId: 'shared' } } as any);
+    const result = await request({ action: 'getByDriveFileId', driveFileId: 'file', sharedDriveId: 'shared' });
+    expect(result.body).toMatchObject({ found: true, media: { id: 'correct' } });
   });
 });

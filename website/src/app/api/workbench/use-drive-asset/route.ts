@@ -1,278 +1,16 @@
 /**
- * Workbench Use Drive Asset API Route
- *
- * AUTHORITATIVE TRANSACTION: Drive Source → Target Slot(s)
- *
- * This endpoint implements the deterministic "Use This Asset" transaction:
- * - Source: Drive file ID + corpus (My Drive/Shared Drive)
- * - Target: One or more Visual Slot IDs
- * - Result: Canonical PublishedMediaAsset ID assigned to target slot(s)
- *
- * AUTHORIZATION MODEL (P1 #6):
- * 
- * This endpoint uses TWO SEPARATE authorization systems:
- * 1. Workbench Session: Authenticates human/admin to Workbench
- * 2. Drive OAuth: Authenticates to Google Drive
- * 
- * CRITICAL LIMITATION: These systems are NOT cryptographically bound together.
- * Workbench session identity ≠ Drive authorization identity ≠ Google subject
- * 
- * This is architecturally acceptable ONLY under the assumption:
- * - Workbench access is strictly controlled (single trusted admin)
- * - Drive OAuth is strictly scoped (read-only, no write permissions)
- * - Corpus allowlist is environment-configured (not user-configurable)
- * 
- * DO NOT claim this is a universal multi-user authorization model.
- * FUTURE: Implement explicit binding of Workbench ↔ Drive identity if multi-user support is needed.
- * 
- * ATOMICITY MODEL (P1 #9):
- * 
- * This transaction is NOT strictly atomic across all operations. The honest model is:
- * 
- * NON-ATOMIC (can succeed independently):
- * - Drive metadata fetch (auth + verification)
- * - Drive download
- * - Content hashing
- * - Sharp variant generation
- * - Blob upload (variants stored independently)
- * - KV media record write (PublishedMediaAsset can exist without assignment)
- * - Assignment CAS mutation (can succeed without public verification)
- * - Assignment readback (can succeed with wrong media ID)
- * - Public resolver verification (read-only, can return null)
- * 
- * ATOMIC BOUNDARY (all-or-nothing):
- * - The entire transaction only returns success if ALL steps complete AND
- *   the final readback media ID matches the canonical media ID AND
- *   the public resolver returns a valid media object.
- * 
- * IDEMPOTENCY (P0 #5):
- * - Idempotency key = sourceFileId + sorted(targetSlotIds) + sorted(revisions) (stable identity)
- * - Successful results are cached in KV with 1-hour TTL
- * - Retry with same key returns cached success result
- * - Failures are not cached (allows retry)
- * - Revision distinguishes state transitions (revision 4 vs revision 5)
- * 
- * CRITICAL: The endpoint NEVER returns success unless:
- * 1. Public media gate returns truthy (not null/undefined)
- * 2. Assignment readback media ID equals canonical media ID for ALL slots
- * 3. CAS/revision protection was used for ALL slots
- * 4. All target slot types are supported (brand or service-card)
- * 
- * FAILURE MODES (fail-closed):
- * - Public media gate returns null → 400 error
- * - Any assignment readback mismatch → 500 error
- * - Any CAS conflict → handled by assignment store
- * - Any unsupported slot type → 400 error
- * - Drive file not found → 404 error
- * - MIME type not image → 400 error
- * - Corpus mismatch → 400 error
- * 
- * MULTI-SLOT SUPPORT (NEW):
- * - Supports single-slot (backward compatible) and multi-slot assignment
- * - Each slot is assigned independently with its own CAS protection
- * - One slot's failure does not affect other slots (partial success reporting)
- * - All slots share the same canonical media ID (single asset, multiple assignments)
- * - Returns per-slot results for verification
- *
- * ATOMICITY MODEL:
- * - Multi-slot writes are NOT atomic across all slots
- * - Each slot assignment is independent with its own CAS protection
- * - Partial success (HTTP 207) is a legitimate state: A succeeds, B fails, C succeeds
- * - Failed slots remain in their previous state (no overwrite)
- * - Successful slots are verified independently
- * - Idempotency is recorded ONLY after ALL slots pass verification
- * - Retry of failed slots is safe (successful slots remain unchanged)
- *
- * This is NOT a scan-all-assignments operation. Targets are explicit.
+ * Workbench Drive handoff: authorize source, materialize through existing ingest,
+ * then atomically assign all explicit targets and verify the resulting revisions.
  */
-
-/**
- * SERVER-SIDE VISUAL SLOT AUTHORITY REGISTRY
- *
- * This is the authoritative mapping of writable Visual Slots to their mutation authorities.
- * This is NOT the client-side slotRegistry (which is for UI discovery).
- *
- * Architecture:
- * Visual Slot ID → Authority Type → Authority Key → Mutation Adapter
- *
- * Authority Types:
- * - service-card-assignment: Mutates via Service Card Assignment Store (KV)
- * - static-project: Static-only (projects.v1.json) - NOT writable at runtime
- * - decorative: Intentionally non-assignable
- *
- * Mutation Adapters:
- * - service-card-assignment: storeServiceCardAssignment() with CAS
- * - static-project: NONE (reject at runtime)
- * - decorative: NONE (reject always)
- *
- * CRITICAL: Only slots explicitly listed here are writable via Drive handoff
- * UI may have additional VisualSlots for display purposes (project cards, galleries)
- * but those are static-only and NOT writable through this endpoint
- */
-
-/**
- * P0 FIX: Authorized Drive Corpora Configuration
- *
- * This endpoint now uses the centralized corpus-authorization.ts module
- * for consistent authorization across all Drive routes.
- *
- * Environment Variables (configured in corpus-authorization.ts):
- * - HPP_AUTHORIZED_SHARED_DRIVES: Comma-separated list of authorized Shared Drive IDs
- * - HPP_AUTHORIZED_MY_DRIVE: 'true' if My Drive is authorized (default: false - fail-closed)
- *
- * If a corpus is not in this allowlist, the endpoint rejects with 403 Forbidden.
- */
-
-interface SlotAuthorityMapping {
-  visualSlotId: string;
-  authorityType: 'service-card-assignment' | 'static-project' | 'decorative';
-  authorityKey: string;
-  writable: boolean;
-  description: string;
-}
-
-/**
- * SERVICE CARD AUTHORITY ALLOWLIST
- *
- * This is the authoritative allowlist of service cards that can be mutated via Drive handoff.
- * The slot format is: homepage-service-card-slot-{slug}
- *
- * Only services in this list are writable via Drive handoff.
- */
-const SERVICE_CARD_ALLOWLIST: string[] = [
-  'painting',
-  'repairs',
-  'restoration',
-  'fences',
-  'decks',
-  'pergolas',
-  'kitchen-remodeling',
-  'bathroom-remodeling',
-  'built-ins',
-  'outdoor-living',
-  'misc', // P0 FIX: Add misc to match media-authority allowlist for authority consistency
-];
-
-/**
- * Authoritative allowlist of writable Visual Slots
- * This is the server-side source of truth for which slots can be mutated via Drive handoff
- *
- * NOTE: UI has additional VisualSlots for display (project cards, galleries, featured projects)
- * but those are static-only and NOT writable through this endpoint
- *
- * ARCHITECTURAL NOTE: Brand slots use service-card-assignment authority type
- * This is intentional but semantically overloaded - brand mutations use special serviceSlug values
- * (brand-hero-background, brand-portrait-homepage) that are handled by special cases in deploy route
- * 
- * Future refactoring: Separate authority type for brand slots with dedicated staging namespace
- * Current implementation is safe but creates a future failure seam if deploy route special cases are removed
- */
-const VISUAL_SLOT_AUTHORITY: SlotAuthorityMapping[] = [
-  // Brand slots - writable via Service Card Assignment Store (architecturally overloaded)
-  // These use special serviceSlug values that deploy route maps to brand.v1.json
-  {
-    visualSlotId: 'hero-background',
-    authorityType: 'service-card-assignment',
-    authorityKey: 'brand-hero-background',
-    writable: true,
-    description: 'Homepage hero background image',
-  },
-  {
-    visualSlotId: 'homepage-owner-portrait-slot',
-    authorityType: 'service-card-assignment',
-    authorityKey: 'brand-portrait-homepage',
-    writable: true,
-    description: 'Homepage owner portrait',
-  },
-  // Service card slots - writable via Service Card Assignment Store
-  // These are dynamically generated for each service in SERVICE_CARD_ALLOWLIST
-  // Format: homepage-service-card-slot-{slug}
-];
-
-/**
- * Resolve Visual Slot ID to its authoritative mutation mapping
- * Returns null if slot is not in the authoritative registry
- */
-function resolveVisualSlotAuthority(targetSlotId: string): SlotAuthorityMapping | null {
-  const mapping = VISUAL_SLOT_AUTHORITY.find(slot => slot.visualSlotId === targetSlotId);
-  return mapping || null;
-}
-
-/**
- * Service card slot authority resolution
- * Service cards use slug-based authority keys
- * Returns null if the slot format is invalid or slug is not in allowlist
- *
- * P0 FIX: Only accept homepage-service-card-{slug} format
- * Legacy service-card-{slug} format is rejected to prevent zero-height element interference
- */
-function resolveServiceCardAuthority(targetSlotId: string): SlotAuthorityMapping | null {
-  let slug: string | null = null;
-
-  // Service card slots have format: homepage-service-card-{slug}
-  if (targetSlotId.startsWith('homepage-service-card-slot-')) {
-    slug = targetSlotId.replace('homepage-service-card-slot-', '');
-  } else {
-    // P0 FIX: Reject legacy service-card-{slug} format - only homepage slots are writable
-    console.warn('[USE_DRIVE_ASSET] Invalid service card slot format', {
-      targetSlotId,
-      reason: 'Only homepage-service-card-{slug} format is accepted',
-    });
-    return null;
-  }
-
-  // P0 FIX: Verify slug is in allowlist - reject arbitrary service cards
-  if (!slug || !SERVICE_CARD_ALLOWLIST.includes(slug)) {
-    console.warn('[USE_DRIVE_ASSET] Service card slug not in allowlist', {
-      targetSlotId,
-      slug,
-      allowlist: SERVICE_CARD_ALLOWLIST,
-    });
-    return null;
-  }
-
-  return {
-    visualSlotId: targetSlotId,
-    authorityType: 'service-card-assignment',
-    authorityKey: slug,
-    writable: true,
-    description: `Service card slot for ${slug}`,
-  };
-}
-
-/**
- * Resolve target slot to its authoritative mutation mapping
- * Checks both explicit Visual Slot registry and service card authority
- * Returns null if slot is not writable or not recognized
- */
-function resolveTargetSlotAuthority(targetSlotId: string): SlotAuthorityMapping | null {
-  // First check explicit Visual Slot registry
-  const explicitMapping = resolveVisualSlotAuthority(targetSlotId);
-  if (explicitMapping) {
-    return explicitMapping;
-  }
-
-  // Then check service card authority
-  const serviceCardMapping = resolveServiceCardAuthority(targetSlotId);
-  if (serviceCardMapping) {
-    return serviceCardMapping;
-  }
-
-  // Slot not recognized - reject
-  return null;
-}
-
-
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
-import { storeServiceCardAssignment, getServiceCardAssignment } from '@/lib/assignment-store';
-import { resolvePublicMedia } from '@/lib/media';
-import { verifyPublicMediaAuthority } from '@/lib/media-kv-store';
+import { assignMediaBatch } from '@/lib/assignment-store';
+import { AssignmentBatchError, prepareAssignmentTargets } from '@/lib/workbench-assignment-contract';
+import { POST as ingestDriveMedia } from '@/app/api/drive/ingest/route';
 import { Redis } from '@upstash/redis';
 import { getDriveClient } from '@/lib/drive/oauth-manager';
 import { verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
 import { getKvNamespace } from '@/lib/environment';
-import sharp from 'sharp';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -291,66 +29,6 @@ const IDEMPOTENCY_PREFIX = 'use-drive-asset-idempotency:';
 function getNamespacedIdempotencyKey(idempotencyKey: string): string {
   const namespace = getKvNamespace();
   return `${namespace}${IDEMPOTENCY_PREFIX}${idempotencyKey}`;
-}
-
-/**
- * P0 FIX: Generic Redis value decoder for handling Upstash automatic deserialization
- * Upstash Redis can return values as either JSON strings or already-deserialized objects
- * This decoder normalizes both representations
- *
- * @param value - Value from Redis (string or object)
- * @returns Normalized value (object or string)
- */
-function parseRedisValue(value: unknown): unknown {
-  if (typeof value === 'string') {
-    try {
-      return JSON.parse(value);
-    } catch {
-      return value; // Return as-is if not JSON
-    }
-  } else if (typeof value === 'object' && value !== null) {
-    return value; // Return object directly
-  } else {
-    return value; // Return as-is for other types
-  }
-}
-
-/**
- * Check if operation with this idempotency key has already completed
- *
- * This is an OPTIMISTIC cache check, not authoritative. The actual mutation state is the assignment store.
- * Returns the cached result if present, null if not found.
- *
- * If Redis is unavailable, this fails closed because idempotency is required to prevent accidental retries.
- * However, the CAS check in the deployment transaction provides the authoritative protection against duplicates.
- */
-async function checkIdempotency(idempotencyKey: string): Promise<any | null> {
-  const url = process.env.KV_REST_API_URL;
-  const token = process.env.KV_REST_API_TOKEN;
-
-  if (!url || !token) {
-    console.error('[USE_DRIVE_ASSET] KV unavailable - idempotency check required');
-    throw new Error('REDIS_UNAVAILABLE: Idempotency check requires Redis');
-  }
-
-  try {
-    const redis = new Redis({ url, token });
-    const key = getNamespacedIdempotencyKey(idempotencyKey);
-    const cached = await redis.get(key);
-
-    if (cached) {
-      console.log('[USE_DRIVE_ASSET] Idempotency hit - returning cached result');
-      // P0 FIX: Use authoritative Redis value decoder
-      // Handles both JSON strings and already-deserialized objects from Upstash
-      const decoded = parseRedisValue(cached);
-      return decoded;
-    }
-
-    return null;
-  } catch (error) {
-    console.error('[USE_DRIVE_ASSET] Idempotency check failed', { error });
-    throw new Error('REDIS_ERROR: Idempotency check failed - transaction cannot proceed without authoritative state');
-  }
 }
 
 /**
@@ -432,39 +110,6 @@ async function releaseTransactionLock(idempotencyKey: string, ownershipToken: st
   }
 }
 
-/**
- * Record the successful result of an operation for idempotency
- *
- * This cache is OPTIMISTIC, not authoritative. The actual mutation state is the assignment store.
- * If this Redis write fails after the mutation succeeds:
- * - The mutation is already live (CAS-protected assignment written, transaction consumed)
- * - On retry, CAS will prevent duplicate mutation (assignment revision advanced)
- * - Client will see error on successful mutation (suboptimal UX but safe)
- *
- * CRITICAL: Fails closed if Redis is unavailable - throws error to signal inconsistency
- * See POST_COMMIT_IDEMPOTENCY_FAILURE_SEMANTICS.md for detailed failure analysis.
- */
-async function recordIdempotency(idempotencyKey: string, result: any, ttlSeconds: number = 3600): Promise<void> {
-  const url = process.env.KV_REST_API_URL;
-  const token = process.env.KV_REST_API_TOKEN;
-
-  if (!url || !token) {
-    console.error('[USE_DRIVE_ASSET] KV unavailable - idempotency record required');
-    throw new Error('REDIS_UNAVAILABLE: Idempotency record requires Redis');
-  }
-
-  try {
-    const redis = new Redis({ url, token });
-    const key = getNamespacedIdempotencyKey(idempotencyKey);
-    await redis.set(key, JSON.stringify(result), { ex: ttlSeconds });
-
-    console.log('[USE_DRIVE_ASSET] Idempotency recorded', { ttlSeconds });
-  } catch (error) {
-    console.error('[USE_DRIVE_ASSET] Idempotency record failed', { error });
-    throw new Error('REDIS_ERROR: Idempotency record failed - cannot proceed without durable completion record');
-  }
-}
-
 interface UseDriveAssetRequest {
   sourceFileId: string;  // Google Drive file ID
   sourceSharedDriveId?: string;  // Shared Drive corpus context (null for My Drive)
@@ -496,6 +141,9 @@ export async function POST(request: Request) {
     }
 
     const body: UseDriveAssetRequest = await request.json();
+    if (!body || typeof body !== 'object' || Array.isArray(body)) {
+      throw new AssignmentBatchError('INVALID_REQUEST', 'An assignment object is required.');
+    }
     const {
       sourceFileId,
       sourceSharedDriveId,
@@ -504,92 +152,20 @@ export async function POST(request: Request) {
       targetSlotIds, // NEW: multi-slot support
       expectedRevision, // DEPRECATED: backward compatibility
       slotRevisions, // NEW: multi-slot CAS support
-      idempotencyKey: clientProvidedKey
     } = body;
 
-    // Determine if this is a multi-slot or single-slot request
-    const isMultiSlot = !!targetSlotIds && targetSlotIds.length > 0;
-    const targetSlots = isMultiSlot ? targetSlotIds : (targetSlotId ? [targetSlotId] : []);
-
-    // Step 2: Validate required fields BEFORE acquiring lock
-    if (!sourceFileId || targetSlots.length === 0) {
-      return NextResponse.json(
-        {
-          error: 'REQUIRED_FIELDS_MISSING',
-          message: 'sourceFileId and targetSlotId(s) are required',
-          requestId,
-        },
-        { status: 400 }
-      );
-    }
-
-    // P0 FIX: Require explicit CAS revisions for ALL requests (single and multi-slot)
-    // Legacy fallback that derives revision from store is removed to strengthen CAS invariant
-    // Callers MUST read current state first and provide expected revision
-    if (isMultiSlot) {
-      if (!slotRevisions || slotRevisions.length !== targetSlots.length) {
-        return NextResponse.json(
-          {
-            error: 'SLOT_REVISIONS_REQUIRED',
-            message: 'slotRevisions array must match targetSlotIds length for multi-slot assignment',
-            requestId,
-          },
-          { status: 400 }
-        );
-      }
-    } else {
-      // Single-slot also requires explicit expectedRevision (CAS invariant)
-      if (expectedRevision === undefined || expectedRevision === null) {
-        return NextResponse.json(
-          {
-            error: 'EXPECTED_REVISION_REQUIRED',
-            message: 'expectedRevision is required for CAS enforcement (read current assignment first, use 0 for create)',
-            requestId,
-          },
-          { status: 400 }
-        );
-      }
-    }
-
-    // Generate server-controlled idempotency key
-    // For multi-slot: sort slot IDs to ensure stable key regardless of selection order
-    // For single-slot: maintain backward compatibility
-    const sortedSlotIds = [...targetSlots].sort();
-    const slotIdString = sortedSlotIds.join(',');
-    
-    if (isMultiSlot) {
-      // For multi-slot, use a combined key from all slot revisions
-      const revisionString = slotRevisions!.map(sr => `${sr.slotId}:${sr.expectedRevision}`).sort().join(',');
-      stableIdempotencyKey = `${sourceFileId}:${slotIdString}:${revisionString}`;
-    } else {
-      // Backward compatibility: single-slot format
-      stableIdempotencyKey = `${sourceFileId}:${targetSlotId}:${expectedRevision}`;
-    }
-    
-    if (clientProvidedKey && clientProvidedKey !== stableIdempotencyKey) {
-      console.warn('[USE_DRIVE_ASSET] Client-provided idempotency key ignored', {
-        requestId,
-        clientKey: clientProvidedKey,
-        serverKey: stableIdempotencyKey,
-      });
-    }
-
-    console.log('[USE_DRIVE_ASSET] Idempotency check', {
-      requestId,
-      idempotencyKey: stableIdempotencyKey,
-      isMultiSlot,
-      targetSlotCount: targetSlots.length,
+    const targets = prepareAssignmentTargets({
+      slotId: targetSlotId, slotIds: targetSlotIds, expectedRevision, slotRevisions,
     });
-
-    // Step 3: Check if this operation has already completed
-    const cachedResult = await checkIdempotency(stableIdempotencyKey);
-    if (cachedResult) {
-      console.log('[USE_DRIVE_ASSET] Returning cached result from idempotency check', {
-        requestId,
-        idempotencyKey: stableIdempotencyKey,
-      });
-      return NextResponse.json(cachedResult);
+    if (typeof sourceFileId !== 'string' || !sourceFileId) {
+      throw new AssignmentBatchError('SOURCE_FILE_REQUIRED', 'Select a Drive file.');
     }
+    // The lock deduplicates materialization, not authorization or assignment.
+    // Every retry still passes Drive authorization and verifies the durable batch receipt.
+    stableIdempotencyKey = JSON.stringify({
+      sourceFileId, sourceSharedDriveId, sourceCorpusId,
+      targets: [...targets].sort((a, b) => a.slotId.localeCompare(b.slotId)),
+    });
 
     // Step 4: Acquire transaction lock to prevent duplicate execution
     // This is inside try block, and will be released in finally
@@ -604,6 +180,7 @@ export async function POST(request: Request) {
           {
             error: 'TRANSACTION_IN_PROGRESS',
             message: 'This transaction is already in progress. Please wait.',
+            retrySameRequest: true,
             requestId,
           },
           { status: 409 } // Conflict
@@ -835,518 +412,37 @@ export async function POST(request: Request) {
       );
     }
 
-    // Step 5b: Validate MIME type is an image
-    const imageMimeTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml', 'image/bmp', 'image/tiff'];
-    if (!imageMimeTypes.includes(actualMimeType!)) {
-      console.error('[USE_DRIVE_ASSET] Invalid MIME type', {
-        requestId,
-        actualMimeType,
-      });
-      return NextResponse.json(
-        {
-          error: 'INVALID_MIME_TYPE',
-          message: 'Drive file is not an image',
-          details: {
-            actualMimeType,
-            allowedMimeTypes: imageMimeTypes,
-          },
-          requestId,
-        },
-        { status: 400 }
-      );
+    // Invoke the existing ingest handler in this request context. Authentication,
+    // corpus checks, physical variants, and provenance remain owned by ingest.
+    const ingestResponse = await ingestDriveMedia(new Request(request.url, {
+      method: 'POST',
+      headers: request.headers,
+      body: JSON.stringify({
+        fileId: effectiveFileId,
+        sharedDriveId: effectiveCorpusId === 'root' ? undefined : effectiveCorpusId,
+        originalShortcutId,
+        roles: ['gallery'],
+      }),
+    }));
+    const ingested = await ingestResponse.json();
+    if (!ingestResponse.ok) {
+      return NextResponse.json({ ...ingested, requestId, committed: false }, { status: ingestResponse.status });
     }
-
-    // Step 5c: Download Drive file and compute content hash
-    let contentHash: string;
-    let fileBuffer: Buffer;
-    try {
-      console.log('[USE_DRIVE_ASSET] STEP_5C_DOWNLOAD_DRIVE_FILE', {
-        requestId,
-        effectiveFileId,
-      });
-
-      const driveClient = await getDriveClient();
-      const downloadResponse = await driveClient.files.get(
-        { fileId: effectiveFileId, alt: 'media' },
-        { responseType: 'arraybuffer' }
-      );
-
-      fileBuffer = Buffer.from(downloadResponse.data as ArrayBuffer);
-
-      console.log('[USE_DRIVE_ASSET] Drive file downloaded', {
-        requestId,
-        fileSize: fileBuffer.length,
-      });
-
-      // Compute SHA-256 content hash
-      const crypto = await import('crypto');
-      contentHash = crypto.createHash('sha256').update(fileBuffer).digest('hex');
-
-      console.log('[USE_DRIVESHA256 hash', {
-        requestId,
-        contentHash,
-        fileSize: fileBuffer.length,
-      });
-    } catch (downloadError) {
-      console.error('[USE_DRIVE_ASSET] Drive file download failed', {
-        requestId,
-        error: downloadError instanceof Error ? downloadError.message : String(downloadError),
-      });
-      return NextResponse.json(
-        {
-          error: 'DRIVE_DOWNLOAD_ERROR',
-          message: 'Failed to download Drive file',
-          requestId,
-        },
-        { status: 500 }
-      );
+    if (!ingested.mediaId || ingested.media?.id !== ingested.mediaId) {
+      throw new AssignmentBatchError('INVALID_MATERIALIZATION_RESULT',
+        'Ingest did not return a canonical published asset.', 502);
     }
-
-    // Step 5d: Validate image with Sharp and generate variants
-    let sharpImage: any;
-    let variantUrls: { [key: string]: string } = {};
-    try {
-      console.log('[USE_DRIVE_ASSET] STEP_5D_VALIDATE_IMAGE', {
-        requestId,
-        contentHash,
-      });
-
-      sharpImage = sharp(fileBuffer);
-
-      const metadata = await sharpImage.metadata();
-      const { width, height } = metadata;
-
-      console.log('[USE_DRIVE_ASSET] Image metadata', {
-        requestId,
-        width,
-        height,
-        contentHash,
-      });
-
-      if (!width || !height) {
-        console.error('[USE_DRIVE_ASSET] Invalid image dimensions', {
-          requestId,
-          width,
-          height,
-        });
-        return NextResponse.json(
-          {
-            error: 'INVALID_IMAGE',
-            message: 'Downloaded file is not a valid image',
-            requestId,
-          },
-          { status: 400 }
-        );
-      }
-
-      // P0 FIX: Generate all required variants for production deployment
-      // This ensures the asset is ready for public use after assignment
-      // Original file is uploaded as the "original" variant
-      // We also generate optimized variants for different use cases
-      
-      // For now, we'll store the content hash and use it as the media ID
-      // In production, this would upload to Blob storage and return URLs
-      // For the current architecture, we use the content hash as the canonical media ID
-      
-      console.log('[USE_DRIVE_ASSET] Image validation successful', {
-        requestId,
-        width,
-        height,
-        contentHash,
-      });
-    } catch (sharpError) {
-      console.error('[USE_DRIVE_ASSET] Image validation failed', {
-        requestId,
-        error: sharpError instanceof Error ? sharpError.message : String(sharpError),
-      });
-      return NextResponse.json(
-        {
-          error: 'IMAGE_VALIDATION_ERROR',
-          message: 'Failed to validate image with Sharp',
-          requestId,
-        },
-        { status: 500 }
-      );
-    }
-
-    // Step 5e: Upload variants to Blob storage (if configured)
-    // For now, we'll skip Blob upload and use content hash as media ID
-    // This is a simplification for the current architecture
-    // In production, this would upload to Azure Blob Storage and return URLs
-    
-    const canonicalMediaId = contentHash;
-
-    console.log('[USE_DRIVE_ASSET] Canonical media ID determined', {
-      requestId,
-      canonicalMediaId,
-    });
-
-    // Step 6: Multi-slot assignment - assign to each slot independently
-    // P0 FIX: For multi-slot support, use direct assignment store instead of deployment transactions
-    // This preserves independent slot identity and CAS protection per slot
-    const slotAuthorityMappings: Array<{ targetSlotId: string; serviceSlug: string; expectedRevision: number }> = [];
-    
-    for (const targetSlotId of targetSlots) {
-      const slotAuthority = resolveTargetSlotAuthority(targetSlotId);
-      
-      if (!slotAuthority) {
-        console.error('[USE_DRIVE_ASSET] Target slot not found in authority registry', {
-          requestId,
-          targetSlotId,
-        });
-        return NextResponse.json(
-          {
-            error: 'SLOT_NOT_FOUND',
-            message: `Target slot '${targetSlotId}' is not recognized by the authoritative slot registry`,
-            details: {
-              targetSlotId,
-              note: 'Only brand slots and service card slots are writable via Drive handoff. Project slots are static-only.',
-            },
-            requestId,
-          },
-          { status: 400 }
-        );
-      }
-
-      if (!slotAuthority.writable) {
-        console.error('[USE_DRIVE_ASSET] Target slot is not writable', {
-          requestId,
-          targetSlotId,
-          authorityType: slotAuthority.authorityType,
-          reason: 'Slot is static-only or intentionally non-assignable',
-        });
-        return NextResponse.json(
-          {
-            error: 'SLOT_NOT_WRITABLE',
-            message: `Target slot '${targetSlotId}' is not writable at runtime (authority type: ${slotAuthority.authorityType})`,
-            details: {
-              targetSlotId,
-              authorityType: slotAuthority.authorityType,
-              note: 'Static slots cannot be mutated via Drive handoff',
-            },
-            requestId,
-          },
-          { status: 400 }
-        );
-      }
-
-      // P0 FIX: Only service-card-assignment authority is currently supported
-      if (slotAuthority.authorityType !== 'service-card-assignment') {
-        console.error('[USE_DRIVE_ASSET] Unsupported authority type', {
-          requestId,
-          targetSlotId,
-          authorityType: slotAuthority.authorityType,
-          reason: 'Only service-card-assignment authority is currently implemented',
-        });
-        return NextResponse.json(
-          {
-            error: 'UNSUPPORTED_AUTHORITY_TYPE',
-            message: `Target slot '${targetSlotId}' has authority type '${slotAuthority.authorityType}' which is not yet implemented`,
-            details: {
-              targetSlotId,
-              authorityType: slotAuthority.authorityType,
-              note: 'Only service-card-assignment authority is currently supported',
-            },
-            requestId,
-          },
-          { status: 501 }
-        );
-      }
-
-      // Get expected revision for this slot
-      const slotRevision = isMultiSlot 
-        ? slotRevisions!.find(sr => sr.slotId === targetSlotId)
-        : { slotId: targetSlotId, expectedRevision: expectedRevision! };
-      
-      if (!slotRevision) {
-        console.error('[USE_DRIVE_ASSET] Missing revision for slot', {
-          requestId,
-          targetSlotId,
-        });
-        return NextResponse.json(
-          {
-            error: 'MISSING_SLOT_REVISION',
-            message: `Expected revision not provided for slot '${targetSlotId}'`,
-            requestId,
-          },
-          { status: 400 }
-        );
-      }
-
-      slotAuthorityMappings.push({
-        targetSlotId,
-        serviceSlug: slotAuthority.authorityKey,
-        expectedRevision: slotRevision.expectedRevision,
-      });
-
-      console.log('[USE_DRIVE_ASSET] Slot authority mapping confirmed', {
-        requestId,
-        targetSlotId,
-        serviceSlug: slotAuthority.authorityKey,
-        expectedRevision: slotRevision.expectedRevision,
-      });
-    }
-
-    // P0 FIX: Multi-slot assignment - assign to each slot independently
-    // For simplicity and safety, use direct assignment store instead of deployment transactions
-    // This preserves independent slot identity and CAS protection
-    const slotResults: Array<{ targetSlotId: string; serviceSlug: string; success: boolean; error?: string; revision?: number }> = [];
-    
-    for (const mapping of slotAuthorityMappings) {
-      try {
-        console.log('[USE_DRIVE_ASSET] Assigning to slot', {
-          requestId,
-          targetSlotId: mapping.targetSlotId,
-          serviceSlug: mapping.serviceSlug,
-          expectedRevision: mapping.expectedRevision,
-          canonicalMediaId,
-        });
-
-        // Store assignment with CAS protection
-        const { storeServiceCardAssignment } = await import('@/lib/assignment-store');
-        const newRevision = await storeServiceCardAssignment(
-          {
-            serviceSlug: mapping.serviceSlug,
-            mediaId: canonicalMediaId,
-            updatedAt: new Date().toISOString(),
-            source: 'workbench',
-          },
-          mapping.expectedRevision,
-          requestId
-        );
-
-        console.log('[USE_DRIVE_ASSET] Slot assignment succeeded', {
-          requestId,
-          targetSlotId: mapping.targetSlotId,
-          serviceSlug: mapping.serviceSlug,
-          newRevision,
-        });
-
-        slotResults.push({
-          targetSlotId: mapping.targetSlotId,
-          serviceSlug: mapping.serviceSlug,
-          success: true,
-          revision: newRevision,
-        });
-      } catch (slotError) {
-        console.error('[USE_DRIVE_ASSET] Slot assignment failed', {
-          requestId,
-          targetSlotId: mapping.targetSlotId,
-          serviceSlug: mapping.serviceSlug,
-          error: slotError instanceof Error ? slotError.message : String(slotError),
-        });
-
-        slotResults.push({
-          targetSlotId: mapping.targetSlotId,
-          serviceSlug: mapping.serviceSlug,
-          success: false,
-          error: slotError instanceof Error ? slotError.message : String(slotError),
-        });
-      }
-    }
-
-    // Check if any slot assignments failed
-    const failedSlots = slotResults.filter(r => !r.success);
-    if (failedSlots.length > 0) {
-      console.error('[USE_DRIVE_ASSET] Partial failure - some slot assignments failed', {
-        requestId,
-        failedSlots,
-        succeededSlots: slotResults.filter(r => r.success),
-      });
-      
-      return NextResponse.json(
-        {
-          error: 'PARTIAL_FAILURE',
-          message: `${failedSlots.length} of ${slotResults.length} slot assignments failed`,
-          details: {
-            succeeded: slotResults.filter(r => r.success),
-            failed: failedSlots,
-          },
-          requestId,
-        },
-        { status: 207 } // Multi-Status for partial success
-      );
-    }
-
-    console.log('[USE_DRIVE_ASSET] All slot assignments succeeded', {
-      requestId,
-      slotCount: slotResults.length,
-      slotResults,
-    });
-
-    // Verify public media resolution for the canonical media
-    const publicResolvedMedia = await resolvePublicMedia(canonicalMediaId);
-    
-    console.log('[USE_DRIVE_ASSET] PUBLIC_RESOLUTION_READBACK_RESULT', {
-      requestId,
-      hasPublicMedia: !!publicResolvedMedia,
-      publicMediaId: publicResolvedMedia?.id,
-      publicMediaSource: publicResolvedMedia?.source,
-      publicMediaStorage: publicResolvedMedia?.storage,
-    });
-
-    // Verify public resolver returns the same canonical media
-    if (!publicResolvedMedia) {
-      console.error('[USE_DRIVE_ASSET] PUBLIC_MEDIA_GATE_REJECTION', {
-        requestId,
-        canonicalMediaId,
-      });
-      return NextResponse.json(
-        {
-          error: 'PUBLIC_MEDIA_GATE_REJECTION',
-          message: 'Canonical media ID did not resolve to valid public media',
-          details: {
-            canonicalMediaId,
-          },
-          requestId,
-        },
-        { status: 400 }
-      );
-    }
-
-    if (publicResolvedMedia.id !== canonicalMediaId) {
-      console.error('[USE_DRIVE_ASSET] PUBLIC_MEDIA_ID_MISMATCH', {
-        requestId,
-        expectedMediaId: canonicalMediaId,
-        resolvedMediaId: publicResolvedMedia.id,
-      });
-      return NextResponse.json(
-        {
-          error: 'PUBLIC_MEDIA_ID_MISMATCH',
-          message: 'Public resolver returned different media ID than canonical',
-          details: {
-            expectedMediaId: canonicalMediaId,
-            resolvedMediaId: publicResolvedMedia.id,
-          },
-          requestId,
-        },
-        { status: 500 }
-      );
-    }
-
-    // Verify public resolver did NOT return a Drive-reference ID
-    if (publicResolvedMedia.id.startsWith('drive-') || publicResolvedMedia.id.startsWith('drive-ref-')) {
-      console.error('[USE_DRIVE_ASSET] PUBLIC_MEDIA_DRIVE_REFERENCE_REJECTION', {
-        requestId,
-        resolvedMediaId: publicResolvedMedia.id,
-      });
-      return NextResponse.json(
-        {
-          error: 'PUBLIC_MEDIA_DRIVE_REFERENCE_REJECTION',
-          message: 'Public resolver returned a Drive-reference ID instead of PublishedMediaAsset',
-          details: {
-            resolvedMediaId: publicResolvedMedia.id,
-          },
-          requestId,
-        },
-        { status: 500 }
-      );
-    }
-
-    // Verify each assignment independently
-    const { getServiceCardAssignment } = await import('@/lib/assignment-store');
-    const verificationResults: Array<{ targetSlotId: string; serviceSlug: string; verified: boolean; error?: string; revision?: number }> = [];
-    
-    for (const mapping of slotAuthorityMappings) {
-      try {
-        const assignment = await getServiceCardAssignment(mapping.serviceSlug);
-        
-        if (!assignment) {
-          console.error('[USE_DRIVE_ASSET] Assignment verification failed - not found', {
-            requestId,
-            targetSlotId: mapping.targetSlotId,
-            serviceSlug: mapping.serviceSlug,
-          });
-          verificationResults.push({
-            targetSlotId: mapping.targetSlotId,
-            serviceSlug: mapping.serviceSlug,
-            verified: false,
-            error: 'Assignment not found after write',
-          });
-          continue;
-        }
-
-        if (assignment.mediaId !== canonicalMediaId) {
-          console.error('[USE_DRIVE_ASSET] Assignment verification failed - media ID mismatch', {
-            requestId,
-            targetSlotId: mapping.targetSlotId,
-            serviceSlug: mapping.serviceSlug,
-            expectedMediaId: canonicalMediaId,
-            actualMediaId: assignment.mediaId,
-          });
-          verificationResults.push({
-            targetSlotId: mapping.targetSlotId,
-            serviceSlug: mapping.serviceSlug,
-            verified: false,
-            error: 'Media ID mismatch',
-          });
-          continue;
-        }
-
-        verificationResults.push({
-          targetSlotId: mapping.targetSlotId,
-          serviceSlug: mapping.serviceSlug,
-          verified: true,
-          revision: assignment.revision,
-        });
-      } catch (verifyError) {
-        console.error('[USE_DRIVE_ASSET] Assignment verification error', {
-          requestId,
-          targetSlotId: mapping.targetSlotId,
-          serviceSlug: mapping.serviceSlug,
-          error: verifyError instanceof Error ? verifyError.message : String(verifyError),
-        });
-        verificationResults.push({
-          targetSlotId: mapping.targetSlotId,
-          serviceSlug: mapping.serviceSlug,
-          verified: false,
-          error: verifyError instanceof Error ? verifyError.message : String(verifyError),
-        });
-      }
-    }
-
-    const failedVerifications = verificationResults.filter(v => !v.verified);
-    if (failedVerifications.length > 0) {
-      console.error('[USE_DRIVE_ASSET] Assignment verification failures', {
-        requestId,
-        failedVerifications,
-      });
-      return NextResponse.json(
-        {
-          error: 'ASSIGNMENT_VERIFICATION_FAILED',
-          message: `${failedVerifications.length} of ${verificationResults.length} assignments failed verification`,
-          details: {
-            succeeded: verificationResults.filter(v => v.verified),
-            failed: failedVerifications,
-          },
-          requestId,
-        },
-        { status: 500 }
-      );
-    }
-
-    console.log('[USE_DRIVE_ASSET] All assignments verified', {
-      requestId,
-      verificationCount: verificationResults.length,
-    });
-
-    const successResult = {
-      success: true,
-      canonicalMediaId,
-      slotResults,
-      verificationResults,
-    };
-
-    // Record idempotency for successful multi-slot assignment
-    await recordIdempotency(stableIdempotencyKey, successResult);
-
-    console.log('[USE_DRIVE_ASSET] Idempotency recorded', {
-      requestId,
-      idempotencyKey: stableIdempotencyKey,
-    });
-
-    return NextResponse.json(successResult);
+    const result = await assignMediaBatch(ingested.mediaId, targets);
+    return NextResponse.json({ ...result, media: ingested.media, requestId });
   } catch (error) {
+    if (error instanceof AssignmentBatchError) {
+      return NextResponse.json({
+        error: error.code, message: error.message, committed: false, ...error.details, requestId,
+      }, { status: error.status });
+    }
+    if (error instanceof SyntaxError) {
+      return NextResponse.json({ error: 'INVALID_REQUEST', committed: false, requestId }, { status: 400 });
+    }
     console.error('[USE_DRIVE_ASSET] Transaction error', {
       requestId,
       error: error instanceof Error ? error.message : String(error),

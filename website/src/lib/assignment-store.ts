@@ -17,6 +17,7 @@
 
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
+import { AssignmentBatchError, isAssignmentRevision, prepareAssignmentTargets, type AssignmentTarget } from './workbench-assignment-contract';
 
 // In-memory store for DEV_MODE_SKIP_KV testing
 // Use global to survive Next.js hot module reloading in development
@@ -474,7 +475,7 @@ export async function storeServiceCardAssignment(
   // Callers MUST read current state first and provide expected revision
   // - Existing assignment: expectedRevision = current.revision
   // - Missing assignment: expectedRevision = 0 (create)
-  if (expectedRevision === undefined) {
+  if (!isAssignmentRevision(expectedRevision)) {
     console.error('[ASSIGNMENT_WRITE] REJECTED: expectedRevision is required for CAS enforcement', {
       operationId,
       serviceSlug: assignment.serviceSlug,
@@ -510,7 +511,7 @@ export async function storeServiceCardAssignment(
       end
       
       -- CAS check: only proceed if expectedRevision matches
-      if expectedRevision ~= nil and currentRevision ~= expectedRevision then
+      if expectedRevision == nil or currentRevision ~= expectedRevision then
         return {err = 'CAS_FAILURE: Revision mismatch'}
       end
       
@@ -596,6 +597,151 @@ export async function storeServiceCardAssignment(
  * @param requestId - Optional request ID for correlation
  * @returns Assignment or null
  */
+export interface AssignmentBatchResult {
+  success: true;
+  committed: true;
+  verified: true;
+  operationId: string;
+  canonicalMediaId: string;
+  replayed: boolean;
+  slotResults: Array<{ targetSlotId: string; serviceSlug: string; success: true; revision: number }>;
+  verificationResults: Array<{ targetSlotId: string; mediaId: string; revision: number; verified: true }>;
+}
+
+function decodeAssignmentValue<T>(value: unknown): T {
+  return (typeof value === 'string' ? JSON.parse(value) : value) as T;
+}
+
+// All validation and encoding precede a single MSET. Redis scripts are isolated,
+// but do not roll back earlier writes if a later command throws.
+const ASSIGN_BATCH_SCRIPT = `
+  local receipt = redis.call('GET', KEYS[1])
+  if receipt then return {1, receipt} end
+  local targets = cjson.decode(ARGV[1])
+  local assignments = cjson.decode(ARGV[2])
+  local writes = {KEYS[1], ARGV[3]}
+  for i, target in ipairs(targets) do
+    local current = redis.call('GET', KEYS[i + 1])
+    local revision = 0
+    if current then
+      local ok, parsed = pcall(cjson.decode, current)
+      if not ok or type(parsed) ~= 'table' or
+         type(parsed.revision) ~= 'number' or parsed.revision < 1 or
+         parsed.revision ~= math.floor(parsed.revision) or
+         parsed.serviceSlug ~= target.serviceSlug then
+        return {2, target.slotId}
+      end
+      revision = parsed.revision
+    end
+    if revision ~= target.expectedRevision then
+      return {3, target.slotId, tostring(revision)}
+    end
+    table.insert(writes, KEYS[i + 1])
+    table.insert(writes, assignments[i])
+  end
+  redis.call('MSET', unpack(writes))
+  return {0, ARGV[3]}
+`;
+
+/** Atomic assignments and durable retry receipt in the existing Redis authority. */
+export async function assignMediaBatch(
+  mediaId: string,
+  requestedTargets: AssignmentTarget[],
+): Promise<AssignmentBatchResult> {
+  // Revalidate at the store boundary; routes are not the only possible callers.
+  const targets = prepareAssignmentTargets({
+    slotIds: requestedTargets.map(t => t.slotId),
+    slotRevisions: requestedTargets,
+  }).sort((a, b) => a.slotId.localeCompare(b.slotId));
+  if (typeof mediaId !== 'string' || !mediaId || mediaId.startsWith('drive-')) {
+    throw new AssignmentBatchError('INVALID_MEDIA', 'Select a published media asset.');
+  }
+  const { resolvePublicMedia } = await import('./media');
+  const media = await resolvePublicMedia(mediaId);
+  if (!media || media.id !== mediaId) {
+    throw new AssignmentBatchError('INVALID_MEDIA', 'The source does not resolve to the requested published media.');
+  }
+
+  const operationId = crypto.createHash('sha256')
+    .update(JSON.stringify({ version: 1, namespace: getKvNamespace(), mediaId, targets }))
+    .digest('hex');
+  const client = createRedisClient();
+  const keys = targets.map(t => namespacedKey(`${ASSIGNMENT_PREFIX}${t.serviceSlug}`));
+  const slotResults = targets.map(t => ({
+    targetSlotId: t.slotId, serviceSlug: t.serviceSlug,
+    success: true as const, revision: t.expectedRevision + 1,
+  }));
+  const receipt = { operationId, canonicalMediaId: mediaId, slotResults };
+  const assignments = targets.map(t => ({
+    serviceSlug: t.serviceSlug, mediaId, source: 'workbench', actor: 'workbench',
+    updatedAt: new Date().toISOString(), revision: t.expectedRevision + 1,
+  }));
+  let response: [number, unknown, string?];
+  try {
+    // Receipts intentionally persist with assignments. Expiring them would erase
+    // evidence needed to distinguish an acknowledged commit from a stale retry.
+    response = await client.eval(ASSIGN_BATCH_SCRIPT,
+      [namespacedKey(`assignment-operation:${operationId}`), ...keys],
+      [JSON.stringify(targets), JSON.stringify(assignments.map(a => JSON.stringify(a))), JSON.stringify(receipt)],
+    ) as typeof response;
+  } catch {
+    throw new AssignmentBatchError('ASSIGNMENT_OUTCOME_UNKNOWN',
+      'Commit acknowledgement unavailable. Retry this exact request to recover its result.',
+      503, { operationId, committed: 'unknown', retrySameRequest: true });
+  }
+  if (!Array.isArray(response) || ![0, 1, 2, 3].includes(response[0])) {
+    throw new AssignmentBatchError('INVALID_OPERATION_RECEIPT', 'Commit response could not be verified.',
+      503, { operationId, committed: 'unknown', retrySameRequest: true });
+  }
+  if (response[0] === 2) {
+    throw new AssignmentBatchError('INVALID_STORED_ASSIGNMENT',
+      'An existing assignment has an invalid revision or identity. No assignments changed.',
+      409, { operationId, slotId: response[1], committed: false });
+  }
+  if (response[0] === 3) {
+    throw new AssignmentBatchError('REVISION_CONFLICT',
+      'A selected slot changed. No assignments changed. Refresh and confirm the selection again.',
+      409, { operationId, slotId: response[1], actualRevision: Number(response[2]), committed: false });
+  }
+  let storedReceipt: typeof receipt | null = null;
+  try {
+    storedReceipt = decodeAssignmentValue<typeof receipt>(response[1]);
+  } catch {
+    // A malformed receipt cannot establish whether a previous attempt committed.
+  }
+  if (storedReceipt?.operationId !== operationId || storedReceipt?.canonicalMediaId !== mediaId ||
+      JSON.stringify(storedReceipt.slotResults) !== JSON.stringify(slotResults)) {
+    throw new AssignmentBatchError('INVALID_OPERATION_RECEIPT', 'Operation receipt could not be verified.',
+      503, { operationId, committed: 'unknown', retrySameRequest: true });
+  }
+
+  let current: Array<ServiceCardAssignment | null>;
+  try {
+    current = (await client.mget(...keys)).map(value => decodeAssignmentValue<ServiceCardAssignment | null>(value));
+  } catch {
+    throw new AssignmentBatchError('ASSIGNMENT_VERIFICATION_UNAVAILABLE',
+      'All assignments committed, but readback is unavailable. Retry the same request to verify.',
+      503, { operationId, committed: true, retrySameRequest: true, slotResults });
+  }
+  const verificationResults = targets.map((target, i) => ({
+    targetSlotId: target.slotId,
+    mediaId: current[i]?.mediaId ?? null,
+    revision: current[i]?.revision ?? null,
+    verified: current[i]?.serviceSlug === target.serviceSlug &&
+      current[i]?.mediaId === mediaId && current[i]?.revision === target.expectedRevision + 1,
+  }));
+  if (verificationResults.some(r => !r.verified)) {
+    throw new AssignmentBatchError('ASSIGNMENT_VERIFICATION_MISMATCH',
+      'The batch committed, but current assignments differ from its receipt. Refresh before editing again.',
+      409, { operationId, committed: true, slotResults, verificationResults });
+  }
+  return {
+    success: true, committed: true, verified: true, operationId,
+    canonicalMediaId: mediaId, replayed: response[0] === 1, slotResults,
+    verificationResults: verificationResults as AssignmentBatchResult['verificationResults'],
+  };
+}
+
 export async function getServiceCardAssignment(serviceSlug: string, requestId?: string): Promise<ServiceCardAssignment | null> {
   const operationId = requestId || `get-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
   const key = namespacedKey(`${ASSIGNMENT_PREFIX}${serviceSlug}`);

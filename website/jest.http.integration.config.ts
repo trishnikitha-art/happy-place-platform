@@ -25,6 +25,7 @@ const config: Config = {
   testMatch: [
     "**/src/lib/drive/__tests__/http-negative-security.test.ts",
     "**/src/lib/drive/__tests__/multi-slot-adversarial.integration.test.ts",
+    "**/src/lib/drive/__tests__/assignment-batch.integration.test.ts",
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",

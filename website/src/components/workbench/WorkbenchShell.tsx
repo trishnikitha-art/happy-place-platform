@@ -56,6 +56,10 @@ export function WorkbenchShell({ children }: { children: React.ReactNode }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
+  useEffect(() => {
+    if (window.matchMedia('(max-width: 1023px)').matches) setSidebarOpen(false);
+  }, []);
+
   // P0 FIX: Enforce Workbench authentication gate
   // All /workbench/* routes except /workbench/login require authentication
   useEffect(() => {
@@ -105,16 +109,18 @@ export function WorkbenchShell({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside 
         className={`${
-          sidebarOpen ? 'w-64' : 'w-16'
-        } bg-muted border-r border-border transition-all duration-300 flex flex-col`}
+          sidebarOpen ? 'w-64 max-md:absolute max-md:z-40 max-md:h-full' : 'w-16'
+        } shrink-0 bg-muted border-r border-border transition-all duration-300 flex flex-col`}
       >
         {/* Header */}
         <div className="p-4 border-b border-border flex items-center justify-between">
           {sidebarOpen && (
-            <h1 className="text-lg font-semibold text-foreground">PING Workbench</h1>
+            <h1 style={{ fontSize: 18 }} className="font-semibold text-foreground">PING Workbench</h1>
           )}
           <button
             onClick={() => setSidebarOpen(!sidebarOpen)}
+            aria-label={sidebarOpen ? 'Collapse navigation' : 'Expand navigation'}
+            title={sidebarOpen ? 'Collapse navigation' : 'Expand navigation'}
             className="p-2 hover:bg-accent rounded-lg transition-colors"
           >
             {sidebarOpen ? <X size={20} /> : <Menu size={20} />}
@@ -132,6 +138,8 @@ export function WorkbenchShell({ children }: { children: React.ReactNode }) {
                 <li key={plugin.id}>
                   <Link
                     href={plugin.path}
+                    aria-label={plugin.name}
+                    title={plugin.name}
                     className={`
                       flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
                       ${isActive 
@@ -164,7 +172,7 @@ export function WorkbenchShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-hidden">
+      <main className="min-w-0 flex-1 overflow-hidden">
         <div className="h-full overflow-y-auto">
           {children}
         </div>

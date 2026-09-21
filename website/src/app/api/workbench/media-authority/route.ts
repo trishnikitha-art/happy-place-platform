@@ -21,65 +21,7 @@ import { workbenchSession } from '@/lib/workbench-session';
 import { getMediaRecordRaw, listMediaIds } from '@/lib/media-kv-store';
 import { getServiceCardAssignment } from '@/lib/assignment-store';
 
-// P0 FIX: Use exactly the same service card allowlist as use-drive-asset
-// This ensures contract consistency between read and mutation endpoints
-const SERVICE_CARD_ALLOWLIST: string[] = [
-  'painting',
-  'repairs',
-  'restoration',
-  'fences',
-  'decks',
-  'pergolas',
-  'kitchen-remodeling',
-  'bathroom-remodeling',
-  'built-ins',
-  'outdoor-living',
-  'misc',
-] as const;
-
-// Visual Slot Authority Registry (matches use-drive-asset transaction)
-const VISUAL_SLOT_REGISTRY: Record<string, string> = {
-  'hero-background': 'brand-hero-background',
-  'homepage-owner-portrait-slot': 'brand-portrait-homepage',
-} as const;
-
-function resolveAssignmentKey(targetSlotId: string): string | null {
-  // Check explicit registry first
-  if (VISUAL_SLOT_REGISTRY[targetSlotId]) {
-    return VISUAL_SLOT_REGISTRY[targetSlotId];
-  }
-  
-  // Service card slots: homepage-service-card-slot-{slug} → {slug}
-  // P0 FIX: Only accept the canonical format, reject legacy service-card-{slug}
-  if (targetSlotId.startsWith('homepage-service-card-slot-')) {
-    const serviceSlug = targetSlotId.replace('homepage-service-card-slot-', '');
-    
-    // P0 FIX: Verify slug is in allowlist - reject arbitrary service cards
-    if (!SERVICE_CARD_ALLOWLIST.includes(serviceSlug)) {
-      console.warn('[MEDIA_AUTHORITY] Service card slug not in allowlist', {
-        targetSlotId,
-        serviceSlug,
-        allowlist: SERVICE_CARD_ALLOWLIST,
-      });
-      return null;
-    }
-    
-    return serviceSlug;
-  }
-  
-  // P0 FIX: Reject legacy service-card-{slug} format
-  // This ensures contract consistency with use-drive-asset
-  if (targetSlotId.startsWith('service-card-')) {
-    console.warn('[MEDIA_AUTHORITY] Legacy service-card format rejected', {
-      targetSlotId,
-      reason: 'Use homepage-service-card-slot-{slug} format instead',
-    });
-    return null;
-  }
-  
-  // Reject unknown slots
-  return null;
-}
+import { resolveAssignmentKey } from '@/lib/workbench-assignment-contract';
 
 export const dynamic = 'force-dynamic';
 
@@ -167,7 +109,7 @@ export async function POST(request: Request) {
         return NextResponse.json(
           { 
             error: 'INVALID_TARGET_SLOT',
-            message: `Target slot '${slotSlug}' is not a valid writable target. Valid targets: hero-background, homepage-owner-portrait-slot, homepage-service-card-slot-{slug} where slug is one of: ${SERVICE_CARD_ALLOWLIST.join(', ')}`,
+            message: `Target slot '${slotSlug}' is not a valid writable target.`,
           },
           { status: 400 }
         );

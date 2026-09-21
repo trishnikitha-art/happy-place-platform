@@ -98,7 +98,7 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav className="hidden items-center md:flex relative" aria-label="Primary" ref={navRef}>
+        <nav className="hidden items-center lg:flex relative" aria-label="Primary" ref={navRef}>
           <TapeMeasureNav items={primary} activeHref={pathname} containerRef={navRef} />
           {primary.map((item) => (
             <Link
@@ -115,7 +115,7 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="hidden shrink-0 md:flex items-center gap-2">
+        <div className="hidden shrink-0 lg:flex items-center gap-2">
           <ThemeToggle />
           {estimate && (
             <Link
@@ -129,7 +129,7 @@ export function SiteHeader() {
 
         <button
           type="button"
-          className="flex h-11 w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-muted md:hidden"
+          className="flex h-11 w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-muted lg:hidden"
           aria-expanded={open}
           aria-controls="mobile-menu"
           aria-label={open ? "Close menu" : "Open menu"}
@@ -140,7 +140,7 @@ export function SiteHeader() {
       </div>
 
       {open && (
-        <div id="mobile-menu" ref={menuRef} onClick={handleMenuClick} className="border-t border-border/60 bg-[#F8F6F3] dark:bg-surface md:hidden">
+        <div id="mobile-menu" ref={menuRef} onClick={handleMenuClick} className="border-t border-border/60 bg-[#F8F6F3] dark:bg-surface lg:hidden">
           <nav className="flex flex-col p-3" aria-label="Mobile">
             {navigation.map((item) => (
               <Link

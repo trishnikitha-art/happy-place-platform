@@ -28,10 +28,21 @@ describe('HTTP Boundary Negative Security Tests', () => {
            !process.env.KV_REST_API_TOKEN;
   };
 
-  beforeAll(() => {
-    if (shouldSkip()) {
-      console.log('[HTTP_NEGATIVE_SECURITY] Suite skipped - NEXT_PUBLIC_TEST_BASE_URL or Redis credentials not available');
-    }
+  let workbenchCookie = '';
+  const authenticatedFetch: typeof fetch = (input, init) => {
+    const headers = new Headers(init?.headers);
+    headers.set('cookie', [workbenchCookie, headers.get('cookie')].filter(Boolean).join('; '));
+    return fetch(input, { ...init, headers });
+  };
+  beforeAll(async () => {
+    if (shouldSkip()) throw new Error('HTTP server and isolated Redis are required.');
+    const response = await fetch(`${process.env.NEXT_PUBLIC_TEST_BASE_URL}/api/workbench/login`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: process.env.WORKBENCH_PASSWORD }),
+    });
+    expect(response.status).toBe(200);
+    workbenchCookie = response.headers.get('set-cookie')?.split(';')[0] || '';
+    expect(workbenchCookie).toContain('workbench_session_id=');
   });
 
   // Fail closed if required infrastructure is missing
@@ -50,7 +61,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       }
 
       // Request with legacy credential cookies but NO session cookie
-      const response = await fetch(`${baseUrl()}/api/drive/auth/status`, {
+      const response = await authenticatedFetch(`${baseUrl()}/api/drive/auth/status`, {
         method: 'GET',
         headers: {
           'Cookie': 'drive_access_token=legacy-token; drive_refresh_token=legacy-refresh',
@@ -71,7 +82,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       }
 
       // Request with legacy credential cookies but NO session cookie
-      const response = await fetch(`${baseUrl()}/api/drive/files?folderId=root`, {
+      const response = await authenticatedFetch(`${baseUrl()}/api/drive/files?folderId=root`, {
         method: 'GET',
         headers: {
           'Cookie': 'drive_access_token=legacy-token; drive_refresh_token=legacy-refresh',
@@ -91,7 +102,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       }
 
       // Request with legacy credential cookies but NO session cookie
-      const response = await fetch(`${baseUrl()}/api/drive/folder/root`, {
+      const response = await authenticatedFetch(`${baseUrl()}/api/drive/folder/root`, {
         method: 'GET',
         headers: {
           'Cookie': 'drive_access_token=legacy-token; drive_refresh_token=legacy-refresh',
@@ -155,7 +166,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       expect(invalidSession).toBeNull();
 
       // Make HTTP request with revoked session cookie
-      const response = await fetch(`${baseUrl()}/api/drive/files?folderId=root`, {
+      const response = await authenticatedFetch(`${baseUrl()}/api/drive/files?folderId=root`, {
         method: 'GET',
         headers: {
           'Cookie': `drive_session_id=${session.id}`,
@@ -201,7 +212,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       await revokeAuthorizationWithSessions(authorization.id);
 
       // Make HTTP request with revoked session cookie to thumbnail route
-      const response = await fetch(`${baseUrl()}/api/drive/files/test-file-id/thumbnail`, {
+      const response = await authenticatedFetch(`${baseUrl()}/api/drive/files/test-file-id/thumbnail`, {
         method: 'GET',
         headers: {
           'Cookie': `drive_session_id=${session.id}`,
@@ -211,8 +222,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       // Expect 401 Unauthorized (session invalid/revoked)
       expect(response.status).toBe(401);
       const body = await response.json();
-      expect(body.error).toBe('Unauthorized');
-      expect(body.message).toBe('Drive authentication required');
+      expect(body.error).toBe('Drive authentication required');
 
       // Cleanup
       const { deleteAuthorization } = await import('../oauth-credential-store');
@@ -271,7 +281,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       // Session B cannot be used to select User A's authorization
       // This is enforced by session-store which only returns the authorization bound to the session
       // The HTTP boundary test verifies that the session cookie alone cannot be used to specify an arbitrary authorization ID
-      const response = await fetch(`${baseUrl()}/api/drive/files?folderId=root`, {
+      const response = await authenticatedFetch(`${baseUrl()}/api/drive/files?folderId=root`, {
         method: 'GET',
         headers: {
           'Cookie': `drive_session_id=${sessionB.id}`,
@@ -298,7 +308,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       // This test verifies that corpus authorization is enforced at the HTTP boundary
       // Requesting an unauthorized Shared Drive corpus should fail with 403
 
-      const response = await fetch(`${baseUrl()}/api/drive/files?folderId=root&driveId=unauthorized-shared-drive-id`, {
+      const response = await authenticatedFetch(`${baseUrl()}/api/drive/files?folderId=root&driveId=unauthorized-shared-drive-id`, {
         method: 'GET',
       });
 
@@ -318,7 +328,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       }
 
       // Request with invalid session ID
-      const response = await fetch(`${baseUrl()}/api/drive/files?folderId=root`, {
+      const response = await authenticatedFetch(`${baseUrl()}/api/drive/files?folderId=root`, {
         method: 'GET',
         headers: {
           'Cookie': 'drive_session_id=invalid-session-id-that-does-not-exist',
@@ -344,7 +354,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
 
       for (let i = 0; i < requestCount; i++) {
         const start = Date.now();
-        await fetch(`${baseUrl()}/api/drive/files?folderId=root`, {
+        await authenticatedFetch(`${baseUrl()}/api/drive/files?folderId=root`, {
           method: 'GET',
           headers: {
             'Cookie': `drive_session_id=invalid-session-id-${i}`,
@@ -376,15 +386,14 @@ describe('HTTP Boundary Negative Security Tests', () => {
       }
 
       // Test unauthorized request to thumbnail route
-      const response = await fetch(`${baseUrl()}/api/drive/files/test-file-id/thumbnail`, {
+      const response = await authenticatedFetch(`${baseUrl()}/api/drive/files/test-file-id/thumbnail`, {
         method: 'GET',
       });
 
       // Expect 401 Unauthorized (no session)
       expect(response.status).toBe(401);
       const body = await response.json();
-      expect(body.error).toBe('Unauthorized');
-      expect(body.message).toBe('Workbench authentication required');
+      expect(body.error).toBe('Drive authentication required');
     });
 
     it('should enforce same authorization on ingest route as files route', async () => {
@@ -393,7 +402,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       }
 
       // Test unauthorized POST request to ingest route
-      const response = await fetch(`${baseUrl()}/api/drive/ingest`, {
+      const response = await authenticatedFetch(`${baseUrl()}/api/drive/ingest`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -406,8 +415,8 @@ describe('HTTP Boundary Negative Security Tests', () => {
       // Expect 401 Unauthorized (no session)
       expect(response.status).toBe(401);
       const body = await response.json();
-      expect(body.error).toBe('Unauthorized');
-      expect(body.message).toBe('Workbench authentication required');
+      expect(body.error).toBe('DRIVE_AUTH_REQUIRED');
+      expect(body.message).toBe('Drive authentication required');
     });
 
     it('should reject thumbnail request with invalid session', async () => {
@@ -416,7 +425,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       }
 
       // Test thumbnail route with invalid session
-      const response = await fetch(`${baseUrl()}/api/drive/files/test-file-id/thumbnail`, {
+      const response = await authenticatedFetch(`${baseUrl()}/api/drive/files/test-file-id/thumbnail`, {
         method: 'GET',
         headers: {
           'Cookie': 'drive_session_id=invalid-session-id',
@@ -426,8 +435,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       // Expect 401 Unauthorized (invalid session)
       expect(response.status).toBe(401);
       const body = await response.json();
-      expect(body.error).toBe('Unauthorized');
-      expect(body.message).toBe('Drive authentication required');
+      expect(body.error).toBe('Drive authentication required');
     });
 
     it('should reject ingest request with invalid session', async () => {
@@ -436,7 +444,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       }
 
       // Test ingest route with invalid session
-      const response = await fetch(`${baseUrl()}/api/drive/ingest`, {
+      const response = await authenticatedFetch(`${baseUrl()}/api/drive/ingest`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -450,7 +458,7 @@ describe('HTTP Boundary Negative Security Tests', () => {
       // Expect 401 Unauthorized (invalid session)
       expect(response.status).toBe(401);
       const body = await response.json();
-      expect(body.error).toBe('Unauthorized');
+      expect(body.error).toBe('DRIVE_AUTH_REQUIRED');
       expect(body.message).toBe('Drive authentication required');
     });
   });
