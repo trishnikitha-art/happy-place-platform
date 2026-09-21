@@ -7,10 +7,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Settings as SettingsIcon, Bell, Database, Shield, Palette, User } from 'lucide-react';
+import { Settings as SettingsIcon, Bell, Database, Shield, Palette, User, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState('general');
+  const [quarantineStatus, setQuarantineStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [quarantineMessage, setQuarantineMessage] = useState('');
 
   const tabs = [
     { id: 'general', name: 'General', icon: SettingsIcon },
@@ -20,6 +22,41 @@ export default function SettingsPage() {
     { id: 'appearance', name: 'Appearance', icon: Palette },
     { id: 'account', name: 'Account', icon: User },
   ];
+
+  const executeQuarantine = async () => {
+    setQuarantineStatus('loading');
+    setQuarantineMessage('');
+
+    try {
+      const response = await fetch('/api/admin/diagnostic/quarantine-media', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mediaId: '07c0eae184dc5a375f943a3ac2b67e95',
+          confirm: true,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.text();
+        setQuarantineStatus('error');
+        setQuarantineMessage(`Failed: ${error}`);
+        return;
+      }
+
+      const result = await response.json();
+      if (result.success) {
+        setQuarantineStatus('success');
+        setQuarantineMessage(`Successfully quarantined malformed record ${result.mediaId}`);
+      } else {
+        setQuarantineStatus('error');
+        setQuarantineMessage(result.error || 'Unknown error');
+      }
+    } catch (error) {
+      setQuarantineStatus('error');
+      setQuarantineMessage(error instanceof Error ? error.message : 'Unknown error');
+    }
+  };
 
   return (
     <div className="p-6">
@@ -125,7 +162,7 @@ export default function SettingsPage() {
           {activeTab === 'data' && (
             <div className="bg-card border border-border rounded-lg p-6">
               <h2 className="text-xl font-semibold text-foreground mb-4">Data Settings</h2>
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-foreground mb-2">
                     Event Retention Period
@@ -150,6 +187,57 @@ export default function SettingsPage() {
                 <button className="px-4 py-2 bg-destructive text-destructive-foreground rounded-lg hover:bg-destructive/90 transition-colors">
                   Clear All Data
                 </button>
+
+                {/* Production Data Quarantine */}
+                <div className="border-t border-border pt-6">
+                  <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center gap-2">
+                    <AlertTriangle size={18} className="text-amber-500" />
+                    Production Data Quarantine
+                  </h3>
+                  <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 mb-4">
+                    <p className="text-sm text-amber-900 mb-2">
+                      <strong>Malformed Record Detected:</strong>
+                    </p>
+                    <p className="text-xs text-amber-800 font-mono mb-2">
+                      ID: 07c0eae184dc5a375f943a3ac2b67e95
+                    </p>
+                    <p className="text-xs text-amber-800">
+                      Error: Missing or invalid storage field (storage: undefined)
+                    </p>
+                    <p className="text-xs text-amber-700 mt-2">
+                      This record is being rejected by the public media gate and has no canonical evidence.
+                      Safe to quarantine as it cannot serve any valid purpose.
+                    </p>
+                  </div>
+                  {quarantineStatus === 'idle' && (
+                    <button
+                      onClick={executeQuarantine}
+                      className="px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-colors"
+                    >
+                      Quarantine Malformed Record
+                    </button>
+                  )}
+                  {quarantineStatus === 'loading' && (
+                    <button
+                      disabled
+                      className="px-4 py-2 bg-amber-600 text-white rounded-lg opacity-50 cursor-not-allowed"
+                    >
+                      Quarantining...
+                    </button>
+                  )}
+                  {quarantineStatus === 'success' && (
+                    <div className="flex items-center gap-2 text-green-600">
+                      <CheckCircle size={18} />
+                      <span className="text-sm">{quarantineMessage}</span>
+                    </div>
+                  )}
+                  {quarantineStatus === 'error' && (
+                    <div className="flex items-center gap-2 text-red-600">
+                      <XCircle size={18} />
+                      <span className="text-sm">{quarantineMessage}</span>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           )}
