@@ -333,9 +333,16 @@ export async function PUT(request: Request) {
     );
   }
 
+  // Declare variables outside try block for error logging
+  let projectId: string | null = null;
+  let gallery: string[] | null = null;
+  let redis: Redis | null = null;
+
   try {
     const body = await request.json();
-    const { projectId, gallery, transactionId, expectedRevision } = body;
+    const { projectId: _projectId, gallery: _gallery, transactionId, expectedRevision } = body;
+    projectId = _projectId;
+    gallery = _gallery;
 
     if (!projectId || !Array.isArray(gallery)) {
       return NextResponse.json(
@@ -344,10 +351,10 @@ export async function PUT(request: Request) {
       );
     }
 
-    console.log('[GALLERY V2 PUT] REQUEST_RECEIVED', { projectId, galleryLength: gallery.length, transactionId });
+    console.log('[GALLERY V2 PUT] REQUEST_RECEIVED', { projectId, galleryLength: gallery?.length || 0, transactionId });
 
     // P0: Input validation - gallery must be array
-    if (!Array.isArray(gallery)) {
+    if (!gallery || !Array.isArray(gallery)) {
       return NextResponse.json(
         { error: "gallery must be an array" },
         { status: 400 }
@@ -355,8 +362,8 @@ export async function PUT(request: Request) {
     }
 
     // P0: Input validation - no duplicate media IDs
-    const uniqueMediaIds = new Set(gallery);
-    if (uniqueMediaIds.size !== gallery.length) {
+    const uniqueMediaIds = new Set(gallery || []);
+    if (uniqueMediaIds.size !== (gallery?.length || 0)) {
       console.error('[GALLERY V2 PUT] DUPLICATE_MEDIA_IDS', { 
         galleryLength: gallery.length, 
         uniqueCount: uniqueMediaIds.size 
@@ -371,7 +378,7 @@ export async function PUT(request: Request) {
     }
 
     // P0: Input validation - no null/undefined values
-    if (gallery.some(id => id === null || id === undefined)) {
+    if (gallery && gallery.some(id => id === null || id === undefined)) {
       console.error('[GALLERY V2 PUT] NULL_OR_UNDEFINED_MEDIA_IDS');
       return NextResponse.json(
         { 
@@ -383,7 +390,7 @@ export async function PUT(request: Request) {
     }
 
     // P0: Input validation - no empty strings
-    if (gallery.some(id => typeof id === 'string' && id.trim() === '')) {
+    if (gallery && gallery.some(id => typeof id === 'string' && id.trim() === '')) {
       console.error('[GALLERY V2 PUT] EMPTY_STRING_MEDIA_IDS');
       return NextResponse.json(
         { 
@@ -397,7 +404,7 @@ export async function PUT(request: Request) {
     // Validate all mediaIds pass the public media gate
     // This ensures gallery mutations only accept media that is publicly eligible
     const mediaValidationResults = await Promise.all(
-      gallery.map(async (mediaId) => {
+      (gallery || []).map(async (mediaId) => {
         // Use resolvePublicMedia to enforce the public media gate
         const publicMedia = await resolvePublicMedia(mediaId);
         return { mediaId, valid: !!publicMedia };
@@ -431,7 +438,7 @@ export async function PUT(request: Request) {
     }
 
     const project = projectsData.projects[projectIndex];
-    const redis = getRedisClient();
+    redis = getRedisClient();
     const isProduction = process.env.NODE_ENV === 'production';
 
     // CAS: expectedRevision is REQUIRED for production safety
@@ -457,7 +464,7 @@ export async function PUT(request: Request) {
     const isDevelopment = process.env.NODE_ENV === 'development';
 
     if (isDevelopment) {
-      console.log('[GALLERY V2 PUT] DEV_MODE - Direct filesystem write', { projectId, galleryLength: gallery.length });
+      console.log('[GALLERY V2 PUT] DEV_MODE - Direct filesystem write', { projectId, galleryLength: gallery?.length || 0 });
 
       // Read current revision from filesystem for CAS check
       const currentRevision = project.media?.galleryRevision || 0;
@@ -487,7 +494,10 @@ export async function PUT(request: Request) {
       }
 
       const newRevision = currentRevision + 1;
-      projectsData.projects[projectIndex].media.gallery = gallery;
+      if (!projectsData.projects[projectIndex].media) {
+        projectsData.projects[projectIndex].media = {};
+      }
+      projectsData.projects[projectIndex].media.gallery = gallery || [];
       projectsData.projects[projectIndex].media.galleryRevision = newRevision;
       projectsData.generatedAt = new Date().toISOString();
 
@@ -495,15 +505,15 @@ export async function PUT(request: Request) {
 
       console.log('[GALLERY V2 PUT] DEV_WRITE_SUCCESS', {
         projectId,
-        galleryLength: gallery.length,
+        galleryLength: gallery?.length || 0,
         newRevision
       });
 
       return NextResponse.json({
         success: true,
         projectId,
-        gallery,
-        galleryLength: gallery.length,
+        gallery: gallery || [],
+        galleryLength: gallery?.length || 0,
         currentRevision: newRevision,
         staged: false,
         persistence: 'filesystem',
@@ -520,7 +530,7 @@ export async function PUT(request: Request) {
       // If CAS fails, transaction exists but has no staging keys (safe failure state)
       const effectiveTransactionId = transactionId || `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const namespace = getKvNamespace();
-      const galleryJson = JSON.stringify(gallery);
+      const galleryJson = JSON.stringify(gallery || []);
       const mutationTimestamp = new Date().toISOString();
 
       // Build Redis keys for KEYS array (per Redis contract)
@@ -537,7 +547,7 @@ export async function PUT(request: Request) {
         projectId,
         expectedRevision,
         deployedRevision,
-        galleryLength: gallery.length,
+        galleryLength: gallery?.length || 0,
         transactionId: effectiveTransactionId,
         hasStagedState: !!currentStagedTransactionId,
         currentStagedTransactionId
@@ -614,7 +624,7 @@ export async function PUT(request: Request) {
 
       console.log('[GALLERY V2 PUT] ATOMIC_CAS_SUCCESS', {
         projectId,
-        galleryLength: gallery.length,
+        galleryLength: gallery?.length || 0,
         newRevision,
         transactionId: effectiveTransactionId,
         actualRevision
@@ -630,7 +640,7 @@ export async function PUT(request: Request) {
 
       console.log('[GALLERY V2 PUT] STAGED_IN_KV', {
         projectId,
-        galleryLength: gallery.length,
+        galleryLength: gallery?.length || 0,
         stagingKey: specificStagingKey,
         projectStagingKey,
         transactionId: effectiveTransactionId,
@@ -640,8 +650,8 @@ export async function PUT(request: Request) {
       return NextResponse.json({
         success: true,
         projectId,
-        gallery,
-        galleryLength: gallery.length,
+        gallery: gallery || [],
+        galleryLength: gallery?.length || 0,
         staged: true,
         persistence: 'kv',
         transactionId: effectiveTransactionId,
@@ -673,19 +683,18 @@ export async function PUT(request: Request) {
       error: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
       projectId,
-      galleryLength: gallery?.length,
+      galleryLength: gallery?.length || 0,
       environment: process.env.NODE_ENV,
       vercelEnv: process.env.VERCEL_ENV,
       hasRedis: !!redis,
       kvUrlConfigured: !!process.env.KV_REST_API_URL,
       kvTokenConfigured: !!process.env.KV_REST_API_TOKEN,
     });
+    
+    // Client response - minimal information only (do not leak internal state)
     return NextResponse.json(
       { 
         error: "Failed to update project gallery order",
-        details: error instanceof Error ? error.message : String(error),
-        environment: process.env.NODE_ENV,
-        hasRedis: !!redis,
       },
       { status: 500 }
     );
