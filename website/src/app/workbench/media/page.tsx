@@ -98,7 +98,7 @@ export default function MediaWorkbench() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const mutationBusy = useRef(false);
   const requestInFlight = useRef(false);
-  const [slotView, setSlotView] = useState<'gallery' | 'preview' | 'sources'>('gallery');
+  const [slotView, setSlotView] = useState<'gallery' | 'preview' | 'sources'>('preview');
   const [pendingReplacement, setPendingReplacement] = useState<PendingReplacement | null>(null);
   const [retryReplacement, setRetryReplacement] = useState<PendingReplacement | null>(null);
   const [mutationNotice, setMutationNotice] = useState<string | null>(null);
@@ -2597,7 +2597,6 @@ export default function MediaWorkbench() {
             <select aria-label="Page" value={state.selectedPage} disabled={state.mutationState !== 'idle'}
               onChange={e => {
                 slotRegistry.clear();
-                setSlotView('gallery');
                 setState(prev => ({ ...prev, selectedPage: e.target.value as PageRoute, selectedSlots: [], registeredSlots: [] }));
               }} className="min-h-11 max-w-44 rounded border border-border bg-white px-3">
               {(Object.keys(PAGE_LABELS) as PageRoute[]).map(route => <option key={route} value={route}>{PAGE_LABELS[route]}</option>)}
