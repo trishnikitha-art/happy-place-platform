@@ -669,9 +669,24 @@ export async function PUT(request: Request) {
       { status: 503 }
     );
   } catch (error) {
-    console.error('[GALLERY V2 PUT] ERROR', error);
+    console.error('[GALLERY V2 PUT] ERROR', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+      projectId,
+      galleryLength: gallery?.length,
+      environment: process.env.NODE_ENV,
+      vercelEnv: process.env.VERCEL_ENV,
+      hasRedis: !!redis,
+      kvUrlConfigured: !!process.env.KV_REST_API_URL,
+      kvTokenConfigured: !!process.env.KV_REST_API_TOKEN,
+    });
     return NextResponse.json(
-      { error: "Failed to update project gallery order" },
+      { 
+        error: "Failed to update project gallery order",
+        details: error instanceof Error ? error.message : String(error),
+        environment: process.env.NODE_ENV,
+        hasRedis: !!redis,
+      },
       { status: 500 }
     );
   }
