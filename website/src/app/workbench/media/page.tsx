@@ -2564,28 +2564,28 @@ export default function MediaWorkbench() {
 
       <div className="shrink-0 border-b border-border bg-white px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <label className="flex items-center gap-2 text-sm font-medium text-foreground">
+          <label className="flex items-center gap-2 text-sm font-medium text-gray-900">
             Page
             <select aria-label="Page" value={state.selectedPage} disabled={state.mutationState !== 'idle'}
               onChange={e => {
                 slotRegistry.clear();
                 setState(prev => ({ ...prev, selectedPage: e.target.value as PageRoute, selectedSlots: [], registeredSlots: [] }));
-              }} className="min-h-11 max-w-44 rounded border border-border bg-white px-3 text-foreground">
+              }} className="min-h-11 max-w-44 rounded border border-border bg-white px-3 text-gray-900">
               {(Object.keys(PAGE_LABELS) as PageRoute[]).map(route => <option key={route} value={route}>{PAGE_LABELS[route]}</option>)}
             </select>
           </label>
           <div className="flex gap-1" role="tablist" aria-label="Target view">
             {(['gallery', 'sources', 'preview'] as const).map(view => <button type="button" role="tab" key={view}
               aria-selected={slotView === view} aria-controls="slot-view" onClick={() => setSlotView(view)}
-              className={`min-h-11 px-3 text-sm border-b-2 ${view === 'sources' ? 'lg:hidden' : ''} ${slotView === view ? 'border-primary font-semibold text-foreground' : 'border-transparent text-muted-foreground'}`}>
+              className={`min-h-11 px-3 text-sm border-b-2 ${view === 'sources' ? 'lg:hidden' : ''} ${slotView === view ? 'border-primary font-semibold text-gray-900' : 'border-transparent text-gray-600'}`}>
               {view === 'gallery' ? 'Slots' : view === 'sources' ? 'Sources' : 'Site Preview'}
             </button>)}
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 flex-1 text-sm">
-            <p className="font-semibold text-foreground" data-testid="target-count">{state.selectedSlots.length} slots selected</p>
-            <p className="mt-1 break-all text-muted-foreground" data-testid="replacement-source">Source: {state.driveSelectedFile ? `Drive / ${state.driveSelectedFile.name}` : state.selectedAsset?.filename || 'None selected'}</p>
+            <p className="font-semibold text-gray-900" data-testid="target-count">{state.selectedSlots.length} slots selected</p>
+            <p className="mt-1 break-all text-gray-600" data-testid="replacement-source">Source: {state.driveSelectedFile ? `Drive / ${state.driveSelectedFile.name}` : state.selectedAsset?.filename || 'None selected'}</p>
           </div>
           <button type="button" onClick={handleUseDriveAsset}
             disabled={!state.selectedSlots.length || (!state.selectedAsset && !state.driveSelectedFile) || state.mutationState !== 'idle'}
