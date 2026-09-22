@@ -44,6 +44,10 @@ import { workbenchSession } from "@/lib/workbench-session";
 import { getMediaByIdAsync, resolvePublicMedia } from "@/lib/media";
 import { Redis } from '@upstash/redis';
 import { getKvNamespace } from '@/lib/environment';
+import { 
+  ATOMIC_GALLERY_CAS_SCRIPT,
+  getRedisClient as getDeploymentRedisClient
+} from '@/lib/deployment-transaction';
 
 export const runtime = 'nodejs';
 
@@ -61,136 +65,8 @@ function getRuntimeGalleryKey(projectId: string): string {
   return `${namespace}${WORKBENCH_RUNTIME_PREFIX}${projectId}`;
 }
 
-/**
- * P0 FIX: Runtime Lua script for atomic gallery CAS with runtime authority
- *
- * This script atomically:
- * 1. Reads runtime authority (effective gallery + revision)
- * 2. Reads current staged transaction (if any)
- * 3. Compares expectedRevision with current runtime revision
- * 4. If match, writes new gallery with incremented revision
- * 5. Updates runtime authority atomically
- * 6. Updates project-level transaction pointer
- * 7. Returns the new revision
- *
- * KEYS[1]: runtimeGalleryKey - effective gallery/revision authority
- * KEYS[2]: projectStagingKey - project-level current transaction pointer
- * KEYS[3]: specificStagingKey - new transaction's gallery staging key
- * KEYS[4]: currentSpecificStagingKey - current transaction's gallery staging key (if any)
- *
- * ARGV[1]: expectedRevision - the revision the client expects
- * ARGV[2]: newGalleryJson - JSON string of the new gallery array
- * ARGV[3]: transactionId - the new transaction ID
- * ARGV[4]: deployedRevision - the deployed revision from filesystem (used as fallback)
- * ARGV[5]: mutationTimestamp - ISO timestamp for the mutation
- *
- * Returns indexed array for proper RESP2 serialization:
- * [status, newRevision, transactionId, actualRevision] on success
- * ['ERR', errorCode, expectedRevision, actualRevision] on failure
- */
-const ATOMIC_GALLERY_CAS_SCRIPT = `
-  local runtimeGalleryKey = KEYS[1]
-  local projectStagingKey = KEYS[2]
-  local specificStagingKey = KEYS[3]
-  local currentSpecificStagingKey = KEYS[4]
-  
-  local expectedRevision = tonumber(ARGV[1])
-  local newGalleryJson = ARGV[2]
-  local transactionId = ARGV[3]
-  local deployedRevision = tonumber(ARGV[4])
-  local mutationTimestamp = ARGV[5]
-  
-  -- Read runtime authority first (effective gallery + revision)
-  local runtimeData = redis.call('GET', runtimeGalleryKey)
-  local currentGallery = nil
-  local currentRevision = deployedRevision or 0
-  
-  if runtimeData then
-    -- Upstash may return object or string
-    local parsed
-    if type(runtimeData) == 'string' then
-      parsed = cjson.decode(runtimeData)
-    elseif type(runtimeData) == 'table' then
-      parsed = runtimeData
-    else
-      -- Invalid data type, CAS fails
-      return {'ERR', 'INVALID_RUNTIME_DATA_TYPE', expectedRevision, currentRevision}
-    end
-    
-    if parsed then
-      currentGallery = parsed.gallery
-      currentRevision = tonumber(parsed.currentRevision) or currentRevision
-    end
-  end
-  
-  -- Read current staged transaction (if any)
-  local currentStagedTransactionId = redis.call('GET', projectStagingKey)
-  
-  if currentStagedTransactionId and currentStagedTransactionId ~= '' then
-    -- Load the current staged gallery
-    local stagedData = redis.call('GET', currentSpecificStagingKey)
-    
-    if stagedData then
-      local parsed
-      if type(stagedData) == 'string' then
-        parsed = cjson.decode(stagedData)
-      elseif type(stagedData) == 'table' then
-        parsed = stagedData
-      else
-        -- Invalid data type, CAS fails
-        return {'ERR', 'INVALID_STAGED_DATA_TYPE', expectedRevision, currentRevision}
-      end
-      
-      if parsed then
-        currentGallery = parsed.gallery
-        currentRevision = tonumber(parsed.currentRevision) or currentRevision
-      end
-    end
-  end
-  
-  -- CAS: Compare current revision with expected revision
-  if currentRevision ~= expectedRevision then
-    return {'ERR', 'CAS_FAILURE', expectedRevision, currentRevision}
-  end
-  
-  -- Write new gallery with incremented revision
-  local newGallery = cjson.decode(newGalleryJson)
-  local newRevision = currentRevision + 1
-  local galleryPayload = {
-    gallery = newGallery,
-    currentRevision = newRevision,
-    previousGallery = currentGallery or {},
-    mutationTimestamp = mutationTimestamp
-  }
-  
-  -- Write the specific staging key
-  redis.call('SET', specificStagingKey, cjson.encode(galleryPayload))
-  
-  -- Update the project-level transaction pointer
-  redis.call('SET', projectStagingKey, transactionId)
-  
-  -- P0 FIX: Atomically update runtime authority
-  local runtimePayload = {
-    gallery = newGallery,
-    currentRevision = newRevision,
-    lastMutationTimestamp = mutationTimestamp,
-    lastTransactionId = transactionId
-  }
-  redis.call('SET', runtimeGalleryKey, cjson.encode(runtimePayload))
-  
-  -- Return indexed array for proper RESP2 serialization
-  return {'OK', newRevision, transactionId, currentRevision}
-`;
-
 function getRedisClient(): Redis | null {
-  try {
-    const url = process.env.KV_REST_API_URL;
-    const token = process.env.KV_REST_API_TOKEN;
-    if (!url || !token) return null;
-    return new Redis({ url, token });
-  } catch {
-    return null;
-  }
+  return getDeploymentRedisClient();
 }
 
 /**
@@ -263,11 +139,28 @@ export async function GET(request: Request) {
             galleryLength: runtimeGallery.length,
             runtimeRevision,
           });
+          
+          // P0 FIX: If runtime authority exists, return it immediately
+          // Do not require filesystem parsing for runtime-authority requests
+          // Filesystem is only for deployed projection/fallback/reconciliation
+          const state = 'runtime';
+          
+          return NextResponse.json({
+            success: true,
+            projectId,
+            gallery: runtimeGallery,
+            galleryLength: runtimeGallery.length,
+            currentRevision: runtimeRevision,
+            state,
+            hasStagedChanges: false,
+            transactionId: parsed.lastTransactionId,
+            source: 'runtime-authority',
+          });
         }
       }
       
-      // P0 FIX: Use deterministic staged authority - store project-level current staged transaction ID
-      // Instead of scanning arbitrary keys, use an explicit project → current staged transaction index
+      // P0 FIX: Only check staged state if runtime authority doesn't exist
+      // Staged state is pending deployment material, not runtime authority
       const projectStagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}project:${projectId}:current-transaction`;
       const currentStagedTransactionId = await redis.get(projectStagingKey);
       
@@ -305,7 +198,8 @@ export async function GET(request: Request) {
       }
     }
 
-    // Load from authoritative projects.v1.json (deployed state) - used as fallback
+    // P0 FIX: Only read filesystem if no Redis state exists
+    // Filesystem is deployed projection/fallback only, not runtime authority
     const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
     const projectsData = JSON.parse(readFileSync(projectsPath, "utf-8"));
 
@@ -320,12 +214,11 @@ export async function GET(request: Request) {
     const deployedGallery = project.media?.gallery || [];
     const deployedRevision = project.media?.galleryRevision || 0;
 
-    // P0 FIX: Use runtime authority first, then staged, then deployed
-    // This ensures stale Vercel deployments don't override live Redis state
-    const effectiveGallery = runtimeGallery || stagedGallery || deployedGallery;
-    let effectiveRevision = runtimeRevision;
+    // P0 FIX: Use staged state if available, otherwise deployed state
+    const effectiveGallery = stagedGallery || deployedGallery;
+    let effectiveRevision = deployedRevision;
     
-    if (!effectiveRevision && stagedGallery && transactionId && redis) {
+    if (stagedGallery && transactionId && redis) {
       // Fallback to staged revision if runtime not set
       const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${transactionId}:project:${projectId}:gallery`;
       const stagedData = await redis.get(stagingKey);
@@ -340,11 +233,7 @@ export async function GET(request: Request) {
       }
     }
     
-    if (!effectiveRevision) {
-      effectiveRevision = deployedRevision;
-    }
-    
-    const state = runtimeGallery ? 'runtime' : (stagedGallery ? 'staged' : 'deployed');
+    const state = stagedGallery ? 'staged' : 'deployed';
 
     console.log('[GALLERY GET] SUCCESS', { 
       projectId, 
@@ -586,8 +475,10 @@ export async function PUT(request: Request) {
       // P0 FIX: Read deployed revision from filesystem for initial CAS check
       const deployedRevision = project.media?.galleryRevision || 0;
 
-      // P0 FIX: Create deployment transaction BEFORE mutation to prevent split-brain
-      // If CAS fails, transaction exists but has no staging keys (safe failure state)
+      // P0 FIX: Execute CAS FIRST before creating deployment transaction
+      // This eliminates the split-brain failure window where:
+      // - CAS succeeds but transaction creation fails
+      // - Transaction exists with empty staging keys
       const effectiveTransactionId = transactionId || `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const namespace = getKvNamespace();
       const galleryJson = JSON.stringify(gallery || []);
@@ -598,37 +489,20 @@ export async function PUT(request: Request) {
       const projectStagingKey = `${namespace}${WORKBENCH_STAGING_PREFIX}project:${projectId}:current-transaction`;
       const specificStagingKey = `${namespace}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:gallery`;
 
-      // Read current staged transaction to build currentSpecificStagingKey
-      const currentStagedTransactionId = await redis.get(projectStagingKey);
-      const currentSpecificStagingKey = currentStagedTransactionId
-        ? `${namespace}${WORKBENCH_STAGING_PREFIX}${currentStagedTransactionId}:project:${projectId}:gallery`
-        : projectStagingKey; // Fallback if no staged state
-
       console.log('[GALLERY V2 PUT] ATOMIC_CAS_EXECUTING', {
         projectId,
         expectedRevision,
         deployedRevision,
         galleryLength: gallery?.length || 0,
         transactionId: effectiveTransactionId,
-        hasStagedState: !!currentStagedTransactionId,
-        currentStagedTransactionId,
         runtimeGalleryKey,
       });
 
-      // Create deployment transaction with empty staging keys before CAS
-      // If CAS fails, transaction exists but has no staging keys (safe failure state)
-      const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
-      await createDeploymentTransaction(
-        effectiveTransactionId,
-        [], // Empty staging keys initially
-        ['projects.v1.json'],
-        `Gallery order mutation: ${projectId} (${gallery.length} items)`
-      );
-
-      // Execute atomic CAS Lua script with KEYS array
+      // P0 FIX: Execute CAS BEFORE creating deployment transaction
+      // This ensures we only create a transaction if CAS succeeds
       const casResult = await redis.eval(
         ATOMIC_GALLERY_CAS_SCRIPT,
-        [runtimeGalleryKey, projectStagingKey, specificStagingKey, currentSpecificStagingKey], // KEYS array
+        [runtimeGalleryKey, projectStagingKey, specificStagingKey], // KEYS array
         [expectedRevision.toString(), galleryJson, effectiveTransactionId, deployedRevision.toString(), mutationTimestamp] // ARGV array
       );
 
@@ -692,10 +566,12 @@ export async function PUT(request: Request) {
         actualRevision
       });
 
-      // Merge staging keys into existing transaction after successful CAS
+      // P0 FIX: Create deployment transaction AFTER successful CAS
+      // This eliminates the split-brain failure window
+      const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
       await createDeploymentTransaction(
         effectiveTransactionId,
-        [specificStagingKey], // Add staging keys now that CAS succeeded
+        [specificStagingKey], // Staging keys now known
         ['projects.v1.json'],
         `Gallery order mutation: ${projectId} (${gallery.length} items)`
       );

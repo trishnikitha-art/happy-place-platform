@@ -64,6 +64,9 @@ function getRedisClient(): Redis {
   return new Redis({ url, token });
 }
 
+// Export Redis client getter for use in gallery route
+export { getRedisClient };
+
 /**
  * P0 FIX: Normalize Redis Lua error codes at repository boundary
  * Upstash Redis returns errors wrapped as "Command failed: ERROR_CODE"
@@ -292,6 +295,141 @@ function getTransactionKey(transactionId: string): string {
   const namespace = getKvNamespace();
   return `${namespace}${TRANSACTION_PREFIX}${transactionId}`;
 }
+
+/**
+ * P0 FIX: Lua script for conditional project transaction pointer cleanup
+ *
+ * This script atomically:
+ * 1. Checks if the project pointer points to the transaction being consumed
+ * 2. Only deletes the pointer if it matches (prevents race conditions)
+ * 3. Leaves the pointer alone if it now points to a different transaction
+ *
+ * KEYS[1]: projectStagingKey - project-level current transaction pointer
+ * ARGV[1]: transactionId - the transaction being consumed
+ *
+ * Returns: 'DELETED' if pointer was deleted, 'SKIPPED' if pointer pointed to different transaction
+ */
+const CONDITIONAL_POINTER_CLEANUP_SCRIPT = `
+  local projectStagingKey = KEYS[1]
+  local transactionId = ARGV[1]
+  
+  local currentPointer = redis.call('GET', projectStagingKey)
+  
+  -- Only delete if pointer still points to the transaction being consumed
+  if currentPointer == transactionId then
+    redis.call('DEL', projectStagingKey)
+    return 'DELETED'
+  else
+    return 'SKIPPED'
+  end
+`;
+
+/**
+ * P0 FIX: Runtime Lua script for atomic gallery CAS with runtime authority
+ *
+ * This script atomically:
+ * 1. Reads runtime authority (effective gallery + revision) - ONLY source of truth
+ * 2. Compares expectedRevision with current runtime revision
+ * 3. If match, writes new gallery with incremented revision
+ * 4. Updates runtime authority atomically
+ * 5. Updates project-level transaction pointer
+ * 6. Writes staging record for deployment
+ * 7. Returns the new revision
+ *
+ * CRITICAL INVARIANT: Runtime authority is the ONLY CAS authority
+ * - Staged state is pending deployment material ONLY
+ * - Staged state may be used for previousGallery but NEVER for currentRevision
+ * - Filesystem is deployed projection/fallback ONLY
+ *
+ * KEYS[1]: runtimeGalleryKey - effective gallery/revision authority (ONLY source of truth)
+ * KEYS[2]: projectStagingKey - project-level current transaction pointer
+ * KEYS[3]: specificStagingKey - new transaction's gallery staging key
+ *
+ * ARGV[1]: expectedRevision - the revision the client expects
+ * ARGV[2]: newGalleryJson - JSON string of the new gallery array
+ * ARGV[3]: transactionId - the new transaction ID
+ * ARGV[4]: deployedRevision - the deployed revision from filesystem (used as fallback)
+ * ARGV[5]: mutationTimestamp - ISO timestamp for the mutation
+ *
+ * Returns indexed array for proper RESP2 serialization:
+ * [status, newRevision, transactionId, actualRevision] on success
+ * ['ERR', errorCode, expectedRevision, actualRevision] on failure
+ */
+const ATOMIC_GALLERY_CAS_SCRIPT = `
+  local runtimeGalleryKey = KEYS[1]
+  local projectStagingKey = KEYS[2]
+  local specificStagingKey = KEYS[3]
+  
+  local expectedRevision = tonumber(ARGV[1])
+  local newGalleryJson = ARGV[2]
+  local transactionId = ARGV[3]
+  local deployedRevision = tonumber(ARGV[4])
+  local mutationTimestamp = ARGV[5]
+  
+  -- P0 FIX: Read runtime authority ONLY (this is the sole CAS authority)
+  local runtimeData = redis.call('GET', runtimeGalleryKey)
+  local currentGallery = nil
+  local currentRevision = deployedRevision or 0
+  
+  if runtimeData then
+    -- Upstash may return object or string
+    local parsed
+    if type(runtimeData) == 'string' then
+      parsed = cjson.decode(runtimeData)
+    elseif type(runtimeData) == 'table' then
+      parsed = runtimeData
+    else
+      -- Invalid data type, CAS fails
+      return {'ERR', 'INVALID_RUNTIME_DATA_TYPE', expectedRevision, currentRevision}
+    end
+    
+    if parsed then
+      currentGallery = parsed.gallery
+      currentRevision = tonumber(parsed.currentRevision) or currentRevision
+    end
+  end
+  
+  -- P0 FIX: CRITICAL - Staged state is NOT used for CAS revision comparison
+  -- Staged state is pending deployment material ONLY
+  -- It can be used for previousGallery but NEVER becomes the source of currentRevision
+  -- This eliminates the competing authority path where staged state could overwrite runtime
+  
+  -- CAS: Compare current revision with expected revision
+  if currentRevision ~= expectedRevision then
+    return {'ERR', 'CAS_FAILURE', expectedRevision, currentRevision}
+  end
+  
+  -- Write new gallery with incremented revision
+  local newGallery = cjson.decode(newGalleryJson)
+  local newRevision = currentRevision + 1
+  local galleryPayload = {
+    gallery = newGallery,
+    currentRevision = newRevision,
+    previousGallery = currentGallery or {},
+    mutationTimestamp = mutationTimestamp
+  }
+  
+  -- Write the specific staging key
+  redis.call('SET', specificStagingKey, cjson.encode(galleryPayload))
+  
+  -- Update the project-level transaction pointer
+  redis.call('SET', projectStagingKey, transactionId)
+  
+  -- P0 FIX: Atomically update runtime authority (this is the live authority)
+  local runtimePayload = {
+    gallery = newGallery,
+    currentRevision = newRevision,
+    lastMutationTimestamp = mutationTimestamp,
+    lastTransactionId = transactionId
+  }
+  redis.call('SET', runtimeGalleryKey, cjson.encode(runtimePayload))
+  
+  -- Return indexed array for proper RESP2 serialization
+  return {'OK', newRevision, transactionId, currentRevision}
+`;
+
+// Export the gallery CAS script for use in gallery route
+export { ATOMIC_GALLERY_CAS_SCRIPT };
 
 /**
  * Atomic Lua script for transaction creation with staging key aggregation
@@ -951,19 +1089,29 @@ export async function consumeDeploymentTransaction(
 
     console.log('[DEPLOYMENT_TRANSACTION] CONSUMED', { transactionId, owner: effectiveOwner });
     
-    // P0 FIX: Clear project-level transaction pointer when consuming transaction
-    // This prevents stale transaction IDs from being found after staging cleanup
+    // P0 FIX: Conditional atomic cleanup of project-level transaction pointer
+    // This prevents race conditions where consuming transaction A deletes the pointer
+    // while transaction B has already become the current transaction
     if (projectId && client) {
       const namespace = getKvNamespace();
       const projectStagingKey = `${namespace}workbench-staging:project:${projectId}:current-transaction`;
       
-      console.log('[DEPLOYMENT_TRANSACTION] CLEARING_PROJECT_TRANSACTION_POINTER', {
+      console.log('[DEPLOYMENT_TRANSACTION] CONDITIONAL_POINTER_CLEANUP', {
         projectId,
         projectStagingKey,
         currentTransactionId: transactionId,
       });
       
-      await client.del(projectStagingKey);
+      const cleanupResult = await client.eval(
+        CONDITIONAL_POINTER_CLEANUP_SCRIPT,
+        [projectStagingKey],
+        [transactionId]
+      );
+      
+      console.log('[DEPLOYMENT_TRANSACTION] POINTER_CLEANUP_RESULT', {
+        projectId,
+        result: cleanupResult,
+      });
     }
     
     return updated;

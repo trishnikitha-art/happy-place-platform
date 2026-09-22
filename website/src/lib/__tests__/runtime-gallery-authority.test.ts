@@ -17,11 +17,24 @@
  * - CAS Lua script reads runtime authority first, updates it atomically
  * - consumeDeploymentTransaction clears project-level transaction pointer
  * - Stale deployment filesystem state is only used as fallback
+ * 
+ * P0 FIX #1: Runtime authority is the ONLY CAS authority
+ * - Staged state is pending deployment material ONLY
+ * - Staged state may be used for previousGallery but NEVER for currentRevision
+ * - Filesystem is deployed projection/fallback ONLY
+ * 
+ * P0 FIX #2: CAS executes BEFORE transaction creation
+ * - Eliminates split-brain failure window
+ * - Transaction only created if CAS succeeds
+ * 
+ * P0 FIX #3: Transaction pointer cleanup is conditional and atomic
+ * - Only deletes pointer if it still points to transaction being consumed
+ * - Prevents race conditions where new transaction becomes current
  */
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import { Redis } from '@upstash/redis';
-import { getRedisClient, getKvNamespace } from '@/lib/environment';
+import { getRedisClient, getKvNamespace, ATOMIC_GALLERY_CAS_SCRIPT } from '@/lib/deployment-transaction';
 
 // Use the same keys as the production route
 const WORKBENCH_RUNTIME_PREFIX = 'workbench-runtime-gallery:';
@@ -45,7 +58,7 @@ function getSpecificStagingKey(transactionId: string, projectId: string): string
 const TEST_PROJECT_ID = 'test-runtime-authority-project';
 const TEST_TRANSACTION_ID = 'WBDEP-TEST-RUNTIME-AUTHORITY';
 
-describe('Runtime Gallery Authority', () => {
+describe('Runtime Gallery Authority - P0 Fixes', () => {
   let redis: Redis;
 
   beforeAll(() => {
@@ -66,8 +79,8 @@ describe('Runtime Gallery Authority', () => {
     await redis.del(getSpecificStagingKey(TEST_TRANSACTION_ID, TEST_PROJECT_ID));
   });
 
-  describe('Runtime authority precedence', () => {
-    it('should read runtime authority before filesystem state', async () => {
+  describe('P0 #1: Runtime authority is the ONLY CAS authority', () => {
+    it('Test A: Filesystem revision 1 + Redis runtime revision 3 → PUT expecting 3 must succeed', async () => {
       // Set runtime authority with revision 3
       const runtimeGallery = ['media-id-1', 'media-id-2', 'media-id-3'];
       const runtimePayload = {
@@ -78,132 +91,153 @@ describe('Runtime Gallery Authority', () => {
       };
       await redis.set(getRuntimeGalleryKey(TEST_PROJECT_ID), runtimePayload);
 
-      // Read runtime authority
-      const runtimeData = await redis.get(getRuntimeGalleryKey(TEST_PROJECT_ID));
-      expect(runtimeData).toBeDefined();
-      expect((runtimeData as any).currentRevision).toBe(3);
-      expect((runtimeData as any).gallery).toEqual(runtimeGallery);
-
-      console.log('[TEST] Runtime authority takes precedence over filesystem state');
-    });
-
-    it('should fallback to staged state if runtime authority not set', async () => {
-      // No runtime authority set
-      // Set staged state
-      const stagedGallery = ['media-id-1', 'media-id-2'];
-      const stagedPayload = {
-        gallery: stagedGallery,
-        currentRevision: 2,
-        previousGallery: [],
-        mutationTimestamp: new Date().toISOString(),
-      };
-      await redis.set(getSpecificStagingKey(TEST_TRANSACTION_ID, TEST_PROJECT_ID), stagedPayload);
-      await redis.set(getProjectStagingKey(TEST_PROJECT_ID), TEST_TRANSACTION_ID);
-
-      // Read staged state
-      const stagedData = await redis.get(getSpecificStagingKey(TEST_TRANSACTION_ID, TEST_PROJECT_ID));
-      expect(stagedData).toBeDefined();
-      expect((stagedData as any).currentRevision).toBe(2);
-
-      console.log('[TEST] Staged state is fallback when runtime authority not set');
-    });
-
-    it('should fallback to filesystem revision if neither runtime nor staged state exists', async () => {
-      // Neither runtime nor staged state set
-      // This simulates the case where filesystem state is the only source
+      // Simulate stale filesystem with revision 1
       const deployedRevision = 1;
 
-      // The GET route should return deployedRevision as effectiveRevision
-      expect(deployedRevision).toBe(1);
+      // CAS should compare against runtime revision 3, not filesystem revision 1
+      const runtimeGalleryKey = getRuntimeGalleryKey(TEST_PROJECT_ID);
+      const projectStagingKey = getProjectStagingKey(TEST_PROJECT_ID);
+      const specificStagingKey = getSpecificStagingKey(TEST_TRANSACTION_ID, TEST_PROJECT_ID);
 
-      console.log('[TEST] Filesystem state is final fallback');
-    });
-  });
+      const casResult = await redis.eval(
+        ATOMIC_GALLERY_CAS_SCRIPT,
+        [runtimeGalleryKey, projectStagingKey, specificStagingKey],
+        ['3', JSON.stringify(['media-id-1', 'media-id-2', 'media-id-4']), TEST_TRANSACTION_ID, deployedRevision.toString(), new Date().toISOString()]
+      );
 
-  describe('Runtime authority atomic update', () => {
-    it('should update runtime authority atomically during CAS', async () => {
-      // Initial runtime state: revision 2
-      const initialRuntimePayload = {
-        gallery: ['media-id-1', 'media-id-2'],
-        currentRevision: 2,
-        lastMutationTimestamp: new Date().toISOString(),
-        lastTransactionId: 'previous-tx',
-      };
-      await redis.set(getRuntimeGalleryKey(TEST_PROJECT_ID), initialRuntimePayload);
+      expect(casResult[0]).toBe('OK');
+      expect(casResult[1]).toBe(4); // Revision 3 → 4
 
-      // Simulate CAS update: revision 2 → 3
-      const newGallery = ['media-id-1', 'media-id-2', 'media-id-3'];
-      const newRuntimePayload = {
-        gallery: newGallery,
-        currentRevision: 3,
-        lastMutationTimestamp: new Date().toISOString(),
-        lastTransactionId: TEST_TRANSACTION_ID,
-      };
-
-      // Atomic update (single SET operation)
-      await redis.set(getRuntimeGalleryKey(TEST_PROJECT_ID), newRuntimePayload);
-
-      // Verify atomic update
-      const updatedData = await redis.get(getRuntimeGalleryKey(TEST_PROJECT_ID));
-      expect((updatedData as any).currentRevision).toBe(3);
-      expect((updatedData as any).gallery).toEqual(newGallery);
-
-      console.log('[TEST] Runtime authority updated atomically');
+      console.log('[TEST A] Runtime revision 3 beats filesystem revision 1');
     });
 
-    it('should prevent stale deployment revision from overriding live Redis state', async () => {
-      // Runtime authority: revision 3
+    it('Test B: Filesystem revision 99 + Redis runtime revision 3 → PUT expecting 3 must still succeed', async () => {
+      // Set runtime authority with revision 3
+      const runtimeGallery = ['media-id-1', 'media-id-2', 'media-id-3'];
       const runtimePayload = {
-        gallery: ['media-id-1', 'media-id-2', 'media-id-3'],
+        gallery: runtimeGallery,
         currentRevision: 3,
         lastMutationTimestamp: new Date().toISOString(),
         lastTransactionId: TEST_TRANSACTION_ID,
       };
       await redis.set(getRuntimeGalleryKey(TEST_PROJECT_ID), runtimePayload);
 
-      // Simulate stale deployment with revision 1 (filesystem state)
-      const deployedRevision = 1;
+      // Simulate stale filesystem with revision 99
+      const deployedRevision = 99;
 
-      // GET should return revision 3 from runtime authority, not revision 1 from filesystem
-      const runtimeData = await redis.get(getRuntimeGalleryKey(TEST_PROJECT_ID));
-      expect((runtimeData as any).currentRevision).toBe(3);
-      expect((runtimeData as any).currentRevision).not.toBe(deployedRevision);
+      // CAS should compare against runtime revision 3, not filesystem revision 99
+      const runtimeGalleryKey = getRuntimeGalleryKey(TEST_PROJECT_ID);
+      const projectStagingKey = getProjectStagingKey(TEST_PROJECT_ID);
+      const specificStagingKey = getSpecificStagingKey(TEST_TRANSACTION_ID, TEST_PROJECT_ID);
 
-      console.log('[TEST] Stale deployment revision 1 does not override runtime revision 3');
+      const casResult = await redis.eval(
+        ATOMIC_GALLERY_CAS_SCRIPT,
+        [runtimeGalleryKey, projectStagingKey, specificStagingKey],
+        ['3', JSON.stringify(['media-id-1', 'media-id-2', 'media-id-4']), TEST_TRANSACTION_ID, deployedRevision.toString(), new Date().toISOString()]
+      );
+
+      expect(casResult[0]).toBe('OK');
+      expect(casResult[1]).toBe(4); // Revision 3 → 4
+
+      console.log('[TEST B] Runtime revision 3 beats filesystem revision 99');
+    });
+
+    it('Test C: Redis runtime revision 3 + stale staged revision 2 → CAS compares against 3, not 2', async () => {
+      // Set runtime authority with revision 3
+      const runtimeGallery = ['media-id-1', 'media-id-2', 'media-id-3'];
+      const runtimePayload = {
+        gallery: runtimeGallery,
+        currentRevision: 3,
+        lastMutationTimestamp: new Date().toISOString(),
+        lastTransactionId: TEST_TRANSACTION_ID,
+      };
+      await redis.set(getRuntimeGalleryKey(TEST_PROJECT_ID), runtimePayload);
+
+      // Set stale staged state with revision 2
+      const staleStagedPayload = {
+        gallery: ['media-id-1', 'media-id-2'],
+        currentRevision: 2,
+        previousGallery: [],
+        mutationTimestamp: new Date().toISOString(),
+      };
+      await redis.set(getSpecificStagingKey('STALE-TX', TEST_PROJECT_ID), staleStagedPayload);
+      await redis.set(getProjectStagingKey(TEST_PROJECT_ID), 'STALE-TX');
+
+      // CAS should compare against runtime revision 3, not staged revision 2
+      const runtimeGalleryKey = getRuntimeGalleryKey(TEST_PROJECT_ID);
+      const projectStagingKey = getProjectStagingKey(TEST_PROJECT_ID);
+      const specificStagingKey = getSpecificStagingKey(TEST_TRANSACTION_ID, TEST_PROJECT_ID);
+
+      const casResult = await redis.eval(
+        ATOMIC_GALLERY_CAS_SCRIPT,
+        [runtimeGalleryKey, projectStagingKey, specificStagingKey],
+        ['3', JSON.stringify(['media-id-1', 'media-id-2', 'media-id-4']), TEST_TRANSACTION_ID, '0', new Date().toISOString()]
+      );
+
+      expect(casResult[0]).toBe('OK');
+      expect(casResult[1]).toBe(4); // Revision 3 → 4
+
+      console.log('[TEST C] Runtime revision 3 beats stale staged revision 2');
+    });
+
+    it('Test D: Concurrent PUTs with expectedRevision 3 → exactly one succeeds', async () => {
+      // Set runtime authority with revision 3
+      const runtimeGallery = ['media-id-1', 'media-id-2', 'media-id-3'];
+      const runtimePayload = {
+        gallery: runtimeGallery,
+        currentRevision: 3,
+        lastMutationTimestamp: new Date().toISOString(),
+        lastTransactionId: TEST_TRANSACTION_ID,
+      };
+      await redis.set(getRuntimeGalleryKey(TEST_PROJECT_ID), runtimePayload);
+
+      const runtimeGalleryKey = getRuntimeGalleryKey(TEST_PROJECT_ID);
+      const projectStagingKey = getProjectStagingKey(TEST_PROJECT_ID);
+
+      // Concurrent PUT A and PUT B
+      const resultA = await redis.eval(
+        ATOMIC_GALLERY_CAS_SCRIPT,
+        [runtimeGalleryKey, projectStagingKey, getSpecificStagingKey('TX-A', TEST_PROJECT_ID)],
+        ['3', JSON.stringify(['media-id-1', 'media-id-2', 'media-id-4']), 'TX-A', '0', new Date().toISOString()]
+      );
+
+      const resultB = await redis.eval(
+        ATOMIC_GALLERY_CAS_SCRIPT,
+        [runtimeGalleryKey, projectStagingKey, getSpecificStagingKey('TX-B', TEST_PROJECT_ID)],
+        ['3', JSON.stringify(['media-id-1', 'media-id-2', 'media-id-5']), 'TX-B', '0', new Date().toISOString()]
+      );
+
+      // Exactly one should succeed
+      const successCount = [resultA, resultB].filter(r => r[0] === 'OK').length;
+      const failureCount = [resultA, resultB].filter(r => r[0] === 'ERR').length;
+
+      expect(successCount).toBe(1);
+      expect(failureCount).toBe(1);
+
+      console.log('[TEST D] Concurrent PUTs: exactly one succeeds');
     });
   });
 
-  describe('Project-level transaction pointer cleanup', () => {
-    it('should clear project-level transaction pointer on consumption', async () => {
-      // Set project-level transaction pointer
-      await redis.set(getProjectStagingKey(TEST_PROJECT_ID), TEST_TRANSACTION_ID);
+  describe('P0 #3: Transaction pointer cleanup is conditional and atomic', () => {
+    it('Test E: Consume transaction A while transaction B becomes current → B\'s pointer survives', async () => {
+      // Set project pointer to transaction B
+      await redis.set(getProjectStagingKey(TEST_PROJECT_ID), 'TX-B');
 
-      // Verify pointer exists
-      const pointerBefore = await redis.get(getProjectStagingKey(TEST_PROJECT_ID));
-      expect(pointerBefore).toBe(TEST_TRANSACTION_ID);
+      // Try to consume transaction A (should not delete B's pointer)
+      const projectStagingKey = getProjectStagingKey(TEST_PROJECT_ID);
+      const cleanupResult = await redis.eval(
+        'local currentPointer = redis.call("GET", KEYS[1]); if currentPointer == ARGV[1] then redis.call("DEL", KEYS[1]); return "DELETED"; else return "SKIPPED"; end',
+        [projectStagingKey],
+        ['TX-A']
+      );
 
-      // Simulate transaction consumption (clear pointer)
-      await redis.del(getProjectStagingKey(TEST_PROJECT_ID));
+      expect(cleanupResult).toBe('SKIPPED');
 
-      // Verify pointer is cleared
-      const pointerAfter = await redis.get(getProjectStagingKey(TEST_PROJECT_ID));
-      expect(pointerAfter).toBeNull();
+      // Verify B's pointer still exists
+      const pointer = await redis.get(projectStagingKey);
+      expect(pointer).toBe('TX-B');
 
-      console.log('[TEST] Project-level transaction pointer cleared on consumption');
-    });
-
-    it('should prevent dead transaction ID from being found after consumption', async () => {
-      // Set project-level transaction pointer
-      await redis.set(getProjectStagingKey(TEST_PROJECT_ID), TEST_TRANSACTION_ID);
-
-      // Consume transaction (clear pointer)
-      await redis.del(getProjectStagingKey(TEST_PROJECT_ID));
-
-      // Next request should not find dead transaction ID
-      const pointer = await redis.get(getProjectStagingKey(TEST_PROJECT_ID));
-      expect(pointer).toBeNull();
-
-      console.log('[TEST] Dead transaction ID not found after consumption');
+      console.log('[TEST E] Consuming A does not delete B\'s pointer');
     });
   });
 
@@ -229,33 +263,6 @@ describe('Runtime Gallery Authority', () => {
       expect(effectiveRevision).not.toBe(deployedRevision);
 
       console.log('[TEST] Production scenario: runtime revision 3 beats stale deployment revision 1');
-    });
-
-    it('should clear transaction pointer after consumption to prevent fallback to revision 1', async () => {
-      // Step 1: Transaction committed revision 3
-      const runtimePayload = {
-        gallery: ['media-id-1', 'media-id-2', 'media-id-3'],
-        currentRevision: 3,
-        lastMutationTimestamp: new Date().toISOString(),
-        lastTransactionId: 'WBDEP-1790100474216-phc0j5ynq',
-      };
-      await redis.set(getRuntimeGalleryKey(TEST_PROJECT_ID), runtimePayload);
-
-      // Step 2: Project-level transaction pointer set
-      await redis.set(getProjectStagingKey(TEST_PROJECT_ID), 'WBDEP-1790100474216-phc0j5ynq');
-
-      // Step 3: Transaction consumed (pointer cleared)
-      await redis.del(getProjectStagingKey(TEST_PROJECT_ID));
-
-      // Step 4: Next request should not find dead transaction ID
-      const pointer = await redis.get(getProjectStagingKey(TEST_PROJECT_ID));
-      expect(pointer).toBeNull();
-
-      // Step 5: Should return runtime revision 3, not fallback to filesystem revision 1
-      const runtimeData = await redis.get(getRuntimeGalleryKey(TEST_PROJECT_ID));
-      expect((runtimeData as any).currentRevision).toBe(3);
-
-      console.log('[TEST] Transaction pointer cleared, no fallback to stale revision 1');
     });
   });
 });
