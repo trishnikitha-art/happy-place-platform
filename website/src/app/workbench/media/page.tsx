@@ -625,6 +625,7 @@ export default function MediaWorkbench() {
     });
 
     try {
+      // Step 1: Save gallery to Redis staging
       const saveResponse = await fetch('/api/admin/projects/gallery', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -663,8 +664,93 @@ export default function MediaWorkbench() {
         projectId,
         newRevision: result.currentRevision,
         staged: result.staged,
+        transactionId: result.transactionId,
         result,
       });
+
+      // Step 2: If staged, trigger deployment
+      if (result.staged && result.transactionId) {
+        console.log('[WB_GALLERY] TRIGGERING_DEPLOYMENT', { transactionId: result.transactionId });
+        
+        const deployResponse = await fetch('/api/admin/deploy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            transactionIds: [result.transactionId],
+            reason: `Workbench gallery update: ${projectId}`,
+          }),
+        });
+
+        if (!deployResponse.ok) {
+          const deployError = await deployResponse.json();
+          console.error('[WB_GALLERY] DEPLOY_FAILED', {
+            transactionId: result.transactionId,
+            status: deployResponse.status,
+            error: deployError,
+          });
+          
+          // Deployment failed but gallery is staged - inform user
+          alert(`Gallery changes staged but deployment failed: ${deployError.error || 'Unknown error'}. Transaction preserved for retry.`);
+          
+          // Clear pending state but leave transaction intact
+          pendingGalleryOrderRef.current = null;
+          galleryBaseRevisionRef.current = null;
+          galleryProjectIdRef.current = null;
+          setState(prev => ({
+            ...prev,
+            pendingGalleryOrder: null,
+            galleryBaseRevision: null,
+            galleryProjectId: null,
+          }));
+          
+          await loadCanonicalData();
+          if (iframeRef.current) {
+            iframeRef.current.src = iframeRef.current.src;
+          }
+          return;
+        }
+
+        const deployResult = await deployResponse.json();
+        console.log('[WB_GALLERY] DEPLOY_SUCCESS', {
+          transactionId: result.transactionId,
+          commitSha: deployResult.commitSha,
+          commitUrl: deployResult.commitUrl,
+        });
+
+        // Step 3: Poll for deployment completion
+        if (deployResult.commitSha) {
+          console.log('[WB_GALLERY] POLLING_DEPLOYMENT_STATUS', { commitSha: deployResult.commitSha });
+          
+          let pollCount = 0;
+          const maxPolls = 30; // 30 seconds max
+          const pollInterval = 1000; // 1 second
+          
+          while (pollCount < maxPolls) {
+            await new Promise(resolve => setTimeout(resolve, pollInterval));
+            
+            const statusResponse = await fetch(`/api/admin/deploy/status?commitSha=${deployResult.commitSha}`);
+            
+            if (!statusResponse.ok) {
+              console.warn('[WB_GALLERY] STATUS_CHECK_FAILED', { status: statusResponse.status });
+              break;
+            }
+            
+            const statusData = await statusResponse.json();
+            console.log('[WB_GALLERY] DEPLOYMENT_STATUS', {
+              commitSha: deployResult.commitSha,
+              status: statusData.status,
+              vercelStatus: statusData.vercelStatus,
+            });
+            
+            if (statusData.status === 'PUBLISHED') {
+              console.log('[WB_GALLERY] DEPLOYMENT_COMPLETE', { commitSha: deployResult.commitSha });
+              break;
+            }
+            
+            pollCount++;
+          }
+        }
+      }
 
       // Clear pending state (both ref and React state)
       pendingGalleryOrderRef.current = null;
@@ -693,7 +779,11 @@ export default function MediaWorkbench() {
         console.log('[WB_GALLERY] IFRAME_NAVIGATION_FORCED', { currentSrc });
       }
 
-      alert(`Gallery changes saved successfully.\n\n${result.staged ? 'Staged for deployment.' : 'Saved immediately (development mode).'}`);
+      const message = result.staged 
+        ? 'Gallery changes saved and deployed.' 
+        : 'Gallery changes saved immediately (development mode).';
+      
+      alert(message);
     } catch (error) {
       console.error('[WB_GALLERY] SAVE_ERROR', { 
         projectId,
