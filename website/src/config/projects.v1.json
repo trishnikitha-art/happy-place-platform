@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-17T17:17:31.886Z",
+  "generatedAt": "2026-09-22T18:07:55.141Z",
   "projects": [
     {
       "id": "fences-001",
@@ -20,7 +20,7 @@
           "fences-001-hero",
           "fences-001-after"
         ],
-        "galleryRevision": 1
+        "galleryRevision": 3
       },
       "story": {
         "challenge": "Property needed new fence installation",
