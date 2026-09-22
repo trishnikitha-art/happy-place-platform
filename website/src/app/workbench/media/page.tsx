@@ -2821,6 +2821,22 @@ export default function MediaWorkbench() {
         </div>
       )}
 
+      {/* DEBUG: Force show save button for testing */}
+      <div className="shrink-0 border-b border-border bg-red-50 dark:bg-red-950/20 px-4 py-2">
+        <div className="flex items-center justify-between">
+          <span className="text-xs font-semibold text-red-900 dark:text-red-100">
+            DEBUG: pendingGalleryOrder = {state.pendingGalleryOrder ? 'SET' : 'NULL'} ({state.pendingGalleryOrder?.length || 0} items)
+          </span>
+          <button
+            onClick={handleSaveGalleryChanges}
+            disabled={state.mutationState !== 'idle'}
+            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded disabled:opacity-50 transition-colors"
+          >
+            FORCE SAVE (DEBUG)
+          </button>
+        </div>
+      </div>
+
       {/* Main Content - Two Panel Layout */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 min-h-0">
           {/* LEFT: Website Preview - No overlay blocking iframe */}
