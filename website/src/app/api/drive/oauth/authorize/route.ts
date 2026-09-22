@@ -103,10 +103,7 @@ export async function GET(request: Request) {
     prompt: 'consent',
   });
 
-  // P0 FIX: Return JSON with authUrl instead of HTTP redirect
-  // Workbench expects JSON response with data.authUrl to programmatically redirect browser
-  // This preserves all security checks, state creation, scopes, and redirect URI validation
-  return NextResponse.json({
-    authUrl: authUrl.toString(),
-  });
+  // HTTP redirect to Google OAuth - browser follows automatically
+  // This is the clean browser contract: UI navigates to app route, server handles OAuth handoff
+  return NextResponse.redirect(authUrl.toString());
 }

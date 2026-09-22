@@ -861,33 +861,10 @@ export default function MediaWorkbench() {
     setState(prev => ({ ...prev, oauthInProgress: true }));
     
     try {
-      const response = await fetch('/api/drive/oauth/authorize', {
-        method: 'GET',
-        credentials: 'include', // Include cookies for Workbench session
-      });
-      
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('[WORKBENCH] DRIVE_OAUTH_AUTHORIZE_FAILED', {
-          status: response.status,
-          error: errorText,
-        });
-        alert(`Failed to initiate Drive OAuth: ${errorText}`);
-        setState(prev => ({ ...prev, oauthInProgress: false }));
-        return;
-      }
-      
-      const data = await response.json();
-      console.log('[WORKBENCH] DRIVE_OAUTH_AUTHORIZE_SUCCESS', data);
-      
-      // Redirect to Google OAuth consent page
-      if (data.authUrl) {
-        window.location.href = data.authUrl;
-      } else {
-        console.error('[WORKBENCH] DRIVE_OAUTH_NO_AUTH_URL', data);
-        alert('OAuth authorization did not return an auth URL');
-        setState(prev => ({ ...prev, oauthInProgress: false }));
-      }
+      // Clean browser contract: navigate to authorize endpoint, server handles OAuth handoff
+      // Server returns HTTP 302 redirect to Google OAuth
+      console.log('[WORKBENCH] INITIATING_DRIVE_OAUTH_NAVIGATION');
+      window.location.href = '/api/drive/oauth/authorize';
     } catch (error) {
       console.error('[WORKBENCH] DRIVE_OAUTH_ERROR', error);
       alert(`Failed to connect Drive: ${error instanceof Error ? error.message : 'Unknown error'}`);

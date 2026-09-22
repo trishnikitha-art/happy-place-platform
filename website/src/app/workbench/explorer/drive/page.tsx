@@ -379,17 +379,10 @@ export default function DriveExplorerPage() {
     }
   };
 
-  // P0 FIX: OAuth initiation using JSON-based flow
+  // Clean browser contract: navigate to authorize endpoint, server handles OAuth handoff
   const handleAuthorize = async () => {
     try {
-      const response = await fetch('/api/drive/oauth/authorize');
-      const data = await response.json();
-      
-      if (data.authUrl) {
-        window.location.href = data.authUrl;
-      } else {
-        alert('Failed to get authorization URL');
-      }
+      window.location.href = '/api/drive/oauth/authorize';
     } catch (err) {
       console.error('Failed to initiate OAuth:', err);
       alert('Error: Failed to initiate Google Drive authorization');
