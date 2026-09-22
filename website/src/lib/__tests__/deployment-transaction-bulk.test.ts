@@ -17,8 +17,9 @@
  */
 
 import { describe, it, expect, beforeAll, afterAll } from '@jest/globals';
-import { createDeploymentTransaction, getDeploymentTransaction, claimDeploymentTransaction, atomicPromoteAssignments, retryDeploymentTransaction, failDeploymentTransaction, setGitCommitSha, getRedisClient } from '../deployment-transaction';
+import { createDeploymentTransaction, getDeploymentTransaction, claimDeploymentTransaction, atomicPromoteAssignments, retryDeploymentTransaction, failDeploymentTransaction, setGitCommitSha, getRedisClient, parseTransactionValue } from '../deployment-transaction';
 import { getKvNamespace } from '../environment';
+import type { DeploymentTransaction } from '../deployment-transaction';
 
 const TEST_TRANSACTION_PREFIX = 'BULK-TEST-';
 let testTransactionIds: string[] = [];
@@ -565,5 +566,60 @@ describe('Deployment Transaction Bulk Assignment', () => {
 
     // At retryCount = 3, MAX_RETRIES = 3, so this should be terminal
     await expect(retryDeploymentTransaction(TRANSACTION_ID)).rejects.toThrow('has exceeded maximum retry count');
+  });
+
+  describe('parseTransactionValue regression test', () => {
+    it('should parse JSON string value', () => {
+      const transaction: DeploymentTransaction = {
+        transactionId: 'test-tx',
+        state: 'prepared',
+        stagingKeys: ['key1'],
+        files: ['file1'],
+        createdAt: new Date().toISOString(),
+      };
+
+      const jsonString = JSON.stringify(transaction);
+      const parsed = parseTransactionValue(jsonString);
+
+      expect(parsed).toEqual(transaction);
+      expect(parsed.transactionId).toBe('test-tx');
+      expect(parsed.state).toBe('prepared');
+    });
+
+    it('should accept already-deserialized object value', () => {
+      const transaction: DeploymentTransaction = {
+        transactionId: 'test-tx',
+        state: 'prepared',
+        stagingKeys: ['key1'],
+        files: ['file1'],
+        createdAt: new Date().toISOString(),
+      };
+
+      const parsed = parseTransactionValue(transaction);
+
+      expect(parsed).toEqual(transaction);
+      expect(parsed.transactionId).toBe('test-tx');
+      expect(parsed.state).toBe('prepared');
+    });
+
+    it('should reject invalid primitive value', () => {
+      expect(() => parseTransactionValue(null)).toThrow('Invalid deployment transaction Redis value type');
+      expect(() => parseTransactionValue(undefined)).toThrow('Invalid deployment transaction Redis value type');
+      expect(() => parseTransactionValue(123)).toThrow('Invalid deployment transaction Redis value type');
+      expect(() => parseTransactionValue('invalid')).toThrow(); // Invalid JSON string
+    });
+
+    it('should not JSON.parse object (prevents [object Object] error)', () => {
+      const transaction: DeploymentTransaction = {
+        transactionId: 'test-tx',
+        state: 'prepared',
+        stagingKeys: ['key1'],
+        files: ['file1'],
+        createdAt: new Date().toISOString(),
+      };
+
+      // This should NOT throw SyntaxError: "[object Object]" is not valid JSON
+      expect(() => parseTransactionValue(transaction)).not.toThrow();
+    });
   });
 });

@@ -97,6 +97,27 @@ export interface DeploymentTransaction {
 const TRANSACTION_PREFIX = 'deployment-transaction:';
 
 /**
+ * P0 FIX: Authoritative decoder for deployment transaction Redis values
+ * Upstash Redis can return either JSON strings or already-deserialized objects
+ * This boundary normalizes both to consistent DeploymentTransaction type
+ *
+ * Pattern from commit 135a20a5: parseStagingValue() for the same Upstash contract issue
+ */
+export function parseTransactionValue(value: unknown): DeploymentTransaction {
+  if (typeof value === 'string') {
+    return JSON.parse(value) as DeploymentTransaction;
+  }
+
+  if (value && typeof value === 'object') {
+    return value as DeploymentTransaction;
+  }
+
+  throw new Error(
+    `Invalid deployment transaction Redis value type: ${typeof value}`
+  );
+}
+
+/**
  * Atomic Lua script for multi-assignment promotion
  * Validates all expected revisions, then atomically writes all assignments
  * Prevents partial promotion failures
@@ -560,8 +581,8 @@ export async function createDeploymentTransaction(
           const transactionData = result[1];
           const stagingKeysCount = result[2];
           
-          // Parse the transaction data from the script
-          const parsed = JSON.parse(transactionData) as DeploymentTransaction;
+          // P0 FIX: Use authoritative decoder for Redis object/string contract
+          const parsed = parseTransactionValue(transactionData);
           console.log('[DEPLOYMENT_TRANSACTION] CREATED_OR_MERGED', {
             transactionId,
             state: parsed.state,
@@ -589,7 +610,8 @@ export async function createDeploymentTransaction(
     }
 
     if (result && typeof result === 'object' && 'ok' in result && (result as any).ok === 'MERGED') {
-      const merged = JSON.parse((result as any).data) as DeploymentTransaction;
+      // P0 FIX: Use authoritative decoder for Redis object/string contract
+      const merged = parseTransactionValue((result as any).data);
       const stagingKeysCount = (result as any).stagingKeysCount;
       console.log('[DEPLOYMENT_TRANSACTION] MERGED_STAGING_KEYS (legacy)', {
         transactionId,
@@ -601,7 +623,8 @@ export async function createDeploymentTransaction(
     }
 
     if (result && typeof result === 'object' && 'ok' in result && (result as any).ok === 'EXISTS') {
-      const existing = JSON.parse((result as any).data) as DeploymentTransaction;
+      // P0 FIX: Use authoritative decoder for Redis object/string contract
+      const existing = parseTransactionValue((result as any).data);
       console.log('[DEPLOYMENT_TRANSACTION] RETURNED_EXISTING (legacy)', { transactionId, state: existing.state });
       return existing;
     }
