@@ -1932,18 +1932,23 @@ export default function MediaWorkbench() {
             }
           }
 
-          // Reload canonical data and refresh preview
+          // Reload canonical data and force iframe navigation to refresh slot registrations
           console.log('[WB_DND] REFRESHING_AFTER_SAVE', {
             requestId,
             projectId,
             reloadingCanonical: true,
-            refreshingIframe: true,
+            forcingIframeNavigation: true,
           });
 
           loadCanonicalData();
-          if (iframeRef.current?.contentWindow) {
-            iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
-            console.log('[WB_DND] IFRAME_REFRESH_POSTED', { requestId });
+          
+          // P0 FIX: Force iframe navigation to ensure slot registrations refresh with new gallery order
+          // Simple REFRESH_SLOTS only re-registers with current mediaId, but gallery order changes
+          // require the iframe to re-query getEffectiveProjectGallery() and re-register all slots
+          if (iframeRef.current) {
+            const currentSrc = iframeRef.current.src;
+            iframeRef.current.src = currentSrc;
+            console.log('[WB_DND] IFRAME_NAVIGATION_FORCED', { requestId, currentSrc });
           }
 
           alert(`Gallery reordered successfully.\n\n${result.staged ? 'Staged for deployment.' : 'Saved immediately (development mode).'}`);
@@ -2197,11 +2202,23 @@ export default function MediaWorkbench() {
             }
           }
 
-          // Reload canonical data and refresh preview
+          // Reload canonical data and force iframe navigation to refresh slot registrations
+          console.log('[WB_DND] REFRESHING_AFTER_SAVE', {
+            requestId,
+            projectId,
+            reloadingCanonical: true,
+            forcingIframeNavigation: true,
+          });
+
           loadCanonicalData();
-          if (iframeRef.current?.contentWindow) {
-            iframeRef.current.contentWindow.postMessage({ type: 'REFRESH_SLOTS' }, window.location.origin);
-            console.log('[WB_DND] IFRAME_REFRESH_POSTED', { requestId });
+          
+          // P0 FIX: Force iframe navigation to ensure slot registrations refresh with new gallery order
+          // Simple REFRESH_SLOTS only re-registers with current mediaId, but gallery order changes
+          // require the iframe to re-query getEffectiveProjectGallery() and re-register all slots
+          if (iframeRef.current) {
+            const currentSrc = iframeRef.current.src;
+            iframeRef.current.src = currentSrc;
+            console.log('[WB_DND] IFRAME_NAVIGATION_FORCED', { requestId, currentSrc });
           }
 
           alert(`Asset added to gallery successfully.\n\n${result.staged ? 'Staged for deployment.' : 'Saved immediately (development mode).'}`);
@@ -2303,8 +2320,22 @@ export default function MediaWorkbench() {
           result,
         });
 
-        // Reload canonical data to reflect changes
+        // Reload canonical data and force iframe navigation to refresh slot registrations
+        console.log('[WB_GALLERY_DELETE] REFRESHING_AFTER_DELETE', {
+          projectId,
+          reloadingCanonical: true,
+          forcingIframeNavigation: true,
+        });
+
         await loadCanonicalData();
+        
+        // P0 FIX: Force iframe navigation to ensure slot registrations refresh with new gallery order
+        if (iframeRef.current) {
+          const currentSrc = iframeRef.current.src;
+          iframeRef.current.src = currentSrc;
+          console.log('[WB_GALLERY_DELETE] IFRAME_NAVIGATION_FORCED', { currentSrc });
+        }
+
         alert('Image removed from gallery successfully');
       } catch (error) {
         console.error('[WB_GALLERY_DELETE] ERROR', {
@@ -2592,28 +2623,28 @@ export default function MediaWorkbench() {
 
       <div className="shrink-0 border-b border-border bg-white px-4 py-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <label className="flex items-center gap-2 text-sm font-medium">
+          <label className="flex items-center gap-2 text-sm font-medium text-foreground">
             Page
             <select aria-label="Page" value={state.selectedPage} disabled={state.mutationState !== 'idle'}
               onChange={e => {
                 slotRegistry.clear();
                 setState(prev => ({ ...prev, selectedPage: e.target.value as PageRoute, selectedSlots: [], registeredSlots: [] }));
-              }} className="min-h-11 max-w-44 rounded border border-border bg-white px-3">
+              }} className="min-h-11 max-w-44 rounded border border-border bg-white px-3 text-foreground">
               {(Object.keys(PAGE_LABELS) as PageRoute[]).map(route => <option key={route} value={route}>{PAGE_LABELS[route]}</option>)}
             </select>
           </label>
           <div className="flex gap-1" role="tablist" aria-label="Target view">
             {(['gallery', 'sources', 'preview'] as const).map(view => <button type="button" role="tab" key={view}
               aria-selected={slotView === view} aria-controls="slot-view" onClick={() => setSlotView(view)}
-              className={`min-h-11 px-3 text-sm border-b-2 ${view === 'sources' ? 'lg:hidden' : ''} ${slotView === view ? 'border-primary font-semibold' : 'border-transparent'}`}>
+              className={`min-h-11 px-3 text-sm border-b-2 ${view === 'sources' ? 'lg:hidden' : ''} ${slotView === view ? 'border-primary font-semibold text-foreground' : 'border-transparent text-muted-foreground'}`}>
               {view === 'gallery' ? 'Slots' : view === 'sources' ? 'Sources' : 'Site Preview'}
             </button>)}
           </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 flex-1 text-sm">
-            <p className="font-semibold" data-testid="target-count">{state.selectedSlots.length} slots selected</p>
-            <p className="mt-1 break-all" data-testid="replacement-source">Source: {state.driveSelectedFile ? `Drive / ${state.driveSelectedFile.name}` : state.selectedAsset?.filename || 'None selected'}</p>
+            <p className="font-semibold text-foreground" data-testid="target-count">{state.selectedSlots.length} slots selected</p>
+            <p className="mt-1 break-all text-muted-foreground" data-testid="replacement-source">Source: {state.driveSelectedFile ? `Drive / ${state.driveSelectedFile.name}` : state.selectedAsset?.filename || 'None selected'}</p>
           </div>
           <button type="button" onClick={handleUseDriveAsset}
             disabled={!state.selectedSlots.length || (!state.selectedAsset && !state.driveSelectedFile) || state.mutationState !== 'idle'}
