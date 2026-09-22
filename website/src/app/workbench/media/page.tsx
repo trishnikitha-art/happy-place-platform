@@ -101,7 +101,6 @@ export default function MediaWorkbench() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const mutationBusy = useRef(false);
   const requestInFlight = useRef(false);
-  const [slotView, setSlotView] = useState<'gallery' | 'preview' | 'sources'>('preview');
   const [pendingReplacement, setPendingReplacement] = useState<PendingReplacement | null>(null);
   const [retryReplacement, setRetryReplacement] = useState<PendingReplacement | null>(null);
   const [mutationNotice, setMutationNotice] = useState<string | null>(null);
@@ -2730,13 +2729,6 @@ export default function MediaWorkbench() {
               {(Object.keys(PAGE_LABELS) as PageRoute[]).map(route => <option key={route} value={route}>{PAGE_LABELS[route]}</option>)}
             </select>
           </label>
-          <div className="flex gap-1" role="tablist" aria-label="Target view">
-            {(['gallery', 'sources', 'preview'] as const).map(view => <button type="button" role="tab" key={view}
-              aria-selected={slotView === view} aria-controls="slot-view" onClick={() => setSlotView(view)}
-              className={`min-h-11 px-3 text-sm border-b-2 ${view === 'sources' ? 'lg:hidden' : ''} ${slotView === view ? 'border-primary font-semibold text-gray-900' : 'border-transparent text-gray-600'}`}>
-              {view === 'gallery' ? 'Slots' : view === 'sources' ? 'Sources' : 'Site Preview'}
-            </button>)}
-          </div>
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0 flex-1 text-sm">
@@ -2821,36 +2813,20 @@ export default function MediaWorkbench() {
         </div>
       )}
 
-      {/* DEBUG: Force show save button for testing */}
-      <div className="shrink-0 border-b border-border bg-red-50 dark:bg-red-950/20 px-4 py-2">
-        <div className="flex items-center justify-between">
-          <span className="text-xs font-semibold text-red-900 dark:text-red-100">
-            DEBUG: pendingGalleryOrder = {state.pendingGalleryOrder ? 'SET' : 'NULL'} ({state.pendingGalleryOrder?.length || 0} items)
-          </span>
-          <button
-            onClick={handleSaveGalleryChanges}
-            disabled={state.mutationState !== 'idle'}
-            className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded disabled:opacity-50 transition-colors"
-          >
-            FORCE SAVE (DEBUG)
-          </button>
-        </div>
-      </div>
-
       {/* Main Content - Two Panel Layout */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 min-h-0">
           {/* LEFT: Website Preview - No overlay blocking iframe */}
-          <section id="slot-view" role="tabpanel" className={`min-h-[420px] lg:min-h-0 min-w-0 overflow-y-auto bg-white h-full relative border-r border-border ${slotView === 'sources' ? 'hidden lg:block' : ''}`}>
-            {slotView !== 'preview' && <SlotGallery slots={currentSlots} assets={state.assets}
+          <section id="slot-view" role="tabpanel" className="min-h-[420px] lg:min-h-0 min-w-0 overflow-y-auto bg-white h-full relative border-r border-border">
+            <SlotGallery slots={currentSlots} assets={state.assets}
               selected={state.selectedSlots} disabled={state.mutationState !== 'idle'}
-              onSelect={(slot, toggle) => handleSlotClick(slot, { ctrlKey: toggle, metaKey: false })} />}
+              onSelect={(slot, toggle) => handleSlotClick(slot, { ctrlKey: toggle, metaKey: false })} />
             {/* Website Preview Iframe - receives pointer events directly */}
             <iframe
               ref={iframeRef}
               src={`${window.location.origin}/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`}
-              className={slotView === 'preview' ? 'w-full h-full min-h-[420px] border-0' : 'absolute inset-0 w-full h-full border-0 opacity-0 pointer-events-none'}
-              aria-hidden={slotView !== 'preview'}
-              tabIndex={slotView === 'preview' ? 0 : -1}
+              className="absolute inset-0 w-full h-full border-0 opacity-0 pointer-events-none"
+              aria-hidden="true"
+              tabIndex={-1}
               title="Website Preview"
               sandbox="allow-same-origin allow-scripts allow-popups"
               onLoad={() => {
@@ -2863,9 +2839,6 @@ export default function MediaWorkbench() {
                   usesPreviewRoute: iframeRef.current?.src?.includes('/workbench/preview/'),
                   timestamp: Date.now(),
                 });
-                // P0 FIX: Do NOT reset bridge readiness on iframe load
-                // Child components will send BRIDGE_READY when they mount
-                // Resetting here would create a race condition where child sends READY before reset completes
                 console.log('[WB_FORENSIC] IFRAME_LOAD_COMPLETE', {
                   reason: 'Iframe loaded, waiting for BRIDGE_READY from child slots',
                   timestamp: Date.now(),
@@ -2875,9 +2848,9 @@ export default function MediaWorkbench() {
           </section>
 
           {/* RIGHT: Media Asset Management */}
-        <section 
+        <section
         ref={mediaPanelRef}
-        className={`min-h-0 min-w-0 overflow-y-auto bg-background h-full ${slotView === 'sources' ? '' : 'hidden lg:block'}`}
+        className="min-h-0 min-w-0 overflow-y-auto bg-background h-full"
         >
           <div className="p-4">
             {/* Search */}
