@@ -2230,17 +2230,30 @@ export async function POST(request: Request) {
     if (isProduction && redis && stagingKeys.length > 0 && verificationPassed) {
       console.log('[DEPLOY API] CLEARING_STAGING_KEYS_AFTER_COMMIT_AND_PROMOTION', { count: stagingKeys.length });
       
+      // P0 FIX: Extract projectId from staging keys to clear project-level transaction pointer
+      let extractedProjectId: string | undefined;
       for (const key of stagingKeys) {
         await redis.del(key);
         console.log('[DEPLOY_API] STAGING_KEY_CLEARED', { key });
+        
+        // Extract projectId from staging key format: hpp:{env}:workbench-staging:{txId}:project:{projectId}:{field}
+        const parts = key.split(':');
+        if (parts.length >= 7 && parts[2] === 'workbench-staging' && parts[4] === 'project') {
+          extractedProjectId = parts[5];
+          console.log('[DEPLOY API] EXTRACTED_PROJECT_ID_FROM_STAGING_KEY', {
+            projectId: extractedProjectId,
+            key,
+          });
+        }
       }
       
       console.log('[DEPLOY API] STAGING_KEYS_CLEARED_COMPLETE');
       
       // MARK TRANSACTION AS CONSUMED (committed → consumed)
+      // P0 FIX: Pass projectId to clear project-level transaction pointer
       if (transaction) {
-        transaction = await consumeDeploymentTransaction(deploymentTransactionId, transactionOwner);
-        console.log('[DEPLOY API] TRANSACTION_CONSUMED', { transactionId: deploymentTransactionId });
+        transaction = await consumeDeploymentTransaction(deploymentTransactionId, transactionOwner, extractedProjectId);
+        console.log('[DEPLOY API] TRANSACTION_CONSUMED', { transactionId: deploymentTransactionId, projectId: extractedProjectId });
       }
     } else if (isProduction && redis && stagingKeys.length > 0) {
       console.warn('[DEPLOY API] STAGING_KEYS_PRESERVED_NO_REDIS_OR_NO_STAGING', {

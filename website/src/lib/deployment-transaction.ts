@@ -890,16 +890,18 @@ export async function commitDeploymentTransaction(
  * Mark transaction as consumed after staging cleanup (committed → consumed)
  * @param transactionId - Transaction ID
  * @param owner - Owner token for ownership verification
+ * @param projectId - Optional project ID to clear project-level transaction pointer
  * @returns Updated transaction
  */
 export async function consumeDeploymentTransaction(
   transactionId: string,
-  owner?: string
+  owner?: string,
+  projectId?: string
 ): Promise<DeploymentTransaction> {
   const key = getTransactionKey(transactionId);
   const client = getRedisClient();
   
-  console.log('[DEPLOYMENT_TRANSACTION] CONSUMING', { transactionId, owner });
+  console.log('[DEPLOYMENT_TRANSACTION] CONSUMING', { transactionId, owner, projectId });
   
   try {
     const current = await client.get<DeploymentTransaction>(key);
@@ -948,6 +950,22 @@ export async function consumeDeploymentTransaction(
     }
 
     console.log('[DEPLOYMENT_TRANSACTION] CONSUMED', { transactionId, owner: effectiveOwner });
+    
+    // P0 FIX: Clear project-level transaction pointer when consuming transaction
+    // This prevents stale transaction IDs from being found after staging cleanup
+    if (projectId && client) {
+      const namespace = getKvNamespace();
+      const projectStagingKey = `${namespace}workbench-staging:project:${projectId}:current-transaction`;
+      
+      console.log('[DEPLOYMENT_TRANSACTION] CLEARING_PROJECT_TRANSACTION_POINTER', {
+        projectId,
+        projectStagingKey,
+        currentTransactionId: transactionId,
+      });
+      
+      await client.del(projectStagingKey);
+    }
+    
     return updated;
   } catch (error) {
     console.error('[DEPLOYMENT_TRANSACTION] CONSUME_FAILED', { transactionId, error });

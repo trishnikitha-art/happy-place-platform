@@ -48,38 +48,51 @@ import { getKvNamespace } from '@/lib/environment';
 export const runtime = 'nodejs';
 
 const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
+const WORKBENCH_RUNTIME_PREFIX = 'workbench-runtime-gallery:';
 
 /**
- * Atomic Lua script for gallery CAS (Compare-And-Set) mutation
+ * P0 FIX: Runtime gallery authority Redis key
+ * Stores the effective gallery + revision as the live runtime authority
+ * This solves the stale Vercel deployment problem where bundled projects.v1.json
+ * contains an old revision while Redis staging state has a newer revision
+ */
+function getRuntimeGalleryKey(projectId: string): string {
+  const namespace = getKvNamespace();
+  return `${namespace}${WORKBENCH_RUNTIME_PREFIX}${projectId}`;
+}
+
+/**
+ * P0 FIX: Runtime Lua script for atomic gallery CAS with runtime authority
  *
  * This script atomically:
- * 1. Reads the current gallery state (staged or deployed)
- * 2. Compares the revision with expectedRevision
- * 3. If match, writes the new gallery with incremented revision
- * 4. Updates the project-level transaction pointer
- * 5. Returns the new revision
+ * 1. Reads runtime authority (effective gallery + revision)
+ * 2. Reads current staged transaction (if any)
+ * 3. Compares expectedRevision with current runtime revision
+ * 4. If match, writes new gallery with incremented revision
+ * 5. Updates runtime authority atomically
+ * 6. Updates project-level transaction pointer
+ * 7. Returns the new revision
  *
- * KEYS[1]: projectStagingKey - project-level current transaction pointer
- * KEYS[2]: specificStagingKey - new transaction's gallery staging key
- * KEYS[3]: currentSpecificStagingKey - current transaction's gallery staging key (if any)
+ * KEYS[1]: runtimeGalleryKey - effective gallery/revision authority
+ * KEYS[2]: projectStagingKey - project-level current transaction pointer
+ * KEYS[3]: specificStagingKey - new transaction's gallery staging key
+ * KEYS[4]: currentSpecificStagingKey - current transaction's gallery staging key (if any)
  *
  * ARGV[1]: expectedRevision - the revision the client expects
  * ARGV[2]: newGalleryJson - JSON string of the new gallery array
  * ARGV[3]: transactionId - the new transaction ID
- * ARGV[4]: deployedRevision - the deployed revision from filesystem (used when no staged state)
+ * ARGV[4]: deployedRevision - the deployed revision from filesystem (used as fallback)
  * ARGV[5]: mutationTimestamp - ISO timestamp for the mutation
  *
  * Returns indexed array for proper RESP2 serialization:
  * [status, newRevision, transactionId, actualRevision] on success
  * ['ERR', errorCode, expectedRevision, actualRevision] on failure
- *
- * Prevents race conditions where concurrent gallery mutations could
- * corrupt the revision counter or overwrite each other's changes.
  */
 const ATOMIC_GALLERY_CAS_SCRIPT = `
-  local projectStagingKey = KEYS[1]
-  local specificStagingKey = KEYS[2]
-  local currentSpecificStagingKey = KEYS[3]
+  local runtimeGalleryKey = KEYS[1]
+  local projectStagingKey = KEYS[2]
+  local specificStagingKey = KEYS[3]
+  local currentSpecificStagingKey = KEYS[4]
   
   local expectedRevision = tonumber(ARGV[1])
   local newGalleryJson = ARGV[2]
@@ -87,17 +100,37 @@ const ATOMIC_GALLERY_CAS_SCRIPT = `
   local deployedRevision = tonumber(ARGV[4])
   local mutationTimestamp = ARGV[5]
   
-  -- Read current staged transaction (if any)
-  local currentStagedTransactionId = redis.call('GET', projectStagingKey)
+  -- Read runtime authority first (effective gallery + revision)
+  local runtimeData = redis.call('GET', runtimeGalleryKey)
   local currentGallery = nil
   local currentRevision = deployedRevision or 0
+  
+  if runtimeData then
+    -- Upstash may return object or string
+    local parsed
+    if type(runtimeData) == 'string' then
+      parsed = cjson.decode(runtimeData)
+    elseif type(runtimeData) == 'table' then
+      parsed = runtimeData
+    else
+      -- Invalid data type, CAS fails
+      return {'ERR', 'INVALID_RUNTIME_DATA_TYPE', expectedRevision, currentRevision}
+    end
+    
+    if parsed then
+      currentGallery = parsed.gallery
+      currentRevision = tonumber(parsed.currentRevision) or currentRevision
+    end
+  end
+  
+  -- Read current staged transaction (if any)
+  local currentStagedTransactionId = redis.call('GET', projectStagingKey)
   
   if currentStagedTransactionId and currentStagedTransactionId ~= '' then
     -- Load the current staged gallery
     local stagedData = redis.call('GET', currentSpecificStagingKey)
     
     if stagedData then
-      -- Upstash may return object or string
       local parsed
       if type(stagedData) == 'string' then
         parsed = cjson.decode(stagedData)
@@ -135,6 +168,15 @@ const ATOMIC_GALLERY_CAS_SCRIPT = `
   
   -- Update the project-level transaction pointer
   redis.call('SET', projectStagingKey, transactionId)
+  
+  -- P0 FIX: Atomically update runtime authority
+  local runtimePayload = {
+    gallery = newGallery,
+    currentRevision = newRevision,
+    lastMutationTimestamp = mutationTimestamp,
+    lastTransactionId = transactionId
+  }
+  redis.call('SET', runtimeGalleryKey, cjson.encode(runtimePayload))
   
   -- Return indexed array for proper RESP2 serialization
   return {'OK', newRevision, transactionId, currentRevision}
@@ -195,7 +237,35 @@ export async function GET(request: Request) {
     let stagingKey = null;
     let transactionId = null;
     
+    // P0 FIX: Read runtime authority first (effective gallery + revision)
+    // This solves the stale Vercel deployment problem
+    let runtimeGallery = null;
+    let runtimeRevision = null;
+    
     if (isProduction && redis) {
+      const runtimeKey = getRuntimeGalleryKey(projectId);
+      const runtimeData = await redis.get(runtimeKey);
+      
+      if (runtimeData) {
+        let parsed: any;
+        if (typeof runtimeData === 'string') {
+          parsed = JSON.parse(runtimeData);
+        } else if (typeof runtimeData === 'object') {
+          parsed = runtimeData;
+        }
+        
+        if (parsed && parsed.gallery) {
+          runtimeGallery = parsed.gallery;
+          runtimeRevision = parsed.currentRevision;
+          console.log('[GALLERY GET] RUNTIME_AUTHORITY_FOUND', {
+            projectId,
+            runtimeKey,
+            galleryLength: runtimeGallery.length,
+            runtimeRevision,
+          });
+        }
+      }
+      
       // P0 FIX: Use deterministic staged authority - store project-level current staged transaction ID
       // Instead of scanning arbitrary keys, use an explicit project → current staged transaction index
       const projectStagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}project:${projectId}:current-transaction`;
@@ -235,7 +305,7 @@ export async function GET(request: Request) {
       }
     }
 
-    // Load from authoritative projects.v1.json (deployed state)
+    // Load from authoritative projects.v1.json (deployed state) - used as fallback
     const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
     const projectsData = JSON.parse(readFileSync(projectsPath, "utf-8"));
 
@@ -250,41 +320,31 @@ export async function GET(request: Request) {
     const deployedGallery = project.media?.gallery || [];
     const deployedRevision = project.media?.galleryRevision || 0;
 
-    // P0 FIX: Return staged state if available, otherwise deployed state
-    // For staged state, use the actual currentRevision from the transaction data (not synthetic +1)
-    // This enables multiple edits of staged state without CAS failure
-    const effectiveGallery = stagedGallery || deployedGallery;
-    let effectiveRevision = deployedRevision;
+    // P0 FIX: Use runtime authority first, then staged, then deployed
+    // This ensures stale Vercel deployments don't override live Redis state
+    const effectiveGallery = runtimeGallery || stagedGallery || deployedGallery;
+    let effectiveRevision = runtimeRevision;
     
-    if (stagedGallery && transactionId && redis) {
-      // The GET must return the revision from the staged transaction data
-      // so PUT can compare against it for subsequent edits
+    if (!effectiveRevision && stagedGallery && transactionId && redis) {
+      // Fallback to staged revision if runtime not set
       const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${transactionId}:project:${projectId}:gallery`;
       const stagedData = await redis.get(stagingKey);
       if (stagedData) {
-        // P0 FIX: Accept both string and object (Upstash may return either)
         let parsed: any;
         if (typeof stagedData === 'string') {
           parsed = JSON.parse(stagedData);
         } else if (typeof stagedData === 'object') {
           parsed = stagedData;
-        } else {
-          console.warn('[GALLERY GET] SECONDARY_STAGED_DATA_INVALID_TYPE', {
-            projectId,
-            dataType: typeof stagedData
-          });
-          effectiveRevision = deployedRevision + 1;
         }
-        effectiveRevision = parsed?.currentRevision || deployedRevision + 1;
-      } else {
-        effectiveRevision = deployedRevision + 1;
+        effectiveRevision = parsed?.currentRevision;
       }
-    } else if (stagedGallery && transactionId) {
-      // Fallback if Redis check failed but we have staged state info
-      effectiveRevision = deployedRevision + 1;
     }
     
-    const state = stagedGallery ? 'staged' : 'deployed';
+    if (!effectiveRevision) {
+      effectiveRevision = deployedRevision;
+    }
+    
+    const state = runtimeGallery ? 'runtime' : (stagedGallery ? 'staged' : 'deployed');
 
     console.log('[GALLERY GET] SUCCESS', { 
       projectId, 
@@ -534,6 +594,7 @@ export async function PUT(request: Request) {
       const mutationTimestamp = new Date().toISOString();
 
       // Build Redis keys for KEYS array (per Redis contract)
+      const runtimeGalleryKey = `${namespace}${WORKBENCH_RUNTIME_PREFIX}${projectId}`;
       const projectStagingKey = `${namespace}${WORKBENCH_STAGING_PREFIX}project:${projectId}:current-transaction`;
       const specificStagingKey = `${namespace}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:gallery`;
 
@@ -550,7 +611,8 @@ export async function PUT(request: Request) {
         galleryLength: gallery?.length || 0,
         transactionId: effectiveTransactionId,
         hasStagedState: !!currentStagedTransactionId,
-        currentStagedTransactionId
+        currentStagedTransactionId,
+        runtimeGalleryKey,
       });
 
       // Create deployment transaction with empty staging keys before CAS
@@ -566,7 +628,7 @@ export async function PUT(request: Request) {
       // Execute atomic CAS Lua script with KEYS array
       const casResult = await redis.eval(
         ATOMIC_GALLERY_CAS_SCRIPT,
-        [projectStagingKey, specificStagingKey, currentSpecificStagingKey], // KEYS array
+        [runtimeGalleryKey, projectStagingKey, specificStagingKey, currentSpecificStagingKey], // KEYS array
         [expectedRevision.toString(), galleryJson, effectiveTransactionId, deployedRevision.toString(), mutationTimestamp] // ARGV array
       );
 
