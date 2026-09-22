@@ -2815,36 +2815,31 @@ export default function MediaWorkbench() {
 
       {/* Main Content - Two Panel Layout */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 min-h-0">
-          {/* LEFT: Website Preview - No overlay blocking iframe */}
+          {/* LEFT: Actual Website Preview - Live Production Site */}
           <section id="slot-view" role="tabpanel" className="min-h-[420px] lg:min-h-0 min-w-0 overflow-y-auto bg-white h-full relative border-r border-border">
-            <SlotGallery slots={currentSlots} assets={state.assets}
-              selected={state.selectedSlots} disabled={state.mutationState !== 'idle'}
-              onSelect={(slot, toggle) => handleSlotClick(slot, { ctrlKey: toggle, metaKey: false })} />
-            {/* Website Preview Iframe - receives pointer events directly */}
+            {/* Website Preview Iframe - displays actual production site */}
             <iframe
               ref={iframeRef}
-              src={`${window.location.origin}/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`}
-              className="absolute inset-0 w-full h-full border-0 opacity-0 pointer-events-none"
-              aria-hidden="true"
-              tabIndex={-1}
+              src={`https://happyplacecarpentry.com${state.selectedPage}`}
+              className="w-full h-full border-0"
               title="Website Preview"
               sandbox="allow-same-origin allow-scripts allow-popups"
               onLoad={() => {
-                console.log('[SLOT] IFRAME_LOADED', {
-                  iframeSrc: `${window.location.origin}/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`,
+                console.log('[SLOT] PRODUCTION_IFRAME_LOADED', {
+                  iframeSrc: `https://happyplacecarpentry.com${state.selectedPage}`,
                   contentWindowExists: !!iframeRef.current?.contentWindow,
                   selectedPage: state.selectedPage,
                   actualSrc: iframeRef.current?.src,
-                  previewRouteExpected: `/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`,
-                  usesPreviewRoute: iframeRef.current?.src?.includes('/workbench/preview/'),
-                  timestamp: Date.now(),
-                });
-                console.log('[WB_FORENSIC] IFRAME_LOAD_COMPLETE', {
-                  reason: 'Iframe loaded, waiting for BRIDGE_READY from child slots',
                   timestamp: Date.now(),
                 });
               }}
             />
+            {/* SlotGallery - invisible semantic layer for slot detection, not visual replacement */}
+            <div className="sr-only">
+              <SlotGallery slots={currentSlots} assets={state.assets}
+                selected={state.selectedSlots} disabled={state.mutationState !== 'idle'}
+                onSelect={(slot, toggle) => handleSlotClick(slot, { ctrlKey: toggle, metaKey: false })} />
+            </div>
           </section>
 
           {/* RIGHT: Media Asset Management */}
