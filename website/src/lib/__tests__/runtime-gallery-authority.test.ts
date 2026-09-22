@@ -34,7 +34,7 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import { Redis } from '@upstash/redis';
-import { getRedisClient, getKvNamespace, ATOMIC_GALLERY_CAS_SCRIPT } from '@/lib/deployment-transaction';
+import { getRedisClient, getKvNamespace, ATOMIC_GALLERY_CAS_SCRIPT, CONDITIONAL_POINTER_CLEANUP_SCRIPT } from '@/lib/deployment-transaction';
 
 // Use the same keys as the production route
 const WORKBENCH_RUNTIME_PREFIX = 'workbench-runtime-gallery:';
@@ -91,7 +91,7 @@ describe('Runtime Gallery Authority - P0 Fixes', () => {
       };
       await redis.set(getRuntimeGalleryKey(TEST_PROJECT_ID), runtimePayload);
 
-      // Simulate stale filesystem with revision 1
+      // Simulate stale filesystem with revision 1 (should be ignored)
       const deployedRevision = 1;
 
       // CAS should compare against runtime revision 3, not filesystem revision 1
@@ -102,13 +102,33 @@ describe('Runtime Gallery Authority - P0 Fixes', () => {
       const casResult = await redis.eval(
         ATOMIC_GALLERY_CAS_SCRIPT,
         [runtimeGalleryKey, projectStagingKey, specificStagingKey],
-        ['3', JSON.stringify(['media-id-1', 'media-id-2', 'media-id-4']), TEST_TRANSACTION_ID, deployedRevision.toString(), new Date().toISOString()]
+        ['3', JSON.stringify(['media-id-1', 'media-id-2', 'media-id-4']), TEST_TRANSACTION_ID, new Date().toISOString()]
       );
 
       expect(casResult[0]).toBe('OK');
       expect(casResult[1]).toBe(4); // Revision 3 → 4
 
-      console.log('[TEST A] Runtime revision 3 beats filesystem revision 1');
+      console.log('[TEST A] Runtime revision 3 beats filesystem revision 1 (filesystem ignored)');
+    });
+
+    it('Test A.1: No runtime authority → CAS fails with RUNTIME_AUTHORITY_NOT_INITIALIZED', async () => {
+      // Ensure no runtime authority exists
+      await redis.del(getRuntimeGalleryKey(TEST_PROJECT_ID));
+
+      const runtimeGalleryKey = getRuntimeGalleryKey(TEST_PROJECT_ID);
+      const projectStagingKey = getProjectStagingKey(TEST_PROJECT_ID);
+      const specificStagingKey = getSpecificStagingKey(TEST_TRANSACTION_ID, TEST_PROJECT_ID);
+
+      const casResult = await redis.eval(
+        ATOMIC_GALLERY_CAS_SCRIPT,
+        [runtimeGalleryKey, projectStagingKey, specificStagingKey],
+        ['1', JSON.stringify(['media-id-1', 'media-id-2']), TEST_TRANSACTION_ID, new Date().toISOString()]
+      );
+
+      expect(casResult[0]).toBe('ERR');
+      expect(casResult[1]).toBe('RUNTIME_AUTHORITY_NOT_INITIALIZED');
+
+      console.log('[TEST A.1] No runtime authority → CAS fails closed');
     });
 
     it('Test B: Filesystem revision 99 + Redis runtime revision 3 → PUT expecting 3 must still succeed', async () => {
@@ -122,7 +142,7 @@ describe('Runtime Gallery Authority - P0 Fixes', () => {
       };
       await redis.set(getRuntimeGalleryKey(TEST_PROJECT_ID), runtimePayload);
 
-      // Simulate stale filesystem with revision 99
+      // Simulate stale filesystem with revision 99 (should be ignored)
       const deployedRevision = 99;
 
       // CAS should compare against runtime revision 3, not filesystem revision 99
@@ -133,13 +153,13 @@ describe('Runtime Gallery Authority - P0 Fixes', () => {
       const casResult = await redis.eval(
         ATOMIC_GALLERY_CAS_SCRIPT,
         [runtimeGalleryKey, projectStagingKey, specificStagingKey],
-        ['3', JSON.stringify(['media-id-1', 'media-id-2', 'media-id-4']), TEST_TRANSACTION_ID, deployedRevision.toString(), new Date().toISOString()]
+        ['3', JSON.stringify(['media-id-1', 'media-id-2', 'media-id-4']), TEST_TRANSACTION_ID, new Date().toISOString()]
       );
 
       expect(casResult[0]).toBe('OK');
       expect(casResult[1]).toBe(4); // Revision 3 → 4
 
-      console.log('[TEST B] Runtime revision 3 beats filesystem revision 99');
+      console.log('[TEST B] Runtime revision 3 beats filesystem revision 99 (filesystem ignored)');
     });
 
     it('Test C: Redis runtime revision 3 + stale staged revision 2 → CAS compares against 3, not 2', async () => {
@@ -153,7 +173,7 @@ describe('Runtime Gallery Authority - P0 Fixes', () => {
       };
       await redis.set(getRuntimeGalleryKey(TEST_PROJECT_ID), runtimePayload);
 
-      // Set stale staged state with revision 2
+      // Set stale staged state with revision 2 (should be ignored)
       const staleStagedPayload = {
         gallery: ['media-id-1', 'media-id-2'],
         currentRevision: 2,
@@ -171,13 +191,13 @@ describe('Runtime Gallery Authority - P0 Fixes', () => {
       const casResult = await redis.eval(
         ATOMIC_GALLERY_CAS_SCRIPT,
         [runtimeGalleryKey, projectStagingKey, specificStagingKey],
-        ['3', JSON.stringify(['media-id-1', 'media-id-2', 'media-id-4']), TEST_TRANSACTION_ID, '0', new Date().toISOString()]
+        ['3', JSON.stringify(['media-id-1', 'media-id-2', 'media-id-4']), TEST_TRANSACTION_ID, new Date().toISOString()]
       );
 
       expect(casResult[0]).toBe('OK');
       expect(casResult[1]).toBe(4); // Revision 3 → 4
 
-      console.log('[TEST C] Runtime revision 3 beats stale staged revision 2');
+      console.log('[TEST C] Runtime revision 3 beats stale staged revision 2 (staged ignored)');
     });
 
     it('Test D: Concurrent PUTs with expectedRevision 3 → exactly one succeeds', async () => {
@@ -194,18 +214,19 @@ describe('Runtime Gallery Authority - P0 Fixes', () => {
       const runtimeGalleryKey = getRuntimeGalleryKey(TEST_PROJECT_ID);
       const projectStagingKey = getProjectStagingKey(TEST_PROJECT_ID);
 
-      // Concurrent PUT A and PUT B
-      const resultA = await redis.eval(
-        ATOMIC_GALLERY_CAS_SCRIPT,
-        [runtimeGalleryKey, projectStagingKey, getSpecificStagingKey('TX-A', TEST_PROJECT_ID)],
-        ['3', JSON.stringify(['media-id-1', 'media-id-2', 'media-id-4']), 'TX-A', '0', new Date().toISOString()]
-      );
-
-      const resultB = await redis.eval(
-        ATOMIC_GALLERY_CAS_SCRIPT,
-        [runtimeGalleryKey, projectStagingKey, getSpecificStagingKey('TX-B', TEST_PROJECT_ID)],
-        ['3', JSON.stringify(['media-id-1', 'media-id-2', 'media-id-5']), 'TX-B', '0', new Date().toISOString()]
-      );
+      // P0 FIX: Use Promise.all for actual concurrent execution
+      const [resultA, resultB] = await Promise.all([
+        redis.eval(
+          ATOMIC_GALLERY_CAS_SCRIPT,
+          [runtimeGalleryKey, projectStagingKey, getSpecificStagingKey('TX-A', TEST_PROJECT_ID)],
+          ['3', JSON.stringify(['media-id-1', 'media-id-2', 'media-id-4']), 'TX-A', new Date().toISOString()]
+        ),
+        redis.eval(
+          ATOMIC_GALLERY_CAS_SCRIPT,
+          [runtimeGalleryKey, projectStagingKey, getSpecificStagingKey('TX-B', TEST_PROJECT_ID)],
+          ['3', JSON.stringify(['media-id-1', 'media-id-2', 'media-id-5']), 'TX-B', new Date().toISOString()]
+        ),
+      ]);
 
       // Exactly one should succeed
       const successCount = [resultA, resultB].filter(r => r[0] === 'OK').length;
@@ -214,7 +235,11 @@ describe('Runtime Gallery Authority - P0 Fixes', () => {
       expect(successCount).toBe(1);
       expect(failureCount).toBe(1);
 
-      console.log('[TEST D] Concurrent PUTs: exactly one succeeds');
+      // Verify runtime revision advanced exactly once
+      const finalRuntime = await redis.get(getRuntimeGalleryKey(TEST_PROJECT_ID));
+      expect((finalRuntime as any).currentRevision).toBe(4);
+
+      console.log('[TEST D] Concurrent PUTs with Promise.all: exactly one succeeds, revision advances once');
     });
   });
 
@@ -223,10 +248,10 @@ describe('Runtime Gallery Authority - P0 Fixes', () => {
       // Set project pointer to transaction B
       await redis.set(getProjectStagingKey(TEST_PROJECT_ID), 'TX-B');
 
-      // Try to consume transaction A (should not delete B's pointer)
+      // Try to consume transaction A using the actual production Lua script
       const projectStagingKey = getProjectStagingKey(TEST_PROJECT_ID);
       const cleanupResult = await redis.eval(
-        'local currentPointer = redis.call("GET", KEYS[1]); if currentPointer == ARGV[1] then redis.call("DEL", KEYS[1]); return "DELETED"; else return "SKIPPED"; end',
+        CONDITIONAL_POINTER_CLEANUP_SCRIPT,
         [projectStagingKey],
         ['TX-A']
       );
@@ -237,7 +262,7 @@ describe('Runtime Gallery Authority - P0 Fixes', () => {
       const pointer = await redis.get(projectStagingKey);
       expect(pointer).toBe('TX-B');
 
-      console.log('[TEST E] Consuming A does not delete B\'s pointer');
+      console.log('[TEST E] Consuming A does not delete B\'s pointer (using production Lua script)');
     });
   });
 

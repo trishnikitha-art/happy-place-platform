@@ -45,7 +45,7 @@ import { getMediaByIdAsync, resolvePublicMedia } from "@/lib/media";
 import { Redis } from '@upstash/redis';
 import { getKvNamespace } from '@/lib/environment';
 import { 
-  ATOMIC_GALLERY_CAS_SCRIPT,
+  ATOMIC_GALLERY_MUTATION_SCRIPT,
   getRedisClient as getDeploymentRedisClient
 } from '@/lib/deployment-transaction';
 
@@ -117,6 +117,7 @@ export async function GET(request: Request) {
     // This solves the stale Vercel deployment problem
     let runtimeGallery = null;
     let runtimeRevision = null;
+    let pendingDeployment = null;
     
     if (isProduction && redis) {
       const runtimeKey = getRuntimeGalleryKey(projectId);
@@ -139,28 +140,11 @@ export async function GET(request: Request) {
             galleryLength: runtimeGallery.length,
             runtimeRevision,
           });
-          
-          // P0 FIX: If runtime authority exists, return it immediately
-          // Do not require filesystem parsing for runtime-authority requests
-          // Filesystem is only for deployed projection/fallback/reconciliation
-          const state = 'runtime';
-          
-          return NextResponse.json({
-            success: true,
-            projectId,
-            gallery: runtimeGallery,
-            galleryLength: runtimeGallery.length,
-            currentRevision: runtimeRevision,
-            state,
-            hasStagedChanges: false,
-            transactionId: parsed.lastTransactionId,
-            source: 'runtime-authority',
-          });
         }
       }
       
-      // P0 FIX: Only check staged state if runtime authority doesn't exist
-      // Staged state is pending deployment material, not runtime authority
+      // P0 FIX: Read staged state separately as pending deployment
+      // Staged state is NOT substituted for current gallery
       const projectStagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}project:${projectId}:current-transaction`;
       const currentStagedTransactionId = await redis.get(projectStagingKey);
       
@@ -184,13 +168,16 @@ export async function GET(request: Request) {
           }
 
           if (parsed && parsed.gallery) {
-            stagedGallery = parsed.gallery;
-            transactionId = currentStagedTransactionId;
-            console.log('[GALLERY GET] STAGED_STATE_FOUND', {
+            pendingDeployment = {
+              gallery: parsed.gallery,
+              currentRevision: parsed.currentRevision,
+              transactionId: currentStagedTransactionId,
+            };
+            console.log('[GALLERY GET] PENDING_DEPLOYMENT_FOUND', {
               projectId,
               stagingKey: specificStagingKey,
-              transactionId,
-              galleryLength: stagedGallery.length,
+              transactionId: currentStagedTransactionId,
+              galleryLength: parsed.gallery.length,
               stagedRevision: parsed.currentRevision
             });
           }
@@ -198,8 +185,36 @@ export async function GET(request: Request) {
       }
     }
 
-    // P0 FIX: Only read filesystem if no Redis state exists
-    // Filesystem is deployed projection/fallback only, not runtime authority
+    // P0 FIX: If runtime authority exists, return it as current gallery
+    // Do not substitute staged state for current gallery
+    if (runtimeGallery && runtimeRevision !== null) {
+      return NextResponse.json({
+        success: true,
+        projectId,
+        gallery: runtimeGallery,
+        galleryLength: runtimeGallery.length,
+        currentRevision: runtimeRevision,
+        state: 'runtime',
+        hasStagedChanges: !!pendingDeployment,
+        pendingDeployment,
+        source: 'runtime-authority',
+      });
+    }
+
+    // P0 FIX: If runtime authority doesn't exist, fail closed
+    // Filesystem is only for projection/fallback, not runtime authority
+    if (isProduction) {
+      return NextResponse.json(
+        {
+          error: "Runtime authority not initialized",
+          message: "Gallery runtime authority has not been initialized. Please contact administrator.",
+          projectId,
+        },
+        { status: 503 }
+      );
+    }
+
+    // Development mode: use filesystem as bootstrap
     const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
     const projectsData = JSON.parse(readFileSync(projectsPath, "utf-8"));
 
@@ -214,47 +229,23 @@ export async function GET(request: Request) {
     const deployedGallery = project.media?.gallery || [];
     const deployedRevision = project.media?.galleryRevision || 0;
 
-    // P0 FIX: Use staged state if available, otherwise deployed state
-    const effectiveGallery = stagedGallery || deployedGallery;
-    let effectiveRevision = deployedRevision;
-    
-    if (stagedGallery && transactionId && redis) {
-      // Fallback to staged revision if runtime not set
-      const stagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${transactionId}:project:${projectId}:gallery`;
-      const stagedData = await redis.get(stagingKey);
-      if (stagedData) {
-        let parsed: any;
-        if (typeof stagedData === 'string') {
-          parsed = JSON.parse(stagedData);
-        } else if (typeof stagedData === 'object') {
-          parsed = stagedData;
-        }
-        effectiveRevision = parsed?.currentRevision;
-      }
-    }
-    
-    const state = stagedGallery ? 'staged' : 'deployed';
-
     console.log('[GALLERY GET] SUCCESS', { 
       projectId, 
-      galleryLength: effectiveGallery.length, 
-      currentRevision: effectiveRevision,
-      state,
-      hasStagedChanges: !!stagedGallery,
-      transactionId
+      galleryLength: deployedGallery.length, 
+      currentRevision: deployedRevision,
+      state: 'deployed',
+      hasStagedChanges: false,
     });
 
     return NextResponse.json({
       success: true,
       projectId,
-      gallery: effectiveGallery,
-      galleryLength: effectiveGallery.length,
-      currentRevision: effectiveRevision,
-      state,
-      hasStagedChanges: !!stagedGallery,
-      transactionId,
-      deployedGallery: deployedGallery,
-      deployedRevision
+      gallery: deployedGallery,
+      galleryLength: deployedGallery.length,
+      currentRevision: deployedRevision,
+      state: 'deployed',
+      hasStagedChanges: false,
+      source: 'filesystem-bootstrap',
     });
   } catch (error) {
     console.error('[GALLERY GET] ERROR', error);
@@ -472,14 +463,8 @@ export async function PUT(request: Request) {
 
     // Use KV for production persistence to avoid EROFS errors
     if (isProduction && redis) {
-      // P0 FIX: Read deployed revision from filesystem for initial CAS check
-      const deployedRevision = project.media?.galleryRevision || 0;
-
-      // P0 FIX: Execute CAS FIRST before creating deployment transaction
-      // This eliminates the split-brain failure window where:
-      // - CAS succeeds but transaction creation fails
-      // - Transaction exists with empty staging keys
-      const effectiveTransactionId = transactionId || `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      // P0 FIX: Server-generated transaction ID (no client-provided transactionId)
+      const effectiveTransactionId = `WBDEP-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
       const namespace = getKvNamespace();
       const galleryJson = JSON.stringify(gallery || []);
       const mutationTimestamp = new Date().toISOString();
@@ -488,45 +473,55 @@ export async function PUT(request: Request) {
       const runtimeGalleryKey = `${namespace}${WORKBENCH_RUNTIME_PREFIX}${projectId}`;
       const projectStagingKey = `${namespace}${WORKBENCH_STAGING_PREFIX}project:${projectId}:current-transaction`;
       const specificStagingKey = `${namespace}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:gallery`;
+      const transactionKey = `${namespace}deployment-transaction:${effectiveTransactionId}`;
 
-      console.log('[GALLERY V2 PUT] ATOMIC_CAS_EXECUTING', {
+      // P0 FIX: Build transaction record for atomic mutation
+      const transactionRecord = {
+        transactionId: effectiveTransactionId,
+        state: 'prepared',
+        stagingKeys: [specificStagingKey],
+        targetFiles: ['projects.v1.json'],
+        description: `Gallery order mutation: ${projectId} (${gallery.length} items)`,
+        createdAt: mutationTimestamp,
+        updatedAt: mutationTimestamp,
+      };
+
+      console.log('[GALLERY V2 PUT] ATOMIC_MUTATION_EXECUTING', {
         projectId,
         expectedRevision,
-        deployedRevision,
         galleryLength: gallery?.length || 0,
         transactionId: effectiveTransactionId,
         runtimeGalleryKey,
       });
 
-      // P0 FIX: Execute CAS BEFORE creating deployment transaction
-      // This ensures we only create a transaction if CAS succeeds
-      const casResult = await redis.eval(
-        ATOMIC_GALLERY_CAS_SCRIPT,
-        [runtimeGalleryKey, projectStagingKey, specificStagingKey], // KEYS array
-        [expectedRevision.toString(), galleryJson, effectiveTransactionId, deployedRevision.toString(), mutationTimestamp] // ARGV array
+      // P0 FIX: Execute ONE atomic mutation (CAS + transaction + staging + runtime update)
+      const mutationResult = await redis.eval(
+        ATOMIC_GALLERY_MUTATION_SCRIPT,
+        [runtimeGalleryKey, projectStagingKey, specificStagingKey, transactionKey], // KEYS array
+        [expectedRevision.toString(), galleryJson, effectiveTransactionId, mutationTimestamp, JSON.stringify(transactionRecord)] // ARGV array
       );
 
       // Parse indexed array return format: ['OK', newRevision, transactionId, actualRevision] or ['ERR', errorCode, expectedRevision, actualRevision]
-      if (!Array.isArray(casResult) || casResult.length < 2) {
-        console.error('[GALLERY V2 PUT] ATOMIC_CAS_INVALID_RETURN', {
+      if (!Array.isArray(mutationResult) || mutationResult.length < 2) {
+        console.error('[GALLERY V2 PUT] ATOMIC_MUTATION_INVALID_RETURN', {
           projectId,
-          casResult,
+          mutationResult,
           reason: 'Lua script did not return indexed array'
         });
         return NextResponse.json(
           {
             error: "Gallery mutation failed",
-            message: "Invalid response from atomic CAS operation"
+            message: "Invalid response from atomic mutation operation"
           },
           { status: 500 }
         );
       }
 
-      const status = casResult[0];
+      const status = mutationResult[0];
       if (status === 'ERR') {
-        const errorCode = casResult[1];
-        const actualRevision = casResult[3];
-        console.error('[GALLERY V2 PUT] ATOMIC_CAS_FAILURE', {
+        const errorCode = mutationResult[1];
+        const actualRevision = mutationResult[3];
+        console.error('[GALLERY V2 PUT] ATOMIC_MUTATION_FAILURE', {
           projectId,
           errorCode,
           expectedRevision,
@@ -543,6 +538,16 @@ export async function PUT(request: Request) {
             },
             { status: 409 }
           );
+        } else if (errorCode === 'RUNTIME_AUTHORITY_NOT_INITIALIZED') {
+          return NextResponse.json(
+            {
+              error: "Runtime authority not initialized",
+              message: "Gallery runtime authority has not been initialized. Please contact administrator.",
+              currentRevision: actualRevision,
+              expectedRevision
+            },
+            { status: 503 }
+          );
         } else {
           return NextResponse.json(
             {
@@ -555,10 +560,10 @@ export async function PUT(request: Request) {
       }
 
       // Success: ['OK', newRevision, transactionId, actualRevision]
-      const newRevision = casResult[1];
-      const actualRevision = casResult[3];
+      const newRevision = mutationResult[1];
+      const actualRevision = mutationResult[3];
 
-      console.log('[GALLERY V2 PUT] ATOMIC_CAS_SUCCESS', {
+      console.log('[GALLERY V2 PUT] ATOMIC_MUTATION_SUCCESS', {
         projectId,
         galleryLength: gallery?.length || 0,
         newRevision,
@@ -566,16 +571,8 @@ export async function PUT(request: Request) {
         actualRevision
       });
 
-      // P0 FIX: Create deployment transaction AFTER successful CAS
-      // This eliminates the split-brain failure window
-      const { createDeploymentTransaction } = await import('@/lib/deployment-transaction');
-      await createDeploymentTransaction(
-        effectiveTransactionId,
-        [specificStagingKey], // Staging keys now known
-        ['projects.v1.json'],
-        `Gallery order mutation: ${projectId} (${gallery.length} items)`
-      );
-
+      // P0 FIX: Transaction already created atomically by the mutation script
+      // No separate transaction creation step needed
       console.log('[GALLERY V2 PUT] STAGED_IN_KV', {
         projectId,
         galleryLength: gallery?.length || 0,

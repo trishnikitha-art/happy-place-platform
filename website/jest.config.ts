@@ -29,6 +29,7 @@ const config: Config = {
     "/src/lib/drive/__tests__/oauth-manager.test.ts", // Requires complex OAuth flow setup
     "/src/lib/__tests__/deployment-transaction-bulk.test.ts", // Requires Redis connection, runs in oauth-tests job
     "/src/lib/__tests__/atomic-promotion.test.ts", // Requires Redis connection, runs in oauth-tests job
+    "/src/lib/__tests__/runtime-gallery-authority.test.ts", // Requires Redis connection, runs in oauth-tests job
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",

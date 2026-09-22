@@ -18,6 +18,7 @@ const config: Config = {
     "**/src/lib/drive/__tests__/oauth-state-concurrency.integration.test.ts",
     "**/src/lib/drive/__tests__/redis-failure-semantics.integration.test.ts",
     "**/src/lib/drive/__tests__/assignment-batch.integration.test.ts",
+    "**/src/lib/__tests__/runtime-gallery-authority.test.ts", // P0: Runtime authority Redis integration tests
   ],
   moduleNameMapper: {
     "^@/(.*)$": "<rootDir>/src/$1",

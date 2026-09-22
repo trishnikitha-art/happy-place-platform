@@ -329,17 +329,19 @@ const CONDITIONAL_POINTER_CLEANUP_SCRIPT = `
  *
  * This script atomically:
  * 1. Reads runtime authority (effective gallery + revision) - ONLY source of truth
- * 2. Compares expectedRevision with current runtime revision
- * 3. If match, writes new gallery with incremented revision
- * 4. Updates runtime authority atomically
- * 5. Updates project-level transaction pointer
- * 6. Writes staging record for deployment
- * 7. Returns the new revision
+ * 2. FAILS CLOSED if runtime authority doesn't exist (no filesystem fallback)
+ * 3. Compares expectedRevision with current runtime revision
+ * 4. If match, writes new gallery with incremented revision
+ * 5. Updates runtime authority atomically
+ * 6. Updates project-level transaction pointer
+ * 7. Writes staging record for deployment
+ * 8. Returns the new revision
  *
  * CRITICAL INVARIANT: Runtime authority is the ONLY CAS authority
  * - Staged state is pending deployment material ONLY
  * - Staged state may be used for previousGallery but NEVER for currentRevision
- * - Filesystem is deployed projection/fallback ONLY
+ * - Filesystem is deployed projection/fallback ONLY (for GET, not CAS)
+ * - CAS FAILS CLOSED if runtime authority doesn't exist
  *
  * KEYS[1]: runtimeGalleryKey - effective gallery/revision authority (ONLY source of truth)
  * KEYS[2]: projectStagingKey - project-level current transaction pointer
@@ -348,8 +350,7 @@ const CONDITIONAL_POINTER_CLEANUP_SCRIPT = `
  * ARGV[1]: expectedRevision - the revision the client expects
  * ARGV[2]: newGalleryJson - JSON string of the new gallery array
  * ARGV[3]: transactionId - the new transaction ID
- * ARGV[4]: deployedRevision - the deployed revision from filesystem (used as fallback)
- * ARGV[5]: mutationTimestamp - ISO timestamp for the mutation
+ * ARGV[4]: mutationTimestamp - ISO timestamp for the mutation
  *
  * Returns indexed array for proper RESP2 serialization:
  * [status, newRevision, transactionId, actualRevision] on success
@@ -363,30 +364,37 @@ const ATOMIC_GALLERY_CAS_SCRIPT = `
   local expectedRevision = tonumber(ARGV[1])
   local newGalleryJson = ARGV[2]
   local transactionId = ARGV[3]
-  local deployedRevision = tonumber(ARGV[4])
-  local mutationTimestamp = ARGV[5]
+  local mutationTimestamp = ARGV[4]
   
   -- P0 FIX: Read runtime authority ONLY (this is the sole CAS authority)
   local runtimeData = redis.call('GET', runtimeGalleryKey)
-  local currentGallery = nil
-  local currentRevision = deployedRevision or 0
   
-  if runtimeData then
-    -- Upstash may return object or string
-    local parsed
-    if type(runtimeData) == 'string' then
-      parsed = cjson.decode(runtimeData)
-    elseif type(runtimeData) == 'table' then
-      parsed = runtimeData
-    else
-      -- Invalid data type, CAS fails
-      return {'ERR', 'INVALID_RUNTIME_DATA_TYPE', expectedRevision, currentRevision}
-    end
-    
-    if parsed then
-      currentGallery = parsed.gallery
-      currentRevision = tonumber(parsed.currentRevision) or currentRevision
-    end
+  -- P0 FIX: FAIL CLOSED if runtime authority doesn't exist
+  -- No filesystem fallback in production CAS
+  if not runtimeData then
+    return {'ERR', 'RUNTIME_AUTHORITY_NOT_INITIALIZED', expectedRevision, 0}
+  end
+  
+  local currentGallery = nil
+  local currentRevision = 0
+  
+  -- Upstash may return object or string
+  local parsed
+  if type(runtimeData) == 'string' then
+    parsed = cjson.decode(runtimeData)
+  elseif type(runtimeData) == 'table' then
+    parsed = runtimeData
+  else
+    -- Invalid data type, CAS fails
+    return {'ERR', 'INVALID_RUNTIME_DATA_TYPE', expectedRevision, 0}
+  end
+  
+  if parsed then
+    currentGallery = parsed.gallery
+    currentRevision = tonumber(parsed.currentRevision) or 0
+  else
+    -- Invalid runtime data, CAS fails
+    return {'ERR', 'INVALID_RUNTIME_DATA_STRUCTURE', expectedRevision, 0}
   end
   
   -- P0 FIX: CRITICAL - Staged state is NOT used for CAS revision comparison
@@ -430,6 +438,122 @@ const ATOMIC_GALLERY_CAS_SCRIPT = `
 
 // Export the gallery CAS script for use in gallery route
 export { ATOMIC_GALLERY_CAS_SCRIPT };
+
+/**
+ * P0 FIX: Atomic Lua script for complete gallery mutation (CAS + transaction + staging + runtime)
+ *
+ * This script atomically performs the entire mutation in ONE Redis operation:
+ * 1. Reads runtime authority (effective gallery + revision) - ONLY source of truth
+ * 2. FAILS CLOSED if runtime authority doesn't exist (no filesystem fallback)
+ * 3. Compares expectedRevision with current runtime revision
+ * 4. If match, creates/updates deployment transaction with staging keys
+ * 5. Writes new gallery with incremented revision to staging
+ * 6. Updates runtime authority atomically
+ * 7. Updates project-level transaction pointer
+ * 8. Returns the new revision and transaction ID
+ *
+ * CRITICAL INVARIANT: This is ONE atomic Redis operation
+ * - No split-brain window between CAS and transaction creation
+ * - Transaction only exists if CAS succeeds
+ * - Runtime authority only advances if entire operation succeeds
+ *
+ * KEYS[1]: runtimeGalleryKey - effective gallery/revision authority (ONLY source of truth)
+ * KEYS[2]: projectStagingKey - project-level current transaction pointer
+ * KEYS[3]: specificStagingKey - new transaction's gallery staging key
+ * KEYS[4]: transactionKey - deployment transaction record
+ *
+ * ARGV[1]: expectedRevision - the revision the client expects
+ * ARGV[2]: newGalleryJson - JSON string of the new gallery array
+ * ARGV[3]: transactionId - the new transaction ID (server-generated)
+ * ARGV[4]: mutationTimestamp - ISO timestamp for the mutation
+ * ARGV[5]: transactionData - JSON string of the transaction record
+ *
+ * Returns indexed array for proper RESP2 serialization:
+ * [status, newRevision, transactionId, actualRevision] on success
+ * ['ERR', errorCode, expectedRevision, actualRevision] on failure
+ */
+const ATOMIC_GALLERY_MUTATION_SCRIPT = `
+  local runtimeGalleryKey = KEYS[1]
+  local projectStagingKey = KEYS[2]
+  local specificStagingKey = KEYS[3]
+  local transactionKey = KEYS[4]
+  
+  local expectedRevision = tonumber(ARGV[1])
+  local newGalleryJson = ARGV[2]
+  local transactionId = ARGV[3]
+  local mutationTimestamp = ARGV[4]
+  local transactionData = ARGV[5]
+  
+  -- P0 FIX: Read runtime authority ONLY (this is the sole CAS authority)
+  local runtimeData = redis.call('GET', runtimeGalleryKey)
+  
+  -- P0 FIX: FAIL CLOSED if runtime authority doesn't exist
+  -- No filesystem fallback in production CAS
+  if not runtimeData then
+    return {'ERR', 'RUNTIME_AUTHORITY_NOT_INITIALIZED', expectedRevision, 0}
+  end
+  
+  local currentGallery = nil
+  local currentRevision = 0
+  
+  -- Upstash may return object or string
+  local parsed
+  if type(runtimeData) == 'string' then
+    parsed = cjson.decode(runtimeData)
+  elseif type(runtimeData) == 'table' then
+    parsed = runtimeData
+  else
+    -- Invalid data type, CAS fails
+    return {'ERR', 'INVALID_RUNTIME_DATA_TYPE', expectedRevision, 0}
+  end
+  
+  if parsed then
+    currentGallery = parsed.gallery
+    currentRevision = tonumber(parsed.currentRevision) or 0
+  else
+    -- Invalid runtime data, CAS fails
+    return {'ERR', 'INVALID_RUNTIME_DATA_STRUCTURE', expectedRevision, 0}
+  end
+  
+  -- CAS: Compare current revision with expected revision
+  if currentRevision ~= expectedRevision then
+    return {'ERR', 'CAS_FAILURE', expectedRevision, currentRevision}
+  end
+  
+  -- Write new gallery with incremented revision
+  local newGallery = cjson.decode(newGalleryJson)
+  local newRevision = currentRevision + 1
+  local galleryPayload = {
+    gallery = newGallery,
+    currentRevision = newRevision,
+    previousGallery = currentGallery or {},
+    mutationTimestamp = mutationTimestamp
+  }
+  
+  -- Write the specific staging key
+  redis.call('SET', specificStagingKey, cjson.encode(galleryPayload))
+  
+  -- Create/update deployment transaction
+  redis.call('SET', transactionKey, transactionData)
+  
+  -- Update the project-level transaction pointer
+  redis.call('SET', projectStagingKey, transactionId)
+  
+  -- Atomically update runtime authority (this is the live authority)
+  local runtimePayload = {
+    gallery = newGallery,
+    currentRevision = newRevision,
+    lastMutationTimestamp = mutationTimestamp,
+    lastTransactionId = transactionId
+  }
+  redis.call('SET', runtimeGalleryKey, cjson.encode(runtimePayload))
+  
+  -- Return indexed array for proper RESP2 serialization
+  return {'OK', newRevision, transactionId, currentRevision}
+`;
+
+// Export the atomic mutation script for use in gallery route
+export { ATOMIC_GALLERY_MUTATION_SCRIPT };
 
 /**
  * Atomic Lua script for transaction creation with staging key aggregation
