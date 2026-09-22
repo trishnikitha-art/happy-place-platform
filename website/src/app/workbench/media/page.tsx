@@ -83,6 +83,9 @@ interface MediaWorkbenchState {
   mutationError: string | null;
   bridgeReadySlots: Set<string>; // P0 FIX: Track which slots have sent BRIDGE_READY
   bridgeReady: boolean; // P0 FIX: Global bridge readiness flag
+  pendingGalleryOrder: string[] | null; // P0 FIX: Pending gallery reordering (local state, not yet persisted)
+  galleryBaseRevision: number | null; // P0 FIX: Revision the pending order is based on (for CAS)
+  galleryProjectId: string | null; // P0 FIX: Which project's gallery is being edited
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -146,6 +149,9 @@ export default function MediaWorkbench() {
     mutationError: null,
     bridgeReadySlots: new Set<string>(), // P0 FIX: Track which slots have sent BRIDGE_READY
     bridgeReady: true, // P0 FIX: Initialize as true to allow first drag without waiting
+    pendingGalleryOrder: null, // P0 FIX: No pending gallery order initially
+    galleryBaseRevision: null, // P0 FIX: No base revision initially
+    galleryProjectId: null, // P0 FIX: No project selected initially
   });
 
   // Keep refs in sync with state
@@ -578,6 +584,115 @@ export default function MediaWorkbench() {
   const handleSlotClick = (slot: RegisteredSlot, event?: Pick<React.MouseEvent, 'ctrlKey' | 'metaKey'>) => {
     if (mutationBusy.current || !resolveAssignmentKey(slot.id)) return;
     setState(prev => selectTarget(prev, slot, !!(event?.ctrlKey || event?.metaKey)));
+  };
+
+  const handleSaveGalleryChanges = async () => {
+    if (!state.pendingGalleryOrder || !state.galleryProjectId || state.galleryBaseRevision === null) {
+      console.error('[WB_GALLERY] SAVE_INVALID_STATE', {
+        hasPendingOrder: !!state.pendingGalleryOrder,
+        hasProjectId: !!state.galleryProjectId,
+        hasBaseRevision: state.galleryBaseRevision !== null,
+      });
+      alert('No pending gallery changes to save.');
+      return;
+    }
+
+    const projectId = state.galleryProjectId;
+    const galleryToSave = state.pendingGalleryOrder;
+    const expectedRevision = state.galleryBaseRevision;
+
+    console.log('[WB_GALLERY] SAVING_PENDING_CHANGES', {
+      projectId,
+      galleryLength: galleryToSave.length,
+      expectedRevision,
+    });
+
+    try {
+      const saveResponse = await fetch('/api/admin/projects/gallery', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId,
+          gallery: galleryToSave,
+          expectedRevision,
+        }),
+      });
+
+      console.log('[WB_GALLERY] SAVE_RESPONSE', {
+        projectId,
+        status: saveResponse.status,
+        ok: saveResponse.ok,
+      });
+
+      if (!saveResponse.ok) {
+        const error = await saveResponse.json();
+        console.error('[WB_GALLERY] SAVE_FAILED', {
+          projectId,
+          status: saveResponse.status,
+          error,
+        });
+        
+        if (saveResponse.status === 409) {
+          console.error('[WB_GALLERY] CAS_CONFLICT', { error });
+          alert('Concurrent modification detected. Please reload and try again.');
+        } else {
+          throw new Error(error.error || 'Failed to save gallery');
+        }
+        return;
+      }
+
+      const result = await saveResponse.json();
+      console.log('[WB_GALLERY] SAVE_SUCCESS', {
+        projectId,
+        newRevision: result.currentRevision,
+        staged: result.staged,
+        result,
+      });
+
+      // Clear pending state
+      setState(prev => ({
+        ...prev,
+        pendingGalleryOrder: null,
+        galleryBaseRevision: null,
+        galleryProjectId: null,
+      }));
+
+      // Reload canonical data and force iframe navigation
+      console.log('[WB_GALLERY] REFRESHING_AFTER_SAVE', {
+        projectId,
+        reloadingCanonical: true,
+        forcingIframeNavigation: true,
+      });
+
+      await loadCanonicalData();
+      
+      // Force iframe navigation to ensure slot registrations refresh
+      if (iframeRef.current) {
+        const currentSrc = iframeRef.current.src;
+        iframeRef.current.src = currentSrc;
+        console.log('[WB_GALLERY] IFRAME_NAVIGATION_FORCED', { currentSrc });
+      }
+
+      alert(`Gallery changes saved successfully.\n\n${result.staged ? 'Staged for deployment.' : 'Saved immediately (development mode).'}`);
+    } catch (error) {
+      console.error('[WB_GALLERY] SAVE_ERROR', { 
+        projectId,
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      alert(`Failed to save gallery changes: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const handleCancelGalleryChanges = () => {
+    console.log('[WB_GALLERY] CANCELING_PENDING_CHANGES');
+    setState(prev => ({
+      ...prev,
+      pendingGalleryOrder: null,
+      galleryBaseRevision: null,
+      galleryProjectId: null,
+    }));
+    alert('Pending gallery changes canceled.');
   };
 
   const handleAssetClick = (asset: VisualAsset) => {
@@ -1759,207 +1874,121 @@ export default function MediaWorkbench() {
           return;
         }
 
-        // Fetch current gallery state
-        console.log('[WB_DND] FETCHING_CURRENT_GALLERY', {
+        // P0 FIX: Implement pending gallery order architecture
+        // Multiple swaps accumulate in local state, then save as one atomic operation
+        console.log('[WB_DND] GALLERY_REORDER_PENDING_UPDATE', {
           requestId,
           projectId,
-          endpoint: `/api/admin/projects/gallery?projectId=${projectId}`,
+          sourceMediaId,
+          targetMediaId,
+          currentPendingProject: state.galleryProjectId,
+          hasPendingOrder: !!state.pendingGalleryOrder,
         });
 
         try {
-          const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+          // Use local variables to avoid stale state
+          let pendingOrder = state.pendingGalleryOrder;
+          let baseRevision = state.galleryBaseRevision;
           
-          console.log('[WB_DND] GALLERY_FETCH_RESPONSE', {
-            requestId,
-            projectId,
-            status: response.status,
-            ok: response.ok,
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('[WB_DND] GALLERY_FETCH_FAILED', {
+          // If no pending order for this project, fetch current gallery as base
+          if (!pendingOrder || state.galleryProjectId !== projectId) {
+            console.log('[WB_DND] INITIALIZING_PENDING_ORDER', {
               requestId,
               projectId,
-              status: response.status,
-              errorText,
+              reason: 'No pending order or different project',
             });
-            throw new Error('Failed to load gallery');
+
+            const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+            
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error('[WB_DND] GALLERY_FETCH_FAILED', {
+                requestId,
+                projectId,
+                status: response.status,
+                errorText,
+              });
+              throw new Error('Failed to load gallery');
+            }
+
+            const data = await response.json();
+            const currentGallery = data.gallery || [];
+            const currentRevision = data.currentRevision;
+
+            console.log('[WB_DND] PENDING_ORDER_INITIALIZED', {
+              requestId,
+              projectId,
+              galleryLength: currentGallery.length,
+              baseRevision: currentRevision,
+            });
+
+            // Use the fetched gallery as the pending order
+            pendingOrder = [...currentGallery];
+            baseRevision = currentRevision;
+
+            // Set base gallery in state
+            setState(prev => ({
+              ...prev,
+              pendingGalleryOrder: pendingOrder,
+              galleryBaseRevision: baseRevision,
+              galleryProjectId: projectId,
+            }));
           }
 
-          const data = await response.json();
-          const currentGallery = data.gallery || [];
-          const currentRevision = data.currentRevision;
-
-          console.log('[WB_DND] CURRENT_GALLERY_LOADED', {
-            requestId,
-            projectId,
-            galleryLength: currentGallery.length,
-            currentRevision,
-            state: data.state,
-            hasStagedChanges: data.hasStagedChanges,
-            galleryPreview: currentGallery.slice(0, 5),
-          });
-
-          // Find indices of source and target media
-          const sourceIndex = currentGallery.indexOf(sourceMediaId);
-          const targetIndex = currentGallery.indexOf(targetMediaId);
-
-          console.log('[WB_DND] GALLERY_INDEX_LOOKUP', {
-            requestId,
-            sourceMediaId,
-            targetMediaId,
-            sourceIndex,
-            targetIndex,
-            sourceFound: sourceIndex !== -1,
-            targetFound: targetIndex !== -1,
-          });
+          // Apply swap to pending order
+          const sourceIndex = pendingOrder.indexOf(sourceMediaId);
+          const targetIndex = pendingOrder.indexOf(targetMediaId);
 
           if (sourceIndex === -1 || targetIndex === -1) {
-            console.error('[WB_DND] MEDIA_NOT_IN_GALLERY', { 
+            console.error('[WB_DND] MEDIA_NOT_IN_PENDING_GALLERY', { 
               requestId,
               sourceIndex, 
               targetIndex, 
               sourceMediaId, 
               targetMediaId,
-              currentGallery,
+              pendingOrder,
             });
+            alert('Media not found in gallery. Please refresh and try again.');
             return;
           }
 
-          // Reorder array
-          const newGallery = [...currentGallery];
-          const [movedItem] = newGallery.splice(sourceIndex, 1);
-          newGallery.splice(targetIndex, 0, movedItem);
+          // Compute new pending order
+          const newPendingOrder = [...pendingOrder];
+          const [movedItem] = newPendingOrder.splice(sourceIndex, 1);
+          newPendingOrder.splice(targetIndex, 0, movedItem);
 
-          console.log('[WB_DND] NEW_GALLERY_COMPUTED', {
+          console.log('[WB_DND] PENDING_ORDER_UPDATED', {
             requestId,
+            projectId,
             sourceIndex,
             targetIndex,
             movedItem,
-            oldLength: currentGallery.length,
-            newLength: newGallery.length,
-            oldGallery: currentGallery,
-            newGallery,
-            previewBefore: currentGallery.slice(Math.max(0, sourceIndex - 2), sourceIndex + 3),
-            previewAfter: newGallery.slice(Math.max(0, targetIndex - 2), targetIndex + 3),
+            oldLength: pendingOrder.length,
+            newLength: newPendingOrder.length,
+            previewBefore: pendingOrder.slice(Math.max(0, sourceIndex - 2), sourceIndex + 3),
+            previewAfter: newPendingOrder.slice(Math.max(0, targetIndex - 2), targetIndex + 3),
           });
 
-          // Save with CAS
-          console.log('[WB_DND] SAVING_GALLERY', {
+          // Update pending order in state
+          setState(prev => ({
+            ...prev,
+            pendingGalleryOrder: newPendingOrder,
+          }));
+
+          console.log('[WB_DND] REORDER_QUEUED', {
             requestId,
             projectId,
-            endpoint: '/api/admin/projects/gallery',
-            expectedRevision: currentRevision,
-            newGalleryLength: newGallery.length,
+            pendingChanges: true,
+            note: 'Changes queued locally. Click "Save Gallery Changes" to persist.',
           });
-
-          const saveResponse = await fetch('/api/admin/projects/gallery', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              projectId,
-              gallery: newGallery,
-              expectedRevision: currentRevision,
-            }),
-          });
-
-          console.log('[WB_DND] GALLERY_SAVE_RESPONSE', {
-            requestId,
-            projectId,
-            status: saveResponse.status,
-            ok: saveResponse.ok,
-          });
-
-          if (!saveResponse.ok) {
-            const error = await saveResponse.json();
-            console.error('[WB_DND] GALLERY_SAVE_FAILED', {
-              requestId,
-              projectId,
-              status: saveResponse.status,
-              error,
-            });
-            
-            if (saveResponse.status === 409) {
-              console.error('[WB_DND] CAS_CONFLICT', { requestId, error });
-              alert('Concurrent modification detected. Please reload and try again.');
-            } else {
-              throw new Error(error.error || 'Failed to save gallery');
-            }
-            return;
-          }
-
-          const result = await saveResponse.json();
-          console.log('[WB_DND] SAVE_SUCCESS', {
-            requestId,
-            projectId,
-            newRevision: result.currentRevision,
-            staged: result.staged,
-            result,
-          });
-
-          // P0 FIX: Verify effective gallery reflects the mutation
-          // The projection must consume the same authority that was just written
-          console.log('[WB_DND] VERIFYING_EFFECTIVE_GALLERY', {
-            projectId,
-            expectedGallery: newGallery,
-            expectedLength: newGallery.length,
-          });
-
-          // Re-fetch to verify effective authority
-          const verifyResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
-          if (verifyResponse.ok) {
-            const verifyData = await verifyResponse.json();
-            const verifyGallery = verifyData.gallery || [];
-            const verifyMatch = JSON.stringify(verifyGallery) === JSON.stringify(newGallery);
-            
-            console.log('[WB_DND] EFFECTIVE_GALLERY_VERIFICATION', {
-              projectId,
-              verifyGalleryLength: verifyGallery.length,
-              expectedLength: newGallery.length,
-              verifyMatch,
-              verifyGallery,
-              expectedGallery: newGallery,
-            });
-
-            if (!verifyMatch) {
-              console.error('[WB_DND] EFFECTIVE_GALLERY_MISMATCH', {
-                projectId,
-                expectedGallery: newGallery,
-                actualGallery: verifyGallery,
-              });
-              alert('Gallery reordered but projection verification failed. The new order may not be visible.');
-            }
-          }
-
-          // Reload canonical data and force iframe navigation to refresh slot registrations
-          console.log('[WB_DND] REFRESHING_AFTER_SAVE', {
-            requestId,
-            projectId,
-            reloadingCanonical: true,
-            forcingIframeNavigation: true,
-          });
-
-          loadCanonicalData();
-          
-          // P0 FIX: Force iframe navigation to ensure slot registrations refresh with new gallery order
-          // Simple REFRESH_SLOTS only re-registers with current mediaId, but gallery order changes
-          // require the iframe to re-query getEffectiveProjectGallery() and re-register all slots
-          if (iframeRef.current) {
-            const currentSrc = iframeRef.current.src;
-            iframeRef.current.src = currentSrc;
-            console.log('[WB_DND] IFRAME_NAVIGATION_FORCED', { requestId, currentSrc });
-          }
-
-          alert(`Gallery reordered successfully.\n\n${result.staged ? 'Staged for deployment.' : 'Saved immediately (development mode).'}`);
         } catch (error) {
-          console.error('[WB_DND] REORDER_ERROR', { 
+          console.error('[WB_DND] PENDING_ORDER_ERROR', { 
             requestId,
             projectId,
             error: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : undefined,
           });
-          alert(`Failed to reorder gallery: ${error instanceof Error ? error.message : String(error)}`);
+          alert(`Failed to queue gallery reorder: ${error instanceof Error ? error.message : String(error)}`);
         }
       } else if (messageType === 'GALLERY_ADD') {
         const requestId = `gallery-add-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -2061,167 +2090,93 @@ export default function MediaWorkbench() {
           }
         }
 
-        // Fetch current gallery state
+        // P0 FIX: Initialize pending order if needed (for add operations)
         try {
-          const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+          let pendingOrder = state.pendingGalleryOrder;
+          let baseRevision = state.galleryBaseRevision;
           
-          console.log('[WB_DND] GALLERY_ADD_FETCH_RESPONSE', {
-            requestId,
-            projectId,
-            status: response.status,
-            ok: response.ok,
-          });
-
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('[WB_DND] GALLERY_ADD_FETCH_FAILED', {
+          if (!pendingOrder || state.galleryProjectId !== projectId) {
+            console.log('[WB_DND] GALLERY_ADD_INITIALIZING_PENDING_ORDER', {
               requestId,
               projectId,
-              status: response.status,
-              errorText,
+              reason: 'No pending order or different project',
             });
-            throw new Error('Failed to load gallery');
+
+            const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+            
+            if (!response.ok) {
+              const errorText = await response.text();
+              console.error('[WB_DND] GALLERY_ADD_FETCH_FAILED', {
+                requestId,
+                projectId,
+                status: response.status,
+                errorText,
+              });
+              throw new Error('Failed to load gallery');
+            }
+
+            const data = await response.json();
+            const currentGallery = data.gallery || [];
+            const currentRevision = data.currentRevision;
+
+            console.log('[WB_DND] GALLERY_ADD_PENDING_ORDER_INITIALIZED', {
+              requestId,
+              projectId,
+              galleryLength: currentGallery.length,
+              baseRevision: currentRevision,
+            });
+
+            // Use the fetched gallery as the pending order
+            pendingOrder = [...currentGallery];
+            baseRevision = currentRevision;
+
+            // Set base gallery in state
+            setState(prev => ({
+              ...prev,
+              pendingGalleryOrder: pendingOrder,
+              galleryBaseRevision: baseRevision,
+              galleryProjectId: projectId,
+            }));
           }
 
-          const data = await response.json();
-          const currentGallery = data.gallery || [];
-          const currentRevision = data.currentRevision;
-
-          console.log('[WB_DND] CURRENT_GALLERY_LOADED_FOR_ADD', {
-            requestId,
-            projectId,
-            galleryLength: currentGallery.length,
-            currentRevision,
-            state: data.state,
-            hasStagedChanges: data.hasStagedChanges,
-          });
-
-          // Check if asset already in gallery
-          if (currentGallery.includes(finalAssetId)) {
+          // Check if asset already in pending gallery
+          if (pendingOrder.includes(finalAssetId)) {
             console.log('[WB_DND] GALLERY_ADD_DUPLICATE', {
               requestId,
               projectId,
               finalAssetId,
               originalAssetId: assetId,
-              message: 'Asset already in gallery',
+              message: 'Asset already in pending gallery',
             });
             alert('This asset is already in the gallery.');
             return;
           }
 
-          // Add asset to end of gallery
-          const newGallery = [...currentGallery, finalAssetId];
+          // Add asset to end of pending gallery
+          const newPendingOrder = [...pendingOrder, finalAssetId];
 
-          console.log('[WB_DND] NEW_GALLERY_COMPUTED_FOR_ADD', {
+          console.log('[WB_DND] GALLERY_ADD_PENDING_ORDER_UPDATED', {
             requestId,
             projectId,
             addedAssetId: finalAssetId,
             originalAssetId: assetId,
             wasMaterialized: finalAssetId !== assetId,
-            oldLength: currentGallery.length,
-            newLength: newGallery.length,
-            newGallery,
+            oldLength: pendingOrder.length,
+            newLength: newPendingOrder.length,
           });
 
-          // Save with CAS
-          const saveResponse = await fetch('/api/admin/projects/gallery', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              projectId,
-              gallery: newGallery,
-              expectedRevision: currentRevision,
-            }),
-          });
+          // Update pending order in state
+          setState(prev => ({
+            ...prev,
+            pendingGalleryOrder: newPendingOrder,
+          }));
 
-          console.log('[WB_DND] GALLERY_ADD_SAVE_RESPONSE', {
+          console.log('[WB_DND] GALLERY_ADD_QUEUED', {
             requestId,
             projectId,
-            status: saveResponse.status,
-            ok: saveResponse.ok,
+            pendingChanges: true,
+            note: 'Add queued locally. Click "Save Gallery Changes" to persist.',
           });
-
-          if (!saveResponse.ok) {
-            const error = await saveResponse.json();
-            console.error('[WB_DND] GALLERY_ADD_SAVE_FAILED', {
-              requestId,
-              projectId,
-              status: saveResponse.status,
-              error,
-            });
-            
-            if (saveResponse.status === 409) {
-              console.error('[WB_DND] CAS_CONFLICT', { requestId, error });
-              alert('Concurrent modification detected. Please reload and try again.');
-            } else {
-              throw new Error(error.error || 'Failed to add to gallery');
-            }
-            return;
-          }
-
-          const result = await saveResponse.json();
-          console.log('[WB_DND] GALLERY_ADD_SUCCESS', {
-            requestId,
-            projectId,
-            newRevision: result.currentRevision,
-            staged: result.staged,
-            result,
-          });
-
-          // P0 FIX: Verify effective gallery reflects the mutation
-          // The projection must consume the same authority that was just written
-          console.log('[WB_DND] VERIFYING_EFFECTIVE_GALLERY', {
-            projectId,
-            expectedGallery: newGallery,
-            expectedLength: newGallery.length,
-          });
-
-          // Re-fetch to verify effective authority
-          const verifyResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
-          if (verifyResponse.ok) {
-            const verifyData = await verifyResponse.json();
-            const verifyGallery = verifyData.gallery || [];
-            const verifyMatch = JSON.stringify(verifyGallery) === JSON.stringify(newGallery);
-            
-            console.log('[WB_DND] EFFECTIVE_GALLERY_VERIFICATION', {
-              projectId,
-              verifyGalleryLength: verifyGallery.length,
-              expectedLength: newGallery.length,
-              verifyMatch,
-              verifyGallery,
-              expectedGallery: newGallery,
-            });
-
-            if (!verifyMatch) {
-              console.error('[WB_DND] EFFECTIVE_GALLERY_MISMATCH', {
-                projectId,
-                expectedGallery: newGallery,
-                actualGallery: verifyGallery,
-              });
-              alert('Gallery saved but projection verification failed. The new order may not be visible.');
-            }
-          }
-
-          // Reload canonical data and force iframe navigation to refresh slot registrations
-          console.log('[WB_DND] REFRESHING_AFTER_SAVE', {
-            requestId,
-            projectId,
-            reloadingCanonical: true,
-            forcingIframeNavigation: true,
-          });
-
-          loadCanonicalData();
-          
-          // P0 FIX: Force iframe navigation to ensure slot registrations refresh with new gallery order
-          // Simple REFRESH_SLOTS only re-registers with current mediaId, but gallery order changes
-          // require the iframe to re-query getEffectiveProjectGallery() and re-register all slots
-          if (iframeRef.current) {
-            const currentSrc = iframeRef.current.src;
-            iframeRef.current.src = currentSrc;
-            console.log('[WB_DND] IFRAME_NAVIGATION_FORCED', { requestId, currentSrc });
-          }
-
-          alert(`Asset added to gallery successfully.\n\n${result.staged ? 'Staged for deployment.' : 'Saved immediately (development mode).'}`);
         } catch (error) {
           console.error('[WB_DND] GALLERY_ADD_ERROR', { 
             requestId,
@@ -2229,7 +2184,7 @@ export default function MediaWorkbench() {
             error: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : undefined,
           });
-          alert(`Failed to add to gallery: ${error instanceof Error ? error.message : String(error)}`);
+          alert(`Failed to queue gallery add: ${error instanceof Error ? error.message : String(error)}`);
         }
       } else if (messageType === 'REFRESH_SLOTS') {
         console.log('[WB_FORENSIC] REFRESH_SLOTS_RECEIVED');
@@ -2259,89 +2214,75 @@ export default function MediaWorkbench() {
       }
 
       try {
-        // Fetch current gallery state
-        const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
-        if (!response.ok) {
-          throw new Error('Failed to load gallery');
+        // P0 FIX: Initialize pending order if needed (for delete operations)
+        let pendingOrder = state.pendingGalleryOrder;
+        let baseRevision = state.galleryBaseRevision;
+        
+        if (!pendingOrder || state.galleryProjectId !== projectId) {
+          console.log('[WB_GALLERY_DELETE] INITIALIZING_PENDING_ORDER', {
+            projectId,
+            reason: 'No pending order or different project',
+          });
+
+          const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+          if (!response.ok) {
+            throw new Error('Failed to load gallery');
+          }
+
+          const data = await response.json();
+          const currentGallery = data.gallery || [];
+          const currentRevision = data.currentRevision;
+
+          console.log('[WB_GALLERY_DELETE] PENDING_ORDER_INITIALIZED', {
+            projectId,
+            galleryLength: currentGallery.length,
+            baseRevision: currentRevision,
+          });
+
+          // Use the fetched gallery as the pending order
+          pendingOrder = [...currentGallery];
+          baseRevision = currentRevision;
+
+          // Set base gallery in state
+          setState(prev => ({
+            ...prev,
+            pendingGalleryOrder: pendingOrder,
+            galleryBaseRevision: baseRevision,
+            galleryProjectId: projectId,
+          }));
         }
 
-        const data = await response.json();
-        const currentGallery = data.gallery || [];
-        const currentRevision = data.currentRevision;
+        // Remove media from pending gallery
+        const newPendingOrder = pendingOrder.filter((id: string) => id !== mediaId);
 
-        console.log('[WB_GALLERY_DELETE] CURRENT_GALLERY_LOADED', {
-          projectId,
-          galleryLength: currentGallery.length,
-          currentRevision,
-        });
-
-        // Remove media from gallery
-        const newGallery = currentGallery.filter((id: string) => id !== mediaId);
-
-        if (newGallery.length === currentGallery.length) {
-          console.warn('[WB_GALLERY_DELETE] MEDIA_NOT_IN_GALLERY', { mediaId, currentGallery });
+        if (newPendingOrder.length === pendingOrder.length) {
+          console.warn('[WB_GALLERY_DELETE] MEDIA_NOT_IN_PENDING_GALLERY', { mediaId, pendingOrder });
           alert('This media item is not in the gallery');
           return;
         }
 
-        console.log('[WB_GALLERY_DELETE] NEW_GALLERY_COMPUTED', {
+        console.log('[WB_GALLERY_DELETE] PENDING_ORDER_UPDATED', {
           removedMediaId: mediaId,
-          oldLength: currentGallery.length,
-          newLength: newGallery.length,
+          oldLength: pendingOrder.length,
+          newLength: newPendingOrder.length,
         });
 
-        // Save with CAS
-        const saveResponse = await fetch('/api/admin/projects/gallery', {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            projectId,
-            gallery: newGallery,
-            expectedRevision: currentRevision,
-          }),
-        });
+        // Update pending order in state
+        setState(prev => ({
+          ...prev,
+          pendingGalleryOrder: newPendingOrder,
+        }));
 
-        if (!saveResponse.ok) {
-          const error = await saveResponse.json();
-          console.error('[WB_GALLERY_DELETE] SAVE_FAILED', { error });
-          
-          if (saveResponse.status === 409) {
-            alert('Concurrent modification detected. Please reload and try again.');
-          } else {
-            throw new Error(error.error || 'Failed to delete from gallery');
-          }
-          return;
-        }
-
-        const result = await saveResponse.json();
-        console.log('[WB_GALLERY_DELETE] DELETE_SUCCESS', {
+        console.log('[WB_GALLERY_DELETE] DELETE_QUEUED', {
           projectId,
-          newRevision: result.currentRevision,
-          result,
+          pendingChanges: true,
+          note: 'Delete queued locally. Click "Save Gallery Changes" to persist.',
         });
-
-        // Reload canonical data and force iframe navigation to refresh slot registrations
-        console.log('[WB_GALLERY_DELETE] REFRESHING_AFTER_DELETE', {
-          projectId,
-          reloadingCanonical: true,
-          forcingIframeNavigation: true,
-        });
-
-        await loadCanonicalData();
-        
-        // P0 FIX: Force iframe navigation to ensure slot registrations refresh with new gallery order
-        if (iframeRef.current) {
-          const currentSrc = iframeRef.current.src;
-          iframeRef.current.src = currentSrc;
-          console.log('[WB_GALLERY_DELETE] IFRAME_NAVIGATION_FORCED', { currentSrc });
-        }
-
-        alert('Image removed from gallery successfully');
       } catch (error) {
         console.error('[WB_GALLERY_DELETE] ERROR', {
           error: error instanceof Error ? error.message : String(error),
         });
-        alert(`Failed to delete from gallery: ${error instanceof Error ? error.message : String(error)}`);
+        alert(`Failed to queue gallery delete: ${error instanceof Error ? error.message : String(error)}`);
       }
     };
 
@@ -2691,6 +2632,35 @@ export default function MediaWorkbench() {
                 </button>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Pending Gallery Changes Bar */}
+      {state.pendingGalleryOrder && (
+        <div className="shrink-0 border-b border-border bg-amber-50 dark:bg-amber-950/20 px-4 py-2">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-semibold text-amber-900 dark:text-amber-100">
+              Pending Gallery Reorder ({state.pendingGalleryOrder.length} items)
+            </span>
+            <button
+              onClick={handleCancelGalleryChanges}
+              className="text-xs text-amber-700 dark:text-amber-300 hover:text-amber-900 dark:hover:text-amber-100 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleSaveGalleryChanges}
+              disabled={state.mutationState !== 'idle'}
+              className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded disabled:opacity-50 transition-colors"
+            >
+              Save Gallery Changes
+            </button>
+            <span className="text-xs text-amber-700 dark:text-amber-300">
+              {state.galleryProjectId ? `Project: ${state.galleryProjectId}` : ''}
+            </span>
           </div>
         </div>
       )}
