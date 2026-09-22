@@ -109,6 +109,14 @@ export default function MediaWorkbench() {
   const assetsRef = useRef<VisualAsset[]>([]);
   const registeredSlotsRef = useRef<RegisteredSlot[]>([]);
 
+  // P0 FIX: Ref-backed gallery transaction buffer to avoid stale React closures
+  // These refs are the authoritative source of truth for pending gallery mutations
+  // React state mirrors these refs for UI rendering
+  const pendingGalleryOrderRef = useRef<string[] | null>(null);
+  const galleryProjectIdRef = useRef<string | null>(null);
+  const galleryBaseRevisionRef = useRef<number | null>(null);
+  const galleryInitializationPromiseRef = useRef<Promise<void> | null>(null);
+
   const [state, setState] = useState<MediaWorkbenchState>({
     loading: true,
     assets: [],
@@ -162,6 +170,14 @@ export default function MediaWorkbench() {
   useEffect(() => {
     registeredSlotsRef.current = state.registeredSlots;
   }, [state.registeredSlots]);
+
+  // P0 FIX: Keep gallery refs in sync with React state
+  // This ensures refs are updated when save/clear operations modify React state
+  useEffect(() => {
+    pendingGalleryOrderRef.current = state.pendingGalleryOrder;
+    galleryBaseRevisionRef.current = state.galleryBaseRevision;
+    galleryProjectIdRef.current = state.galleryProjectId;
+  }, [state.pendingGalleryOrder, state.galleryBaseRevision, state.galleryProjectId]);
 
   // P0 FIX: Set bridgeReady to true when parent message listener is attached
   // This allows the first drag to work without waiting for child BRIDGE_READY
@@ -587,19 +603,20 @@ export default function MediaWorkbench() {
   };
 
   const handleSaveGalleryChanges = async () => {
-    if (!state.pendingGalleryOrder || !state.galleryProjectId || state.galleryBaseRevision === null) {
+    // P0 FIX: Read from ref-backed transaction buffer, not React state
+    const galleryToSave = pendingGalleryOrderRef.current;
+    const projectId = galleryProjectIdRef.current;
+    const expectedRevision = galleryBaseRevisionRef.current;
+
+    if (!galleryToSave || !projectId || expectedRevision === null) {
       console.error('[WB_GALLERY] SAVE_INVALID_STATE', {
-        hasPendingOrder: !!state.pendingGalleryOrder,
-        hasProjectId: !!state.galleryProjectId,
-        hasBaseRevision: state.galleryBaseRevision !== null,
+        hasPendingOrder: !!galleryToSave,
+        hasProjectId: !!projectId,
+        hasBaseRevision: expectedRevision !== null,
       });
       alert('No pending gallery changes to save.');
       return;
     }
-
-    const projectId = state.galleryProjectId;
-    const galleryToSave = state.pendingGalleryOrder;
-    const expectedRevision = state.galleryBaseRevision;
 
     console.log('[WB_GALLERY] SAVING_PENDING_CHANGES', {
       projectId,
@@ -649,7 +666,10 @@ export default function MediaWorkbench() {
         result,
       });
 
-      // Clear pending state
+      // Clear pending state (both ref and React state)
+      pendingGalleryOrderRef.current = null;
+      galleryBaseRevisionRef.current = null;
+      galleryProjectIdRef.current = null;
       setState(prev => ({
         ...prev,
         pendingGalleryOrder: null,
@@ -686,6 +706,10 @@ export default function MediaWorkbench() {
 
   const handleCancelGalleryChanges = () => {
     console.log('[WB_GALLERY] CANCELING_PENDING_CHANGES');
+    // P0 FIX: Clear both ref-backed buffer and React state
+    pendingGalleryOrderRef.current = null;
+    galleryBaseRevisionRef.current = null;
+    galleryProjectIdRef.current = null;
     setState(prev => ({
       ...prev,
       pendingGalleryOrder: null,
@@ -1886,53 +1910,66 @@ export default function MediaWorkbench() {
         });
 
         try {
-          // Use local variables to avoid stale state
-          let pendingOrder = state.pendingGalleryOrder;
-          let baseRevision = state.galleryBaseRevision;
-          
-          // If no pending order for this project, fetch current gallery as base
-          if (!pendingOrder || state.galleryProjectId !== projectId) {
-            console.log('[WB_DND] INITIALIZING_PENDING_ORDER', {
-              requestId,
-              projectId,
-              reason: 'No pending order or different project',
-            });
+          // P0 FIX: Use ref-backed transaction buffer to avoid stale React closures
+          // Initialize pending order if needed (single-flight initialization)
+          if (!pendingGalleryOrderRef.current || galleryProjectIdRef.current !== projectId) {
+            // If initialization is already in flight, wait for it
+            if (galleryInitializationPromiseRef.current) {
+              await galleryInitializationPromiseRef.current;
+            } else {
+              // Start new initialization
+              galleryInitializationPromiseRef.current = (async () => {
+                console.log('[WB_DND] INITIALIZING_PENDING_ORDER', {
+                  projectId,
+                  reason: 'No pending order or different project',
+                });
 
-            const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
-            
-            if (!response.ok) {
-              const errorText = await response.text();
-              console.error('[WB_DND] GALLERY_FETCH_FAILED', {
-                requestId,
-                projectId,
-                status: response.status,
-                errorText,
-              });
-              throw new Error('Failed to load gallery');
+                const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+                
+                if (!response.ok) {
+                  const errorText = await response.text();
+                  console.error('[WB_DND] GALLERY_FETCH_FAILED', {
+                    projectId,
+                    status: response.status,
+                    errorText,
+                  });
+                  throw new Error('Failed to load gallery');
+                }
+
+                const data = await response.json();
+                const currentGallery = data.gallery || [];
+                const currentRevision = data.currentRevision;
+
+                console.log('[WB_DND] PENDING_ORDER_INITIALIZED', {
+                  projectId,
+                  galleryLength: currentGallery.length,
+                  baseRevision: currentRevision,
+                });
+
+                // Set ref-backed buffer
+                pendingGalleryOrderRef.current = [...currentGallery];
+                galleryBaseRevisionRef.current = currentRevision;
+                galleryProjectIdRef.current = projectId;
+
+                // Mirror to React state for UI
+                setState(prev => ({
+                  ...prev,
+                  pendingGalleryOrder: pendingGalleryOrderRef.current,
+                  galleryBaseRevision: galleryBaseRevisionRef.current,
+                  galleryProjectId: galleryProjectIdRef.current,
+                }));
+              })();
+
+              await galleryInitializationPromiseRef.current;
+              galleryInitializationPromiseRef.current = null;
             }
+          }
 
-            const data = await response.json();
-            const currentGallery = data.gallery || [];
-            const currentRevision = data.currentRevision;
-
-            console.log('[WB_DND] PENDING_ORDER_INITIALIZED', {
-              requestId,
-              projectId,
-              galleryLength: currentGallery.length,
-              baseRevision: currentRevision,
-            });
-
-            // Use the fetched gallery as the pending order
-            pendingOrder = [...currentGallery];
-            baseRevision = currentRevision;
-
-            // Set base gallery in state
-            setState(prev => ({
-              ...prev,
-              pendingGalleryOrder: pendingOrder,
-              galleryBaseRevision: baseRevision,
-              galleryProjectId: projectId,
-            }));
+          // P0 FIX: Read from ref, not captured React state
+          const pendingOrder = pendingGalleryOrderRef.current;
+          if (!pendingOrder) {
+            console.error('[WB_DND] PENDING_ORDER_NULL_AFTER_INIT');
+            return;
           }
 
           // Apply swap to pending order
@@ -1941,7 +1978,6 @@ export default function MediaWorkbench() {
 
           if (sourceIndex === -1 || targetIndex === -1) {
             console.error('[WB_DND] MEDIA_NOT_IN_PENDING_GALLERY', { 
-              requestId,
               sourceIndex, 
               targetIndex, 
               sourceMediaId, 
@@ -1958,25 +1994,21 @@ export default function MediaWorkbench() {
           newPendingOrder.splice(targetIndex, 0, movedItem);
 
           console.log('[WB_DND] PENDING_ORDER_UPDATED', {
-            requestId,
-            projectId,
             sourceIndex,
             targetIndex,
             movedItem,
             oldLength: pendingOrder.length,
             newLength: newPendingOrder.length,
-            previewBefore: pendingOrder.slice(Math.max(0, sourceIndex - 2), sourceIndex + 3),
-            previewAfter: newPendingOrder.slice(Math.max(0, targetIndex - 2), targetIndex + 3),
           });
 
-          // Update pending order in state
+          // P0 FIX: Update ref immediately (synchronously), then mirror to React state
+          pendingGalleryOrderRef.current = newPendingOrder;
           setState(prev => ({
             ...prev,
             pendingGalleryOrder: newPendingOrder,
           }));
 
           console.log('[WB_DND] REORDER_QUEUED', {
-            requestId,
             projectId,
             pendingChanges: true,
             note: 'Changes queued locally. Click "Save Gallery Changes" to persist.',
@@ -2092,58 +2124,83 @@ export default function MediaWorkbench() {
 
         // P0 FIX: Initialize pending order if needed (for add operations)
         try {
-          let pendingOrder = state.pendingGalleryOrder;
-          let baseRevision = state.galleryBaseRevision;
-          
-          if (!pendingOrder || state.galleryProjectId !== projectId) {
-            console.log('[WB_DND] GALLERY_ADD_INITIALIZING_PENDING_ORDER', {
-              requestId,
-              projectId,
-              reason: 'No pending order or different project',
-            });
+          // P0 FIX: Use ref-backed transaction buffer to avoid stale React closures
+          if (!pendingGalleryOrderRef.current || galleryProjectIdRef.current !== projectId) {
+            // If initialization is already in flight, wait for it
+            if (galleryInitializationPromiseRef.current) {
+              await galleryInitializationPromiseRef.current;
+            } else {
+              // Start new initialization
+              galleryInitializationPromiseRef.current = (async () => {
+                console.log('[WB_DND] GALLERY_ADD_INITIALIZING_PENDING_ORDER', {
+                  projectId,
+                  reason: 'No pending order or different project',
+                });
 
-            const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
-            
-            if (!response.ok) {
-              const errorText = await response.text();
-              console.error('[WB_DND] GALLERY_ADD_FETCH_FAILED', {
-                requestId,
-                projectId,
-                status: response.status,
-                errorText,
-              });
-              throw new Error('Failed to load gallery');
+                const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+                
+                if (!response.ok) {
+                  const errorText = await response.text();
+                  console.error('[WB_DND] GALLERY_ADD_FETCH_FAILED', {
+                    projectId,
+                    status: response.status,
+                    errorText,
+                  });
+                  throw new Error('Failed to load gallery');
+                }
+
+                const data = await response.json();
+                const currentGallery = data.gallery || [];
+                const currentRevision = data.currentRevision;
+
+                console.log('[WB_DND] GALLERY_ADD_PENDING_ORDER_INITIALIZED', {
+                  projectId,
+                  galleryLength: currentGallery.length,
+                  baseRevision: currentRevision,
+                });
+
+                // Set ref-backed buffer
+                pendingGalleryOrderRef.current = [...currentGallery];
+                galleryBaseRevisionRef.current = currentRevision;
+                galleryProjectIdRef.current = projectId;
+
+                // Mirror to React state for UI
+                setState(prev => ({
+                  ...prev,
+                  pendingGalleryOrder: pendingGalleryOrderRef.current,
+                  galleryBaseRevision: galleryBaseRevisionRef.current,
+                  galleryProjectId: galleryProjectIdRef.current,
+                }));
+              })();
+
+              await galleryInitializationPromiseRef.current;
+              galleryInitializationPromiseRef.current = null;
             }
+          }
 
-            const data = await response.json();
-            const currentGallery = data.gallery || [];
-            const currentRevision = data.currentRevision;
+          // P0 FIX: Read from ref, not captured React state
+          const pendingOrder = pendingGalleryOrderRef.current;
+          if (!pendingOrder) {
+            console.error('[WB_DND] PENDING_ORDER_NULL_AFTER_INIT');
+            return;
+          }
 
-            console.log('[WB_DND] GALLERY_ADD_PENDING_ORDER_INITIALIZED', {
-              requestId,
-              projectId,
-              galleryLength: currentGallery.length,
-              baseRevision: currentRevision,
-            });
+          // P0 FIX: Distinguish between replace (drop on existing item) and add (append)
+          // Parse slotId to extract target index if dropping on existing gallery item
+          // Format: our-work-gallery::{projectId}::{mediaId}
+          const targetIdMatch = slotId?.match(/our-work-gallery::(.+)::(.+)/);
+          let targetIndex = -1;
+          let isReplace = false;
 
-            // Use the fetched gallery as the pending order
-            pendingOrder = [...currentGallery];
-            baseRevision = currentRevision;
-
-            // Set base gallery in state
-            setState(prev => ({
-              ...prev,
-              pendingGalleryOrder: pendingOrder,
-              galleryBaseRevision: baseRevision,
-              galleryProjectId: projectId,
-            }));
+          if (targetIdMatch) {
+            const [, , targetMediaId] = targetIdMatch;
+            targetIndex = pendingOrder.indexOf(targetMediaId);
+            isReplace = targetIndex !== -1;
           }
 
           // Check if asset already in pending gallery
           if (pendingOrder.includes(finalAssetId)) {
             console.log('[WB_DND] GALLERY_ADD_DUPLICATE', {
-              requestId,
-              projectId,
               finalAssetId,
               originalAssetId: assetId,
               message: 'Asset already in pending gallery',
@@ -2152,30 +2209,45 @@ export default function MediaWorkbench() {
             return;
           }
 
-          // Add asset to end of pending gallery
-          const newPendingOrder = [...pendingOrder, finalAssetId];
+          let newPendingOrder: string[];
+
+          if (isReplace && targetIndex !== -1) {
+            // Replace: swap target index with new asset
+            console.log('[WB_DND] GALLERY_REPLACE', {
+              targetIndex,
+              targetMediaId: pendingOrder[targetIndex],
+              newAssetId: finalAssetId,
+            });
+            newPendingOrder = [...pendingOrder];
+            newPendingOrder[targetIndex] = finalAssetId;
+          } else {
+            // Add: append to end
+            console.log('[WB_DND] GALLERY_APPEND', {
+              finalAssetId,
+              originalAssetId: assetId,
+              wasMaterialized: finalAssetId !== assetId,
+            });
+            newPendingOrder = [...pendingOrder, finalAssetId];
+          }
 
           console.log('[WB_DND] GALLERY_ADD_PENDING_ORDER_UPDATED', {
-            requestId,
-            projectId,
-            addedAssetId: finalAssetId,
-            originalAssetId: assetId,
-            wasMaterialized: finalAssetId !== assetId,
+            isReplace,
+            targetIndex,
             oldLength: pendingOrder.length,
             newLength: newPendingOrder.length,
           });
 
-          // Update pending order in state
+          // P0 FIX: Update ref immediately (synchronously), then mirror to React state
+          pendingGalleryOrderRef.current = newPendingOrder;
           setState(prev => ({
             ...prev,
             pendingGalleryOrder: newPendingOrder,
           }));
 
           console.log('[WB_DND] GALLERY_ADD_QUEUED', {
-            requestId,
             projectId,
             pendingChanges: true,
-            note: 'Add queued locally. Click "Save Gallery Changes" to persist.',
+            note: isReplace ? 'Replace queued locally' : 'Add queued locally. Click "Save Gallery Changes" to persist.',
           });
         } catch (error) {
           console.error('[WB_DND] GALLERY_ADD_ERROR', { 
@@ -2214,42 +2286,58 @@ export default function MediaWorkbench() {
       }
 
       try {
-        // P0 FIX: Initialize pending order if needed (for delete operations)
-        let pendingOrder = state.pendingGalleryOrder;
-        let baseRevision = state.galleryBaseRevision;
-        
-        if (!pendingOrder || state.galleryProjectId !== projectId) {
-          console.log('[WB_GALLERY_DELETE] INITIALIZING_PENDING_ORDER', {
-            projectId,
-            reason: 'No pending order or different project',
-          });
+        // P0 FIX: Use ref-backed transaction buffer to avoid stale React closures
+        if (!pendingGalleryOrderRef.current || galleryProjectIdRef.current !== projectId) {
+          // If initialization is already in flight, wait for it
+          if (galleryInitializationPromiseRef.current) {
+            await galleryInitializationPromiseRef.current;
+          } else {
+            // Start new initialization
+            galleryInitializationPromiseRef.current = (async () => {
+              console.log('[WB_GALLERY_DELETE] INITIALIZING_PENDING_ORDER', {
+                projectId,
+                reason: 'No pending order or different project',
+              });
 
-          const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
-          if (!response.ok) {
-            throw new Error('Failed to load gallery');
+              const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+              if (!response.ok) {
+                throw new Error('Failed to load gallery');
+              }
+
+              const data = await response.json();
+              const currentGallery = data.gallery || [];
+              const currentRevision = data.currentRevision;
+
+              console.log('[WB_GALLERY_DELETE] PENDING_ORDER_INITIALIZED', {
+                projectId,
+                galleryLength: currentGallery.length,
+                baseRevision: currentRevision,
+              });
+
+              // Set ref-backed buffer
+              pendingGalleryOrderRef.current = [...currentGallery];
+              galleryBaseRevisionRef.current = currentRevision;
+              galleryProjectIdRef.current = projectId;
+
+              // Mirror to React state for UI
+              setState(prev => ({
+                ...prev,
+                pendingGalleryOrder: pendingGalleryOrderRef.current,
+                galleryBaseRevision: galleryBaseRevisionRef.current,
+                galleryProjectId: galleryProjectIdRef.current,
+              }));
+            })();
+
+            await galleryInitializationPromiseRef.current;
+            galleryInitializationPromiseRef.current = null;
           }
+        }
 
-          const data = await response.json();
-          const currentGallery = data.gallery || [];
-          const currentRevision = data.currentRevision;
-
-          console.log('[WB_GALLERY_DELETE] PENDING_ORDER_INITIALIZED', {
-            projectId,
-            galleryLength: currentGallery.length,
-            baseRevision: currentRevision,
-          });
-
-          // Use the fetched gallery as the pending order
-          pendingOrder = [...currentGallery];
-          baseRevision = currentRevision;
-
-          // Set base gallery in state
-          setState(prev => ({
-            ...prev,
-            pendingGalleryOrder: pendingOrder,
-            galleryBaseRevision: baseRevision,
-            galleryProjectId: projectId,
-          }));
+        // P0 FIX: Read from ref, not captured React state
+        const pendingOrder = pendingGalleryOrderRef.current;
+        if (!pendingOrder) {
+          console.error('[WB_GALLERY_DELETE] PENDING_ORDER_NULL_AFTER_INIT');
+          return;
         }
 
         // Remove media from pending gallery
@@ -2267,7 +2355,8 @@ export default function MediaWorkbench() {
           newLength: newPendingOrder.length,
         });
 
-        // Update pending order in state
+        // P0 FIX: Update ref immediately (synchronously), then mirror to React state
+        pendingGalleryOrderRef.current = newPendingOrder;
         setState(prev => ({
           ...prev,
           pendingGalleryOrder: newPendingOrder,
