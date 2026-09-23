@@ -58,22 +58,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if runtime authority already exists
-    const runtimeKey = getRuntimeGalleryKey(projectId);
-    const existingRuntime = await redis.get(runtimeKey);
-
-    if (existingRuntime) {
-      return NextResponse.json(
-        { 
-          error: "Runtime authority already initialized",
-          message: "Runtime authority already exists for this project. Cannot re-bootstrap.",
-          projectId,
-        },
-        { status: 409 }
-      );
-    }
-
-    // Read filesystem projection
+    // Read filesystem projection first (before Redis operation)
     const projectsPath = join(process.cwd(), "src/config/projects.v1.json");
     const projectsData = JSON.parse(readFileSync(projectsPath, "utf-8"));
 
@@ -97,7 +82,27 @@ export async function POST(request: Request) {
       source: 'filesystem-bootstrap',
     };
 
-    await redis.set(runtimeKey, runtimePayload);
+    // P0 FIX: Use atomic create-if-absent semantics to prevent race conditions
+    // Two simultaneous bootstrap requests should not both overwrite
+    const runtimeKey = getRuntimeGalleryKey(projectId);
+    
+    // Use Redis SET with NX (set if not exists) for atomic create-if-absent
+    const setResult = await redis.set(runtimeKey, runtimePayload, { nx: true });
+
+    if (!setResult) {
+      // Key already exists - return existing authority (not an error)
+      const existingRuntime = await redis.get(runtimeKey);
+      return NextResponse.json(
+        { 
+          success: true,
+          projectId,
+          message: "Runtime authority already exists (returned existing)",
+          action: "skipped",
+          existingRuntime,
+        },
+        { status: 200 }
+      );
+    }
 
     console.log('[GALLERY BOOTSTRAP] SUCCESS', {
       projectId,

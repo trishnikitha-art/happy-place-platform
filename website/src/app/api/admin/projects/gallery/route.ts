@@ -201,14 +201,22 @@ export async function GET(request: Request) {
       });
     }
 
-    // P0 FIX: If runtime authority doesn't exist, fail closed
+    // P0 FIX: If runtime authority doesn't exist, fail closed with specific project ID
     // Filesystem is only for projection/fallback, not runtime authority
     if (isProduction) {
+      console.error('[GALLERY GET] RUNTIME_AUTHORITY_NOT_INITIALIZED', {
+        projectId,
+        message: 'Gallery runtime authority has not been initialized for this project',
+        suggestion: 'Use POST /api/admin/projects/gallery/initialize-all to initialize runtime authority for all projects',
+        timestamp: new Date().toISOString(),
+      });
+      
       return NextResponse.json(
         {
           error: "Runtime authority not initialized",
-          message: "Gallery runtime authority has not been initialized. Please contact administrator.",
+          message: `Gallery runtime authority has not been initialized for project: ${projectId}. Please contact administrator to initialize runtime authority.`,
           projectId,
+          suggestion: 'Use POST /api/admin/projects/gallery/initialize-all to initialize runtime authority for all projects',
         },
         { status: 503 }
       );

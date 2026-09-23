@@ -1994,12 +1994,20 @@ export default function MediaWorkbench() {
                 
                 if (!response.ok) {
                   const errorText = await response.text();
+                  const errorData = errorText ? JSON.parse(errorText) : null;
                   console.error('[WB_DND] GALLERY_FETCH_FAILED', {
                     projectId,
                     status: response.status,
                     errorText,
+                    errorData,
                   });
-                  throw new Error('Failed to load gallery');
+                  
+                  // P0 FIX: Surface runtime authority initialization error specifically
+                  if (response.status === 503 && errorData?.error === 'Runtime authority not initialized') {
+                    throw new Error(`Gallery runtime authority not initialized for project: ${projectId}. ${errorData.message || errorData.suggestion || ''}`);
+                  }
+                  
+                  throw new Error(`Failed to load gallery: ${errorText}`);
                 }
 
                 const data = await response.json();
@@ -2207,12 +2215,20 @@ export default function MediaWorkbench() {
                 
                 if (!response.ok) {
                   const errorText = await response.text();
+                  const errorData = errorText ? JSON.parse(errorText) : null;
                   console.error('[WB_DND] GALLERY_ADD_FETCH_FAILED', {
                     projectId,
                     status: response.status,
                     errorText,
+                    errorData,
                   });
-                  throw new Error('Failed to load gallery');
+                  
+                  // P0 FIX: Surface runtime authority initialization error specifically
+                  if (response.status === 503 && errorData?.error === 'Runtime authority not initialized') {
+                    throw new Error(`Gallery runtime authority not initialized for project: ${projectId}. ${errorData.message || errorData.suggestion || ''}`);
+                  }
+                  
+                  throw new Error(`Failed to load gallery: ${errorText}`);
                 }
 
                 const data = await response.json();
@@ -2367,7 +2383,21 @@ export default function MediaWorkbench() {
 
               const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
               if (!response.ok) {
-                throw new Error('Failed to load gallery');
+                const errorText = await response.text();
+                const errorData = errorText ? JSON.parse(errorText) : null;
+                console.error('[WB_GALLERY_DELETE] GALLERY_FETCH_FAILED', {
+                  projectId,
+                  status: response.status,
+                  errorText,
+                  errorData,
+                });
+                
+                // P0 FIX: Surface runtime authority initialization error specifically
+                if (response.status === 503 && errorData?.error === 'Runtime authority not initialized') {
+                  throw new Error(`Gallery runtime authority not initialized for project: ${projectId}. ${errorData.message || errorData.suggestion || ''}`);
+                }
+                
+                throw new Error(`Failed to load gallery: ${errorText}`);
               }
 
               const data = await response.json();
