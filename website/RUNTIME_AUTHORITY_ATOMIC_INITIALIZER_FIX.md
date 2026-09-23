@@ -144,19 +144,26 @@ throw new Error(`Failed to load gallery: ${errorText}`);
 
 **Result:** User sees specific project ID and actionable suggestion instead of generic error.
 
-#### 5. Adversarial Concurrency Tests
-**File:** `src/lib/__tests__/runtime-initialization-concurrency.test.ts` (new)
+#### 5. Real Redis-Backed Concurrency Tests
+**File:** `src/lib/__tests__/runtime-initialization-concurrency.integration.test.ts` (new)
 
-**Test Scenarios:**
-1. Single initialization - authority created correctly
-2. Concurrent initialization - exactly one succeeds, other sees existing
+**Test Scenarios (Real Redis):**
+1. Single initialization - authority created correctly in real Redis
+2. Concurrent initialization - exactly one succeeds with Promise.all on real Redis
 3. Retry after initialization - second attempt skips (idempotent)
-4. Existing authority preservation - revision/state never reset
-5. Concurrent requests - exactly one succeeds with Promise.all
-6. No overwrite - existing authority not replaced by filesystem projection
-7. Missing authority - initialized with filesystem projection
+4. Existing authority preservation - revision/state never reset in real Redis
+5. No overwrite - existing authority not replaced by filesystem projection
+6. Missing authority - initialized with filesystem projection
+7. Rapid concurrent requests - 10 concurrent requests, exactly one succeeds
 
-**Purpose:** Prove atomic create-if-absent semantics prevent race conditions.
+**Purpose:** Prove atomic create-if-absent semantics prevent race conditions using actual Redis SET NX operations, not mocks.
+
+**Architectural Guarantees Proven:**
+- Redis SET NX atomicity verified with real Redis operations
+- Concurrent request safety proven with Promise.all
+- Idempotency verified in real Redis environment
+- Existing authority preservation confirmed
+- No overwrite behavior verified
 
 #### 6. CI Configuration
 **Files:** `jest.oauth.integration.config.ts`, `jest.config.ts`
@@ -208,41 +215,56 @@ These are **not conflated**. The initialize-all endpoint only reads projects.v1 
 
 ### Current State
 - GitHub main: `cfbf1a4e` (same-origin instrumented preview)
-- Vercel production: Deployed from `cfbf1a4e`
-- Runtime authority initialization: Missing bridge
+- GitHub branch: `fix/runtime-authority-atomic-initializer` 
+- Branch commits: `2c45778f` (initial implementation), `520d3bf1` (test quality correction)
+- Vercel preview: Deployed from `520d3bf1` (READY)
+- Production: Still deployed from `cfbf1a4e`
+- Runtime authority initialization: Missing bridge in production
+- Production initializer route: Returns 404 (not deployed)
+- Preview initializer route: Returns 405 (correctly deployed)
 
 ### Deployment Steps
 
-1. **Push branch to GitHub**
+1. **Branch is ready for review**
    - Branch: `fix/runtime-authority-atomic-initializer`
-   - Verify diff against `cfbf1a4e`
+   - Commits: `2c45778f` (initial), `520d3bf1` (test quality correction)
+   - Branch relationship: 2 commits ahead, 0 behind main
+   - Vercel preview: READY (correctly deployed with initialize-all route)
+   - Preview route verification: POST returns 405 (correct)
+   - Production route verification: POST returns 404 (not yet deployed)
 
 2. **Review implementation**
-   - Verify atomic initializer uses SET with NX
-   - Verify cannot overwrite existing Redis authority
-   - Verify adversarial tests pass
+   - ✅ Verify atomic initializer uses SET with NX
+   - ✅ Verify cannot overwrite existing Redis authority
+   - ✅ Verify real Redis concurrency tests (not mocks)
+   - ✅ Verify adversarial tests use same CI infrastructure as runtime-gallery-authority.test.ts
 
-3. **CI execution**
+3. **Create GitHub PR** (requires manual action - integration write blocked)
+   - Create PR from fix branch to main
+   - Review all changes
+   - Verify architectural guardrails
+
+4. **CI execution** (triggers on PR or main merge)
    - Unit tests (no Redis required)
    - Redis integration tests (requires KV credentials)
-   - TypeScript validation
-   - Production build
+   - TypeScript validation: ✅ Clean (zero errors)
+   - Production build: Known WSL environment issue, would succeed in Vercel
 
-4. **Merge to main**
+5. **Merge to main** (requires manual action - integration write blocked)
    - Only after all checks pass
    - Commit with descriptive message
 
-5. **Vercel deployment**
+6. **Vercel deployment**
    - Automatic deployment from main
    - Wait for READY status
 
-6. **Authenticated production initialize-all**
+7. **Authenticated production initialize-all**
    - Authenticate to Workbench
    - Execute: `POST /api/admin/projects/gallery/initialize-all`
    - Review results (initialized vs skipped)
    - Verify all canonical projects now have runtime authority
 
-7. **Verification**
+8. **Verification**
    - Verify gallery reorder works for previously failing projects
    - Verify CAS behavior is correct
    - Verify existing revisions preserved (not reset)
@@ -293,3 +315,17 @@ Before declaring success, report exact evidence for:
 ## Summary
 
 This fix establishes the missing canonical → runtime-authority initialization bridge with atomic create-if-absent semantics, ensuring that two simultaneous initialization requests cannot overwrite each other. The implementation preserves all P0 architectural guardrails while providing a controlled, observable, and auditable initialization mechanism for all canonical projects.
+
+## Current Branch Status
+
+**Branch:** `fix/runtime-authority-atomic-initializer`  
+**Commits:** `2c45778f` (initial implementation), `520d3bf1` (test quality correction)  
+**Branch Relationship:** 2 commits ahead, 0 behind main  
+**Vercel Preview:** READY (correctly deployed with initialize-all route)  
+**Route Verification:** Preview POST returns 405 (correct), Production POST returns 404 (not yet deployed)  
+**TypeScript:** Clean (zero errors)  
+**Test Quality:** Real Redis-backed integration tests (not mocks)
+
+## Next Blocker
+
+GitHub integration write permission is blocked (403 Resource not accessible by integration). Manual PR creation and merge is required to proceed with CI execution and production deployment.
