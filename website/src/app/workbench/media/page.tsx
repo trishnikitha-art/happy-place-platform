@@ -2815,21 +2815,27 @@ export default function MediaWorkbench() {
 
       {/* Main Content - Two Panel Layout */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 min-h-0">
-          {/* LEFT: Actual Website Preview - Live Production Site */}
+          {/* LEFT: Actual Website Preview - Same-Origin Instrumented Production Pages */}
           <section id="slot-view" role="tabpanel" className="min-h-[420px] lg:min-h-0 min-w-0 overflow-y-auto bg-white h-full relative border-r border-border">
-            {/* Website Preview Iframe - displays actual production site */}
+            {/* Website Preview Iframe - displays actual production page components with VisualSlot instrumentation */}
             <iframe
               ref={iframeRef}
-              src={`https://happyplacecarpentry.com${state.selectedPage}`}
+              src={`${window.location.origin}/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`}
               className="w-full h-full border-0"
               title="Website Preview"
               sandbox="allow-same-origin allow-scripts allow-popups"
               onLoad={() => {
-                console.log('[SLOT] PRODUCTION_IFRAME_LOADED', {
-                  iframeSrc: `https://happyplacecarpentry.com${state.selectedPage}`,
+                console.log('[SLOT] INSTRUMENTED_PREVIEW_IFRAME_LOADED', {
+                  iframeSrc: `${window.location.origin}/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`,
                   contentWindowExists: !!iframeRef.current?.contentWindow,
                   selectedPage: state.selectedPage,
                   actualSrc: iframeRef.current?.src,
+                  previewRouteExpected: `/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`,
+                  usesPreviewRoute: iframeRef.current?.src?.includes('/workbench/preview/'),
+                  timestamp: Date.now(),
+                });
+                console.log('[WB_FORENSIC] IFRAME_LOAD_COMPLETE', {
+                  reason: 'Instrumented preview iframe loaded, waiting for BRIDGE_READY from child slots',
                   timestamp: Date.now(),
                 });
               }}
