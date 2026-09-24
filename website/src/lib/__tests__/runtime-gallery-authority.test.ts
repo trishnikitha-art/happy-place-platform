@@ -34,7 +34,8 @@
 
 import { describe, it, expect, beforeAll, afterAll, beforeEach } from '@jest/globals';
 import { Redis } from '@upstash/redis';
-import { getRedisClient, getKvNamespace, ATOMIC_GALLERY_CAS_SCRIPT, CONDITIONAL_POINTER_CLEANUP_SCRIPT } from '@/lib/deployment-transaction';
+import { getRedisClient, ATOMIC_GALLERY_CAS_SCRIPT, CONDITIONAL_POINTER_CLEANUP_SCRIPT } from '@/lib/deployment-transaction';
+import { getKvNamespace } from '@/lib/environment';
 
 // Use the same keys as the production route
 const WORKBENCH_RUNTIME_PREFIX = 'workbench-runtime-gallery:';
