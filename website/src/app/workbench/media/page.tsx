@@ -161,6 +161,7 @@ export default function MediaWorkbench() {
     galleryBaseRevision: null, // P0 FIX: No base revision initially
     galleryProjectId: null, // P0 FIX: No project selected initially
     pendingDeployments: [], // P0 FIX: No pending deployments initially
+    pendingDeploymentsError: null, // P0 FIX: Error state for recovery unavailability
   });
 
   // Keep refs in sync with state
@@ -254,6 +255,7 @@ export default function MediaWorkbench() {
         if (response.status === 503) {
           const error = await response.json();
           console.error('[WORKBENCH] PENDING_DEPLOYMENTS_RECOVERY_UNAVAILABLE', error);
+          setState(prev => ({ ...prev, pendingDeploymentsError: error.message || 'Recovery unavailable' }));
         }
         return;
       }
@@ -262,9 +264,14 @@ export default function MediaWorkbench() {
       
       console.log('[WORKBENCH] PENDING_DEPLOYMENTS_LOADED', data.transactions);
       
-      setState(prev => ({ ...prev, pendingDeployments: data.transactions || [] }));
+      setState(prev => ({ 
+        ...prev, 
+        pendingDeployments: data.transactions || [],
+        pendingDeploymentsError: null
+      }));
     } catch (error) {
       console.warn('[WORKBENCH] PENDING_DEPLOYMENTS_ERROR', error);
+      setState(prev => ({ ...prev, pendingDeploymentsError: 'Failed to load pending deployments' }));
     }
   };
 
@@ -3134,19 +3141,35 @@ export default function MediaWorkbench() {
                 )}
 
                 {/* P0 FIX: Pending Deployments Recovery */}
-                {state.pendingDeployments.length > 0 && (
+                {(state.pendingDeployments.length > 0 || state.pendingDeploymentsError) && (
                   <div className="mb-4 p-3 bg-blue-50 text-blue-900 text-sm rounded border border-blue-200">
-                    <div className="font-semibold mb-2">Pending Deployments ({state.pendingDeployments.length}):</div>
+                    {state.pendingDeploymentsError ? (
+                      <div className="font-semibold mb-2 text-red-700">⚠️ Deployment Recovery Unavailable</div>
+                    ) : (
+                      <div className="font-semibold mb-2">Pending Deployments ({state.pendingDeployments.length}):</div>
+                    )}
+                    
+                    {state.pendingDeploymentsError && (
+                      <div className="text-xs text-red-600 mb-2">{state.pendingDeploymentsError}</div>
+                    )}
+                    
                     <div className="space-y-2">
                       {state.pendingDeployments.map((deployment) => (
-                        <div key={deployment.transactionId} className="p-2 bg-white rounded border border-blue-100">
+                        <div key={deployment.transactionId} className={`p-2 rounded border ${deployment.state === 'failed' ? 'bg-orange-50 border-orange-200' : 'bg-white border-blue-100'}`}>
                           <div className="flex justify-between items-start mb-1">
                             <div className="font-mono text-xs">{deployment.transactionId}</div>
-                            <div className="text-xs text-blue-600">{deployment.projectId || 'Unknown project'}</div>
+                            <div className={`text-xs ${deployment.state === 'failed' ? 'text-orange-600' : 'text-blue-600'}`}>
+                              {deployment.projectId || 'Unknown project'} • {deployment.state.toUpperCase()}
+                            </div>
                           </div>
                           <div className="text-xs text-muted-foreground mb-2">
                             {deployment.stagingKeysCount} staging key(s) • {new Date(deployment.timestamp).toLocaleString()}
                           </div>
+                          {deployment.failureReason && (
+                            <div className="text-xs text-orange-700 mb-2">
+                              ⚠️ {deployment.failureReason}
+                            </div>
+                          )}
                           <button
                             onClick={() => retryDeployment(deployment.transactionId)}
                             className="w-full px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"

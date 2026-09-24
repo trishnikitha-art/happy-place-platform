@@ -20,6 +20,8 @@ export interface DeploymentTransaction {
   reason?: string;
   createdAt?: string;
   files?: string[];
+  failureReason?: string;
+  retryCount?: number;
 }
 
 function extractProjectIdFromStagingKeys(stagingKeys: string[] | undefined): string | null {
@@ -61,16 +63,21 @@ export async function GET(request: Request) {
       const transactionId = key.replace(`${getKvNamespace()}${TRANSACTION_PREFIX}`, '');
       const transaction = await redis.get(key) as DeploymentTransaction | null;
       
-      if (transaction && transaction.state === 'prepared') {
+      // P0 FIX: Expose both prepared and failed transactions for recovery
+      // The state machine supports failed → prepared retry via /api/admin/deploy
+      if (transaction && (transaction.state === 'prepared' || transaction.state === 'failed')) {
         // Extract project ID from staging keys if possible
         const projectId = extractProjectIdFromStagingKeys(transaction.stagingKeys);
         
         transactions.push({
           transactionId,
           projectId,
+          state: transaction.state,
           reason: transaction.reason || 'Manual deployment',
           timestamp: transaction.createdAt || new Date().toISOString(),
           stagingKeysCount: transaction.stagingKeys?.length || 0,
+          failureReason: transaction.failureReason,
+          retryCount: transaction.retryCount || 0,
         });
       }
     }
