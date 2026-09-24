@@ -86,7 +86,8 @@ interface MediaWorkbenchState {
   pendingGalleryOrder: string[] | null; // P0 FIX: Pending gallery reordering (local state, not yet persisted)
   galleryBaseRevision: number | null; // P0 FIX: Revision the pending order is based on (for CAS)
   galleryProjectId: string | null; // P0 FIX: Which project's gallery is being edited
-  pendingDeployments: Array<{ transactionId: string; projectId: string | null; reason: string; timestamp: string; stagingKeysCount: number }>; // P0 FIX: Track prepared transactions available for retry
+  pendingDeployments: Array<{ transactionId: string; projectId: string | null; state: string; reason: string; timestamp: string; stagingKeysCount: number; failureReason?: string; retryCount?: number }>; // P0 FIX: Track prepared and failed transactions available for retry
+  pendingDeploymentsError: string | null; // P0 FIX: Error state for recovery unavailability
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
