@@ -276,6 +276,7 @@ function dispatchStagingRecordType(key: string): 'assignment' | 'gallery' | 'poi
   if (parts.length >= 4 && parts[1] === 'project') {
     const field = parts[3];
     if (field === 'gallery') {
+      console.log('[DEPLOY API] DISPATCH_CLASSIFIED_AS_GALLERY', { key, field, parts });
       return 'gallery';
     } else if (field === 'current-transaction') {
       return 'pointer';
@@ -423,6 +424,7 @@ function decodeGalleryStaging(value: unknown): { gallery: string[]; currentRevis
     currentRevision: staging.currentRevision,
     previousGalleryLength: staging.previousGallery.length,
     mutationTimestamp: staging.mutationTimestamp,
+    galleryItems: staging.gallery,
   });
 
   return {
