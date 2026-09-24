@@ -488,7 +488,7 @@ export async function PUT(request: Request) {
         transactionId: effectiveTransactionId,
         state: 'prepared',
         stagingKeys: [specificStagingKey],
-        targetFiles: ['projects.v1.json'],
+        files: ['projects.v1.json'],
         description: `Gallery order mutation: ${projectId} (${gallery.length} items)`,
         createdAt: mutationTimestamp,
         updatedAt: mutationTimestamp,

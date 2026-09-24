@@ -7,9 +7,34 @@
 
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
-import { loadPendingDeploymentTransactions } from '@/lib/load-pending-deployments';
+import { Redis } from '@upstash/redis';
+import { getKvNamespace } from '@/lib/environment';
 
 export const runtime = 'nodejs';
+
+const TRANSACTION_PREFIX = 'deployment-transaction:';
+
+export interface DeploymentTransaction {
+  state: string;
+  stagingKeys?: string[];
+  reason?: string;
+  createdAt?: string;
+  files?: string[];
+}
+
+function extractProjectIdFromStagingKeys(stagingKeys: string[] | undefined): string | null {
+  if (!stagingKeys || stagingKeys.length === 0) return null;
+  
+  // Look for project gallery keys: hpp:{env}:workbench-staging:{txId}:project:{projectId}:gallery
+  for (const key of stagingKeys) {
+    const match = key.match(/:project:([^:]+):gallery$/);
+    if (match) {
+      return match[1];
+    }
+  }
+  
+  return null;
+}
 
 export async function GET(request: Request) {
   // Require Workbench authentication
@@ -22,17 +47,44 @@ export async function GET(request: Request) {
   }
 
   try {
-    const transactions = await loadPendingDeploymentTransactions();
+    const redis = new Redis({
+      url: process.env.KV_REST_API_URL || '',
+      token: process.env.KV_REST_API_TOKEN || '',
+    });
+
+    // Scan for all deployment transaction keys
+    const keys = await redis.keys(`${getKvNamespace()}${TRANSACTION_PREFIX}*`);
     
+    const transactions = [];
+    
+    for (const key of keys) {
+      const transactionId = key.replace(`${getKvNamespace()}${TRANSACTION_PREFIX}`, '');
+      const transaction = await redis.get(key) as DeploymentTransaction | null;
+      
+      if (transaction && transaction.state === 'prepared') {
+        // Extract project ID from staging keys if possible
+        const projectId = extractProjectIdFromStagingKeys(transaction.stagingKeys);
+        
+        transactions.push({
+          transactionId,
+          projectId,
+          reason: transaction.reason || 'Manual deployment',
+          timestamp: transaction.createdAt || new Date().toISOString(),
+          stagingKeysCount: transaction.stagingKeys?.length || 0,
+        });
+      }
+    }
+
     return NextResponse.json({
       transactions,
       count: transactions.length,
     });
   } catch (error) {
     console.error('[PENDING DEPLOYMENTS API] Error:', error);
+    // P0 FIX: Return 503 to distinguish Redis failure from empty transaction list
     return NextResponse.json(
-      { error: "Failed to load pending deployments" },
-      { status: 500 }
+      { error: "Pending deployment recovery unavailable", message: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 503 }
     );
   }
 }

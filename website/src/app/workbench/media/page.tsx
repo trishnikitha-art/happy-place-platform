@@ -11,7 +11,6 @@ import { SlotGallery } from '@/components/workbench/slot-gallery';
 import { ReplacementDialog, type ReplacementPreview } from '@/components/workbench/replacement-dialog';
 import { resolveAssignmentKey, isAssignmentRevision } from '@/lib/workbench-assignment-contract';
 import { selectTarget, selectPublishedSource, selectDriveSource } from '@/lib/workbench-selection';
-import { loadPendingDeploymentTransactions } from '@/lib/load-pending-deployments';
 
 interface PendingReplacement {
   preview: ReplacementPreview;
@@ -238,6 +237,34 @@ export default function MediaWorkbench() {
       setState(prev => ({ ...prev, mediaAudit: data.audit }));
     } catch (error) {
       console.warn('[WORKBENCH] MEDIA_AUDIT_ERROR', error);
+    }
+  };
+
+  // P0 FIX: Load pending deployment transactions via API
+  const loadPendingDeployments = async () => {
+    try {
+      console.log('[WORKBENCH] LOAD_PENDING_DEPLOYMENTS_START');
+      
+      const response = await fetch('/api/workbench/pending-deployments', {
+        method: 'GET',
+      });
+      
+      if (!response.ok) {
+        console.warn('[WORKBENCH] PENDING_DEPLOYMENTS_UNAVAILABLE', { status: response.status });
+        if (response.status === 503) {
+          const error = await response.json();
+          console.error('[WORKBENCH] PENDING_DEPLOYMENTS_RECOVERY_UNAVAILABLE', error);
+        }
+        return;
+      }
+      
+      const data = await response.json();
+      
+      console.log('[WORKBENCH] PENDING_DEPLOYMENTS_LOADED', data.transactions);
+      
+      setState(prev => ({ ...prev, pendingDeployments: data.transactions || [] }));
+    } catch (error) {
+      console.warn('[WORKBENCH] PENDING_DEPLOYMENTS_ERROR', error);
     }
   };
 
@@ -1461,30 +1488,6 @@ export default function MediaWorkbench() {
     loadCanonicalData(); // Refresh to show updated slots
   };
 
-  // P0 FIX: Load pending deployment transactions for recovery
-  const loadPendingDeployments = async () => {
-    try {
-      console.log('[WORKBENCH] LOAD_PENDING_DEPLOYMENTS_START');
-      
-      const response = await fetch('/api/workbench/pending-deployments', {
-        method: 'GET',
-      });
-      
-      if (!response.ok) {
-        console.warn('[WORKBENCH] PENDING_DEPLOYMENTS_UNAVAILABLE', { status: response.status });
-        return;
-      }
-      
-      const data = await response.json();
-      
-      console.log('[WORKBENCH] PENDING_DEPLOYMENTS_LOADED', data.transactions);
-      
-      setState(prev => ({ ...prev, pendingDeployments: data.transactions || [] }));
-    } catch (error) {
-      console.warn('[WORKBENCH] PENDING_DEPLOYMENTS_ERROR', error);
-    }
-  };
-
   // P0 FIX: Retry a specific pending deployment transaction
   const retryDeployment = async (transactionId: string) => {
     try {
@@ -1530,8 +1533,8 @@ export default function MediaWorkbench() {
     loadCanonicalData();
     loadAuthorizationConfig(); // P0 FIX: Load authorization configuration for diagnostics
     loadMediaAudit(); // P0 FIX: Load media authority audit for diagnostics
-    loadDriveCorpusStructure(); // P0 FIX: Load Drive corpus structure for source browsing
     loadPendingDeployments(); // P0 FIX: Load pending deployment transactions for recovery
+    loadDriveCorpusStructure(); // P0 FIX: Load Drive corpus structure for source browsing
     
     // P0 FIX: Load Drive corpus and integrate into main asset list
     // This happens after canonical data load to merge Drive assets

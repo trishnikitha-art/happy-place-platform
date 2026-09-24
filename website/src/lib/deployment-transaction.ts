@@ -530,14 +530,17 @@ const ATOMIC_GALLERY_MUTATION_SCRIPT = `
     mutationTimestamp = mutationTimestamp
   }
   
-  -- Write the specific staging key
+  -- Write the specific staging key with 24-hour TTL
   redis.call('SET', specificStagingKey, cjson.encode(galleryPayload))
+  redis.call('EXPIRE', specificStagingKey, 86400)
   
-  -- Create/update deployment transaction
+  -- Create/update deployment transaction with 24-hour TTL
   redis.call('SET', transactionKey, transactionData)
+  redis.call('EXPIRE', transactionKey, 86400)
   
-  -- Update the project-level transaction pointer
+  -- Update the project-level transaction pointer with 24-hour TTL
   redis.call('SET', projectStagingKey, transactionId)
+  redis.call('EXPIRE', projectStagingKey, 86400)
   
   -- Atomically update runtime authority (this is the live authority)
   local runtimePayload = {
