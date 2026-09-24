@@ -251,24 +251,62 @@ async function fetchWithRetry(
 }
 
 /**
- * P0 FIX: Authoritative staging-value decoder for Redis object/string handling
- * Upstash Redis can return values as either JSON strings or already-deserialized objects
- * This decoder normalizes both representations to the expected staging schema
- *
- * Expected transactional staging schema:
+ * Schema dispatcher for staging records
+ * 
+ * Determines the staging record type from the key before decoding the value.
+ * This prevents schema ambiguity and ensures type-specific validation.
+ * 
+ * Key patterns:
+ * - workbench-staging:{txId}:service:{serviceSlug} → service assignment
+ * - workbench-staging:{txId}:project:{projectId}:current-transaction → project pointer
+ * - workbench-staging:{txId}:project:{projectId}:gallery → gallery mutation
+ * - workbench-staging:{txId}:project:{projectId}:{field} → project assignment (hero, before, after)
+ * 
+ * @param key - Full staging key with namespace
+ * @returns Staging record type
+ */
+function dispatchStagingRecordType(key: string): 'assignment' | 'gallery' | 'pointer' | 'unknown' {
+  const relativeKey = key.replace(`${getKvNamespace()}workbench-staging:`, '');
+  const parts = relativeKey.split(':');
+
+  if (parts.length >= 2 && parts[1] === 'service') {
+    return 'assignment';
+  }
+
+  if (parts.length >= 2 && parts[1] === 'project') {
+    const field = parts[2];
+    if (field === 'gallery') {
+      return 'gallery';
+    } else if (field === 'current-transaction') {
+      return 'pointer';
+    } else {
+      // hero, before, after, etc.
+      return 'assignment';
+    }
+  }
+
+  return 'unknown';
+}
+
+/**
+ * Assignment staging schema decoder
+ * 
+ * Decodes service and project media assignment staging records.
+ * 
+ * Expected schema:
  * {
  *   mediaId: string,
  *   expectedRevision: number,
  *   updatedAt: string,
  *   source: 'workbench'
  * }
- *
+ * 
  * @param value - Value from Redis (string or object)
- * @returns Normalized staging record
+ * @returns Normalized assignment staging record
  * @throws Error if staging value is invalid or malformed
  */
-function parseStagingValue(value: unknown): { mediaId: string; expectedRevision: number; updatedAt: string; source: string } {
-  console.log('[DEPLOY API] STAGING_VALUE_DECODED', {
+function decodeAssignmentStaging(value: unknown): { mediaId: string; expectedRevision: number; updatedAt: string; source: string } {
+  console.log('[DEPLOY API] ASSIGNMENT_STAGING_DECODED', {
     valueType: typeof value,
   });
 
@@ -278,42 +316,37 @@ function parseStagingValue(value: unknown): { mediaId: string; expectedRevision:
     try {
       parsed = JSON.parse(value);
     } catch (e) {
-      // If it's a string but not JSON, it might be a legacy plain media ID
-      // Only accept this if explicitly supported
-      throw new Error(`Invalid staging value: string is not valid JSON and legacy format is not supported`);
+      throw new Error(`Invalid assignment staging: string is not valid JSON`);
     }
   } else if (typeof value === 'object' && value !== null) {
-    // Upstash returned an already-deserialized object
     parsed = value;
   } else {
-    throw new Error(`Invalid staging value: unexpected type ${typeof value}`);
+    throw new Error(`Invalid assignment staging: unexpected type ${typeof value}`);
   }
 
-  // Validate the parsed structure
   if (!parsed || typeof parsed !== 'object') {
-    throw new Error('Invalid staging value: parsed result is not an object');
+    throw new Error('Invalid assignment staging: parsed result is not an object');
   }
 
   const staging = parsed as Record<string, unknown>;
 
-  // Validate required fields
   if (typeof staging.mediaId !== 'string') {
-    throw new Error(`Invalid staging value: mediaId is missing or not a string (got ${typeof staging.mediaId})`);
+    throw new Error(`Invalid assignment staging: mediaId is missing or not a string (got ${typeof staging.mediaId})`);
   }
 
   if (typeof staging.expectedRevision !== 'number') {
-    throw new Error(`Invalid staging value: expectedRevision is missing or not a number (got ${typeof staging.expectedRevision})`);
+    throw new Error(`Invalid assignment staging: expectedRevision is missing or not a number (got ${typeof staging.expectedRevision})`);
   }
 
   if (typeof staging.updatedAt !== 'string') {
-    throw new Error(`Invalid staging value: updatedAt is missing or not a string (got ${typeof staging.updatedAt})`);
+    throw new Error(`Invalid assignment staging: updatedAt is missing or not a string (got ${typeof staging.updatedAt})`);
   }
 
   if (typeof staging.source !== 'string') {
-    throw new Error(`Invalid staging value: source is missing or not a string (got ${typeof staging.source})`);
+    throw new Error(`Invalid assignment staging: source is missing or not a string (got ${typeof staging.source})`);
   }
 
-  console.log('[DEPLOY API] STAGING_VALUE_VALIDATED', {
+  console.log('[DEPLOY API] ASSIGNMENT_STAGING_VALIDATED', {
     mediaId: staging.mediaId,
     expectedRevision: staging.expectedRevision,
     source: staging.source,
@@ -325,6 +358,121 @@ function parseStagingValue(value: unknown): { mediaId: string; expectedRevision:
     updatedAt: staging.updatedAt,
     source: staging.source,
   };
+}
+
+/**
+ * Gallery staging schema decoder
+ * 
+ * Decodes project gallery mutation staging records.
+ * 
+ * Expected schema:
+ * {
+ *   gallery: string[],
+ *   currentRevision: number,
+ *   previousGallery: string[],
+ *   mutationTimestamp: string
+ * }
+ * 
+ * @param value - Value from Redis (string or object)
+ * @returns Normalized gallery staging record
+ * @throws Error if staging value is invalid or malformed
+ */
+function decodeGalleryStaging(value: unknown): { gallery: string[]; currentRevision: number; previousGallery: string[]; mutationTimestamp: string } {
+  console.log('[DEPLOY API] GALLERY_STAGING_DECODED', {
+    valueType: typeof value,
+  });
+
+  let parsed: unknown;
+
+  if (typeof value === 'string') {
+    try {
+      parsed = JSON.parse(value);
+    } catch (e) {
+      throw new Error(`Invalid gallery staging: string is not valid JSON`);
+    }
+  } else if (typeof value === 'object' && value !== null) {
+    parsed = value;
+  } else {
+    throw new Error(`Invalid gallery staging: unexpected type ${typeof value}`);
+  }
+
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('Invalid gallery staging: parsed result is not an object');
+  }
+
+  const staging = parsed as Record<string, unknown>;
+
+  if (!Array.isArray(staging.gallery)) {
+    throw new Error(`Invalid gallery staging: gallery is missing or not an array (got ${typeof staging.gallery})`);
+  }
+
+  if (typeof staging.currentRevision !== 'number') {
+    throw new Error(`Invalid gallery staging: currentRevision is missing or not a number (got ${typeof staging.currentRevision})`);
+  }
+
+  if (!Array.isArray(staging.previousGallery)) {
+    throw new Error(`Invalid gallery staging: previousGallery is missing or not an array (got ${typeof staging.previousGallery})`);
+  }
+
+  if (typeof staging.mutationTimestamp !== 'string') {
+    throw new Error(`Invalid gallery staging: mutationTimestamp is missing or not a string (got ${typeof staging.mutationTimestamp})`);
+  }
+
+  console.log('[DEPLOY API] GALLERY_STAGING_VALIDATED', {
+    galleryLength: staging.gallery.length,
+    currentRevision: staging.currentRevision,
+    previousGalleryLength: staging.previousGallery.length,
+    mutationTimestamp: staging.mutationTimestamp,
+  });
+
+  return {
+    gallery: staging.gallery,
+    currentRevision: staging.currentRevision,
+    previousGallery: staging.previousGallery,
+    mutationTimestamp: staging.mutationTimestamp,
+  };
+}
+
+/**
+ * Pointer staging schema decoder
+ * 
+ * Decodes project current-transaction pointer staging records.
+ * 
+ * Expected schema: string (transaction ID)
+ * 
+ * @param value - Value from Redis (string or object)
+ * @returns Transaction ID string
+ * @throws Error if staging value is invalid or malformed
+ */
+function decodePointerStaging(value: unknown): string {
+  console.log('[DEPLOY API] POINTER_STAGING_DECODED', {
+    valueType: typeof value,
+  });
+
+  if (typeof value === 'string') {
+    // Transaction ID as plain string
+    return value;
+  } else if (typeof value === 'object' && value !== null) {
+    throw new Error(`Invalid pointer staging: unexpected object type (expected plain string)`);
+  } else {
+    throw new Error(`Invalid pointer staging: unexpected type ${typeof value}`);
+  }
+}
+
+/**
+ * Legacy staging-value decoder (deprecated)
+ * 
+ * This function is kept for backward compatibility but should not be used.
+ * Use the schema-specific decoders instead.
+ * 
+ * @deprecated Use decodeAssignmentStaging() or decodeGalleryStaging() instead
+ */
+function parseStagingValue(value: unknown): { mediaId: string; expectedRevision: number; updatedAt: string; source: string } {
+  console.log('[DEPLOY API] LEGACY_STAGING_VALUE_DECODED (use schema-specific decoders)', {
+    valueType: typeof value,
+  });
+
+  return decodeAssignmentStaging(value);
 }
 
 function getRedisClient(): Redis | null {
@@ -765,26 +913,34 @@ export async function POST(request: Request) {
           const value = await redis.get(key);
           if (!value) continue;
 
-          // P0 FIX: Use authoritative staging-value decoder for Redis object/string handling
-          // Handles both JSON strings and already-deserialized objects from Upstash
+          // P0 FIX: Use schema-aware dispatch instead of generic decoder
+          // Determine staging record type from key before decoding
+          const stagingType = dispatchStagingRecordType(key);
           let stagingValue: unknown;
+          
           try {
-            stagingValue = parseStagingValue(value);
-          } catch (e) {
-            // If transactional staging format fails, try legacy/plain format for project fields
-            // Project staging values (gallery, hero, before/after) may use different schema
-            if (typeof value === 'string') {
-              try {
-                stagingValue = JSON.parse(value);
-              } catch {
-                stagingValue = value; // Use as-is if not JSON
-              }
-            } else if (typeof value === 'object' && value !== null) {
-              stagingValue = value; // Use object directly
-            } else {
-              console.error('[DEPLOY API] STAGING_VALUE_DECODE_FAILED', { key, error: e instanceof Error ? e.message : 'Unknown error' });
-              continue; // Skip malformed staging values
+            switch (stagingType) {
+              case 'assignment':
+                stagingValue = decodeAssignmentStaging(value);
+                break;
+              case 'gallery':
+                stagingValue = decodeGalleryStaging(value);
+                break;
+              case 'pointer':
+                stagingValue = decodePointerStaging(value);
+                break;
+              case 'unknown':
+                throw new Error(`STAGING_SCHEMA_UNSUPPORTED: Unknown staging key pattern: ${key}`);
+              default:
+                throw new Error(`STAGING_SCHEMA_UNSUPPORTED: Unexpected staging type: ${stagingType}`);
             }
+          } catch (e) {
+            console.error('[DEPLOY API] STAGING_SCHEMA_DECODE_FAILED', {
+              key,
+              stagingType,
+              error: e instanceof Error ? e.message : 'Unknown error',
+            });
+            continue;
           }
 
           // Skip metadata keys (now deprecated - using deployment-transaction instead)
@@ -895,51 +1051,34 @@ export async function POST(request: Request) {
             projectsData.projects[projectIndex].media = {};
           }
           
-          // Extract field value from staging payload (V2 object or V1 value)
+          // Extract field value from decoded staging payload
+          // Assignment staging: { mediaId, expectedRevision, updatedAt, source }
+          // Gallery staging: { gallery, currentRevision, previousGallery, mutationTimestamp }
           let extractedValue = stagingValue;
-          if (typeof stagingValue === 'object' && stagingValue !== null && !Array.isArray(stagingValue) && 'gallery' in stagingValue) {
-            // V2 gallery payload: { gallery: [...], currentRevision: ..., previousGallery: [...] }
-            extractedValue = (stagingValue as any).gallery;
-          } else if (typeof stagingValue === 'object' && stagingValue !== null && !Array.isArray(stagingValue) && 'mediaId' in stagingValue) {
-            // Transactional staging value with mediaId field
-            // Extract the mediaId for project field assignments
+          if (typeof stagingValue === 'object' && stagingValue !== null && 'mediaId' in stagingValue) {
+            // Assignment staging: extract mediaId
             extractedValue = (stagingValue as any).mediaId;
           }
           
           if (field === 'hero') {
             if (extractedValue) projectsData.projects[projectIndex].media.hero = extractedValue;
           } else if (field === 'gallery') {
-            // V2: Gallery payload may include revision metadata
-            let galleryArray;
-            let newRevision;
-            if (typeof stagingValue === 'object' && stagingValue !== null && !Array.isArray(stagingValue) && 'gallery' in stagingValue) {
-              // V2 format: { gallery: [...], currentRevision: ..., previousGallery: [...], mutationTimestamp: ... }
-              galleryArray = Array.isArray((stagingValue as any).gallery) ? (stagingValue as any).gallery : [];
-              newRevision = (stagingValue as any).currentRevision;
-              console.log('[DEPLOY API] GALLERY_V2_PAYLOAD_DETECTED', { 
-                projectId, 
-                galleryLength: galleryArray.length,
-                hasRevision: 'currentRevision' in stagingValue,
-                hasPrevious: 'previousGallery' in stagingValue,
-                currentRevision: newRevision,
-                previousGalleryLength: (stagingValue as any).previousGallery?.length,
-                key,
-                transactionId 
-              });
-            } else {
-              // V1/Legacy format: plain array or single value
-              galleryArray = Array.isArray(extractedValue) ? extractedValue : (extractedValue ? [extractedValue] : []);
-              console.log('[DEPLOY API] GALLERY_V1_PAYLOAD_DETECTED', { 
-                projectId, 
-                galleryLength: galleryArray.length,
-                key,
-                transactionId 
-              });
-            }
-            projectsData.projects[projectIndex].media.gallery = galleryArray;
-            if (newRevision !== undefined) {
-              projectsData.projects[projectIndex].media.galleryRevision = newRevision;
-            }
+            // P0 FIX: Use decoded gallery staging value directly
+            // decodeGalleryStaging() validates the complete schema
+            const galleryData = stagingValue as { gallery: string[]; currentRevision: number; previousGallery: string[]; mutationTimestamp: string };
+            
+            projectsData.projects[projectIndex].media.gallery = galleryData.gallery;
+            projectsData.projects[projectIndex].media.galleryRevision = galleryData.currentRevision;
+            
+            console.log('[DEPLOY API] GALLERY_MUTATION_APPLIED', { 
+              projectId, 
+              galleryLength: galleryData.gallery.length,
+              currentRevision: galleryData.currentRevision,
+              previousGalleryLength: galleryData.previousGallery.length,
+              mutationTimestamp: galleryData.mutationTimestamp,
+              key,
+              transactionId 
+            });
           } else if (field === 'before' || field === 'after') {
             if (extractedValue) projectsData.projects[projectIndex].media[field] = extractedValue;
           }
@@ -993,50 +1132,47 @@ export async function POST(request: Request) {
         const value = await redis.get(key);
         if (!value) continue;
 
-        // P0 FIX: Use authoritative staging-value decoder
-        let stagingValue: unknown;
+        // P0 FIX: Use schema-aware dispatch for media verification
+        // Determine staging record type from key before decoding
+        const stagingType = dispatchStagingRecordType(key);
+        
         try {
-          stagingValue = parseStagingValue(value);
+          switch (stagingType) {
+            case 'assignment': {
+              const assignmentStaging = decodeAssignmentStaging(value);
+              // Extract media ID from assignment staging
+              mediaIdsToVerify.add(assignmentStaging.mediaId);
+              break;
+            }
+            case 'gallery': {
+              const galleryStaging = decodeGalleryStaging(value);
+              // Extract all media IDs from gallery staging
+              galleryStaging.gallery.forEach((mediaId: string) => mediaIdsToVerify.add(mediaId));
+              break;
+            }
+            case 'pointer': {
+              const pointerStaging = decodePointerStaging(value);
+              // Pointers don't contain media IDs
+              break;
+            }
+            case 'unknown':
+              console.error('[DEPLOY API] STAGING_SCHEMA_UNSUPPORTED_FOR_VERIFICATION', { key });
+              continue;
+            default:
+              console.error('[DEPLOY API] UNEXPECTED_STAGING_TYPE_FOR_VERIFICATION', { key, stagingType });
+              continue;
+          }
         } catch (e) {
-          console.error('[DEPLOY API] STAGING_VALUE_DECODE_FAILED', { key, error: e instanceof Error ? e.message : 'Unknown error' });
-          continue; // Skip malformed staging values
+          console.error('[DEPLOY API] STAGING_SCHEMA_DECODE_FAILED', {
+            key,
+            stagingType,
+            error: e instanceof Error ? e.message : 'Unknown error',
+          });
+          continue;
         }
 
         // Skip metadata keys
         if (key.endsWith(':meta')) continue;
-
-        // Parse key format to extract media ID from value
-        const parts = key.split(':');
-        if (parts.length < 5) continue; // Minimum: hpp:env:workbench-staging:txId:type
-
-        // Service card assignments (6 parts): hpp:{env}:workbench-staging:{txId}:service:{serviceSlug}
-        if (parts.length >= 6 && parts[2] === 'workbench-staging' && parts[4] === 'service') {
-          const serviceSlug = parts[5];
-
-          // P0 FIX: Extract mediaId from normalized staging value
-          const stagingData = stagingValue as { mediaId: string; expectedRevision: number; updatedAt: string; source: string };
-          const extractedMediaId = stagingData.mediaId;
-
-          // Only add if this is a media assignment (value is a media ID)
-          if (extractedMediaId && extractedMediaId.length > 10) { // Heuristic: media IDs are hashes > 10 chars
-            mediaIdsToVerify.add(extractedMediaId);
-            console.log('[DEPLOY API] TRANSACTION_MEDIA_ID', { source: 'service', serviceSlug, mediaId: extractedMediaId });
-          }
-        }
-        // Project assignments (7 parts): hpp:{env}:workbench-staging:{txId}:project:{projectId}:{field}
-        else if (parts.length >= 7 && parts[2] === 'workbench-staging' && parts[4] === 'project') {
-          const field = parts[6];
-
-          // P0 FIX: Extract mediaId from normalized staging value
-          const stagingData = stagingValue as { mediaId: string; expectedRevision: number; updatedAt: string; source: string };
-          const extractedMediaId = stagingData.mediaId;
-
-          // Only add if this is a media assignment (value is a media ID)
-          if (extractedMediaId && extractedMediaId.length > 10) { // Heuristic: media IDs are hashes > 10 chars
-            mediaIdsToVerify.add(extractedMediaId);
-            console.log('[DEPLOY API] TRANSACTION_MEDIA_ID', { source: 'project', field, mediaId: extractedMediaId });
-          }
-        }
       }
 
       console.log('[DEPLOY API] TRANSACTION_MEDIA_VERIFICATION_COUNT', {
@@ -2074,13 +2210,38 @@ export async function POST(request: Request) {
         const value = await redis.get(key);
         if (!value) continue;
 
-        // P0 FIX: Use authoritative staging-value decoder
+        // P0 FIX: Use schema-aware dispatch for promotion
+        // Determine staging record type from key before decoding
+        const stagingType = dispatchStagingRecordType(key);
         let stagingValue: unknown;
+        
         try {
-          stagingValue = parseStagingValue(value);
+          switch (stagingType) {
+            case 'assignment':
+              stagingValue = decodeAssignmentStaging(value);
+              break;
+            case 'gallery':
+              stagingValue = decodeGalleryStaging(value);
+              // Gallery mutations don't promote to assignment KV
+              continue;
+            case 'pointer':
+              stagingValue = decodePointerStaging(value);
+              // Pointers don't promote to assignment KV
+              continue;
+            case 'unknown':
+              console.error('[DEPLOY API] STAGING_SCHEMA_UNSUPPORTED_FOR_PROMOTION', { key });
+              continue;
+            default:
+              console.error('[DEPLOY API] UNEXPECTED_STAGING_TYPE_FOR_PROMOTION', { key, stagingType });
+              continue;
+          }
         } catch (e) {
-          console.error('[DEPLOY API] STAGING_VALUE_DECODE_FAILED', { key, error: e instanceof Error ? e.message : 'Unknown error' });
-          continue; // Skip malformed staging values
+          console.error('[DEPLOY API] STAGING_SCHEMA_DECODE_FAILED', {
+            key,
+            stagingType,
+            error: e instanceof Error ? e.message : 'Unknown error',
+          });
+          continue;
         }
 
         if (key.endsWith(':meta')) continue;
@@ -2097,7 +2258,7 @@ export async function POST(request: Request) {
           const canonicalServiceSlug = serviceSlug;
 
           try {
-            // P0 FIX: Extract mediaId and expectedRevision from normalized staging value
+            // P0 FIX: Extract mediaId and expectedRevision from decoded assignment staging
             const stagingData = stagingValue as { mediaId: string; expectedRevision: number; updatedAt: string; source: string };
             const mediaId = stagingData.mediaId;
             const expectedRevision = stagingData.expectedRevision;
