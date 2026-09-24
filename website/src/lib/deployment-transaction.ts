@@ -436,8 +436,8 @@ const ATOMIC_GALLERY_CAS_SCRIPT = `
   return {'OK', newRevision, transactionId, currentRevision}
 `;
 
-// Export the gallery CAS script for use in gallery route
-export { ATOMIC_GALLERY_CAS_SCRIPT };
+// Export production Lua scripts for use in gallery route and integration tests
+export { ATOMIC_GALLERY_CAS_SCRIPT, CONDITIONAL_POINTER_CLEANUP_SCRIPT };
 
 /**
  * P0 FIX: Atomic Lua script for complete gallery mutation (CAS + transaction + staging + runtime)
