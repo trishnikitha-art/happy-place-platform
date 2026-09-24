@@ -11,6 +11,7 @@ import { SlotGallery } from '@/components/workbench/slot-gallery';
 import { ReplacementDialog, type ReplacementPreview } from '@/components/workbench/replacement-dialog';
 import { resolveAssignmentKey, isAssignmentRevision } from '@/lib/workbench-assignment-contract';
 import { selectTarget, selectPublishedSource, selectDriveSource } from '@/lib/workbench-selection';
+import { loadPendingDeploymentTransactions } from '@/lib/load-pending-deployments';
 
 interface PendingReplacement {
   preview: ReplacementPreview;
@@ -86,6 +87,7 @@ interface MediaWorkbenchState {
   pendingGalleryOrder: string[] | null; // P0 FIX: Pending gallery reordering (local state, not yet persisted)
   galleryBaseRevision: number | null; // P0 FIX: Revision the pending order is based on (for CAS)
   galleryProjectId: string | null; // P0 FIX: Which project's gallery is being edited
+  pendingDeployments: Array<{ transactionId: string; projectId: string | null; reason: string; timestamp: string; stagingKeysCount: number }>; // P0 FIX: Track prepared transactions available for retry
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -159,6 +161,7 @@ export default function MediaWorkbench() {
     pendingGalleryOrder: null, // P0 FIX: No pending gallery order initially
     galleryBaseRevision: null, // P0 FIX: No base revision initially
     galleryProjectId: null, // P0 FIX: No project selected initially
+    pendingDeployments: [], // P0 FIX: No pending deployments initially
   });
 
   // Keep refs in sync with state
@@ -1458,6 +1461,68 @@ export default function MediaWorkbench() {
     loadCanonicalData(); // Refresh to show updated slots
   };
 
+  // P0 FIX: Load pending deployment transactions for recovery
+  const loadPendingDeployments = async () => {
+    try {
+      console.log('[WORKBENCH] LOAD_PENDING_DEPLOYMENTS_START');
+      
+      const response = await fetch('/api/workbench/pending-deployments', {
+        method: 'GET',
+      });
+      
+      if (!response.ok) {
+        console.warn('[WORKBENCH] PENDING_DEPLOYMENTS_UNAVAILABLE', { status: response.status });
+        return;
+      }
+      
+      const data = await response.json();
+      
+      console.log('[WORKBENCH] PENDING_DEPLOYMENTS_LOADED', data.transactions);
+      
+      setState(prev => ({ ...prev, pendingDeployments: data.transactions || [] }));
+    } catch (error) {
+      console.warn('[WORKBENCH] PENDING_DEPLOYMENTS_ERROR', error);
+    }
+  };
+
+  // P0 FIX: Retry a specific pending deployment transaction
+  const retryDeployment = async (transactionId: string) => {
+    try {
+      console.log('[WORKBENCH] RETRY_DEPLOYMENT_START', { transactionId });
+      
+      const response = await fetch('/api/admin/deploy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionIds: [transactionId],
+          reason: 'Manual retry of prepared transaction',
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('[WORKBENCH] RETRY_DEPLOYMENT_FAILED', {
+          transactionId,
+          status: response.status,
+          error,
+        });
+        alert(`Deployment retry failed: ${error.error || 'Unknown error'}`);
+        return;
+      }
+
+      const result = await response.json();
+      console.log('[WORKBENCH] RETRY_DEPLOYMENT_SUCCESS', result);
+      
+      alert(`Deployment retry initiated successfully. Check Vercel logs for: DISPATCH_CLASSIFIED_AS_GALLERY, GALLERY_STAGING_DECODED, GALLERY_STAGING_VALIDATED, GALLERY_MUTATION_APPLIED`);
+      
+      // Refresh pending deployments list
+      loadPendingDeployments();
+    } catch (error) {
+      console.error('[WORKBENCH] RETRY_DEPLOYMENT_ERROR', error);
+      alert(`Deployment retry failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
   // Main effect for loading data and setting up event listeners
   useEffect(() => {
     console.log('[WORKBENCH] MESSAGE_LISTENER_ATTACHING');
@@ -1466,6 +1531,7 @@ export default function MediaWorkbench() {
     loadAuthorizationConfig(); // P0 FIX: Load authorization configuration for diagnostics
     loadMediaAudit(); // P0 FIX: Load media authority audit for diagnostics
     loadDriveCorpusStructure(); // P0 FIX: Load Drive corpus structure for source browsing
+    loadPendingDeployments(); // P0 FIX: Load pending deployment transactions for recovery
     
     // P0 FIX: Load Drive corpus and integrate into main asset list
     // This happens after canonical data load to merge Drive assets
@@ -3061,6 +3127,32 @@ export default function MediaWorkbench() {
                         )}
                       </div>
                     )}
+                  </div>
+                )}
+
+                {/* P0 FIX: Pending Deployments Recovery */}
+                {state.pendingDeployments.length > 0 && (
+                  <div className="mb-4 p-3 bg-blue-50 text-blue-900 text-sm rounded border border-blue-200">
+                    <div className="font-semibold mb-2">Pending Deployments ({state.pendingDeployments.length}):</div>
+                    <div className="space-y-2">
+                      {state.pendingDeployments.map((deployment) => (
+                        <div key={deployment.transactionId} className="p-2 bg-white rounded border border-blue-100">
+                          <div className="flex justify-between items-start mb-1">
+                            <div className="font-mono text-xs">{deployment.transactionId}</div>
+                            <div className="text-xs text-blue-600">{deployment.projectId || 'Unknown project'}</div>
+                          </div>
+                          <div className="text-xs text-muted-foreground mb-2">
+                            {deployment.stagingKeysCount} staging key(s) • {new Date(deployment.timestamp).toLocaleString()}
+                          </div>
+                          <button
+                            onClick={() => retryDeployment(deployment.transactionId)}
+                            className="w-full px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                          >
+                            Retry Deployment
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 
