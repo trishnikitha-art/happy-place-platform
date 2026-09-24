@@ -273,8 +273,8 @@ function dispatchStagingRecordType(key: string): 'assignment' | 'gallery' | 'poi
     return 'assignment';
   }
 
-  if (parts.length >= 2 && parts[1] === 'project') {
-    const field = parts[2];
+  if (parts.length >= 4 && parts[1] === 'project') {
+    const field = parts[3];
     if (field === 'gallery') {
       return 'gallery';
     } else if (field === 'current-transaction') {
@@ -940,7 +940,16 @@ export async function POST(request: Request) {
               stagingType,
               error: e instanceof Error ? e.message : 'Unknown error',
             });
-            continue;
+            // FAIL-CLOSED: Schema decode failure must fail the entire deployment
+            // Partial transactions are not allowed
+            return NextResponse.json({
+              error: "Staging schema decode failed",
+              message: `Transaction contains a staging record that cannot be decoded: ${key}. This violates transaction atomicity.`,
+              deploymentTransactionId,
+              stagingKey: key,
+              stagingType,
+              decodeError: e instanceof Error ? e.message : 'Unknown error',
+            }, { status: 400 });
           }
 
           // Skip metadata keys (now deprecated - using deployment-transaction instead)
@@ -1156,19 +1165,32 @@ export async function POST(request: Request) {
               break;
             }
             case 'unknown':
-              console.error('[DEPLOY API] STAGING_SCHEMA_UNSUPPORTED_FOR_VERIFICATION', { key });
-              continue;
+              // FAIL-CLOSED: Unknown staging schema during verification must fail deployment
+              return NextResponse.json({
+                error: "Staging schema unsupported during verification",
+                message: `Transaction contains a staging record with unknown schema: ${key}. This violates transaction atomicity.`,
+                deploymentTransactionId,
+                stagingKey: key,
+              }, { status: 400 });
             default:
-              console.error('[DEPLOY API] UNEXPECTED_STAGING_TYPE_FOR_VERIFICATION', { key, stagingType });
-              continue;
+              return NextResponse.json({
+                error: "Unexpected staging type during verification",
+                message: `Transaction contains a staging record with unexpected type: ${stagingType}`,
+                deploymentTransactionId,
+                stagingKey: key,
+                stagingType,
+              }, { status: 400 });
           }
         } catch (e) {
-          console.error('[DEPLOY API] STAGING_SCHEMA_DECODE_FAILED', {
-            key,
+          // FAIL-CLOSED: Schema decode failure during verification must fail deployment
+          return NextResponse.json({
+            error: "Staging schema decode failed during verification",
+            message: `Transaction contains a staging record that cannot be decoded: ${key}. This violates transaction atomicity.`,
+            deploymentTransactionId,
+            stagingKey: key,
             stagingType,
-            error: e instanceof Error ? e.message : 'Unknown error',
-          });
-          continue;
+            decodeError: e instanceof Error ? e.message : 'Unknown error',
+          }, { status: 400 });
         }
 
         // Skip metadata keys
@@ -2229,19 +2251,32 @@ export async function POST(request: Request) {
               // Pointers don't promote to assignment KV
               continue;
             case 'unknown':
-              console.error('[DEPLOY API] STAGING_SCHEMA_UNSUPPORTED_FOR_PROMOTION', { key });
-              continue;
+              // FAIL-CLOSED: Unknown staging schema during promotion must fail deployment
+              return NextResponse.json({
+                error: "Staging schema unsupported during promotion",
+                message: `Transaction contains a staging record with unknown schema: ${key}. This violates transaction atomicity.`,
+                deploymentTransactionId,
+                stagingKey: key,
+              }, { status: 400 });
             default:
-              console.error('[DEPLOY API] UNEXPECTED_STAGING_TYPE_FOR_PROMOTION', { key, stagingType });
-              continue;
+              return NextResponse.json({
+                error: "Unexpected staging type during promotion",
+                message: `Transaction contains a staging record with unexpected type: ${stagingType}`,
+                deploymentTransactionId,
+                stagingKey: key,
+                stagingType,
+              }, { status: 400 });
           }
         } catch (e) {
-          console.error('[DEPLOY API] STAGING_SCHEMA_DECODE_FAILED', {
-            key,
+          // FAIL-CLOSED: Schema decode failure during promotion must fail deployment
+          return NextResponse.json({
+            error: "Staging schema decode failed during promotion",
+            message: `Transaction contains a staging record that cannot be decoded: ${key}. This violates transaction atomicity.`,
+            deploymentTransactionId,
+            stagingKey: key,
             stagingType,
-            error: e instanceof Error ? e.message : 'Unknown error',
-          });
-          continue;
+            decodeError: e instanceof Error ? e.message : 'Unknown error',
+          }, { status: 400 });
         }
 
         if (key.endsWith(':meta')) continue;
