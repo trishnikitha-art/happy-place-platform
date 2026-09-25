@@ -20,6 +20,13 @@ export function getEnvironment(): Environment {
     return 'test';
   }
   
+  // P0 FIX: Explicit VERCEL_ENV=test for CI HTTP integration tests
+  // CI intentionally sets VERCEL_ENV=test while running Next in production mode
+  // This provides test environment isolation while keeping Next runtime semantics
+  if (vercelEnv === 'test') {
+    return 'test';
+  }
+  
   // During static build (phase-production-build), treat as development for safety
   // This prevents build failures when VERCEL_ENV is not set locally
   if (nextPhase === 'phase-production-build') {
