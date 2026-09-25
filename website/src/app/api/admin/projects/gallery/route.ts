@@ -416,13 +416,19 @@ export async function PUT(request: Request) {
 
       // Read current revision from filesystem for CAS check
       const currentRevision = project.media?.galleryRevision || 0;
+      const currentGallery = project.media?.gallery || [];
 
-      // CAS check in development mode
-      if (expectedRevision !== currentRevision) {
+      // P0 FIX: Add state consistency check to reduce painful retry loops
+      // Allow transaction if gallery content is consistent even if revisions differ
+      const galleryMatches = JSON.stringify(currentGallery) === JSON.stringify(gallery);
+
+      if (expectedRevision !== currentRevision && !galleryMatches) {
         console.error('[GALLERY V2 PUT] DEV_CAS_FAILURE', {
           projectId,
           expectedRevision,
           currentRevision,
+          currentGallery,
+          newGallery: gallery,
           reason: 'Gallery has been modified by another operation'
         });
         return NextResponse.json(
@@ -434,6 +440,16 @@ export async function PUT(request: Request) {
           },
           { status: 409 }
         );
+      }
+
+      // If revisions differ but gallery content matches, allow the transaction
+      if (expectedRevision !== currentRevision && galleryMatches) {
+        console.log('[GALLERY V2 PUT] DEV_CAS_BYPASS - GALLERY_CONTENT_MATCHES', {
+          projectId,
+          expectedRevision,
+          currentRevision,
+          reason: 'Gallery content matches expected state, allowing transaction despite revision drift'
+        });
       }
 
       // Directly write to projects.v1.json in development mode
