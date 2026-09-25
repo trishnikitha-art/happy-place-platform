@@ -113,6 +113,9 @@ async function requireWorkbenchAuth() {
  * 
  * DELETE /api/admin/deploy
  * Body: { transactionIds?: string[] } (optional: specific IDs to delete, or all if not provided)
+ * 
+ * CRITICAL FIX: This endpoint must atomically clean up staging keys along with transactions
+ * to prevent orphaned workbench-staging:* records
  */
 export async function DELETE(request: Request) {
   // P1 FIX: Require Workbench authentication for delete endpoint
@@ -139,30 +142,55 @@ export async function DELETE(request: Request) {
     const namespace = getKvNamespace();
     let deletedCount = 0;
     let deletedIds: string[] = [];
+    let cleanedStagingKeys: string[] = [];
 
     if (transactionIds && Array.isArray(transactionIds) && transactionIds.length > 0) {
-      // Delete specific transactions
+      // Delete specific transactions with staging cleanup
       for (const transactionId of transactionIds) {
         const transactionKey = `${namespace}deployment-transaction:${transactionId}`;
-        const deleted = await redis.del(transactionKey);
-        if (deleted) {
+        const transaction = await redis.get(transactionKey) as DeploymentTransaction | null;
+        
+        if (transaction) {
+          // Delete the transaction
+          await redis.del(transactionKey);
           deletedCount++;
           deletedIds.push(transactionId);
+          
+          // Clean up associated staging keys
+          if (transaction.stagingKeys && transaction.stagingKeys.length > 0) {
+            for (const stagingKey of transaction.stagingKeys) {
+              const fullKey = `${namespace}${stagingKey}`;
+              await redis.del(fullKey);
+              cleanedStagingKeys.push(stagingKey);
+            }
+          }
         }
       }
     } else {
-      // Delete all deployment transactions
+      // Delete all deployment transactions with staging cleanup
       const pattern = `${namespace}deployment-transaction:*`;
       const keys = await redis.keys(pattern);
       
       if (keys && keys.length > 0) {
         for (const key of keys) {
-          const deleted = await redis.del(key);
-          if (deleted) {
-            deletedCount++;
-            // Extract transaction ID from key
-            const id = key.replace(`${namespace}deployment-transaction:`, '');
-            deletedIds.push(id);
+          const transaction = await redis.get(key) as DeploymentTransaction | null;
+          if (transaction) {
+            const deleted = await redis.del(key);
+            if (deleted) {
+              deletedCount++;
+              // Extract transaction ID from key
+              const id = key.replace(`${namespace}deployment-transaction:`, '');
+              deletedIds.push(id);
+              
+              // Clean up associated staging keys
+              if (transaction.stagingKeys && transaction.stagingKeys.length > 0) {
+                for (const stagingKey of transaction.stagingKeys) {
+                  const fullKey = `${namespace}${stagingKey}`;
+                  await redis.del(fullKey);
+                  cleanedStagingKeys.push(stagingKey);
+                }
+              }
+            }
           }
         }
       }
@@ -171,6 +199,7 @@ export async function DELETE(request: Request) {
     console.log('[DEPLOY API] TRANSACTIONS_CLEARED', {
       deletedCount,
       deletedIds,
+      cleanedStagingKeysCount: cleanedStagingKeys.length,
       specifiedIds: transactionIds?.length || 0
     });
 
@@ -178,7 +207,8 @@ export async function DELETE(request: Request) {
       success: true,
       deletedCount,
       deletedIds,
-      message: `Cleared ${deletedCount} deployment transaction(s)`
+      cleanedStagingKeysCount: cleanedStagingKeys.length,
+      message: `Cleared ${deletedCount} deployment transaction(s) and ${cleanedStagingKeys.length} staging key(s)`
     });
   } catch (error) {
     console.error('[DEPLOY API] CLEAR_TRANSACTIONS_ERROR', error);
