@@ -1,8 +1,10 @@
 /**
  * Pending Deployments API
  * 
- * Returns prepared deployment transactions available for retry.
- * This enables recovery of transactions that were preserved after failed deployments.
+ * GET: Returns prepared deployment transactions available for retry.
+ * DELETE: Clears selected deployment transactions.
+ * 
+ * This enables recovery and cleanup of transactions.
  */
 
 import { NextResponse } from 'next/server';
@@ -13,6 +15,7 @@ import { getKvNamespace } from '@/lib/environment';
 export const runtime = 'nodejs';
 
 const TRANSACTION_PREFIX = 'deployment-transaction:';
+const STAGING_PREFIX = 'workbench-staging:';
 
 export interface DeploymentTransaction {
   state: string;
@@ -36,6 +39,85 @@ function extractProjectIdFromStagingKeys(stagingKeys: string[] | undefined): str
   }
   
   return null;
+}
+
+/**
+ * DELETE endpoint: Clear selected deployment transactions
+ * DELETE /api/workbench/pending-deployments
+ * Body: { transactionIds: string[] }
+ */
+export async function DELETE(request: Request) {
+  // Require Workbench authentication
+  const isAuthenticated = await workbenchSession.isAuthenticated();
+  if (!isAuthenticated) {
+    return NextResponse.json(
+      { error: "Unauthorized", message: "Workbench authentication required" },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const { transactionIds } = body;
+    
+    if (!transactionIds || !Array.isArray(transactionIds) || transactionIds.length === 0) {
+      return NextResponse.json(
+        { error: "Bad request", message: "transactionIds array is required" },
+        { status: 400 }
+      );
+    }
+
+    const redis = new Redis({
+      url: process.env.KV_REST_API_URL || '',
+      token: process.env.KV_REST_API_TOKEN || '',
+    });
+
+    const namespace = getKvNamespace();
+    let deletedCount = 0;
+    let deletedIds: string[] = [];
+    let cleanedStagingKeys: string[] = [];
+
+    for (const transactionId of transactionIds) {
+      const transactionKey = `${namespace}${TRANSACTION_PREFIX}${transactionId}`;
+      const transaction = await redis.get(transactionKey) as DeploymentTransaction | null;
+      
+      if (transaction) {
+        // Delete the transaction
+        await redis.del(transactionKey);
+        deletedCount++;
+        deletedIds.push(transactionId);
+        
+        // Clean up associated staging keys
+        if (transaction.stagingKeys && transaction.stagingKeys.length > 0) {
+          for (const stagingKey of transaction.stagingKeys) {
+            const fullKey = `${namespace}${stagingKey}`;
+            await redis.del(fullKey);
+            cleanedStagingKeys.push(stagingKey);
+          }
+        }
+      }
+    }
+
+    console.log('[PENDING DEPLOYMENTS API] TRANSACTIONS_CLEARED', {
+      deletedCount,
+      deletedIds,
+      cleanedStagingKeysCount: cleanedStagingKeys.length
+    });
+
+    return NextResponse.json({
+      success: true,
+      deletedCount,
+      deletedIds,
+      cleanedStagingKeysCount: cleanedStagingKeys.length,
+      message: `Cleared ${deletedCount} deployment transaction(s) and ${cleanedStagingKeys.length} staging key(s)`
+    });
+  } catch (error) {
+    console.error('[PENDING DEPLOYMENTS API] DELETE Error:', error);
+    return NextResponse.json(
+      { error: "Failed to clear transactions", message: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
 }
 
 export async function GET(request: Request) {
