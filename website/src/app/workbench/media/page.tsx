@@ -88,6 +88,7 @@ interface MediaWorkbenchState {
   galleryProjectId: string | null; // P0 FIX: Which project's gallery is being edited
   pendingDeployments: Array<{ transactionId: string; projectId: string | null; state: string; reason: string; timestamp: string; stagingKeysCount: number; failureReason?: string; retryCount?: number }>; // P0 FIX: Track prepared and failed transactions available for retry
   pendingDeploymentsError: string | null; // P0 FIX: Error state for recovery unavailability
+  selectedPendingDeployments: Set<string>; // P0 FIX: Track which pending deployments are selected for bulk deployment
 }
 
 const PAGE_LABELS: Record<PageRoute, string> = {
@@ -163,6 +164,7 @@ export default function MediaWorkbench() {
     galleryProjectId: null, // P0 FIX: No project selected initially
     pendingDeployments: [], // P0 FIX: No pending deployments initially
     pendingDeploymentsError: null, // P0 FIX: Error state for recovery unavailability
+    selectedPendingDeployments: new Set<string>() // P0 FIX: No deployments selected initially
   });
 
   // Keep refs in sync with state
@@ -1531,6 +1533,73 @@ export default function MediaWorkbench() {
     } catch (error) {
       console.error('[WORKBENCH] RETRY_DEPLOYMENT_ERROR', error);
       alert(`Deployment retry failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // P0 FIX: Toggle selection of a pending deployment
+  const togglePendingDeploymentSelection = (transactionId: string) => {
+    setState(prev => {
+      const newSelection = new Set(prev.selectedPendingDeployments);
+      if (newSelection.has(transactionId)) {
+        newSelection.delete(transactionId);
+      } else {
+        newSelection.add(transactionId);
+      }
+      return { ...prev, selectedPendingDeployments: newSelection };
+    });
+  };
+
+  // P0 FIX: Toggle selection of all pending deployments
+  const toggleSelectAllPendingDeployments = () => {
+    setState(prev => {
+      const allSelected = prev.selectedPendingDeployments.size === prev.pendingDeployments.length;
+      const newSelection = allSelected ? new Set<string>() : new Set(prev.pendingDeployments.map(d => d.transactionId));
+      return { ...prev, selectedPendingDeployments: newSelection };
+    });
+  };
+
+  // P0 FIX: Deploy all selected pending transactions together
+  const deploySelectedTransactions = async () => {
+    const selectedIds = Array.from(state.selectedPendingDeployments);
+    if (selectedIds.length === 0) {
+      alert('No deployments selected');
+      return;
+    }
+
+    try {
+      console.log('[WORKBENCH] BULK_DEPLOYMENT_START', { transactionIds: selectedIds, count: selectedIds.length });
+      
+      const response = await fetch('/api/admin/deploy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionIds: selectedIds,
+          reason: `Bulk deployment of ${selectedIds.length} transactions`,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('[WORKBENCH] BULK_DEPLOYMENT_FAILED', {
+          transactionIds: selectedIds,
+          status: response.status,
+          error,
+        });
+        alert(`Bulk deployment failed: ${error.error || 'Unknown error'}`);
+        return;
+      }
+
+      const result = await response.json();
+      console.log('[WORKBENCH] BULK_DEPLOYMENT_SUCCESS', result);
+      
+      alert(`Bulk deployment initiated successfully for ${selectedIds.length} transactions. Check Vercel logs for deployment progress.`);
+      
+      // Clear selection and refresh pending deployments list
+      setState(prev => ({ ...prev, selectedPendingDeployments: new Set<string>() }));
+      loadPendingDeployments();
+    } catch (error) {
+      console.error('[WORKBENCH] BULK_DEPLOYMENT_ERROR', error);
+      alert(`Bulk deployment failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -3147,7 +3216,25 @@ export default function MediaWorkbench() {
                     {state.pendingDeploymentsError ? (
                       <div className="font-semibold mb-2 text-red-700">⚠️ Deployment Recovery Unavailable</div>
                     ) : (
-                      <div className="font-semibold mb-2">Pending Deployments ({state.pendingDeployments.length}):</div>
+                      <div className="flex justify-between items-center mb-2">
+                        <div className="font-semibold">Pending Deployments ({state.pendingDeployments.length}):</div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={toggleSelectAllPendingDeployments}
+                            className="px-2 py-1 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"
+                          >
+                            {state.selectedPendingDeployments.size === state.pendingDeployments.length ? 'Deselect All' : 'Select All'}
+                          </button>
+                          {state.selectedPendingDeployments.size > 0 && (
+                            <button
+                              onClick={deploySelectedTransactions}
+                              className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
+                            >
+                              Deploy Selected ({state.selectedPendingDeployments.size})
+                            </button>
+                          )}
+                        </div>
+                      </div>
                     )}
                     
                     {state.pendingDeploymentsError && (
@@ -3156,21 +3243,31 @@ export default function MediaWorkbench() {
                     
                     <div className="space-y-2">
                       {state.pendingDeployments.map((deployment) => (
-                        <div key={deployment.transactionId} className={`p-2 rounded border ${deployment.state === 'failed' ? 'bg-orange-50 border-orange-200' : 'bg-white border-blue-100'}`}>
-                          <div className="flex justify-between items-start mb-1">
-                            <div className="font-mono text-xs">{deployment.transactionId}</div>
-                            <div className={`text-xs ${deployment.state === 'failed' ? 'text-orange-600' : 'text-blue-600'}`}>
-                              {deployment.projectId || 'Unknown project'} • {deployment.state.toUpperCase()}
+                        <div key={deployment.transactionId} className={`p-2 rounded border ${deployment.state === 'failed' ? 'bg-orange-50 border-orange-200' : 'bg-white border-blue-100'} ${state.selectedPendingDeployments.has(deployment.transactionId) ? 'ring-2 ring-blue-500' : ''}`}>
+                          <div className="flex items-start gap-2 mb-1">
+                            <input
+                              type="checkbox"
+                              checked={state.selectedPendingDeployments.has(deployment.transactionId)}
+                              onChange={() => togglePendingDeploymentSelection(deployment.transactionId)}
+                              className="mt-0.5"
+                            />
+                            <div className="flex-1">
+                              <div className="flex justify-between items-start">
+                                <div className="font-mono text-xs">{deployment.transactionId}</div>
+                                <div className={`text-xs ${deployment.state === 'failed' ? 'text-orange-600' : 'text-blue-600'}`}>
+                                  {deployment.projectId || 'Unknown project'} • {deployment.state.toUpperCase()}
+                                </div>
+                              </div>
+                              <div className="text-xs text-muted-foreground mb-2">
+                                {deployment.stagingKeysCount} staging key(s) • {new Date(deployment.timestamp).toLocaleString()}
+                              </div>
+                              {deployment.failureReason && (
+                                <div className="text-xs text-orange-700 mb-2">
+                                  ⚠️ {deployment.failureReason}
+                                </div>
+                              )}
                             </div>
                           </div>
-                          <div className="text-xs text-muted-foreground mb-2">
-                            {deployment.stagingKeysCount} staging key(s) • {new Date(deployment.timestamp).toLocaleString()}
-                          </div>
-                          {deployment.failureReason && (
-                            <div className="text-xs text-orange-700 mb-2">
-                              ⚠️ {deployment.failureReason}
-                            </div>
-                          )}
                           <button
                             onClick={() => retryDeployment(deployment.transactionId)}
                             className="w-full px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors text-xs"

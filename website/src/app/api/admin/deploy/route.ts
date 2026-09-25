@@ -615,9 +615,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // Use the first transaction ID as the deployment transaction ID
+    // Use the first transaction ID as the primary deployment transaction ID
+    // But we will process ALL provided transactionIds for bulk deployment
     deploymentTransactionId = transactionIds[0];
-    console.log('[DEPLOY API] USING_PROVIDED_TRANSACTION_IDS', { deploymentTransactionId, transactionIds });
+    console.log('[DEPLOY API] USING_PROVIDED_TRANSACTION_IDS', { 
+      deploymentTransactionId, 
+      transactionIds, 
+      transactionCount: transactionIds.length 
+    });
     
     // IDEMPOTENCY CHECK: Check if transaction already exists
     const existingTransaction = await getDeploymentTransaction(deploymentTransactionId);
@@ -783,21 +788,128 @@ export async function POST(request: Request) {
     if (isProduction && redis) {
       console.log('[DEPLOY API] PRODUCTION_MODE_MERGING_KV_STAGING');
       
-      // Read current projects.v1.json
-      const authorityFile = join(process.cwd(), "src/config/projects.v1.json");
-      const projectsData = JSON.parse(readFileSync(authorityFile, "utf-8"));
+      // FIX: Fetch current Git HEAD from GitHub to prevent lost-update semantics
+      // Instead of reading potentially stale Vercel filesystem, we fetch actual Git HEAD
+      const githubToken = process.env.GITHUB_TOKEN;
+      const githubOwner = process.env.GITHUB_REPO_OWNER || 'trishnikitha-art';
+      const githubRepo = process.env.GITHUB_REPO_NAME || 'happy-place-platform';
       
-      // Read current services.v1.json for service card assignments
-      const servicesFile = join(process.cwd(), "src/config/services.v1.json");
-      const servicesData = JSON.parse(readFileSync(servicesFile, "utf-8"));
+      console.log('[DEPLOY API] FETCHING_CURRENT_GIT_HEAD', { githubOwner, githubRepo });
       
-      // Read current brand.v1.json for brand assignments
-      const brandFile = join(process.cwd(), "src/config/brand.v1.json");
-      const brandData = JSON.parse(readFileSync(brandFile, "utf-8"));
+      // Get current commit SHA (already done earlier, but we need it for file fetching)
+      const refUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/git/refs/heads/main`;
+      const refResponse = await fetchWithRetry(refUrl, {
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }, 'get current commit SHA for file fetching');
       
-      // Read current media.v1.json for media record merging
-      const mediaFile = join(process.cwd(), "src/config/media.v1.json");
-      const mediaData = JSON.parse(readFileSync(mediaFile, "utf-8"));
+      if (!refResponse.ok) {
+        const errorText = await refResponse.text();
+        console.error('[DEPLOY API] GET_REF_FOR_FILES_FAILED', { status: refResponse.status, error: errorText });
+        return NextResponse.json({
+          error: "Failed to get current branch reference for file fetching",
+          details: errorText,
+        }, { status: refResponse.status });
+      }
+      
+      const refData = await refResponse.json();
+      const currentCommitSha = refData.object.sha;
+      console.log('[DEPLOY API] CURRENT_COMMIT_SHA_FOR_FILES', { currentCommitSha });
+      
+      // Fetch current projects.v1.json from Git HEAD (not filesystem)
+      const projectsFileUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/website/src/config/projects.v1.json?ref=${currentCommitSha}`;
+      const projectsFileResponse = await fetchWithRetry(projectsFileUrl, {
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }, 'fetch current projects.v1.json from Git');
+      
+      if (!projectsFileResponse.ok) {
+        const errorText = await projectsFileResponse.text();
+        console.error('[DEPLOY API] FETCH_PROJECTS_FILE_FAILED', { status: projectsFileResponse.status, error: errorText });
+        return NextResponse.json({
+          error: "Failed to fetch current projects.v1.json from Git",
+          details: errorText,
+        }, { status: projectsFileResponse.status });
+      }
+      
+      const projectsFileData = await projectsFileResponse.json();
+      // Decode base64 content from GitHub API
+      const projectsContent = Buffer.from(projectsFileData.content, 'base64').toString('utf-8');
+      const projectsData = JSON.parse(projectsContent);
+      console.log('[DEPLOY API] PROJECTS_FILE_FETCHED_FROM_GIT', { currentCommitSha });
+      
+      // Fetch current services.v1.json from Git HEAD
+      const servicesFileUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/website/src/config/services.v1.json?ref=${currentCommitSha}`;
+      const servicesFileResponse = await fetchWithRetry(servicesFileUrl, {
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }, 'fetch current services.v1.json from Git');
+      
+      if (!servicesFileResponse.ok) {
+        const errorText = await servicesFileResponse.text();
+        console.error('[DEPLOY API] FETCH_SERVICES_FILE_FAILED', { status: servicesFileResponse.status, error: errorText });
+        return NextResponse.json({
+          error: "Failed to fetch current services.v1.json from Git",
+          details: errorText,
+        }, { status: servicesFileResponse.status });
+      }
+      
+      const servicesFileData = await servicesFileResponse.json();
+      const servicesContent = Buffer.from(servicesFileData.content, 'base64').toString('utf-8');
+      const servicesData = JSON.parse(servicesContent);
+      console.log('[DEPLOY API] SERVICES_FILE_FETCHED_FROM_GIT', { currentCommitSha });
+      
+      // Fetch current brand.v1.json from Git HEAD
+      const brandFileUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/website/src/config/brand.v1.json?ref=${currentCommitSha}`;
+      const brandFileResponse = await fetchWithRetry(brandFileUrl, {
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }, 'fetch current brand.v1.json from Git');
+      
+      if (!brandFileResponse.ok) {
+        const errorText = await brandFileResponse.text();
+        console.error('[DEPLOY API] FETCH_BRAND_FILE_FAILED', { status: brandFileResponse.status, error: errorText });
+        return NextResponse.json({
+          error: "Failed to fetch current brand.v1.json from Git",
+          details: errorText,
+        }, { status: brandFileResponse.status });
+      }
+      
+      const brandFileData = await brandFileResponse.json();
+      const brandContent = Buffer.from(brandFileData.content, 'base64').toString('utf-8');
+      const brandData = JSON.parse(brandContent);
+      console.log('[DEPLOY API] BRAND_FILE_FETCHED_FROM_GIT', { currentCommitSha });
+      
+      // Fetch current media.v1.json from Git HEAD
+      const mediaFileUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/website/src/config/media.v1.json?ref=${currentCommitSha}`;
+      const mediaFileResponse = await fetchWithRetry(mediaFileUrl, {
+        headers: {
+          'Authorization': `Bearer ${githubToken}`,
+          'Accept': 'application/vnd.github.v3+json',
+        },
+      }, 'fetch current media.v1.json from Git');
+      
+      if (!mediaFileResponse.ok) {
+        const errorText = await mediaFileResponse.text();
+        console.error('[DEPLOY API] FETCH_MEDIA_FILE_FAILED', { status: mediaFileResponse.status, error: errorText });
+        return NextResponse.json({
+          error: "Failed to fetch current media.v1.json from Git",
+          details: errorText,
+        }, { status: mediaFileResponse.status });
+      }
+      
+      const mediaFileData = await mediaFileResponse.json();
+      const mediaContent = Buffer.from(mediaFileData.content, 'base64').toString('utf-8');
+      const mediaData = JSON.parse(mediaContent);
+      console.log('[DEPLOY API] MEDIA_FILE_FETCHED_FROM_GIT', { currentCommitSha });
       
       // CRITICAL: Read authoritative deployment transaction first
       // This provides the canonical transaction identity and staging key references
@@ -891,14 +1003,101 @@ export async function POST(request: Request) {
       });
       
       // Use authoritative transaction staging keys
+      // Process ALL provided transaction IDs for bulk deployment
       const transactionGroups = new Map<string, string[]>();
+      
+      // Add the primary transaction
       transactionGroups.set(deploymentTransactionId, authoritativeTransaction.stagingKeys);
       
-      // Apply staging changes by transaction (newest first by timestamp)
+      // Process additional transactions if provided (bulk deployment)
+      if (transactionIds.length > 1) {
+        console.log('[DEPLOY API] PROCESSING_MULTIPLE_TRANSACTIONS', { 
+          primaryTransaction: deploymentTransactionId,
+          additionalTransactions: transactionIds.slice(1),
+          totalTransactions: transactionIds.length
+        });
+        
+        for (const additionalTxId of transactionIds.slice(1)) {
+          const additionalTx = await getDeploymentTransaction(additionalTxId);
+          if (!additionalTx) {
+            console.error('[DEPLOY API] ADDITIONAL_TRANSACTION_NOT_FOUND', { 
+              transactionId: additionalTxId,
+              reason: 'Cannot process bulk deployment with missing transaction'
+            });
+            return NextResponse.json({
+              error: "Additional transaction not found",
+              message: `Transaction ${additionalTxId} was not found. Cannot proceed with bulk deployment.`,
+              additionalTransactionId: additionalTxId
+            }, { status: 404 });
+          }
+          
+          // Verify state
+          if (additionalTx.state !== 'prepared') {
+            console.error('[DEPLOY API] ADDITIONAL_TRANSACTION_INVALID_STATE', { 
+              transactionId: additionalTxId,
+              state: additionalTx.state,
+              expectedState: 'prepared'
+            });
+            return NextResponse.json({
+              error: "Additional transaction invalid state",
+              message: `Transaction ${additionalTxId} is in ${additionalTx.state} state, expected prepared. Cannot proceed with bulk deployment.`,
+              additionalTransactionId: additionalTxId,
+              currentState: additionalTx.state
+            }, { status: 400 });
+          }
+          
+          // Verify environment namespace
+          const additionalTxNamespaceMatch = additionalTx.stagingKeys.some(key => key.startsWith(expectedNamespace));
+          if (!additionalTxNamespaceMatch) {
+            console.error('[DEPLOY API] ADDITIONAL_TRANSACTION_ENVIRONMENT_MISMATCH', {
+              transactionId: additionalTxId,
+              expectedNamespace,
+              actualKeys: additionalTx.stagingKeys
+            });
+            return NextResponse.json({
+              error: "Additional transaction environment mismatch",
+              message: `Transaction ${additionalTxId} staging keys do not match expected environment namespace`,
+              additionalTransactionId: additionalTxId
+            }, { status: 400 });
+          }
+          
+          // Verify staging keys exist
+          const additionalMissingKeys: string[] = [];
+          for (const key of additionalTx.stagingKeys) {
+            const exists = await redis.get(key);
+            if (!exists) {
+              additionalMissingKeys.push(key);
+            }
+          }
+          
+          if (additionalMissingKeys.length > 0) {
+            console.error('[DEPLOY API] ADDITIONAL_TRANSACTION_STAGING_MISSING', {
+              transactionId: additionalTxId,
+              missingKeys: additionalMissingKeys
+            });
+            return NextResponse.json({
+              error: "Additional transaction staging missing",
+              message: `Transaction ${additionalTxId} references staging keys that do not exist`,
+              additionalTransactionId: additionalTxId,
+              missingKeys: additionalMissingKeys
+            }, { status: 400 });
+          }
+          
+          transactionGroups.set(additionalTxId, additionalTx.stagingKeys);
+          console.log('[DEPLOY API] ADDITIONAL_TRANSACTION_VERIFIED', { 
+            transactionId: additionalTxId,
+            stagingKeysCount: additionalTx.stagingKeys.length
+          });
+        }
+      }
+      
+      // Apply staging changes by transaction (chronological order by transaction ID timestamp)
       const sortedTransactions = Array.from(transactionGroups.entries())
         .sort((a, b) => {
-          // Simplified: use transaction ID timestamp as ordering
-          return a[0].localeCompare(b[0]);
+          // Extract timestamp from transaction ID: WBDEP-{timestamp}-{random}
+          const aTimestamp = a[0].split('-')[1];
+          const bTimestamp = b[0].split('-')[1];
+          return parseInt(aTimestamp) - parseInt(bTimestamp);
         });
       
       let appliedCount = 0;
@@ -1078,6 +1277,65 @@ export async function POST(request: Request) {
             // decodeGalleryStaging() validates the complete schema
             const galleryData = stagingValue as { gallery: string[]; currentRevision: number; previousGallery: string[]; mutationTimestamp: string };
             
+            // CRITICAL FIX: Transaction freshness verification
+            // Ensure the transaction's expected revision matches the current Git HEAD revision
+            const currentGitRevision = projectsData.projects[projectIndex].media.galleryRevision || 0;
+            if (galleryData.currentRevision !== currentGitRevision) {
+              console.error('[DEPLOY API] TRANSACTION_FRESHNESS_MISMATCH', {
+                projectId,
+                transactionExpectedRevision: galleryData.currentRevision,
+                currentGitRevision,
+                previousGallery: galleryData.previousGallery,
+                currentGitGallery: projectsData.projects[projectIndex].media.gallery,
+                reason: 'Transaction was created against an older version of the project gallery',
+                transactionId
+              });
+              
+              // Reject deployment with conflict status
+              return NextResponse.json({
+                error: "Transaction freshness mismatch",
+                message: `Transaction was created against gallery revision ${galleryData.currentRevision}, but current Git HEAD has revision ${currentGitRevision}. This would cause lost-update semantics. Re-stage the gallery change or resolve the conflict manually.`,
+                projectId,
+                transactionExpectedRevision: galleryData.currentRevision,
+                currentGitRevision,
+                forensic: {
+                  deploymentTransactionId,
+                  projectId,
+                  transactionStale: true,
+                  requiresRebase: true
+                }
+              }, { status: 409 });
+            }
+            
+            // Verify the previous gallery matches what we expect (consistency check)
+            const currentGallery = projectsData.projects[projectIndex].media.gallery || [];
+            const previousMatches = JSON.stringify(galleryData.previousGallery) === JSON.stringify(currentGallery);
+            
+            if (!previousMatches) {
+              console.warn('[DEPLOY API] GALLERY_PREVIOUS_STATE_MISMATCH', {
+                projectId,
+                transactionPreviousGallery: galleryData.previousGallery,
+                currentGitGallery: currentGallery,
+                reason: 'Transaction was based on a different previous state than current Git HEAD',
+                transactionId
+              });
+              
+              // This is a conflict - the gallery has changed since the transaction was created
+              return NextResponse.json({
+                error: "Gallery previous state mismatch",
+                message: `Transaction was based on a different previous gallery state than current Git HEAD. The gallery has been modified since this transaction was created.`,
+                projectId,
+                transactionPreviousGallery: galleryData.previousGallery,
+                currentGitGallery: currentGallery,
+                forensic: {
+                  deploymentTransactionId,
+                  projectId,
+                  conflict: true,
+                  requiresManualResolution: true
+                }
+              }, { status: 409 });
+            }
+            
             projectsData.projects[projectIndex].media.gallery = galleryData.gallery;
             projectsData.projects[projectIndex].media.galleryRevision = galleryData.currentRevision;
             
@@ -1087,6 +1345,8 @@ export async function POST(request: Request) {
               currentRevision: galleryData.currentRevision,
               previousGalleryLength: galleryData.previousGallery.length,
               mutationTimestamp: galleryData.mutationTimestamp,
+              freshnessVerified: true,
+              previousStateVerified: true,
               key,
               transactionId 
             });
