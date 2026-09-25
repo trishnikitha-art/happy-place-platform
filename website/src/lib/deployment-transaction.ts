@@ -553,17 +553,12 @@ const ATOMIC_GALLERY_MUTATION_SCRIPT = `
   local mutationTimestamp = ARGV[4]
   local transactionData = ARGV[5]
   
-  redis.log(redis.LOG_NOTICE, 'GALLERY_MUTATION_SCRIPT: transactionId=' .. transactionId .. ', expectedRevision=' .. expectedRevision)
-  
   -- P0 FIX: Read runtime authority ONLY (this is the sole CAS authority)
   local runtimeData = redis.call('GET', runtimeGalleryKey)
-  
-  redis.log(redis.LOG_NOTICE, 'GALLERY_MUTATION_SCRIPT: runtimeData exists=' .. tostring(runtimeData ~= nil))
   
   -- P0 FIX: FAIL CLOSED if runtime authority doesn't exist
   -- No filesystem fallback in production CAS
   if not runtimeData then
-    redis.log(redis.LOG_WARNING, 'GALLERY_MUTATION_SCRIPT: RUNTIME_AUTHORITY_NOT_INITIALIZED')
     return {'ERR', 'RUNTIME_AUTHORITY_NOT_INITIALIZED', expectedRevision, 0}
   end
   
@@ -578,23 +573,19 @@ const ATOMIC_GALLERY_MUTATION_SCRIPT = `
     parsed = runtimeData
   else
     -- Invalid data type, CAS fails
-    redis.log(redis.LOG_WARNING, 'GALLERY_MUTATION_SCRIPT: INVALID_RUNTIME_DATA_TYPE - type=' .. type(runtimeData))
     return {'ERR', 'INVALID_RUNTIME_DATA_TYPE', expectedRevision, 0}
   end
   
   if parsed then
     currentGallery = parsed.gallery
     currentRevision = tonumber(parsed.currentRevision) or 0
-    redis.log(redis.LOG_NOTICE, 'GALLERY_MUTATION_SCRIPT: currentRevision=' .. currentRevision .. ', galleryLength=' .. (#currentGallery or 0))
   else
     -- Invalid runtime data, CAS fails
-    redis.log(redis.LOG_WARNING, 'GALLERY_MUTATION_SCRIPT: INVALID_RUNTIME_DATA_STRUCTURE')
     return {'ERR', 'INVALID_RUNTIME_DATA_STRUCTURE', expectedRevision, 0}
   end
   
   -- CAS: Compare current revision with expected revision
   if currentRevision ~= expectedRevision then
-    redis.log(redis.LOG_WARNING, 'GALLERY_MUTATION_SCRIPT: CAS_FAILURE - expected=' .. expectedRevision .. ', actual=' .. currentRevision)
     return {'ERR', 'CAS_FAILURE', expectedRevision, currentRevision}
   end
   
@@ -608,22 +599,17 @@ const ATOMIC_GALLERY_MUTATION_SCRIPT = `
     mutationTimestamp = mutationTimestamp
   }
   
-  redis.log(redis.LOG_NOTICE, 'GALLERY_MUTATION_SCRIPT: CAS passed, newRevision=' .. newRevision)
-  
   -- Write the specific staging key with 24-hour TTL
   redis.call('SET', specificStagingKey, cjson.encode(galleryPayload))
   redis.call('EXPIRE', specificStagingKey, 86400)
-  redis.log(redis.LOG_NOTICE, 'GALLERY_MUTATION_SCRIPT: Staging key written: ' .. specificStagingKey)
   
   -- Create/update deployment transaction with 24-hour TTL
   redis.call('SET', transactionKey, transactionData)
   redis.call('EXPIRE', transactionKey, 86400)
-  redis.log(redis.LOG_NOTICE, 'GALLERY_MUTATION_SCRIPT: Transaction written: ' .. transactionKey)
   
   -- Update the project-level transaction pointer with 24-hour TTL
   redis.call('SET', projectStagingKey, transactionId)
   redis.call('EXPIRE', projectStagingKey, 86400)
-  redis.log(redis.LOG_NOTICE, 'GALLERY_MUTATION_SCRIPT: Project pointer updated: ' .. projectStagingKey)
   
   -- Atomically update runtime authority (this is the live authority)
   local runtimePayload = {
@@ -633,7 +619,6 @@ const ATOMIC_GALLERY_MUTATION_SCRIPT = `
     lastTransactionId = transactionId
   }
   redis.call('SET', runtimeGalleryKey, cjson.encode(runtimePayload))
-  redis.log(redis.LOG_NOTICE, 'GALLERY_MUTATION_SCRIPT: Runtime authority updated: ' .. runtimeGalleryKey)
   
   -- Return indexed array for proper RESP2 serialization
   return {'OK', newRevision, transactionId, currentRevision}
@@ -1210,12 +1195,8 @@ const ATOMIC_BATCH_CLAIM_SCRIPT = `
   local transactionIds = cjson.decode(transactionIdsJson)
   local keyCount = #KEYS
 
-  -- Forensic logging
-  redis.log(redis.LOG_NOTICE, 'BATCH_CLAIM_SCRIPT: owner=' .. owner .. ', keyCount=' .. keyCount .. ', transactionCount=' .. #transactionIds)
-
   -- Validate that we have the right number of keys
   if keyCount ~= #transactionIds then
-    redis.log(redis.LOG_WARNING, 'BATCH_CLAIM_SCRIPT: KEY_COUNT_MISMATCH - expected ' .. #transactionIds .. ', got ' .. keyCount)
     return {'ERR', 'KEY_COUNT_MISMATCH', transactionIds[1], 'Expected ' .. #transactionIds .. ' keys, got ' .. keyCount}
   end
 
@@ -1225,31 +1206,24 @@ const ATOMIC_BATCH_CLAIM_SCRIPT = `
     local transactionId = transactionIds[i]
     local current = redis.call('GET', key)
 
-    redis.log(redis.LOG_NOTICE, 'BATCH_CLAIM_SCRIPT: Validating transaction ' .. i .. '/' .. keyCount .. ': ' .. transactionId .. ' at key ' .. key)
-
     if not current then
-      redis.log(redis.LOG_WARNING, 'BATCH_CLAIM_SCRIPT: TRANSACTION_NOT_FOUND - ' .. transactionId .. ' at key ' .. key)
       return {'ERR', 'TRANSACTION_NOT_FOUND', transactionId, 'Transaction does not exist'}
     end
 
     local parsed = cjson.decode(current)
-    redis.log(redis.LOG_NOTICE, 'BATCH_CLAIM_SCRIPT: Transaction state - ' .. transactionId .. ' state=' .. (parsed.state or 'nil') .. ' owner=' .. (parsed.owner or 'nil'))
 
     -- Validate transaction ID identity
     if parsed.transactionId ~= transactionId then
-      redis.log(redis.LOG_WARNING, 'BATCH_CLAIM_SCRIPT: TRANSACTION_ID_MISMATCH - expected ' .. transactionId .. ', got ' .. (parsed.transactionId or 'nil'))
       return {'ERR', 'TRANSACTION_ID_MISMATCH', transactionId, 'Transaction ID mismatch'}
     end
 
     -- Verify transaction is in prepared state
     if parsed.state ~= 'prepared' then
-      redis.log(redis.LOG_WARNING, 'BATCH_CLAIM_SCRIPT: INVALID_STATE - ' .. transactionId .. ' is in ' .. parsed.state .. ' state, expected prepared')
       return {'ERR', 'INVALID_STATE', transactionId, 'Transaction is in ' .. parsed.state .. ' state, expected prepared'}
     end
 
     -- Verify no other owner has claimed this transaction
     if parsed.owner and parsed.owner ~= '' then
-      redis.log(redis.LOG_WARNING, 'BATCH_CLAIM_SCRIPT: ALREADY_CLAIMED - ' .. transactionId .. ' already claimed by ' .. parsed.owner)
       return {'ERR', 'ALREADY_CLAIMED', transactionId, 'Transaction already claimed by ' .. parsed.owner}
     end
   end
@@ -1266,10 +1240,8 @@ const ATOMIC_BATCH_CLAIM_SCRIPT = `
     parsed.claimedAt = os.time()
 
     redis.call('SET', key, cjson.encode(parsed))
-    redis.log(redis.LOG_NOTICE, 'BATCH_CLAIM_SCRIPT: Claimed transaction ' .. i .. '/' .. keyCount .. ': ' .. parsed.transactionId)
   end
 
-  redis.log(redis.LOG_NOTICE, 'BATCH_CLAIM_SCRIPT: Successfully claimed ' .. keyCount .. ' transactions')
   return {'OK', keyCount}
 `;
 
