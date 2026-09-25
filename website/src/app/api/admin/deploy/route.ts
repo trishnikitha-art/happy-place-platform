@@ -1294,8 +1294,84 @@ export async function POST(request: Request) {
             // decodeGalleryStaging() validates the complete schema
             const galleryData = stagingValue as { gallery: string[]; currentRevision: number; previousGallery: string[]; mutationTimestamp: string };
             
-            // CRITICAL FIX: Transaction freshness verification with state consistency check
-            // Ensure the transaction's expected revision matches the current Git HEAD revision
+            // CRITICAL ARCHITECTURAL FIX: Verify Redis runtime authority relationship first
+            // Redis is the live gallery authority; Git is the durable projection
+            // A valid gallery transaction must be authored by the Redis runtime authority
+            const redis = getRedisClient();
+            if (redis) {
+              const runtimeGalleryKey = `${getKvNamespace()}workbench-runtime-gallery:${projectId}`;
+              const runtimeData = await redis.get(runtimeGalleryKey);
+              
+              if (runtimeData) {
+                const runtimeGallery = (runtimeData as any).gallery;
+                const runtimeRevision = (runtimeData as any).currentRevision;
+                const runtimeLastTransactionId = (runtimeData as any).lastTransactionId;
+                
+                // Verify runtime authority relationship:
+                // 1. Runtime lastTransactionId must match transaction ID
+                // 2. Runtime gallery must match transaction's resulting gallery
+                // 3. Runtime revision must match transaction's resulting revision
+                const transactionMatchesRuntime = 
+                  runtimeLastTransactionId === transactionId &&
+                  JSON.stringify(runtimeGallery) === JSON.stringify(galleryData.gallery) &&
+                  runtimeRevision === galleryData.currentRevision;
+                
+                if (transactionMatchesRuntime) {
+                  console.log('[DEPLOY API] GALLERY_RUNTIME_AUTHORITY_VERIFIED', {
+                    projectId,
+                    transactionId,
+                    runtimeRevision,
+                    transactionRevision: galleryData.currentRevision,
+                    runtimeLastTransactionId,
+                    reason: 'Transaction is authored by Redis runtime authority'
+                  });
+                  
+                  // Redis runtime authority is valid - materialize from Redis to Git
+                  // Do NOT reject based on Git revision mismatch
+                  // Git is the projection target, not the authority source
+                  projectsData.projects[projectIndex].media.gallery = galleryData.gallery;
+                  projectsData.projects[projectIndex].media.galleryRevision = galleryData.currentRevision;
+                  appliedCount++;
+                  continue;
+                } else {
+                  console.error('[DEPLOY API] GALLERY_RUNTIME_AUTHORITY_MISMATCH', {
+                    projectId,
+                    transactionId,
+                    runtimeLastTransactionId,
+                    runtimeRevision,
+                    transactionRevision: galleryData.currentRevision,
+                    runtimeGalleryMatches: JSON.stringify(runtimeGallery) === JSON.stringify(galleryData.gallery),
+                    reason: 'Transaction does not match Redis runtime authority'
+                  });
+                  
+                  // FAIL CLOSED: Transaction not authored by Redis runtime authority
+                  return NextResponse.json({
+                    error: "Gallery runtime authority mismatch",
+                    message: `Transaction ${transactionId} does not match the current Redis runtime authority for project ${projectId}. The transaction may be stale or corrupted.`,
+                    projectId,
+                    transactionId,
+                    forensic: {
+                      deploymentTransactionId,
+                      projectId,
+                      runtimeLastTransactionId,
+                      transactionStale: true,
+                      requiresReconciliation: true
+                    }
+                  }, { status: 409 });
+                }
+              } else {
+                console.warn('[DEPLOY API] GALLERY_RUNTIME_AUTHORITY_NOT_FOUND', {
+                  projectId,
+                  transactionId,
+                  reason: 'Runtime authority not found in Redis - may have been cleaned up or never initialized'
+                });
+                // If runtime authority doesn't exist, fall through to Git-based validation
+                // This handles cases where runtime authority was cleaned up but transaction remains
+              }
+            }
+            
+            // Fallback: Git-based validation (for transactions without Redis runtime authority)
+            // This preserves backward compatibility and handles edge cases
             const currentGitRevision = projectsData.projects[projectIndex].media.galleryRevision || 0;
             const currentGallery = projectsData.projects[projectIndex].media.gallery || [];
             
