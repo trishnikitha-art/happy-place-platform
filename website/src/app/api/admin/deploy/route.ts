@@ -495,6 +495,7 @@ export async function POST(request: Request) {
   let deploymentTransactionId: string = ''; // Will be set from request body
   let transaction: DeploymentTransaction | null = null;
   let transactionOwner: string = ''; // Ownership token for lifecycle verification
+  let claimedTransactions: DeploymentTransaction[] = []; // Batch deployment transactions
   
   console.log('[DEPLOY API] REQUEST_RECEIVED');
   
@@ -615,85 +616,166 @@ export async function POST(request: Request) {
       );
     }
 
-    // Use the first transaction ID as the primary deployment transaction ID
+    // FIX: Use the first transaction ID as the primary for deployment lifecycle
     // But we will process ALL provided transactionIds for bulk deployment
     deploymentTransactionId = transactionIds[0];
-    console.log('[DEPLOY API] USING_PROVIDED_TRANSACTION_IDS', { 
-      deploymentTransactionId, 
+    
+    console.log('[DEPLOY API] BATCH_DEPLOYMENT_INITIATED', { 
+      primaryTransactionId: deploymentTransactionId,
       transactionIds, 
       transactionCount: transactionIds.length 
     });
+
+    // Initialize Redis client for batch validation
+    const redis = getRedisClient();
     
-    // IDEMPOTENCY CHECK: Check if transaction already exists
-    const existingTransaction = await getDeploymentTransaction(deploymentTransactionId);
-    if (existingTransaction) {
-      console.log('[DEPLOY API] EXISTING_TRANSACTION_FOUND', { 
-        transactionId: deploymentTransactionId,
-        state: existingTransaction.state,
-        commitSha: existingTransaction.commitSha 
+    // BATCH COMPATIBILITY VALIDATION: Check all transactions before proceeding
+    const batchValidationResults = [];
+    const compatibleTransactions = [];
+    const incompatibleTransactions = [];
+    
+    for (const txId of transactionIds) {
+      const tx = await getDeploymentTransaction(txId);
+      if (!tx) {
+        console.error('[DEPLOY API] BATCH_TRANSACTION_NOT_FOUND', { txId });
+        incompatibleTransactions.push({ txId, reason: 'MISSING' });
+        continue;
+      }
+      
+      // Check state
+      if (tx.state !== 'prepared') {
+        console.warn('[DEPLOY API] BATCH_TRANSACTION_INVALID_STATE', { txId, state: tx.state });
+        incompatibleTransactions.push({ txId, reason: 'INVALID_STATE', state: tx.state });
+        continue;
+      }
+      
+      // Check staging schema compatibility
+      const hasLegacySchema = tx.stagingKeys.some(key => {
+        const parts = key.split(':');
+        // Legacy format: old staging key patterns without transactional structure
+        return parts.length < 6 || (parts[2] === 'workbench-staging' && !parts[3].startsWith('WBDEP-') && !parts[3].startsWith('tx-'));
       });
       
-      // If already committed/consumed, return idempotent result
-      if (existingTransaction.state === 'committed' || existingTransaction.state === 'consumed') {
-        return NextResponse.json({
-          success: true,
-          deploymentTransactionId,
-          commitSha: existingTransaction.commitSha,
-          commitUrl: existingTransaction.commitUrl,
-          message: "Idempotent replay: transaction already committed",
-          authorityFiles: existingTransaction.files,
-          status: "IDEMPOTENT_REPLAY",
-          filesCommitted: existingTransaction.files,
-          atomic: true,
-          originalState: existingTransaction.state,
-          originalCommittedAt: existingTransaction.committedAt
-        });
+      if (hasLegacySchema) {
+        console.warn('[DEPLOY API] BATCH_TRANSACTION_LEGACY_SCHEMA', { txId });
+        incompatibleTransactions.push({ txId, reason: 'LEGACY_SCHEMA' });
+        continue;
       }
       
-      // If in terminal failed state, return error
-      if (existingTransaction.state === 'failed' && (existingTransaction.retryCount || 0) >= 3) {
-        return NextResponse.json({
-          error: "Transaction terminal",
-          message: "Transaction failed after maximum retries",
-          deploymentTransactionId,
-          state: existingTransaction.state,
-          failureReason: existingTransaction.failureReason,
-          retryCount: existingTransaction.retryCount
-        }, { status: 409 });
+      // Check staging keys exist
+      const missingKeys = [];
+      if (redis) {
+        for (const key of tx.stagingKeys) {
+          const exists = await redis.get(key);
+          if (!exists) missingKeys.push(key);
+        }
       }
       
-      // If in retryable failed state, retry the transaction
-      if (existingTransaction.state === 'failed' && (existingTransaction.retryCount || 0) < 3) {
-        console.log('[DEPLOY API] RETRYING_FAILED_TRANSACTION', {
-          deploymentTransactionId,
-          retryCount: existingTransaction.retryCount,
-          failureReason: existingTransaction.failureReason,
-        });
-        
-        const { retryDeploymentTransaction } = await import('@/lib/deployment-transaction');
-        const retriedTransaction = await retryDeploymentTransaction(deploymentTransactionId);
-        
-        console.log('[DEPLOY API] TRANSACTION_RETRIED', {
-          deploymentTransactionId,
-          newState: retriedTransaction.state,
-          newRetryCount: retriedTransaction.retryCount,
-        });
-        
-        // Continue with the retried transaction (now in prepared state)
-        // Fall through to the normal deployment path
+      if (missingKeys.length > 0) {
+        console.error('[DEPLOY API] BATCH_TRANSACTION_MISSING_STAGING', { txId, missingKeys });
+        incompatibleTransactions.push({ txId, reason: 'MISSING_STAGING', missingKeys });
+        continue;
       }
       
-      // If currently committing, reject concurrent deployment
-      if (existingTransaction.state === 'committing') {
-        return NextResponse.json({
-          error: "Concurrent deployment in progress",
-          message: "Transaction is currently being deployed by another process",
-          deploymentTransactionId,
-          state: existingTransaction.state,
-          owner: existingTransaction.owner
-        }, { status: 409 });
+      compatibleTransactions.push(tx);
+      console.log('[DEPLOY API] BATCH_TRANSACTION_COMPATIBLE', { txId });
+    }
+    
+    // Fail if any transactions are incompatible
+    if (incompatibleTransactions.length > 0) {
+      console.error('[DEPLOY API] BATCH_VALIDATION_FAILED', {
+        primaryTransactionId: deploymentTransactionId,
+        incompatibleCount: incompatibleTransactions.length,
+        incompatibleTransactions
+      });
+      
+      return NextResponse.json({
+        error: "Batch validation failed",
+        message: `${incompatibleTransactions.length} transactions are incompatible and cannot be deployed in this batch.`,
+        primaryTransactionId: deploymentTransactionId,
+        compatibleCount: compatibleTransactions.length,
+        incompatibleTransactions
+      }, { status: 400 });
+    }
+    
+    if (compatibleTransactions.length === 0) {
+      console.error('[DEPLOY API] BATCH_NO_COMPATIBLE_TRANSACTIONS', { primaryTransactionId: deploymentTransactionId });
+      return NextResponse.json({
+        error: "No compatible transactions",
+        message: "None of the provided transactions are compatible for deployment.",
+        primaryTransactionId: deploymentTransactionId
+      }, { status: 400 });
+    }
+    
+    console.log('[DEPLOY API] BATCH_VALIDATION_PASSED', {
+      primaryTransactionId: deploymentTransactionId,
+      compatibleCount: compatibleTransactions.length,
+      totalRequested: transactionIds.length
+    });
+
+    // BATCH CLAIMING: Claim all compatible transactions as a batch
+    transactionOwner = `claim-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const claimedTransactions = [];
+    const claimFailedTransactions = [];
+
+    for (const tx of compatibleTransactions) {
+      try {
+        const claimed = await claimDeploymentTransaction(tx.transactionId, transactionOwner);
+        claimedTransactions.push(claimed);
+        console.log('[DEPLOY API] BATCH_TRANSACTION_CLAIMED', { 
+          transactionId: tx.transactionId, 
+          owner: transactionOwner 
+        });
+      } catch (error) {
+        console.error('[DEPLOY API] BATCH_TRANSACTION_CLAIM_FAILED', { 
+          transactionId: tx.transactionId, 
+          error: error instanceof Error ? error.message : String(error) 
+        });
+        claimFailedTransactions.push({ 
+          transactionId: tx.transactionId, 
+          error: error instanceof Error ? error.message : String(error) 
+        });
       }
     }
+
+    // If any claims failed, rollback already claimed transactions
+    if (claimFailedTransactions.length > 0) {
+      console.error('[DEPLOY API] BATCH_CLAIM_PARTIAL_FAILURE', {
+        claimedCount: claimedTransactions.length,
+        failedCount: claimFailedTransactions.length,
+        failedTransactions: claimFailedTransactions
+      });
+
+      // Rollback: fail all claimed transactions
+      for (const claimed of claimedTransactions) {
+        try {
+          await failDeploymentTransaction(claimed.transactionId, 'Batch claim partial failure - rolling back');
+        } catch (rollbackError) {
+          console.error('[DEPLOY API] BATCH_CLAIM_ROLLBACK_FAILED', { 
+            transactionId: claimed.transactionId, 
+            error: rollbackError instanceof Error ? rollbackError.message : String(rollbackError) 
+          });
+        }
+      }
+
+      return NextResponse.json({
+        error: "Batch claim failed",
+        message: `${claimFailedTransactions.length} transactions could not be claimed. Batch deployment aborted.`,
+        primaryTransactionId: deploymentTransactionId,
+        claimedCount: claimedTransactions.length,
+        failedCount: claimFailedTransactions.length,
+        failedTransactions: claimFailedTransactions
+      }, { status: 400 });
+    }
+
+    console.log('[DEPLOY API] BATCH_CLAIM_SUCCESS', {
+      primaryTransactionId: deploymentTransactionId,
+      claimedCount: claimedTransactions.length,
+      owner: transactionOwner
+    });
+
+    // Set transaction to the primary claimed transaction for lifecycle tracking
+    transaction = claimedTransactions.find(tx => tx.transactionId === deploymentTransactionId) || claimedTransactions[0];
 
     // Check for GitHub credentials
     const githubToken = process.env.GITHUB_TOKEN;
@@ -783,7 +865,6 @@ export async function POST(request: Request) {
     let servicesFileContent: string = '';
     let brandFileContent: string = '';
     let mediaFileContent: string = '';
-    const redis = getRedisClient();
     
     if (isProduction && redis) {
       console.log('[DEPLOY API] PRODUCTION_MODE_MERGING_KV_STAGING');
@@ -911,187 +992,20 @@ export async function POST(request: Request) {
       const mediaData = JSON.parse(mediaContent);
       console.log('[DEPLOY API] MEDIA_FILE_FETCHED_FROM_GIT', { currentCommitSha });
       
-      // CRITICAL: Read authoritative deployment transaction first
-      // This provides the canonical transaction identity and staging key references
-      const authoritativeTransaction = await getDeploymentTransaction(deploymentTransactionId);
-      
-      if (!authoritativeTransaction) {
-        console.error('[DEPLOY API] TRANSACTION_NOT_FOUND', {
-          deploymentTransactionId,
-          reason: 'Authoritative deployment transaction does not exist'
-        });
-        return NextResponse.json({
-          error: "Transaction not found",
-          message: `Deployment transaction ${deploymentTransactionId} does not exist. Cannot proceed without authoritative transaction record.`,
-          deploymentTransactionId
-        }, { status: 404 });
-      }
-      
-      console.log('[DEPLOY API] AUTHORITATIVE_TRANSACTION_FOUND', {
-        deploymentTransactionId,
-        state: authoritativeTransaction.state,
-        stagingKeys: authoritativeTransaction.stagingKeys,
-        stagingKeysCount: authoritativeTransaction.stagingKeys.length,
-        files: authoritativeTransaction.files,
-        createdAt: authoritativeTransaction.createdAt,
-      });
-      
-      // CRITICAL: Verify transaction state allows deployment
-      if (authoritativeTransaction.state !== 'prepared') {
-        console.error('[DEPLOY API] INVALID_TRANSACTION_STATE', {
-          deploymentTransactionId,
-          currentState: authoritativeTransaction.state,
-          expectedState: 'prepared',
-          reason: 'Transaction is not in prepared state, cannot claim for deployment'
-        });
-        return NextResponse.json({
-          error: "Invalid transaction state",
-          message: `Transaction is in ${authoritativeTransaction.state} state, expected prepared. Cannot claim for deployment.`,
-          deploymentTransactionId,
-          currentState: authoritativeTransaction.state
-        }, { status: 400 });
-      }
-      
-      // CRITICAL: Verify environment namespace matches
-      const expectedNamespace = getKvNamespace();
-      const transactionKeyMatchesNamespace = authoritativeTransaction.stagingKeys.some(key => key.startsWith(expectedNamespace));
-      
-      if (!transactionKeyMatchesNamespace) {
-        console.error('[DEPLOY API] TRANSACTION_ENVIRONMENT_MISMATCH', {
-          deploymentTransactionId,
-          expectedNamespace,
-          actualKeys: authoritativeTransaction.stagingKeys,
-          reason: 'Transaction staging keys do not match expected environment namespace'
-        });
-        return NextResponse.json({
-          error: "Transaction environment mismatch",
-          message: `Transaction staging keys do not match expected environment namespace ${expectedNamespace}`,
-          deploymentTransactionId,
-          expectedNamespace,
-          actualKeys: authoritativeTransaction.stagingKeys
-        }, { status: 400 });
-      }
-      
-      // CRITICAL: Verify each referenced staging key exists
-      const missingStagingKeys: string[] = [];
-      for (const stagingKey of authoritativeTransaction.stagingKeys) {
-        const exists = await redis.get(stagingKey);
-        if (!exists) {
-          missingStagingKeys.push(stagingKey);
-        }
-      }
-      
-      if (missingStagingKeys.length > 0) {
-        console.error('[DEPLOY API] STAGING_RECORDS_MISSING', {
-          deploymentTransactionId,
-          missingStagingKeys,
-          reason: 'Transaction references staging keys that do not exist'
-        });
-        return NextResponse.json({
-          error: "Staging records missing",
-          message: "Transaction references staging keys that do not exist in Redis",
-          deploymentTransactionId,
-          missingStagingKeys
-        }, { status: 400 });
-      }
-      
-      console.log('[DEPLOY API] STAGING_RECORDS_VERIFIED', {
-        deploymentTransactionId,
-        stagingKeysCount: authoritativeTransaction.stagingKeys.length,
-        allKeysPresent: true,
-        environment: getEnvironment(),
-      });
-      
-      // Use authoritative transaction staging keys
-      // Process ALL provided transaction IDs for bulk deployment
+      // FIX: Use compatible transactions from batch validation instead of single-transaction pattern
+      // Process ALL compatible transactions as a single batch
       const transactionGroups = new Map<string, string[]>();
       
-      // Add the primary transaction
-      transactionGroups.set(deploymentTransactionId, authoritativeTransaction.stagingKeys);
-      
-      // Process additional transactions if provided (bulk deployment)
-      if (transactionIds.length > 1) {
-        console.log('[DEPLOY API] PROCESSING_MULTIPLE_TRANSACTIONS', { 
-          primaryTransaction: deploymentTransactionId,
-          additionalTransactions: transactionIds.slice(1),
-          totalTransactions: transactionIds.length
+      for (const tx of compatibleTransactions) {
+        transactionGroups.set(tx.transactionId, tx.stagingKeys);
+        console.log('[DEPLOY API] BATCH_TRANSACTION_ADDED', { 
+          transactionId: tx.transactionId,
+          stagingKeysCount: tx.stagingKeys.length 
         });
-        
-        for (const additionalTxId of transactionIds.slice(1)) {
-          const additionalTx = await getDeploymentTransaction(additionalTxId);
-          if (!additionalTx) {
-            console.error('[DEPLOY API] ADDITIONAL_TRANSACTION_NOT_FOUND', { 
-              transactionId: additionalTxId,
-              reason: 'Cannot process bulk deployment with missing transaction'
-            });
-            return NextResponse.json({
-              error: "Additional transaction not found",
-              message: `Transaction ${additionalTxId} was not found. Cannot proceed with bulk deployment.`,
-              additionalTransactionId: additionalTxId
-            }, { status: 404 });
-          }
-          
-          // Verify state
-          if (additionalTx.state !== 'prepared') {
-            console.error('[DEPLOY API] ADDITIONAL_TRANSACTION_INVALID_STATE', { 
-              transactionId: additionalTxId,
-              state: additionalTx.state,
-              expectedState: 'prepared'
-            });
-            return NextResponse.json({
-              error: "Additional transaction invalid state",
-              message: `Transaction ${additionalTxId} is in ${additionalTx.state} state, expected prepared. Cannot proceed with bulk deployment.`,
-              additionalTransactionId: additionalTxId,
-              currentState: additionalTx.state
-            }, { status: 400 });
-          }
-          
-          // Verify environment namespace
-          const additionalTxNamespaceMatch = additionalTx.stagingKeys.some(key => key.startsWith(expectedNamespace));
-          if (!additionalTxNamespaceMatch) {
-            console.error('[DEPLOY API] ADDITIONAL_TRANSACTION_ENVIRONMENT_MISMATCH', {
-              transactionId: additionalTxId,
-              expectedNamespace,
-              actualKeys: additionalTx.stagingKeys
-            });
-            return NextResponse.json({
-              error: "Additional transaction environment mismatch",
-              message: `Transaction ${additionalTxId} staging keys do not match expected environment namespace`,
-              additionalTransactionId: additionalTxId
-            }, { status: 400 });
-          }
-          
-          // Verify staging keys exist
-          const additionalMissingKeys: string[] = [];
-          for (const key of additionalTx.stagingKeys) {
-            const exists = await redis.get(key);
-            if (!exists) {
-              additionalMissingKeys.push(key);
-            }
-          }
-          
-          if (additionalMissingKeys.length > 0) {
-            console.error('[DEPLOY API] ADDITIONAL_TRANSACTION_STAGING_MISSING', {
-              transactionId: additionalTxId,
-              missingKeys: additionalMissingKeys
-            });
-            return NextResponse.json({
-              error: "Additional transaction staging missing",
-              message: `Transaction ${additionalTxId} references staging keys that do not exist`,
-              additionalTransactionId: additionalTxId,
-              missingKeys: additionalMissingKeys
-            }, { status: 400 });
-          }
-          
-          transactionGroups.set(additionalTxId, additionalTx.stagingKeys);
-          console.log('[DEPLOY API] ADDITIONAL_TRANSACTION_VERIFIED', { 
-            transactionId: additionalTxId,
-            stagingKeysCount: additionalTx.stagingKeys.length
-          });
-        }
       }
       
-      // Apply staging changes by transaction (chronological order by transaction ID timestamp)
+      // FIX: Deterministic ordering for same-project transactions
+      // Sort transactions chronologically by timestamp to ensure revision consistency
       const sortedTransactions = Array.from(transactionGroups.entries())
         .sort((a, b) => {
           // Extract timestamp from transaction ID: WBDEP-{timestamp}-{random}
@@ -1100,11 +1014,23 @@ export async function POST(request: Request) {
           return parseInt(aTimestamp) - parseInt(bTimestamp);
         });
       
+      console.log('[DEPLOY API] BATCH_TRANSACTIONS_ORDERED', {
+        primaryTransactionId: deploymentTransactionId,
+        transactionCount: sortedTransactions.length,
+        order: sortedTransactions.map(([id]) => id)
+      });
+      
       let appliedCount = 0;
       for (const [transactionId, keys] of sortedTransactions) {
+        const transaction = compatibleTransactions.find(tx => tx.transactionId === transactionId);
+        if (!transaction) {
+          console.error('[DEPLOY API] TRANSACTION_NOT_FOUND_IN_BATCH', { transactionId });
+          continue;
+        }
+
         console.log('[DEPLOY API] PROCESSING_TRANSACTION', { 
           transactionId, 
-          state: authoritativeTransaction.state, 
+          state: transaction.state, 
           keyCount: keys.length,
           hasDeploymentRecord: true
         });
@@ -1746,11 +1672,6 @@ export async function POST(request: Request) {
       );
       console.log('[DEPLOY API] TRANSACTION_CREATED', { transactionId: deploymentTransactionId, state: transaction.state, parentCommitSha: currentCommitSha });
     }
-    
-    // CLAIM TRANSACTION for deployment (prepared → committing)
-    transactionOwner = `claim-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    transaction = await claimDeploymentTransaction(deploymentTransactionId, transactionOwner);
-    console.log('[DEPLOY API] TRANSACTION_CLAIMED', { transactionId: deploymentTransactionId, owner: transactionOwner });
     
     // Step 2: Get current tree SHA from the commit
     const commitUrl = `https://api.github.com/repos/${githubOwner}/${githubRepo}/git/commits/${currentCommitSha}`;
@@ -2677,44 +2598,74 @@ export async function POST(request: Request) {
       }
     }
 
-    // MARK TRANSACTION AS COMMITTED (committing → committed)
+    // MARK ALL BATCH TRANSACTIONS AS COMMITTED (committing → committed)
     // This happens AFTER promotion succeeds, ensuring Git and runtime KV are coherent
     // commitSha was already persisted via setGitCommitSha() before promotion
-    transaction = await commitDeploymentTransaction(deploymentTransactionId, transactionOwner);
-    console.log('[DEPLOY API] TRANSACTION_COMMITTED', { transactionId: deploymentTransactionId, commitSha: newCommitSha });
+    const committedTransactions = [];
+    for (const claimed of claimedTransactions) {
+      try {
+        const committed = await commitDeploymentTransaction(claimed.transactionId, transactionOwner);
+        committedTransactions.push(committed);
+        console.log('[DEPLOY API] BATCH_TRANSACTION_COMMITTED', { 
+          transactionId: claimed.transactionId, 
+          commitSha: newCommitSha 
+        });
+      } catch (error) {
+        console.error('[DEPLOY API] BATCH_TRANSACTION_COMMIT_FAILED', { 
+          transactionId: claimed.transactionId, 
+          error: error instanceof Error ? error.message : String(error) 
+        });
+      }
+    }
 
     // TRANSACTIONAL FIX: Only delete staging keys after durable commit verification AND promotion
     // This prevents data loss if commit or promotion fails
     if (isProduction && redis && stagingKeys.length > 0 && verificationPassed) {
-      console.log('[DEPLOY API] CLEARING_STAGING_KEYS_AFTER_COMMIT_AND_PROMOTION', { count: stagingKeys.length });
+      console.log('[DEPLOY API] CLEARING_BATCH_STAGING_KEYS_AFTER_COMMIT_AND_PROMOTION', { 
+        transactionCount: claimedTransactions.length,
+        stagingKeyCount: stagingKeys.length 
+      });
       
-      // P0 FIX: Extract projectId from staging keys to clear project-level transaction pointer
-      let extractedProjectId: string | undefined;
-      for (const key of stagingKeys) {
-        await redis.del(key);
-        console.log('[DEPLOY_API] STAGING_KEY_CLEARED', { key });
-        
-        // Extract projectId from staging key format: hpp:{env}:workbench-staging:{txId}:project:{projectId}:{field}
-        const parts = key.split(':');
-        if (parts.length >= 7 && parts[2] === 'workbench-staging' && parts[4] === 'project') {
-          extractedProjectId = parts[5];
-          console.log('[DEPLOY API] EXTRACTED_PROJECT_ID_FROM_STAGING_KEY', {
-            projectId: extractedProjectId,
-            key,
+      // Clear all staging keys from all claimed transactions
+      for (const claimed of claimedTransactions) {
+        for (const key of claimed.stagingKeys) {
+          await redis.del(key);
+          console.log('[DEPLOY_API] STAGING_KEY_CLEARED', { 
+            transactionId: claimed.transactionId,
+            key 
           });
         }
       }
       
-      console.log('[DEPLOY API] STAGING_KEYS_CLEARED_COMPLETE');
+      console.log('[DEPLOY API] BATCH_STAGING_KEYS_CLEARED_COMPLETE');
       
-      // MARK TRANSACTION AS CONSUMED (committed → consumed)
-      // P0 FIX: Pass projectId to clear project-level transaction pointer
-      if (transaction) {
-        transaction = await consumeDeploymentTransaction(deploymentTransactionId, transactionOwner, extractedProjectId);
-        console.log('[DEPLOY API] TRANSACTION_CONSUMED', { transactionId: deploymentTransactionId, projectId: extractedProjectId });
+      // MARK ALL BATCH TRANSACTIONS AS CONSUMED (committed → consumed)
+      for (const claimed of claimedTransactions) {
+        try {
+          // Extract projectId from staging keys for each transaction
+          let extractedProjectId: string | undefined;
+          for (const key of claimed.stagingKeys) {
+            const parts = key.split(':');
+            if (parts.length >= 7 && parts[2] === 'workbench-staging' && parts[4] === 'project') {
+              extractedProjectId = parts[5];
+              break;
+            }
+          }
+          
+          const consumed = await consumeDeploymentTransaction(claimed.transactionId, transactionOwner, extractedProjectId);
+          console.log('[DEPLOY API] BATCH_TRANSACTION_CONSUMED', { 
+            transactionId: claimed.transactionId, 
+            projectId: extractedProjectId 
+          });
+        } catch (error) {
+          console.error('[DEPLOY API] BATCH_TRANSACTION_CONSUME_FAILED', { 
+            transactionId: claimed.transactionId, 
+            error: error instanceof Error ? error.message : String(error) 
+          });
+        }
       }
     } else if (isProduction && redis && stagingKeys.length > 0) {
-      console.warn('[DEPLOY API] STAGING_KEYS_PRESERVED_NO_REDIS_OR_NO_STAGING', {
+      console.warn('[DEPLOY API] BATCH_STAGING_KEYS_PRESERVED_NO_REDIS_OR_NO_STAGING', {
         stagingKeysCount: stagingKeys.length,
       });
     }
@@ -2736,8 +2687,26 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('[DEPLOY API] ERROR', error);
     
-    // MARK TRANSACTION AS FAILED on uncaught errors
-    if (transaction) {
+    // MARK ALL CLAIMED TRANSACTIONS AS FAILED on uncaught errors
+    if (claimedTransactions && claimedTransactions.length > 0) {
+      for (const claimed of claimedTransactions) {
+        try {
+          await failDeploymentTransaction(
+            claimed.transactionId,
+            error instanceof Error ? error.message : String(error)
+          );
+          console.log('[DEPLOY API] BATCH_TRANSACTION_FAILED', { 
+            transactionId: claimed.transactionId 
+          });
+        } catch (txError) {
+          console.error('[DEPLOY API] BATCH_TRANSACTION_MARK_FAILED', { 
+            transactionId: claimed.transactionId,
+            txError 
+          });
+        }
+      }
+    } else if (transaction) {
+      // Fallback for single-transaction path
       try {
         await failDeploymentTransaction(
           deploymentTransactionId,
