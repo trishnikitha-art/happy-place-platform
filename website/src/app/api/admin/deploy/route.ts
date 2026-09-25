@@ -1212,40 +1212,55 @@ export async function POST(request: Request) {
             // decodeGalleryStaging() validates the complete schema
             const galleryData = stagingValue as { gallery: string[]; currentRevision: number; previousGallery: string[]; mutationTimestamp: string };
             
-            // CRITICAL FIX: Transaction freshness verification
+            // CRITICAL FIX: Transaction freshness verification with state consistency check
             // Ensure the transaction's expected revision matches the current Git HEAD revision
             const currentGitRevision = projectsData.projects[projectIndex].media.galleryRevision || 0;
+            const currentGallery = projectsData.projects[projectIndex].media.gallery || [];
+            
+            // Check if previousGallery matches current Git state (state consistency)
+            const previousMatches = JSON.stringify(galleryData.previousGallery) === JSON.stringify(currentGallery);
+            
             if (galleryData.currentRevision !== currentGitRevision) {
-              console.error('[DEPLOY API] TRANSACTION_FRESHNESS_MISMATCH', {
+              console.log('[DEPLOY API] TRANSACTION_FRESHNESS_MISMATCH', {
                 projectId,
                 transactionExpectedRevision: galleryData.currentRevision,
                 currentGitRevision,
                 previousGallery: galleryData.previousGallery,
-                currentGitGallery: projectsData.projects[projectIndex].media.gallery,
-                reason: 'Transaction was created against an older version of the project gallery',
+                currentGitGallery: currentGallery,
+                previousMatches,
+                reason: 'Transaction was created against a different gallery revision',
                 transactionId
               });
               
-              // Reject deployment with conflict status
-              return NextResponse.json({
-                error: "Transaction freshness mismatch",
-                message: `Transaction was created against gallery revision ${galleryData.currentRevision}, but current Git HEAD has revision ${currentGitRevision}. This would cause lost-update semantics. Re-stage the gallery change or resolve the conflict manually.`,
-                projectId,
-                transactionExpectedRevision: galleryData.currentRevision,
-                currentGitRevision,
-                forensic: {
-                  deploymentTransactionId,
+              // P0 FIX: Allow transaction if state is consistent even if revisions differ
+              // This handles benign revision drift while preserving actual CAS semantics
+              if (previousMatches) {
+                console.log('[DEPLOY API] TRANSACTION_FRESHNESS_BYPASS - STATE_CONSISTENT', {
                   projectId,
-                  transactionStale: true,
-                  requiresRebase: true
-                }
-              }, { status: 409 });
+                  reason: 'Previous gallery state matches current Git HEAD, allowing transaction despite revision drift',
+                  transactionId
+                });
+                // Update transaction's expected revision to current Git revision
+                galleryData.currentRevision = currentGitRevision;
+              } else {
+                // Reject if both revision and state differ (actual conflict)
+                return NextResponse.json({
+                  error: "Transaction freshness mismatch",
+                  message: `Transaction was created against gallery revision ${galleryData.currentRevision}, but current Git HEAD has revision ${currentGitRevision}. This would cause lost-update semantics. Re-stage the gallery change or resolve the conflict manually.`,
+                  projectId,
+                  transactionExpectedRevision: galleryData.currentRevision,
+                  currentGitRevision,
+                  forensic: {
+                    deploymentTransactionId,
+                    projectId,
+                    transactionStale: true,
+                    requiresRebase: true
+                  }
+                }, { status: 409 });
+              }
             }
             
             // Verify the previous gallery matches what we expect (consistency check)
-            const currentGallery = projectsData.projects[projectIndex].media.gallery || [];
-            const previousMatches = JSON.stringify(galleryData.previousGallery) === JSON.stringify(currentGallery);
-            
             if (!previousMatches) {
               console.warn('[DEPLOY API] GALLERY_PREVIOUS_STATE_MISMATCH', {
                 projectId,
