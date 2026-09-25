@@ -603,6 +603,18 @@ export async function assignMediaBatch(
   if (typeof mediaId !== 'string' || !mediaId || mediaId.startsWith('drive-')) {
     throw new AssignmentBatchError('INVALID_MEDIA', 'Select a published media asset.');
   }
+
+  const operationId = crypto.createHash('sha256')
+    .update(JSON.stringify({ version: 1, namespace: getKvNamespace(), mediaId, targets }))
+    .digest('hex');
+
+  console.log('[ASSIGNMENT_BATCH] STARTING_ASSIGNMENT', {
+    operationId,
+    mediaId,
+    targetCount: targets.length,
+    namespace: getKvNamespace(),
+  });
+
   const { resolvePublicMedia } = await import('./media');
 
   console.log('[ASSIGNMENT_BATCH] RESOLVING_MEDIA', {
@@ -622,17 +634,6 @@ export async function assignMediaBatch(
   if (!media || media.id !== mediaId) {
     throw new AssignmentBatchError('INVALID_MEDIA', 'The source does not resolve to the requested published media.');
   }
-
-  const operationId = crypto.createHash('sha256')
-    .update(JSON.stringify({ version: 1, namespace: getKvNamespace(), mediaId, targets }))
-    .digest('hex');
-
-  console.log('[ASSIGNMENT_BATCH] STARTING_ASSIGNMENT', {
-    operationId,
-    mediaId,
-    targetCount: targets.length,
-    namespace: getKvNamespace(),
-  });
 
   const client = createRedisClient();
   const keys = targets.map(t => namespacedKey(`${ASSIGNMENT_PREFIX}${t.serviceSlug}`));
