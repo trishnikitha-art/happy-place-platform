@@ -6,8 +6,9 @@
  * - ONE atomic Redis Lua batch claim for ALL transactions
  * - ONE immutable BatchDeploymentContext lifecycle authority
  * - ALL authority files read from the EXACT pinned Git SHA
- * - Git HEAD verification before commit (CAS/non-fast-forward)
- * - ONE Git commit for the entire batch
+ * - Git ref verification before branch update (CAS/non-fast-forward)
+ * - ONE Git commit object for the entire batch
+ * - Git ref update with CAS protection (non-force)
  * - ATOMIC batch SHA persistence to ALL transactions
  * - ATOMIC batch Redis promotion for ALL staging keys
  * - ATOMIC batch consume with staging cleanup
@@ -20,12 +21,22 @@
  *
  * BATCH LIFECYCLE:
  * VALIDATED → GIT_BASE_PINNED → ATOMIC_BATCH_CLAIMED → SEMANTIC_PATCHED →
- * GIT_HEAD_VERIFIED → GIT_COMMITTED → ATOMIC_SHA_PERSISTED → ATOMIC_REDIS_PROMOTED →
+ * GIT_REF_VERIFIED → GIT_COMMIT_CREATED → ATOMIC_SHA_PERSISTED → ATOMIC_REDIS_PROMOTED →
  * ATOMIC_COMMITTED → ATOMIC_CONSUMED
+ *
+ * GIT CAS INVARIANT:
+ * - Git commit object creation and ref update are DISTINCT operations
+ * - Commit object creation can succeed even if the branch later moves
+ * - The authoritative concurrency barrier is the REF UPDATE
+ * - Before updating main, the route requires the remote ref to equal pinned baseGitSha
+ * - Ref update uses force: false (non-fast-forward) to enforce CAS
+ * - A failed CAS leaves an unreachable/orphaned commit object but does NOT move main
+ * - Redis transaction records and staging data remain recoverable after CAS failure
+ * - This design preserves recoverability while preventing split-brain
  *
  * GIT/REDIS SPLIT-BRAIN RECOVERY:
  * - Git and Redis are SEPARATE atomic domains (not one transaction)
- * - If Git succeeds but Redis fails: ALL transactions retain finalCommitSha
+ * - If Git commit succeeds but Redis fails: ALL transactions retain finalCommitSha
  * - Retry resumes with existing Git commit (no duplicate commits)
  * - Transactions remain recoverable until consume succeeds
  *
@@ -43,8 +54,9 @@
  * - NO partial consumption (all-or-nothing Redis Lua)
  * - NO variable shadowing (single BatchDeploymentContext)
  * - NO stale filesystem reads (all from pinned Git SHA)
- * - NO silent rebase (CAS verification before commit)
+ * - NO silent rebase (CAS verification before ref update)
  * - NO partial staging cleanup (atomic with consumption)
+ * - NO force Git ref updates (CAS-protected only)
  */
 
 import { NextResponse } from "next/server";
@@ -745,7 +757,6 @@ export async function POST(request: Request) {
     // P0 FIX: Create BatchDeploymentContext with pinned baseGitSha BEFORE claiming
     // This makes the context the single lifecycle authority
     const transactionOwner = `claim-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-    let batchContext: BatchDeploymentContext;
 
     try {
       batchContext = createBatchDeploymentContext(
@@ -1635,8 +1646,8 @@ export async function POST(request: Request) {
     const currentCommitSha = batchContext.baseGitSha;
     console.log('[DEPLOY API] USING_PINNED_COMMIT_SHA', { currentCommitSha });
 
-    // P0 FIX: Verify Git HEAD hasn't moved since we pinned baseGitSha
-    // This is the CAS/non-fast-forward check that prevents split-brain
+    // Note: The actual CAS verification happens later before the ref update
+    // At this point, we're building the commit tree against the pinned base SHA
     if (currentCommitSha !== batchContext.baseGitSha) {
       console.error('[DEPLOY API] GIT_HEAD_MOVED', {
         pinnedSha: batchContext.baseGitSha,
@@ -2166,7 +2177,9 @@ export async function POST(request: Request) {
     // This allows committing → failed transition if promotion fails
     // Only after promotion succeeds do we transition committing → committed
 
-    // Step 6: CAS verification - re-read current SHA before updating
+    // Step 6: CAS verification - re-read current ref SHA before updating
+    // This is the authoritative concurrency barrier: we require the remote ref
+    // to still equal our pinned baseGitSha before we move it to the new commit
     console.log('[DEPLOY API] CAS_VERIFICATION_CHECK');
 
     const casRefResponse = await fetchWithRetry(refUrl, {
@@ -2260,7 +2273,8 @@ export async function POST(request: Request) {
       );
     }
     
-    // Step 7: Update branch ref to point to new commit (CAS protected)
+    // Step 7: Update branch ref to point to new commit (CAS protected with force: false)
+    // This is the actual ref update operation, which is the CAS barrier
     console.log('[DEPLOY API] UPDATING_BRANCH_REF_WITH_CAS');
     
     const updateRefResponse = await fetchWithRetry(refUrl, {
@@ -2618,9 +2632,14 @@ export async function POST(request: Request) {
       });
 
       // P0 FIX: Use atomic batch promotion instead of per-assignment loop
-      // P0 FIX: Pass transaction owner to enforce ownership binding in Lua script
+      // P0 FIX: Pass all transaction IDs, expected commit SHA, and owner to enforce full batch validation
       if (assignmentsToPromote.length > 0) {
-        const promotionResult = await promoteBatchDeployment(assignmentsToPromote, batchContext.primaryTransactionId, transactionOwner);
+        const promotionResult = await promoteBatchDeployment(
+          assignmentsToPromote,
+          batchContext.transactionIds,
+          batchContext.finalCommitSha || '',
+          transactionOwner
+        );
 
         console.log('[DEPLOY API] ATOMIC_BATCH_PROMOTION_RESULT', {
           primaryTransactionId: batchContext.primaryTransactionId,
@@ -2637,8 +2656,8 @@ export async function POST(request: Request) {
             failedServiceSlug: promotionResult.failedServiceSlug,
           });
 
-          // P0 FIX: Handle new transaction state validation errors
-          if (promotionResult.error === 'INVALID_TRANSACTION_STATE' || promotionResult.error === 'OWNER_MISMATCH') {
+          // P0 FIX: Handle new transaction state validation errors from full batch validation
+          if (['INVALID_STATE', 'OWNER_MISMATCH', 'TRANSACTION_NOT_FOUND', 'TRANSACTION_ID_MISMATCH', 'MISSING_COMMIT_SHA', 'COMMIT_SHA_MISMATCH'].includes(promotionResult.error || '')) {
             console.error('[DEPLOY API] TRANSACTION_BINDING_VIOLATION', {
               primaryTransactionId: batchContext.primaryTransactionId,
               error: promotionResult.error,
@@ -2654,7 +2673,7 @@ export async function POST(request: Request) {
             return NextResponse.json(
               {
                 error: "Deployment rejected: Transaction binding violation",
-                message: `Atomic promotion rejected due to invalid transaction state or ownership mismatch. This indicates a concurrency or corruption issue.`,
+                message: `Atomic promotion rejected due to invalid transaction state, ownership mismatch, or commit SHA mismatch. This indicates a concurrency or corruption issue.`,
                 forensic: {
                   deploymentTransactionId,
                   promotionError: promotionResult.error,
@@ -2750,13 +2769,16 @@ export async function POST(request: Request) {
         stagingKeyCount: batchContext.allStagingKeys.length
       });
 
-      // Collect project-level transaction pointers to clear
+      // Collect project-level transaction pointers to clear with compare-and-delete
       const pointerKeys: string[] = [];
+      const pointerExpectedValues: string[] = [];
       for (const tx of batchContext.transactions) {
         const projectIds = tx.files.filter(f => f.startsWith('projects.v1.json:'));
         for (const projectId of projectIds) {
           const pointerKey = `${getKvNamespace()}project-transaction:${projectId}`;
           pointerKeys.push(pointerKey);
+          // Expected value: the transaction ID that should own this pointer
+          pointerExpectedValues.push(tx.transactionId);
         }
       }
 
@@ -2765,6 +2787,7 @@ export async function POST(request: Request) {
           batchContext.transactionIds,
           batchContext.allStagingKeys,
           pointerKeys,
+          pointerExpectedValues,
           transactionOwner
         );
         batchContext.transactions = consumedTransactions;
@@ -2774,7 +2797,7 @@ export async function POST(request: Request) {
           primaryTransactionId: batchContext.primaryTransactionId,
           consumedCount: consumedTransactions.length,
           stagingKeysDeleted: batchContext.allStagingKeys.length,
-          pointersCleared: pointerKeys.length
+          pointerCount: pointerKeys.length
         });
       } catch (error) {
         console.error('[DEPLOY API] ATOMIC_BATCH_CONSUME_FAILED', {
@@ -2819,9 +2842,8 @@ export async function POST(request: Request) {
     console.error('[DEPLOY API] ERROR', error);
 
     // MARK ALL CLAIMED TRANSACTIONS AS FAILED on uncaught errors
-    const contextToFail = batchContext as BatchDeploymentContext | null;
-    if (contextToFail) {
-      for (const tx of contextToFail.transactions) {
+    if (batchContext) {
+      for (const tx of batchContext.transactions) {
         try {
           await failDeploymentTransaction(
             tx.transactionId,
@@ -2840,7 +2862,7 @@ export async function POST(request: Request) {
     }
 
     // TRANSACTIONAL FIX: Staging keys are preserved on error for retry
-    const stagingKeysCount = contextToFail?.allStagingKeys.length || 0;
+    const stagingKeysCount = batchContext?.allStagingKeys.length || 0;
     return NextResponse.json(
       {
         error: "Failed to commit to GitHub",

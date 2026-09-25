@@ -940,55 +940,84 @@ const ATOMIC_BATCH_COMMIT_SCRIPT = `
  *
  * This script atomically promotes ALL staging keys from ALL transactions
  * in ONE Redis operation, ensuring:
+ * - ALL transactions exist and are in committing state
+ * - ALL transactions have the same owner
+ * - ALL transactions have the same commit SHA
  * - ALL expected revisions match current runtime state
  * - ALL assignments are promoted atomically
  * - NO partial promotion where some succeed and others fail
  *
- * This extends the existing atomicPromoteAssignments to support multiple
- * transactions with combined staging keys.
+ * P0 FIX: Validate EVERY transaction before ANY mutation
  *
- * KEYS[1]: transactionKey - deployment transaction key (for state verification)
- * KEYS[2..N]: assignment keys to promote
+ * KEYS[1..N]: Transaction keys for all transactions in the batch
+ * KEYS[N+1..M]: Assignment keys to promote
  *
- * ARGV[1]: assignmentsData - JSON string of all assignments to promote
- * ARGV[2]: deploymentTransactionId - transaction ID for validation
- * ARGV[3]: expectedOwner - owner to verify (optional)
+ * ARGV[1]: transactionCount - Number of transaction keys
+ * ARGV[2]: transactionIdsJson - JSON array of transaction IDs for validation
+ * ARGV[3]: expectedCommitSha - Expected commit SHA that all transactions must have
+ * ARGV[4]: expectedOwner - Owner to verify (optional)
+ * ARGV[5]: assignmentsData - JSON string of all assignments to promote
  *
  * Returns indexed array for proper RESP2 serialization:
  * ['OK', count] on success
- * ['ERR', errorCode, details] on failure
+ * ['ERR', errorCode, failedTransactionId, details] on failure
  */
 const ATOMIC_BATCH_PROMOTE_SCRIPT = `
-  local transactionKey = KEYS[1]
-  local assignmentsData = cjson.decode(ARGV[1])
-  local deploymentTransactionId = ARGV[2]
-  local expectedOwner = ARGV[3]
+  local transactionCount = tonumber(ARGV[1]) or 0
+  local transactionIdsJson = ARGV[2]
+  local expectedCommitSha = ARGV[3]
+  local expectedOwner = ARGV[4]
+  local assignmentsData = cjson.decode(ARGV[5])
+  local transactionIds = cjson.decode(transactionIdsJson)
 
-  -- Validate transaction state before promotion
-  local transaction = redis.call('GET', transactionKey)
-
-  if not transaction then
-    return {'ERR', 'TRANSACTION_NOT_FOUND', deploymentTransactionId}
+  -- Validate that we have the right number of transaction keys
+  if transactionCount ~= #transactionIds then
+    return {'ERR', 'KEY_COUNT_MISMATCH', transactionIds[1], 'Expected ' .. #transactionIds .. ' transaction keys, got ' .. transactionCount}
   end
 
-  local parsed = cjson.decode(transaction)
+  -- Phase 1: Validate ALL transactions exist and are eligible for promotion
+  for i = 1, transactionCount do
+    local key = KEYS[i]
+    local transactionId = transactionIds[i]
+    local current = redis.call('GET', key)
 
-  -- Transaction must be in committing state for promotion
-  if parsed.state ~= 'committing' then
-    return {'ERR', 'INVALID_TRANSACTION_STATE', parsed.state}
-  end
+    if not current then
+      return {'ERR', 'TRANSACTION_NOT_FOUND', transactionId, 'Transaction does not exist'}
+    end
 
-  -- Verify transaction ownership
-  if expectedOwner and expectedOwner ~= '' then
-    if parsed.owner ~= expectedOwner then
-      return {'ERR', 'OWNER_MISMATCH', parsed.owner}
+    local parsed = cjson.decode(current)
+
+    -- Validate transaction ID identity
+    if parsed.transactionId ~= transactionId then
+      return {'ERR', 'TRANSACTION_ID_MISMATCH', transactionId, 'Transaction ID mismatch'}
+    end
+
+    -- Verify transaction is in committing state
+    if parsed.state ~= 'committing' then
+      return {'ERR', 'INVALID_STATE', transactionId, 'Transaction is in ' .. parsed.state .. ' state, expected committing'}
+    end
+
+    -- Verify ownership
+    if expectedOwner and expectedOwner ~= '' then
+      if parsed.owner and parsed.owner ~= '' and parsed.owner ~= expectedOwner then
+        return {'ERR', 'OWNER_MISMATCH', transactionId, 'Transaction owned by ' .. parsed.owner}
+      end
+    end
+
+    -- Verify commitSha is set and matches expected
+    if not parsed.commitSha or parsed.commitSha == '' then
+      return {'ERR', 'MISSING_COMMIT_SHA', transactionId, 'Transaction does not have commitSha set'}
+    end
+
+    if parsed.commitSha ~= expectedCommitSha then
+      return {'ERR', 'COMMIT_SHA_MISMATCH', transactionId, 'Transaction has commitSha ' .. parsed.commitSha .. ', expected ' .. expectedCommitSha}
     end
   end
 
-  -- Phase 1: Validate all expected revisions
-  -- Assignment keys start at KEYS[2]
+  -- Phase 2: Validate all expected revisions
+  -- Assignment keys start at KEYS[transactionCount + 1]
   for i, assignment in ipairs(assignmentsData) do
-    local assignmentKey = KEYS[i + 1] -- KEYS[2] onwards are assignment keys
+    local assignmentKey = KEYS[transactionCount + i]
     local current = redis.call('GET', assignmentKey)
 
     if current then
@@ -997,19 +1026,19 @@ const ATOMIC_BATCH_PROMOTE_SCRIPT = `
 
       -- Check if current revision matches expected
       if parsed.revision ~= expectedRevision then
-        return {'ERR', 'CAS_FAILURE', assignment.serviceSlug}
+        return {'ERR', 'CAS_FAILURE', transactionIds[1], assignment.serviceSlug}
       end
     else
       -- Assignment doesn't exist, expectedRevision must be 0 for create
       if assignment.expectedRevision ~= 0 then
-        return {'ERR', 'CAS_FAILURE_MISSING', assignment.serviceSlug}
+        return {'ERR', 'CAS_FAILURE_MISSING', transactionIds[1], assignment.serviceSlug}
       end
     end
   end
 
-  -- Phase 2: Atomically write all assignments
+  -- Phase 3: Atomically write all assignments
   for i, assignment in ipairs(assignmentsData) do
-    local assignmentKey = KEYS[i + 1]
+    local assignmentKey = KEYS[transactionCount + i]
     -- Increment revision for write
     assignment.revision = assignment.expectedRevision + 1
     local assignmentValue = cjson.encode(assignment)
@@ -1052,7 +1081,9 @@ const ATOMIC_BATCH_CONSUME_SCRIPT = `
   local stagingKeyCount = tonumber(ARGV[3]) or 0
   local pointerKeyCount = tonumber(ARGV[4]) or 0
   local transactionIds = cjson.decode(transactionIdsJson)
-  local transactionKeyCount = #KEYS
+  local transactionKeyCount = tonumber(ARGV[5]) or #transactionIds
+  local pointerExpectedValuesJson = ARGV[6] or '[]'
+  local pointerExpectedValues = cjson.decode(pointerExpectedValuesJson)
 
   -- Validate that we have the right number of keys
   local expectedKeyCount = transactionKeyCount + stagingKeyCount + pointerKeyCount
@@ -1111,15 +1142,30 @@ const ATOMIC_BATCH_CONSUME_SCRIPT = `
     stagingKeysDeleted = stagingKeysDeleted + 1
   end
 
-  -- Phase 4: Clear ALL project-level transaction pointers conditionally
+  -- Phase 4: Clear ALL project-level transaction pointers conditionally (compare-and-delete)
   local pointersCleared = 0
+  local pointersSkipped = 0
   for i = transactionKeyCount + stagingKeyCount + 1, #KEYS do
     local key = KEYS[i]
-    redis.call('DEL', key)
-    pointersCleared = pointersCleared + 1
+    local pointerIndex = i - transactionKeyCount - stagingKeyCount
+    local expectedValue = pointerExpectedValues[pointerIndex]
+
+    -- Only delete if the pointer still references the expected value
+    if expectedValue then
+      local currentValue = redis.call('GET', key)
+      if currentValue == expectedValue then
+        redis.call('DEL', key)
+        pointersCleared = pointersCleared + 1
+      else
+        pointersSkipped = pointersSkipped + 1
+      end
+    else
+      -- No expected value provided, skip this pointer
+      pointersSkipped = pointersSkipped + 1
+    end
   end
 
-  return {'OK', transactionKeyCount, stagingKeysDeleted, pointersCleared}
+  return {'OK', transactionKeyCount, stagingKeysDeleted, pointersCleared, pointersSkipped}
 `;
 
 /**
@@ -1940,45 +1986,51 @@ export async function commitBatchDeploymentTransactions(
  *
  * Promotes ALL staging keys from ALL transactions in ONE Redis operation,
  * ensuring:
+ * - ALL transactions exist and are in committing state
+ * - ALL transactions have the same owner
+ * - ALL transactions have the same commit SHA
  * - ALL expected revisions match current runtime state
  * - ALL assignments are promoted atomically
  * - NO partial promotion where some succeed and others fail
  *
  * @param assignments - Array of assignments to promote
- * @param deploymentTransactionId - Transaction ID for state verification
+ * @param transactionIds - Array of transaction IDs for validation
+ * @param expectedCommitSha - Expected commit SHA that all transactions must have
  * @param owner - Owner token for verification
  * @returns Promotion result with count
  */
 export async function promoteBatchDeployment(
   assignments: Array<{ serviceSlug: string; mediaId: string; expectedRevision: number; updatedAt: string; source: string }>,
-  deploymentTransactionId: string,
+  transactionIds: string[],
+  expectedCommitSha: string,
   owner?: string
 ): Promise<{ success: boolean; count: number; error?: string; failedServiceSlug?: string }> {
   const client = getRedisClient();
   const namespace = getKvNamespace();
 
   console.log('[DEPLOYMENT_TRANSACTION] ATOMIC_BATCH_PROMOTING', {
-    deploymentTransactionId,
+    transactionIds,
     assignmentCount: assignments.length,
+    expectedCommitSha,
     owner
   });
 
-  // Build KEYS array: transaction key + all assignment keys
-  const transactionKey = `${namespace}${TRANSACTION_PREFIX}${deploymentTransactionId}`;
+  // Build KEYS array: transaction keys + all assignment keys
+  const transactionKeys = transactionIds.map(id => `${namespace}${TRANSACTION_PREFIX}${id}`);
   const assignmentKeys = assignments.map(a => `${namespace}service-card-assignment:${a.serviceSlug}`);
-  const keys = [transactionKey, ...assignmentKeys];
+  const keys = [...transactionKeys, ...assignmentKeys];
 
   try {
     const result = await client.eval(
       ATOMIC_BATCH_PROMOTE_SCRIPT,
       keys, // KEYS array
-      [JSON.stringify(assignments), deploymentTransactionId, owner || ''] // ARGV array
+      [String(transactionIds.length), JSON.stringify(transactionIds), expectedCommitSha, owner || '', JSON.stringify(assignments)] // ARGV array
     );
 
     // Parse indexed array return format: ['OK', count] or ['ERR', errorCode, details]
     if (!Array.isArray(result) || result.length < 2) {
       console.error('[DEPLOYMENT_TRANSACTION] BATCH_PROMOTE_INVALID_RETURN', {
-        deploymentTransactionId,
+        transactionIds,
         result,
         reason: 'Lua script did not return indexed array'
       });
@@ -1992,10 +2044,12 @@ export async function promoteBatchDeployment(
     const status = result[0];
     if (status === 'ERR') {
       const errorCode = result[1];
-      const details = result[2];
+      const failedTransactionId = result[2];
+      const details = result[3];
       console.error('[DEPLOYMENT_TRANSACTION] BATCH_PROMOTE_FAILED', {
-        deploymentTransactionId,
+        transactionIds,
         errorCode,
+        failedTransactionId,
         details
       });
 
@@ -2010,7 +2064,7 @@ export async function promoteBatchDeployment(
     // Success: ['OK', count]
     const count = result[1];
     console.log('[DEPLOYMENT_TRANSACTION] BATCH_PROMOTE_SUCCESS', {
-      deploymentTransactionId,
+      transactionIds,
       count
     });
 
@@ -2020,7 +2074,7 @@ export async function promoteBatchDeployment(
     };
   } catch (error) {
     console.error('[DEPLOYMENT_TRANSACTION] BATCH_PROMOTE_ERROR', {
-      deploymentTransactionId,
+      transactionIds,
       error: error instanceof Error ? error.message : 'Unknown error'
     });
 
@@ -2052,6 +2106,7 @@ export async function consumeBatchDeploymentTransactions(
   transactionIds: string[],
   stagingKeys: string[],
   pointerKeys: string[],
+  pointerExpectedValues: string[],
   owner?: string
 ): Promise<DeploymentTransaction[]> {
   const client = getRedisClient();
@@ -2080,10 +2135,10 @@ export async function consumeBatchDeploymentTransactions(
     const result = await client.eval(
       ATOMIC_BATCH_CONSUME_SCRIPT,
       keys, // KEYS array
-      [owner || '', JSON.stringify(transactionIds), String(stagingKeys.length), String(pointerKeys.length)] // ARGV array
+      [owner || '', JSON.stringify(transactionIds), String(stagingKeys.length), String(pointerKeys.length), String(transactionIds.length), JSON.stringify(pointerExpectedValues)] // ARGV array
     );
 
-    // Parse indexed array return format: ['OK', transactionCount, stagingKeyCount, pointerKeyCount] or ['ERR', errorCode, failedTransactionId, details]
+    // Parse indexed array return format: ['OK', transactionCount, stagingKeyCount, pointerKeyCount, pointersSkipped] or ['ERR', errorCode, failedTransactionId, details]
     if (!Array.isArray(result) || result.length < 2) {
       console.error('[DEPLOYMENT_TRANSACTION] BATCH_CONSUME_INVALID_RETURN', {
         transactionIds,

@@ -46,28 +46,37 @@ type Environment = 'production' | 'preview' | 'development' | 'test';
 function getEnvironment(): Environment {
   const vercelEnv = process.env.VERCEL_ENV;
   const nodeEnv = process.env.NODE_ENV;
-  
+
   // Vercel production
   if (vercelEnv === 'production') {
     return 'production';
   }
-  
+
   // Vercel preview
   if (vercelEnv === 'preview') {
     return 'preview';
   }
-  
+
   // Local development
   if (nodeEnv === 'development') {
     return 'development';
   }
-  
+
   // Test environment
   if (nodeEnv === 'test') {
     return 'test';
   }
-  
-  // P0 FIX: Fail closed on unknown environment
+
+  // P0 FIX: Add fallback for unknown environment in production
+  // If we have KV credentials but environment detection fails, assume production
+  // This prevents 503 errors when environment detection fails but Redis is available
+  const hasKvCredentials = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN;
+  if (hasKvCredentials) {
+    console.warn('[ASSIGNMENT_KV] Unknown environment detected but KV credentials present, assuming production');
+    return 'production';
+  }
+
+  // P0 FIX: Fail closed on unknown environment without credentials
   // Unknown/missing environment must not silently default to development
   // This prevents production-like execution from accidentally routing into development namespace
   throw new Error(

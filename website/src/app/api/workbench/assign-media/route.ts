@@ -25,7 +25,16 @@ export async function POST(request: Request) {
     if (error instanceof SyntaxError || error instanceof TypeError) {
       return NextResponse.json({ error: 'INVALID_REQUEST', message: 'Invalid assignment request.', requestId }, { status: 400 });
     }
-    console.error('[WORKBENCH_ASSIGNMENT]', { requestId, error });
-    return NextResponse.json({ error: 'ASSIGNMENT_UNAVAILABLE', requestId }, { status: 503 });
+    console.error('[WORKBENCH_ASSIGNMENT]', {
+      requestId,
+      error: error instanceof Error ? error.message : String(error),
+      errorName: error instanceof Error ? error.constructor.name : 'Unknown',
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    return NextResponse.json({
+      error: 'ASSIGNMENT_UNAVAILABLE',
+      message: error instanceof Error ? error.message : 'Unknown error',
+      requestId,
+    }, { status: 503 });
   }
 }
