@@ -178,6 +178,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
+          VERCEL_ENV: test
           TEST_NAMESPACE: hpp:ci-test:${{ github.run_id }}
           PORT: 3100
           # CI-only test credentials for Workbench (not production secrets)
@@ -221,6 +222,7 @@ jobs:
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           GOOGLE_REDIRECT_URI: ${{ secrets.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
+          VERCEL_ENV: test
           TEST_NAMESPACE: hpp:ci-test:${{ github.run_id }}
           REDIS_INTEGRATION_TESTS_ENABLED: 'true'
           NEXT_PUBLIC_TEST_BASE_URL: http://127.0.0.1:3100

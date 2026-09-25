@@ -18,6 +18,7 @@
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 import { AssignmentBatchError, isAssignmentRevision, prepareAssignmentTargets, type AssignmentTarget } from './workbench-assignment-contract';
+import { getEnvironment, getKvNamespace } from './environment';
 
 // In-memory store for DEV_MODE_SKIP_KV testing
 // Use global to survive Next.js hot module reloading in development
@@ -35,69 +36,6 @@ if (process.env.NODE_ENV === 'development') {
  * P0 FIX: Removed createHash function - no fingerprint logging to prevent secret exposure
  * Credential investigation now uses only boolean indicators (hasUrl, hasToken, etc.)
  */
-
-/**
- * P1-9: KV environment isolation
- * Each environment (production, preview, development, test) has a distinct namespace
- * to prevent cross-environment data access and isolation violations.
- */
-type Environment = 'production' | 'preview' | 'development' | 'test';
-
-function getEnvironment(): Environment {
-  const vercelEnv = process.env.VERCEL_ENV;
-  const nodeEnv = process.env.NODE_ENV;
-
-  // Vercel production
-  if (vercelEnv === 'production') {
-    return 'production';
-  }
-
-  // Vercel preview
-  if (vercelEnv === 'preview') {
-    return 'preview';
-  }
-
-  // Local development
-  if (nodeEnv === 'development') {
-    return 'development';
-  }
-
-  // Test environment
-  if (nodeEnv === 'test') {
-    return 'test';
-  }
-
-  // P0 FIX: Add fallback for unknown environment in production
-  // If we have KV credentials but environment detection fails, assume production
-  // This prevents 503 errors when environment detection fails but Redis is available
-  const hasKvCredentials = process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN;
-  if (hasKvCredentials) {
-    console.warn('[ASSIGNMENT_KV] Unknown environment detected but KV credentials present, assuming production');
-    return 'production';
-  }
-
-  // P0 FIX: Fail closed on unknown environment without credentials
-  // Unknown/missing environment must not silently default to development
-  // This prevents production-like execution from accidentally routing into development namespace
-  throw new Error(
-    `Unknown environment: VERCEL_ENV=${vercelEnv}, NODE_ENV=${nodeEnv}. ` +
-    'Environment must be explicitly configured. Cannot proceed with unsafe default.'
-  );
-}
-
-/**
- * Get KV namespace prefix for current environment
- * This ensures isolation between production, preview, development, and test
- * CRITICAL: Use TEST_NAMESPACE if present for integration test isolation
- * This prevents tests from writing to production/development data
- */
-function getKvNamespace(): string {
-  if (process.env.TEST_NAMESPACE) {
-    return process.env.TEST_NAMESPACE;
-  }
-  const env = getEnvironment();
-  return `hpp:${env}:`;
-}
 
 /**
  * Apply namespace prefix to KV key
