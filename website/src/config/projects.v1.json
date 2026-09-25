@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-25T12:06:36.989Z",
+  "generatedAt": "2026-09-25T21:37:22.580Z",
   "projects": [
     {
       "id": "fences-001",
@@ -17,8 +17,8 @@
         "hero": "fences-001-hero",
         "after": "fences-001-after",
         "gallery": [
-          "fences-001-after",
-          "fences-001-hero"
+          "fences-001-hero",
+          "fences-001-after"
         ],
         "galleryRevision": 4
       },
