@@ -872,6 +872,7 @@ const ATOMIC_BATCH_COMMIT_SCRIPT = `
   local expectedCommitSha = ARGV[1]
   local owner = ARGV[2]
   local transactionIdsJson = ARGV[3]
+  local committedAt = ARGV[4]
   local transactionIds = cjson.decode(transactionIdsJson)
   local keyCount = #KEYS
 
@@ -927,7 +928,7 @@ const ATOMIC_BATCH_COMMIT_SCRIPT = `
 
     -- Transition to committed state
     parsed.state = 'committed'
-    parsed.committedAt = os.time()
+    parsed.committedAt = committedAt
 
     redis.call('SET', key, cjson.encode(parsed))
   end
@@ -1080,9 +1081,10 @@ const ATOMIC_BATCH_CONSUME_SCRIPT = `
   local transactionIdsJson = ARGV[2]
   local stagingKeyCount = tonumber(ARGV[3]) or 0
   local pointerKeyCount = tonumber(ARGV[4]) or 0
+  local consumedAt = ARGV[5]
   local transactionIds = cjson.decode(transactionIdsJson)
-  local transactionKeyCount = tonumber(ARGV[5]) or #transactionIds
-  local pointerExpectedValuesJson = ARGV[6] or '[]'
+  local transactionKeyCount = tonumber(ARGV[6]) or #transactionIds
+  local pointerExpectedValuesJson = ARGV[7] or '[]'
   local pointerExpectedValues = cjson.decode(pointerExpectedValuesJson)
 
   -- Validate that we have the right number of keys
@@ -1129,7 +1131,7 @@ const ATOMIC_BATCH_CONSUME_SCRIPT = `
 
     -- Transition to consumed state
     parsed.state = 'consumed'
-    parsed.consumedAt = os.time()
+    parsed.consumedAt = consumedAt
 
     redis.call('SET', key, cjson.encode(parsed))
   end
@@ -1192,6 +1194,7 @@ const ATOMIC_BATCH_CONSUME_SCRIPT = `
 const ATOMIC_BATCH_CLAIM_SCRIPT = `
   local owner = ARGV[1]
   local transactionIdsJson = ARGV[2]
+  local claimedAt = ARGV[3]
   local transactionIds = cjson.decode(transactionIdsJson)
   local keyCount = #KEYS
 
@@ -1237,7 +1240,7 @@ const ATOMIC_BATCH_CLAIM_SCRIPT = `
     -- Update to committing state with owner
     parsed.state = 'committing'
     parsed.owner = owner
-    parsed.claimedAt = os.time()
+    parsed.claimedAt = claimedAt
 
     redis.call('SET', key, cjson.encode(parsed))
   end
@@ -1750,6 +1753,9 @@ export async function claimBatchDeploymentTransactions(
     expectedKeyCount: transactionIds.length
   });
 
+  // P0 FIX: Generate timestamp in JavaScript (os.time() not available in Redis Lua)
+  const claimedAt = new Date().toISOString();
+
   // P0 FIX: Forensic - check transaction states before claiming
   for (const transactionId of transactionIds) {
     const key = `${namespace}${TRANSACTION_PREFIX}${transactionId}`;
@@ -1775,7 +1781,7 @@ export async function claimBatchDeploymentTransactions(
     const result = await client.eval(
       ATOMIC_BATCH_CLAIM_SCRIPT,
       transactionKeys, // KEYS array
-      [owner, JSON.stringify(transactionIds)] // ARGV array
+      [owner, JSON.stringify(transactionIds), claimedAt] // ARGV array
     );
 
     console.log('[DEPLOYMENT_TRANSACTION] LUA_RESULT', {
@@ -1958,11 +1964,14 @@ export async function commitBatchDeploymentTransactions(
   // Build KEYS array: all transaction keys
   const transactionKeys = transactionIds.map(id => `${namespace}${TRANSACTION_PREFIX}${id}`);
 
+  // P0 FIX: Generate timestamp in JavaScript (os.time() not available in Redis Lua)
+  const committedAt = new Date().toISOString();
+
   try {
     const result = await client.eval(
       ATOMIC_BATCH_COMMIT_SCRIPT,
       transactionKeys, // KEYS array
-      [commitSha, owner || '', JSON.stringify(transactionIds)] // ARGV array
+      [commitSha, owner || '', JSON.stringify(transactionIds), committedAt] // ARGV array
     );
 
     // Parse indexed array return format: ['OK', count] or ['ERR', errorCode, failedTransactionId, details]
@@ -2167,11 +2176,14 @@ export async function consumeBatchDeploymentTransactions(
   });
   const keys = [...transactionKeys, ...stagingKeyKeys, ...pointerKeyKeys];
 
+  // P0 FIX: Generate timestamp in JavaScript (os.time() not available in Redis Lua)
+  const consumedAt = new Date().toISOString();
+
   try {
     const result = await client.eval(
       ATOMIC_BATCH_CONSUME_SCRIPT,
       keys, // KEYS array
-      [owner || '', JSON.stringify(transactionIds), String(stagingKeys.length), String(pointerKeys.length), String(transactionIds.length), JSON.stringify(pointerExpectedValues)] // ARGV array
+      [owner || '', JSON.stringify(transactionIds), String(stagingKeys.length), String(pointerKeys.length), consumedAt, String(transactionIds.length), JSON.stringify(pointerExpectedValues)] // ARGV array
     );
 
     // Parse indexed array return format: ['OK', transactionCount, stagingKeyCount, pointerKeyCount, pointersSkipped] or ['ERR', errorCode, failedTransactionId, details]
