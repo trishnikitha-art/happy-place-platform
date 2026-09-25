@@ -108,6 +108,88 @@ async function requireWorkbenchAuth() {
 }
 
 /**
+ * DELETE endpoint: Clear pending deployment transactions
+ * Used by Workbench to clean up stale/failed deployment transactions
+ * 
+ * DELETE /api/admin/deploy
+ * Body: { transactionIds?: string[] } (optional: specific IDs to delete, or all if not provided)
+ */
+export async function DELETE(request: Request) {
+  // P1 FIX: Require Workbench authentication for delete endpoint
+  const isAuthenticated = await requireWorkbenchAuth();
+  if (!isAuthenticated) {
+    return NextResponse.json(
+      { error: "Unauthorized", message: "Workbench authentication required" },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const { transactionIds } = body;
+    
+    const redis = getRedisClient();
+    if (!redis) {
+      return NextResponse.json(
+        { error: "Redis unavailable", message: "Cannot clear transactions without Redis" },
+        { status: 503 }
+      );
+    }
+
+    const namespace = getKvNamespace();
+    let deletedCount = 0;
+    let deletedIds: string[] = [];
+
+    if (transactionIds && Array.isArray(transactionIds) && transactionIds.length > 0) {
+      // Delete specific transactions
+      for (const transactionId of transactionIds) {
+        const transactionKey = `${namespace}deployment-transaction:${transactionId}`;
+        const deleted = await redis.del(transactionKey);
+        if (deleted) {
+          deletedCount++;
+          deletedIds.push(transactionId);
+        }
+      }
+    } else {
+      // Delete all deployment transactions
+      const pattern = `${namespace}deployment-transaction:*`;
+      const keys = await redis.keys(pattern);
+      
+      if (keys && keys.length > 0) {
+        for (const key of keys) {
+          const deleted = await redis.del(key);
+          if (deleted) {
+            deletedCount++;
+            // Extract transaction ID from key
+            const id = key.replace(`${namespace}deployment-transaction:`, '');
+            deletedIds.push(id);
+          }
+        }
+      }
+    }
+
+    console.log('[DEPLOY API] TRANSACTIONS_CLEARED', {
+      deletedCount,
+      deletedIds,
+      specifiedIds: transactionIds?.length || 0
+    });
+
+    return NextResponse.json({
+      success: true,
+      deletedCount,
+      deletedIds,
+      message: `Cleared ${deletedCount} deployment transaction(s)`
+    });
+  } catch (error) {
+    console.error('[DEPLOY API] CLEAR_TRANSACTIONS_ERROR', error);
+    return NextResponse.json(
+      { error: "Failed to clear transactions", message: error instanceof Error ? error.message : 'Unknown error' },
+      { status: 500 }
+    );
+  }
+}
+
+/**
  * GET endpoint: Check deployment status for a specific commit
  * Used by Workbench to poll for Vercel deployment readiness
  */
