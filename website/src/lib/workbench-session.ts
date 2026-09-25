@@ -138,6 +138,13 @@ export class WorkbenchSession {
    * Stores session data server-side in Redis/KV, cookie contains only opaque session ID
    */
   async authenticate(password: string): Promise<boolean> {
+    console.log('[WORKBENCH_SESSION] AUTHENTICATE_START', {
+      environment: getEnvironment(),
+      namespace: getKvNamespace(),
+      hasPasswordConfigured: isPasswordConfigured(),
+      isProduction: process.env.NODE_ENV === 'production',
+    });
+
     // Fail closed in production if password not configured
     if (!isPasswordConfigured()) {
       console.error('[WORKBENCH_SESSION] AUTHENTICATION_BLOCKED: Password not configured');
@@ -146,6 +153,12 @@ export class WorkbenchSession {
 
     // Use configured password or development fallback
     const effectivePassword = WORKBENCH_PASSWORD || DEV_FALLBACK_PASSWORD;
+
+    console.log('[WORKBENCH_SESSION] AUTHENTICATE_PASSWORD_CHECK', {
+      isProduction: process.env.NODE_ENV === 'production',
+      usingConfiguredPassword: !!WORKBENCH_PASSWORD,
+      usingFallbackPassword: !WORKBENCH_PASSWORD,
+    });
 
     if (password === effectivePassword) {
       const sessionId = randomUUID();
@@ -160,21 +173,44 @@ export class WorkbenchSession {
       
       try {
         const client = createRedisClient();
-        await client.set(namespacedKey(`workbench_session:${sessionId}`), JSON.stringify(sessionData), {
+        const sessionKey = namespacedKey(`workbench_session:${sessionId}`);
+        
+        console.log('[WORKBENCH_SESSION] AUTHENTICATE_STORING_SESSION', {
+          sessionId: `${sessionId.substring(0, 8)}...`,
+          sessionKey,
+          expiresAt,
+          ttl: SESSION_DURATION / 1000,
+        });
+        
+        await client.set(sessionKey, JSON.stringify(sessionData), {
           ex: SESSION_DURATION / 1000, // Set TTL to match session duration
+        });
+        
+        console.log('[WORKBENCH_SESSION] AUTHENTICATE_SESSION_STORED', {
+          sessionId: `${sessionId.substring(0, 8)}...`,
         });
         
         // Set only opaque session ID in cookie
         await this.setSessionCookie(sessionId);
         
+        console.log('[WORKBENCH_SESSION] AUTHENTICATE_COOKIE_SET', {
+          sessionId: `${sessionId.substring(0, 8)}...`,
+          secure: process.env.NODE_ENV === 'production',
+          sameSite: 'lax',
+        });
+        
         return true;
       } catch (error) {
-        console.error('[WORKBENCH_SESSION] Failed to store session in Redis:', error);
+        console.error('[WORKBENCH_SESSION] AUTHENTICATE_REDIS_ERROR', {
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
         // Fail closed if Redis is unavailable
         return false;
       }
     }
     
+    console.log('[WORKBENCH_SESSION] AUTHENTICATE_PASSWORD_MISMATCH');
     return false;
   }
 
@@ -185,16 +221,32 @@ export class WorkbenchSession {
   async isAuthenticated(): Promise<boolean> {
     const sessionId = await this.getCookie('workbench_session_id');
     
+    console.log('[WORKBENCH_SESSION] AUTH_CHECK_START', {
+      hasSessionId: !!sessionId,
+      sessionId: sessionId ? `${sessionId.substring(0, 8)}...` : null,
+      environment: getEnvironment(),
+      namespace: getKvNamespace(),
+    });
+    
     if (!sessionId) {
+      console.log('[WORKBENCH_SESSION] AUTH_CHECK_FAILED - No session cookie');
       return false;
     }
     
     try {
       const client = createRedisClient();
-      const sessionData = await client.get(namespacedKey(`workbench_session:${sessionId}`));
+      const sessionKey = namespacedKey(`workbench_session:${sessionId}`);
+      const sessionData = await client.get(sessionKey);
+      
+      console.log('[WORKBENCH_SESSION] AUTH_CHECK_REDIS_LOOKUP', {
+        sessionKey,
+        hasSessionData: !!sessionData,
+        sessionDataType: typeof sessionData,
+      });
       
       if (!sessionData) {
         // Session not found in Redis (expired or invalid)
+        console.log('[WORKBENCH_SESSION] AUTH_CHECK_FAILED - Session not found in Redis');
         return false;
       }
       
@@ -203,16 +255,29 @@ export class WorkbenchSession {
         ? JSON.parse(sessionData) 
         : sessionData;
       
+      console.log('[WORKBENCH_SESSION] AUTH_CHECK_SESSION_DATA', {
+        authenticated: parsedSession.authenticated,
+        expiresAt: parsedSession.expiresAt,
+        isExpired: Date.now() >= parsedSession.expiresAt,
+        createdAt: parsedSession.createdAt,
+      });
+      
       // Check if session is expired
       if (Date.now() >= parsedSession.expiresAt) {
+        console.log('[WORKBENCH_SESSION] AUTH_CHECK_FAILED - Session expired');
         await this.clearSession(sessionId);
         return false;
       }
       
       // Verify authenticated flag is true (server-side, not client-controlled)
-      return parsedSession.authenticated === true;
+      const isAuth = parsedSession.authenticated === true;
+      console.log('[WORKBENCH_SESSION] AUTH_CHECK_RESULT', { authenticated: isAuth });
+      return isAuth;
     } catch (error) {
-      console.error('[WORKBENCH_SESSION] Failed to validate session:', error);
+      console.error('[WORKBENCH_SESSION] AUTH_CHECK_ERROR', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
       // Fail closed if Redis is unavailable
       return false;
     }
@@ -275,16 +340,37 @@ export class WorkbenchSession {
    * Set opaque session ID in cookie (server-side data in Redis)
    */
   private async setSessionCookie(sessionId: string): Promise<void> {
-    const cookieStore = await cookies();
+    try {
+      const cookieStore = await cookies();
 
-    // Set only opaque session ID in cookie
-    cookieStore.set('workbench_session_id', sessionId, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      maxAge: SESSION_DURATION / 1000,
-      path: '/',
-    });
+      const cookieOptions = {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax' as const,
+        maxAge: SESSION_DURATION / 1000,
+        path: '/',
+      };
+
+      console.log('[WORKBENCH_SESSION] SET_COOKIE_START', {
+        sessionId: `${sessionId.substring(0, 8)}...`,
+        cookieOptions,
+        nodeEnv: process.env.NODE_ENV,
+        vercelEnv: process.env.VERCEL_ENV,
+      });
+
+      // Set only opaque session ID in cookie
+      cookieStore.set('workbench_session_id', sessionId, cookieOptions);
+
+      console.log('[WORKBENCH_SESSION] SET_COOKIE_SUCCESS', {
+        sessionId: `${sessionId.substring(0, 8)}...`,
+      });
+    } catch (error) {
+      console.error('[WORKBENCH_SESSION] SET_COOKIE_ERROR', {
+        error: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+      });
+      throw error;
+    }
   }
 
   /**
@@ -315,8 +401,19 @@ export class WorkbenchSession {
     try {
       const cookieStore = await cookies();
       const cookie = cookieStore.get(name);
+      
+      console.log('[WORKBENCH_SESSION] GET_COOKIE', {
+        name,
+        hasCookie: !!cookie,
+        cookieValue: cookie ? `${cookie.value.substring(0, 8)}...` : null,
+      });
+      
       return cookie?.value || null;
-    } catch {
+    } catch (error) {
+      console.error('[WORKBENCH_SESSION] GET_COOKIE_ERROR', {
+        name,
+        error: error instanceof Error ? error.message : String(error),
+      });
       // Cookies might not be available in all contexts
       return null;
     }

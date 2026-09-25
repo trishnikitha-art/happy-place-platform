@@ -60,6 +60,12 @@ export function WorkbenchShell({ children }: { children: React.ReactNode }) {
   // All /workbench/* routes except /workbench/login require authentication
   useEffect(() => {
     const checkAuth = async () => {
+      console.log('[WORKBENCH_SHELL] AUTH_CHECK_START', {
+        pathname,
+        isLoginPage: pathname === '/workbench/login',
+        documentCookies: document.cookie,
+      });
+
       // Skip auth check for login page
       if (pathname === '/workbench/login') {
         setIsAuthenticated(true);
@@ -67,18 +73,33 @@ export function WorkbenchShell({ children }: { children: React.ReactNode }) {
       }
 
       try {
-        const response = await fetch('/api/workbench/auth-status');
+        const response = await fetch('/api/workbench/auth-status', {
+          credentials: 'include', // Important: include cookies
+        });
+        
+        console.log('[WORKBENCH_SHELL] AUTH_STATUS_RESPONSE', {
+          status: response.status,
+          ok: response.ok,
+        });
+        
         const data = await response.json();
+        
+        console.log('[WORKBENCH_SHELL] AUTH_STATUS_DATA', {
+          authenticated: data.authenticated,
+          error: data.error,
+        });
         
         if (data.authenticated) {
           setIsAuthenticated(true);
         } else {
           setIsAuthenticated(false);
+          console.log('[WORKBENCH_SHELL] AUTH_FAILED - Redirecting to login');
           router.push('/workbench/login');
         }
       } catch (error) {
-        console.error('[WORKBENCH_SHELL] Auth check failed', error);
+        console.error('[WORKBENCH_SHELL] AUTH_CHECK_ERROR', error);
         setIsAuthenticated(false);
+        console.log('[WORKBENCH_SHELL] AUTH_ERROR - Redirecting to login');
         router.push('/workbench/login');
       }
     };

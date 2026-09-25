@@ -21,22 +21,42 @@ export default function WorkbenchLogin() {
     setError('');
     setLoading(true);
 
+    console.log('[LOGIN_PAGE] SUBMITTING_LOGIN', {
+      passwordLength: password.length,
+      hasPassword: !!password,
+    });
+
     try {
       const response = await fetch('/api/workbench/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Important: include cookies
         body: JSON.stringify({ password }),
+      });
+
+      console.log('[LOGIN_PAGE] LOGIN_RESPONSE', {
+        status: response.status,
+        ok: response.ok,
+        statusText: response.statusText,
       });
 
       const data = await response.json();
 
+      console.log('[LOGIN_PAGE] LOGIN_DATA', {
+        success: data.success,
+        error: data.error,
+      });
+
       if (response.ok && data.success) {
+        console.log('[LOGIN_PAGE] LOGIN_SUCCESS - Redirecting to /workbench/media');
         // Force page reload to ensure cookies are properly available
         window.location.href = '/workbench/media';
       } else {
+        console.log('[LOGIN_PAGE] LOGIN_FAILED', { error: data.error });
         setError(data.error || 'Login failed');
       }
     } catch (err) {
+      console.error('[LOGIN_PAGE] LOGIN_ERROR', err);
       setError('Login failed. Please try again.');
     } finally {
       setLoading(false);

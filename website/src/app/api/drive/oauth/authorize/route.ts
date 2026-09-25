@@ -15,11 +15,25 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: Request) {
   console.log('=== DRIVE OAUTH AUTHORIZE REACHED ===');
+  console.log('[DRIVE OAUTH AUTHORIZE] REQUEST_FORENSICS', {
+    url: request.url,
+    origin: new URL(request.url).origin,
+    cookieHeader: request.headers.get('cookie'),
+    userAgent: request.headers.get('user-agent'),
+    referer: request.headers.get('referer'),
+  });
 
   // SECURITY: Require authenticated Workbench session before initiating OAuth
   // HPP_WORKBENCH_PRINCIPAL_ID is a deployment-global constant used for stale-authorization
   // invalidation. It is NOT an identity binding and NOT a substitute for human authentication.
   const isAuthenticated = await workbenchSession.isAuthenticated();
+  
+  console.log('[DRIVE OAUTH AUTHORIZE] AUTHENTICATION_CHECK', {
+    isAuthenticated,
+    nodeEnv: process.env.NODE_ENV,
+    vercelEnv: process.env.VERCEL_ENV,
+  });
+  
   if (!isAuthenticated) {
     console.log('[DRIVE OAUTH AUTHORIZE] WORKBENCH_AUTH_REQUIRED');
     return NextResponse.json({ error: 'WORKBENCH_AUTH_REQUIRED' }, { status: 401 });
