@@ -756,6 +756,373 @@ const METADATA_UPDATE_SCRIPT = `
 `;
 
 /**
+ * P0 FIX: Atomic Lua script for batch Git commit SHA assignment
+ *
+ * This script atomically assigns the same Git commit SHA to multiple transactions
+ * in ONE Redis operation, ensuring:
+ * - ALL transactions exist
+ * - ALL are in 'committing' state
+ * - ALL have the same owner
+ * - NONE have conflicting commitSha
+ * - ALL receive the same commitSha atomically
+ *
+ * CRITICAL: This eliminates partial SHA persistence where some transactions
+ * get the SHA while others fail, which would leave the batch in an inconsistent state.
+ *
+ * KEYS[1..N]: Transaction keys for all transactions in the batch
+ *
+ * ARGV[1]: commitSha - Git commit SHA to assign to all transactions
+ * ARGV[2]: commitUrl - Git commit URL
+ * ARGV[3]: owner - Owner token for verification
+ * ARGV[4]: transactionIdsJson - JSON array of transaction IDs for validation
+ *
+ * Returns indexed array for proper RESP2 serialization:
+ * ['OK', count] on success
+ * ['ERR', errorCode, failedTransactionId, details] on failure
+ */
+const ATOMIC_BATCH_SET_COMMIT_SHA_SCRIPT = `
+  local commitSha = ARGV[1]
+  local commitUrl = ARGV[2]
+  local owner = ARGV[3]
+  local transactionIdsJson = ARGV[4]
+  local transactionIds = cjson.decode(transactionIdsJson)
+  local keyCount = #KEYS
+
+  -- Validate that we have the right number of keys
+  if keyCount ~= #transactionIds then
+    return {'ERR', 'KEY_COUNT_MISMATCH', transactionIds[1], 'Expected ' .. #transactionIds .. ' keys, got ' .. keyCount}
+  end
+
+  -- Phase 1: Validate ALL transactions exist and are eligible for SHA assignment
+  for i = 1, keyCount do
+    local key = KEYS[i]
+    local transactionId = transactionIds[i]
+    local current = redis.call('GET', key)
+
+    if not current then
+      return {'ERR', 'TRANSACTION_NOT_FOUND', transactionId, 'Transaction does not exist'}
+    end
+
+    local parsed = cjson.decode(current)
+
+    -- Validate transaction ID identity
+    if parsed.transactionId ~= transactionId then
+      return {'ERR', 'TRANSACTION_ID_MISMATCH', transactionId, 'Transaction ID mismatch'}
+    end
+
+    -- Verify transaction is in committing state
+    if parsed.state ~= 'committing' then
+      return {'ERR', 'INVALID_STATE', transactionId, 'Transaction is in ' .. parsed.state .. ' state, expected committing'}
+    end
+
+    -- Verify ownership
+    if parsed.owner and parsed.owner ~= '' then
+      if owner and owner ~= '' and owner ~= parsed.owner then
+        return {'ERR', 'OWNER_MISMATCH', transactionId, 'Transaction owned by ' .. parsed.owner}
+      end
+    end
+
+    -- CAS SEMANTICS: Reject if commitSha already exists and differs
+    if parsed.commitSha and parsed.commitSha ~= '' and parsed.commitSha ~= commitSha then
+      return {'ERR', 'CAS_FAILURE', transactionId, 'Transaction already has commitSha ' .. parsed.commitSha}
+    end
+  end
+
+  -- Phase 2: Atomically assign commitSha to ALL transactions
+  for i = 1, keyCount do
+    local key = KEYS[i]
+    local current = redis.call('GET', key)
+    local parsed = cjson.decode(current)
+
+    -- Update metadata while preserving state
+    parsed.commitSha = commitSha
+    parsed.commitUrl = commitUrl
+
+    redis.call('SET', key, cjson.encode(parsed))
+  end
+
+  return {'OK', keyCount}
+`;
+
+/**
+ * P0 FIX: Atomic Lua script for batch transaction commit
+ *
+ * This script atomically commits multiple transactions in ONE Redis operation,
+ * ensuring:
+ * - ALL transactions exist
+ * - ALL are in 'committing' state
+ * - ALL have the same owner
+ * - ALL have the same commitSha set
+ * - ALL transition to 'committed' together
+ *
+ * CRITICAL: This eliminates partial commit scenarios where some transactions
+ * transition while others fail, which would leave the batch in an inconsistent state.
+ *
+ * KEYS[1..N]: Transaction keys for all transactions in the batch
+ *
+ * ARGV[1]: commitSha - Expected commit SHA that all transactions must have
+ * ARGV[2]: owner - Owner token for verification
+ * ARGV[3]: transactionIdsJson - JSON array of transaction IDs for validation
+ *
+ * Returns indexed array for proper RESP2 serialization:
+ * ['OK', count] on success
+ * ['ERR', errorCode, failedTransactionId, details] on failure
+ */
+const ATOMIC_BATCH_COMMIT_SCRIPT = `
+  local expectedCommitSha = ARGV[1]
+  local owner = ARGV[2]
+  local transactionIdsJson = ARGV[3]
+  local transactionIds = cjson.decode(transactionIdsJson)
+  local keyCount = #KEYS
+
+  -- Validate that we have the right number of keys
+  if keyCount ~= #transactionIds then
+    return {'ERR', 'KEY_COUNT_MISMATCH', transactionIds[1], 'Expected ' .. #transactionIds .. ' keys, got ' .. keyCount}
+  end
+
+  -- Phase 1: Validate ALL transactions exist and are eligible for commit
+  for i = 1, keyCount do
+    local key = KEYS[i]
+    local transactionId = transactionIds[i]
+    local current = redis.call('GET', key)
+
+    if not current then
+      return {'ERR', 'TRANSACTION_NOT_FOUND', transactionId, 'Transaction does not exist'}
+    end
+
+    local parsed = cjson.decode(current)
+
+    -- Validate transaction ID identity
+    if parsed.transactionId ~= transactionId then
+      return {'ERR', 'TRANSACTION_ID_MISMATCH', transactionId, 'Transaction ID mismatch'}
+    end
+
+    -- Verify transaction is in committing state
+    if parsed.state ~= 'committing' then
+      return {'ERR', 'INVALID_STATE', transactionId, 'Transaction is in ' .. parsed.state .. ' state, expected committing'}
+    end
+
+    -- Verify ownership
+    if parsed.owner and parsed.owner ~= '' then
+      if owner and owner ~= '' and owner ~= parsed.owner then
+        return {'ERR', 'OWNER_MISMATCH', transactionId, 'Transaction owned by ' .. parsed.owner}
+      end
+    end
+
+    -- Verify commitSha is set and matches expected
+    if not parsed.commitSha or parsed.commitSha == '' then
+      return {'ERR', 'MISSING_COMMIT_SHA', transactionId, 'Transaction does not have commitSha set'}
+    end
+
+    if parsed.commitSha ~= expectedCommitSha then
+      return {'ERR', 'COMMIT_SHA_MISMATCH', transactionId, 'Transaction has commitSha ' .. parsed.commitSha .. ', expected ' .. expectedCommitSha}
+    end
+  end
+
+  -- Phase 2: Atomically commit ALL transactions
+  for i = 1, keyCount do
+    local key = KEYS[i]
+    local current = redis.call('GET', key)
+    local parsed = cjson.decode(current)
+
+    -- Transition to committed state
+    parsed.state = 'committed'
+    parsed.committedAt = os.time()
+
+    redis.call('SET', key, cjson.encode(parsed))
+  end
+
+  return {'OK', keyCount}
+`;
+
+/**
+ * P0 FIX: Atomic Lua script for batch staging promotion
+ *
+ * This script atomically promotes ALL staging keys from ALL transactions
+ * in ONE Redis operation, ensuring:
+ * - ALL expected revisions match current runtime state
+ * - ALL assignments are promoted atomically
+ * - NO partial promotion where some succeed and others fail
+ *
+ * This extends the existing atomicPromoteAssignments to support multiple
+ * transactions with combined staging keys.
+ *
+ * KEYS[1]: transactionKey - deployment transaction key (for state verification)
+ * KEYS[2..N]: assignment keys to promote
+ *
+ * ARGV[1]: assignmentsData - JSON string of all assignments to promote
+ * ARGV[2]: deploymentTransactionId - transaction ID for validation
+ * ARGV[3]: expectedOwner - owner to verify (optional)
+ *
+ * Returns indexed array for proper RESP2 serialization:
+ * ['OK', count] on success
+ * ['ERR', errorCode, details] on failure
+ */
+const ATOMIC_BATCH_PROMOTE_SCRIPT = `
+  local transactionKey = KEYS[1]
+  local assignmentsData = cjson.decode(ARGV[1])
+  local deploymentTransactionId = ARGV[2]
+  local expectedOwner = ARGV[3]
+
+  -- Validate transaction state before promotion
+  local transaction = redis.call('GET', transactionKey)
+
+  if not transaction then
+    return {'ERR', 'TRANSACTION_NOT_FOUND', deploymentTransactionId}
+  end
+
+  local parsed = cjson.decode(transaction)
+
+  -- Transaction must be in committing state for promotion
+  if parsed.state ~= 'committing' then
+    return {'ERR', 'INVALID_TRANSACTION_STATE', parsed.state}
+  end
+
+  -- Verify transaction ownership
+  if expectedOwner and expectedOwner ~= '' then
+    if parsed.owner ~= expectedOwner then
+      return {'ERR', 'OWNER_MISMATCH', parsed.owner}
+    end
+  end
+
+  -- Phase 1: Validate all expected revisions
+  -- Assignment keys start at KEYS[2]
+  for i, assignment in ipairs(assignmentsData) do
+    local assignmentKey = KEYS[i + 1] -- KEYS[2] onwards are assignment keys
+    local current = redis.call('GET', assignmentKey)
+
+    if current then
+      local parsed = cjson.decode(current)
+      local expectedRevision = assignment.expectedRevision
+
+      -- Check if current revision matches expected
+      if parsed.revision ~= expectedRevision then
+        return {'ERR', 'CAS_FAILURE', assignment.serviceSlug}
+      end
+    else
+      -- Assignment doesn't exist, expectedRevision must be 0 for create
+      if assignment.expectedRevision ~= 0 then
+        return {'ERR', 'CAS_FAILURE_MISSING', assignment.serviceSlug}
+      end
+    end
+  end
+
+  -- Phase 2: Atomically write all assignments
+  for i, assignment in ipairs(assignmentsData) do
+    local assignmentKey = KEYS[i + 1]
+    -- Increment revision for write
+    assignment.revision = assignment.expectedRevision + 1
+    local assignmentValue = cjson.encode(assignment)
+
+    redis.call('SET', assignmentKey, assignmentValue)
+  end
+
+  return {'OK', #assignmentsData}
+`;
+
+/**
+ * P0 FIX: Atomic Lua script for batch transaction consumption with staging cleanup
+ *
+ * This script atomically:
+ * 1. Validates ALL transactions are in 'committed' state
+ * 2. Transitions ALL to 'consumed' state
+ * 3. Deletes ALL staging keys atomically
+ * 4. Clears ALL project-level transaction pointers conditionally
+ *
+ * CRITICAL: This eliminates partial consumption where some transactions
+ * are consumed while others fail, and ensures staging cleanup is atomic
+ * with the state transition.
+ *
+ * KEYS[1..N]: Transaction keys for all transactions in the batch
+ * KEYS[N+1..M]: Staging keys to delete (optional)
+ * KEYS[M+1..O]: Project-level transaction pointers to clear (optional)
+ *
+ * ARGV[1]: owner - Owner token for verification
+ * ARGV[2]: transactionIdsJson - JSON array of transaction IDs for validation
+ * ARGV[3]: stagingKeyCount - Number of staging keys that follow
+ * ARGV[4]: pointerKeyCount - Number of pointer keys that follow
+ *
+ * Returns indexed array for proper RESP2 serialization:
+ * ['OK', transactionCount, stagingKeyCount, pointerKeyCount] on success
+ * ['ERR', errorCode, failedTransactionId, details] on failure
+ */
+const ATOMIC_BATCH_CONSUME_SCRIPT = `
+  local owner = ARGV[1]
+  local transactionIdsJson = ARGV[2]
+  local stagingKeyCount = tonumber(ARGV[3]) or 0
+  local pointerKeyCount = tonumber(ARGV[4]) or 0
+  local transactionIds = cjson.decode(transactionIdsJson)
+  local transactionKeyCount = #KEYS
+
+  -- Validate that we have the right number of keys
+  local expectedKeyCount = transactionKeyCount + stagingKeyCount + pointerKeyCount
+  if #KEYS ~= expectedKeyCount then
+    return {'ERR', 'KEY_COUNT_MISMATCH', transactionIds[1], 'Expected ' .. expectedKeyCount .. ' keys, got ' .. #KEYS}
+  end
+
+  -- Phase 1: Validate ALL transactions exist and are eligible for consumption
+  for i = 1, transactionKeyCount do
+    local key = KEYS[i]
+    local transactionId = transactionIds[i]
+    local current = redis.call('GET', key)
+
+    if not current then
+      return {'ERR', 'TRANSACTION_NOT_FOUND', transactionId, 'Transaction does not exist'}
+    end
+
+    local parsed = cjson.decode(current)
+
+    -- Validate transaction ID identity
+    if parsed.transactionId ~= transactionId then
+      return {'ERR', 'TRANSACTION_ID_MISMATCH', transactionId, 'Transaction ID mismatch'}
+    end
+
+    -- Verify transaction is in committed state
+    if parsed.state ~= 'committed' then
+      return {'ERR', 'INVALID_STATE', transactionId, 'Transaction is in ' .. parsed.state .. ' state, expected committed'}
+    end
+
+    -- Verify ownership
+    if parsed.owner and parsed.owner ~= '' then
+      if owner and owner ~= '' and owner ~= parsed.owner then
+        return {'ERR', 'OWNER_MISMATCH', transactionId, 'Transaction owned by ' .. parsed.owner}
+      end
+    end
+  end
+
+  -- Phase 2: Atomically consume ALL transactions
+  for i = 1, transactionKeyCount do
+    local key = KEYS[i]
+    local current = redis.call('GET', key)
+    local parsed = cjson.decode(current)
+
+    -- Transition to consumed state
+    parsed.state = 'consumed'
+    parsed.consumedAt = os.time()
+
+    redis.call('SET', key, cjson.encode(parsed))
+  end
+
+  -- Phase 3: Delete ALL staging keys atomically
+  local stagingKeysDeleted = 0
+  for i = transactionKeyCount + 1, transactionKeyCount + stagingKeyCount do
+    local key = KEYS[i]
+    redis.call('DEL', key)
+    stagingKeysDeleted = stagingKeysDeleted + 1
+  end
+
+  -- Phase 4: Clear ALL project-level transaction pointers conditionally
+  local pointersCleared = 0
+  for i = transactionKeyCount + stagingKeyCount + 1, #KEYS do
+    local key = KEYS[i]
+    redis.call('DEL', key)
+    pointersCleared = pointersCleared + 1
+  end
+
+  return {'OK', transactionKeyCount, stagingKeysDeleted, pointersCleared}
+`;
+
+/**
  * P0 FIX: Atomic Lua script for batch transaction claiming
  *
  * This script atomically claims multiple transactions in ONE Redis operation:
@@ -1408,100 +1775,367 @@ export async function setBatchGitCommitSha(
   owner?: string
 ): Promise<DeploymentTransaction[]> {
   const client = getRedisClient();
+  const namespace = getKvNamespace();
 
-  console.log('[DEPLOYMENT_TRANSACTION] BATCH_PERSISTING_COMMIT_SHA', { 
+  console.log('[DEPLOYMENT_TRANSACTION] ATOMIC_BATCH_PERSISTING_COMMIT_SHA', { 
     transactionIds, 
     commitSha, 
     owner 
   });
 
-  const updatedTransactions: DeploymentTransaction[] = [];
+  // Build KEYS array: all transaction keys
+  const transactionKeys = transactionIds.map(id => `${namespace}${TRANSACTION_PREFIX}${id}`);
 
-  for (const transactionId of transactionIds) {
-    const updated = await setGitCommitSha(transactionId, commitSha, commitUrl, owner);
-    updatedTransactions.push(updated);
+  try {
+    const result = await client.eval(
+      ATOMIC_BATCH_SET_COMMIT_SHA_SCRIPT,
+      transactionKeys, // KEYS array
+      [commitSha, commitUrl, owner || '', JSON.stringify(transactionIds)] // ARGV array
+    );
+
+    // Parse indexed array return format: ['OK', count] or ['ERR', errorCode, failedTransactionId, details]
+    if (!Array.isArray(result) || result.length < 2) {
+      console.error('[DEPLOYMENT_TRANSACTION] BATCH_SHA_INVALID_RETURN', {
+        transactionIds,
+        result,
+        reason: 'Lua script did not return indexed array'
+      });
+      throw new Error('Invalid Lua script return format for batch SHA assignment');
+    }
+
+    const status = result[0];
+    if (status === 'ERR') {
+      const errorCode = result[1];
+      const failedTransactionId = result[2];
+      const details = result[3];
+      console.error('[DEPLOYMENT_TRANSACTION] BATCH_SHA_FAILED', {
+        transactionIds,
+        errorCode,
+        failedTransactionId,
+        details
+      });
+      throw new Error(`Batch SHA assignment failed: ${errorCode} for transaction ${failedTransactionId}: ${details}`);
+    }
+
+    // Success: ['OK', count]
+    const assignedCount = result[1];
+    console.log('[DEPLOYMENT_TRANSACTION] BATCH_SHA_PERSISTED', {
+      transactionIds,
+      commitSha,
+      assignedCount
+    });
+
+    // Fetch all updated transactions to return them
+    const updatedTransactions: DeploymentTransaction[] = [];
+    for (const transactionId of transactionIds) {
+      const key = getTransactionKey(transactionId);
+      const current = await client.get<DeploymentTransaction>(key);
+      if (current) {
+        updatedTransactions.push(parseTransactionValue(current));
+      }
+    }
+
+    return updatedTransactions;
+  } catch (error) {
+    console.error('[DEPLOYMENT_TRANSACTION] BATCH_SHA_ERROR', {
+      transactionIds,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    throw error;
   }
-
-  console.log('[DEPLOYMENT_TRANSACTION] BATCH_COMMIT_SHA_PERSISTED', {
-    transactionIds,
-    commitSha,
-    updatedCount: updatedTransactions.length
-  });
-
-  return updatedTransactions;
 }
 
 /**
  * P0 FIX: Atomic batch transaction commit
  *
- * Marks multiple transactions as committed in sequence, ensuring all
- * have the same commitSha and transition together.
+ * Marks multiple transactions as committed in ONE Redis operation, ensuring:
+ * - ALL transactions exist
+ * - ALL are in 'committing' state
+ * - ALL have the same commitSha
+ * - ALL transition to 'committed' together
  *
  * @param transactionIds - Array of transaction IDs to commit
+ * @param commitSha - Expected commit SHA that all transactions must have
  * @param owner - Owner token for ownership verification
  * @returns Array of committed transactions
  */
 export async function commitBatchDeploymentTransactions(
   transactionIds: string[],
+  commitSha: string,
   owner?: string
 ): Promise<DeploymentTransaction[]> {
-  console.log('[DEPLOYMENT_TRANSACTION] BATCH_COMMITTING', { 
+  const client = getRedisClient();
+  const namespace = getKvNamespace();
+
+  console.log('[DEPLOYMENT_TRANSACTION] ATOMIC_BATCH_COMMITTING', { 
     transactionIds, 
+    commitSha,
     owner 
   });
 
-  const committedTransactions: DeploymentTransaction[] = [];
+  // Build KEYS array: all transaction keys
+  const transactionKeys = transactionIds.map(id => `${namespace}${TRANSACTION_PREFIX}${id}`);
 
-  for (const transactionId of transactionIds) {
-    const committed = await commitDeploymentTransaction(transactionId, owner);
-    committedTransactions.push(committed);
+  try {
+    const result = await client.eval(
+      ATOMIC_BATCH_COMMIT_SCRIPT,
+      transactionKeys, // KEYS array
+      [commitSha, owner || '', JSON.stringify(transactionIds)] // ARGV array
+    );
+
+    // Parse indexed array return format: ['OK', count] or ['ERR', errorCode, failedTransactionId, details]
+    if (!Array.isArray(result) || result.length < 2) {
+      console.error('[DEPLOYMENT_TRANSACTION] BATCH_COMMIT_INVALID_RETURN', {
+        transactionIds,
+        result,
+        reason: 'Lua script did not return indexed array'
+      });
+      throw new Error('Invalid Lua script return format for batch commit');
+    }
+
+    const status = result[0];
+    if (status === 'ERR') {
+      const errorCode = result[1];
+      const failedTransactionId = result[2];
+      const details = result[3];
+      console.error('[DEPLOYMENT_TRANSACTION] BATCH_COMMIT_FAILED', {
+        transactionIds,
+        errorCode,
+        failedTransactionId,
+        details
+      });
+      throw new Error(`Batch commit failed: ${errorCode} for transaction ${failedTransactionId}: ${details}`);
+    }
+
+    // Success: ['OK', count]
+    const committedCount = result[1];
+    console.log('[DEPLOYMENT_TRANSACTION] BATCH_COMMITTED', {
+      transactionIds,
+      commitSha,
+      committedCount
+    });
+
+    // Fetch all committed transactions to return them
+    const committedTransactions: DeploymentTransaction[] = [];
+    for (const transactionId of transactionIds) {
+      const key = getTransactionKey(transactionId);
+      const current = await client.get<DeploymentTransaction>(key);
+      if (current) {
+        committedTransactions.push(parseTransactionValue(current));
+      }
+    }
+
+    return committedTransactions;
+  } catch (error) {
+    console.error('[DEPLOYMENT_TRANSACTION] BATCH_COMMIT_ERROR', {
+      transactionIds,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    throw error;
   }
-
-  console.log('[DEPLOYMENT_TRANSACTION] BATCH_COMMITTED', {
-    transactionIds,
-    committedCount: committedTransactions.length
-  });
-
-  return committedTransactions;
 }
 
 /**
- * P0 FIX: Atomic batch transaction consume
+ * P0 FIX: Atomic batch staging promotion
  *
- * Marks multiple transactions as consumed after staging cleanup.
- * All transactions must be in committed state before consumption.
+ * Promotes ALL staging keys from ALL transactions in ONE Redis operation,
+ * ensuring:
+ * - ALL expected revisions match current runtime state
+ * - ALL assignments are promoted atomically
+ * - NO partial promotion where some succeed and others fail
+ *
+ * @param assignments - Array of assignments to promote
+ * @param deploymentTransactionId - Transaction ID for state verification
+ * @param owner - Owner token for verification
+ * @returns Promotion result with count
+ */
+export async function promoteBatchDeployment(
+  assignments: Array<{ serviceSlug: string; mediaId: string; expectedRevision: number; updatedAt: string; source: string }>,
+  deploymentTransactionId: string,
+  owner?: string
+): Promise<{ success: boolean; count: number; error?: string; failedServiceSlug?: string }> {
+  const client = getRedisClient();
+  const namespace = getKvNamespace();
+
+  console.log('[DEPLOYMENT_TRANSACTION] ATOMIC_BATCH_PROMOTING', {
+    deploymentTransactionId,
+    assignmentCount: assignments.length,
+    owner
+  });
+
+  // Build KEYS array: transaction key + all assignment keys
+  const transactionKey = `${namespace}${TRANSACTION_PREFIX}${deploymentTransactionId}`;
+  const assignmentKeys = assignments.map(a => `${namespace}service-card-assignment:${a.serviceSlug}`);
+  const keys = [transactionKey, ...assignmentKeys];
+
+  try {
+    const result = await client.eval(
+      ATOMIC_BATCH_PROMOTE_SCRIPT,
+      keys, // KEYS array
+      [JSON.stringify(assignments), deploymentTransactionId, owner || ''] // ARGV array
+    );
+
+    // Parse indexed array return format: ['OK', count] or ['ERR', errorCode, details]
+    if (!Array.isArray(result) || result.length < 2) {
+      console.error('[DEPLOYMENT_TRANSACTION] BATCH_PROMOTE_INVALID_RETURN', {
+        deploymentTransactionId,
+        result,
+        reason: 'Lua script did not return indexed array'
+      });
+      return {
+        success: false,
+        count: 0,
+        error: 'INVALID_LUA_RETURN',
+      };
+    }
+
+    const status = result[0];
+    if (status === 'ERR') {
+      const errorCode = result[1];
+      const details = result[2];
+      console.error('[DEPLOYMENT_TRANSACTION] BATCH_PROMOTE_FAILED', {
+        deploymentTransactionId,
+        errorCode,
+        details
+      });
+
+      return {
+        success: false,
+        count: 0,
+        error: errorCode,
+        failedServiceSlug: typeof details === 'string' ? details : undefined,
+      };
+    }
+
+    // Success: ['OK', count]
+    const count = result[1];
+    console.log('[DEPLOYMENT_TRANSACTION] BATCH_PROMOTE_SUCCESS', {
+      deploymentTransactionId,
+      count
+    });
+
+    return {
+      success: true,
+      count: count || 0,
+    };
+  } catch (error) {
+    console.error('[DEPLOYMENT_TRANSACTION] BATCH_PROMOTE_ERROR', {
+      deploymentTransactionId,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+
+    return {
+      success: false,
+      count: 0,
+      error: error instanceof Error ? error.message : 'Unknown error',
+    };
+  }
+}
+
+/**
+ * P0 FIX: Atomic batch transaction consume with staging cleanup
+ *
+ * Marks multiple transactions as consumed and deletes ALL staging keys
+ * in ONE Redis operation, ensuring:
+ * - ALL transactions exist and are in 'committed' state
+ * - ALL transition to 'consumed' together
+ * - ALL staging keys are deleted atomically
+ * - ALL project-level pointers are cleared atomically
  *
  * @param transactionIds - Array of transaction IDs to consume
+ * @param stagingKeys - All staging keys to delete
+ * @param pointerKeys - All project-level transaction pointers to clear
  * @param owner - Owner token for ownership verification
- * @param projectIds - Optional array of project IDs to clear project-level transaction pointers
  * @returns Array of consumed transactions
  */
 export async function consumeBatchDeploymentTransactions(
   transactionIds: string[],
-  owner?: string,
-  projectIds?: string[]
+  stagingKeys: string[],
+  pointerKeys: string[],
+  owner?: string
 ): Promise<DeploymentTransaction[]> {
-  console.log('[DEPLOYMENT_TRANSACTION] BATCH_CONSUMING', { 
+  const client = getRedisClient();
+  const namespace = getKvNamespace();
+
+  console.log('[DEPLOYMENT_TRANSACTION] ATOMIC_BATCH_CONSUMING', { 
     transactionIds, 
-    owner,
-    projectIds
+    stagingKeyCount: stagingKeys.length,
+    pointerKeyCount: pointerKeys.length,
+    owner
   });
 
-  const consumedTransactions: DeploymentTransaction[] = [];
+  // Build KEYS array: transaction keys + staging keys + pointer keys
+  const transactionKeys = transactionIds.map(id => `${namespace}${TRANSACTION_PREFIX}${id}`);
+  const stagingKeyKeys = stagingKeys.map(key => {
+    // Staging keys are already namespaced, use as-is
+    return key;
+  });
+  const pointerKeyKeys = pointerKeys.map(key => {
+    // Pointer keys are already namespaced, use as-is
+    return key;
+  });
+  const keys = [...transactionKeys, ...stagingKeyKeys, ...pointerKeyKeys];
 
-  for (let i = 0; i < transactionIds.length; i++) {
-    const transactionId = transactionIds[i];
-    const projectId = projectIds?.[i];
-    const consumed = await consumeDeploymentTransaction(transactionId, owner, projectId);
-    consumedTransactions.push(consumed);
+  try {
+    const result = await client.eval(
+      ATOMIC_BATCH_CONSUME_SCRIPT,
+      keys, // KEYS array
+      [owner || '', JSON.stringify(transactionIds), String(stagingKeys.length), String(pointerKeys.length)] // ARGV array
+    );
+
+    // Parse indexed array return format: ['OK', transactionCount, stagingKeyCount, pointerKeyCount] or ['ERR', errorCode, failedTransactionId, details]
+    if (!Array.isArray(result) || result.length < 2) {
+      console.error('[DEPLOYMENT_TRANSACTION] BATCH_CONSUME_INVALID_RETURN', {
+        transactionIds,
+        result,
+        reason: 'Lua script did not return indexed array'
+      });
+      throw new Error('Invalid Lua script return format for batch consume');
+    }
+
+    const status = result[0];
+    if (status === 'ERR') {
+      const errorCode = result[1];
+      const failedTransactionId = result[2];
+      const details = result[3];
+      console.error('[DEPLOYMENT_TRANSACTION] BATCH_CONSUME_FAILED', {
+        transactionIds,
+        errorCode,
+        failedTransactionId,
+        details
+      });
+      throw new Error(`Batch consume failed: ${errorCode} for transaction ${failedTransactionId}: ${details}`);
+    }
+
+    // Success: ['OK', transactionCount, stagingKeyCount, pointerKeyCount]
+    const consumedCount = result[1];
+    const stagingKeysDeleted = result[2];
+    const pointersCleared = result[3];
+    console.log('[DEPLOYMENT_TRANSACTION] BATCH_CONSUMED', {
+      transactionIds,
+      consumedCount,
+      stagingKeysDeleted,
+      pointersCleared
+    });
+
+    // Fetch all consumed transactions to return them
+    const consumedTransactions: DeploymentTransaction[] = [];
+    for (const transactionId of transactionIds) {
+      const key = getTransactionKey(transactionId);
+      const current = await client.get<DeploymentTransaction>(key);
+      if (current) {
+        consumedTransactions.push(parseTransactionValue(current));
+      }
+    }
+
+    return consumedTransactions;
+  } catch (error) {
+    console.error('[DEPLOYMENT_TRANSACTION] BATCH_CONSUME_ERROR', {
+      transactionIds,
+      error: error instanceof Error ? error.message : 'Unknown error'
+    });
+    throw error;
   }
-
-  console.log('[DEPLOYMENT_TRANSACTION] BATCH_CONSUMED', {
-    transactionIds,
-    consumedCount: consumedTransactions.length
-  });
-
-  return consumedTransactions;
 }
 
 /**
