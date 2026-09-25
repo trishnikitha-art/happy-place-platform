@@ -235,6 +235,14 @@ jobs:
           name: phase-b-test-output-${{ github.run_id }}
           path: website/phase-b-test-output.log
           retention-days: 7
+      - name: Upload Phase B server log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: phase-b-server-log-${{ github.run_id }}
+          path: website/logs/server.log
+          if-no-files-found: warn
+          retention-days: 7
       - name: Phase B - Terminate Next.js server
         if: always()
         run: |

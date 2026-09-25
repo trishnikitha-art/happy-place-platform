@@ -666,7 +666,21 @@ export async function assignMediaBatch(
     throw new AssignmentBatchError('INVALID_MEDIA', 'Select a published media asset.');
   }
   const { resolvePublicMedia } = await import('./media');
+
+  console.log('[ASSIGNMENT_BATCH] RESOLVING_MEDIA', {
+    operationId,
+    mediaId,
+  });
+
   const media = await resolvePublicMedia(mediaId);
+
+  console.log('[ASSIGNMENT_BATCH] MEDIA_RESOLUTION_RESULT', {
+    operationId,
+    mediaId,
+    mediaFound: !!media,
+    mediaMatches: media?.id === mediaId,
+  });
+
   if (!media || media.id !== mediaId) {
     throw new AssignmentBatchError('INVALID_MEDIA', 'The source does not resolve to the requested published media.');
   }
@@ -674,6 +688,14 @@ export async function assignMediaBatch(
   const operationId = crypto.createHash('sha256')
     .update(JSON.stringify({ version: 1, namespace: getKvNamespace(), mediaId, targets }))
     .digest('hex');
+
+  console.log('[ASSIGNMENT_BATCH] STARTING_ASSIGNMENT', {
+    operationId,
+    mediaId,
+    targetCount: targets.length,
+    namespace: getKvNamespace(),
+  });
+
   const client = createRedisClient();
   const keys = targets.map(t => namespacedKey(`${ASSIGNMENT_PREFIX}${t.serviceSlug}`));
   const slotResults = targets.map(t => ({
@@ -689,11 +711,29 @@ export async function assignMediaBatch(
   try {
     // Receipts intentionally persist with assignments. Expiring them would erase
     // evidence needed to distinguish an acknowledged commit from a stale retry.
+    console.log('[ASSIGNMENT_BATCH] EXECUTING_REDIS_LUA', {
+      operationId,
+      keyCount: keys.length + 1, // +1 for operation key
+      targetCount: targets.length,
+    });
+
     response = await client.eval(ASSIGN_BATCH_SCRIPT,
       [namespacedKey(`assignment-operation:${operationId}`), ...keys],
       [JSON.stringify(targets), JSON.stringify(assignments.map(a => JSON.stringify(a))), JSON.stringify(receipt)],
     ) as typeof response;
-  } catch {
+
+    console.log('[ASSIGNMENT_BATCH] REDIS_LUA_RESPONSE', {
+      operationId,
+      responseStatus: response[0],
+      responseType: Array.isArray(response) ? 'array' : typeof response,
+    });
+  } catch (redisError) {
+    console.error('[ASSIGNMENT_BATCH] REDIS_LUA_ERROR', {
+      operationId,
+      error: redisError instanceof Error ? redisError.message : 'Unknown error',
+      errorName: redisError instanceof Error ? redisError.constructor.name : 'Unknown',
+      stack: redisError instanceof Error ? redisError.stack : undefined,
+    });
     throw new AssignmentBatchError('ASSIGNMENT_OUTCOME_UNKNOWN',
       'Commit acknowledgement unavailable. Retry this exact request to recover its result.',
       503, { operationId, committed: 'unknown', retrySameRequest: true });
