@@ -10,6 +10,11 @@
  * Replaces current gallery with the complete desired order in one operation.
  * Supports: reorder, prepend, append, delete, multi-photo changes with one operation.
  * 
+ * PATCH /api/admin/projects/gallery/visibility
+ * Body: { projectId: string, mediaId: string, operation: 'hide' | 'unhide' }
+ * 
+ * Hide or unhide a gallery item without modifying gallery membership/order.
+ * 
  * POST /api/admin/projects/gallery (LEGACY - DEPRECATED)
  * Body: { projectId: string, galleryIndex: number, mediaId: string, operation: 'replace' | 'add' }
  * 
@@ -27,6 +32,12 @@
  * - Gallery membership/order is mutable presentation authority
  * - Workbench is the human control surface for ordered assignment
  * - Public site consumes the resulting authoritative ordered list
+ * 
+ * Authorization Model:
+ * - Workbench authentication (workbenchSession.isAuthenticated) is sufficient for all project mutations
+ * - Any authenticated Workbench user may mutate any project's gallery/visibility
+ * - This is consistent with the existing Workbench authorization model (no project-level authorization)
+ * - Platform is owner-only (implicit through Workbench session issuance)
  * 
  * Requires Workbench authentication.
  */
@@ -751,36 +762,10 @@ export async function PATCH(request: Request) {
     const runtimeGalleryKey = getRuntimeGalleryKey(projectId);
     const visibilityKey = getVisibilityKey(projectId);
 
-    // Ensure visibility authority is initialized before mutation
-    const existingVisibility = await redis.get(visibilityKey);
-    let initializedAt: string;
-    if (!existingVisibility) {
-      // Initialize visibility authority on first mutation
-      initializedAt = new Date().toISOString();
-      const initPayload = {
-        schemaVersion: 1,
-        projectId,
-        hiddenGallery: [],
-        visibilityRevision: 0,
-        initializedAt,
-      };
-      await redis.set(visibilityKey, JSON.stringify(initPayload));
-      console.log('[GALLERY VISIBILITY PATCH] AUTHORITY_INITIALIZED', { projectId });
-    } else {
-      // Preserve existing initializedAt
-      let vParsed: any;
-      if (typeof existingVisibility === 'string') {
-        vParsed = JSON.parse(existingVisibility);
-      } else if (typeof existingVisibility === 'object') {
-        vParsed = existingVisibility;
-      }
-      initializedAt = vParsed?.initializedAt || new Date().toISOString();
-    }
-
     const result = await redis.eval(
       ATOMIC_VISIBILITY_MUTATION_SCRIPT,
       [runtimeGalleryKey, visibilityKey],
-      [mediaId, operation, new Date().toISOString(), projectId, initializedAt]
+      [mediaId, operation, new Date().toISOString(), projectId, new Date().toISOString()]
     ) as any[];
 
     const status = result[0] as string;
@@ -796,6 +781,20 @@ export async function PATCH(request: Request) {
         );
       }
       
+      if (errorCode === 'MALFORMED_AUTHORITY') {
+        return NextResponse.json(
+          { error: "Malformed visibility authority", message: "Visibility authority record is corrupted or incompatible. Contact administrator." },
+          { status: 500 }
+        );
+      }
+      
+      if (errorCode === 'INVALID_DATA_TYPE') {
+        return NextResponse.json(
+          { error: "Invalid visibility authority data type", message: "Visibility authority record has unexpected data type. Contact administrator." },
+          { status: 500 }
+        );
+      }
+      
       return NextResponse.json(
         { error: "Visibility mutation failed", message: errorCode },
         { status: 500 }
@@ -805,6 +804,7 @@ export async function PATCH(request: Request) {
     const newVisibilityRevision = result[1] as number;
     const actualOperation = result[2] as string;
     const stateChanged = result[3] as boolean;
+    const wasInitialized = result[4] as boolean;
 
     console.log('[GALLERY VISIBILITY PATCH] SUCCESS', {
       projectId,
@@ -812,6 +812,7 @@ export async function PATCH(request: Request) {
       operation: actualOperation,
       newVisibilityRevision,
       stateChanged,
+      wasInitialized,
     });
 
     return NextResponse.json({
@@ -821,6 +822,7 @@ export async function PATCH(request: Request) {
       operation: actualOperation,
       visibilityRevision: newVisibilityRevision,
       stateChanged,
+      wasInitialized,
     });
   } catch (error) {
     console.error('[GALLERY VISIBILITY PATCH] ERROR', error);

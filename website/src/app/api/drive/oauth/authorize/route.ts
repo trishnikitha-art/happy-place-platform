@@ -18,7 +18,7 @@ export async function GET(request: Request) {
   console.log('[DRIVE OAUTH AUTHORIZE] REQUEST_FORENSICS', {
     url: request.url,
     origin: new URL(request.url).origin,
-    cookieHeader: request.headers.get('cookie'),
+    hasCookieHeader: !!request.headers.get('cookie'),
     userAgent: request.headers.get('user-agent'),
     referer: request.headers.get('referer'),
   });

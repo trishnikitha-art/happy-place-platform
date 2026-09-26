@@ -637,8 +637,11 @@ export { ATOMIC_GALLERY_MUTATION_SCRIPT };
  * Durability: No TTL - hidden decisions persist until explicitly unhidden
  * Schema: v1 with explicit projectId, schemaVersion, initializedAt
  * 
+ * Atomic initialization: Creates valid empty authority if missing (NX semantics)
+ * Validation: Fails closed on malformed authority (does not repair)
+ * 
  * Returns indexed array for proper RESP2 serialization:
- * ['OK', newVisibilityRevision, operation, stateChanged] on success
+ * ['OK', newVisibilityRevision, operation, stateChanged, wasInitialized] on success
  * ['ERR', errorCode] on failure
  */
 const ATOMIC_VISIBILITY_MUTATION_SCRIPT = `
@@ -688,21 +691,57 @@ const ATOMIC_VISIBILITY_MUTATION_SCRIPT = `
     end
   end
   
-  -- Read current hiddenGallery
+  -- Read current hiddenGallery with atomic initialization
   local visibilityData = redis.call('GET', visibilityKey)
   local hiddenGallery = {}
+  local currentVisibilityRevision = 0
+  local wasInitialized = false
   
   if visibilityData then
+    -- Validate existing authority before using it
     if type(visibilityData) == 'string' then
       local vParsed = cjson.decode(visibilityData)
-      if vParsed and vParsed.hiddenGallery then
-        hiddenGallery = vParsed.hiddenGallery
+      if vParsed and vParsed.schemaVersion == 1 and vParsed.projectId == projectId then
+        -- Valid authority
+        if vParsed.hiddenGallery then
+          hiddenGallery = vParsed.hiddenGallery
+        end
+        if vParsed.visibilityRevision then
+          currentVisibilityRevision = vParsed.visibilityRevision
+        end
+      else
+        -- Malformed authority - fail closed
+        return {'ERR', 'MALFORMED_AUTHORITY'}
       end
     elseif type(visibilityData) == 'table' then
-      if visibilityData.hiddenGallery then
-        hiddenGallery = visibilityData.hiddenGallery
+      if visibilityData.schemaVersion == 1 and visibilityData.projectId == projectId then
+        -- Valid authority
+        if visibilityData.hiddenGallery then
+          hiddenGallery = visibilityData.hiddenGallery
+        end
+        if visibilityData.visibilityRevision then
+          currentVisibilityRevision = visibilityData.visibilityRevision
+        end
+      else
+        -- Malformed authority - fail closed
+        return {'ERR', 'MALFORMED_AUTHORITY'}
       end
+    else
+      -- Invalid data type - fail closed
+      return {'ERR', 'INVALID_DATA_TYPE'}
     end
+  else
+    -- Authority missing - initialize atomically with valid empty authority
+    local initPayload = {
+      schemaVersion = 1,
+      projectId = projectId,
+      hiddenGallery = {},
+      visibilityRevision = 0,
+      initializedAt = initializedAt,
+      lastMutationTimestamp = mutationTimestamp
+    }
+    redis.call('SET', visibilityKey, cjson.encode(initPayload))
+    wasInitialized = true
   end
   
   -- Convert to Set for deduplication
@@ -770,7 +809,7 @@ const ATOMIC_VISIBILITY_MUTATION_SCRIPT = `
   
   redis.call('SET', visibilityKey, cjson.encode(visibilityPayload))
   
-  return {'OK', newVisibilityRevision, operation, stateChanged}
+  return {'OK', newVisibilityRevision, operation, stateChanged, wasInitialized}
 `;
 
 // Export the visibility mutation script for use in gallery route

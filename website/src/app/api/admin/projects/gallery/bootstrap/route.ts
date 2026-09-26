@@ -23,10 +23,16 @@ import { getRedisClient } from '@/lib/deployment-transaction';
 export const runtime = 'nodejs';
 
 const WORKBENCH_RUNTIME_PREFIX = 'workbench-runtime-gallery:';
+const WORKBENCH_VISIBILITY_PREFIX = 'workbench-visibility-gallery:';
 
 function getRuntimeGalleryKey(projectId: string): string {
   const namespace = getKvNamespace();
   return `${namespace}${WORKBENCH_RUNTIME_PREFIX}${projectId}`;
+}
+
+function getVisibilityKey(projectId: string): string {
+  const namespace = getKvNamespace();
+  return `${namespace}${WORKBENCH_VISIBILITY_PREFIX}${projectId}`;
 }
 
 export async function POST(request: Request) {
@@ -85,6 +91,7 @@ export async function POST(request: Request) {
     // P0 FIX: Use atomic create-if-absent semantics to prevent race conditions
     // Two simultaneous bootstrap requests should not both overwrite
     const runtimeKey = getRuntimeGalleryKey(projectId);
+    const visibilityKey = getVisibilityKey(projectId);
     
     // Use Redis SET with NX (set if not exists) for atomic create-if-absent
     const setResult = await redis.set(runtimeKey, runtimePayload, { nx: true });
@@ -104,11 +111,33 @@ export async function POST(request: Request) {
       );
     }
 
+    // P0 FIX: Initialize visibility authority atomically with gallery authority
+    // Every initialized gallery membership authority must have a corresponding initialized visibility authority
+    const visibilityPayload = {
+      schemaVersion: 1,
+      projectId,
+      hiddenGallery: [],
+      visibilityRevision: 0,
+      initializedAt: new Date().toISOString(),
+      lastMutationTimestamp: new Date().toISOString(),
+    };
+
+    // Use atomic create-if-absent for visibility as well
+    const visibilitySetResult = await redis.set(visibilityKey, visibilityPayload, { nx: true });
+
+    if (!visibilitySetResult) {
+      // Visibility authority already exists - do not overwrite it
+      console.log('[GALLERY BOOTSTRAP] VISIBILITY_ALREADY_EXISTS', { projectId });
+    } else {
+      console.log('[GALLERY BOOTSTRAP] VISIBILITY_INITIALIZED', { projectId });
+    }
+
     console.log('[GALLERY BOOTSTRAP] SUCCESS', {
       projectId,
       galleryLength: gallery.length,
       currentRevision: galleryRevision,
       source: 'filesystem-bootstrap',
+      visibilityInitialized: visibilitySetResult,
     });
 
     return NextResponse.json({
@@ -118,6 +147,7 @@ export async function POST(request: Request) {
       galleryLength: gallery.length,
       currentRevision: galleryRevision,
       source: 'filesystem-bootstrap',
+      visibilityInitialized: visibilitySetResult,
       message: "Runtime authority initialized from filesystem projection",
     });
   } catch (error) {
