@@ -785,7 +785,9 @@ export default function MediaWorkbench() {
               vercelStatus: statusData.vercelStatus,
             });
             
-            if (statusData.status === 'PUBLISHED' || statusData.status === 'COMMITTED_DEPLOYING' || statusData.status === 'committed') {
+            // Only accept PUBLISHED (Vercel READY) as deployment complete
+            // COMMITTED_DEPLOYING and committed mean Git commit succeeded but Vercel is still BUILDING
+            if (statusData.status === 'PUBLISHED') {
               console.log('[WB_GALLERY] DEPLOYMENT_COMPLETE', { 
                 commitSha: deployResult.commitSha,
                 finalStatus: statusData.status,
@@ -798,8 +800,9 @@ export default function MediaWorkbench() {
             pollCount++;
           }
 
-          // CRITICAL FIX: Deployment readback barrier
+          // CRITICAL FIX: Deployment readback barrier with polling
           // Verify runtime authority has converged before declaring success
+          // Poll until expected revision/gallery appears or timeout
           if (deploymentPublished) {
             console.log('[WB_GALLERY] PERFORMING_RUNTIME_AUTHORITY_READBACK', {
               projectId,
@@ -807,49 +810,74 @@ export default function MediaWorkbench() {
               submittedGallery: submittedGallery,
             });
 
-            const readbackResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
-            
-            if (!readbackResponse.ok) {
-              console.error('[WB_GALLERY] READBACK_FAILED', { status: readbackResponse.status });
-              alert(`Gallery changes deployed but runtime authority verification failed. Transaction preserved. Please refresh and verify.`);
-              return;
-            }
+            let readbackPollCount = 0;
+            const maxReadbackPolls = 30; // 30 seconds max for readback
+            const readbackPollInterval = 1000; // 1 second
+            let readbackVerified = false;
 
-            const readbackData = await readbackResponse.json();
-            console.log('[WB_GALLERY] READBACK_DATA', {
-              projectId,
-              runtimeRevision: readbackData.currentRevision,
-              runtimeGallery: readbackData.gallery,
-              expectedNewRevision: result.currentRevision,
-              submittedGallery: submittedGallery,
-            });
+            while (readbackPollCount < maxReadbackPolls) {
+              await new Promise(resolve => setTimeout(resolve, readbackPollInterval));
 
-            // Verify runtime revision matches expected new revision
-            if (readbackData.currentRevision !== result.currentRevision) {
-              console.error('[WB_GALLERY] READBACK_REVISION_MISMATCH', {
-                expected: result.currentRevision,
-                actual: readbackData.currentRevision,
+              const readbackResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+              
+              if (!readbackResponse.ok) {
+                console.error('[WB_GALLERY] READBACK_FAILED', { status: readbackResponse.status });
+                alert(`Gallery changes deployed but runtime authority verification failed. Transaction preserved. Please refresh and verify.`);
+                return;
+              }
+
+              const readbackData = await readbackResponse.json();
+              console.log('[WB_GALLERY] READBACK_DATA', {
+                projectId,
+                runtimeRevision: readbackData.currentRevision,
+                runtimeGallery: readbackData.gallery,
+                expectedNewRevision: result.currentRevision,
+                submittedGallery: submittedGallery,
+                readbackPollCount,
               });
-              alert(`Gallery changes deployed but runtime revision mismatch. Expected ${result.currentRevision}, got ${readbackData.currentRevision}. Transaction preserved.`);
-              return;
-            }
 
-            // Verify runtime gallery matches submitted gallery
-            const runtimeGalleryMatches = JSON.stringify(readbackData.gallery) === JSON.stringify(submittedGallery);
-            if (!runtimeGalleryMatches) {
-              console.error('[WB_GALLERY] READBACK_GALLERY_MISMATCH', {
-                submitted: submittedGallery,
-                runtime: readbackData.gallery,
+              // Verify runtime revision matches expected new revision
+              if (readbackData.currentRevision !== result.currentRevision) {
+                console.log('[WB_GALLERY] READBACK_REVISION_NOT_YET_CONVERGED', {
+                  expected: result.currentRevision,
+                  actual: readbackData.currentRevision,
+                  readbackPollCount,
+                });
+                readbackPollCount++;
+                continue;
+              }
+
+              // Verify runtime gallery matches submitted gallery
+              const runtimeGalleryMatches = JSON.stringify(readbackData.gallery) === JSON.stringify(submittedGallery);
+              if (!runtimeGalleryMatches) {
+                console.log('[WB_GALLERY] READBACK_GALLERY_NOT_YET_CONVERGED', {
+                  submitted: submittedGallery,
+                  runtime: readbackData.gallery,
+                  readbackPollCount,
+                });
+                readbackPollCount++;
+                continue;
+              }
+
+              console.log('[WB_GALLERY] READBACK_VERIFIED', {
+                projectId,
+                runtimeRevision: readbackData.currentRevision,
+                runtimeGalleryMatches,
+                readbackPollCount,
               });
-              alert(`Gallery changes deployed but runtime gallery content mismatch. Transaction preserved.`);
-              return;
+              readbackVerified = true;
+              break;
             }
 
-            console.log('[WB_GALLERY] READBACK_VERIFIED', {
-              projectId,
-              runtimeRevision: readbackData.currentRevision,
-              runtimeGalleryMatches,
-            });
+            if (!readbackVerified) {
+              console.error('[WB_GALLERY] READBACK_TIMEOUT', {
+                projectId,
+                expectedNewRevision: result.currentRevision,
+                maxReadbackPolls,
+              });
+              alert(`Gallery changes deployed but runtime authority verification timed out after ${maxReadbackPolls} seconds. Transaction preserved for retry.`);
+              return;
+            }
           } else {
             console.error('[WB_GALLERY] DEPLOYMENT_TIMEOUT', {
               commitSha: deployResult.commitSha,
@@ -916,6 +944,40 @@ export default function MediaWorkbench() {
       galleryProjectId: null,
     }));
     alert('Pending gallery changes canceled.');
+  };
+
+  const handleGalleryVisibility = async (projectId: string, mediaId: string, operation: 'hide' | 'unhide') => {
+    try {
+      const response = await fetch('/api/admin/projects/gallery/visibility', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ projectId, mediaId, operation }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('[WB_GALLERY] VISIBILITY_FAILED', { error });
+        alert(`Failed to ${operation} gallery item: ${error.error || error.message}`);
+        return;
+      }
+
+      const result = await response.json();
+      console.log('[WB_GALLERY] VISIBILITY_SUCCESS', {
+        projectId,
+        mediaId,
+        operation,
+        newRevision: result.visibilityRevision,
+      });
+
+      // Reload canonical data to reflect visibility changes
+      await loadCanonicalData();
+      if (iframeRef.current) {
+        iframeRef.current.src = iframeRef.current.src;
+      }
+    } catch (error) {
+      console.error('[WB_GALLERY] VISIBILITY_ERROR', error);
+      alert(`Failed to ${operation} gallery item: ${error instanceof Error ? error.message : String(error)}`);
+    }
   };
 
   const handleAssetClick = (asset: VisualAsset) => {
@@ -1819,7 +1881,7 @@ export default function MediaWorkbench() {
 
       // Validate source is the expected iframe for mutation messages
       const messageType = event.data?.type;
-      const mutationMessageTypes = ['SLOT_REGISTER', 'SLOT_CLICK', 'SLOT_DROP', 'SLOT_REORDER', 'GALLERY_ADD', 'BRIDGE_READY'];
+      const mutationMessageTypes = ['SLOT_REGISTER', 'SLOT_CLICK', 'SLOT_DROP', 'SLOT_REORDER', 'GALLERY_ADD', 'GALLERY_HIDE', 'BRIDGE_READY'];
       
       if (mutationMessageTypes.includes(messageType)) {
         if (event.source !== iframeRef.current?.contentWindow) {
@@ -1846,7 +1908,7 @@ export default function MediaWorkbench() {
       });
 
       // Filter to only process application's known message types
-      const knownMessageTypes = ['SLOT_REGISTER', 'SLOT_DROP', 'SLOT_CLICK', 'SLOT_REORDER', 'GALLERY_ADD', 'REFRESH_SLOTS', 'BRIDGE_READY'];
+      const knownMessageTypes = ['SLOT_REGISTER', 'SLOT_DROP', 'SLOT_CLICK', 'SLOT_REORDER', 'GALLERY_ADD', 'GALLERY_HIDE', 'REFRESH_SLOTS', 'BRIDGE_READY'];
       if (!knownMessageTypes.includes(messageType)) {
         console.log('[WB_FORENSIC] MESSAGE_REJECTED', {
           reason: 'UNKNOWN_MESSAGE_TYPE',
@@ -2604,6 +2666,29 @@ export default function MediaWorkbench() {
           });
           alert(`Failed to queue gallery add: ${error instanceof Error ? error.message : String(error)}`);
         }
+      } else if (messageType === 'GALLERY_HIDE') {
+        const { projectId, mediaId } = event.data;
+
+        console.log('[WB_GALLERY] GALLERY_HIDE_RECEIVED', {
+          projectId,
+          mediaId,
+        });
+
+        if (!projectId || !mediaId) {
+          console.error('[WB_GALLERY] GALLERY_HIDE_MISSING_FIELDS', {
+            projectId,
+            mediaId,
+          });
+          return;
+        }
+
+        const confirmed = confirm(`Hide this image from the gallery?\n\nThis will not delete the media asset, only hide it from the public gallery presentation.`);
+        if (!confirmed) {
+          console.log('[WB_GALLERY] GALLERY_HIDE_CANCELLED');
+          return;
+        }
+
+        await handleGalleryVisibility(projectId, mediaId, 'hide');
       } else if (messageType === 'REFRESH_SLOTS') {
         console.log('[WB_FORENSIC] REFRESH_SLOTS_RECEIVED');
         loadCanonicalData();
@@ -3103,6 +3188,37 @@ export default function MediaWorkbench() {
             <span className="text-xs text-amber-700 dark:text-amber-300">
               {state.galleryProjectId ? `Project: ${state.galleryProjectId}` : ''}
             </span>
+          </div>
+        </div>
+      )}
+
+      {/* Gallery Edit Controls Bar (when on a gallery-enabled page) */}
+      {state.selectedPage === '/our-work' && !state.pendingGalleryOrder && (
+        <div className="shrink-0 border-b border-border bg-blue-50 dark:bg-blue-950/20 px-4 py-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-blue-900 dark:text-blue-100">
+              Gallery Editing Active
+            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-blue-700 dark:text-blue-300">
+                Drag media from left panel to add to gallery
+              </span>
+              {state.selectedAsset && (
+                <button
+                  onClick={() => {
+                    // For now, require user to specify project ID when hiding
+                    const projectId = prompt('Enter project ID to hide this asset from (e.g., fences-001):');
+                    if (projectId && state.selectedAsset) {
+                      handleGalleryVisibility(projectId, state.selectedAsset.id, 'hide');
+                    }
+                  }}
+                  disabled={state.mutationState !== 'idle'}
+                  className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white text-xs font-medium rounded disabled:opacity-50 transition-colors"
+                >
+                  Hide Selected Asset
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

@@ -628,6 +628,132 @@ const ATOMIC_GALLERY_MUTATION_SCRIPT = `
 export { ATOMIC_GALLERY_MUTATION_SCRIPT };
 
 /**
+ * Atomic Lua script for gallery visibility mutations
+ * 
+ * Atomically hides or unhides a gallery item without modifying gallery membership/order
+ * Guardrail: Cannot hide an asset that isn't currently in the gallery
+ * 
+ * Returns indexed array for proper RESP2 serialization:
+ * ['OK', newVisibilityRevision, operation] on success
+ * ['ERR', errorCode] on failure
+ */
+const ATOMIC_VISIBILITY_MUTATION_SCRIPT = `
+  local runtimeGalleryKey = KEYS[1]
+  local visibilityKey = KEYS[2]
+  local mediaId = ARGV[1]
+  local operation = ARGV[2] -- 'hide' or 'unhide'
+  
+  -- Read runtime gallery authority
+  local runtimeData = redis.call('GET', runtimeGalleryKey)
+  
+  if not runtimeData then
+    return {'ERR', 'RUNTIME_AUTHORITY_NOT_INITIALIZED'}
+  end
+  
+  local parsed
+  if type(runtimeData) == 'string' then
+    parsed = cjson.decode(runtimeData)
+  elseif type(runtimeData) == 'table' then
+    parsed = runtimeData
+  else
+    return {'ERR', 'INVALID_RUNTIME_DATA_TYPE'}
+  end
+  
+  if not parsed or not parsed.gallery then
+    return {'ERR', 'INVALID_RUNTIME_DATA_STRUCTURE'}
+  end
+  
+  local gallery = parsed.gallery
+  
+  -- Guardrail: Verify mediaId is actually in the gallery (for hide operation)
+  if operation == 'hide' then
+    local found = false
+    for i, id in ipairs(gallery) do
+      if id == mediaId then
+        found = true
+        break
+      end
+    end
+    
+    if not found then
+      return {'ERR', 'MEDIA_ID_NOT_IN_GALLERY'}
+    end
+  end
+  
+  -- Read current hiddenGallery
+  local visibilityData = redis.call('GET', visibilityKey)
+  local hiddenGallery = {}
+  
+  if visibilityData then
+    if type(visibilityData) == 'string' then
+      local vParsed = cjson.decode(visibilityData)
+      if vParsed and vParsed.hiddenGallery then
+        hiddenGallery = vParsed.hiddenGallery
+      end
+    elseif type(visibilityData) == 'table' then
+      if visibilityData.hiddenGallery then
+        hiddenGallery = visibilityData.hiddenGallery
+      end
+    end
+  end
+  
+  -- Convert to Set for deduplication
+  local hiddenSet = {}
+  for i, id in ipairs(hiddenGallery) do
+    hiddenSet[id] = true
+  end
+  
+  if operation == 'hide' then
+    -- Add to hiddenGallery if not already hidden
+    if not hiddenSet[mediaId] then
+      table.insert(hiddenGallery, mediaId)
+    end
+  elseif operation == 'unhide' then
+    -- Remove from hiddenGallery
+    local newHiddenGallery = {}
+    for i, id in ipairs(hiddenGallery) do
+      if id ~= mediaId then
+        table.insert(newHiddenGallery, id)
+      end
+    end
+    hiddenGallery = newHiddenGallery
+  else
+    return {'ERR', 'INVALID_OPERATION'}
+  end
+  
+  -- Increment visibility revision
+  local currentVisibilityRevision = 0
+  if visibilityData then
+    if type(visibilityData) == 'string' then
+      local vParsed = cjson.decode(visibilityData)
+      if vParsed and vParsed.visibilityRevision then
+        currentVisibilityRevision = vParsed.visibilityRevision
+      end
+    elseif type(visibilityData) == 'table' then
+      if visibilityData.visibilityRevision then
+        currentVisibilityRevision = visibilityData.visibilityRevision
+      end
+    end
+  end
+  
+  local newVisibilityRevision = currentVisibilityRevision + 1
+  
+  -- Write updated visibility authority
+  local visibilityPayload = {
+    hiddenGallery = hiddenGallery,
+    visibilityRevision = newVisibilityRevision,
+    lastMutationTimestamp = ARGV[3]
+  }
+  
+  redis.call('SET', visibilityKey, cjson.encode(visibilityPayload))
+  
+  return {'OK', newVisibilityRevision, operation}
+`;
+
+// Export the visibility mutation script for use in gallery route
+export { ATOMIC_VISIBILITY_MUTATION_SCRIPT };
+
+/**
  * Atomic Lua script for transaction creation with staging key aggregation
  * Creates new transaction if absent, atomically merges staging keys if exists
  * This supports bulk assignments: multiple assignments share one transaction ID

@@ -46,6 +46,7 @@ import { Redis } from '@upstash/redis';
 import { getKvNamespace } from '@/lib/environment';
 import { 
   ATOMIC_GALLERY_MUTATION_SCRIPT,
+  ATOMIC_VISIBILITY_MUTATION_SCRIPT,
   getRedisClient as getDeploymentRedisClient
 } from '@/lib/deployment-transaction';
 
@@ -53,6 +54,7 @@ export const runtime = 'nodejs';
 
 const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
 const WORKBENCH_RUNTIME_PREFIX = 'workbench-runtime-gallery:';
+const WORKBENCH_VISIBILITY_PREFIX = 'workbench-visibility-gallery:';
 
 /**
  * P0 FIX: Runtime gallery authority Redis key
@@ -63,6 +65,16 @@ const WORKBENCH_RUNTIME_PREFIX = 'workbench-runtime-gallery:';
 function getRuntimeGalleryKey(projectId: string): string {
   const namespace = getKvNamespace();
   return `${namespace}${WORKBENCH_RUNTIME_PREFIX}${projectId}`;
+}
+
+/**
+ * Visibility authority Redis key
+ * Stores hidden gallery IDs as a separate editorial authority
+ * This allows hiding gallery items without modifying the underlying gallery membership/order
+ */
+function getVisibilityKey(projectId: string): string {
+  const namespace = getKvNamespace();
+  return `${namespace}${WORKBENCH_VISIBILITY_PREFIX}${projectId}`;
 }
 
 function getRedisClient(): Redis | null {
@@ -188,12 +200,39 @@ export async function GET(request: Request) {
     // P0 FIX: If runtime authority exists, return it as current gallery
     // Do not substitute staged state for current gallery
     if (runtimeGallery && runtimeRevision !== null) {
+      // Read visibility authority
+      let hiddenGallery: string[] = [];
+      let visibilityRevision = 0;
+      
+      if (redis) {
+        const visibilityKey = getVisibilityKey(projectId);
+        const visibilityData = await redis.get(visibilityKey);
+        
+        if (visibilityData) {
+          let vParsed: any;
+          if (typeof visibilityData === 'string') {
+            vParsed = JSON.parse(visibilityData);
+          } else if (typeof visibilityData === 'object') {
+            vParsed = visibilityData;
+          }
+          
+          if (vParsed && vParsed.hiddenGallery) {
+            hiddenGallery = vParsed.hiddenGallery;
+          }
+          if (vParsed && vParsed.visibilityRevision) {
+            visibilityRevision = vParsed.visibilityRevision;
+          }
+        }
+      }
+      
       return NextResponse.json({
         success: true,
         projectId,
         gallery: runtimeGallery,
         galleryLength: runtimeGallery.length,
         currentRevision: runtimeRevision,
+        hiddenGallery,
+        visibilityRevision,
         state: 'runtime',
         hasStagedChanges: !!pendingDeployment,
         pendingDeployment,
@@ -655,6 +694,105 @@ export async function PUT(request: Request) {
       { 
         error: "Failed to update project gallery order",
       },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * PATCH /api/admin/projects/gallery/visibility
+ * 
+ * Hide or unhide a gallery item without modifying gallery membership/order
+ * Body: { projectId: string, mediaId: string, operation: 'hide' | 'unhide' }
+ */
+export async function PATCH(request: Request) {
+  // SECURITY: Require Workbench authentication
+  const isAuthenticated = await workbenchSession.isAuthenticated();
+  if (!isAuthenticated) {
+    return NextResponse.json(
+      { error: "Unauthorized", message: "Workbench authentication required" },
+      { status: 401 }
+    );
+  }
+
+  try {
+    const body = await request.json();
+    const { projectId, mediaId, operation } = body;
+
+    if (!projectId || !mediaId || !operation) {
+      return NextResponse.json(
+        { error: "projectId, mediaId, and operation are required" },
+        { status: 400 }
+      );
+    }
+
+    if (operation !== 'hide' && operation !== 'unhide') {
+      return NextResponse.json(
+        { error: "operation must be 'hide' or 'unhide'" },
+        { status: 400 }
+      );
+    }
+
+    console.log('[GALLERY VISIBILITY PATCH] REQUEST_RECEIVED', { projectId, mediaId, operation });
+
+    const redis = getRedisClient();
+    if (!redis) {
+      return NextResponse.json(
+        { error: "Redis unavailable", message: "Visibility mutations require Redis" },
+        { status: 503 }
+      );
+    }
+
+    const namespace = getKvNamespace();
+    const runtimeGalleryKey = getRuntimeGalleryKey(projectId);
+    const visibilityKey = getVisibilityKey(projectId);
+
+    const result = await redis.eval(
+      ATOMIC_VISIBILITY_MUTATION_SCRIPT,
+      [runtimeGalleryKey, visibilityKey],
+      [mediaId, operation, new Date().toISOString()]
+    ) as any[];
+
+    const status = result[0];
+    
+    if (status === 'ERR') {
+      const errorCode = result[1];
+      console.error('[GALLERY VISIBILITY PATCH] MUTATION_FAILED', { projectId, mediaId, operation, errorCode });
+      
+      if (errorCode === 'MEDIA_ID_NOT_IN_GALLERY') {
+        return NextResponse.json(
+          { error: "Media ID not in gallery", message: "Cannot hide an asset that isn't currently in the gallery" },
+          { status: 400 }
+        );
+      }
+      
+      return NextResponse.json(
+        { error: "Visibility mutation failed", message: errorCode },
+        { status: 500 }
+      );
+    }
+
+    const newVisibilityRevision = result[1];
+    const actualOperation = result[2];
+
+    console.log('[GALLERY VISIBILITY PATCH] SUCCESS', {
+      projectId,
+      mediaId,
+      operation: actualOperation,
+      newVisibilityRevision
+    });
+
+    return NextResponse.json({
+      success: true,
+      projectId,
+      mediaId,
+      operation: actualOperation,
+      visibilityRevision: newVisibilityRevision
+    });
+  } catch (error) {
+    console.error('[GALLERY VISIBILITY PATCH] ERROR', error);
+    return NextResponse.json(
+      { error: "Failed to update gallery visibility" },
       { status: 500 }
     );
   }
