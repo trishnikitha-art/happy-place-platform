@@ -11,7 +11,7 @@ import { getServiceBySlug } from "@/lib/registries";
 import { ProjectLightbox } from "@/components/project-lightbox";
 import { BlueprintGrid } from "@/components/blueprint-grid";
 import { VisualSlot } from "@/components/visual-slot";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { Project } from "@/types/projects";
 
 interface OurWorkClientProps {
@@ -30,6 +30,8 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxImages, setLightboxImages] = useState<Array<{src: string; alt: string; blurDataURL?: string}>>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const galleryGridRef = useRef<HTMLDivElement>(null);
+  const bridgedDragDataRef = useRef<any>(null);
 
   // P0 FIX: Reset drag state after drag operation completes
   useEffect(() => {
@@ -41,6 +43,94 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       return () => clearTimeout(timeout);
     }
   }, [isDragging]);
+
+  // P0 FIX: Add gallery-wide drop zone for Workbench mode
+  // Uses existing DRAG_START bridge protocol (application/x-workbench-asset)
+  useEffect(() => {
+    const isWorkbench = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('workbench');
+    if (!isWorkbench) return;
+
+    const container = galleryGridRef.current;
+    if (!container) return;
+
+    const handleDragStart = (e: MessageEvent) => {
+      // Only accept DRAG_START from parent at same origin
+      if (e.origin !== window.location.origin || e.source !== window.parent) {
+        return;
+      }
+
+      if (e.data.type === 'DRAG_START') {
+        console.log('[OUR_WORK] GALLERY_DRAG_START_RECEIVED', {
+          dragData: e.data.dragData,
+          timestamp: Date.now(),
+        });
+        bridgedDragDataRef.current = e.data.dragData;
+        setIsDragging(true);
+
+        // Clear bridged data after 5 seconds if no drop occurs
+        setTimeout(() => {
+          if (bridgedDragDataRef.current === e.data.dragData) {
+            console.log('[OUR_WORK] GALLERY_DRAG_START_EXPIRED');
+            bridgedDragDataRef.current = null;
+            setIsDragging(false);
+          }
+        }, 5000);
+      }
+    };
+
+    const handleDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      e.dataTransfer!.dropEffect = 'copy';
+    };
+
+    const handleDrop = (e: DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+
+      const dragData = bridgedDragDataRef.current;
+      if (!dragData) {
+        console.log('[OUR_WORK] GALLERY_DROP_NO_BRIDGED_DATA');
+        return;
+      }
+
+      // Use first project as default target for new gallery additions
+      const targetProject = allProjects[0];
+      if (!targetProject) {
+        console.error('[OUR_WORK] GALLERY_DROP_NO_PROJECT');
+        return;
+      }
+
+      console.log('[OUR_WORK] GALLERY_DROP_SENDING_ADD', {
+        projectId: targetProject.id,
+        assetId: dragData.assetId || dragData.fileId,
+        source: dragData.source,
+        timestamp: Date.now(),
+      });
+
+      // Send GALLERY_ADD message to parent Workbench
+      if (window.parent !== window) {
+        window.parent.postMessage({
+          type: 'GALLERY_ADD',
+          slotId: `gallery:${targetProject.id}`,
+          projectId: targetProject.id,
+          assetId: dragData.assetId || dragData.fileId,
+          applicationData: dragData,
+        }, window.location.origin);
+      }
+
+      bridgedDragDataRef.current = null;
+    };
+
+    window.addEventListener('message', handleDragStart);
+    container.addEventListener('dragover', handleDragOver);
+    container.addEventListener('drop', handleDrop);
+
+    return () => {
+      window.removeEventListener('message', handleDragStart);
+      container.removeEventListener('dragover', handleDragOver);
+      container.removeEventListener('drop', handleDrop);
+    };
+  }, [allProjects]);
 
   const openLightbox = (images: Array<{src: string; alt: string; blurDataURL?: string}>, index: number) => {
     // P0 FIX: Prevent lightbox from opening during/after drag operation
@@ -176,7 +266,10 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
             title={<span className="text-text-on-dark">The complete archive</span>}
             description={<span className="text-text-on-dark/90">Every project, every detail. Future projects simply append here.</span>}
           />
-          <div className="gallery-grid mt-10 columns-2 gap-4 space-y-4 md:columns-3 lg:columns-4">
+          <div 
+            className={`gallery-grid mt-10 columns-2 gap-4 space-y-4 md:columns-3 lg:columns-4 ${isDragging ? 'ring-2 ring-dashed ring-primary/50 ring-offset-2' : ''}`}
+            ref={galleryGridRef}
+          >
             {allProjects.map((project, projectIndex) => {
               // P0 FIX: Use pre-validated galleryMedia from server-side resolution (passed public media gate)
               // This prevents client-side getMediaById() bypass
