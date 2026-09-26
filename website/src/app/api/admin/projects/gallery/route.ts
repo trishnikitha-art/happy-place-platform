@@ -704,6 +704,10 @@ export async function PUT(request: Request) {
  * 
  * Hide or unhide a gallery item without modifying gallery membership/order
  * Body: { projectId: string, mediaId: string, operation: 'hide' | 'unhide' }
+ * 
+ * Authorization: Requires Workbench authentication (workbenchSession.isAuthenticated)
+ * Invariant: Any authenticated Workbench user may mutate visibility for any project
+ * This is consistent with the existing Workbench authorization model (no project-level authorization)
  */
 export async function PATCH(request: Request) {
   // SECURITY: Require Workbench authentication
