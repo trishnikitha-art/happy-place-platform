@@ -753,10 +753,10 @@ export async function PATCH(request: Request) {
       [mediaId, operation, new Date().toISOString()]
     ) as any[];
 
-    const status = result[0];
+    const status = result[0] as string;
     
     if (status === 'ERR') {
-      const errorCode = result[1];
+      const errorCode = result[1] as string;
       console.error('[GALLERY VISIBILITY PATCH] MUTATION_FAILED', { projectId, mediaId, operation, errorCode });
       
       if (errorCode === 'MEDIA_ID_NOT_IN_GALLERY') {
@@ -772,14 +772,16 @@ export async function PATCH(request: Request) {
       );
     }
 
-    const newVisibilityRevision = result[1];
-    const actualOperation = result[2];
+    const newVisibilityRevision = result[1] as number;
+    const actualOperation = result[2] as string;
+    const stateChanged = result[3] as boolean;
 
     console.log('[GALLERY VISIBILITY PATCH] SUCCESS', {
       projectId,
       mediaId,
       operation: actualOperation,
-      newVisibilityRevision
+      newVisibilityRevision,
+      stateChanged,
     });
 
     return NextResponse.json({
@@ -787,7 +789,8 @@ export async function PATCH(request: Request) {
       projectId,
       mediaId,
       operation: actualOperation,
-      visibilityRevision: newVisibilityRevision
+      visibilityRevision: newVisibilityRevision,
+      stateChanged,
     });
   } catch (error) {
     console.error('[GALLERY VISIBILITY PATCH] ERROR', error);

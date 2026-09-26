@@ -632,9 +632,11 @@ export { ATOMIC_GALLERY_MUTATION_SCRIPT };
  * 
  * Atomically hides or unhides a gallery item without modifying gallery membership/order
  * Guardrail: Cannot hide an asset that isn't currently in the gallery
+ * Idempotent: hide/unhide only increments revision when state actually changes
+ * Lifecycle: Hidden state persists across gallery removal/re-addition (editorial intent)
  * 
  * Returns indexed array for proper RESP2 serialization:
- * ['OK', newVisibilityRevision, operation] on success
+ * ['OK', newVisibilityRevision, operation, stateChanged] on success
  * ['ERR', errorCode] on failure
  */
 const ATOMIC_VISIBILITY_MUTATION_SCRIPT = `
@@ -703,25 +705,7 @@ const ATOMIC_VISIBILITY_MUTATION_SCRIPT = `
     hiddenSet[id] = true
   end
   
-  if operation == 'hide' then
-    -- Add to hiddenGallery if not already hidden
-    if not hiddenSet[mediaId] then
-      table.insert(hiddenGallery, mediaId)
-    end
-  elseif operation == 'unhide' then
-    -- Remove from hiddenGallery
-    local newHiddenGallery = {}
-    for i, id in ipairs(hiddenGallery) do
-      if id ~= mediaId then
-        table.insert(newHiddenGallery, id)
-      end
-    end
-    hiddenGallery = newHiddenGallery
-  else
-    return {'ERR', 'INVALID_OPERATION'}
-  end
-  
-  -- Increment visibility revision
+  -- Read current visibility revision
   local currentVisibilityRevision = 0
   if visibilityData then
     if type(visibilityData) == 'string' then
@@ -736,9 +720,38 @@ const ATOMIC_VISIBILITY_MUTATION_SCRIPT = `
     end
   end
   
-  local newVisibilityRevision = currentVisibilityRevision + 1
+  local stateChanged = false
   
-  -- Write updated visibility authority
+  if operation == 'hide' then
+    -- Add to hiddenGallery if not already hidden
+    if not hiddenSet[mediaId] then
+      table.insert(hiddenGallery, mediaId)
+      stateChanged = true
+    end
+  elseif operation == 'unhide' then
+    -- Remove from hiddenGallery
+    if hiddenSet[mediaId] then
+      local newHiddenGallery = {}
+      for i, id in ipairs(hiddenGallery) do
+        if id ~= mediaId then
+          table.insert(newHiddenGallery, id)
+        end
+      end
+      hiddenGallery = newHiddenGallery
+      stateChanged = true
+    end
+  else
+    return {'ERR', 'INVALID_OPERATION'}
+  end
+  
+  -- Increment visibility revision only if state actually changed
+  local newVisibilityRevision = currentVisibilityRevision
+  if stateChanged then
+    newVisibilityRevision = currentVisibilityRevision + 1
+  end
+  
+  -- Write updated visibility authority with 30-day TTL
+  -- Visibility is durable editorial authority, but TTL provides cleanup for abandoned state
   local visibilityPayload = {
     hiddenGallery = hiddenGallery,
     visibilityRevision = newVisibilityRevision,
@@ -746,8 +759,9 @@ const ATOMIC_VISIBILITY_MUTATION_SCRIPT = `
   }
   
   redis.call('SET', visibilityKey, cjson.encode(visibilityPayload))
+  redis.call('EXPIRE', visibilityKey, 2592000) -- 30 days
   
-  return {'OK', newVisibilityRevision, operation}
+  return {'OK', newVisibilityRevision, operation, stateChanged}
 `;
 
 // Export the visibility mutation script for use in gallery route

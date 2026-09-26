@@ -2,16 +2,24 @@
  * Effective Project Gallery Authority
  *
  * Combines deployed project gallery with staged mutations (production)
- * to provide the single authoritative ordered gallery for projection.
+ * and visibility filtering to provide the single authoritative ordered gallery for projection.
  *
  * Architecture:
  * - Immutable media identity: PublishedMediaAsset
- * - Mutable editorial ordering: project.media.gallery[]
- * - Production staging: Redis KV mutations
- * - Effective authority: deployed + staged (merged)
+ * - Mutable editorial ordering: project.media.gallery[] (galleryRevision)
+ * - Mutable editorial visibility: workbench-visibility-gallery:{projectId} (visibilityRevision)
+ * - Production staging: Redis KV mutations (galleryRevision)
+ * - Effective authority: deployed + staged + visibility-filtered
+ *
+ * IMPORTANT: galleryRevision and visibilityRevision are INDEPENDENT authorities
+ * - Gallery mutation increments galleryRevision
+ * - Visibility mutation increments visibilityRevision
+ * - They are NOT atomically coupled
+ * - Visibility is independently authoritative and immediately public
+ * - The public projection consumes (gallery state, visibility state) as independent inputs
  *
  * This resolver ensures the website projection always sees the current
- * editorial state, whether it's the deployed baseline or staged mutations.
+ * editorial state, whether it's the deployed baseline, staged mutations, or visibility-filtered state.
  */
 
 import { loadProjectsManifest } from './projects';
@@ -187,10 +195,12 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
   }
 
   // Apply visibility filter (hidden items) in both dev and production
-  // CRITICAL: Fail closed behavior
-  // - Redis unavailable: Return baseline (last deployed state) to preserve site functionality
-  // - This is acceptable because hidden state is Redis-only; baseline represents last known safe deployment
-  // - Items hidden after last deployment would be exposed during Redis outage, but site remains functional
+  // CRITICAL: True fail-closed behavior
+  // - If visibility authority cannot be read reliably, do NOT expose potentially hidden media
+  // - Redis unavailable in production: Return empty gallery to prevent accidental exposure
+  // - Redis read error: Return empty gallery to prevent accidental exposure
+  // - This is the safe default when visibility authority is unavailable
+  // - Site functionality is preserved (empty gallery vs exposing hidden media)
   const redis = getRedisClient();
   if (redis) {
     try {
@@ -221,25 +231,24 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
         }
       }
     } catch (error) {
-      console.error('[EFFECTIVE_GALLERY] VISIBILITY_FILTER_ERROR - RETURNING_BASELINE', {
+      console.error('[EFFECTIVE_GALLERY] VISIBILITY_FILTER_ERROR - FAILING_CLOSED', {
         projectId,
         error: error instanceof Error ? error.message : String(error),
-        decision: 'Returning baseline gallery (last deployed state) to preserve site functionality',
-        note: 'Items hidden after last deployment may be exposed during Redis outage',
+        decision: 'Returning empty gallery to prevent accidental exposure of hidden media',
       });
-      // Return baseline gallery to preserve site functionality
-      // This is fail-closed enough: we return known safe deployed state
-      return effectiveGallery;
+      // TRUE FAIL-CLOSED: Return empty gallery to prevent accidental exposure
+      // This is the safe default when visibility authority is unavailable
+      return [];
     }
   } else {
-    // Redis client unavailable
+    // Redis client unavailable - fail closed in production
     const environment = getEnvironment();
     if (environment === 'production') {
-      console.warn('[EFFECTIVE_GALLERY] REDIS_UNAVAILABLE_IN_PRODUCTION - RETURNING_BASELINE', {
+      console.error('[EFFECTIVE_GALLERY] REDIS_UNAVAILABLE_IN_PRODUCTION - FAILING_CLOSED', {
         projectId,
-        decision: 'Returning baseline gallery (last deployed state) to preserve site functionality',
-        note: 'Items hidden after last deployment may be exposed during Redis outage',
+        decision: 'Returning empty gallery to prevent accidental exposure of hidden media',
       });
+      return [];
     }
   }
 
