@@ -29,14 +29,21 @@ import { workbenchSession } from "@/lib/workbench-session";
 import { Redis } from '@upstash/redis';
 import { getKvNamespace } from '@/lib/environment';
 import { getRedisClient } from '@/lib/deployment-transaction';
+import { ATOMIC_GALLERY_VISIBILITY_BOOTSTRAP_SCRIPT } from '@/lib/deployment-transaction';
 
 export const runtime = 'nodejs';
 
 const WORKBENCH_RUNTIME_PREFIX = 'workbench-runtime-gallery:';
+const WORKBENCH_VISIBILITY_PREFIX = 'workbench-visibility-gallery:';
 
 function getRuntimeGalleryKey(projectId: string): string {
   const namespace = getKvNamespace();
   return `${namespace}${WORKBENCH_RUNTIME_PREFIX}${projectId}`;
+}
+
+function getVisibilityKey(projectId: string): string {
+  const namespace = getKvNamespace();
+  return `${namespace}${WORKBENCH_VISIBILITY_PREFIX}${projectId}`;
 }
 
 export async function POST(request: Request) {
@@ -78,6 +85,7 @@ export async function POST(request: Request) {
     for (const project of projectsData.projects) {
       const projectId = project.id;
       const runtimeKey = getRuntimeGalleryKey(projectId);
+      const visibilityKey = getVisibilityKey(projectId);
 
       try {
         // Prepare runtime payload from filesystem projection
@@ -92,32 +100,57 @@ export async function POST(request: Request) {
           source: 'filesystem-bootstrap',
         };
 
-        // P0 FIX: Use atomic create-if-absent semantics (SET with NX)
-        // This prevents race conditions: two simultaneous requests cannot both overwrite
-        const setResult = await redis.set(runtimeKey, runtimePayload, { nx: true });
+        // P0 FIX: Initialize visibility authority atomically with gallery authority
+        const visibilityPayload = {
+          schemaVersion: 1,
+          projectId,
+          hiddenGallery: [],
+          visibilityRevision: 0,
+          initializedAt: new Date().toISOString(),
+          lastMutationTimestamp: new Date().toISOString(),
+        };
 
-        if (!setResult) {
-          // Key already exists - preserve existing authority
-          const existingRuntime = await redis.get(runtimeKey);
-          console.log('[GALLERY INITIALIZE-ALL] SKIPPED', {
+        // P0 FIX: Use atomic Lua script to handle all four states
+        const result = await redis.eval(
+          ATOMIC_GALLERY_VISIBILITY_BOOTSTRAP_SCRIPT,
+          [runtimeKey, visibilityKey],
+          [JSON.stringify(runtimePayload), JSON.stringify(visibilityPayload)]
+        ) as any[];
+
+        const status = result[0] as string;
+        const runtimeState = result[1] as string;
+        const visibilityState = result[2] as string;
+
+        if (status !== 'OK') {
+          console.error('[GALLERY INITIALIZE-ALL] PROJECT_FAILED', {
             projectId,
-            reason: 'Runtime authority already exists',
-            currentRevision: (existingRuntime as any)?.currentRevision,
-            lastTransactionId: (existingRuntime as any)?.lastTransactionId,
+            reason: 'Bootstrap failed',
+            status,
           });
-          results.skipped++;
+          results.failed++;
+          results.errors.push({
+            projectId,
+            error: 'Bootstrap failed',
+          });
           continue;
         }
 
-        // Authority was successfully initialized
-        console.log('[GALLERY INITIALIZE-ALL] INITIALIZED', {
-          projectId,
-          galleryLength: gallery.length,
-          currentRevision: galleryRevision,
-          source: 'filesystem-bootstrap',
-        });
-
-        results.initialized++;
+        if (runtimeState === 'EXISTING' && visibilityState === 'EXISTING') {
+          console.log('[GALLERY INITIALIZE-ALL] SKIPPED', {
+            projectId,
+            reason: 'Both authorities already exist',
+          });
+          results.skipped++;
+        } else {
+          console.log('[GALLERY INITIALIZE-ALL] INITIALIZED', {
+            projectId,
+            galleryLength: gallery.length,
+            currentRevision: galleryRevision,
+            runtimeState,
+            visibilityState,
+          });
+          results.initialized++;
+        }
       } catch (error) {
         console.error('[GALLERY INITIALIZE-ALL] PROJECT_FAILED', {
           projectId,

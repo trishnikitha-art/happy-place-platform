@@ -13,6 +13,43 @@ import { readFileSync } from 'fs';
 import { join } from 'path';
 import { Redis } from '@upstash/redis';
 
+// Import the atomic bootstrap script
+const ATOMIC_GALLERY_VISIBILITY_BOOTSTRAP_SCRIPT = `
+  local runtimeGalleryKey = KEYS[1]
+  local visibilityKey = KEYS[2]
+  local runtimePayload = ARGV[1]
+  local visibilityPayload = ARGV[2]
+  
+  local runtimeExists = redis.call('EXISTS', runtimeGalleryKey)
+  local visibilityExists = redis.call('EXISTS', visibilityKey)
+  
+  local runtimeState = 'EXISTING'
+  local visibilityState = 'EXISTING'
+  
+  -- Handle all four states
+  if runtimeExists == 1 and visibilityExists == 1 then
+    -- Both exist - NO-OP
+    return {'OK', 'EXISTING', 'EXISTING'}
+  elseif runtimeExists == 1 and visibilityExists == 0 then
+    -- Runtime exists, visibility missing - CREATE visibility
+    redis.call('SET', visibilityKey, visibilityPayload)
+    visibilityState = 'CREATED'
+    return {'OK', 'EXISTING', 'CREATED'}
+  elseif runtimeExists == 0 and visibilityExists == 1 then
+    -- Runtime missing, visibility exists - CREATE runtime
+    redis.call('SET', runtimeGalleryKey, runtimePayload)
+    runtimeState = 'CREATED'
+    return {'OK', 'CREATED', 'EXISTING'}
+  else
+    -- Both missing - CREATE BOTH
+    redis.call('SET', runtimeGalleryKey, runtimePayload)
+    redis.call('SET', visibilityKey, visibilityPayload)
+    runtimeState = 'CREATED'
+    visibilityState = 'CREATED'
+    return {'OK', 'CREATED', 'CREATED'}
+  end
+`;
+
 // Load environment variables
 const url = process.env.KV_REST_API_URL || process.env.KV_REST_API__KV_REST_API_URL || process.env.KV_REST_API__REDIS_URL || process.env.KV_REST_API__KV_URL;
 const token = process.env.KV_REST_API_TOKEN || process.env.KV_REST_API__KV_REST_API_TOKEN;
@@ -23,9 +60,11 @@ if (!url || !token) {
   process.exit(1);
 }
 
+// P0 FIX: Use canonical environment namespace mechanism
+const env = process.env.ENVIRONMENT || 'production';
 const WORKBENCH_RUNTIME_PREFIX = 'workbench-runtime-gallery:';
 const WORKBENCH_VISIBILITY_PREFIX = 'workbench-visibility-gallery:';
-const KV_NAMESPACE = 'hpp:production:';
+const KV_NAMESPACE = `hpp:${env}:`;
 
 function getRuntimeGalleryKey(projectId) {
   return `${KV_NAMESPACE}${WORKBENCH_RUNTIME_PREFIX}${projectId}`;
@@ -37,6 +76,7 @@ function getVisibilityKey(projectId) {
 
 async function main() {
   console.log('[BOOTSTRAP ALL] START', {
+    environment: env,
     timestamp: new Date().toISOString(),
   });
 
@@ -60,19 +100,6 @@ async function main() {
     const visibilityKey = getVisibilityKey(projectId);
 
     try {
-      // Check if runtime authority already exists
-      const existingRuntime = await redis.get(runtimeKey);
-
-      if (existingRuntime) {
-        console.log('[BOOTSTRAP ALL] SKIPPED', {
-          projectId,
-          reason: 'Runtime authority already exists',
-          currentRevision: existingRuntime.currentRevision,
-        });
-        results.skipped++;
-        continue;
-      }
-
       const gallery = project.media?.gallery || [];
       const galleryRevision = project.media?.galleryRevision || 0;
 
@@ -85,19 +112,7 @@ async function main() {
         source: 'filesystem-bootstrap',
       };
 
-      // Use atomic create-if-absent for runtime authority
-      const setResult = await redis.set(runtimeKey, runtimePayload, { nx: true });
-
-      if (!setResult) {
-        console.log('[BOOTSTRAP ALL] SKIPPED', {
-          projectId,
-          reason: 'Runtime authority already exists (race condition)',
-        });
-        results.skipped++;
-        continue;
-      }
-
-      // P0 FIX: Initialize visibility authority atomically with gallery authority
+      // Initialize visibility authority atomically with gallery authority
       const visibilityPayload = {
         schemaVersion: 1,
         projectId,
@@ -107,24 +122,48 @@ async function main() {
         lastMutationTimestamp: new Date().toISOString(),
       };
 
-      // Use atomic create-if-absent for visibility as well
-      const visibilitySetResult = await redis.set(visibilityKey, visibilityPayload, { nx: true });
+      // P0 FIX: Use atomic Lua script to handle all four states
+      const result = await redis.eval(
+        ATOMIC_GALLERY_VISIBILITY_BOOTSTRAP_SCRIPT,
+        [runtimeKey, visibilityKey],
+        [JSON.stringify(runtimePayload), JSON.stringify(visibilityPayload)]
+      );
 
-      if (!visibilitySetResult) {
-        console.log('[BOOTSTRAP ALL] VISIBILITY_ALREADY_EXISTS', { projectId });
-      } else {
-        console.log('[BOOTSTRAP ALL] VISIBILITY_INITIALIZED', { projectId });
+      const status = result[0];
+      const runtimeState = result[1];
+      const visibilityState = result[2];
+
+      if (status !== 'OK') {
+        console.error('[BOOTSTRAP ALL] FAILED', {
+          projectId,
+          reason: 'Bootstrap failed',
+          status,
+        });
+        results.failed++;
+        results.errors.push({
+          projectId,
+          error: 'Bootstrap failed',
+        });
+        continue;
       }
 
-      console.log('[BOOTSTRAP ALL] INITIALIZED', {
-        projectId,
-        galleryLength: gallery.length,
-        currentRevision: galleryRevision,
-        galleryIds: gallery,
-        visibilityInitialized: visibilitySetResult,
-      });
-
-      results.initialized++;
+      if (runtimeState === 'EXISTING' && visibilityState === 'EXISTING') {
+        console.log('[BOOTSTRAP ALL] SKIPPED', {
+          projectId,
+          reason: 'Both authorities already exist',
+        });
+        results.skipped++;
+      } else {
+        console.log('[BOOTSTRAP ALL] INITIALIZED', {
+          projectId,
+          galleryLength: gallery.length,
+          currentRevision: galleryRevision,
+          galleryIds: gallery,
+          runtimeState,
+          visibilityState,
+        });
+        results.initialized++;
+      }
     } catch (error) {
       console.error('[BOOTSTRAP ALL] FAILED', {
         projectId,

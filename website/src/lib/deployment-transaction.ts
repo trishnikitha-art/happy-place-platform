@@ -651,8 +651,13 @@ const ATOMIC_VISIBILITY_MUTATION_SCRIPT = `
   local operation = ARGV[2] -- 'hide' or 'unhide'
   local mutationTimestamp = ARGV[3]
   local projectId = ARGV[4]
-  local initializedAt = ARGV[5]
-  local initializedAt = ARGV[5]
+  local callerInitializedAt = ARGV[5]
+  
+  -- Determine initializedAt: use caller value if provided, otherwise use mutationTimestamp for new authority
+  local initializedAt = callerInitializedAt
+  if initializedAt == '' or initializedAt == nil then
+    initializedAt = mutationTimestamp
+  end
   
   -- Read runtime gallery authority
   local runtimeData = redis.call('GET', runtimeGalleryKey)
@@ -709,6 +714,10 @@ const ATOMIC_VISIBILITY_MUTATION_SCRIPT = `
         if vParsed.visibilityRevision then
           currentVisibilityRevision = vParsed.visibilityRevision
         end
+        -- Preserve existing initializedAt
+        if vParsed.initializedAt then
+          initializedAt = vParsed.initializedAt
+        end
       else
         -- Malformed authority - fail closed
         return {'ERR', 'MALFORMED_AUTHORITY'}
@@ -722,6 +731,10 @@ const ATOMIC_VISIBILITY_MUTATION_SCRIPT = `
         if visibilityData.visibilityRevision then
           currentVisibilityRevision = visibilityData.visibilityRevision
         end
+        -- Preserve existing initializedAt
+        if visibilityData.initializedAt then
+          initializedAt = visibilityData.initializedAt
+        end
       else
         -- Malformed authority - fail closed
         return {'ERR', 'MALFORMED_AUTHORITY'}
@@ -732,6 +745,8 @@ const ATOMIC_VISIBILITY_MUTATION_SCRIPT = `
     end
   else
     -- Authority missing - initialize atomically with valid empty authority
+    -- Use current timestamp as initializedAt for new authority
+    initializedAt = mutationTimestamp
     local initPayload = {
       schemaVersion = 1,
       projectId = projectId,
@@ -812,8 +827,57 @@ const ATOMIC_VISIBILITY_MUTATION_SCRIPT = `
   return {'OK', newVisibilityRevision, operation, stateChanged, wasInitialized}
 `;
 
+/**
+ * Atomic Lua script for gallery + visibility bootstrap
+ * 
+ * Handles all four states atomically:
+ * - runtime exists + visibility exists → NO-OP
+ * - runtime exists + visibility missing → CREATE visibility
+ * - runtime missing + visibility exists → CREATE runtime
+ * - runtime missing + visibility missing → CREATE BOTH
+ * 
+ * Never overwrites existing authority.
+ * Returns indexed array: ['OK', runtimeState, visibilityState]
+ * where runtimeState and visibilityState are 'EXISTING' or 'CREATED'
+ */
+const ATOMIC_GALLERY_VISIBILITY_BOOTSTRAP_SCRIPT = `
+  local runtimeGalleryKey = KEYS[1]
+  local visibilityKey = KEYS[2]
+  local runtimePayload = ARGV[1]
+  local visibilityPayload = ARGV[2]
+  
+  local runtimeExists = redis.call('EXISTS', runtimeGalleryKey)
+  local visibilityExists = redis.call('EXISTS', visibilityKey)
+  
+  local runtimeState = 'EXISTING'
+  local visibilityState = 'EXISTING'
+  
+  -- Handle all four states
+  if runtimeExists == 1 and visibilityExists == 1 then
+    -- Both exist - NO-OP
+    return {'OK', 'EXISTING', 'EXISTING'}
+  elseif runtimeExists == 1 and visibilityExists == 0 then
+    -- Runtime exists, visibility missing - CREATE visibility
+    redis.call('SET', visibilityKey, visibilityPayload)
+    visibilityState = 'CREATED'
+    return {'OK', 'EXISTING', 'CREATED'}
+  elseif runtimeExists == 0 and visibilityExists == 1 then
+    -- Runtime missing, visibility exists - CREATE runtime
+    redis.call('SET', runtimeGalleryKey, runtimePayload)
+    runtimeState = 'CREATED'
+    return {'OK', 'CREATED', 'EXISTING'}
+  else
+    -- Both missing - CREATE BOTH
+    redis.call('SET', runtimeGalleryKey, runtimePayload)
+    redis.call('SET', visibilityKey, visibilityPayload)
+    runtimeState = 'CREATED'
+    visibilityState = 'CREATED'
+    return {'OK', 'CREATED', 'CREATED'}
+  end
+`;
+
 // Export the visibility mutation script for use in gallery route
-export { ATOMIC_VISIBILITY_MUTATION_SCRIPT };
+export { ATOMIC_VISIBILITY_MUTATION_SCRIPT, ATOMIC_GALLERY_VISIBILITY_BOOTSTRAP_SCRIPT };
 
 /**
  * Atomic Lua script for transaction creation with staging key aggregation

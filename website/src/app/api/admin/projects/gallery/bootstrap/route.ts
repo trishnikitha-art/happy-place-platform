@@ -19,6 +19,7 @@ import { workbenchSession } from "@/lib/workbench-session";
 import { Redis } from '@upstash/redis';
 import { getKvNamespace } from '@/lib/environment';
 import { getRedisClient } from '@/lib/deployment-transaction';
+import { ATOMIC_GALLERY_VISIBILITY_BOOTSTRAP_SCRIPT } from '@/lib/deployment-transaction';
 
 export const runtime = 'nodejs';
 
@@ -88,29 +89,6 @@ export async function POST(request: Request) {
       source: 'filesystem-bootstrap',
     };
 
-    // P0 FIX: Use atomic create-if-absent semantics to prevent race conditions
-    // Two simultaneous bootstrap requests should not both overwrite
-    const runtimeKey = getRuntimeGalleryKey(projectId);
-    const visibilityKey = getVisibilityKey(projectId);
-    
-    // Use Redis SET with NX (set if not exists) for atomic create-if-absent
-    const setResult = await redis.set(runtimeKey, runtimePayload, { nx: true });
-
-    if (!setResult) {
-      // Key already exists - return existing authority (not an error)
-      const existingRuntime = await redis.get(runtimeKey);
-      return NextResponse.json(
-        { 
-          success: true,
-          projectId,
-          message: "Runtime authority already exists (returned existing)",
-          action: "skipped",
-          existingRuntime,
-        },
-        { status: 200 }
-      );
-    }
-
     // P0 FIX: Initialize visibility authority atomically with gallery authority
     // Every initialized gallery membership authority must have a corresponding initialized visibility authority
     const visibilityPayload = {
@@ -122,14 +100,29 @@ export async function POST(request: Request) {
       lastMutationTimestamp: new Date().toISOString(),
     };
 
-    // Use atomic create-if-absent for visibility as well
-    const visibilitySetResult = await redis.set(visibilityKey, visibilityPayload, { nx: true });
+    const runtimeGalleryKey = getRuntimeGalleryKey(projectId);
+    const visibilityKey = getVisibilityKey(projectId);
 
-    if (!visibilitySetResult) {
-      // Visibility authority already exists - do not overwrite it
-      console.log('[GALLERY BOOTSTRAP] VISIBILITY_ALREADY_EXISTS', { projectId });
-    } else {
-      console.log('[GALLERY BOOTSTRAP] VISIBILITY_INITIALIZED', { projectId });
+    // P0 FIX: Use atomic Lua script to handle all four states
+    // - runtime exists + visibility exists → NO-OP
+    // - runtime exists + visibility missing → CREATE visibility
+    // - runtime missing + visibility exists → CREATE runtime
+    // - runtime missing + visibility missing → CREATE BOTH
+    const result = await redis.eval(
+      ATOMIC_GALLERY_VISIBILITY_BOOTSTRAP_SCRIPT,
+      [runtimeGalleryKey, visibilityKey],
+      [JSON.stringify(runtimePayload), JSON.stringify(visibilityPayload)]
+    ) as any[];
+
+    const status = result[0] as string;
+    const runtimeState = result[1] as string;
+    const visibilityState = result[2] as string;
+
+    if (status !== 'OK') {
+      return NextResponse.json(
+        { error: "Bootstrap failed", message: status },
+        { status: 500 }
+      );
     }
 
     console.log('[GALLERY BOOTSTRAP] SUCCESS', {
@@ -137,7 +130,8 @@ export async function POST(request: Request) {
       galleryLength: gallery.length,
       currentRevision: galleryRevision,
       source: 'filesystem-bootstrap',
-      visibilityInitialized: visibilitySetResult,
+      runtimeState,
+      visibilityState,
     });
 
     return NextResponse.json({
@@ -147,7 +141,8 @@ export async function POST(request: Request) {
       galleryLength: gallery.length,
       currentRevision: galleryRevision,
       source: 'filesystem-bootstrap',
-      visibilityInitialized: visibilitySetResult,
+      runtimeState,
+      visibilityState,
       message: "Runtime authority initialized from filesystem projection",
     });
   } catch (error) {

@@ -218,29 +218,86 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
         
         // Validate schema version for initialized authority
         if (vParsed && vParsed.schemaVersion === 1 && vParsed.projectId === projectId) {
-          // Valid initialized authority
-          if (vParsed.hiddenGallery && Array.isArray(vParsed.hiddenGallery)) {
-            const hiddenGallery = vParsed.hiddenGallery;
-            const visibleGallery = effectiveGallery.filter((id: string) => !hiddenGallery.includes(id));
-            
-            console.log('[EFFECTIVE_GALLERY] VISIBILITY_FILTER_APPLIED', {
+          // P0 FIX: Strict schema validation
+          const hiddenGallery = vParsed.hiddenGallery;
+          const visibilityRevision = vParsed.visibilityRevision;
+          const initializedAt = vParsed.initializedAt;
+          const lastMutationTimestamp = vParsed.lastMutationTimestamp;
+
+          // Validate hiddenGallery is an array
+          if (!Array.isArray(hiddenGallery)) {
+            console.error('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MALFORMED - FAILING_CLOSED', {
               projectId,
-              totalGallery: effectiveGallery.length,
-              hiddenCount: hiddenGallery.length,
-              visibleCount: visibleGallery.length,
-              hiddenIds: hiddenGallery,
-              visibilityRevision: vParsed.visibilityRevision,
+              reason: 'hiddenGallery is not an array',
             });
-            
-            return visibleGallery;
-          } else {
-            // Explicit empty initialized authority - all visible
-            console.log('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_EMPTY', {
-              projectId,
-              visibilityRevision: vParsed.visibilityRevision,
-            });
-            return effectiveGallery;
+            return [];
           }
+
+          // Validate all hiddenGallery items are non-empty strings
+          for (const item of hiddenGallery) {
+            if (typeof item !== 'string' || item.trim() === '') {
+              console.error('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MALFORMED - FAILING_CLOSED', {
+                projectId,
+                reason: 'hiddenGallery contains invalid item',
+                item,
+              });
+              return [];
+            }
+          }
+
+          // Validate no duplicates in hiddenGallery
+          const uniqueHidden = new Set(hiddenGallery);
+          if (uniqueHidden.size !== hiddenGallery.length) {
+            console.error('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MALFORMED - FAILING_CLOSED', {
+              projectId,
+              reason: 'hiddenGallery contains duplicates',
+            });
+            return [];
+          }
+
+          // Validate visibilityRevision is a non-negative integer
+          if (typeof visibilityRevision !== 'number' || visibilityRevision < 0 || !Number.isInteger(visibilityRevision)) {
+            console.error('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MALFORMED - FAILING_CLOSED', {
+              projectId,
+              reason: 'visibilityRevision is invalid',
+              visibilityRevision,
+            });
+            return [];
+          }
+
+          // Validate initializedAt is a valid timestamp string
+          if (typeof initializedAt !== 'string' || isNaN(Date.parse(initializedAt))) {
+            console.error('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MALFORMED - FAILING_CLOSED', {
+              projectId,
+              reason: 'initializedAt is invalid',
+              initializedAt,
+            });
+            return [];
+          }
+
+          // Validate lastMutationTimestamp is a valid timestamp string
+          if (typeof lastMutationTimestamp !== 'string' || isNaN(Date.parse(lastMutationTimestamp))) {
+            console.error('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MALFORMED - FAILING_CLOSED', {
+              projectId,
+              reason: 'lastMutationTimestamp is invalid',
+              lastMutationTimestamp,
+            });
+            return [];
+          }
+
+          // Valid authority - apply visibility filter
+          const visibleGallery = effectiveGallery.filter((id: string) => !hiddenGallery.includes(id));
+          
+          console.log('[EFFECTIVE_GALLERY] VISIBILITY_FILTER_APPLIED', {
+            projectId,
+            totalGallery: effectiveGallery.length,
+            hiddenCount: hiddenGallery.length,
+            visibleCount: visibleGallery.length,
+            hiddenIds: hiddenGallery,
+            visibilityRevision,
+          });
+          
+          return visibleGallery;
         } else {
           // Malformed authority - fail closed
           console.error('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MALFORMED - FAILING_CLOSED', {
@@ -253,15 +310,60 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
           return [];
         }
       } else {
-        // Missing authority - fail closed in production
+        // Missing authority - self-heal in production by initializing empty visibility authority
         const environment = getEnvironment();
         if (environment === 'production') {
-          console.error('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MISSING - FAILING_CLOSED', {
+          console.log('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MISSING - SELF_HEALING', {
             projectId,
             visibilityKey,
-            decision: 'Returning empty gallery - visibility authority must be initialized',
+            decision: 'Initializing empty visibility authority to restore gallery',
           });
-          return [];
+
+          // Atomically initialize empty visibility authority
+          const initPayload = {
+            schemaVersion: 1,
+            projectId,
+            hiddenGallery: [],
+            visibilityRevision: 0,
+            initializedAt: new Date().toISOString(),
+            lastMutationTimestamp: new Date().toISOString(),
+          };
+
+          // Use NX (create-if-absent) to prevent race conditions
+          const setResult = await redis.set(visibilityKey, initPayload, { nx: true });
+
+          if (!setResult) {
+            // Another process initialized it - re-read and use that
+            const reloadedVisibility = await redis.get(visibilityKey);
+            if (reloadedVisibility) {
+              let vParsed: any;
+              if (typeof reloadedVisibility === 'string') {
+                vParsed = JSON.parse(reloadedVisibility);
+              } else if (typeof reloadedVisibility === 'object') {
+                vParsed = reloadedVisibility;
+              }
+
+              if (vParsed && vParsed.schemaVersion === 1 && vParsed.projectId === projectId) {
+                console.log('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_RELOADED', {
+                  projectId,
+                  visibilityRevision: vParsed.visibilityRevision,
+                });
+                return effectiveGallery; // Empty hiddenGallery = all visible
+              }
+            }
+            // If reload fails, fail closed
+            console.error('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_RELOAD_FAILED - FAILING_CLOSED', {
+              projectId,
+            });
+            return [];
+          }
+
+          console.log('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_INITIALIZED', {
+            projectId,
+            visibilityRevision: 0,
+            decision: 'Gallery restored with empty visibility authority',
+          });
+          return effectiveGallery; // Empty hiddenGallery = all visible
         } else {
           // Development: allow missing authority (not yet initialized)
           console.log('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MISSING - DEV_MODE', {

@@ -765,7 +765,7 @@ export async function PATCH(request: Request) {
     const result = await redis.eval(
       ATOMIC_VISIBILITY_MUTATION_SCRIPT,
       [runtimeGalleryKey, visibilityKey],
-      [mediaId, operation, new Date().toISOString(), projectId, new Date().toISOString()]
+      [mediaId, operation, new Date().toISOString(), projectId, ''] // Empty string - Lua will decide initializedAt
     ) as any[];
 
     const status = result[0] as string;
