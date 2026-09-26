@@ -9,6 +9,7 @@ import { BlueprintGrid } from "@/components/blueprint-grid";
 import { StarRating } from "@/components/star-rating";
 import { CraftCard } from "@/components/ui/card";
 import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
+import { GalleryDropZone } from "@/components/workbench/gallery-drop-zone";
 import { getAllProjects, getProjectBySlug, getProjectWithResolvedMedia } from "@/lib/projects";
 import { getReviewById } from "@/lib/reviews";
 import { Container, Section, SectionHeading } from "@/components/section";
@@ -211,7 +212,9 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
             description={<span className="text-text-on-dark/90">Photos from this project</span>}
           />
           <div className="mt-8">
-            <ProjectPhotos photos={photos} />
+            <GalleryDropZone projectId={project.id}>
+              <ProjectPhotos photos={photos} />
+            </GalleryDropZone>
           </div>
         </Container>
       </Section>
