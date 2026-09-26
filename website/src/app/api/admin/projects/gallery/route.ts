@@ -751,10 +751,36 @@ export async function PATCH(request: Request) {
     const runtimeGalleryKey = getRuntimeGalleryKey(projectId);
     const visibilityKey = getVisibilityKey(projectId);
 
+    // Ensure visibility authority is initialized before mutation
+    const existingVisibility = await redis.get(visibilityKey);
+    let initializedAt: string;
+    if (!existingVisibility) {
+      // Initialize visibility authority on first mutation
+      initializedAt = new Date().toISOString();
+      const initPayload = {
+        schemaVersion: 1,
+        projectId,
+        hiddenGallery: [],
+        visibilityRevision: 0,
+        initializedAt,
+      };
+      await redis.set(visibilityKey, JSON.stringify(initPayload));
+      console.log('[GALLERY VISIBILITY PATCH] AUTHORITY_INITIALIZED', { projectId });
+    } else {
+      // Preserve existing initializedAt
+      let vParsed: any;
+      if (typeof existingVisibility === 'string') {
+        vParsed = JSON.parse(existingVisibility);
+      } else if (typeof existingVisibility === 'object') {
+        vParsed = existingVisibility;
+      }
+      initializedAt = vParsed?.initializedAt || new Date().toISOString();
+    }
+
     const result = await redis.eval(
       ATOMIC_VISIBILITY_MUTATION_SCRIPT,
       [runtimeGalleryKey, visibilityKey],
-      [mediaId, operation, new Date().toISOString()]
+      [mediaId, operation, new Date().toISOString(), projectId, initializedAt]
     ) as any[];
 
     const status = result[0] as string;

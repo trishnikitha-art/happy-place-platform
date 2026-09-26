@@ -634,6 +634,8 @@ export { ATOMIC_GALLERY_MUTATION_SCRIPT };
  * Guardrail: Cannot hide an asset that isn't currently in the gallery
  * Idempotent: hide/unhide only increments revision when state actually changes
  * Lifecycle: Hidden state persists across gallery removal/re-addition (editorial intent)
+ * Durability: No TTL - hidden decisions persist until explicitly unhidden
+ * Schema: v1 with explicit projectId, schemaVersion, initializedAt
  * 
  * Returns indexed array for proper RESP2 serialization:
  * ['OK', newVisibilityRevision, operation, stateChanged] on success
@@ -644,6 +646,10 @@ const ATOMIC_VISIBILITY_MUTATION_SCRIPT = `
   local visibilityKey = KEYS[2]
   local mediaId = ARGV[1]
   local operation = ARGV[2] -- 'hide' or 'unhide'
+  local mutationTimestamp = ARGV[3]
+  local projectId = ARGV[4]
+  local initializedAt = ARGV[5]
+  local initializedAt = ARGV[5]
   
   -- Read runtime gallery authority
   local runtimeData = redis.call('GET', runtimeGalleryKey)
@@ -750,16 +756,19 @@ const ATOMIC_VISIBILITY_MUTATION_SCRIPT = `
     newVisibilityRevision = currentVisibilityRevision + 1
   end
   
-  -- Write updated visibility authority with 30-day TTL
-  -- Visibility is durable editorial authority, but TTL provides cleanup for abandoned state
+  -- Write updated visibility authority (NO TTL - durable editorial authority)
+  -- Hidden decisions must persist until explicitly unhidden
+  -- TTL is appropriate for temporary staging/transaction state, NOT editorial authority
   local visibilityPayload = {
+    schemaVersion = 1,
+    projectId = projectId,
     hiddenGallery = hiddenGallery,
     visibilityRevision = newVisibilityRevision,
-    lastMutationTimestamp = ARGV[3]
+    lastMutationTimestamp = mutationTimestamp,
+    initializedAt = initializedAt
   }
   
   redis.call('SET', visibilityKey, cjson.encode(visibilityPayload))
-  redis.call('EXPIRE', visibilityKey, 2592000) -- 30 days
   
   return {'OK', newVisibilityRevision, operation, stateChanged}
 `;

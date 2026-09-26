@@ -195,12 +195,13 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
   }
 
   // Apply visibility filter (hidden items) in both dev and production
-  // CRITICAL: True fail-closed behavior
-  // - If visibility authority cannot be read reliably, do NOT expose potentially hidden media
-  // - Redis unavailable in production: Return empty gallery to prevent accidental exposure
-  // - Redis read error: Return empty gallery to prevent accidental exposure
-  // - This is the safe default when visibility authority is unavailable
-  // - Site functionality is preserved (empty gallery vs exposing hidden media)
+  // CRITICAL: Distinguish missing authority from empty authority
+  // - Valid initialized authority → apply it
+  // - Explicit empty initialized authority → all gallery items visible
+  // - Missing authority → FAIL CLOSED (initialization required)
+  // - Malformed authority → FAIL CLOSED
+  // - Redis unavailable → FAIL CLOSED
+  // - Redis read error → FAIL CLOSED
   const redis = getRedisClient();
   if (redis) {
     try {
@@ -215,19 +216,59 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
           vParsed = visibilityData;
         }
         
-        if (vParsed && vParsed.hiddenGallery && Array.isArray(vParsed.hiddenGallery)) {
-          const hiddenGallery = vParsed.hiddenGallery;
-          const visibleGallery = effectiveGallery.filter((id: string) => !hiddenGallery.includes(id));
-          
-          console.log('[EFFECTIVE_GALLERY] VISIBILITY_FILTER_APPLIED', {
+        // Validate schema version for initialized authority
+        if (vParsed && vParsed.schemaVersion === 1 && vParsed.projectId === projectId) {
+          // Valid initialized authority
+          if (vParsed.hiddenGallery && Array.isArray(vParsed.hiddenGallery)) {
+            const hiddenGallery = vParsed.hiddenGallery;
+            const visibleGallery = effectiveGallery.filter((id: string) => !hiddenGallery.includes(id));
+            
+            console.log('[EFFECTIVE_GALLERY] VISIBILITY_FILTER_APPLIED', {
+              projectId,
+              totalGallery: effectiveGallery.length,
+              hiddenCount: hiddenGallery.length,
+              visibleCount: visibleGallery.length,
+              hiddenIds: hiddenGallery,
+              visibilityRevision: vParsed.visibilityRevision,
+            });
+            
+            return visibleGallery;
+          } else {
+            // Explicit empty initialized authority - all visible
+            console.log('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_EMPTY', {
+              projectId,
+              visibilityRevision: vParsed.visibilityRevision,
+            });
+            return effectiveGallery;
+          }
+        } else {
+          // Malformed authority - fail closed
+          console.error('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MALFORMED - FAILING_CLOSED', {
             projectId,
-            totalGallery: effectiveGallery.length,
-            hiddenCount: hiddenGallery.length,
-            visibleCount: visibleGallery.length,
-            hiddenIds: hiddenGallery,
+            hasSchemaVersion: !!vParsed?.schemaVersion,
+            schemaVersion: vParsed?.schemaVersion,
+            projectIdMatch: vParsed?.projectId === projectId,
+            decision: 'Returning empty gallery to prevent accidental exposure',
           });
-          
-          return visibleGallery;
+          return [];
+        }
+      } else {
+        // Missing authority - fail closed in production
+        const environment = getEnvironment();
+        if (environment === 'production') {
+          console.error('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MISSING - FAILING_CLOSED', {
+            projectId,
+            visibilityKey,
+            decision: 'Returning empty gallery - visibility authority must be initialized',
+          });
+          return [];
+        } else {
+          // Development: allow missing authority (not yet initialized)
+          console.log('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MISSING - DEV_MODE', {
+            projectId,
+            decision: 'Returning unfiltered gallery (visibility not yet initialized)',
+          });
+          return effectiveGallery;
         }
       }
     } catch (error) {
@@ -237,7 +278,6 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
         decision: 'Returning empty gallery to prevent accidental exposure of hidden media',
       });
       // TRUE FAIL-CLOSED: Return empty gallery to prevent accidental exposure
-      // This is the safe default when visibility authority is unavailable
       return [];
     }
   } else {
@@ -249,6 +289,11 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
         decision: 'Returning empty gallery to prevent accidental exposure of hidden media',
       });
       return [];
+    } else {
+      console.log('[EFFECTIVE_GALLERY] REDIS_UNAVAILABLE - DEV_MODE', {
+        projectId,
+        decision: 'Returning unfiltered gallery (Redis not available in dev)',
+      });
     }
   }
 
