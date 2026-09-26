@@ -164,7 +164,7 @@ export default function MediaWorkbench() {
     galleryProjectId: null, // P0 FIX: No project selected initially
     pendingDeployments: [], // P0 FIX: No pending deployments initially
     pendingDeploymentsError: null, // P0 FIX: Error state for recovery unavailability
-    selectedPendingDeployments: new Set<string>() // P0 FIX: No deployments selected initially
+    selectedPendingDeployments: new Set() // P0 FIX: No deployments selected initially
   });
 
   // Keep refs in sync with state
@@ -1665,11 +1665,59 @@ export default function MediaWorkbench() {
       alert(`Bulk deployment initiated successfully for ${selectedIds.length} transactions. Check Vercel logs for deployment progress.`);
       
       // Clear selection and refresh pending deployments list
-      setState(prev => ({ ...prev, selectedPendingDeployments: new Set<string>() }));
+      setState(prev => ({ ...prev, selectedPendingDeployments: new Set() }));
       loadPendingDeployments();
     } catch (error) {
       console.error('[WORKBENCH] BULK_DEPLOYMENT_ERROR', error);
-      alert(`Bulk deployment failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      alert(`Bulk deployment error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  };
+
+  // P0 FIX: Delete selected pending deployments
+  const deleteSelectedTransactions = async () => {
+    const selectedIds = Array.from(state.selectedPendingDeployments);
+    if (selectedIds.length === 0) {
+      alert('No deployments selected');
+      return;
+    }
+
+    if (!confirm(`Delete ${selectedIds.length} selected deployment(s)? This will permanently remove them and cannot be undone.`)) {
+      return;
+    }
+
+    try {
+      console.log('[WORKBENCH] BULK_DELETE_START', { transactionIds: selectedIds, count: selectedIds.length });
+      
+      const response = await fetch('/api/workbench/pending-deployments', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          transactionIds: selectedIds,
+        }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        console.error('[WORKBENCH] BULK_DELETE_FAILED', {
+          transactionIds: selectedIds,
+          status: response.status,
+          error,
+        });
+        alert(`Delete failed: ${error.error || 'Unknown error'}`);
+        return;
+      }
+
+      const result = await response.json();
+      console.log('[WORKBENCH] BULK_DELETE_SUCCESS', result);
+      
+      alert(`Deleted ${selectedIds.length} deployment(s) and ${result.cleanedStagingKeysCount || 0} staging key(s).`);
+      
+      // Clear selection and refresh pending deployments list
+      setState(prev => ({ ...prev, selectedPendingDeployments: new Set() }));
+      loadPendingDeployments();
+    } catch (error) {
+      console.error('[WORKBENCH] BULK_DELETE_ERROR', error);
+      alert(`Delete error: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
   };
 
@@ -3296,12 +3344,20 @@ export default function MediaWorkbench() {
                             {state.selectedPendingDeployments.size === state.pendingDeployments.length ? 'Deselect All' : 'Select All'}
                           </button>
                           {state.selectedPendingDeployments.size > 0 && (
-                            <button
-                              onClick={deploySelectedTransactions}
-                              className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
-                            >
-                              Deploy Selected ({state.selectedPendingDeployments.size})
-                            </button>
+                            <>
+                              <button
+                                onClick={deploySelectedTransactions}
+                                className="px-2 py-1 bg-green-600 text-white rounded hover:bg-green-700 transition-colors text-xs"
+                              >
+                                Deploy Selected ({state.selectedPendingDeployments.size})
+                              </button>
+                              <button
+                                onClick={deleteSelectedTransactions}
+                                className="px-2 py-1 bg-red-600 text-white rounded hover:bg-red-700 transition-colors text-xs"
+                              >
+                                Delete Selected ({state.selectedPendingDeployments.size})
+                              </button>
+                            </>
                           )}
                         </div>
                       </div>
