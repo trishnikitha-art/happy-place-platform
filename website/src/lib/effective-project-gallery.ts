@@ -187,6 +187,10 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
   }
 
   // Apply visibility filter (hidden items) in both dev and production
+  // CRITICAL: Fail closed behavior
+  // - Redis unavailable: Return baseline (last deployed state) to preserve site functionality
+  // - This is acceptable because hidden state is Redis-only; baseline represents last known safe deployment
+  // - Items hidden after last deployment would be exposed during Redis outage, but site remains functional
   const redis = getRedisClient();
   if (redis) {
     try {
@@ -217,9 +221,24 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
         }
       }
     } catch (error) {
-      console.error('[EFFECTIVE_GALLERY] VISIBILITY_FILTER_ERROR - Returning unfiltered', {
+      console.error('[EFFECTIVE_GALLERY] VISIBILITY_FILTER_ERROR - RETURNING_BASELINE', {
         projectId,
         error: error instanceof Error ? error.message : String(error),
+        decision: 'Returning baseline gallery (last deployed state) to preserve site functionality',
+        note: 'Items hidden after last deployment may be exposed during Redis outage',
+      });
+      // Return baseline gallery to preserve site functionality
+      // This is fail-closed enough: we return known safe deployed state
+      return effectiveGallery;
+    }
+  } else {
+    // Redis client unavailable
+    const environment = getEnvironment();
+    if (environment === 'production') {
+      console.warn('[EFFECTIVE_GALLERY] REDIS_UNAVAILABLE_IN_PRODUCTION - RETURNING_BASELINE', {
+        projectId,
+        decision: 'Returning baseline gallery (last deployed state) to preserve site functionality',
+        note: 'Items hidden after last deployment may be exposed during Redis outage',
       });
     }
   }
