@@ -108,6 +108,7 @@ interface IngestRequest {
   projectId?: string;
   roles?: MediaRole[];
   originalShortcutId?: string; // P0 FIX: Preserve shortcut provenance
+  idempotencyKey?: string; // P0 FIX: Idempotency key to prevent duplicate in-flight materialization
 }
 
 /**
@@ -159,7 +160,7 @@ export async function POST(request: Request) {
   
   try {
     const body: IngestRequest = await request.json();
-    const { fileId, sharedDriveId, projectId, roles = ['gallery'] } = body;
+    const { fileId, sharedDriveId, projectId, roles = ['gallery'], idempotencyKey } = body;
 
     console.log('[MEDIA_INGEST] REQUEST stage succeeded', {
       requestId,
@@ -169,6 +170,7 @@ export async function POST(request: Request) {
       sharedDriveId: sharedDriveId || 'none',
       projectId: projectId || 'none',
       roles,
+      idempotencyKey,
     });
 
     if (!fileId) {
@@ -450,6 +452,49 @@ export async function POST(request: Request) {
       requestId,
       hasHash: !!contentHash,
     });
+
+    // P0 FIX: Idempotency check for in-flight materialization
+    // Prevents duplicate materialization of the same Drive file from concurrent drops
+    if (idempotencyKey) {
+      console.log('[MEDIA_INGEST] IDEMPOTENCY_CHECK stage started', { requestId, idempotencyKey });
+      const { createRedisClient, namespacedKey } = await import('@/lib/media-kv-store');
+      const client = createRedisClient();
+
+      if (client) {
+        const idempotencyLockKey = namespacedKey(`materialization:inflight:${idempotencyKey}`);
+        const existingMediaId = await client.get(idempotencyLockKey);
+
+        if (existingMediaId && typeof existingMediaId === 'string') {
+          console.log('[MEDIA_INGEST] IDEMPOTENCY_CHECK succeeded - in-flight materialization found', {
+            requestId,
+            idempotencyKey,
+            existingMediaId,
+          });
+
+          // Fetch the existing media record to return it
+          const existingMedia = await getMedia(existingMediaId);
+          if (existingMedia) {
+            return NextResponse.json({
+              success: true,
+              action: 'in-flight',
+              media: existingMedia,
+              mediaId: existingMediaId,
+              message: 'Materialization already in progress for this source',
+              deduplicated: true,
+              requestId,
+            });
+          }
+        }
+
+        // Set the lock with TTL (30 minutes) to handle in-flight materialization
+        // The actual media ID will be set once materialization completes
+        await client.set(idempotencyLockKey, 'pending', { ex: 1800 });
+        console.log('[MEDIA_INGEST] IDEMPOTENCY_CHECK succeeded - lock acquired', {
+          requestId,
+          idempotencyKey,
+        });
+      }
+    }
     
     // 5. Check for existing record with matching content hash (deduplication in KV)
     console.log('[MEDIA_INGEST] DEDUPLICATION stage started', { requestId });
@@ -657,6 +702,22 @@ export async function POST(request: Request) {
       lifecycleState: mediaRecord.lifecycleState,
       source: mediaRecord.source,
     });
+
+    // P0 FIX: Update idempotency lock with actual media ID once materialization completes
+    if (idempotencyKey) {
+      const { createRedisClient, namespacedKey } = await import('@/lib/media-kv-store');
+      const client = createRedisClient();
+
+      if (client) {
+        const idempotencyLockKey = namespacedKey(`materialization:inflight:${idempotencyKey}`);
+        await client.set(idempotencyLockKey, mediaId, { ex: 1800 });
+        console.log('[MEDIA_INGEST] IDEMPOTENCY_LOCK_UPDATED', {
+          requestId,
+          idempotencyKey,
+          mediaId: mediaId,
+        });
+      }
+    }
 
     // P0 FIX: Assignment reconciliation removed from ingest route
     // Assignment is now handled exclusively by use-drive-asset with explicit CAS semantics

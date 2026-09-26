@@ -118,6 +118,7 @@ export async function POST(request: Request) {
       fileId: fileId,  // The Google Drive file ID to materialize
       sharedDriveId: sharedDriveId,  // The Shared Drive ID (corpus context)
       roles: ['gallery'],
+      idempotencyKey: finalIdempotencyKey,  // P0 FIX: Pass idempotency key to ingest
     };
 
     console.log('[WORKBENCH_MATERIALIZATION] Calling core ingest endpoint', {
@@ -137,11 +138,36 @@ export async function POST(request: Request) {
     });
 
     if (!ingestResponse.ok) {
-      const error = await ingestResponse.json();
+      // P1 FIX: Safe JSON/text/HTML parsing to handle Sharp HTML-500 failure mode
+      const contentType = ingestResponse.headers.get('content-type');
+      let error: any;
+
+      try {
+        if (contentType && contentType.includes('application/json')) {
+          error = await ingestResponse.json();
+        } else {
+          // Fallback to text for HTML or other non-JSON responses
+          const errorText = await ingestResponse.text();
+          error = {
+            error: 'MATERIALIZATION_FAILED',
+            message: errorText || 'Failed to materialize Drive file',
+            contentType,
+            rawResponse: errorText.substring(0, 500), // Truncate for safety
+          };
+        }
+      } catch (parseError) {
+        error = {
+          error: 'MATERIALIZATION_FAILED',
+          message: `Failed to parse error response: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+          contentType,
+        };
+      }
+
       console.error('[WORKBENCH_MATERIALIZATION] Core ingest failed', {
         requestId,
         error,
         status: ingestResponse.status,
+        contentType,
       });
       return NextResponse.json(
         {

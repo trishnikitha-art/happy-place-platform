@@ -16,7 +16,7 @@ import { getEnvironment, getKvNamespace } from '@/lib/environment';
  * Apply namespace prefix to KV key
  * Prevents cross-environment key collisions
  */
-function namespacedKey(key: string): string {
+export function namespacedKey(key: string): string {
   const namespace = getKvNamespace();
   return `${namespace}${key}`;
 }
@@ -62,7 +62,7 @@ class KvUnavailableError extends Error {
  */
 let cachedClient: { key: string; client: Redis } | null = null;
 
-function createRedisClient(): Redis {
+export function createRedisClient(): Redis {
   let url = process.env.KV_REST_API_URL;
   let token = process.env.KV_REST_API_TOKEN;
   

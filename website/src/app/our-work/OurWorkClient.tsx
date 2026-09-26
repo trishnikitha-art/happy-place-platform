@@ -33,6 +33,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
   const [galleryAddStatus, setGalleryAddStatus] = useState<'idle' | 'pending' | 'accepted' | 'rejected'>('idle');
   const galleryGridRef = useRef<HTMLDivElement>(null);
   const bridgedDragDataRef = useRef<any>(null);
+  const projectDropRefs = useRef<Map<string, HTMLDivElement>>(new Map()); // P0 FIX: Per-project drop zones
 
   // P0 FIX: Runtime drag-data schema validation
   // Validates that dragData conforms to expected DriveReference or AssetReference contract
@@ -89,16 +90,6 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
 
     const container = galleryGridRef.current;
     if (!container) return;
-
-    // P0 FIX: Send BRIDGE_READY handshake to parent before attaching listeners
-    // This ensures parent knows this iframe is ready to receive DRAG_START
-    if (window.parent !== window) {
-      window.parent.postMessage({
-        type: 'BRIDGE_READY',
-        slotId: 'our-work-gallery-grid',
-      }, window.location.origin);
-      console.log('[OUR_WORK] BRIDGE_READY_SENT', { timestamp: Date.now() });
-    }
 
     const handleDragStart = (e: MessageEvent) => {
       // Only accept DRAG_START from parent at same origin
@@ -165,8 +156,8 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       }
 
       // P0 FIX: Determine target project from drop location
-      // Traverse up from drop target to find the closest gallery photo element
-      // Each photo has a key pattern: `${project.id}-${mediaId}`
+      // Each project section has data-project-id attribute
+      // This allows drops on blank space within a project section to work
       let targetProject: Project | null = null;
       let dropTarget: HTMLElement | null = e.target as HTMLElement;
 
@@ -208,9 +199,20 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       bridgedDragDataRef.current = null;
     };
 
+    // P1 FIX: Attach all listeners first, then send BRIDGE_READY
+    // This ensures the iframe is actually ready to receive messages before advertising readiness
     window.addEventListener('message', handleDragStart);
     container.addEventListener('dragover', handleDragOver);
     container.addEventListener('drop', handleDrop);
+
+    // Now send BRIDGE_READY to prove listeners are attached
+    if (window.parent !== window) {
+      window.parent.postMessage({
+        type: 'BRIDGE_READY',
+        slotId: 'our-work-gallery-grid',
+      }, window.location.origin);
+      console.log('[OUR_WORK] BRIDGE_READY_SENT', { timestamp: Date.now() });
+    }
 
     return () => {
       window.removeEventListener('message', handleDragStart);
@@ -365,7 +367,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
               {galleryAddStatus === 'rejected' && 'Failed to add asset to gallery'}
             </div>
           )}
-          <div 
+          <div
             className={`gallery-grid mt-10 columns-2 gap-4 space-y-4 md:columns-3 lg:columns-4 ${isDragging ? 'ring-2 ring-dashed ring-primary/50 ring-offset-2' : ''}`}
             ref={galleryGridRef}
           >
@@ -373,8 +375,16 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
               // P0 FIX: Use pre-validated galleryMedia from server-side resolution (passed public media gate)
               // This prevents client-side getMediaById() bypass
               const galleryPhotos = project.media.galleryMedia || [];
-              
-              return galleryPhotos.map((photo, photoIndex) => {
+
+              // P0 FIX: Per-project drop zone container
+              // Each project gets its own drop surface with explicit project ID
+              return (
+                <div
+                  key={`project-drop-zone-${project.id}`}
+                  data-project-id={project.id}
+                  className="project-gallery-section break-inside-avoid mb-8"
+                >
+                  {galleryPhotos.map((photo, photoIndex) => {
                 // Use responsive variants if available to select best quality
                 const responsiveVariants = photo.variants?.responsive;
                 const hasResponsiveVariants = responsiveVariants && responsiveVariants.length > 0;
@@ -501,7 +511,9 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                     </CraftCard>
                   </div>
                 );
-              });
+              })}
+                </div>
+              );
             })}
           </div>
         </Container>
