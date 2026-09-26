@@ -20,9 +20,9 @@ export const runtime = 'nodejs';
 interface MaterializeRequest {
   fileId: string;  // The Google Drive file ID to materialize
   sharedDriveId?: string;  // The Shared Drive ID (corpus context)
-  fileName: string;
+  fileName?: string;  // Optional for backward compatibility
+  name?: string;  // P1 FIX: Deprecated - use fileName instead
   mimeType: string;
-  idempotencyKey?: string;  // P1 FIX: Idempotency key to prevent duplicate materialization
 }
 
 export async function POST(request: Request) {
@@ -43,19 +43,17 @@ export async function POST(request: Request) {
     }
 
     const body: MaterializeRequest = await request.json();
-    const { fileId, sharedDriveId, fileName, mimeType, idempotencyKey } = body;
+    const { fileId, sharedDriveId, fileName, name, mimeType } = body;
 
-    // P1 FIX: Generate idempotency key if not provided
-    // Use source identity: provider + sharedDriveId + fileId
-    const finalIdempotencyKey = idempotencyKey || `drive:${sharedDriveId || 'my-drive'}:${fileId}`;
+    // P1 FIX: Use fileName if provided, otherwise fall back to name for backward compatibility
+    const finalFileName = fileName || name;
 
     console.log('[WORKBENCH_MATERIALIZATION] Request received', {
       requestId,
       fileId,
       sharedDriveId,
-      fileName,
+      fileName: finalFileName,
       mimeType,
-      idempotencyKey: finalIdempotencyKey,
     });
 
     if (!fileId) {
@@ -117,8 +115,8 @@ export async function POST(request: Request) {
     const ingestBody = {
       fileId: fileId,  // The Google Drive file ID to materialize
       sharedDriveId: sharedDriveId,  // The Shared Drive ID (corpus context)
+      fileName: finalFileName,  // P1 FIX: Use the resolved fileName
       roles: ['gallery'],
-      idempotencyKey: finalIdempotencyKey,  // P0 FIX: Pass idempotency key to ingest
     };
 
     console.log('[WORKBENCH_MATERIALIZATION] Calling core ingest endpoint', {
@@ -139,6 +137,7 @@ export async function POST(request: Request) {
 
     if (!ingestResponse.ok) {
       // P1 FIX: Safe JSON/text/HTML parsing to handle Sharp HTML-500 failure mode
+      // Do NOT return raw HTML to client - only safe error codes
       const contentType = ingestResponse.headers.get('content-type');
       let error: any;
 
@@ -150,15 +149,14 @@ export async function POST(request: Request) {
           const errorText = await ingestResponse.text();
           error = {
             error: 'MATERIALIZATION_FAILED',
-            message: errorText || 'Failed to materialize Drive file',
+            message: 'Failed to materialize Drive file',
             contentType,
-            rawResponse: errorText.substring(0, 500), // Truncate for safety
           };
         }
       } catch (parseError) {
         error = {
           error: 'MATERIALIZATION_FAILED',
-          message: `Failed to parse error response: ${parseError instanceof Error ? parseError.message : String(parseError)}`,
+          message: 'Failed to parse error response',
           contentType,
         };
       }
@@ -173,7 +171,6 @@ export async function POST(request: Request) {
         {
           error: error.error || 'MATERIALIZATION_FAILED',
           message: error.message || 'Failed to materialize Drive file',
-          details: error,
           requestId,
         },
         { status: ingestResponse.status }

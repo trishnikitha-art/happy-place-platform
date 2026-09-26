@@ -157,10 +157,22 @@ function determineOrientation(width: number, height: number): 'landscape' | 'por
 
 export async function POST(request: Request) {
   const requestId = crypto.randomUUID();
-  
+
+  // P0 FIX: Scope these variables for error handling
+  let client: any = null;
+  let canonicalSourceKey: string = '';
+  let ownerToken: string = '';
+
   try {
     const body: IngestRequest = await request.json();
     const { fileId, sharedDriveId, projectId, roles = ['gallery'], idempotencyKey } = body;
+
+    // P0 FIX: Derive canonical source key server-side
+    // Client-provided idempotencyKey is optional correlation only
+    // Authority key is derived from immutable source identity
+    const canonicalCorpusId = sharedDriveId || 'my-drive';
+    canonicalSourceKey = `drive-materialization:${canonicalCorpusId}:${fileId}`;
+    ownerToken = crypto.randomUUID();
 
     console.log('[MEDIA_INGEST] REQUEST stage succeeded', {
       requestId,
@@ -170,22 +182,123 @@ export async function POST(request: Request) {
       sharedDriveId: sharedDriveId || 'none',
       projectId: projectId || 'none',
       roles,
-      idempotencyKey,
+      canonicalSourceKey,
+      ownerToken,
+      clientProvidedKey: idempotencyKey,
     });
 
     if (!fileId) {
       console.log('[MEDIA_INGEST_ERROR] fileId is required', { requestId });
       return NextResponse.json(
-        { 
+        {
           success: false,
-          error: 'FILE_ID_REQUIRED', 
-          stage: 'REQUEST', 
-          message: 'fileId is required', 
+          error: 'FILE_ID_REQUIRED',
+          stage: 'REQUEST',
+          message: 'fileId is required',
           retryable: false,
           requestId,
         },
         { status: 400 }
       );
+    }
+
+    // P0 FIX: Acquire atomic lease BEFORE expensive work
+    // Prevents concurrent materialization of same source
+    const { createRedisClient, namespacedKey } = await import('@/lib/media-kv-store');
+    const client = createRedisClient();
+
+    if (client) {
+      const leaseKey = namespacedKey(canonicalSourceKey);
+      const leaseExpiry = 1800; // 30 minutes
+
+      // Try to acquire lease atomically with SET NX EX
+      // Value contains owner token and lifecycle state
+      const leaseRecord = {
+        status: 'PROCESSING',
+        ownerToken,
+        source: {
+          provider: 'google-drive',
+          corpusId: canonicalCorpusId,
+          fileId,
+        },
+        startedAt: new Date().toISOString(),
+        leaseExpiresAt: new Date(Date.now() + leaseExpiry * 1000).toISOString(),
+      };
+
+      const acquired = await client.set(leaseKey, JSON.stringify(leaseRecord), {
+        nx: true, // Only set if key doesn't exist
+        ex: leaseExpiry,
+      });
+
+      if (!acquired) {
+        // Lease already held - check state
+        const existingLease = await client.get(leaseKey);
+        if (existingLease && typeof existingLease === 'string') {
+          try {
+            const leaseData = JSON.parse(existingLease);
+            console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_HELD', {
+              requestId,
+              canonicalSourceKey,
+              existingOwner: leaseData.ownerToken,
+              existingStatus: leaseData.status,
+              existingStartedAt: leaseData.startedAt,
+            });
+
+            // If lease is SUCCEEDED with mediaId, return it
+            if (leaseData.status === 'SUCCEEDED' && leaseData.mediaId) {
+              const existingMedia = await getMedia(leaseData.mediaId);
+              if (existingMedia) {
+                return NextResponse.json({
+                  success: true,
+                  action: 'existing',
+                  media: existingMedia,
+                  mediaId: leaseData.mediaId,
+                  message: 'Materialization already completed for this source',
+                  deduplicated: true,
+                  requestId,
+                });
+              }
+            }
+
+            // If still PROCESSING, return QUEUED status
+            if (leaseData.status === 'PROCESSING') {
+              return NextResponse.json({
+                success: false,
+                error: 'MATERIALIZATION_IN_PROGRESS',
+                stage: 'IDEMPOTENCY',
+                message: 'Materialization already in progress for this source',
+                retryable: false,
+                requestId,
+                existingOwner: leaseData.ownerToken,
+                startedAt: leaseData.startedAt,
+              }, { status: 202 }); // 202 Accepted - request is valid but not yet complete
+            }
+          } catch (parseError) {
+            console.error('[MEDIA_INGEST] IDEMPOTENCY_LEASE_PARSE_FAILED', {
+              requestId,
+              leaseKey,
+              error: parseError instanceof Error ? parseError.message : String(parseError),
+            });
+          }
+        }
+
+        // Fallback: reject if we can't determine lease state
+        return NextResponse.json({
+          success: false,
+          error: 'MATERIALIZATION_LOCKED',
+          stage: 'IDEMPOTENCY',
+          message: 'Source is currently being materialized by another request',
+          retryable: false,
+          requestId,
+        }, { status: 409 }); // 409 Conflict
+      }
+
+      console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_ACQUIRED', {
+        requestId,
+        canonicalSourceKey,
+        ownerToken,
+        leaseExpiry,
+      });
     }
 
     // CRITICAL: Authentication bypass is DANGEROUS and should only be used with explicit consent
@@ -453,49 +566,6 @@ export async function POST(request: Request) {
       hasHash: !!contentHash,
     });
 
-    // P0 FIX: Idempotency check for in-flight materialization
-    // Prevents duplicate materialization of the same Drive file from concurrent drops
-    if (idempotencyKey) {
-      console.log('[MEDIA_INGEST] IDEMPOTENCY_CHECK stage started', { requestId, idempotencyKey });
-      const { createRedisClient, namespacedKey } = await import('@/lib/media-kv-store');
-      const client = createRedisClient();
-
-      if (client) {
-        const idempotencyLockKey = namespacedKey(`materialization:inflight:${idempotencyKey}`);
-        const existingMediaId = await client.get(idempotencyLockKey);
-
-        if (existingMediaId && typeof existingMediaId === 'string') {
-          console.log('[MEDIA_INGEST] IDEMPOTENCY_CHECK succeeded - in-flight materialization found', {
-            requestId,
-            idempotencyKey,
-            existingMediaId,
-          });
-
-          // Fetch the existing media record to return it
-          const existingMedia = await getMedia(existingMediaId);
-          if (existingMedia) {
-            return NextResponse.json({
-              success: true,
-              action: 'in-flight',
-              media: existingMedia,
-              mediaId: existingMediaId,
-              message: 'Materialization already in progress for this source',
-              deduplicated: true,
-              requestId,
-            });
-          }
-        }
-
-        // Set the lock with TTL (30 minutes) to handle in-flight materialization
-        // The actual media ID will be set once materialization completes
-        await client.set(idempotencyLockKey, 'pending', { ex: 1800 });
-        console.log('[MEDIA_INGEST] IDEMPOTENCY_CHECK succeeded - lock acquired', {
-          requestId,
-          idempotencyKey,
-        });
-      }
-    }
-    
     // 5. Check for existing record with matching content hash (deduplication in KV)
     console.log('[MEDIA_INGEST] DEDUPLICATION stage started', { requestId });
     const existingMedia = await findMediaByContentHash(contentHash);
@@ -703,19 +773,49 @@ export async function POST(request: Request) {
       source: mediaRecord.source,
     });
 
-    // P0 FIX: Update idempotency lock with actual media ID once materialization completes
-    if (idempotencyKey) {
-      const { createRedisClient, namespacedKey } = await import('@/lib/media-kv-store');
-      const client = createRedisClient();
+    // P0 FIX: Update lease with SUCCEEDED state and mediaId using CAS
+    // Only the lease owner may complete the materialization
+    if (client) {
+      const leaseKey = namespacedKey(canonicalSourceKey);
 
-      if (client) {
-        const idempotencyLockKey = namespacedKey(`materialization:inflight:${idempotencyKey}`);
-        await client.set(idempotencyLockKey, mediaId, { ex: 1800 });
-        console.log('[MEDIA_INGEST] IDEMPOTENCY_LOCK_UPDATED', {
-          requestId,
-          idempotencyKey,
-          mediaId: mediaId,
-        });
+      // CAS check: verify we still own the lease before completing
+      const currentLease = await client.get(leaseKey);
+      if (currentLease && typeof currentLease === 'string') {
+        try {
+          const leaseData = JSON.parse(currentLease);
+
+          // Only complete if we are the owner
+          if (leaseData.ownerToken === ownerToken && leaseData.status === 'PROCESSING') {
+            const completedLease = {
+              ...leaseData,
+              status: 'SUCCEEDED',
+              mediaId,
+              completedAt: new Date().toISOString(),
+            };
+
+            await client.set(leaseKey, JSON.stringify(completedLease), { ex: 1800 });
+            console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_COMPLETED', {
+              requestId,
+              canonicalSourceKey,
+              ownerToken,
+              mediaId,
+            });
+          } else {
+            console.warn('[MEDIA_INGEST] IDEMPOTENCY_LEASE_OWNER_MISMATCH', {
+              requestId,
+              canonicalSourceKey,
+              ourOwner: ownerToken,
+              existingOwner: leaseData.ownerToken,
+              existingStatus: leaseData.status,
+            });
+          }
+        } catch (parseError) {
+          console.error('[MEDIA_INGEST] IDEMPOTENCY_LEASE_COMPLETION_PARSE_FAILED', {
+            requestId,
+            leaseKey,
+            error: parseError instanceof Error ? parseError.message : String(parseError),
+          });
+        }
       }
     }
 
@@ -733,7 +833,45 @@ export async function POST(request: Request) {
 
   } catch (error) {
     console.error('[MEDIA_INGEST] ERROR', error);
-    
+
+    // P0 FIX: Update lease to FAILED state on error
+    // Only the lease owner may transition to FAILED
+    if (client && canonicalSourceKey && ownerToken) {
+      const { namespacedKey } = await import('@/lib/media-kv-store');
+      const leaseKey = namespacedKey(canonicalSourceKey);
+
+      try {
+        const currentLease = await client.get(leaseKey);
+        if (currentLease && typeof currentLease === 'string') {
+          const leaseData = JSON.parse(currentLease);
+
+          if (leaseData.ownerToken === ownerToken && leaseData.status === 'PROCESSING') {
+            const failedLease = {
+              ...leaseData,
+              status: 'FAILED_RETRYABLE',
+              failedAt: new Date().toISOString(),
+              errorCode: error instanceof Error ? error.name : 'UNKNOWN',
+              errorMessage: error instanceof Error ? error.message : String(error),
+            };
+
+            await client.set(leaseKey, JSON.stringify(failedLease), { ex: 1800 });
+            console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_FAILED', {
+              requestId,
+              canonicalSourceKey,
+              ownerToken,
+              errorCode: failedLease.errorCode,
+            });
+          }
+        }
+      } catch (leaseError) {
+        console.error('[MEDIA_INGEST] IDEMPOTENCY_LEASE_FAILURE_UPDATE_FAILED', {
+          requestId,
+          leaseKey,
+          error: leaseError instanceof Error ? leaseError.message : String(leaseError),
+        });
+      }
+    }
+
     return NextResponse.json(
       {
         success: false,

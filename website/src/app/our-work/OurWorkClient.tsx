@@ -33,7 +33,6 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
   const [galleryAddStatus, setGalleryAddStatus] = useState<'idle' | 'pending' | 'accepted' | 'rejected'>('idle');
   const galleryGridRef = useRef<HTMLDivElement>(null);
   const bridgedDragDataRef = useRef<any>(null);
-  const projectDropRefs = useRef<Map<string, HTMLDivElement>>(new Map()); // P0 FIX: Per-project drop zones
 
   // P0 FIX: Runtime drag-data schema validation
   // Validates that dragData conforms to expected DriveReference or AssetReference contract
@@ -118,9 +117,10 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
         setIsDragging(true);
       }
 
-      // P1 FIX: Handle GALLERY_ADD_ACK/NACK responses from parent
-      if (e.data.type === 'GALLERY_ADD_ACK') {
-        console.log('[OUR_WORK] GALLERY_ADD_ACK_RECEIVED', {
+      // P1 FIX: Handle GALLERY_ADD_QUEUED/NACK responses from parent
+      // QUEUED means added to local pending buffer, not yet committed
+      if (e.data.type === 'GALLERY_ADD_QUEUED') {
+        console.log('[OUR_WORK] GALLERY_ADD_QUEUED_RECEIVED', {
           status: e.data.status,
           projectId: e.data.projectId,
           assetId: e.data.assetId,
@@ -363,7 +363,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
               'bg-red-500/20 text-red-400'
             }`}>
               {galleryAddStatus === 'pending' && 'Adding to gallery...'}
-              {galleryAddStatus === 'accepted' && 'Asset added to pending gallery changes'}
+              {galleryAddStatus === 'accepted' && 'Asset queued for gallery changes (Save to persist)'}
               {galleryAddStatus === 'rejected' && 'Failed to add asset to gallery'}
             </div>
           )}

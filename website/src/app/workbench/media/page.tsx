@@ -2463,10 +2463,6 @@ export default function MediaWorkbench() {
           }
           
           try {
-            // P1 FIX: Generate idempotency key for Drive materialization
-            // This prevents duplicate materialization of the same Drive file
-            const idempotencyKey = `drive:${applicationData.sharedDriveId || 'my-drive'}:${applicationData.fileId}`;
-
             // Call materialization API
             const materializeResponse = await fetch('/api/workbench/materialize-drive', {
               method: 'POST',
@@ -2475,10 +2471,8 @@ export default function MediaWorkbench() {
                 action: 'materialize',
                 fileId: applicationData.fileId,
                 sharedDriveId: applicationData.sharedDriveId,
+                fileName: applicationData.fileName,
                 mimeType: applicationData.mimeType,
-                name: applicationData.name,
-                webViewUrl: applicationData.webViewUrl,
-                idempotencyKey,
               }),
             });
             
@@ -2653,18 +2647,18 @@ export default function MediaWorkbench() {
             note: isReplace ? 'Replace queued locally' : 'Add queued locally. Click "Save Gallery Changes" to persist.',
           });
 
-          // P1 FIX: Send ACK back to iframe
+          // P1 FIX: Send QUEUED back to iframe (not ACK - not yet committed)
           if (event.source && event.source === iframeRef.current?.contentWindow) {
             event.source.postMessage({
-              type: 'GALLERY_ADD_ACK',
+              type: 'GALLERY_ADD_QUEUED',
               requestId,
-              status: 'accepted',
+              status: 'queued',
               projectId,
               assetId: finalAssetId,
               isReplace,
               targetIndex,
             }, event.origin);
-            console.log('[WB_DND] GALLERY_ADD_ACK_SENT', { requestId, status: 'accepted' });
+            console.log('[WB_DND] GALLERY_ADD_QUEUED_SENT', { requestId, status: 'queued' });
           }
         } catch (error) {
           console.error('[WB_DND] GALLERY_ADD_ERROR', {
