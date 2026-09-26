@@ -86,6 +86,7 @@ interface MediaWorkbenchState {
   pendingGalleryOrder: string[] | null; // P0 FIX: Pending gallery reordering (local state, not yet persisted)
   galleryBaseRevision: number | null; // P0 FIX: Revision the pending order is based on (for CAS)
   galleryProjectId: string | null; // P0 FIX: Which project's gallery is being edited
+  gallerySaveStatus: 'idle' | 'staging' | 'deploying' | 'verifying' | 'pending_recovery'; // PATCH 11: Transaction-aware save button
   pendingDeployments: Array<{ transactionId: string; projectId: string | null; state: string; reason: string; timestamp: string; stagingKeysCount: number; failureReason?: string; retryCount?: number }>; // P0 FIX: Track prepared and failed transactions available for retry
   pendingDeploymentsError: string | null; // P0 FIX: Error state for recovery unavailability
   selectedPendingDeployments: Set<string>; // P0 FIX: Track which pending deployments are selected for bulk deployment
@@ -162,6 +163,7 @@ export default function MediaWorkbench() {
     pendingGalleryOrder: null, // P0 FIX: No pending gallery order initially
     galleryBaseRevision: null, // P0 FIX: No base revision initially
     galleryProjectId: null, // P0 FIX: No project selected initially
+    gallerySaveStatus: 'idle', // PATCH 11: Transaction-aware save button
     pendingDeployments: [], // P0 FIX: No pending deployments initially
     pendingDeploymentsError: null, // P0 FIX: Error state for recovery unavailability
     selectedPendingDeployments: new Set() // P0 FIX: No deployments selected initially
@@ -632,6 +634,14 @@ export default function MediaWorkbench() {
   };
 
   const handleSaveGalleryChanges = async () => {
+    // PATCH 11: Check if save is already in progress
+    if (state.gallerySaveStatus !== 'idle') {
+      console.warn('[WB_GALLERY] SAVE_ALREADY_IN_PROGRESS', {
+        currentStatus: state.gallerySaveStatus,
+      });
+      return;
+    }
+
     // P0 FIX: Read from ref-backed transaction buffer, not React state
     const galleryToSave = pendingGalleryOrderRef.current;
     const projectId = galleryProjectIdRef.current;
@@ -652,6 +662,9 @@ export default function MediaWorkbench() {
       galleryLength: galleryToSave.length,
       expectedRevision,
     });
+
+    // PATCH 11: Set save status to staging
+    setState(prev => ({ ...prev, gallerySaveStatus: 'staging' }));
 
     // Save gallery to local variable for readback verification
     const submittedGallery = galleryToSave;
@@ -674,33 +687,65 @@ export default function MediaWorkbench() {
         ok: saveResponse.ok,
       });
 
-      if (!saveResponse.ok) {
-        const error = await saveResponse.json();
-        console.error('[WB_GALLERY] SAVE_FAILED', {
+      let result;
+      try {
+        if (!saveResponse.ok) {
+          const error = await saveResponse.json();
+          console.error('[WB_GALLERY] SAVE_FAILED', {
+            projectId,
+            status: saveResponse.status,
+            error,
+          });
+
+          if (saveResponse.status === 409) {
+            console.error('[WB_GALLERY] CAS_CONFLICT', { error });
+            alert('Concurrent modification detected. Please reload and try again.');
+          } else {
+            throw new Error(error.error || 'Failed to save gallery');
+          }
+          return;
+        }
+
+        result = await saveResponse.json();
+        console.log('[WB_GALLERY] SAVE_SUCCESS', {
           projectId,
-          status: saveResponse.status,
-          error,
+          newRevision: result.currentRevision,
+          staged: result.staged,
+          transactionId: result.transactionId,
+          alreadyApplied: result.alreadyApplied,
+          result,
         });
-        
-        if (saveResponse.status === 409) {
-          console.error('[WB_GALLERY] CAS_CONFLICT', { error });
-          alert('Concurrent modification detected. Please reload and try again.');
-        } else {
-          throw new Error(error.error || 'Failed to save gallery');
+      } finally {
+        // PATCH 11: Reset save status
+        setState(prev => ({ ...prev, gallerySaveStatus: 'idle' }));
+      }
+
+      // PATCH 10: Handle ALREADY_APPLIED as success
+      if (result.alreadyApplied) {
+        clearGalleryEditState();
+        console.log('[WB_GALLERY] ALREADY_APPLIED_HANDLED', {
+          projectId,
+          transactionId: result.transactionId,
+          currentRevision: result.currentRevision,
+        });
+        alert('Gallery changes are already in the desired state. No changes needed.');
+        await loadCanonicalData();
+        if (iframeRef.current) {
+          iframeRef.current.src = iframeRef.current.src;
         }
         return;
       }
 
-      const result = await saveResponse.json();
-      console.log('[WB_GALLERY] SAVE_SUCCESS', {
+      // PATCH 1 & 5: Clear local draft immediately after successful staging
+      // Runtime authority is already committed; local draft must no longer be editable
+      clearGalleryEditState();
+      console.log('[WB_GALLERY] LOCAL_DRAFT_CLEARED', {
         projectId,
-        newRevision: result.currentRevision,
-        staged: result.staged,
         transactionId: result.transactionId,
-        result,
+        committedRevision: result.currentRevision,
       });
 
-      // Step 2: If staged, trigger deployment
+      // Step 2: If staged, trigger deployment (async, not blocking)
       if (result.staged && result.transactionId) {
         console.log('[WB_GALLERY] TRIGGERING_DEPLOYMENT', { transactionId: result.transactionId });
         
@@ -720,21 +765,10 @@ export default function MediaWorkbench() {
             status: deployResponse.status,
             error: deployError,
           });
-          
-          // Deployment failed but gallery is staged - inform user
-          alert(`Gallery changes staged but deployment failed: ${deployError.error || 'Unknown error'}. Transaction preserved for retry.`);
-          
-          // Clear pending state but leave transaction intact
-          pendingGalleryOrderRef.current = null;
-          galleryBaseRevisionRef.current = null;
-          galleryProjectIdRef.current = null;
-          setState(prev => ({
-            ...prev,
-            pendingGalleryOrder: null,
-            galleryBaseRevision: null,
-            galleryProjectId: null,
-          }));
-          
+
+          // PATCH 3: Deployment failed - local draft already cleared, transaction preserved
+          alert(`Gallery changes saved to runtime authority. Deployment failed: ${deployError.error || 'Unknown error'}. Transaction preserved for retry.`);
+
           await loadCanonicalData();
           if (iframeRef.current) {
             iframeRef.current.src = iframeRef.current.src;
@@ -812,7 +846,7 @@ export default function MediaWorkbench() {
               
               if (!readbackResponse.ok) {
                 console.error('[WB_GALLERY] READBACK_FAILED', { status: readbackResponse.status });
-                alert(`Gallery changes deployed but runtime authority verification failed. Transaction preserved. Please refresh and verify.`);
+                alert(`Gallery changes saved to runtime authority. Runtime authority verification failed. Transaction preserved. Please refresh and verify.`);
                 return;
               }
 
@@ -849,10 +883,23 @@ export default function MediaWorkbench() {
                 continue;
               }
 
+              // PATCH 7: Verify transaction ID matches (distinguishes superseded transactions)
+              const transactionIdMatches = readbackData.lastTransactionId === result.transactionId;
+              if (!transactionIdMatches) {
+                console.log('[WB_GALLERY] READBACK_TRANSACTION_ID_MISMATCH', {
+                  expected: result.transactionId,
+                  actual: readbackData.lastTransactionId,
+                  readbackPollCount,
+                });
+                readbackPollCount++;
+                continue;
+              }
+
               console.log('[WB_GALLERY] READBACK_VERIFIED', {
                 projectId,
                 runtimeRevision: readbackData.currentRevision,
                 runtimeGalleryMatches,
+                transactionIdMatches,
                 readbackPollCount,
               });
               readbackVerified = true;
@@ -865,7 +912,7 @@ export default function MediaWorkbench() {
                 expectedNewRevision: result.currentRevision,
                 maxReadbackPolls,
               });
-              alert(`Gallery changes deployed but runtime authority verification timed out after ${maxReadbackPolls} seconds. Transaction preserved for retry.`);
+              alert(`Gallery changes saved to runtime authority. Runtime authority verification timed out after ${maxReadbackPolls} seconds. Transaction preserved for retry.`);
               return;
             }
           } else {
@@ -873,22 +920,11 @@ export default function MediaWorkbench() {
               commitSha: deployResult.commitSha,
               maxPolls,
             });
-            alert(`Gallery changes staged but deployment verification timed out after ${maxPolls} seconds. Transaction preserved for retry.`);
+            alert(`Gallery changes saved to runtime authority. Deployment verification timed out after ${maxPolls} seconds. Transaction preserved for retry.`);
             return;
           }
         }
       }
-
-      // Clear pending state (both ref and React state)
-      pendingGalleryOrderRef.current = null;
-      galleryBaseRevisionRef.current = null;
-      galleryProjectIdRef.current = null;
-      setState(prev => ({
-        ...prev,
-        pendingGalleryOrder: null,
-        galleryBaseRevision: null,
-        galleryProjectId: null,
-      }));
 
       // Reload canonical data and force iframe navigation
       console.log('[WB_GALLERY] REFRESHING_AFTER_SAVE', {
@@ -934,6 +970,19 @@ export default function MediaWorkbench() {
       galleryProjectId: null,
     }));
     alert('Pending gallery changes canceled.');
+  };
+
+  // PATCH 1: Helper to clear gallery edit state
+  const clearGalleryEditState = () => {
+    pendingGalleryOrderRef.current = null;
+    galleryBaseRevisionRef.current = null;
+    galleryProjectIdRef.current = null;
+    setState(prev => ({
+      ...prev,
+      pendingGalleryOrder: null,
+      galleryBaseRevision: null,
+      galleryProjectId: null,
+    }));
   };
 
   const handleGalleryVisibility = async (projectId: string, mediaId: string, operation: 'hide' | 'unhide') => {
@@ -3195,10 +3244,10 @@ export default function MediaWorkbench() {
           <div className="flex items-center gap-2">
             <button
               onClick={handleSaveGalleryChanges}
-              disabled={state.mutationState !== 'idle'}
+              disabled={state.mutationState !== 'idle' || state.gallerySaveStatus !== 'idle'}
               className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded disabled:opacity-50 transition-colors"
             >
-              Save Gallery Changes
+              {state.gallerySaveStatus === 'idle' ? 'Save Gallery Changes' : 'Saving...'}
             </button>
             <span className="text-xs text-amber-700 dark:text-amber-300">
               {state.galleryProjectId ? `Project: ${state.galleryProjectId}` : ''}

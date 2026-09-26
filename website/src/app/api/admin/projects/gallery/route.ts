@@ -248,6 +248,7 @@ export async function GET(request: Request) {
         hasStagedChanges: !!pendingDeployment,
         pendingDeployment,
         source: 'runtime-authority',
+        lastTransactionId: pendingDeployment?.transactionId || null, // PATCH 7: Add transaction ID to readback
       });
     }
 
@@ -631,6 +632,32 @@ export async function PUT(request: Request) {
             { status: 500 }
           );
         }
+      }
+
+      // PATCH 9: Handle ALREADY_APPLIED response
+      // Return format: ['OK', currentRevision, lastTransactionId, currentRevision, 'ALREADY_APPLIED']
+      if (mutationResult.length >= 5 && mutationResult[4] === 'ALREADY_APPLIED') {
+        const currentRevision = mutationResult[1];
+        const lastTransactionId = mutationResult[2];
+        console.log('[GALLERY V2 PUT] ALREADY_APPLIED', {
+          projectId,
+          expectedRevision,
+          currentRevision,
+          lastTransactionId,
+        });
+
+        return NextResponse.json({
+          success: true,
+          alreadyApplied: true,
+          projectId,
+          gallery: gallery || [],
+          galleryLength: gallery?.length || 0,
+          currentRevision,
+          transactionId: lastTransactionId,
+          staged: false,
+          persistence: 'runtime-authority',
+          mode: 'production'
+        });
       }
 
       // Success: ['OK', newRevision, transactionId, actualRevision]

@@ -414,6 +414,8 @@ export async function POST(request: Request) {
 
     // Invoke the existing ingest handler in this request context. Authentication,
     // corpus checks, physical variants, and provenance remain owned by ingest.
+    // PATCH 15: Pass canonical idempotency key to ingest endpoint
+    const canonicalIdempotencyKey = `drive:${effectiveCorpusId === 'root' ? 'my-drive' : effectiveCorpusId}:${effectiveFileId}`;
     const ingestResponse = await ingestDriveMedia(new Request(request.url, {
       method: 'POST',
       headers: request.headers,
@@ -422,6 +424,7 @@ export async function POST(request: Request) {
         sharedDriveId: effectiveCorpusId === 'root' ? undefined : effectiveCorpusId,
         originalShortcutId,
         roles: ['gallery'],
+        idempotencyKey: canonicalIdempotencyKey,
       }),
     }));
     const ingested = await ingestResponse.json();

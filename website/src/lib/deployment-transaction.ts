@@ -583,10 +583,33 @@ const ATOMIC_GALLERY_MUTATION_SCRIPT = `
     -- Invalid runtime data, CAS fails
     return {'ERR', 'INVALID_RUNTIME_DATA_STRUCTURE', expectedRevision, 0}
   end
-  
+
   -- CAS: Compare current revision with expected revision
   if currentRevision ~= expectedRevision then
-    return {'ERR', 'CAS_FAILURE', expectedRevision, currentRevision}
+    -- PATCH 8: Defense-in-depth idempotency check
+    -- If revision differs but gallery already matches requested state, return ALREADY_APPLIED
+    local newGallery = cjson.decode(newGalleryJson)
+    local galleryMatches = true
+
+    -- Compare gallery arrays element by element
+    if #currentGallery ~= #newGallery then
+      galleryMatches = false
+    else
+      for i = 1, #currentGallery do
+        if currentGallery[i] ~= newGallery[i] then
+          galleryMatches = false
+          break
+        end
+      end
+    end
+
+    if galleryMatches then
+      -- Gallery already in desired state - idempotent
+      return {'OK', currentRevision, parsed.lastTransactionId or '', currentRevision, 'ALREADY_APPLIED'}
+    else
+      -- Genuine concurrent modification
+      return {'ERR', 'CAS_FAILURE', expectedRevision, currentRevision}
+    end
   end
   
   -- Write new gallery with incremented revision
