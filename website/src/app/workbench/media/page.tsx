@@ -785,8 +785,12 @@ export default function MediaWorkbench() {
               vercelStatus: statusData.vercelStatus,
             });
             
-            if (statusData.status === 'PUBLISHED') {
-              console.log('[WB_GALLERY] DEPLOYMENT_COMPLETE', { commitSha: deployResult.commitSha });
+            if (statusData.status === 'PUBLISHED' || statusData.status === 'COMMITTED_DEPLOYING' || statusData.status === 'committed') {
+              console.log('[WB_GALLERY] DEPLOYMENT_COMPLETE', { 
+                commitSha: deployResult.commitSha,
+                finalStatus: statusData.status,
+                vercelStatus: statusData.vercelStatus,
+              });
               deploymentPublished = true;
               break;
             }
