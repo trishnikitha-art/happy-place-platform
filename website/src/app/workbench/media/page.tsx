@@ -663,6 +663,9 @@ export default function MediaWorkbench() {
       expectedRevision,
     });
 
+    // Save gallery to local variable for readback verification
+    const submittedGallery = galleryToSave;
+
     try {
       // Step 1: Save gallery to Redis staging
       const saveResponse = await fetch('/api/admin/projects/gallery', {
@@ -763,6 +766,7 @@ export default function MediaWorkbench() {
           let pollCount = 0;
           const maxPolls = 30; // 30 seconds max
           const pollInterval = 1000; // 1 second
+          let deploymentPublished = false;
           
           while (pollCount < maxPolls) {
             await new Promise(resolve => setTimeout(resolve, pollInterval));
@@ -783,10 +787,72 @@ export default function MediaWorkbench() {
             
             if (statusData.status === 'PUBLISHED') {
               console.log('[WB_GALLERY] DEPLOYMENT_COMPLETE', { commitSha: deployResult.commitSha });
+              deploymentPublished = true;
               break;
             }
             
             pollCount++;
+          }
+
+          // CRITICAL FIX: Deployment readback barrier
+          // Verify runtime authority has converged before declaring success
+          if (deploymentPublished) {
+            console.log('[WB_GALLERY] PERFORMING_RUNTIME_AUTHORITY_READBACK', {
+              projectId,
+              expectedNewRevision: result.currentRevision,
+              submittedGallery: submittedGallery,
+            });
+
+            const readbackResponse = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
+            
+            if (!readbackResponse.ok) {
+              console.error('[WB_GALLERY] READBACK_FAILED', { status: readbackResponse.status });
+              alert(`Gallery changes deployed but runtime authority verification failed. Transaction preserved. Please refresh and verify.`);
+              return;
+            }
+
+            const readbackData = await readbackResponse.json();
+            console.log('[WB_GALLERY] READBACK_DATA', {
+              projectId,
+              runtimeRevision: readbackData.currentRevision,
+              runtimeGallery: readbackData.gallery,
+              expectedNewRevision: result.currentRevision,
+              submittedGallery: submittedGallery,
+            });
+
+            // Verify runtime revision matches expected new revision
+            if (readbackData.currentRevision !== result.currentRevision) {
+              console.error('[WB_GALLERY] READBACK_REVISION_MISMATCH', {
+                expected: result.currentRevision,
+                actual: readbackData.currentRevision,
+              });
+              alert(`Gallery changes deployed but runtime revision mismatch. Expected ${result.currentRevision}, got ${readbackData.currentRevision}. Transaction preserved.`);
+              return;
+            }
+
+            // Verify runtime gallery matches submitted gallery
+            const runtimeGalleryMatches = JSON.stringify(readbackData.gallery) === JSON.stringify(submittedGallery);
+            if (!runtimeGalleryMatches) {
+              console.error('[WB_GALLERY] READBACK_GALLERY_MISMATCH', {
+                submitted: submittedGallery,
+                runtime: readbackData.gallery,
+              });
+              alert(`Gallery changes deployed but runtime gallery content mismatch. Transaction preserved.`);
+              return;
+            }
+
+            console.log('[WB_GALLERY] READBACK_VERIFIED', {
+              projectId,
+              runtimeRevision: readbackData.currentRevision,
+              runtimeGalleryMatches,
+            });
+          } else {
+            console.error('[WB_GALLERY] DEPLOYMENT_TIMEOUT', {
+              commitSha: deployResult.commitSha,
+              maxPolls,
+            });
+            alert(`Gallery changes staged but deployment verification timed out after ${maxPolls} seconds. Transaction preserved for retry.`);
+            return;
           }
         }
       }
