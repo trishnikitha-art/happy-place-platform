@@ -30,16 +30,53 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxImages, setLightboxImages] = useState<Array<{src: string; alt: string; blurDataURL?: string}>>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [galleryAddStatus, setGalleryAddStatus] = useState<'idle' | 'pending' | 'accepted' | 'rejected'>('idle');
   const galleryGridRef = useRef<HTMLDivElement>(null);
   const bridgedDragDataRef = useRef<any>(null);
 
+  // P0 FIX: Runtime drag-data schema validation
+  // Validates that dragData conforms to expected DriveReference or AssetReference contract
+  const validateDragData = (dragData: any): { valid: boolean; reason?: string } => {
+    if (!dragData || typeof dragData !== 'object') {
+      return { valid: false, reason: 'dragData is not an object' };
+    }
+
+    // Validate source field (discriminator)
+    const validSources = ['google-drive', 'local', 'drive'];
+    if (!dragData.source || !validSources.includes(dragData.source)) {
+      return { valid: false, reason: `invalid source: ${dragData.source}` };
+    }
+
+    // Validate identity fields (at least one required)
+    const hasAssetId = !!dragData.assetId && typeof dragData.assetId === 'string';
+    const hasFileId = !!dragData.fileId && typeof dragData.fileId === 'string';
+
+    if (!hasAssetId && !hasFileId) {
+      return { valid: false, reason: 'missing assetId or fileId' };
+    }
+
+    // Validate Google Drive specific fields
+    if (dragData.source === 'google-drive' || dragData.source === 'drive') {
+      if (!hasFileId) {
+        return { valid: false, reason: 'Drive source requires fileId' };
+      }
+      if (!dragData.fileName || typeof dragData.fileName !== 'string') {
+        return { valid: false, reason: 'Drive source requires fileName' };
+      }
+    }
+
+    return { valid: true };
+  };
+
   // P0 FIX: Reset drag state after drag operation completes
+  // Use consistent 5s timeout to match bridgedDragData expiry
   useEffect(() => {
     if (isDragging) {
       const timeout = setTimeout(() => {
         console.log('[OUR_WORK] DRAG_STATE_RESET');
         setIsDragging(false);
-      }, 500);
+        bridgedDragDataRef.current = null;
+      }, 5000);
       return () => clearTimeout(timeout);
     }
   }, [isDragging]);
@@ -53,6 +90,16 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     const container = galleryGridRef.current;
     if (!container) return;
 
+    // P0 FIX: Send BRIDGE_READY handshake to parent before attaching listeners
+    // This ensures parent knows this iframe is ready to receive DRAG_START
+    if (window.parent !== window) {
+      window.parent.postMessage({
+        type: 'BRIDGE_READY',
+        slotId: 'our-work-gallery-grid',
+      }, window.location.origin);
+      console.log('[OUR_WORK] BRIDGE_READY_SENT', { timestamp: Date.now() });
+    }
+
     const handleDragStart = (e: MessageEvent) => {
       // Only accept DRAG_START from parent at same origin
       if (e.origin !== window.location.origin || e.source !== window.parent) {
@@ -60,21 +107,45 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       }
 
       if (e.data.type === 'DRAG_START') {
+        // P0 FIX: Validate drag-data schema before accepting
+        const validation = validateDragData(e.data.dragData);
+        if (!validation.valid) {
+          console.error('[OUR_WORK] GALLERY_DRAG_START_REJECTED', {
+            reason: validation.reason,
+            timestamp: Date.now(),
+          });
+          return;
+        }
+
         console.log('[OUR_WORK] GALLERY_DRAG_START_RECEIVED', {
-          dragData: e.data.dragData,
+          assetType: e.data.dragData?.source,
+          hasAssetId: !!e.data.dragData?.assetId,
+          hasFileId: !!e.data.dragData?.fileId,
           timestamp: Date.now(),
         });
         bridgedDragDataRef.current = e.data.dragData;
         setIsDragging(true);
+      }
 
-        // Clear bridged data after 5 seconds if no drop occurs
-        setTimeout(() => {
-          if (bridgedDragDataRef.current === e.data.dragData) {
-            console.log('[OUR_WORK] GALLERY_DRAG_START_EXPIRED');
-            bridgedDragDataRef.current = null;
-            setIsDragging(false);
-          }
-        }, 5000);
+      // P1 FIX: Handle GALLERY_ADD_ACK/NACK responses from parent
+      if (e.data.type === 'GALLERY_ADD_ACK') {
+        console.log('[OUR_WORK] GALLERY_ADD_ACK_RECEIVED', {
+          status: e.data.status,
+          projectId: e.data.projectId,
+          assetId: e.data.assetId,
+          timestamp: Date.now(),
+        });
+        setGalleryAddStatus('accepted');
+        setTimeout(() => setGalleryAddStatus('idle'), 3000);
+      } else if (e.data.type === 'GALLERY_ADD_NACK') {
+        console.error('[OUR_WORK] GALLERY_ADD_NACK_RECEIVED', {
+          status: e.data.status,
+          projectId: e.data.projectId,
+          reason: e.data.reason,
+          timestamp: Date.now(),
+        });
+        setGalleryAddStatus('rejected');
+        setTimeout(() => setGalleryAddStatus('idle'), 3000);
       }
     };
 
@@ -93,10 +164,25 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
         return;
       }
 
-      // Use first project as default target for new gallery additions
-      const targetProject = allProjects[0];
+      // P0 FIX: Determine target project from drop location
+      // Traverse up from drop target to find the closest gallery photo element
+      // Each photo has a key pattern: `${project.id}-${mediaId}`
+      let targetProject: Project | null = null;
+      let dropTarget: HTMLElement | null = e.target as HTMLElement;
+
+      while (dropTarget && dropTarget !== container) {
+        // Check if this element has a data-project-id attribute
+        const projectId = dropTarget.getAttribute('data-project-id');
+        if (projectId) {
+          targetProject = allProjects.find(p => p.id === projectId) || null;
+          break;
+        }
+        dropTarget = dropTarget.parentElement;
+      }
+
+      // Fallback: if no project context found, reject the drop
       if (!targetProject) {
-        console.error('[OUR_WORK] GALLERY_DROP_NO_PROJECT');
+        console.error('[OUR_WORK] GALLERY_DROP_NO_PROJECT_CONTEXT');
         return;
       }
 
@@ -109,6 +195,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
 
       // Send GALLERY_ADD message to parent Workbench
       if (window.parent !== window) {
+        setGalleryAddStatus('pending');
         window.parent.postMessage({
           type: 'GALLERY_ADD',
           slotId: `gallery:${targetProject.id}`,
@@ -266,6 +353,18 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
             title={<span className="text-text-on-dark">The complete archive</span>}
             description={<span className="text-text-on-dark/90">Every project, every detail. Future projects simply append here.</span>}
           />
+          {/* P1 FIX: Visual indicator for gallery add status */}
+          {galleryAddStatus !== 'idle' && (
+            <div className={`mt-4 px-4 py-2 rounded-lg text-sm font-medium ${
+              galleryAddStatus === 'pending' ? 'bg-primary/20 text-primary' :
+              galleryAddStatus === 'accepted' ? 'bg-green-500/20 text-green-400' :
+              'bg-red-500/20 text-red-400'
+            }`}>
+              {galleryAddStatus === 'pending' && 'Adding to gallery...'}
+              {galleryAddStatus === 'accepted' && 'Asset added to pending gallery changes'}
+              {galleryAddStatus === 'rejected' && 'Failed to add asset to gallery'}
+            </div>
+          )}
           <div 
             className={`gallery-grid mt-10 columns-2 gap-4 space-y-4 md:columns-3 lg:columns-4 ${isDragging ? 'ring-2 ring-dashed ring-primary/50 ring-offset-2' : ''}`}
             ref={galleryGridRef}
@@ -290,6 +389,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                 return (
                   <div
                     key={`${project.id}-${mediaId}`}
+                    data-project-id={project.id}
                     role="button"
                     tabIndex={0}
                     className="group relative block aspect-[4/3] overflow-hidden cursor-pointer break-inside-avoid mb-4"

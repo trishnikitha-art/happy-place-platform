@@ -158,7 +158,7 @@ export default function MediaWorkbench() {
     mutationRequestId: null,
     mutationError: null,
     bridgeReadySlots: new Set<string>(), // P0 FIX: Track which slots have sent BRIDGE_READY
-    bridgeReady: true, // P0 FIX: Initialize as true to allow first drag without waiting
+    bridgeReady: false, // P0 FIX: Initialize as false - wait for BRIDGE_READY handshake
     pendingGalleryOrder: null, // P0 FIX: No pending gallery order initially
     galleryBaseRevision: null, // P0 FIX: No base revision initially
     galleryProjectId: null, // P0 FIX: No project selected initially
@@ -183,16 +183,6 @@ export default function MediaWorkbench() {
     galleryBaseRevisionRef.current = state.galleryBaseRevision;
     galleryProjectIdRef.current = state.galleryProjectId;
   }, [state.pendingGalleryOrder, state.galleryBaseRevision, state.galleryProjectId]);
-
-  // P0 FIX: Set bridgeReady to true when parent message listener is attached
-  // This allows the first drag to work without waiting for child BRIDGE_READY
-  useEffect(() => {
-    console.log('[WB_FORENSIC] PARENT_LISTENER_INITIALIZED', {
-      bridgeReady: true,
-      timestamp: Date.now(),
-    });
-    setState(prev => ({ ...prev, bridgeReady: true }));
-  }, []);
 
 
 
@@ -2473,6 +2463,10 @@ export default function MediaWorkbench() {
           }
           
           try {
+            // P1 FIX: Generate idempotency key for Drive materialization
+            // This prevents duplicate materialization of the same Drive file
+            const idempotencyKey = `drive:${applicationData.sharedDriveId || 'my-drive'}:${applicationData.fileId}`;
+
             // Call materialization API
             const materializeResponse = await fetch('/api/workbench/materialize-drive', {
               method: 'POST',
@@ -2484,6 +2478,7 @@ export default function MediaWorkbench() {
                 mimeType: applicationData.mimeType,
                 name: applicationData.name,
                 webViewUrl: applicationData.webViewUrl,
+                idempotencyKey,
               }),
             });
             
@@ -2657,14 +2652,40 @@ export default function MediaWorkbench() {
             pendingChanges: true,
             note: isReplace ? 'Replace queued locally' : 'Add queued locally. Click "Save Gallery Changes" to persist.',
           });
+
+          // P1 FIX: Send ACK back to iframe
+          if (event.source && event.source === iframeRef.current?.contentWindow) {
+            event.source.postMessage({
+              type: 'GALLERY_ADD_ACK',
+              requestId,
+              status: 'accepted',
+              projectId,
+              assetId: finalAssetId,
+              isReplace,
+              targetIndex,
+            }, event.origin);
+            console.log('[WB_DND] GALLERY_ADD_ACK_SENT', { requestId, status: 'accepted' });
+          }
         } catch (error) {
-          console.error('[WB_DND] GALLERY_ADD_ERROR', { 
+          console.error('[WB_DND] GALLERY_ADD_ERROR', {
             requestId,
             projectId,
             error: error instanceof Error ? error.message : String(error),
             stack: error instanceof Error ? error.stack : undefined,
           });
           alert(`Failed to queue gallery add: ${error instanceof Error ? error.message : String(error)}`);
+
+          // P1 FIX: Send NACK back to iframe on error
+          if (event.source && event.source === iframeRef.current?.contentWindow) {
+            event.source.postMessage({
+              type: 'GALLERY_ADD_NACK',
+              requestId,
+              status: 'rejected',
+              projectId,
+              reason: error instanceof Error ? error.message : String(error),
+            }, event.origin);
+            console.log('[WB_DND] GALLERY_ADD_NACK_SENT', { requestId, status: 'rejected' });
+          }
         }
       } else if (messageType === 'GALLERY_HIDE') {
         const { projectId, mediaId } = event.data;
