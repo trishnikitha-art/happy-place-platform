@@ -165,11 +165,32 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
         return;
       }
 
+      // CEO FIX: Inspect iframe/parent drop event boundary
+      // Determine which document owns the drop event and whether project context is available
+      const dropTarget = e.target as HTMLElement;
+      const composedPath = e.composedPath();
+
+      console.log('[OUR_WORK] GALLERY_DROP_BOUNDARY_FORENSIC', {
+        ownerDocumentMatch: dropTarget.ownerDocument === document,
+        isIframe: window.parent !== window,
+        dropTargetTag: dropTarget?.tagName,
+        dropTargetId: dropTarget?.id,
+        dropTargetClasses: dropTarget?.className,
+        currentTargetTag: (e.currentTarget as HTMLElement)?.tagName,
+        currentTargetId: (e.currentTarget as HTMLElement)?.id,
+        composedPathLength: composedPath.length,
+        composedPathFirst10: composedPath.slice(0, 10).map((el: any) => ({
+          tag: el?.tagName,
+          hasDataProjectId: el?.hasAttribute?.('data-project-id'),
+          dataProjectId: el?.getAttribute?.('data-project-id'),
+        })),
+        anyElementHasDataProjectId: composedPath.some((el: any) => el?.hasAttribute?.('data-project-id')),
+      });
+
       // P0 FIX: Determine target project from drop location
       // Use closest() selector to find the nearest [data-project-id] ancestor
       // This works even when drop lands on whitespace inside the project section
       let targetProject: Project | null = null;
-      const dropTarget = e.target as HTMLElement;
 
       // Find the nearest ancestor with data-project-id
       const projectElement = dropTarget.closest('[data-project-id]');
@@ -201,6 +222,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
           dropTargetClasses: dropTarget?.className,
           containerTag: container?.tagName,
           allProjectsCount: allProjects.length,
+          isIframe: window.parent !== window,
         });
         return;
       }
