@@ -1058,6 +1058,7 @@ export default function MediaWorkbench() {
         fileId: driveFile.id,
         sharedDriveId: state.driveCurrentDriveId || undefined,
         fileName: driveFile.name, // P0 FIX: Use fileName to match iframe validation schema
+        name: driveFile.name, // P0 FIX: Also include name for validator compatibility
         mimeType: driveFile.mimeType, // Do NOT default - must be provided by Drive
         modifiedTime: driveFile.modifiedTime,
         webViewUrl: driveFile.webViewLink,
@@ -1107,8 +1108,13 @@ export default function MediaWorkbench() {
     }
 
     e.dataTransfer.effectAllowed = 'copy';
+
+    // P0 FIX: Update selection state for both local assets and Drive files
     if (asset) {
       setState(prev => selectPublishedSource(prev, asset));
+    } else if (driveFile) {
+      // Drive drag should also establish selection state
+      selectDriveFile(driveFile);
     }
 
     // P0 FIX: Bridge drag data across iframe boundary via postMessage
