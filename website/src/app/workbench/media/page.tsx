@@ -1057,8 +1057,7 @@ export default function MediaWorkbench() {
         source: 'google-drive' as const,
         fileId: driveFile.id,
         sharedDriveId: state.driveCurrentDriveId || undefined,
-        fileName: driveFile.name, // P0 FIX: Use fileName to match iframe validation schema
-        name: driveFile.name, // P0 FIX: Also include name for validator compatibility
+        fileName: driveFile.name, // Canonical field
         mimeType: driveFile.mimeType, // Do NOT default - must be provided by Drive
         modifiedTime: driveFile.modifiedTime,
         webViewUrl: driveFile.webViewLink,

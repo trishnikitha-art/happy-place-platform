@@ -41,18 +41,6 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       return { valid: false, reason: 'dragData is not an object' };
     }
 
-    // P0 FIX: Log full drag data for forensic debugging
-    console.log('[OUR_WORK] VALIDATING_DRAG_DATA', {
-      hasData: !!dragData,
-      dataType: typeof dragData,
-      source: dragData?.source,
-      hasFileId: !!dragData?.fileId,
-      hasFileName: !!dragData?.fileName,
-      hasName: !!dragData?.name,
-      hasAssetId: !!dragData?.assetId,
-      keys: Object.keys(dragData || {}),
-    });
-
     // Validate source field (discriminator)
     const validSources = ['google-drive', 'local', 'drive'];
     if (!dragData.source || !validSources.includes(dragData.source)) {
@@ -72,11 +60,9 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       if (!hasFileId) {
         return { valid: false, reason: 'Drive source requires fileId' };
       }
-      // P0 FIX: Accept either fileName or name for backward compatibility
-      const hasFileName = !!dragData.fileName && typeof dragData.fileName === 'string';
-      const hasName = !!dragData.name && typeof dragData.name === 'string';
-      if (!hasFileName && !hasName) {
-        return { valid: false, reason: 'Drive source requires fileName or name' };
+      // P1 FIX: Require canonical fileName field only (eliminate schema duality)
+      if (!dragData.fileName || typeof dragData.fileName !== 'string') {
+        return { valid: false, reason: 'Drive source requires fileName' };
       }
     }
 
@@ -112,8 +98,17 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       }
 
       if (e.data.type === 'DRAG_START') {
+        // P1 FIX: Normalize legacy 'name' field to canonical 'fileName' for backward compatibility
+        const normalizedDragData = { ...e.data.dragData };
+        if (normalizedDragData.name && !normalizedDragData.fileName) {
+          normalizedDragData.fileName = normalizedDragData.name;
+          console.log('[OUR_WORK] NORMALIZED_LEGACY_NAME_TO_FILENAME', {
+            originalName: normalizedDragData.name,
+          });
+        }
+
         // P0 FIX: Validate drag-data schema before accepting
-        const validation = validateDragData(e.data.dragData);
+        const validation = validateDragData(normalizedDragData);
         if (!validation.valid) {
           console.error('[OUR_WORK] GALLERY_DRAG_START_REJECTED', {
             reason: validation.reason,
@@ -123,12 +118,12 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
         }
 
         console.log('[OUR_WORK] GALLERY_DRAG_START_RECEIVED', {
-          assetType: e.data.dragData?.source,
-          hasAssetId: !!e.data.dragData?.assetId,
-          hasFileId: !!e.data.dragData?.fileId,
+          assetType: normalizedDragData?.source,
+          hasAssetId: !!normalizedDragData?.assetId,
+          hasFileId: !!normalizedDragData?.fileId,
           timestamp: Date.now(),
         });
-        bridgedDragDataRef.current = e.data.dragData;
+        bridgedDragDataRef.current = normalizedDragData;
         setIsDragging(true);
       }
 
@@ -171,57 +166,41 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       }
 
       // P0 FIX: Determine target project from drop location
-      // Each project section has data-project-id attribute
-      // This allows drops on blank space within a project section to work
+      // Use closest() selector to find the nearest [data-project-id] ancestor
+      // This works even when drop lands on whitespace inside the project section
       let targetProject: Project | null = null;
-      let dropTarget: HTMLElement | null = e.target as HTMLElement;
+      const dropTarget = e.target as HTMLElement;
 
-      // P0 FIX: DOM inventory - check what data-project-id attributes actually exist
-      const allProjectElements = container.querySelectorAll('[data-project-id]');
-      console.log('[OUR_WORK] GALLERY_DROP_DOM_INVENTORY', {
-        totalProjectElements: allProjectElements.length,
-        projectIds: Array.from(allProjectElements).map(el => el.getAttribute('data-project-id')),
+      // Find the nearest ancestor with data-project-id
+      const projectElement = dropTarget.closest('[data-project-id]');
+
+      console.log('[OUR_WORK] GALLERY_DROP_TARGET_RESOLUTION', {
+        dropTargetTag: dropTarget?.tagName,
+        dropTargetClasses: dropTarget?.className,
+        foundProjectElement: !!projectElement,
+        projectElementTag: projectElement?.tagName,
+        projectElementClasses: projectElement?.className,
       });
 
-      // P0 FIX: Add forensic logging for drop target traversal
-      console.log('[OUR_WORK] GALLERY_DROP_TARGET_SEARCH', {
-        initialTarget: dropTarget?.tagName,
-        initialTargetClasses: dropTarget?.className,
-        containerClasses: container?.className,
-        allProjectsCount: allProjects.length,
-      });
-
-      let traversalDepth = 0;
-      while (dropTarget && dropTarget !== container && traversalDepth < 20) {
-        const projectId = dropTarget.getAttribute('data-project-id');
-        console.log('[OUR_WORK] GALLERY_DROP_TRAVERSAL_STEP', {
-          depth: traversalDepth,
-          tagName: dropTarget.tagName,
-          hasDataProjectId: !!projectId,
-          projectId: projectId || 'none',
-          className: dropTarget.className,
-        });
+      if (projectElement) {
+        const projectId = projectElement.getAttribute('data-project-id');
         if (projectId) {
           targetProject = allProjects.find(p => p.id === projectId) || null;
-          console.log('[OUR_WORK] GALLERY_DROP_PROJECT_FOUND', {
+          console.log('[OUR_WORK] GALLERY_DROP_PROJECT_RESOLVED', {
             projectId,
             targetProjectId: targetProject?.id,
-            depth: traversalDepth,
-            tagName: dropTarget.tagName,
+            targetProjectTitle: targetProject?.title,
           });
-          break;
         }
-        dropTarget = dropTarget.parentElement;
-        traversalDepth++;
       }
 
-      // Fallback: if no project context found, reject the drop
+      // Reject if no project context found
       if (!targetProject) {
         console.error('[OUR_WORK] GALLERY_DROP_NO_PROJECT_CONTEXT', {
-          maxDepthReached: traversalDepth >= 20,
-          finalTarget: dropTarget?.tagName,
-          finalTargetClasses: dropTarget?.className,
-          traversalSteps: traversalDepth,
+          dropTargetTag: dropTarget?.tagName,
+          dropTargetClasses: dropTarget?.className,
+          containerTag: container?.tagName,
+          allProjectsCount: allProjects.length,
         });
         return;
       }
