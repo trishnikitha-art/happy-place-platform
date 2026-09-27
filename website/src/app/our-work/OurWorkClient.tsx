@@ -69,18 +69,13 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     return { valid: true };
   };
 
-  // P0 FIX: Reset drag state after drag operation completes
-  // Use consistent 5s timeout to match bridgedDragData expiry
-  useEffect(() => {
-    if (isDragging) {
-      const timeout = setTimeout(() => {
-        console.log('[OUR_WORK] DRAG_STATE_RESET');
-        setIsDragging(false);
-        bridgedDragDataRef.current = null;
-      }, 5000);
-      return () => clearTimeout(timeout);
-    }
-  }, [isDragging]);
+  // CEO FIX: Remove automatic drag state reset timeout
+  // The 5-second timeout was causing GALLERY_DROP_NO_BRIDGED_DATA by clearing
+  // bridgedDragDataRef.current before the user could complete the drop.
+  // Drag state is now only reset explicitly by:
+  // 1. Successful drop (handleProjectDrop clears data after sending GALLERY_ADD)
+  // 2. Explicit drag cancellation by user
+  // This prevents race condition where drop happens after auto-reset.
 
   // CEO FIX: Make project sections explicit drop boundaries
   // Each project gallery section carries its own project identity via data-project-id
