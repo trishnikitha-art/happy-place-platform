@@ -748,6 +748,9 @@ export default function MediaWorkbench() {
       // Step 2: If staged, trigger deployment (async, not blocking)
       if (result.staged && result.transactionId) {
         console.log('[WB_GALLERY] TRIGGERING_DEPLOYMENT', { transactionId: result.transactionId });
+
+        // P0-3 FIX: Set save status to deploying
+        setState(prev => ({ ...prev, gallerySaveStatus: 'deploying' }));
         
         const deployResponse = await fetch('/api/admin/deploy', {
           method: 'POST',
@@ -767,6 +770,7 @@ export default function MediaWorkbench() {
           });
 
           // PATCH 3: Deployment failed - local draft already cleared, transaction preserved
+          setState(prev => ({ ...prev, gallerySaveStatus: 'pending_recovery' }));
           alert(`Gallery changes saved to runtime authority. Deployment failed: ${deployError.error || 'Unknown error'}. Transaction preserved for retry.`);
 
           await loadCanonicalData();
@@ -834,6 +838,9 @@ export default function MediaWorkbench() {
               submittedGallery: submittedGallery,
             });
 
+            // P0-3 FIX: Set save status to verifying
+            setState(prev => ({ ...prev, gallerySaveStatus: 'verifying' }));
+
             let readbackPollCount = 0;
             const maxReadbackPolls = 30; // 30 seconds max for readback
             const readbackPollInterval = 1000; // 1 second
@@ -846,6 +853,7 @@ export default function MediaWorkbench() {
               
               if (!readbackResponse.ok) {
                 console.error('[WB_GALLERY] READBACK_FAILED', { status: readbackResponse.status });
+                setState(prev => ({ ...prev, gallerySaveStatus: 'pending_recovery' }));
                 alert(`Gallery changes saved to runtime authority. Runtime authority verification failed. Transaction preserved. Please refresh and verify.`);
                 return;
               }
@@ -912,6 +920,7 @@ export default function MediaWorkbench() {
                 expectedNewRevision: result.currentRevision,
                 maxReadbackPolls,
               });
+              setState(prev => ({ ...prev, gallerySaveStatus: 'pending_recovery' }));
               alert(`Gallery changes saved to runtime authority. Runtime authority verification timed out after ${maxReadbackPolls} seconds. Transaction preserved for retry.`);
               return;
             }
@@ -920,11 +929,15 @@ export default function MediaWorkbench() {
               commitSha: deployResult.commitSha,
               maxPolls,
             });
+            setState(prev => ({ ...prev, gallerySaveStatus: 'pending_recovery' }));
             alert(`Gallery changes saved to runtime authority. Deployment verification timed out after ${maxPolls} seconds. Transaction preserved for retry.`);
             return;
           }
         }
       }
+
+      // P0-3 FIX: Reset save status to idle after successful deployment/verification
+      setState(prev => ({ ...prev, gallerySaveStatus: 'idle' }));
 
       // Reload canonical data and force iframe navigation
       console.log('[WB_GALLERY] REFRESHING_AFTER_SAVE', {
@@ -3247,7 +3260,12 @@ export default function MediaWorkbench() {
               disabled={state.mutationState !== 'idle' || state.gallerySaveStatus !== 'idle'}
               className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-medium rounded disabled:opacity-50 transition-colors"
             >
-              {state.gallerySaveStatus === 'idle' ? 'Save Gallery Changes' : 'Saving...'}
+              {state.gallerySaveStatus === 'idle' ? 'Save Gallery Changes' :
+               state.gallerySaveStatus === 'staging' ? 'Staging...' :
+               state.gallerySaveStatus === 'deploying' ? 'Deploying...' :
+               state.gallerySaveStatus === 'verifying' ? 'Verifying...' :
+               state.gallerySaveStatus === 'pending_recovery' ? 'Saved (recovery pending)' :
+               'Saving...'}
             </button>
             <span className="text-xs text-amber-700 dark:text-amber-300">
               {state.galleryProjectId ? `Project: ${state.galleryProjectId}` : ''}

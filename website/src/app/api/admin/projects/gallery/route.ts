@@ -55,10 +55,11 @@ import { workbenchSession } from "@/lib/workbench-session";
 import { getMediaByIdAsync, resolvePublicMedia } from "@/lib/media";
 import { Redis } from '@upstash/redis';
 import { getKvNamespace } from '@/lib/environment';
-import { 
+import {
   ATOMIC_GALLERY_MUTATION_SCRIPT,
   ATOMIC_VISIBILITY_MUTATION_SCRIPT,
-  getRedisClient as getDeploymentRedisClient
+  getRedisClient as getDeploymentRedisClient,
+  getProjectTransactionPointerKey
 } from '@/lib/deployment-transaction';
 
 export const runtime = 'nodejs';
@@ -141,22 +142,22 @@ export async function GET(request: Request) {
     let runtimeGallery = null;
     let runtimeRevision = null;
     let pendingDeployment = null;
-    
+    let runtimeParsed: any = null; // P0-1 FIX: Store parsed runtime data for transaction ID access
+
     if (isProduction && redis) {
       const runtimeKey = getRuntimeGalleryKey(projectId);
       const runtimeData = await redis.get(runtimeKey);
-      
+
       if (runtimeData) {
-        let parsed: any;
         if (typeof runtimeData === 'string') {
-          parsed = JSON.parse(runtimeData);
+          runtimeParsed = JSON.parse(runtimeData);
         } else if (typeof runtimeData === 'object') {
-          parsed = runtimeData;
+          runtimeParsed = runtimeData;
         }
-        
-        if (parsed && parsed.gallery) {
-          runtimeGallery = parsed.gallery;
-          runtimeRevision = parsed.currentRevision;
+
+        if (runtimeParsed && runtimeParsed.gallery) {
+          runtimeGallery = runtimeParsed.gallery;
+          runtimeRevision = runtimeParsed.currentRevision;
           console.log('[GALLERY GET] RUNTIME_AUTHORITY_FOUND', {
             projectId,
             runtimeKey,
@@ -168,7 +169,7 @@ export async function GET(request: Request) {
       
       // P0 FIX: Read staged state separately as pending deployment
       // Staged state is NOT substituted for current gallery
-      const projectStagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}project:${projectId}:current-transaction`;
+      const projectStagingKey = getProjectTransactionPointerKey(projectId);
       const currentStagedTransactionId = await redis.get(projectStagingKey);
       
       if (currentStagedTransactionId && typeof currentStagedTransactionId === 'string') {
@@ -248,7 +249,7 @@ export async function GET(request: Request) {
         hasStagedChanges: !!pendingDeployment,
         pendingDeployment,
         source: 'runtime-authority',
-        lastTransactionId: pendingDeployment?.transactionId || null, // PATCH 7: Add transaction ID to readback
+        lastTransactionId: runtimeParsed?.lastTransactionId || null, // P0-1 FIX: Use runtime authority's lastTransactionId, not pending deployment
       });
     }
 
@@ -546,7 +547,7 @@ export async function PUT(request: Request) {
 
       // Build Redis keys for KEYS array (per Redis contract)
       const runtimeGalleryKey = `${namespace}${WORKBENCH_RUNTIME_PREFIX}${projectId}`;
-      const projectStagingKey = `${namespace}${WORKBENCH_STAGING_PREFIX}project:${projectId}:current-transaction`;
+      const projectStagingKey = getProjectTransactionPointerKey(projectId);
       const specificStagingKey = `${namespace}${WORKBENCH_STAGING_PREFIX}${effectiveTransactionId}:project:${projectId}:gallery`;
       const transactionKey = `${namespace}deployment-transaction:${effectiveTransactionId}`;
 
@@ -556,6 +557,7 @@ export async function PUT(request: Request) {
         state: 'prepared',
         stagingKeys: [specificStagingKey],
         files: ['projects.v1.json'],
+        projectId, // P0-2 FIX: Explicit projectId for correct pointer cleanup
         description: `Gallery order mutation: ${projectId} (${gallery.length} items)`,
         createdAt: mutationTimestamp,
         updatedAt: mutationTimestamp,

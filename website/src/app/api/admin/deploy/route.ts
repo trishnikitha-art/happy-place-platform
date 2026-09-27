@@ -84,7 +84,8 @@ import {
   createBatchDeploymentContext,
   type DeploymentTransaction,
   type TransactionState,
-  type BatchDeploymentContext
+  type BatchDeploymentContext,
+  getProjectTransactionPointerKey
 } from "@/lib/deployment-transaction";
 
 export const runtime = 'nodejs';
@@ -2973,12 +2974,12 @@ export async function POST(request: Request) {
       });
 
       // Collect project-level transaction pointers to clear with compare-and-delete
+      // P0-2 FIX: Use explicit projectId from transaction record, not file parsing
       const pointerKeys: string[] = [];
       const pointerExpectedValues: string[] = [];
       for (const tx of batchContext.transactions) {
-        const projectIds = tx.files.filter(f => f.startsWith('projects.v1.json:'));
-        for (const projectId of projectIds) {
-          const pointerKey = `${getKvNamespace()}project-transaction:${projectId}`;
+        if (tx.projectId) {
+          const pointerKey = getProjectTransactionPointerKey(tx.projectId);
           pointerKeys.push(pointerKey);
           // Expected value: the transaction ID that should own this pointer
           pointerExpectedValues.push(tx.transactionId);

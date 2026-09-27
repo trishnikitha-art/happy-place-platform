@@ -68,6 +68,16 @@ function getRedisClient(): Redis {
 export { getRedisClient };
 
 /**
+ * P0-2 FIX: Canonical helper for project transaction pointer key
+ * Ensures gallery authority and deployment cleanup use the exact same key
+ * This prevents namespace/identity mismatches that cause pointer cleanup failures
+ */
+export function getProjectTransactionPointerKey(projectId: string): string {
+  const namespace = getKvNamespace();
+  return `${namespace}workbench-staging:project:${projectId}:current-transaction`;
+}
+
+/**
  * P0 FIX: Normalize Redis Lua error codes at repository boundary
  * Upstash Redis returns errors wrapped as "Command failed: ERROR_CODE"
  * Callers expect stable machine-readable error codes, not wrapped messages
@@ -95,6 +105,7 @@ export interface DeploymentTransaction {
   failedAt?: string;
   failureReason?: string;
   retryCount?: number;
+  projectId?: string; // P0-2 FIX: Explicit projectId for gallery transactions to ensure correct pointer cleanup
 }
 
 /**

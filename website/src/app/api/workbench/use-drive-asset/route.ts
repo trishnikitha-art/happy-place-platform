@@ -1,6 +1,15 @@
 /**
  * Workbench Drive handoff: authorize source, materialize through existing ingest,
  * then atomically assign all explicit targets and verify the resulting revisions.
+ *
+ * P1 FIX: Dual idempotency layers
+ * This route implements two separate idempotency mechanisms:
+ * 1. use-drive-asset transaction lock (prevents duplicate handoff operations)
+ * 2. Drive materialization lease (prevents duplicate materialization of same source)
+ *
+ * The client-provided idempotencyKey is NOT the ingest authority key.
+ * Ingest derives its own authoritative key: drive-materialization:{corpusId}:{fileId}
+ * The client key is only correlation between handoff and materialization.
  */
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
