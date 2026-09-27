@@ -238,12 +238,13 @@ export function VisualSlot({
 
         // Validate Drive reference schema
         if (dragData.source === 'google-drive') {
-          if (!dragData.fileId || !dragData.name || !dragData.mimeType) {
+          // CEO FIX: Use canonical fileName field (not legacy name)
+          if (!dragData.fileId || !dragData.fileName || !dragData.mimeType) {
             console.error('[VS_FORENSIC] DRAG_START_BRIDGE_REJECTED', {
               slotId: id,
               reason: 'MALFORMED_DRIVE_REFERENCE',
               hasFileId: !!dragData.fileId,
-              hasName: !!dragData.name,
+              hasFileName: !!dragData.fileName,
               hasMimeType: !!dragData.mimeType,
               timestamp: Date.now(),
             });
