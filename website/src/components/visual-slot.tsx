@@ -270,7 +270,7 @@ export function VisualSlot({
           return;
         }
 
-        // P0 FIX: Bridge drag data from parent across iframe boundary
+        // CEO FIX: Bridge drag data from parent across iframe boundary
         // Store the drag data so the drop handler can use it if dataTransfer is empty
         console.log('[VS_FORENSIC] DRAG_START_BRIDGE_ACCEPTED', {
           slotId: id,
@@ -280,16 +280,13 @@ export function VisualSlot({
         });
         bridgedDragDataRef.current = dragData;
 
-        // Clear bridged data after 5 seconds if no drop occurs
-        setTimeout(() => {
-          if (bridgedDragDataRef.current === dragData) {
-            console.log('[VS_FORENSIC] DRAG_START_BRIDGE_EXPIRED', {
-              slotId: id,
-              timestamp: Date.now(),
-            });
-            bridgedDragDataRef.current = null;
-          }
-        }, 5000);
+        // CEO FIX: Remove automatic 5-second timeout that was causing DRAG_START_BRIDGE_EXPIRED
+        // The timeout was clearing bridgedDragDataRef.current before the user could complete
+        // the drop operation, causing GALLERY_DROP_NO_BRIDGED_DATA errors during gallery reorder.
+        // Drag state is now only cleared explicitly by:
+        // 1. Successful drop (drop handler clears data after processing)
+        // 2. Explicit drag cancellation by user
+        // This prevents race condition where slow user interaction times out before drop.
       } else {
         console.log('[VS_FORENSIC] MESSAGE_IGNORED', {
           slotId: id,
