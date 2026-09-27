@@ -2200,7 +2200,7 @@ export default function MediaWorkbench() {
           // This prevents duplicate execution and ensures user confirmation
           selectDriveFile({
             id: applicationData.fileId,
-            name: applicationData.name,
+            name: applicationData.fileName || applicationData.name, // Use canonical fileName, fallback to legacy name
             mimeType: applicationData.mimeType,
             webViewLink: applicationData.webViewLink,
             thumbnailLink: applicationData.thumbnailLink,
