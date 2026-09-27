@@ -3148,9 +3148,66 @@ export default function MediaWorkbench() {
             </button>
           )}
           {state.selectedSlotForContext.slot.id.startsWith('our-work-gallery::') && (
-            <div className="w-full px-4 py-2 text-left text-sm text-muted-foreground bg-surface/50">
-              Gallery slots are auto-generated from your project gallery
-            </div>
+            <>
+              <button
+                onClick={async () => {
+                  if (!state.selectedSlotForContext) return;
+                  const slotId = state.selectedSlotForContext.slot.id;
+
+                  // Parse projectId and mediaId from gallery slot ID
+                  // Format: our-work-gallery::{projectId}::{mediaId}
+                  const slotIdMatch = slotId.match(/our-work-gallery::(.+)::(.+)/);
+                  if (!slotIdMatch) {
+                    console.error('[WB_GALLERY] INVALID_GALLERY_SLOT_ID', { slotId });
+                    return;
+                  }
+
+                  const [, projectId, mediaId] = slotIdMatch;
+
+                  const confirmed = confirm(`Hide this image from the public gallery?\n\nThis will not delete the media asset, only hide it from the public gallery presentation.`);
+                  if (!confirmed) {
+                    console.log('[WB_GALLERY] GALLERY_HIDE_CANCELLED');
+                    return;
+                  }
+
+                  await handleGalleryVisibility(projectId, mediaId, 'hide');
+                  setState(prev => ({ ...prev, selectedSlotForContext: null }));
+                  loadCanonicalData();
+                }}
+                className="w-full px-4 py-2 text-left text-sm text-red-600 hover:bg-red-50 transition-colors"
+              >
+                Hide from Public Gallery
+              </button>
+              <button
+                onClick={async () => {
+                  if (!state.selectedSlotForContext) return;
+                  const slotId = state.selectedSlotForContext.slot.id;
+
+                  // Parse projectId and mediaId from gallery slot ID
+                  // Format: our-work-gallery::{projectId}::{mediaId}
+                  const slotIdMatch = slotId.match(/our-work-gallery::(.+)::(.+)/);
+                  if (!slotIdMatch) {
+                    console.error('[WB_GALLERY] INVALID_GALLERY_SLOT_ID', { slotId });
+                    return;
+                  }
+
+                  const [, projectId, mediaId] = slotIdMatch;
+
+                  const confirmed = confirm(`Unhide this image and restore it to the public gallery?`);
+                  if (!confirmed) {
+                    console.log('[WB_GALLERY] GALLERY_UNHIDE_CANCELLED');
+                    return;
+                  }
+
+                  await handleGalleryVisibility(projectId, mediaId, 'unhide');
+                  setState(prev => ({ ...prev, selectedSlotForContext: null }));
+                  loadCanonicalData();
+                }}
+                className="w-full px-4 py-2 text-left text-sm text-green-600 hover:bg-green-50 transition-colors"
+              >
+                Unhide (Restore to Public)
+              </button>
+            </>
           )}
           <button
             onClick={() => {
