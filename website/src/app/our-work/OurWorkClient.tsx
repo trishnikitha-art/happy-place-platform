@@ -176,6 +176,13 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       let targetProject: Project | null = null;
       let dropTarget: HTMLElement | null = e.target as HTMLElement;
 
+      // P0 FIX: DOM inventory - check what data-project-id attributes actually exist
+      const allProjectElements = container.querySelectorAll('[data-project-id]');
+      console.log('[OUR_WORK] GALLERY_DROP_DOM_INVENTORY', {
+        totalProjectElements: allProjectElements.length,
+        projectIds: Array.from(allProjectElements).map(el => el.getAttribute('data-project-id')),
+      });
+
       // P0 FIX: Add forensic logging for drop target traversal
       console.log('[OUR_WORK] GALLERY_DROP_TARGET_SEARCH', {
         initialTarget: dropTarget?.tagName,
@@ -187,6 +194,13 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       let traversalDepth = 0;
       while (dropTarget && dropTarget !== container && traversalDepth < 20) {
         const projectId = dropTarget.getAttribute('data-project-id');
+        console.log('[OUR_WORK] GALLERY_DROP_TRAVERSAL_STEP', {
+          depth: traversalDepth,
+          tagName: dropTarget.tagName,
+          hasDataProjectId: !!projectId,
+          projectId: projectId || 'none',
+          className: dropTarget.className,
+        });
         if (projectId) {
           targetProject = allProjects.find(p => p.id === projectId) || null;
           console.log('[OUR_WORK] GALLERY_DROP_PROJECT_FOUND', {
@@ -207,6 +221,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
           maxDepthReached: traversalDepth >= 20,
           finalTarget: dropTarget?.tagName,
           finalTargetClasses: dropTarget?.className,
+          traversalSteps: traversalDepth,
         });
         return;
       }
