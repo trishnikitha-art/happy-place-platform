@@ -1,15 +1,28 @@
 /**
  * Effective Project Gallery Authority
  *
- * Combines deployed project gallery with staged mutations (production)
- * and visibility filtering to provide the single authoritative ordered gallery for projection.
+ * Combines runtime gallery authority with visibility filtering to provide the single
+ * authoritative ordered gallery for projection.
+ *
+ * CEO FIX: Runtime Authority Model (b724e3d alignment)
+ * - Redis runtime authority: workbench-runtime-gallery:{projectId} = CURRENT committed gallery
+ * - Staging pointer: workbench-staging:project:{projectId}:current-transaction = pending deployment
+ * - Git/Vercel = durable projection (not authoritative for current state)
+ *
+ * OLD MODEL (now obsolete):
+ * - Staging pointer → specific staging transaction → gallery
+ * - This was fragile because staging gets consumed after deployment
+ *
+ * NEW MODEL (runtime-first):
+ * - Read runtime authority FIRST (current committed state)
+ * - Read staging pointer only for pending deployment information
+ * - Fall back to projects.v1.json only for bootstrap/development
  *
  * Architecture:
  * - Immutable media identity: PublishedMediaAsset
- * - Mutable editorial ordering: project.media.gallery[] (galleryRevision)
+ * - Mutable editorial ordering: runtime authority (galleryRevision)
  * - Mutable editorial visibility: workbench-visibility-gallery:{projectId} (visibilityRevision)
- * - Production staging: Redis KV mutations (galleryRevision)
- * - Effective authority: deployed + staged + visibility-filtered
+ * - Effective authority: runtime + visibility-filtered
  *
  * IMPORTANT: galleryRevision and visibilityRevision are INDEPENDENT authorities
  * - Gallery mutation increments galleryRevision
@@ -19,7 +32,7 @@
  * - The public projection consumes (gallery state, visibility state) as independent inputs
  *
  * This resolver ensures the website projection always sees the current
- * editorial state, whether it's the deployed baseline, staged mutations, or visibility-filtered state.
+ * editorial state from runtime authority, not stale staging or Git baseline.
  */
 
 import { loadProjectsManifest } from './projects';
@@ -27,7 +40,16 @@ import { getKvNamespace, getEnvironment } from './environment';
 import { Redis } from '@upstash/redis';
 
 const WORKBENCH_STAGING_PREFIX = 'workbench-staging:';
+const WORKBENCH_RUNTIME_PREFIX = 'workbench-runtime-gallery:';
 const WORKBENCH_VISIBILITY_PREFIX = 'workbench-visibility-gallery:';
+
+/**
+ * Get runtime gallery key for a project
+ */
+function getRuntimeGalleryKey(projectId: string): string {
+  const namespace = getKvNamespace();
+  return `${namespace}${WORKBENCH_RUNTIME_PREFIX}${projectId}`;
+}
 
 /**
  * Get visibility key for a project
@@ -38,10 +60,15 @@ function getVisibilityKey(projectId: string): string {
 }
 
 /**
- * Get the effective project gallery (deployed + staged mutations + visibility filter)
+ * Get the effective project gallery (runtime authority + visibility filter)
+ *
+ * CEO FIX: Runtime-first authority model (b724e3d alignment)
+ * - Read runtime authority FIRST (current committed state)
+ * - Read staging pointer only for pending deployment information
+ * - Fall back to projects.v1.json only for bootstrap/development
  *
  * This is the single authoritative source for gallery ordering.
- * In production, it merges the deployed baseline with staged KV mutations.
+ * In production, it reads runtime Redis authority.
  * In development, it returns the deployed baseline directly.
  * In both modes, it applies visibility filtering (hidden items excluded).
  *
@@ -51,13 +78,13 @@ function getVisibilityKey(projectId: string): string {
 export async function getEffectiveProjectGallery(projectId: string): Promise<string[]> {
   const manifest = loadProjectsManifest();
   const project = manifest.projects.find((p: any) => p.id === projectId);
-  
+
   if (!project) {
     console.error('[EFFECTIVE_GALLERY] PROJECT_NOT_FOUND', { projectId });
     return [];
   }
 
-  // Baseline gallery from deployed projects.v1.json
+  // Baseline gallery from deployed projects.v1.json (for bootstrap/development only)
   const baselineGallery = project.media?.gallery || [];
   const baselineRevision = project.media?.galleryRevision || 0;
 
@@ -68,12 +95,12 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
     baselineRevision,
   });
 
-  // In production, check for staged mutations
+  // In production, read runtime authority FIRST
   const environment = getEnvironment();
   const isProduction = environment === 'production';
 
   let effectiveGallery: string[];
-  
+
   if (!isProduction) {
     console.log('[EFFECTIVE_GALLERY] DEV_MODE - Returning baseline', {
       projectId,
@@ -82,7 +109,7 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
     });
     effectiveGallery = baselineGallery;
   } else {
-    // Production: Check for staged KV mutations
+    // Production: Read runtime authority FIRST (current committed state)
     const redis = getRedisClient();
     if (!redis) {
       console.warn('[EFFECTIVE_GALLERY] REDIS_UNAVAILABLE - Returning baseline', {
@@ -92,100 +119,92 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
       effectiveGallery = baselineGallery;
     } else {
       try {
-        // Check if there's a current staged transaction for this project
-        const projectStagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}project:${projectId}:current-transaction`;
-        const currentStagedTransactionId = await redis.get(projectStagingKey);
-        
-        if (!currentStagedTransactionId || typeof currentStagedTransactionId !== 'string') {
-          console.log('[EFFECTIVE_GALLERY] NO_STAGED_MUTATION - Returning baseline', {
-            projectId,
-            projectStagingKey,
-          });
-          effectiveGallery = baselineGallery;
-        } else {
-          // Load the specific staged transaction
-          const specificStagingKey = `${getKvNamespace()}${WORKBENCH_STAGING_PREFIX}${currentStagedTransactionId}:project:${projectId}:gallery`;
-          const stagedData = await redis.get(specificStagingKey);
-          
-          if (!stagedData) {
-            console.warn('[EFFECTIVE_GALLERY] STAGED_DATA_INVALID - Returning baseline', {
+        // CEO FIX: Read runtime authority FIRST (current committed state)
+        const runtimeKey = getRuntimeGalleryKey(projectId);
+        const runtimeData = await redis.get(runtimeKey);
+
+        if (runtimeData) {
+          // P0 FIX: Upstash automatically deserializes JSON objects
+          // Accept both string (needs JSON.parse) and object (already parsed)
+          let parsed: any;
+          if (typeof runtimeData === 'string') {
+            parsed = JSON.parse(runtimeData);
+          } else if (typeof runtimeData === 'object') {
+            parsed = runtimeData;
+          } else {
+            console.warn('[EFFECTIVE_GALLERY] RUNTIME_DATA_INVALID - Returning baseline', {
               projectId,
-              specificStagingKey,
-              reason: 'Staged data is null',
+              runtimeKey,
+              reason: `Runtime data has invalid type: ${typeof runtimeData}`,
+            });
+            effectiveGallery = baselineGallery;
+          }
+
+          const runtimeGallery = parsed.gallery;
+          const runtimeRevision = parsed.currentRevision;
+          const runtimeTransactionId = parsed.lastTransactionId;
+
+          console.log('[EFFECTIVE_GALLERY] RUNTIME_AUTHORITY_APPLIED', {
+            projectId,
+            baselineGalleryLength: baselineGallery.length,
+            runtimeGalleryLength: runtimeGallery.length,
+            baselineRevision,
+            runtimeRevision,
+            runtimeTransactionId,
+            source: 'runtime-authority',
+          });
+
+          // Validate runtime gallery structure
+          if (!Array.isArray(runtimeGallery)) {
+            console.error('[EFFECTIVE_GALLERY] RUNTIME_GALLERY_INVALID - Returning baseline', {
+              projectId,
+              reason: 'Runtime gallery is not an array',
             });
             effectiveGallery = baselineGallery;
           } else {
-            // P0 FIX: Upstash automatically deserializes JSON objects
-            // Accept both string (needs JSON.parse) and object (already parsed)
-            let parsed: any;
-            if (typeof stagedData === 'string') {
-              parsed = JSON.parse(stagedData);
-            } else if (typeof stagedData === 'object') {
-              parsed = stagedData;
-            } else {
-              console.warn('[EFFECTIVE_GALLERY] STAGED_DATA_INVALID - Returning baseline', {
+            // Validate no duplicates
+            const uniqueRuntime = new Set(runtimeGallery);
+            if (uniqueRuntime.size !== runtimeGallery.length) {
+              console.error('[EFFECTIVE_GALLERY] RUNTIME_GALLERY_DUPLICATES - Returning baseline', {
                 projectId,
-                specificStagingKey,
-                reason: `Staged data has invalid type: ${typeof stagedData}`,
-              });
-              effectiveGallery = baselineGallery;
-            }
-
-            const stagedGallery = parsed.gallery;
-            const stagedRevision = parsed.currentRevision;
-
-            console.log('[EFFECTIVE_GALLERY] STAGED_MUTATION_APPLIED', {
-              projectId,
-              baselineGalleryLength: baselineGallery.length,
-              stagedGalleryLength: stagedGallery.length,
-              baselineRevision,
-              stagedRevision,
-              transactionId: currentStagedTransactionId,
-            });
-
-            // Validate staged gallery structure
-            if (!Array.isArray(stagedGallery)) {
-              console.error('[EFFECTIVE_GALLERY] STAGED_GALLERY_INVALID - Returning baseline', {
-                projectId,
-                reason: 'Staged gallery is not an array',
+                reason: 'Runtime gallery contains duplicates',
               });
               effectiveGallery = baselineGallery;
             } else {
-              // Validate no duplicates
-              const uniqueStaged = new Set(stagedGallery);
-              if (uniqueStaged.size !== stagedGallery.length) {
-                console.error('[EFFECTIVE_GALLERY] STAGED_GALLERY_DUPLICATES - Returning baseline', {
+              // Validate no null/undefined
+              if (runtimeGallery.some(id => id === null || id === undefined)) {
+                console.error('[EFFECTIVE_GALLERY] RUNTIME_GALLERY_NULL_VALUES - Returning baseline', {
                   projectId,
-                  reason: 'Staged gallery contains duplicates',
+                  reason: 'Runtime gallery contains null/undefined values',
                 });
                 effectiveGallery = baselineGallery;
               } else {
-                // Validate no null/undefined
-                if (stagedGallery.some(id => id === null || id === undefined)) {
-                  console.error('[EFFECTIVE_GALLERY] STAGED_GALLERY_NULL_VALUES - Returning baseline', {
+                // Validate no empty strings
+                if (runtimeGallery.some(id => typeof id === 'string' && id.trim() === '')) {
+                  console.error('[EFFECTIVE_GALLERY] RUNTIME_GALLERY_EMPTY_STRINGS - Returning baseline', {
                     projectId,
-                    reason: 'Staged gallery contains null/undefined values',
+                    reason: 'Runtime gallery contains empty strings',
                   });
                   effectiveGallery = baselineGallery;
                 } else {
-                  // Validate no empty strings
-                  if (stagedGallery.some(id => typeof id === 'string' && id.trim() === '')) {
-                    console.error('[EFFECTIVE_GALLERY] STAGED_GALLERY_EMPTY_STRINGS - Returning baseline', {
-                      projectId,
-                      reason: 'Staged gallery contains empty strings',
-                    });
-                    effectiveGallery = baselineGallery;
-                  } else {
-                    // Staged gallery is valid
-                    effectiveGallery = stagedGallery;
-                  }
+                  // Runtime gallery is valid
+                  effectiveGallery = runtimeGallery;
                 }
               }
             }
           }
+        } else {
+          // CEO FIX: Runtime authority not initialized - fall back to baseline
+          // This is expected for projects that haven't been edited via Workbench yet
+          console.log('[EFFECTIVE_GALLERY] RUNTIME_AUTHORITY_MISSING - Returning baseline', {
+            projectId,
+            runtimeKey,
+            reason: 'Runtime authority not yet initialized (project not edited via Workbench)',
+          });
+          effectiveGallery = baselineGallery;
         }
       } catch (error) {
-        console.error('[EFFECTIVE_GALLERY] STAGED_MUTATION_ERROR - Returning baseline', {
+        console.error('[EFFECTIVE_GALLERY] RUNTIME_AUTHORITY_ERROR - Returning baseline', {
           projectId,
           error: error instanceof Error ? error.message : String(error),
         });
