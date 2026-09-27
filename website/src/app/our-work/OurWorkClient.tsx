@@ -82,8 +82,10 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     }
   }, [isDragging]);
 
-  // P0 FIX: Add gallery-wide drop zone for Workbench mode
-  // Uses existing DRAG_START bridge protocol (application/x-workbench-asset)
+  // CEO FIX: Make project sections explicit drop boundaries
+  // Each project gallery section carries its own project identity via data-project-id
+  // Drop listeners are attached to each project section, not just the outer container
+  // This eliminates fragile DOM ancestry inference for project context
   useEffect(() => {
     const isWorkbench = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('workbench');
     if (!isWorkbench) return;
@@ -155,8 +157,11 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       e.dataTransfer!.dropEffect = 'copy';
     };
 
-    const handleDrop = (e: DragEvent) => {
+    // CEO FIX: Per-project drop handler with explicit project identity
+    // Each project section has data-project-id, so we read it directly from currentTarget
+    const handleProjectDrop = (e: DragEvent, projectId: string) => {
       e.preventDefault();
+      e.stopPropagation(); // Prevent bubbling to outer container
       setIsDragging(false);
 
       const dragData = bridgedDragDataRef.current;
@@ -165,64 +170,24 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
         return;
       }
 
-      // CEO FIX: Inspect iframe/parent drop event boundary
-      // Determine which document owns the drop event and whether project context is available
-      const dropTarget = e.target as HTMLElement;
-      const composedPath = e.composedPath();
+      // CEO FIX: Project identity comes from explicit section boundary, not DOM inference
+      const targetProject = allProjects.find(p => p.id === projectId) || null;
 
-      console.log('[OUR_WORK] GALLERY_DROP_BOUNDARY_FORENSIC', {
-        ownerDocumentMatch: dropTarget.ownerDocument === document,
-        isIframe: window.parent !== window,
-        dropTargetTag: dropTarget?.tagName,
-        dropTargetId: dropTarget?.id,
-        dropTargetClasses: dropTarget?.className,
+      console.log('[OUR_WORK] GALLERY_DROP_PROJECT_SECTION_BOUNDARY', {
+        explicitProjectId: projectId,
+        resolvedProjectId: targetProject?.id,
+        targetProjectTitle: targetProject?.title,
+        resolutionSource: 'PROJECT_SECTION_BOUNDARY',
+        dropTargetTag: (e.target as HTMLElement)?.tagName,
         currentTargetTag: (e.currentTarget as HTMLElement)?.tagName,
-        currentTargetId: (e.currentTarget as HTMLElement)?.id,
-        composedPathLength: composedPath.length,
-        composedPathFirst10: composedPath.slice(0, 10).map((el: any) => ({
-          tag: el?.tagName,
-          hasDataProjectId: el?.hasAttribute?.('data-project-id'),
-          dataProjectId: el?.getAttribute?.('data-project-id'),
-        })),
-        anyElementHasDataProjectId: composedPath.some((el: any) => el?.hasAttribute?.('data-project-id')),
       });
 
-      // P0 FIX: Determine target project from drop location
-      // Use closest() selector to find the nearest [data-project-id] ancestor
-      // This works even when drop lands on whitespace inside the project section
-      let targetProject: Project | null = null;
-
-      // Find the nearest ancestor with data-project-id
-      const projectElement = dropTarget.closest('[data-project-id]');
-
-      console.log('[OUR_WORK] GALLERY_DROP_TARGET_RESOLUTION', {
-        dropTargetTag: dropTarget?.tagName,
-        dropTargetClasses: dropTarget?.className,
-        foundProjectElement: !!projectElement,
-        projectElementTag: projectElement?.tagName,
-        projectElementClasses: projectElement?.className,
-      });
-
-      if (projectElement) {
-        const projectId = projectElement.getAttribute('data-project-id');
-        if (projectId) {
-          targetProject = allProjects.find(p => p.id === projectId) || null;
-          console.log('[OUR_WORK] GALLERY_DROP_PROJECT_RESOLVED', {
-            projectId,
-            targetProjectId: targetProject?.id,
-            targetProjectTitle: targetProject?.title,
-          });
-        }
-      }
-
-      // Reject if no project context found
+      // Reject if project not found in authoritative project list
       if (!targetProject) {
-        console.error('[OUR_WORK] GALLERY_DROP_NO_PROJECT_CONTEXT', {
-          dropTargetTag: dropTarget?.tagName,
-          dropTargetClasses: dropTarget?.className,
-          containerTag: container?.tagName,
+        console.error('[OUR_WORK] GALLERY_DROP_INVALID_PROJECT_ID', {
+          projectId,
           allProjectsCount: allProjects.length,
-          isIframe: window.parent !== window,
+          availableProjectIds: allProjects.map(p => p.id),
         });
         return;
       }
@@ -249,11 +214,31 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       bridgedDragDataRef.current = null;
     };
 
+    // CEO FIX: Attach drop listeners to each project section explicitly
+    // Each project section becomes its own drop boundary with explicit project identity
+    const projectSections = container.querySelectorAll('.project-gallery-section');
+    const cleanupFunctions: (() => void)[] = [];
+
+    projectSections.forEach((section) => {
+      const projectId = section.getAttribute('data-project-id');
+      if (!projectId) return;
+
+      const handleDrop = (e: DragEvent) => handleProjectDrop(e, projectId);
+      (section as HTMLElement).addEventListener('dragover', handleDragOver);
+      (section as HTMLElement).addEventListener('drop', handleDrop);
+
+      cleanupFunctions.push(() => {
+        (section as HTMLElement).removeEventListener('dragover', handleDragOver);
+        (section as HTMLElement).removeEventListener('drop', handleDrop);
+      });
+    });
+
+    // Outer container drag-over for safety (allows drops anywhere in gallery)
+    (container as HTMLElement).addEventListener('dragover', handleDragOver);
+
     // P1 FIX: Attach all listeners first, then send BRIDGE_READY
     // This ensures the iframe is actually ready to receive messages before advertising readiness
     window.addEventListener('message', handleDragStart);
-    container.addEventListener('dragover', handleDragOver);
-    container.addEventListener('drop', handleDrop);
 
     // Now send BRIDGE_READY to prove listeners are attached
     if (window.parent !== window) {
@@ -267,7 +252,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     return () => {
       window.removeEventListener('message', handleDragStart);
       container.removeEventListener('dragover', handleDragOver);
-      container.removeEventListener('drop', handleDrop);
+      cleanupFunctions.forEach(cleanup => cleanup());
     };
   }, [allProjects]);
 
