@@ -58,39 +58,31 @@ export function ServiceCard({ service, runtimeCardMediaObject, href }: { service
   return (
     <Link href={cardHref} className="block">
       <CraftCard className="group flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl" style={{ containerType: 'inline-size' }}>
-        <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
-          {hasImage && imageSrc ? (
-            <>
-              {/* P0 FIX: Services page slots are display-only, not interactive drop targets
-                  Only homepage service card slots (homepage-service-card-slot-{slug}) are writable.
-                  Remove VisualSlot to prevent zero-height element from intercepting drag events. */}
-              <Image
-                src={imageSrc}
-                alt={featuredMedia.alt || service.name}
-                fill
-                sizes="(max-width: 768px) 50vw, 33vw"
-                className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
-              />
-              <div className="absolute inset-0 pointer-events-none rounded-t-xl bg-gradient-to-tr from-black/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
-            </>
-          ) : (
-            <div className="flex h-full w-full items-center justify-center">
-              <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-deep/80 text-honey">
-                <Icon name={service.icon} className="h-5 w-5" />
-              </span>
-            </div>
-          )}
-          {hasImage && (
+        {hasImage && imageSrc ? (
+          <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
+            {/* P0 FIX: Services page slots are display-only, not interactive drop targets
+                Only homepage service card slots (homepage-service-card-slot-{slug}) are writable.
+                Remove VisualSlot to prevent zero-height element from intercepting drag events. */}
+            <Image
+              src={imageSrc}
+              alt={featuredMedia.alt || service.name}
+              fill
+              sizes="(max-width: 768px) 50vw, 33vw"
+              className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
+            />
+            <div className="absolute inset-0 pointer-events-none rounded-t-xl bg-gradient-to-tr from-black/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
             <span className="absolute left-3 top-3 flex h-10 w-10 items-center justify-center rounded-xl bg-deep/80 text-honey">
               <Icon name={service.icon} className="h-5 w-5" />
             </span>
-          )}
-          {!hasImage && (
-            <div className="absolute bottom-3 right-3 rounded-md bg-deep/80 px-3 py-1.5 text-xs font-medium text-text-on-dark">
-              Project photos coming soon
-            </div>
-          )}
-        </PhotoMount>
+          </PhotoMount>
+        ) : (
+          <div className="flex items-center gap-3 bg-surface-muted/60 px-4 py-3">
+            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-deep/80 text-honey">
+              <Icon name={service.icon} className="h-5 w-5" />
+            </span>
+            <span className="text-sm font-medium text-text-muted">Project photos coming soon</span>
+          </div>
+        )}
         <div className="flex flex-1 flex-col p-4 @[300px]:p-5 @[400px]:p-6">
           <h3 className={`font-display text-lg font-bold @[300px]:text-xl @[400px]:text-2xl ${headingColor}`} style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>{service.name}</h3>
           <p className={`clamp-2 mt-2 flex-1 text-sm @[300px]:text-base ${bodyColor}`} style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>{service.description}</p>
