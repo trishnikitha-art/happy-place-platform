@@ -75,7 +75,13 @@ describe('Drive handoff behavior', () => {
     expect(ingest).toHaveBeenCalledTimes(1);
     const ingestRequest = jest.mocked(ingest).mock.calls[0][0];
     expect(ingestRequest.headers.get('cookie')).toBe('existing-session');
-    expect(await ingestRequest.json()).toEqual({ fileId: 'source-file', sharedDriveId: 'shared-drive', roles: ['gallery'] });
+    expect(await ingestRequest.json()).toEqual({
+      fileId: 'source-file',
+      sharedDriveId: 'shared-drive',
+      originalShortcutId: undefined,
+      roles: ['gallery'],
+      idempotencyKey: 'drive:shared-drive:source-file',
+    });
     expect(assignMediaBatch).toHaveBeenCalledTimes(1);
     expect(assignMediaBatch).toHaveBeenCalledWith('published-id', [
       { slotId: 'hero-background', serviceSlug: 'brand-hero-background', expectedRevision: 4 },
