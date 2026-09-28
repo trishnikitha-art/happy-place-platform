@@ -14,7 +14,6 @@ import { VisualSlot } from "@/components/visual-slot";
 import { useState, useEffect, useRef } from "react";
 import type { Project } from "@/types/projects";
 import { dragBridge } from "@/lib/workbench-drag-bridge";
-import { getDropTargetInfo, logDragOverTarget } from "@/lib/iframe-drop-forensics";
 
 interface OurWorkClientProps {
   company: {
@@ -34,135 +33,13 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
   const [isDragging, setIsDragging] = useState(false);
   const [galleryAddStatus, setGalleryAddStatus] = useState<'idle' | 'pending' | 'accepted' | 'rejected'>('idle');
   const galleryGridRef = useRef<HTMLDivElement>(null);
-  const lastDragOverLogRef = useRef<number>(0);
 
   // P0 FIX: Determine workbench mode from URL parameter
   const isWorkbenchMode = typeof window !== 'undefined'
     ? new URLSearchParams(window.location.search).get('workbench') === 'true'
     : false;
 
-  // P0 FIX: Gallery item drag handlers for reorder functionality
-  // These handlers are attached to the outer gallery item div (role="button")
-  // which is the actual interactive surface the user drags/drops on
-  const handleGalleryItemDragStart = (e: React.DragEvent, projectId: string, mediaId: string, slotId: string) => {
-    console.log('[OUR_WORK] GALLERY_ITEM_DRAG_START', {
-      projectId,
-      mediaId,
-      slotId,
-      timestamp: Date.now(),
-    });
 
-    // Set drag data for gallery reorder
-    const dragData = JSON.stringify({
-      type: 'GALLERY_REORDER',
-      sourceSlotId: slotId,
-      sourceMediaId: mediaId,
-      projectId,
-    });
-
-    e.dataTransfer.setData('application/x-workbench-gallery-reorder', dragData);
-    e.dataTransfer.setData('text/plain', dragData);
-    e.dataTransfer.effectAllowed = 'move';
-
-    // Prevent click event from firing after drag
-    setIsDragging(true);
-    setTimeout(() => setIsDragging(false), 200);
-  };
-
-  const handleGalleryItemDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
-
-    // Throttle logging
-    const now = Date.now();
-    if (now - lastDragOverLogRef.current > 100) {
-      lastDragOverLogRef.current = now;
-      console.log('[OUR_WORK] GALLERY_ITEM_DRAG_OVER', {
-        timestamp: Date.now(),
-      });
-
-      // P0 FIX: Add iframe-level drop target forensics
-      logDragOverTarget(e.clientX, e.clientY);
-    }
-  };
-
-  const handleGalleryItemDrop = (e: React.DragEvent, targetProjectId: string, targetMediaId: string, targetSlotId: string) => {
-    e.preventDefault();
-    setIsDragging(false);
-
-    // P0 FIX: Add iframe-level drop target forensics
-    const dropTargetInfo = getDropTargetInfo(e.clientX, e.clientY);
-
-    console.log('[OUR_WORK] GALLERY_ITEM_DROP', {
-      targetProjectId,
-      targetMediaId,
-      targetSlotId,
-      dataTransferTypes: e.dataTransfer.types,
-      dropTargetInfo,
-      timestamp: Date.now(),
-    });
-
-    // Try to get gallery reorder data
-    let galleryReorderData = e.dataTransfer.getData('application/x-workbench-gallery-reorder');
-
-    if (!galleryReorderData) {
-      console.log('[OUR_WORK] GALLERY_ITEM_DROP_NO_DATA', {
-        availableTypes: e.dataTransfer.types,
-      });
-      return;
-    }
-
-    try {
-      const parsed = JSON.parse(galleryReorderData);
-
-      console.log('[OUR_WORK] GALLERY_ITEM_DROP_PARSED', {
-        parsedType: parsed.type,
-        sourceSlotId: parsed.sourceSlotId,
-        sourceMediaId: parsed.sourceMediaId,
-        targetSlotId,
-        targetMediaId,
-        projectId: parsed.projectId,
-      });
-
-      if (parsed.type !== 'GALLERY_REORDER') {
-        console.error('[OUR_WORK] GALLERY_ITEM_DROP_WRONG_TYPE', {
-          expectedType: 'GALLERY_REORDER',
-          actualType: parsed.type,
-        });
-        return;
-      }
-
-      if (parsed.projectId !== targetProjectId) {
-        console.error('[OUR_WORK] GALLERY_ITEM_DROP_CROSS_PROJECT', {
-          sourceProjectId: parsed.projectId,
-          targetProjectId,
-        });
-        return;
-      }
-
-      // Send reorder to parent (Workbench)
-      if (window.parent !== window) {
-        window.parent.postMessage({
-          type: 'SLOT_REORDER',
-          sourceSlotId: parsed.sourceSlotId,
-          sourceMediaId: parsed.sourceMediaId,
-          targetSlotId,
-          targetMediaId,
-          projectId: parsed.projectId,
-        }, window.location.origin);
-
-        console.log('[OUR_WORK] GALLERY_ITEM_REORDER_POSTED', {
-          sourceSlotId: parsed.sourceSlotId,
-          targetSlotId,
-          timestamp: Date.now(),
-        });
-      }
-    } catch (error) {
-      console.error('[OUR_WORK] GALLERY_ITEM_DROP_PARSE_ERROR', {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  };
 
   // P0 FIX: Runtime drag-data schema validation
   // Validates that dragData conforms to expected DriveReference or AssetReference contract
@@ -310,6 +187,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
 
     const handleDragOver = (e: DragEvent) => {
       e.preventDefault();
+      e.stopPropagation(); // P0 FIX: Prevent event bubbling to parent containers
       e.dataTransfer!.dropEffect = 'copy';
     };
 
@@ -317,6 +195,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     // Each project section has data-project-id, so we read it directly from currentTarget
     const handleProjectDrop = (e: DragEvent, projectId: string) => {
       e.preventDefault();
+      e.stopPropagation(); // P0 FIX: Prevent event bubbling to parent containers
       setIsDragging(false);
 
       console.log('[OUR_WORK] PROJECT_DROP_RECEIVED', {
@@ -326,6 +205,17 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
         currentTargetTag: (e.currentTarget as HTMLElement)?.tagName,
         timestamp: Date.now(),
       });
+
+      // P0 FIX: Reject GALLERY_REORDER protocol at project-section boundary
+      // Gallery reorder must terminate at VisualSlot and become SLOT_REORDER
+      const galleryReorderData = e.dataTransfer?.getData('application/x-workbench-gallery-reorder');
+      if (galleryReorderData) {
+        console.log('[OUR_WORK] PROJECT_DROP_REJECTED_GALLERY_REORDER', {
+          reason: 'GALLERY_REORDER must be handled by VisualSlot, not project-section',
+          projectId,
+        });
+        return;
+      }
 
       const dragData = dragBridge.getDragData();
       if (!dragData) {
@@ -599,10 +489,6 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                     role="button"
                     tabIndex={0}
                     className="group relative block aspect-[4/3] overflow-hidden cursor-pointer break-inside-avoid mb-4"
-                    draggable={isWorkbenchMode}
-                    onDragStart={(e) => handleGalleryItemDragStart(e, project.id, mediaId, `our-work-gallery::${project.id}::${mediaId}`)}
-                    onDragOver={handleGalleryItemDragOver}
-                    onDrop={(e) => handleGalleryItemDrop(e, project.id, mediaId, `our-work-gallery::${project.id}::${mediaId}`)}
                     onClick={() => {
                       console.log('[OUR_WORK] GALLERY_BUTTON_CLICK', {
                         projectId: project.id,

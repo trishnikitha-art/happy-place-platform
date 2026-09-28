@@ -5,8 +5,8 @@
   "scoringVersion": "1.0.0",
   "canonicalGraphVersion": "1.0.0",
   "generatorVersion": "1.0.0",
-  "inputHash": "sha256:cccc84f4ca6c61b6381605a919aeeaa931a25b21ebab9e9ac97771ce200e5616",
-  "generatedAt": "2026-09-28T17:34:34.088Z",
+  "inputHash": "sha256:38bbe597b1094df7f96d4023820a1d1b7438f0afa913a3fcd34392937fb7511b",
+  "generatedAt": "2026-09-28T18:18:29.617Z",
   "projects": [
     {
       "projectId": "project-featured",
@@ -199,5 +199,5 @@
       "coverage": "COMPLETE"
     }
   ],
-  "generatedHash": "sha256:30e22a7834bd3aac58fcf2c4f8c0f011dcba24975476119117a87473f4385ac0"
+  "generatedHash": "sha256:4d8746b6a00da7f19c854481793df273394cb71cf0280d7b398e4906c01ad4ef"
 }

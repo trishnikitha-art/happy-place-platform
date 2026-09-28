@@ -195,5 +195,20 @@ describe('WorkbenchDragBridge - parent/iframe generation protocol', () => {
     const staleGeneration = 4;
     expect(staleGeneration).not.toBe(parentGeneration); // Parent would reject
   });
+
+  test('generation comparison prevents cross-page interference', () => {
+    // Iframe A on /our-work with generation 1
+    dragBridge.initialize(1);
+    dragBridge.registerSlot('slot-a');
+    dragBridge.setDragData({ source: 'local' as const, assetId: 'asset-a' });
+
+    // Iframe A destroyed, Iframe B on /services with generation 2
+    dragBridge.initialize(2);
+
+    // Iframe B should not see Iframe A's data
+    expect(dragBridge.getDragData()).toBeNull();
+    expect(dragBridge.getIframeGeneration()).toBe(2);
+    expect(dragBridge.isBridgeReady()).toBe(false);
+  });
 });
 

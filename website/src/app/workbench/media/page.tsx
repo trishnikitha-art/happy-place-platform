@@ -111,6 +111,8 @@ export default function MediaWorkbench() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const mutationBusy = useRef(false);
   const requestInFlight = useRef(false);
+  const currentIframeGenerationRef = useRef(0); // P0 FIX: Ref-backed generation to prevent stale closure issues
+  const pendingDragPayloadRef = useRef<any | null>(null); // P0 FIX: Queue DRAG_START before BRIDGE_READY
   const [pendingReplacement, setPendingReplacement] = useState<PendingReplacement | null>(null);
   const [retryReplacement, setRetryReplacement] = useState<PendingReplacement | null>(null);
   const [mutationNotice, setMutationNotice] = useState<string | null>(null);
@@ -184,6 +186,11 @@ export default function MediaWorkbench() {
   useEffect(() => {
     registeredSlotsRef.current = state.registeredSlots;
   }, [state.registeredSlots]);
+
+  // P0 FIX: Keep generation ref in sync with state
+  useEffect(() => {
+    currentIframeGenerationRef.current = state.currentIframeGeneration;
+  }, [state.currentIframeGeneration]);
 
   // P0 FIX: Keep gallery refs in sync with React state
   // This ensures refs are updated when save/clear operations modify React state
@@ -1146,7 +1153,7 @@ export default function MediaWorkbench() {
     // P0 FIX: Bridge drag data across iframe boundary via postMessage
     // The native dataTransfer object does not automatically cross iframe boundaries
     // Send the drag data to the iframe so it can accept the drop even if dataTransfer is empty
-    // P0 FIX: Only send DRAG_START if bridge is ready (child has attached message listener)
+    // P0 FIX: Queue pending drag payload if bridge is not ready, flush when BRIDGE_READY arrives
     if (dragData && iframeRef.current?.contentWindow && state.bridgeReady) {
       const targetOrigin = WORKBENCH_ORIGIN;
       console.log('[DND] IFRAME_BRIDGE_START', {
@@ -1160,10 +1167,13 @@ export default function MediaWorkbench() {
         dragData,
       }, targetOrigin);
     } else if (dragData && !state.bridgeReady) {
-      console.log('[DND] IFRAME_BRIDGE_SKIPPED', {
-        reason: 'Bridge not ready - child message listener not yet attached',
+      // P0 FIX: Queue pending drag payload for when bridge becomes ready
+      console.log('[DND] IFRAME_BRIDGE_QUEUED', {
+        reason: 'Bridge not ready - queueing pending drag payload',
         bridgeReady: state.bridgeReady,
+        dragData,
       });
+      pendingDragPayloadRef.current = dragData;
     }
   };
 
@@ -2022,14 +2032,14 @@ export default function MediaWorkbench() {
         if (iframeGeneration === null || iframeGeneration === undefined) {
           console.log('[WB_FORENSIC] BRIDGE_READY_NO_GENERATION - SENDING_BRIDGE_INIT', {
             slotId,
-            currentIframeGeneration: state.currentIframeGeneration,
+            currentIframeGeneration: currentIframeGenerationRef.current,
             timestamp: Date.now(),
           });
 
           if (iframeRef.current?.contentWindow) {
             iframeRef.current.contentWindow.postMessage({
               type: 'BRIDGE_INIT',
-              generation: state.currentIframeGeneration,
+              generation: currentIframeGenerationRef.current,
             }, WORKBENCH_ORIGIN);
           }
           return; // Wait for iframe to re-send BRIDGE_READY with correct generation
@@ -2038,17 +2048,18 @@ export default function MediaWorkbench() {
         console.log('[WB_FORENSIC] BRIDGE_READY_RECEIVED', {
           slotId,
           iframeGeneration,
-          currentIframeGeneration: state.currentIframeGeneration,
+          currentIframeGeneration: currentIframeGenerationRef.current,
           timestamp: Date.now(),
         });
 
         // P0 FIX: Only accept BRIDGE_READY if iframe generation matches
         // This prevents stale BRIDGE_READY from old pages from authorizing DRAG_START
-        if (iframeGeneration !== state.currentIframeGeneration) {
+        // P0 FIX: Use ref-backed generation to avoid stale closure issues
+        if (iframeGeneration !== currentIframeGenerationRef.current) {
           console.log('[WB_FORENSIC] BRIDGE_READY_REJECTED_STALE', {
             slotId,
             messageGeneration: iframeGeneration,
-            currentIframeGeneration: state.currentIframeGeneration,
+            currentIframeGeneration: currentIframeGenerationRef.current,
             reason: 'Iframe generation mismatch - stale BRIDGE_READY from old page',
           });
           return;
@@ -2059,6 +2070,21 @@ export default function MediaWorkbench() {
           bridgeReadySlots: new Set(prev.bridgeReadySlots).add(slotId),
           bridgeReady: true, // Set global flag when any slot is ready
         }));
+
+        // P0 FIX: Flush pending drag payload if bridge is now ready
+        if (pendingDragPayloadRef.current && iframeRef.current?.contentWindow) {
+          console.log('[DND] FLUSHING_PENDING_DRAG_PAYLOAD', {
+            pendingDragData: pendingDragPayloadRef.current,
+            targetOrigin: WORKBENCH_ORIGIN,
+            timestamp: Date.now(),
+          });
+          iframeRef.current.contentWindow.postMessage({
+            type: 'DRAG_START',
+            dragData: pendingDragPayloadRef.current,
+          }, WORKBENCH_ORIGIN);
+          pendingDragPayloadRef.current = null; // Clear after sending
+        }
+
         return;
       }
 
@@ -3335,6 +3361,9 @@ export default function MediaWorkbench() {
               onChange={e => {
                 slotRegistry.clear();
                 // P0 FIX: Reset bridge state on page change to prevent stale BRIDGE_READY
+                // P0 FIX: Use ref-backed generation to avoid stale closure issues
+                const newGeneration = currentIframeGenerationRef.current + 1;
+                currentIframeGenerationRef.current = newGeneration; // Update ref synchronously
                 setState(prev => ({
                   ...prev,
                   selectedPage: e.target.value as PageRoute,
@@ -3342,7 +3371,7 @@ export default function MediaWorkbench() {
                   registeredSlots: [],
                   bridgeReadySlots: new Set(),
                   bridgeReady: false,
-                  currentIframeGeneration: prev.currentIframeGeneration + 1,
+                  currentIframeGeneration: newGeneration,
                 }));
               }} className="min-h-11 max-w-44 rounded border border-border bg-white px-3 text-gray-900">
               {(Object.keys(PAGE_LABELS) as PageRoute[]).map(route => <option key={route} value={route}>{PAGE_LABELS[route]}</option>)}
@@ -3498,7 +3527,9 @@ export default function MediaWorkbench() {
 
                 // P0 FIX: Increment generation and send BRIDGE_INIT to iframe
                 // Parent owns the generation and sends it to iframe for initialization
-                const newGeneration = state.currentIframeGeneration + 1;
+                // P0 FIX: Use ref-backed generation to avoid stale closure issues
+                const newGeneration = currentIframeGenerationRef.current + 1;
+                currentIframeGenerationRef.current = newGeneration; // Update ref synchronously
                 setState(prev => ({
                   ...prev,
                   bridgeReadySlots: new Set(),
