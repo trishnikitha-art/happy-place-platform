@@ -169,47 +169,11 @@ export async function POST(request: Request) {
     if (typeof sourceFileId !== 'string' || !sourceFileId) {
       throw new AssignmentBatchError('SOURCE_FILE_REQUIRED', 'Select a Drive file.');
     }
-    // The lock deduplicates materialization, not authorization or assignment.
-    // Every retry still passes Drive authorization and verifies the durable batch receipt.
-    stableIdempotencyKey = JSON.stringify({
-      sourceFileId, sourceSharedDriveId, sourceCorpusId,
-      targets: [...targets].sort((a, b) => a.slotId.localeCompare(b.slotId)),
-    });
 
-    // Step 4: Acquire transaction lock to prevent duplicate execution
-    // This is inside try block, and will be released in finally
-    try {
-      ownershipToken = await acquireTransactionLock(stableIdempotencyKey);
-      if (!ownershipToken) {
-        console.log('[USE_DRIVE_ASSET] Transaction already in progress', {
-          requestId,
-          idempotencyKey: stableIdempotencyKey,
-        });
-        return NextResponse.json(
-          {
-            error: 'TRANSACTION_IN_PROGRESS',
-            message: 'This transaction is already in progress. Please wait.',
-            retrySameRequest: true,
-            requestId,
-          },
-          { status: 409 } // Conflict
-        );
-      }
-    } catch (lockError) {
-      // Redis unavailable - fail closed
-      console.error('[USE_DRIVE_ASSET] Redis unavailable - cannot proceed', {
-        requestId,
-        error: lockError instanceof Error ? lockError.message : String(lockError),
-      });
-      return NextResponse.json(
-        {
-          error: 'REDIS_UNAVAILABLE',
-          message: 'Transaction lock requires Redis. Please try again later.',
-          requestId,
-        },
-        { status: 503 } // Service Unavailable
-      );
-    }
+    // CEO FIX: Drive authorization and corpus authorization BEFORE transaction lock
+    // Previous order (incorrect): Workbench auth → LOCK → Drive auth → corpus auth
+    // Correct order: Workbench auth → Drive auth → corpus auth → LOCK → ingest → assignment
+    // This ensures no authenticated but unauthorized request can create or contend for the handoff transaction lock
 
     let authoritativeDriveMetadata: any = null;
     let actualMimeType: string | undefined = undefined;
@@ -351,6 +315,50 @@ export async function POST(request: Request) {
             requestId,
           },
           { status: 403 }
+        );
+      }
+
+      // CEO FIX: Acquire transaction lock AFTER Drive authorization and corpus authorization
+      // This ensures no unauthorized request can create or contend for the handoff transaction lock
+      // The lock deduplicates materialization, not authorization or assignment.
+      // Every retry still passes Drive authorization and verifies the durable batch receipt.
+      stableIdempotencyKey = JSON.stringify({
+        sourceFileId, sourceSharedDriveId, sourceCorpusId,
+        targets: [...targets].sort((a, b) => a.slotId.localeCompare(b.slotId)),
+      });
+
+      // Step 4: Acquire transaction lock to prevent duplicate execution
+      // This is inside try block, and will be released in finally
+      try {
+        ownershipToken = await acquireTransactionLock(stableIdempotencyKey);
+        if (!ownershipToken) {
+          console.log('[USE_DRIVE_ASSET] Transaction already in progress', {
+            requestId,
+            idempotencyKey: stableIdempotencyKey,
+          });
+          return NextResponse.json(
+            {
+              error: 'TRANSACTION_IN_PROGRESS',
+              message: 'This transaction is already in progress. Please wait.',
+              retrySameRequest: true,
+              requestId,
+            },
+            { status: 409 } // Conflict
+          );
+        }
+      } catch (lockError) {
+        // Redis unavailable - fail closed
+        console.error('[USE_DRIVE_ASSET] Redis unavailable - cannot proceed', {
+          requestId,
+          error: lockError instanceof Error ? lockError.message : String(lockError),
+        });
+        return NextResponse.json(
+          {
+            error: 'REDIS_UNAVAILABLE',
+            message: 'Transaction lock requires Redis. Please try again later.',
+            requestId,
+          },
+          { status: 503 } // Service Unavailable
         );
       }
 
