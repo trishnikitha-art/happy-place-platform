@@ -219,8 +219,26 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     if (!container) return;
 
     const handleDragStart = (e: MessageEvent) => {
-      // Only accept DRAG_START from parent at same origin
+      // Only accept messages from parent at same origin
       if (e.origin !== window.location.origin || e.source !== window.parent) {
+        return;
+      }
+
+      // P0 FIX: Handle BRIDGE_INIT to initialize with parent-issued generation
+      if (e.data.type === 'BRIDGE_INIT') {
+        const generation = e.data.generation;
+        if (typeof generation === 'number') {
+          console.log('[OUR_WORK] BRIDGE_INIT_RECEIVED', {
+            generation,
+            timestamp: Date.now(),
+          });
+          dragBridge.initialize(generation);
+        } else {
+          console.error('[OUR_WORK] BRIDGE_INIT_REJECTED', {
+            reason: 'INVALID_GENERATION',
+            generation,
+          });
+        }
         return;
       }
 
@@ -373,12 +391,18 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     window.addEventListener('message', handleDragStart);
 
     // Now send BRIDGE_READY to prove listeners are attached
+    // P0 FIX: Include iframeGeneration from parent-issued initialization
     if (window.parent !== window) {
+      const iframeGeneration = dragBridge.getIframeGeneration();
       window.parent.postMessage({
         type: 'BRIDGE_READY',
         slotId: 'our-work-gallery-grid',
+        iframeGeneration,
       }, window.location.origin);
-      console.log('[OUR_WORK] BRIDGE_READY_SENT', { timestamp: Date.now() });
+      console.log('[OUR_WORK] BRIDGE_READY_SENT', {
+        iframeGeneration,
+        timestamp: Date.now(),
+      });
     }
 
     return () => {

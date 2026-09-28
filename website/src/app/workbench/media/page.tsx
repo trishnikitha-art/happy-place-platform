@@ -2006,28 +2006,39 @@ export default function MediaWorkbench() {
       // P0 FIX: Handle BRIDGE_READY handshake
       if (messageType === 'BRIDGE_READY') {
         const slotId = event.data.slotId;
+        const iframeGeneration = event.data.iframeGeneration;
+
         if (!slotId || typeof slotId !== 'string') {
           console.error('[WB_FORENSIC] BRIDGE_READY_REJECTED', {
             reason: 'INVALID_SCHEMA',
             slotId,
-            schema: { slotId: 'string (required)' },
+            schema: { slotId: 'string (required)', iframeGeneration: 'number (required)' },
           });
           return;
         }
+
+        if (iframeGeneration === null || iframeGeneration === undefined) {
+          console.error('[WB_FORENSIC] BRIDGE_READY_REJECTED', {
+            reason: 'MISSING_GENERATION',
+            slotId,
+            schema: { slotId: 'string (required)', iframeGeneration: 'number (required)' },
+          });
+          return;
+        }
+
         console.log('[WB_FORENSIC] BRIDGE_READY_RECEIVED', {
           slotId,
-          iframeGeneration: event.data.iframeGeneration,
+          iframeGeneration,
           currentIframeGeneration: state.currentIframeGeneration,
           timestamp: Date.now(),
         });
 
         // P0 FIX: Only accept BRIDGE_READY if iframe generation matches
         // This prevents stale BRIDGE_READY from old pages from authorizing DRAG_START
-        const messageGeneration = event.data.iframeGeneration || 0;
-        if (messageGeneration !== state.currentIframeGeneration) {
+        if (iframeGeneration !== state.currentIframeGeneration) {
           console.log('[WB_FORENSIC] BRIDGE_READY_REJECTED_STALE', {
             slotId,
-            messageGeneration,
+            messageGeneration: iframeGeneration,
             currentIframeGeneration: state.currentIframeGeneration,
             reason: 'Iframe generation mismatch - stale BRIDGE_READY from old page',
           });
@@ -3471,18 +3482,33 @@ export default function MediaWorkbench() {
                   timestamp: Date.now(),
                 });
                 console.log('[WB_FORENSIC] IFRAME_LOAD_COMPLETE', {
-                  reason: 'Instrumented preview iframe loaded, waiting for BRIDGE_READY from child slots',
+                  reason: 'Instrumented preview iframe loaded, sending BRIDGE_INIT to child',
                   workbenchOrigin: WORKBENCH_ORIGIN,
                   timestamp: Date.now(),
                 });
 
-                // P0 FIX: Reset bridge state on iframe load to prevent stale BRIDGE_READY
+                // P0 FIX: Increment generation and send BRIDGE_INIT to iframe
+                // Parent owns the generation and sends it to iframe for initialization
+                const newGeneration = state.currentIframeGeneration + 1;
                 setState(prev => ({
                   ...prev,
                   bridgeReadySlots: new Set(),
                   bridgeReady: false,
-                  currentIframeGeneration: prev.currentIframeGeneration + 1,
+                  currentIframeGeneration: newGeneration,
                 }));
+
+                // Send BRIDGE_INIT to iframe with the new generation
+                if (iframeRef.current?.contentWindow) {
+                  console.log('[WB_FORENSIC] BRIDGE_INIT_SENDING', {
+                    generation: newGeneration,
+                    targetOrigin: WORKBENCH_ORIGIN,
+                    timestamp: Date.now(),
+                  });
+                  iframeRef.current.contentWindow.postMessage({
+                    type: 'BRIDGE_INIT',
+                    generation: newGeneration,
+                  }, WORKBENCH_ORIGIN);
+                }
               }}
             />
             {/* SlotGallery - invisible semantic layer for slot detection, not visual replacement */}

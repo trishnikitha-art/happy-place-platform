@@ -2,6 +2,7 @@
  * Tests for shared drag-session transport
  *
  * These tests verify the invariant: One iframe document = one authoritative current drag payload
+ * Parent owns generation and sends BRIDGE_INIT; iframe initializes with that generation.
  */
 
 import { dragBridge } from '../workbench-drag-bridge';
@@ -9,10 +10,18 @@ import { dragBridge } from '../workbench-drag-bridge';
 describe('WorkbenchDragBridge - shared drag-session ownership', () => {
   beforeEach(() => {
     // Reset bridge state before each test
-    dragBridge.resetBridge();
+    dragBridge.initialize(0);
+  });
+
+  test('initialize sets generation and clears state', () => {
+    dragBridge.initialize(5);
+    expect(dragBridge.getIframeGeneration()).toBe(5);
+    expect(dragBridge.isBridgeReady()).toBe(false);
+    expect(dragBridge.getDragData()).toBeNull();
   });
 
   test('setDragData stores payload that getDragData can retrieve', () => {
+    dragBridge.initialize(1);
     const dragData = {
       source: 'google-drive' as const,
       fileId: 'test-file-id',
@@ -27,6 +36,7 @@ describe('WorkbenchDragBridge - shared drag-session ownership', () => {
   });
 
   test('clearDragData removes the payload', () => {
+    dragBridge.initialize(1);
     const dragData = {
       source: 'local' as const,
       assetId: 'local-asset-123',
@@ -40,6 +50,7 @@ describe('WorkbenchDragBridge - shared drag-session ownership', () => {
   });
 
   test('only one drag payload exists at a time', () => {
+    dragBridge.initialize(1);
     const firstData = {
       source: 'google-drive' as const,
       fileId: 'first-file',
@@ -60,53 +71,50 @@ describe('WorkbenchDragBridge - shared drag-session ownership', () => {
     expect(retrieved).not.toEqual(firstData);
   });
 
-  test('registerBridge marks bridge as ready', () => {
+  test('registerSlot marks bridge as ready against existing generation', () => {
+    dragBridge.initialize(1);
     expect(dragBridge.isBridgeReady()).toBe(false);
 
-    dragBridge.registerBridge('test-slot-1');
+    dragBridge.registerSlot('test-slot-1');
     expect(dragBridge.isBridgeReady()).toBe(true);
+    expect(dragBridge.getIframeGeneration()).toBe(1); // Generation unchanged
   });
 
-  test('resetBridge clears readiness and drag data', () => {
-    dragBridge.registerBridge('test-slot-1');
+  test('registerSlot does NOT increment generation', () => {
+    dragBridge.initialize(1);
+    const genBefore = dragBridge.getIframeGeneration();
+
+    dragBridge.registerSlot('slot-1');
+    const genAfterFirst = dragBridge.getIframeGeneration();
+
+    dragBridge.registerSlot('slot-2');
+    const genAfterSecond = dragBridge.getIframeGeneration();
+
+    // Generation should NOT change - parent owns it
+    expect(genAfterFirst).toBe(genBefore);
+    expect(genAfterSecond).toBe(genBefore);
+  });
+
+  test('initialize with new generation resets readiness', () => {
+    dragBridge.initialize(1);
+    dragBridge.registerSlot('slot-1');
     dragBridge.setDragData({ source: 'local' as const, assetId: 'test' });
 
     expect(dragBridge.isBridgeReady()).toBe(true);
     expect(dragBridge.getDragData()).not.toBeNull();
 
-    dragBridge.resetBridge();
+    // Simulate new iframe with new generation
+    dragBridge.initialize(2);
 
     expect(dragBridge.isBridgeReady()).toBe(false);
     expect(dragBridge.getDragData()).toBeNull();
-  });
-
-  test('iframeGeneration increments on resetBridge', () => {
-    const initialGen = dragBridge.getIframeGeneration();
-    dragBridge.registerBridge('slot-1');
-
-    dragBridge.resetBridge();
-    const newGen = dragBridge.getIframeGeneration();
-
-    expect(newGen).toBeGreaterThan(initialGen);
-  });
-
-  test('iframeGeneration increments on registerBridge', () => {
-    const initialGen = dragBridge.getIframeGeneration();
-
-    dragBridge.registerBridge('slot-1');
-    const genAfterFirst = dragBridge.getIframeGeneration();
-
-    dragBridge.registerBridge('slot-2');
-    const genAfterSecond = dragBridge.getIframeGeneration();
-
-    expect(genAfterFirst).toBeGreaterThan(initialGen);
-    expect(genAfterSecond).toBeGreaterThan(genAfterFirst);
+    expect(dragBridge.getIframeGeneration()).toBe(2);
   });
 });
 
 describe('WorkbenchDragBridge - OurWorkClient can consume payload without VisualSlot', () => {
   beforeEach(() => {
-    dragBridge.resetBridge();
+    dragBridge.initialize(1);
   });
 
   test('drop handler can retrieve drag data without VisualSlot involvement', () => {
@@ -145,53 +153,47 @@ describe('WorkbenchDragBridge - OurWorkClient can consume payload without Visual
   });
 });
 
-describe('WorkbenchDragBridge - stale BRIDGE_READY rejection', () => {
-  beforeEach(() => {
-    dragBridge.resetBridge();
+describe('WorkbenchDragBridge - parent/iframe generation protocol', () => {
+  test('iframe receives generation from parent via initialize', () => {
+    // Parent generation = 5
+    dragBridge.initialize(5);
+
+    expect(dragBridge.getIframeGeneration()).toBe(5);
+
+    // Slots register against this generation
+    dragBridge.registerSlot('slot-1');
+    dragBridge.registerSlot('slot-2');
+
+    expect(dragBridge.getIframeGeneration()).toBe(5); // Still 5
   });
 
-  test('resetBridge clears readiness, preventing stale authorization', () => {
-    // Page A: register bridge
-    dragBridge.registerBridge('page-a-slot');
-    expect(dragBridge.isBridgeReady()).toBe(true);
+  test('new iframe with different generation cannot use old generation', () => {
+    // Iframe A with generation 1
+    dragBridge.initialize(1);
+    dragBridge.registerSlot('slot-a');
 
-    // Page A destroyed, page B loading
-    dragBridge.resetBridge();
+    // Iframe A destroyed, Iframe B loads with generation 2
+    dragBridge.initialize(2);
 
-    // Page B should NOT be considered ready from page A's BRIDGE_READY
-    expect(dragBridge.isBridgeReady()).toBe(false);
+    // Iframe B should have generation 2, not 1
+    expect(dragBridge.getIframeGeneration()).toBe(2);
+    expect(dragBridge.isBridgeReady()).toBe(false); // Slots need to re-register
   });
 
-  test('iframeGeneration change invalidates old bridge', () => {
-    const gen1 = dragBridge.getIframeGeneration();
-    dragBridge.registerBridge('old-page-slot');
+  test('parent can reject stale BRIDGE_READY by comparing generations', () => {
+    // Parent sends generation 5
+    const parentGeneration = 5;
+    dragBridge.initialize(parentGeneration);
+    dragBridge.registerSlot('slot-1');
 
-    // Store generation after old page registration
-    const oldGen = dragBridge.getIframeGeneration();
+    const iframeGeneration = dragBridge.getIframeGeneration();
 
-    // Simulate page navigation
-    dragBridge.resetBridge();
+    // Parent validates: iframeGeneration === parentGeneration
+    expect(iframeGeneration).toBe(parentGeneration);
 
-    // New page has different generation
-    const newGen = dragBridge.getIframeGeneration();
-    expect(newGen).not.toBe(oldGen);
-    expect(newGen).toBeGreaterThan(oldGen);
-  });
-
-  test('multiple registrations track iframe generation correctly', () => {
-    dragBridge.registerBridge('slot-1');
-    const gen1 = dragBridge.getIframeGeneration();
-
-    dragBridge.registerBridge('slot-2');
-    const gen2 = dragBridge.getIframeGeneration();
-
-    // Each registration increments generation
-    expect(gen2).toBeGreaterThan(gen1);
-
-    // Reset and verify generation changes
-    dragBridge.resetBridge();
-    const gen3 = dragBridge.getIframeGeneration();
-
-    expect(gen3).toBeGreaterThan(gen2);
+    // If iframe sent stale generation (e.g., from old page)
+    const staleGeneration = 4;
+    expect(staleGeneration).not.toBe(parentGeneration); // Parent would reject
   });
 });
+

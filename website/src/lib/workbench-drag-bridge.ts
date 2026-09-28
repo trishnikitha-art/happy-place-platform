@@ -8,8 +8,14 @@
  * bug where VisualSlot and OurWorkClient each maintained their own
  * bridgedDragDataRef, causing drops on non-VisualSlot targets to fail.
  *
+ * Generation ownership: Parent owns the generation and sends it via BRIDGE_INIT.
+ * The iframe initializes with that parent-issued generation. Components register
+ * against that existing generation (no per-slot incrementing).
+ *
  * Usage:
  *   import { dragBridge } from '@/lib/workbench-drag-bridge';
+ *   dragBridge.initialize(parentGeneration); // Called once per iframe load
+ *   dragBridge.registerSlot(slotId); // Components register against existing generation
  *   dragBridge.setDragData({ source: 'google-drive', fileId: '...', ... });
  *   const data = dragBridge.getDragData();
  *   dragBridge.clearDragData();
@@ -26,7 +32,7 @@ interface DragData {
 
 interface BridgeState {
   isReady: boolean;
-  iframeGeneration: number;
+  iframeGeneration: number | null; // Parent-issued generation, null until initialized
   registeredSlots: Set<string>;
 }
 
@@ -34,9 +40,50 @@ class WorkbenchDragBridge {
   private dragData: DragData | null = null;
   private bridgeState: BridgeState = {
     isReady: false,
-    iframeGeneration: 0,
+    iframeGeneration: null,
     registeredSlots: new Set(),
   };
+
+  /**
+   * Initialize the bridge with parent-issued generation
+   * Called once per iframe load when parent sends BRIDGE_INIT
+   */
+  initialize(generation: number): void {
+    console.log('[DRAG_BRIDGE] INITIALIZE', {
+      generation,
+      oldGeneration: this.bridgeState.iframeGeneration,
+      timestamp: Date.now(),
+    });
+
+    this.bridgeState.iframeGeneration = generation;
+    this.bridgeState.registeredSlots.clear();
+    this.bridgeState.isReady = false;
+    this.dragData = null;
+  }
+
+  /**
+   * Register a slot against the current iframe generation
+   * Does NOT increment generation - generation is owned by parent
+   */
+  registerSlot(slotId: string): void {
+    if (this.bridgeState.iframeGeneration === null) {
+      console.error('[DRAG_BRIDGE] REGISTER_SLOT_BEFORE_INIT', {
+        slotId,
+        error: 'Bridge not initialized with parent generation',
+      });
+      return; // Don't mark as ready if not initialized
+    }
+
+    this.bridgeState.registeredSlots.add(slotId);
+    this.bridgeState.isReady = true;
+
+    console.log('[DRAG_BRIDGE] REGISTER_SLOT', {
+      slotId,
+      iframeGeneration: this.bridgeState.iframeGeneration,
+      registeredSlots: Array.from(this.bridgeState.registeredSlots),
+      timestamp: Date.now(),
+    });
+  }
 
   /**
    * Set the current drag payload from parent DRAG_START message
@@ -74,53 +121,19 @@ class WorkbenchDragBridge {
   }
 
   /**
-   * Mark the current iframe/document instance as ready to receive DRAG_START
-   * Each iframe generation increments to prevent stale BRIDGE_READY from old pages
-   */
-  registerBridge(slotId: string): void {
-    this.bridgeState.iframeGeneration++;
-    this.bridgeState.registeredSlots.add(slotId);
-    this.bridgeState.isReady = true;
-
-    console.log('[DRAG_BRIDGE] REGISTER_BRIDGE', {
-      slotId,
-      iframeGeneration: this.bridgeState.iframeGeneration,
-      registeredSlots: Array.from(this.bridgeState.registeredSlots),
-      timestamp: Date.now(),
-    });
-  }
-
-  /**
    * Check if the current iframe is ready to receive DRAG_START
    * Returns false if:
-   * - No bridge has been registered
-   * - The iframe generation has changed (page navigation)
+   * - No bridge has been initialized
+   * - No slots have registered
    */
   isBridgeReady(): boolean {
-    return this.bridgeState.isReady;
+    return this.bridgeState.isReady && this.bridgeState.iframeGeneration !== null;
   }
 
   /**
-   * Reset bridge state (called on page navigation/iframe reload)
-   * Prevents stale BRIDGE_READY from authorizing DRAG_START for new iframe
+   * Get current iframe generation (parent-issued)
    */
-  resetBridge(): void {
-    console.log('[DRAG_BRIDGE] RESET_BRIDGE', {
-      oldGeneration: this.bridgeState.iframeGeneration,
-      oldRegisteredSlots: Array.from(this.bridgeState.registeredSlots),
-      timestamp: Date.now(),
-    });
-
-    this.bridgeState.iframeGeneration++;
-    this.bridgeState.registeredSlots.clear();
-    this.bridgeState.isReady = false;
-    this.dragData = null;
-  }
-
-  /**
-   * Get current iframe generation for diagnostic purposes
-   */
-  getIframeGeneration(): number {
+  getIframeGeneration(): number | null {
     return this.bridgeState.iframeGeneration;
   }
 

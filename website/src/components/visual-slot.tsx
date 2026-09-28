@@ -165,6 +165,24 @@ export function VisualSlot({
           }, targetOrigin);
           console.log('[VS_FORENSIC] REFRESH_REGISTER_SENT', { slotId: id, targetOrigin });
         }
+      } else if (event.data.type === 'BRIDGE_INIT') {
+        // P0 FIX: Initialize bridge with parent-issued generation
+        // Parent owns the generation; iframe initializes with it once
+        const generation = event.data.generation;
+        if (typeof generation === 'number') {
+          console.log('[VS_FORENSIC] BRIDGE_INIT_RECEIVED', {
+            slotId: id,
+            generation,
+            timestamp: Date.now(),
+          });
+          dragBridge.initialize(generation);
+        } else {
+          console.error('[VS_FORENSIC] BRIDGE_INIT_REJECTED', {
+            slotId: id,
+            reason: 'INVALID_GENERATION',
+            generation,
+          });
+        }
       } else if (event.data.type === 'DRAG_START') {
         // P0 FIX: Harden iframe DRAG_START bridge with origin/source/schema validation
         // Accept only messages from the parent window at the same origin
@@ -328,8 +346,8 @@ export function VisualSlot({
       
       // P0 FIX: Send BRIDGE_READY AFTER listener is attached and slot is registered
       // The invariant is: listener must be attached before parent is permitted to send messages
-      // P0 FIX: Register with shared bridge to prevent stale BRIDGE_READY from old pages
-      dragBridge.registerBridge(id);
+      // P0 FIX: Register slot against existing parent-issued generation
+      dragBridge.registerSlot(id);
 
       const bridgeReadyMessage = {
         type: 'BRIDGE_READY',
