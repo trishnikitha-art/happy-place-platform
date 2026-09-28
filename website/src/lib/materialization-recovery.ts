@@ -1,18 +1,18 @@
 /**
  * Materialization Recovery Service
- * 
+ *
  * P1-7: Implements actual recovery/atomicity protocol for materialization path
- * DriveReference → download → hash → Blob materialization → PublishedMediaAsset → assignment → public media
- * 
+ * DriveReference → download → hash → R2 materialization → PublishedMediaAsset → assignment → public media
+ *
  * This service detects and repairs incomplete materialization states:
- * - Orphaned Blob assets (Blob exists but no KV record)
- * - Incomplete KV records (KV exists but missing Blob metadata)
+ * - Orphaned R2 assets (R2 object exists but no KV record)
+ * - Incomplete KV records (KV exists but missing R2 metadata)
  * - Stale assignments (assignments point to incomplete assets)
- * - Cross-state inconsistency (KV-Blob, KV-assignment, Drive-provenance)
+ * - Cross-state inconsistency (KV-R2, KV-assignment, Drive-provenance)
  */
 
 import { getMedia, getMediaRecordRaw, storeMedia, findMediaByContentHash } from './media-kv-store';
-import { verifyBlobHash, verifyBlobExists, getBlobMetadataByContentHash, type BlobHashVerificationResult } from './blob-storage';
+import { verifyR2Hash, verifyR2ObjectExists, type R2HashVerificationResult } from './r2-storage';
 import { getAllServiceCardAssignments, storeServiceCardAssignment, getServiceCardAssignment } from './assignment-store';
 import type { Media } from '@/types/media';
 
@@ -78,14 +78,18 @@ export async function detectIncompleteKvRecords(): Promise<Media[]> {
           continue;
         }
 
-        // Verify Blob metadata exists
-        const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
-        if (!blobMetadata) {
-          console.warn('[MATERIALIZATION_RECOVERY] INCOMPLETE_KV: missing Blob metadata', {
-            mediaId,
-            contentHash: media.contentHash
-          });
-          incomplete.push(media);
+        // Verify R2 object exists for 'r2' storage, skip for 'static' storage
+        if (media.storage === 'r2' && media.variants?.original) {
+          const originalKey = media.variants.original.split('/').pop() || '';
+          const originalAccessible = await verifyR2ObjectExists(originalKey);
+          if (!originalAccessible) {
+            console.warn('[MATERIALIZATION_RECOVERY] INCOMPLETE_KV: R2 object not accessible', {
+              mediaId,
+              contentHash: media.contentHash,
+              url: media.variants.original
+            });
+            incomplete.push(media);
+          }
         }
       }
     }
@@ -156,11 +160,11 @@ export async function detectStaleAssignments(): Promise<{ serviceSlug: string; m
 
 /**
  * Repair incomplete KV record
- * Attempts to reconstruct KV record from Blob metadata
- * 
+ * Attempts to reconstruct KV record from R2 object URL
+ *
  * CRITICAL FIX: Must reconstruct ALL variant metadata, not just original
- * Each variant (webp, avif, thumbnail, responsive) has its own content hash and Blob metadata
- * Recovery must verify each variant's Blob exists and reconstruct the complete variants object
+ * Each variant (webp, avif, thumbnail, responsive) has its own content hash and R2 object
+ * Recovery must verify each variant's R2 object exists and reconstruct the complete variants object
  */
 export async function repairIncompleteKvRecord(media: Media): Promise<boolean> {
   try {
@@ -168,45 +172,46 @@ export async function repairIncompleteKvRecord(media: Media): Promise<boolean> {
       console.error('[MATERIALIZATION_RECOVERY] Cannot repair: missing contentHash', { mediaId: media.id });
       return false;
     }
-    
-    // Verify original Blob exists and is accessible
-    const originalBlobMetadata = await getBlobMetadataByContentHash(media.contentHash);
-    if (!originalBlobMetadata) {
-      console.error('[MATERIALIZATION_RECOVERY] Cannot repair: Original Blob metadata missing', { 
+
+    // Verify original R2 object exists and is accessible
+    if (!media.variants?.original) {
+      console.error('[MATERIALIZATION_RECOVERY] Cannot repair: Original URL missing', {
         mediaId: media.id,
-        contentHash: media.contentHash 
+        contentHash: media.contentHash
       });
       return false;
     }
-    
-    // Verify original Blob hash matches content hash
-    const verificationResult: BlobHashVerificationResult = await verifyBlobHash(originalBlobMetadata.url, media.contentHash);
+
+    // Verify original R2 object hash matches content hash
+    const originalKey = media.variants.original.split('/').pop() || '';
+    const verificationResult: R2HashVerificationResult = await verifyR2Hash(originalKey, media.contentHash);
     if (!verificationResult.success) {
-      console.error('[MATERIALIZATION_RECOVERY] Cannot repair: Original Blob hash mismatch', {
+      console.error('[MATERIALIZATION_RECOVERY] Cannot repair: Original R2 object hash mismatch', {
         mediaId: media.id,
         contentHash: media.contentHash,
-        blobUrl: originalBlobMetadata.url,
+        url: media.variants.original,
         errorType: verificationResult.errorType,
         actualHash: verificationResult.actualHash,
       });
       return false;
     }
-    
+
     // Reconstruct complete variants object with all renditions
     // Start with existing variants as baseline
     const repairedVariants = {
       ...media.variants,
-      original: originalBlobMetadata.url || media.variants?.original,
+      original: media.variants.original,
     };
     
     // Verify and repair thumbnail if present in record
     // CRITICAL: Do NOT fallback to original for missing thumbnail - that creates false completeness
-    // If thumbnail Blob is missing, clear the thumbnail field - the record remains incomplete
+    // If thumbnail R2 object is missing, clear the thumbnail field - the record remains incomplete
     if (media.variants?.thumbnail) {
       try {
-        const thumbnailAccessible = await verifyBlobExists(media.variants.thumbnail);
+        const thumbnailKey = media.variants.thumbnail.split('/').pop() || '';
+        const thumbnailAccessible = await verifyR2ObjectExists(thumbnailKey);
         if (!thumbnailAccessible) {
-          console.warn('[MATERIALIZATION_RECOVERY] Thumbnail Blob not accessible, clearing (record remains incomplete)', {
+          console.warn('[MATERIALIZATION_RECOVERY] Thumbnail R2 object not accessible, clearing (record remains incomplete)', {
             mediaId: media.id,
             thumbnailUrl: media.variants.thumbnail,
             reason: 'Thumbnail must be a separate thumbnail rendition, not original fallback'
@@ -221,15 +226,16 @@ export async function repairIncompleteKvRecord(media: Media): Promise<boolean> {
         repairedVariants.thumbnail = ''; // Clear - record remains incomplete
       }
     }
-    
+
     // Verify and repair webp variant if present
     // CRITICAL: Do NOT fallback to original for missing webp - that creates false completeness
-    // If webp Blob is missing, clear the webp field - the record remains incomplete
+    // If webp R2 object is missing, clear the webp field - the record remains incomplete
     if (media.variants?.webp) {
       try {
-        const webpAccessible = await verifyBlobExists(media.variants.webp);
+        const webpKey = media.variants.webp.split('/').pop() || '';
+        const webpAccessible = await verifyR2ObjectExists(webpKey);
         if (!webpAccessible) {
-          console.warn('[MATERIALIZATION_RECOVERY] WebP Blob not accessible, clearing (record remains incomplete)', {
+          console.warn('[MATERIALIZATION_RECOVERY] WebP R2 object not accessible, clearing (record remains incomplete)', {
             mediaId: media.id,
             webpUrl: media.variants.webp,
             reason: 'WebP must be a separate webp rendition, not original fallback'
@@ -248,9 +254,10 @@ export async function repairIncompleteKvRecord(media: Media): Promise<boolean> {
     // Verify and repair avif variant if present
     if (media.variants?.avif) {
       try {
-        const avifAccessible = await verifyBlobExists(media.variants.avif);
+        const avifKey = media.variants.avif.split('/').pop() || '';
+        const avifAccessible = await verifyR2ObjectExists(avifKey);
         if (!avifAccessible) {
-          console.warn('[MATERIALIZATION_RECOVERY] AVIF Blob not accessible, clearing', {
+          console.warn('[MATERIALIZATION_RECOVERY] AVIF R2 object not accessible, clearing', {
             mediaId: media.id,
             avifUrl: media.variants.avif,
           });
@@ -264,18 +271,19 @@ export async function repairIncompleteKvRecord(media: Media): Promise<boolean> {
         repairedVariants.avif = '';
       }
     }
-    
+
     // Verify and repair responsive variants if present
     if (media.variants?.responsive && Array.isArray(media.variants.responsive)) {
       const repairedResponsive: Array<{ width: number; webp: string; avif: string }> = [];
-      
+
       for (const variant of media.variants.responsive) {
         const repairedVariant = { width: variant.width, webp: '', avif: '' };
-        
+
         // Verify webp at this width
         if (variant.webp) {
           try {
-            const webpAccessible = await verifyBlobExists(variant.webp);
+            const webpKey = variant.webp.split('/').pop() || '';
+            const webpAccessible = await verifyR2ObjectExists(webpKey);
             if (webpAccessible) {
               repairedVariant.webp = variant.webp;
             } else {
@@ -293,11 +301,12 @@ export async function repairIncompleteKvRecord(media: Media): Promise<boolean> {
             });
           }
         }
-        
+
         // Verify avif at this width
         if (variant.avif) {
           try {
-            const avifAccessible = await verifyBlobExists(variant.avif);
+            const avifKey = variant.avif.split('/').pop() || '';
+            const avifAccessible = await verifyR2ObjectExists(avifKey);
             if (avifAccessible) {
               repairedVariant.avif = variant.avif;
             } else {

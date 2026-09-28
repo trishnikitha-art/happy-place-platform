@@ -56,7 +56,7 @@ import { verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
  */
 
 // Import storage modules at top level (they are ES modules)
-import { uploadToBlob, generateBlobFilename, getBlobMetadataByContentHash } from '@/lib/blob-storage';
+import { uploadToR2, verifyR2Hash } from '@/lib/r2-storage';
 
 // Try to load Sharp (important for production media processing)
 let sharp: any = null;
@@ -450,17 +450,22 @@ export async function POST(request: Request) {
       });
     }
 
-    // Check environment variables for storage configuration
-    const blobConfigured = !!process.env.BLOB_READ_WRITE_TOKEN;
+    // Check environment variables for R2 storage configuration
+    const r2Configured = !!(
+      process.env.R2_ACCOUNT_ID &&
+      process.env.R2_BUCKET_NAME &&
+      process.env.R2_ACCESS_KEY_ID &&
+      process.env.R2_SECRET_ACCESS_KEY
+    );
 
-    if (!blobConfigured) {
+    if (!r2Configured) {
       return NextResponse.json(
         {
           success: false,
-          error: 'BLOB_NOT_CONFIGURED',
+          error: 'R2_NOT_CONFIGURED',
           stage: 'initialization',
-          message: 'Vercel Blob storage is not configured.',
-          details: 'BLOB_READ_WRITE_TOKEN environment variable is missing.',
+          message: 'Cloudflare R2 storage is not configured.',
+          details: 'R2_ACCOUNT_ID, R2_BUCKET_NAME, R2_ACCESS_KEY_ID, and R2_SECRET_ACCESS_KEY environment variables are required.',
           requestId,
         },
         { status: 500 }
@@ -705,42 +710,36 @@ export async function POST(request: Request) {
                            originalMimeType === 'image/webp' ? 'webp' :
                            originalMimeType === 'image/tiff' ? 'tiff' :
                            originalMimeType === 'image/avif' ? 'avif' : 'jpg';
-    const originalFilename = generateBlobFilename(contentHash, 'original', originalExtension);
-    const webpFilename = generateBlobFilename(contentHash, 'webp', 'webp');
-    const avifFilename = generateBlobFilename(contentHash, 'avif', 'avif');
-    const thumbnailFilename = generateBlobFilename(contentHash, 'thumbnail', 'webp');
-    const blurFilename = generateBlobFilename(contentHash, 'blur', 'webp');
-
-    // Upload original with preserved MIME type
-    console.log('[MEDIA_INGEST] VARIANT_GENERATION uploading original', { requestId });
-    const originalBlobResult = await uploadToBlob(driveBytes, originalFilename, originalMimeType);
-    const originalBlobUrl = originalBlobResult.url;
-    console.log('[MEDIA_INGEST] VARIANT_GENERATION original uploaded', { requestId, url: originalBlobUrl });
+    // Upload original with preserved MIME type to R2
+    console.log('[MEDIA_INGEST] VARIANT_GENERATION uploading original to R2', { requestId });
+    const originalR2Result = await uploadToR2(driveBytes, originalMimeType, originalExtension);
+    const originalR2Url = originalR2Result.url;
+    console.log('[MEDIA_INGEST] VARIANT_GENERATION original uploaded to R2', { requestId, url: originalR2Url });
 
     // Generate WebP variant
     const webpBuffer = await sharp(driveBytes)
       .webp({ quality: WEBP_QUALITY })
       .toBuffer();
-    const webpBlobResult = await uploadToBlob(webpBuffer, webpFilename, 'image/webp');
-    const webpBlobUrl = webpBlobResult.url;
-    console.log('[MEDIA_INGEST VARIANT_GENERATION webp uploaded', { requestId, url: webpBlobUrl });
+    const webpR2Result = await uploadToR2(webpBuffer, 'image/webp', 'webp');
+    const webpR2Url = webpR2Result.url;
+    console.log('[MEDIA_INGEST VARIANT_GENERATION webp uploaded to R2', { requestId, url: webpR2Url });
 
     // Generate AVIF variant
     const avifBuffer = await sharp(driveBytes)
       .avif({ quality: AVIF_QUALITY })
       .toBuffer();
-    const avifBlobResult = await uploadToBlob(avifBuffer, avifFilename, 'image/avif');
-    const avifBlobUrl = avifBlobResult.url;
-    console.log('[MEDIA_INGEST VARIANT_GENERATION avif uploaded', { requestId, url: avifBlobUrl });
+    const avifR2Result = await uploadToR2(avifBuffer, 'image/avif', 'avif');
+    const avifR2Url = avifR2Result.url;
+    console.log('[MEDIA_INGEST VARIANT_GENERATION avif uploaded to R2', { requestId, url: avifR2Url });
 
     // Generate thumbnail
     const thumbnailBuffer = await sharp(driveBytes)
       .resize(THUMBNAIL_WIDTH, null, { withoutEnlargement: true })
       .webp({ quality: THUMBNAIL_QUALITY })
       .toBuffer();
-    const thumbnailBlobResult = await uploadToBlob(thumbnailBuffer, thumbnailFilename, 'image/webp');
-    const thumbnailBlobUrl = thumbnailBlobResult.url;
-    console.log('[MEDIA_INGEST VARIANT_GENERATION thumbnail uploaded', { requestId, url: thumbnailBlobUrl });
+    const thumbnailR2Result = await uploadToR2(thumbnailBuffer, 'image/webp', 'webp');
+    const thumbnailR2Url = thumbnailR2Result.url;
+    console.log('[MEDIA_INGEST VARIANT_GENERATION thumbnail uploaded to R2', { requestId, url: thumbnailR2Url });
 
     // Generate blur placeholder
     const blurBuffer = await sharp(driveBytes)
@@ -748,9 +747,9 @@ export async function POST(request: Request) {
       .blur(2)
       .webp({ quality: 50 })
       .toBuffer();
-    const blurBlobResult = await uploadToBlob(blurBuffer, blurFilename, 'image/webp');
-    const blurBlobUrl = blurBlobResult.url;
-    console.log('[MEDIA_INGEST VARIANT_GENERATION blur uploaded', { requestId, url: blurBlobUrl });
+    const blurR2Result = await uploadToR2(blurBuffer, 'image/webp', 'webp');
+    const blurR2Url = blurR2Result.url;
+    console.log('[MEDIA_INGEST] VARIANT_GENERATION blur uploaded to R2', { requestId, url: blurR2Url });
 
     // Generate responsive variants
     const responsiveVariants = [];
@@ -759,24 +758,22 @@ export async function POST(request: Request) {
         .resize(width, null, { withoutEnlargement: true })
         .webp({ quality: WEBP_QUALITY })
         .toBuffer();
-      const responsiveFilename = generateBlobFilename(contentHash, `responsive-${width}`, 'webp');
-      const responsiveBlobResult = await uploadToBlob(responsiveBuffer, responsiveFilename, 'image/webp');
-      const responsiveUrl = responsiveBlobResult.url;
-      
+      const responsiveR2Result = await uploadToR2(responsiveBuffer, 'image/webp', 'webp');
+      const responsiveUrl = responsiveR2Result.url;
+
       const avifResponsiveBuffer = await sharp(driveBytes)
         .resize(width, null, { withoutEnlargement: true })
         .avif({ quality: AVIF_QUALITY })
         .toBuffer();
-      const avifResponsiveFilename = generateBlobFilename(contentHash, `responsive-${width}-avif`, 'avif');
-      const avifResponsiveBlobResult = await uploadToBlob(avifResponsiveBuffer, avifResponsiveFilename, 'image/avif');
-      const avifResponsiveUrl = avifResponsiveBlobResult.url;
-      
+      const avifResponsiveR2Result = await uploadToR2(avifResponsiveBuffer, 'image/avif', 'avif');
+      const avifResponsiveUrl = avifResponsiveR2Result.url;
+
       responsiveVariants.push({
         width,
         webp: responsiveUrl,
         avif: avifResponsiveUrl,
       });
-      console.log('[MEDIA_INGEST VARIANT_GENERATION responsive variant uploaded', {
+      console.log('[MEDIA_INGEST VARIANT_GENERATION responsive variant uploaded to R2', {
         requestId,
         width,
         webpUrl: responsiveUrl,
@@ -814,12 +811,12 @@ export async function POST(request: Request) {
         height: metadata?.height || 0,
       },
       variants: {
-        original: originalBlobUrl,
-        web: webpBlobUrl,
-        webp: webpBlobUrl,
-        avif: avifBlobUrl,
-        thumbnail: thumbnailBlobUrl,
-        blur: blurBlobUrl,
+        original: originalR2Url,
+        web: webpR2Url,
+        webp: webpR2Url,
+        avif: avifR2Url,
+        thumbnail: thumbnailR2Url,
+        blur: blurR2Url,
         responsive: responsiveVariants,
       },
       alt: driveFile.name,
@@ -833,8 +830,8 @@ export async function POST(request: Request) {
       format: metadata?.format,
       colorSpace: metadata?.space,
       lifecycleState: 'published',
-      source: 'local', // IMPORTANT: Source is 'local' because bytes are in Blob, not Drive
-      storage: 'blob', // P0 FIX: Blob storage declaration required for public media gate
+      source: 'local', // IMPORTANT: Source is 'local' because bytes are in R2, not Drive
+      storage: 'r2', // P0 FIX: R2 storage declaration required for public media gate
     };
 
     await storeMedia(mediaRecord);

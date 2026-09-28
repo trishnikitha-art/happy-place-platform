@@ -78,7 +78,7 @@ interface BaseMedia {
   fileSize?: number;
   format?: string;
   colorSpace?: string;
-  storage?: 'static' | 'blob'; // Storage authority: static files vs Blob materialization
+  storage?: 'static' | 'blob' | 'r2'; // Storage authority: static files vs Blob vs R2 materialization
 }
 
 /**
