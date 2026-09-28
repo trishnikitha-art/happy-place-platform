@@ -11,7 +11,7 @@
  * - Eliminate race conditions in idempotency
  */
 
-import { put, head, del } from '@vercel/blob';
+import { put, head, del, get } from '@vercel/blob';
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 import { getEnvironment, getKvNamespace } from '@/lib/environment';
@@ -71,39 +71,39 @@ function getRedisClient(): Redis | null {
  */
 export async function verifyBlobHash(blobUrl: string, expectedContentHash: string): Promise<BlobHashVerificationResult> {
   try {
-    // Extract filename from blobUrl for head() call
-    // blobUrl format: https://[region].blob.vercel-storage.com/[account]/[filename]
-    const url = new URL(blobUrl);
-    const pathname = url.pathname;
-    const filename = pathname.split('/').pop();
+    // P0 FIX: Use Vercel Blob SDK's authenticated get() for proper Blob access
+    // This uses the authoritative Blob access mechanism instead of raw fetch()
+    // The SDK handles store identity and authentication correctly
+    const result = await get(blobUrl, { access: 'public' });
     
-    if (!filename) {
-      console.error('[BLOB_STORAGE] Invalid blobUrl format', { blobUrl });
-      return { success: false, errorType: 'INVALID_URL' };
-    }
-
-    // Use authenticated head() to verify Blob exists and is accessible
-    const headResult = await head(filename);
-    
-    // Now fetch actual bytes for hash verification
-    // Use the authenticated URL from head result if available, otherwise use original
-    const fetchUrl = headResult.url || blobUrl;
-    
-    const response = await fetch(fetchUrl);
-    if (!response.ok) {
-      if (response.status === 404) {
-        console.error('[BLOB_STORAGE] Blob not found', { blobUrl, filename });
-        return { success: false, errorType: 'BLOB_NOT_FOUND' };
-      } else if (response.status === 403) {
-        console.error('[BLOB_STORAGE] Blob auth/transport failure', { blobUrl, filename, status: 403 });
-        return { success: false, errorType: 'AUTH_FAILURE' };
-      } else {
-        console.error('[BLOB_STORAGE] Blob fetch failed', { blobUrl, filename, status: response.status });
-        return { success: false, errorType: 'TRANSPORT_ERROR' };
-      }
+    if (!result || !result.stream) {
+      console.error('[BLOB_STORAGE] Blob not found or stream missing', { blobUrl, hasResult: !!result, hasStream: !!result?.stream });
+      return { success: false, errorType: 'BLOB_NOT_FOUND' };
     }
     
-    const buffer = await response.arrayBuffer();
+    // Extract the actual bytes from the GetBlobResult
+    // The SDK returns { statusCode, stream, headers, blob }
+    // We need to read the stream to get the bytes
+    const reader = result.stream.getReader();
+    const chunks: Uint8Array[] = [];
+    let totalLength = 0;
+    
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value);
+      totalLength += value.length;
+    }
+    
+    // Combine chunks into a single buffer
+    const buffer = new Uint8Array(totalLength);
+    let offset = 0;
+    for (const chunk of chunks) {
+      buffer.set(chunk, offset);
+      offset += chunk.length;
+    }
+    
+    // Compute SHA-256 hash of actual Blob bytes
     const hash = crypto.createHash('sha256').update(Buffer.from(buffer)).digest('hex');
     
     const matches = hash === expectedContentHash;
@@ -111,7 +111,6 @@ export async function verifyBlobHash(blobUrl: string, expectedContentHash: strin
     if (!matches) {
       console.error('[BLOB_STORAGE] Blob hash mismatch (integrity failure)', {
         blobUrl,
-        filename,
         expected: expectedContentHash,
         actual: hash,
       });
