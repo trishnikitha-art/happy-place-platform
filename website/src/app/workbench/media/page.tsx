@@ -112,7 +112,7 @@ export default function MediaWorkbench() {
   const mutationBusy = useRef(false);
   const requestInFlight = useRef(false);
   const currentIframeGenerationRef = useRef(0); // P0 FIX: Ref-backed generation to prevent stale closure issues
-  const pendingDragPayloadRef = useRef<any | null>(null); // P0 FIX: Queue DRAG_START before BRIDGE_READY
+  const pendingDragPayloadRef = useRef<{ generation: number; payload: any; timestamp: number } | null>(null); // P0 FIX: Generation-bound pending drag payload
   const [pendingReplacement, setPendingReplacement] = useState<PendingReplacement | null>(null);
   const [retryReplacement, setRetryReplacement] = useState<PendingReplacement | null>(null);
   const [mutationNotice, setMutationNotice] = useState<string | null>(null);
@@ -1154,6 +1154,7 @@ export default function MediaWorkbench() {
     // The native dataTransfer object does not automatically cross iframe boundaries
     // Send the drag data to the iframe so it can accept the drop even if dataTransfer is empty
     // P0 FIX: Queue pending drag payload if bridge is not ready, flush when BRIDGE_READY arrives
+    // P0 FIX: Make pending payload generation-bound to prevent cross-generation races
     if (dragData && iframeRef.current?.contentWindow && state.bridgeReady) {
       const targetOrigin = WORKBENCH_ORIGIN;
       console.log('[DND] IFRAME_BRIDGE_START', {
@@ -1161,6 +1162,7 @@ export default function MediaWorkbench() {
         dragData,
         targetOrigin,
         bridgeReady: state.bridgeReady,
+        generation: currentIframeGenerationRef.current,
       });
       iframeRef.current.contentWindow.postMessage({
         type: 'DRAG_START',
@@ -1168,12 +1170,18 @@ export default function MediaWorkbench() {
       }, targetOrigin);
     } else if (dragData && !state.bridgeReady) {
       // P0 FIX: Queue pending drag payload for when bridge becomes ready
+      // P0 FIX: Include generation to prevent cross-generation races
       console.log('[DND] IFRAME_BRIDGE_QUEUED', {
         reason: 'Bridge not ready - queueing pending drag payload',
         bridgeReady: state.bridgeReady,
         dragData,
+        generation: currentIframeGenerationRef.current,
       });
-      pendingDragPayloadRef.current = dragData;
+      pendingDragPayloadRef.current = {
+        generation: currentIframeGenerationRef.current,
+        payload: dragData,
+        timestamp: Date.now(),
+      };
     }
   };
 
@@ -2072,17 +2080,38 @@ export default function MediaWorkbench() {
         }));
 
         // P0 FIX: Flush pending drag payload if bridge is now ready
+        // P0 FIX: Only flush if generation matches to prevent cross-generation races
         if (pendingDragPayloadRef.current && iframeRef.current?.contentWindow) {
-          console.log('[DND] FLUSHING_PENDING_DRAG_PAYLOAD', {
-            pendingDragData: pendingDragPayloadRef.current,
+          const pending = pendingDragPayloadRef.current;
+          const currentGeneration = currentIframeGenerationRef.current;
+
+          console.log('[DND] CHECKING_PENDING_DRAG_PAYLOAD', {
+            pendingGeneration: pending.generation,
+            currentGeneration,
+            generationMatch: pending.generation === currentGeneration,
+            payloadAge: Date.now() - pending.timestamp,
+          });
+
+          // Only flush if generation matches
+          if (pending.generation === currentGeneration) {
+            console.log('[DND] FLUSHING_PENDING_DRAG_PAYLOAD', {
+            pendingDragData: pending.payload,
             targetOrigin: WORKBENCH_ORIGIN,
             timestamp: Date.now(),
           });
-          iframeRef.current.contentWindow.postMessage({
-            type: 'DRAG_START',
-            dragData: pendingDragPayloadRef.current,
-          }, WORKBENCH_ORIGIN);
-          pendingDragPayloadRef.current = null; // Clear after sending
+            iframeRef.current.contentWindow.postMessage({
+              type: 'DRAG_START',
+              dragData: pending.payload,
+            }, WORKBENCH_ORIGIN);
+            pendingDragPayloadRef.current = null; // Clear after sending
+          } else {
+            console.log('[DND] DISCARDING_STALE_PENDING_DRAG_PAYLOAD', {
+              pendingGeneration: pending.generation,
+              currentGeneration,
+              reason: 'Generation mismatch - payload from old iframe',
+            });
+            pendingDragPayloadRef.current = null; // Clear stale payload
+          }
         }
 
         return;
@@ -3364,6 +3393,18 @@ export default function MediaWorkbench() {
                 // P0 FIX: Use ref-backed generation to avoid stale closure issues
                 const newGeneration = currentIframeGenerationRef.current + 1;
                 currentIframeGenerationRef.current = newGeneration; // Update ref synchronously
+                
+                // P0 FIX: Clear pending drag payload when generation changes
+                // Prevents cross-generation races where old generation payload gets flushed to new iframe
+                if (pendingDragPayloadRef.current) {
+                  console.log('[DND] CLEARING_PENDING_DRAG_PAYLOAD_ON_PAGE_CHANGE', {
+                    oldGeneration: pendingDragPayloadRef.current.generation,
+                    newGeneration,
+                    reason: 'Page change (generation increment) - pending payload would be stale',
+                  });
+                  pendingDragPayloadRef.current = null;
+                }
+                
                 setState(prev => ({
                   ...prev,
                   selectedPage: e.target.value as PageRoute,
@@ -3530,6 +3571,18 @@ export default function MediaWorkbench() {
                 // P0 FIX: Use ref-backed generation to avoid stale closure issues
                 const newGeneration = currentIframeGenerationRef.current + 1;
                 currentIframeGenerationRef.current = newGeneration; // Update ref synchronously
+                
+                // P0 FIX: Clear pending drag payload when generation changes
+                // Prevents cross-generation races where old generation payload gets flushed to new iframe
+                if (pendingDragPayloadRef.current) {
+                  console.log('[DND] CLEARING_PENDING_DRAG_PAYLOAD_ON_GENERATION_CHANGE', {
+                    oldGeneration: pendingDragPayloadRef.current.generation,
+                    newGeneration,
+                    reason: 'Iframe generation changed - pending payload would be stale',
+                  });
+                  pendingDragPayloadRef.current = null;
+                }
+                
                 setState(prev => ({
                   ...prev,
                   bridgeReadySlots: new Set(),

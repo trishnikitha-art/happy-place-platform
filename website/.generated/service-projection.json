@@ -5,8 +5,8 @@
   "scoringVersion": "1.0.0",
   "canonicalGraphVersion": "1.0.0",
   "generatorVersion": "1.0.0",
-  "inputHash": "sha256:38bbe597b1094df7f96d4023820a1d1b7438f0afa913a3fcd34392937fb7511b",
-  "generatedAt": "2026-09-28T18:18:29.627Z",
+  "inputHash": "sha256:37da46d51995a63ff28394d258c2e0c00376aed7c8c9cb2f535779a2f9461938",
+  "generatedAt": "2026-09-28T20:10:47.427Z",
   "services": [
     {
       "serviceName": "fencing",
@@ -92,5 +92,5 @@
       ]
     }
   ],
-  "generatedHash": "sha256:f79c93b55095419ec7a2a9ecd11429b45bf8b285383afe43426cc2ceb3b2acab"
+  "generatedHash": "sha256:da545b66c2feb0c5a4d9d3f8d09eafd513c8d64526097a846b05fdea2ce9eef9"
 }

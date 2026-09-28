@@ -614,8 +614,10 @@ export class DriveDiscovery {
         .replace(/\\/g, '\\\\')
         .replace(/'/g, "\\'");
 
+      // Base query for name search
+      const baseQuery = `name contains '${escapedQuery}' and trashed = false`;
+
       const params: Record<string, unknown> = {
-        q: `name contains '${escapedQuery}' and trashed = false`,
         fields: 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,parents)',
         pageSize: 100,
         supportsAllDrives: true,
@@ -627,16 +629,23 @@ export class DriveDiscovery {
         // Search within specific Shared Drive
         params.corpora = 'drive';
         params.driveId = context.driveId;
+        params.q = baseQuery;
       } else {
         // Search within user corpus (My Drive + files shared directly with user)
         // Note: corpora=user includes My Drive AND "Shared with me" - not My Drive only
+        // P0 FIX: Add constraint to ensure files are in My Drive, not just "Shared with me"
+        // This matches the semantics of My Drive browsing context
         params.corpora = 'user';
+        // Add constraint: file must be in user's own Drive (not shared from other drives)
+        const myDriveQuery = `(${baseQuery}) and (not 'driveId' in parents or 'driveId' in parents = 'root')`;
+        params.q = myDriveQuery;
       }
 
       console.log('[Drive Discovery] searchFiles params:', {
         query: escapedQuery,
         corpora: params.corpora,
         driveId: params.driveId,
+        q: params.q,
       });
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -725,12 +734,20 @@ export class DriveDiscovery {
 
       // P0 FIX: Only use corpora='user' (My Drive) when My Drive is explicitly authorized
       // Otherwise, scope to specific Shared Drive corpus
+      // P0 FIX: My Drive search must match active browsing context semantics
+      // corpora='user' includes My Drive AND "Shared with me" - not My Drive only
+      // Add query constraint to ensure files are actually in My Drive corpus
       if (corpusId && corpusId !== 'root') {
         params.corpora = 'drive';
         params.driveId = corpusId;
       } else {
         // My Drive search - only allowed if HPP_AUTHORIZED_MY_DRIVE === true (verified above)
         params.corpora = 'user';
+        // P0 FIX: Add constraint to ensure files are in My Drive, not just "Shared with me"
+        // Query constraint: file must be in user's own Drive (not shared from other drives)
+        // This matches the semantics of My Drive browsing context
+        const myDriveQuery = `name contains '${escapedQuery}' and trashed = false and (not 'driveId' in parents or 'driveId' in parents = 'root')`;
+        params.q = myDriveQuery;
       }
 
       if (pageToken) {
@@ -741,6 +758,7 @@ export class DriveDiscovery {
         query: escapedQuery,
         corpora: params.corpora,
         driveId: params.driveId,
+        q: params.q,
         pageToken,
       });
 
