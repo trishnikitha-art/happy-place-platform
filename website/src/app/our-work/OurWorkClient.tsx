@@ -149,6 +149,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
 
     const handleDragOver = (e: DragEvent) => {
       e.preventDefault();
+      e.stopPropagation(); // P0 FIX: Stop propagation to prevent VisualSlot dragover from being blocked
       e.dataTransfer!.dropEffect = 'copy';
     };
 
@@ -156,8 +157,16 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     // Each project section has data-project-id, so we read it directly from currentTarget
     const handleProjectDrop = (e: DragEvent, projectId: string) => {
       e.preventDefault();
-      e.stopPropagation(); // Prevent bubbling to outer container
+      e.stopPropagation(); // Prevent bubbling to outer container and prevent VisualSlot from handling
       setIsDragging(false);
+
+      console.log('[OUR_WORK] PROJECT_DROP_RECEIVED', {
+        projectId,
+        hasBridgedData: !!bridgedDragDataRef.current,
+        targetTag: (e.target as HTMLElement)?.tagName,
+        currentTargetTag: (e.currentTarget as HTMLElement)?.tagName,
+        timestamp: Date.now(),
+      });
 
       const dragData = bridgedDragDataRef.current;
       if (!dragData) {

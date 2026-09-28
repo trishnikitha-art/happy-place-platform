@@ -416,6 +416,7 @@ export function VisualSlot({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
+    e.stopPropagation(); // P0 FIX: Stop propagation to prevent parent container from handling dragover
     
     // PROTOCOL SEMANTICS: dragstart owns effectAllowed, dragover owns dropEffect
     // Do NOT mutate effectAllowed in dragover
@@ -439,6 +440,8 @@ export function VisualSlot({
   };
 
   const handleDragStart = (e: React.DragEvent) => {
+    e.stopPropagation(); // P0 FIX: Stop propagation to prevent parent container from handling dragstart
+    
     console.log('[VS_FORENSIC] DRAG_START_NATIVE_EVENT', {
       slotId: id,
       isGallerySlot,
@@ -536,6 +539,7 @@ export function VisualSlot({
     });
 
     e.preventDefault();
+    e.stopPropagation(); // P0 FIX: Stop propagation to prevent parent container from handling drop
 
     console.log('[VS_DND] DROP_RECEIVED', {
       slotId: id,
