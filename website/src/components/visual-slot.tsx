@@ -56,9 +56,27 @@ export function VisualSlot({
   projectId,
 }: VisualSlotProps) {
   const elementRef = useRef<HTMLDivElement>(null);
-  const [isWorkbenchMode, setIsWorkbenchMode] = useState(false);
   const lastDragOverLogRef = useRef<number>(0);
   const bridgedDragDataRef = useRef<any>(null); // P0 FIX: Store drag data from parent postMessage
+
+  // DETERMINISTIC: Read workbench mode synchronously from URL during render
+  // This eliminates async effect pattern and makes draggable decision deterministic
+  const isWorkbenchMode = typeof window !== 'undefined' 
+    ? new URLSearchParams(window.location.search).get('workbench') === 'true'
+    : false;
+
+  // FORENSIC: Log URL parameter detection immediately on render
+  console.log('[VS_FORENSIC] URL_PARAM_DETECTION', {
+    slotId: id,
+    pathname: typeof window !== 'undefined' ? window.location.pathname : 'SSR',
+    search: typeof window !== 'undefined' ? window.location.search : 'SSR',
+    workbenchParam: typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('workbench') : 'SSR',
+    isWorkbenchMode,
+    isGallerySlot,
+    projectId,
+    windowExists: typeof window !== 'undefined',
+    timestamp: Date.now(),
+  });
 
   // UNCONDITIONAL LOG - will appear in iframe console if component renders
   console.log('[SLOT-RENDER]', id);
@@ -74,46 +92,38 @@ export function VisualSlot({
       slotName,
       pathname: window.location.pathname,
       search: window.location.search,
-    });
-
-    // Workbench mode check
-    const workbenchParam = new URLSearchParams(window.location.search).get('workbench');
-    const isWorkbenchMode = workbenchParam === 'true';
-    const windowIsIframe = window.parent !== window;
-
-    console.log('[SLOT] WORKBENCH_MODE_CHECK', {
-      slotId: id,
-      pathname: window.location.pathname,
-      search: window.location.search,
-      workbenchParam,
       isWorkbenchMode,
-      windowIsIframe,
+      isGallerySlot,
+      windowIsIframe: window.parent !== window,
     });
 
-    // Actually set the React state for workbench mode
-    setIsWorkbenchMode(isWorkbenchMode);
-    
-    console.log('[VS_FORENSIC] WORKBENCH_ENABLED', {
-      slotId: id,
-      isWorkbenchMode,
-      windowIsIframe,
-      timestamp: Date.now(),
-    });
-
-    // FORENSIC: Log actual DOM draggable attribute after mount
+    // FORENSIC: Inspect ACTUAL DOM state, not captured React state
+    // This tells us what the browser actually rendered
     setTimeout(() => {
       if (elementRef.current) {
-        const actualDraggable = elementRef.current.getAttribute('draggable');
+        const actualDraggableAttr = elementRef.current.getAttribute('draggable');
         const computedDraggable = elementRef.current.draggable;
-        console.log('[VS_FORENSIC] DOM_DRAGGABLE_STATE', {
+        const pointerEvents = getComputedStyle(elementRef.current).pointerEvents;
+        const userSelect = getComputedStyle(elementRef.current).userSelect;
+        const computedDisplay = getComputedStyle(elementRef.current).display;
+        const computedVisibility = getComputedStyle(elementRef.current).visibility;
+        
+        console.log('[VS_FORENSIC] ACTUAL_DOM_STATE', {
           slotId: id,
           isGallerySlot,
           isWorkbenchMode,
           expectedDraggable: isWorkbenchMode && isGallerySlot,
-          actualDraggableAttribute: actualDraggable,
+          actualDraggableAttribute: actualDraggableAttr,
           computedDraggableProperty: computedDraggable,
-          hasPointerEvents: getComputedStyle(elementRef.current).pointerEvents !== 'none',
-          userSelect: getComputedStyle(elementRef.current).userSelect,
+          pointerEvents,
+          userSelect,
+          computedDisplay,
+          computedVisibility,
+          elementExists: !!elementRef.current,
+          elementTagName: elementRef.current.tagName,
+          dataSlotId: elementRef.current.getAttribute('data-slot-id'),
+          dataSlotRoute: elementRef.current.getAttribute('data-slot-route'),
+          dataSlotSection: elementRef.current.getAttribute('data-slot-section'),
           timestamp: Date.now(),
         });
       }
@@ -134,7 +144,7 @@ export function VisualSlot({
     console.log('[SLOT] REGISTER_ATTEMPT', {
       slotId: id,
       isWorkbenchMode,
-      windowIsIframe,
+      windowIsIframe: window.parent !== window,
       registryInstanceId: (slotRegistry as any).instanceId,
       registryImplementation: 'SlotRegistry class',
     });
@@ -173,7 +183,7 @@ export function VisualSlot({
         messageType: registerMessage.type,
         messageKeys: Object.keys(registerMessage),
         targetOrigin,
-        windowIsIframe,
+        windowIsIframe: window.parent !== window,
         parentExists: !!window.parent,
         parentWindowExists: window.parent !== window,
         iframeOrigin: window.location.origin,
@@ -198,7 +208,7 @@ export function VisualSlot({
       console.log('[VS_FORENSIC] REGISTRATION_SKIPPED', {
         slotId: id,
         reason: 'NOT_IN_IFRAME',
-        windowIsIframe,
+        windowIsIframe: window.parent !== window,
       });
     }
 
@@ -408,7 +418,7 @@ export function VisualSlot({
   };
 
   const handleDragStart = (e: React.DragEvent) => {
-    console.log('[VS_FORENSIC] DRAG_START_EVENT_RECEIVED', {
+    console.log('[VS_FORENSIC] DRAG_START_NATIVE_EVENT', {
       slotId: id,
       isGallerySlot,
       currentMediaId,
@@ -417,9 +427,11 @@ export function VisualSlot({
       windowIsIframe: window.parent !== window,
       eventTarget: (e.target as HTMLElement)?.tagName,
       currentTarget: (e.currentTarget as HTMLElement)?.tagName,
-      elementRef: elementRef.current?.tagName,
-      draggableAttribute: elementRef.current?.getAttribute('draggable'),
+      elementRefTagName: elementRef.current?.tagName,
+      actualDraggableAttr: elementRef.current?.getAttribute('draggable'),
       computedDraggable: elementRef.current?.draggable,
+      dataTransferEffectAllowed: e.dataTransfer.effectAllowed,
+      dataTransferTypes: e.dataTransfer.types,
       timestamp: Date.now(),
     });
 
@@ -482,7 +494,7 @@ export function VisualSlot({
   };
 
   const handleDrop = (e: React.DragEvent) => {
-    console.log('[VS_FORENSIC] DROP_EVENT_RECEIVED', {
+    console.log('[VS_FORENSIC] DROP_NATIVE_EVENT', {
       slotId: id,
       isGallerySlot,
       projectId,
@@ -491,6 +503,8 @@ export function VisualSlot({
       windowIsIframe: window.parent !== window,
       eventTarget: (e.target as HTMLElement)?.tagName,
       currentTarget: (e.currentTarget as HTMLElement)?.tagName,
+      elementRefTagName: elementRef.current?.tagName,
+      actualDraggableAttr: elementRef.current?.getAttribute('draggable'),
       dataTransferTypes: e.dataTransfer.types,
       dataTransferItems: Array.from(e.dataTransfer.items).map(item => ({
         kind: item.kind,
@@ -588,14 +602,30 @@ export function VisualSlot({
           // Send SLOT_REORDER event to parent
           if (window.parent !== window) {
             const targetOrigin = window.parent.location.origin;
-            window.parent.postMessage({
+            const message = {
               type: 'SLOT_REORDER',
               sourceSlotId: parsed.sourceSlotId,
               sourceMediaId: parsed.sourceMediaId,
               targetSlotId: id,
               targetMediaId: currentMediaId,
               projectId: parsed.projectId,
-            }, targetOrigin);
+            };
+
+            console.log('[VS_FORENSIC] SLOT_REORDER_POSTMESSAGE_SENDING', {
+              slotId: id,
+              messageType: message.type,
+              messageKeys: Object.keys(message),
+              messageValues: message,
+              targetOrigin,
+              iframeOrigin: window.location.origin,
+              parentOrigin: window.parent.location?.origin,
+              originsMatch: window.parent.location?.origin === window.location.origin,
+              parentExists: !!window.parent,
+              parentEqualsWindow: window.parent === window,
+              timestamp: Date.now(),
+            });
+
+            window.parent.postMessage(message, targetOrigin);
 
             console.log('[VS_DND] SLOT_REORDER_POSTED', {
               messageType: 'SLOT_REORDER',

@@ -669,6 +669,15 @@ export default function MediaWorkbench() {
     // Save gallery to local variable for readback verification
     const submittedGallery = galleryToSave;
 
+    console.log('[WB_FORENSIC] GALLERY_SAVE_INITIATED', {
+      projectId,
+      galleryLength: galleryToSave.length,
+      expectedRevision,
+      hasPendingOrder: !!galleryToSave,
+      saveStatus: 'staging',
+      timestamp: Date.now(),
+    });
+
     try {
       // Step 1: Save gallery to Redis staging
       const saveResponse = await fetch('/api/admin/projects/gallery', {
@@ -679,6 +688,17 @@ export default function MediaWorkbench() {
           gallery: galleryToSave,
           expectedRevision,
         }),
+      });
+
+      console.log('[WB_FORENSIC] GALLERY_SAVE_API_RESPONSE', {
+        projectId,
+        apiUrl: '/api/admin/projects/gallery',
+        method: 'PUT',
+        requestKeys: ['projectId', 'gallery', 'expectedRevision'],
+        responseStatus: saveResponse.status,
+        responseOk: saveResponse.ok,
+        responseHeaders: Object.fromEntries(saveResponse.headers.entries()),
+        timestamp: Date.now(),
       });
 
       console.log('[WB_GALLERY] SAVE_RESPONSE', {
@@ -2270,6 +2290,24 @@ export default function MediaWorkbench() {
       } else if (messageType === 'SLOT_REORDER') {
         const requestId = `reorder-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
+        console.log('[WB_FORENSIC] SLOT_REORDER_MESSAGE_RECEIVED', {
+          requestId,
+          messageType,
+          origin: event.origin,
+          expectedOrigin: window.location.origin,
+          originMatch: event.origin === window.location.origin,
+          source: event.source === iframeRef.current?.contentWindow,
+          iframeContentWindowExists: !!iframeRef.current?.contentWindow,
+          messageKeys: Object.keys(event.data),
+          sourceSlotId: event.data.sourceSlotId,
+          sourceMediaId: event.data.sourceMediaId,
+          targetSlotId: event.data.targetSlotId,
+          targetMediaId: event.data.targetMediaId,
+          projectId: event.data.projectId,
+          completeData: event.data,
+          timestamp: Date.now(),
+        });
+
         console.log('[WB_DND] SLOT_REORDER_RECEIVED', {
           requestId,
           messageType,
@@ -2375,6 +2413,15 @@ export default function MediaWorkbench() {
 
                 const response = await fetch(`/api/admin/projects/gallery?projectId=${projectId}`);
                 
+                console.log('[WB_FORENSIC] GALLERY_FETCH_API_CALL', {
+                  requestId,
+                  projectId,
+                  apiUrl: `/api/admin/projects/gallery?projectId=${projectId}`,
+                  responseStatus: response.status,
+                  responseOk: response.ok,
+                  timestamp: Date.now(),
+                });
+
                 if (!response.ok) {
                   const errorText = await response.text();
                   const errorData = errorText ? JSON.parse(errorText) : null;
