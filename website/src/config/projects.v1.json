@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-28T17:42:07.945Z",
+  "generatedAt": "2026-09-28T18:00:44.169Z",
   "projects": [
     {
       "id": "fences-001",
@@ -226,11 +226,11 @@
           "repairs-001-floor0",
           "repairs-001-gutter",
           "repairs-001-img0544",
+          "repairs-001-drywall",
           "repairs-001-img0546",
-          "repairs-001-hero",
-          "repairs-001-drywall"
+          "repairs-001-hero"
         ],
-        "galleryRevision": 11
+        "galleryRevision": 12
       },
       "story": {
         "challenge": "Multiple home repair issues needed attention",
