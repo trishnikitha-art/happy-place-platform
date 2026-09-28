@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-26T23:58:36.491Z",
+  "generatedAt": "2026-09-28T17:42:07.945Z",
   "projects": [
     {
       "id": "fences-001",
@@ -300,10 +300,10 @@
           "outdoor-living-001-6",
           "outdoor-living-001-5",
           "outdoor-living-001-2",
-          "outdoor-living-001-3",
-          "outdoor-living-001-4"
+          "outdoor-living-001-4",
+          "outdoor-living-001-3"
         ],
-        "galleryRevision": 9
+        "galleryRevision": 10
       },
       "story": {
         "challenge": "The home's exterior had years of weather exposure, peeling paint, failing caulk, and worn surfaces that made the entire property look older than it really was.",
