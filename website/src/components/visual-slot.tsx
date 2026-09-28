@@ -26,6 +26,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
+import { dragBridge } from '@/lib/workbench-drag-bridge';
 
 // P0 FIX: Explicit Workbench origin constant for postMessage validation
 // Do not use implicit cross-origin discovery via window.parent.location.origin
@@ -66,7 +67,6 @@ export function VisualSlot({
 }: VisualSlotProps) {
   const elementRef = useRef<HTMLDivElement>(null);
   const lastDragOverLogRef = useRef<number>(0);
-  const bridgedDragDataRef = useRef<any>(null); // P0 FIX: Store drag data from parent postMessage
 
   // P0 FIX: Use authoritative Workbench-mode from prop (if provided by iframe context)
   // Fall back to synchronous URL check for backward compatibility
@@ -230,17 +230,17 @@ export function VisualSlot({
         }
 
         // CEO FIX: Bridge drag data from parent across iframe boundary
-        // Store the drag data so the drop handler can use it if dataTransfer is empty
+        // Store the drag data in shared bridge so all components can access it
         console.log('[VS_FORENSIC] DRAG_START_BRIDGE_ACCEPTED', {
           slotId: id,
           source: dragData.source,
           fileId: dragData.fileId || dragData.assetId,
           timestamp: Date.now(),
         });
-        bridgedDragDataRef.current = dragData;
+        dragBridge.setDragData(dragData);
 
         // CEO FIX: Remove automatic 5-second timeout that was causing DRAG_START_BRIDGE_EXPIRED
-        // The timeout was clearing bridgedDragDataRef.current before the user could complete
+        // The timeout was clearing dragBridge data before the user could complete
         // the drop operation, causing GALLERY_DROP_NO_BRIDGED_DATA errors during gallery reorder.
         // Drag state is now only cleared explicitly by:
         // 1. Successful drop (drop handler clears data after processing)
@@ -328,15 +328,20 @@ export function VisualSlot({
       
       // P0 FIX: Send BRIDGE_READY AFTER listener is attached and slot is registered
       // The invariant is: listener must be attached before parent is permitted to send messages
+      // P0 FIX: Register with shared bridge to prevent stale BRIDGE_READY from old pages
+      dragBridge.registerBridge(id);
+
       const bridgeReadyMessage = {
         type: 'BRIDGE_READY',
         slotId: id,
+        iframeGeneration: dragBridge.getIframeGeneration(),
       };
       console.log('[VS_FORENSIC] BRIDGE_READY_SENT', {
         slotId: id,
         targetOrigin,
         listenerAttached: true,
         slotRegistered: true,
+        iframeGeneration: dragBridge.getIframeGeneration(),
         timestamp: Date.now(),
       });
       window.parent.postMessage(bridgeReadyMessage, targetOrigin);
@@ -416,8 +421,7 @@ export function VisualSlot({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation(); // P0 FIX: Stop propagation to prevent parent container from handling dragover
-    
+
     // PROTOCOL SEMANTICS: dragstart owns effectAllowed, dragover owns dropEffect
     // Do NOT mutate effectAllowed in dragover
     const dropEffect = isGallerySlot ? 'move' : 'copy';
@@ -440,8 +444,6 @@ export function VisualSlot({
   };
 
   const handleDragStart = (e: React.DragEvent) => {
-    e.stopPropagation(); // P0 FIX: Stop propagation to prevent parent container from handling dragstart
-    
     console.log('[VS_FORENSIC] DRAG_START_NATIVE_EVENT', {
       slotId: id,
       isGallerySlot,
@@ -534,12 +536,11 @@ export function VisualSlot({
         kind: item.kind,
         type: item.type,
       })),
-      hasBridgedData: !!bridgedDragDataRef.current,
+      hasBridgedData: !!dragBridge.getDragData(),
       timestamp: Date.now(),
     });
 
     e.preventDefault();
-    e.stopPropagation(); // P0 FIX: Stop propagation to prevent parent container from handling drop
 
     console.log('[VS_DND] DROP_RECEIVED', {
       slotId: id,
@@ -553,7 +554,7 @@ export function VisualSlot({
         type: item.type,
       })),
       textPlainPreview: e.dataTransfer.getData('text/plain')?.substring(0, 200),
-      hasBridgedData: !!bridgedDragDataRef.current,
+      hasBridgedData: !!dragBridge.getDragData(),
       timestamp: Date.now(),
     });
 
@@ -564,15 +565,16 @@ export function VisualSlot({
       let assetData = e.dataTransfer.getData('application/x-workbench-asset');
 
       // P0 FIX: If dataTransfer is empty (iframe boundary issue), use bridged data
-      if (!galleryReorderData && !assetData && bridgedDragDataRef.current) {
+      const bridgedData = dragBridge.getDragData();
+      if (!galleryReorderData && !assetData && bridgedData) {
         console.log('[VS_DND] GALLERY_FALLBACK_TO_BRIDGED_DATA', {
           slotId: id,
-          bridgedDataType: bridgedDragDataRef.current.type,
+          bridgedDataType: bridgedData.type,
         });
-        if (bridgedDragDataRef.current.type === 'GALLERY_REORDER') {
-          galleryReorderData = JSON.stringify(bridgedDragDataRef.current);
+        if (bridgedData.type === 'GALLERY_REORDER') {
+          galleryReorderData = JSON.stringify(bridgedData);
         } else {
-          assetData = JSON.stringify(bridgedDragDataRef.current);
+          assetData = JSON.stringify(bridgedData);
         }
       }
 
@@ -580,7 +582,7 @@ export function VisualSlot({
         slotId: id,
         hasGalleryReorderData: !!galleryReorderData,
         hasAssetData: !!assetData,
-        usedBridgedData: !e.dataTransfer.getData('application/x-workbench-gallery-reorder') && !e.dataTransfer.getData('application/x-workbench-asset') && !!bridgedDragDataRef.current,
+        usedBridgedData: !e.dataTransfer.getData('application/x-workbench-gallery-reorder') && !e.dataTransfer.getData('application/x-workbench-asset') && !!dragBridge.getDragData(),
         dataTransferTypes: e.dataTransfer.types,
       });
 
@@ -666,7 +668,7 @@ export function VisualSlot({
           }
 
           // P0 FIX: Clear bridged data after successful reorder
-          bridgedDragDataRef.current = null;
+          dragBridge.clearDragData();
           return;
         } catch (error) {
           console.error('[VS_DND] GALLERY_REORDER_PARSE_FAILED', {
@@ -675,7 +677,7 @@ export function VisualSlot({
           });
 
           // P0 FIX: Clear bridged data on parse failure
-          bridgedDragDataRef.current = null;
+          dragBridge.clearDragData();
           return;
         }
       }
@@ -722,7 +724,7 @@ export function VisualSlot({
           assetId,
           applicationData,
           reason: 'EXPLICIT_ASSET_MIME_TYPE',
-          usedBridgedData: !e.dataTransfer.getData('application/x-workbench-asset') && !!bridgedDragDataRef.current,
+          usedBridgedData: !e.dataTransfer.getData('application/x-workbench-asset') && !!dragBridge.getDragData(),
         });
 
         // Send GALLERY_ADD event to parent with full applicationData
@@ -753,7 +755,7 @@ export function VisualSlot({
         }
 
         // P0 FIX: Clear bridged data after successful gallery add
-        bridgedDragDataRef.current = null;
+        dragBridge.clearDragData();
         return;
       }
 
@@ -766,7 +768,7 @@ export function VisualSlot({
       });
 
       // P0 FIX: Clear bridged data on protocol rejection
-      bridgedDragDataRef.current = null;
+      dragBridge.clearDragData();
       return;
     }
 
@@ -774,12 +776,13 @@ export function VisualSlot({
     let assetData = e.dataTransfer.getData('application/x-workbench-asset');
 
     // P0 FIX: If dataTransfer is empty (iframe boundary issue), use bridged data
-    if (!assetData && bridgedDragDataRef.current) {
+    const bridgedData = dragBridge.getDragData();
+    if (!assetData && bridgedData) {
       console.log('[VS_DND] ASSET_FALLBACK_TO_BRIDGED_DATA', {
         slotId: id,
-        bridgedDataType: bridgedDragDataRef.current.source,
+        bridgedDataType: bridgedData.source,
       });
-      assetData = JSON.stringify(bridgedDragDataRef.current);
+      assetData = JSON.stringify(bridgedData);
     }
 
     if (assetData) {
@@ -822,7 +825,7 @@ export function VisualSlot({
         assetId,
         applicationData,
         protocol: 'application/x-workbench-asset',
-        usedBridgedData: !e.dataTransfer.getData('application/x-workbench-asset') && !!bridgedDragDataRef.current,
+        usedBridgedData: !e.dataTransfer.getData('application/x-workbench-asset') && !!dragBridge.getDragData(),
       });
 
       // Send SLOT_DROP event to parent with full applicationData
@@ -852,7 +855,7 @@ export function VisualSlot({
       }
 
       // P0 FIX: Clear bridged data after successful drop
-      bridgedDragDataRef.current = null;
+      dragBridge.clearDragData();
       return;
     }
 
@@ -865,7 +868,7 @@ export function VisualSlot({
     });
 
     // P0 FIX: Clear bridged data on protocol rejection
-    bridgedDragDataRef.current = null;
+    dragBridge.clearDragData();
   };
 
   // Always render same structure to avoid hydration mismatch

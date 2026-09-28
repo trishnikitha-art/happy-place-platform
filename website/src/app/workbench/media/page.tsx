@@ -83,6 +83,7 @@ interface MediaWorkbenchState {
   mutationError: string | null;
   bridgeReadySlots: Set<string>; // P0 FIX: Track which slots have sent BRIDGE_READY
   bridgeReady: boolean; // P0 FIX: Global bridge readiness flag
+  currentIframeGeneration: number; // P0 FIX: Track current iframe generation to prevent stale BRIDGE_READY
   pendingGalleryOrder: string[] | null; // P0 FIX: Pending gallery reordering (local state, not yet persisted)
   galleryBaseRevision: number | null; // P0 FIX: Revision the pending order is based on (for CAS)
   galleryProjectId: string | null; // P0 FIX: Which project's gallery is being edited
@@ -165,6 +166,7 @@ export default function MediaWorkbench() {
     mutationError: null,
     bridgeReadySlots: new Set<string>(), // P0 FIX: Track which slots have sent BRIDGE_READY
     bridgeReady: false, // P0 FIX: Initialize as false - wait for BRIDGE_READY handshake
+    currentIframeGeneration: 0, // P0 FIX: Track current iframe generation to prevent stale BRIDGE_READY
     pendingGalleryOrder: null, // P0 FIX: No pending gallery order initially
     galleryBaseRevision: null, // P0 FIX: No base revision initially
     galleryProjectId: null, // P0 FIX: No project selected initially
@@ -2014,8 +2016,24 @@ export default function MediaWorkbench() {
         }
         console.log('[WB_FORENSIC] BRIDGE_READY_RECEIVED', {
           slotId,
+          iframeGeneration: event.data.iframeGeneration,
+          currentIframeGeneration: state.currentIframeGeneration,
           timestamp: Date.now(),
         });
+
+        // P0 FIX: Only accept BRIDGE_READY if iframe generation matches
+        // This prevents stale BRIDGE_READY from old pages from authorizing DRAG_START
+        const messageGeneration = event.data.iframeGeneration || 0;
+        if (messageGeneration !== state.currentIframeGeneration) {
+          console.log('[WB_FORENSIC] BRIDGE_READY_REJECTED_STALE', {
+            slotId,
+            messageGeneration,
+            currentIframeGeneration: state.currentIframeGeneration,
+            reason: 'Iframe generation mismatch - stale BRIDGE_READY from old page',
+          });
+          return;
+        }
+
         setState(prev => ({
           ...prev,
           bridgeReadySlots: new Set(prev.bridgeReadySlots).add(slotId),
@@ -3296,7 +3314,16 @@ export default function MediaWorkbench() {
             <select aria-label="Page" value={state.selectedPage} disabled={state.mutationState !== 'idle'}
               onChange={e => {
                 slotRegistry.clear();
-                setState(prev => ({ ...prev, selectedPage: e.target.value as PageRoute, selectedSlots: [], registeredSlots: [] }));
+                // P0 FIX: Reset bridge state on page change to prevent stale BRIDGE_READY
+                setState(prev => ({
+                  ...prev,
+                  selectedPage: e.target.value as PageRoute,
+                  selectedSlots: [],
+                  registeredSlots: [],
+                  bridgeReadySlots: new Set(),
+                  bridgeReady: false,
+                  currentIframeGeneration: prev.currentIframeGeneration + 1,
+                }));
               }} className="min-h-11 max-w-44 rounded border border-border bg-white px-3 text-gray-900">
               {(Object.keys(PAGE_LABELS) as PageRoute[]).map(route => <option key={route} value={route}>{PAGE_LABELS[route]}</option>)}
             </select>
@@ -3448,6 +3475,14 @@ export default function MediaWorkbench() {
                   workbenchOrigin: WORKBENCH_ORIGIN,
                   timestamp: Date.now(),
                 });
+
+                // P0 FIX: Reset bridge state on iframe load to prevent stale BRIDGE_READY
+                setState(prev => ({
+                  ...prev,
+                  bridgeReadySlots: new Set(),
+                  bridgeReady: false,
+                  currentIframeGeneration: prev.currentIframeGeneration + 1,
+                }));
               }}
             />
             {/* SlotGallery - invisible semantic layer for slot detection, not visual replacement */}
