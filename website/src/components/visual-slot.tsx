@@ -176,6 +176,20 @@ export function VisualSlot({
             timestamp: Date.now(),
           });
           dragBridge.initialize(generation);
+
+          // P0 FIX: Re-send BRIDGE_READY with correct generation after initialization
+          const bridgeReadyMessage = {
+            type: 'BRIDGE_READY',
+            slotId: id,
+            iframeGeneration: dragBridge.getIframeGeneration(),
+          };
+          console.log('[VS_FORENSIC] BRIDGE_READY_RESENT_AFTER_INIT', {
+            slotId: id,
+            iframeGeneration: dragBridge.getIframeGeneration(),
+            targetOrigin: WORKBENCH_ORIGIN,
+            timestamp: Date.now(),
+          });
+          window.parent.postMessage(bridgeReadyMessage, WORKBENCH_ORIGIN);
         } else {
           console.error('[VS_FORENSIC] BRIDGE_INIT_REJECTED', {
             slotId: id,

@@ -233,6 +233,19 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
             timestamp: Date.now(),
           });
           dragBridge.initialize(generation);
+
+          // P0 FIX: Re-send BRIDGE_READY with correct generation after initialization
+          dragBridge.registerSlot('our-work-gallery-grid');
+          const iframeGeneration = dragBridge.getIframeGeneration();
+          window.parent.postMessage({
+            type: 'BRIDGE_READY',
+            slotId: 'our-work-gallery-grid',
+            iframeGeneration,
+          }, window.location.origin);
+          console.log('[OUR_WORK] BRIDGE_READY_RESENT_AFTER_INIT', {
+            iframeGeneration,
+            timestamp: Date.now(),
+          });
         } else {
           console.error('[OUR_WORK] BRIDGE_INIT_REJECTED', {
             reason: 'INVALID_GENERATION',
@@ -367,7 +380,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     // CEO FIX: Attach drop listeners to each project section explicitly
     // Each project section becomes its own drop boundary with explicit project identity
     const projectSections = container.querySelectorAll('.project-gallery-section');
-    const cleanupFunctions: (() => void)[] = [];
+    const sectionHandlers: Array<{section: Element, handleDrop: (e: DragEvent) => void}> = [];
 
     projectSections.forEach((section) => {
       const projectId = section.getAttribute('data-project-id');
@@ -376,11 +389,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       const handleDrop = (e: DragEvent) => handleProjectDrop(e, projectId);
       (section as HTMLElement).addEventListener('dragover', handleDragOver);
       (section as HTMLElement).addEventListener('drop', handleDrop);
-
-      cleanupFunctions.push(() => {
-        (section as HTMLElement).removeEventListener('dragover', handleDragOver);
-        (section as HTMLElement).removeEventListener('drop', handleDrop);
-      });
+      sectionHandlers.push({ section, handleDrop });
     });
 
     // Outer container drag-over for safety (allows drops anywhere in gallery)
@@ -390,17 +399,10 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     // This ensures the iframe is actually ready to receive messages before advertising readiness
     window.addEventListener('message', handleDragStart);
 
-    // Now send BRIDGE_READY to prove listeners are attached
-    // P0 FIX: Include iframeGeneration from parent-issued initialization
+    // P0 FIX: Don't send BRIDGE_READY immediately - wait for BRIDGE_INIT from parent
+    // The parent will send BRIDGE_INIT with generation, then we re-send BRIDGE_READY with that generation
     if (window.parent !== window) {
-      const iframeGeneration = dragBridge.getIframeGeneration();
-      window.parent.postMessage({
-        type: 'BRIDGE_READY',
-        slotId: 'our-work-gallery-grid',
-        iframeGeneration,
-      }, window.location.origin);
-      console.log('[OUR_WORK] BRIDGE_READY_SENT', {
-        iframeGeneration,
+      console.log('[OUR_WORK] WAITING_FOR_BRIDGE_INIT', {
         timestamp: Date.now(),
       });
     }
@@ -408,7 +410,10 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     return () => {
       window.removeEventListener('message', handleDragStart);
       container.removeEventListener('dragover', handleDragOver);
-      cleanupFunctions.forEach(cleanup => cleanup());
+      sectionHandlers.forEach(({ section, handleDrop }) => {
+        (section as HTMLElement).removeEventListener('dragover', handleDragOver);
+        (section as HTMLElement).removeEventListener('drop', handleDrop);
+      });
     };
   }, [allProjects]);
 
@@ -681,6 +686,8 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                         currentMediaId={mediaId || null}
                         component="GalleryPhoto"
                         isWorkbenchMode={isWorkbenchMode}
+                        isGallerySlot={true}
+                        projectId={project.id}
                       >
                         <img
                           src={src}

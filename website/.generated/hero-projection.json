@@ -5,13 +5,13 @@
   "scoringVersion": "1.0.0",
   "canonicalGraphVersion": "1.0.0",
   "generatorVersion": "1.0.0",
-  "inputHash": "sha256:6f0233caf01a1a9561a742ff1a72983ed683a270b5d44be82fce85f14f5c01a3",
-  "generatedAt": "2026-09-28T17:25:19.033Z",
+  "inputHash": "sha256:cccc84f4ca6c61b6381605a919aeeaa931a25b21ebab9e9ac97771ce200e5616",
+  "generatedAt": "2026-09-28T17:34:34.062Z",
   "hero": {
     "heroMediaId": "homepage-hero",
     "filename": "hero-background-enhanced.jpg",
     "dimensions": "1920x1080",
     "score": 0.7045600000000001
   },
-  "generatedHash": "sha256:b70731ed43bc85ef89f22e9d83c5806216162f036410a62113cb01cdbc02f58c"
+  "generatedHash": "sha256:802c3651ea13929b2af87cad436fc7540553775c377d85eb3389603279fb5425"
 }

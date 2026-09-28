@@ -2017,13 +2017,22 @@ export default function MediaWorkbench() {
           return;
         }
 
+        // P0 FIX: If iframeGeneration is missing, send BRIDGE_INIT first
+        // This happens when the iframe loaded before parent could send BRIDGE_INIT
         if (iframeGeneration === null || iframeGeneration === undefined) {
-          console.error('[WB_FORENSIC] BRIDGE_READY_REJECTED', {
-            reason: 'MISSING_GENERATION',
+          console.log('[WB_FORENSIC] BRIDGE_READY_NO_GENERATION - SENDING_BRIDGE_INIT', {
             slotId,
-            schema: { slotId: 'string (required)', iframeGeneration: 'number (required)' },
+            currentIframeGeneration: state.currentIframeGeneration,
+            timestamp: Date.now(),
           });
-          return;
+
+          if (iframeRef.current?.contentWindow) {
+            iframeRef.current.contentWindow.postMessage({
+              type: 'BRIDGE_INIT',
+              generation: state.currentIframeGeneration,
+            }, WORKBENCH_ORIGIN);
+          }
+          return; // Wait for iframe to re-send BRIDGE_READY with correct generation
         }
 
         console.log('[WB_FORENSIC] BRIDGE_READY_RECEIVED', {
