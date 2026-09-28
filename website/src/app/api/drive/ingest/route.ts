@@ -356,6 +356,52 @@ export async function POST(request: Request) {
                 startedAt: leaseData.startedAt,
               }, { status: 202 }); // 202 Accepted - request is valid but not yet complete
             }
+
+            // P0 FIX: Handle FAILED_RETRYABLE - allow retry by reclaiming lease
+            if (leaseData.status === 'FAILED_RETRYABLE') {
+              console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_RETRYABLE', {
+                requestId,
+                canonicalSourceKey,
+                existingOwner: leaseData.ownerToken,
+                failedAt: leaseData.failedAt,
+                errorCode: leaseData.errorCode,
+                errorMessage: leaseData.errorMessage,
+              });
+
+              // Attempt to reclaim the lease for retry
+              // Use the new ownerToken for this retry attempt
+              const retryLease = {
+                ...leaseData,
+                status: 'PROCESSING',
+                ownerToken,
+                startedAt: new Date().toISOString(),
+                leaseExpiresAt: new Date(Date.now() + leaseExpiry * 1000).toISOString(),
+                retryCount: (leaseData.retryCount || 0) + 1,
+              };
+
+              const reclaimed = await client.set(leaseKey, JSON.stringify(retryLease), {
+                nx: true, // Only set if key still exists (atomic)
+                ex: leaseExpiry,
+              });
+
+              if (reclaimed) {
+                console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_RECLAIMED', {
+                  requestId,
+                  canonicalSourceKey,
+                  previousOwner: leaseData.ownerToken,
+                  newOwner: ownerToken,
+                  retryCount: retryLease.retryCount,
+                });
+                // Continue with materialization using reclaimed lease
+              } else {
+                console.warn('[MEDIA_INGEST] IDEMPOTENCY_LEASE_RECLAIM_FAILED', {
+                  requestId,
+                  canonicalSourceKey,
+                  reason: 'Lease was deleted between check and reclaim',
+                });
+                // Treat as if lease is now available - fall through to acquire new lease
+              }
+            }
           } catch (parseError) {
             console.error('[MEDIA_INGEST] IDEMPOTENCY_LEASE_PARSE_FAILED', {
               requestId,
@@ -365,15 +411,35 @@ export async function POST(request: Request) {
           }
         }
 
-        // Fallback: reject if we can't determine lease state
-        return NextResponse.json({
-          success: false,
-          error: 'MATERIALIZATION_LOCKED',
-          stage: 'IDEMPOTENCY',
-          message: 'Source is currently being materialized by another request',
-          retryable: false,
-          requestId,
-        }, { status: 409 }); // 409 Conflict
+        // If we didn't reclaim a FAILED_RETRYABLE lease, return conflict
+        // Check if we successfully reclaimed above
+        const finalLease = await client.get(leaseKey);
+        if (finalLease && typeof finalLease === 'string') {
+          const leaseData = JSON.parse(finalLease);
+          if (leaseData.ownerToken === ownerToken && leaseData.status === 'PROCESSING') {
+            // We successfully reclaimed - continue with materialization
+            console.log('[MEDIA_INGEST] PROCEEDING_WITH_RECLAIMED_LEASE', {
+              requestId,
+              canonicalSourceKey,
+            });
+          } else {
+            // Still held by someone else
+            return NextResponse.json({
+              success: false,
+              error: 'MATERIALIZATION_LOCKED',
+              stage: 'IDEMPOTENCY',
+              message: 'Source is currently being materialized by another request',
+              retryable: false,
+              requestId,
+            }, { status: 409 }); // 409 Conflict
+          }
+        } else {
+          // Lease is now available - fall through to acquire new lease
+          console.log('[MEDIA_INGEST] LEASE_NOW_AVAILABLE', {
+            requestId,
+            canonicalSourceKey,
+          });
+        }
       }
 
       console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_ACQUIRED', {
