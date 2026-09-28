@@ -910,6 +910,13 @@ export function VisualSlot({
   // Always render same structure to avoid hydration mismatch
   // Only conditionally apply handlers and cursor style
   // P0 FIX: Do NOT override caller geometry - VisualSlot should be invisible wrapper
+  // P0 FIX: Restore proper drag cursor for gallery reorder affordance
+  // Gallery slots: grab/grabbing for drag affordance
+  // Non-gallery Workbench slots: pointer for click-to-select
+  const cursorStyle = effectiveWorkbenchMode
+    ? (isGallerySlot ? { cursor: 'grab' } : { cursor: 'pointer' })
+    : undefined;
+  
   return (
     <div
       ref={elementRef}
@@ -917,7 +924,7 @@ export function VisualSlot({
       data-slot-id={id}
       data-slot-route={route}
       data-slot-section={section}
-      style={effectiveWorkbenchMode ? { cursor: 'pointer' } : undefined}
+      style={cursorStyle}
       onClick={effectiveWorkbenchMode ? handleClick : undefined}
       onDragOver={effectiveWorkbenchMode ? handleDragOver : undefined}
       onDrop={effectiveWorkbenchMode ? handleDrop : undefined}
