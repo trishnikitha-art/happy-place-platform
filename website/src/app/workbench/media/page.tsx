@@ -101,6 +101,11 @@ const PAGE_LABELS: Record<PageRoute, string> = {
   '/estimate': 'Estimate',
 };
 
+// P0 FIX: Explicit Workbench origin constant for postMessage validation
+// Do not use implicit cross-origin discovery via window.parent.location.origin
+// The iframe is guaranteed same-origin in production; this invariant is explicit here
+const WORKBENCH_ORIGIN = typeof window !== 'undefined' ? window.location.origin : '';
+
 export default function MediaWorkbench() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const mutationBusy = useRef(false);
@@ -1141,7 +1146,7 @@ export default function MediaWorkbench() {
     // Send the drag data to the iframe so it can accept the drop even if dataTransfer is empty
     // P0 FIX: Only send DRAG_START if bridge is ready (child has attached message listener)
     if (dragData && iframeRef.current?.contentWindow && state.bridgeReady) {
-      const targetOrigin = iframeRef.current.src ? new URL(iframeRef.current.src).origin : window.location.origin;
+      const targetOrigin = WORKBENCH_ORIGIN;
       console.log('[DND] IFRAME_BRIDGE_START', {
         messageType: 'DRAG_START',
         dragData,
@@ -1921,8 +1926,8 @@ export default function MediaWorkbench() {
       console.log('[WB_FORENSIC] MESSAGE_RECEIVED', {
         eventType: event.type,
         eventOrigin: event.origin,
-        expectedOrigin: window.location.origin,
-        originMatch: event.origin === window.location.origin,
+        expectedOrigin: WORKBENCH_ORIGIN,
+        originMatch: event.origin === WORKBENCH_ORIGIN,
         sourceMatchesIframe: iframeWindow === event.source,
         iframeExists: !!iframeRef.current,
         iframeContentWindowExists: !!iframeWindow,
@@ -1931,6 +1936,7 @@ export default function MediaWorkbench() {
         messageKeys: event.data ? Object.keys(event.data) : [],
         slotId: event.data?.slot?.id,
         iframeSrc: iframeRef.current?.src,
+        workbenchOrigin: WORKBENCH_ORIGIN,
         timestamp: Date.now(),
       });
 
@@ -2294,8 +2300,8 @@ export default function MediaWorkbench() {
           requestId,
           messageType,
           origin: event.origin,
-          expectedOrigin: window.location.origin,
-          originMatch: event.origin === window.location.origin,
+          expectedOrigin: WORKBENCH_ORIGIN,
+          originMatch: event.origin === WORKBENCH_ORIGIN,
           source: event.source === iframeRef.current?.contentWindow,
           iframeContentWindowExists: !!iframeRef.current?.contentWindow,
           messageKeys: Object.keys(event.data),
@@ -2305,6 +2311,7 @@ export default function MediaWorkbench() {
           targetMediaId: event.data.targetMediaId,
           projectId: event.data.projectId,
           completeData: event.data,
+          workbenchOrigin: WORKBENCH_ORIGIN,
           timestamp: Date.now(),
         });
 
@@ -3421,22 +3428,24 @@ export default function MediaWorkbench() {
             {/* Website Preview Iframe - displays actual production page components with VisualSlot instrumentation */}
             <iframe
               ref={iframeRef}
-              src={`${window.location.origin}/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`}
+              src={`${WORKBENCH_ORIGIN}/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`}
               className="w-full h-full border-0"
               title="Website Preview"
               sandbox="allow-same-origin allow-scripts allow-popups"
               onLoad={() => {
                 console.log('[SLOT] INSTRUMENTED_PREVIEW_IFRAME_LOADED', {
-                  iframeSrc: `${window.location.origin}/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`,
+                  iframeSrc: `${WORKBENCH_ORIGIN}/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`,
                   contentWindowExists: !!iframeRef.current?.contentWindow,
                   selectedPage: state.selectedPage,
                   actualSrc: iframeRef.current?.src,
                   previewRouteExpected: `/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`,
                   usesPreviewRoute: iframeRef.current?.src?.includes('/workbench/preview/'),
+                  workbenchOrigin: WORKBENCH_ORIGIN,
                   timestamp: Date.now(),
                 });
                 console.log('[WB_FORENSIC] IFRAME_LOAD_COMPLETE', {
                   reason: 'Instrumented preview iframe loaded, waiting for BRIDGE_READY from child slots',
+                  workbenchOrigin: WORKBENCH_ORIGIN,
                   timestamp: Date.now(),
                 });
               }}

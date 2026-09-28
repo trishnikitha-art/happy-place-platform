@@ -27,6 +27,11 @@
 import { useEffect, useRef, useState } from 'react';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 
+// P0 FIX: Explicit Workbench origin constant for postMessage validation
+// Do not use implicit cross-origin discovery via window.parent.location.origin
+// The iframe is guaranteed same-origin in production; this invariant is explicit here
+const WORKBENCH_ORIGIN = typeof window !== 'undefined' ? window.location.origin : '';
+
 interface VisualSlotProps {
   id: string;
   route: string;
@@ -40,6 +45,9 @@ interface VisualSlotProps {
   // Gallery drag support
   isGallerySlot?: boolean;
   projectId?: string;
+  // P0 FIX: Authoritative Workbench-mode from parent context
+  // Avoids per-slot window.location inspection and SSR/hydration issues
+  isWorkbenchMode?: boolean;
 }
 
 export function VisualSlot({
@@ -54,27 +62,31 @@ export function VisualSlot({
   className = '',
   isGallerySlot = false,
   projectId,
+  isWorkbenchMode: propIsWorkbenchMode,
 }: VisualSlotProps) {
   const elementRef = useRef<HTMLDivElement>(null);
   const lastDragOverLogRef = useRef<number>(0);
   const bridgedDragDataRef = useRef<any>(null); // P0 FIX: Store drag data from parent postMessage
 
-  // DETERMINISTIC: Read workbench mode synchronously from URL during render
-  // This eliminates async effect pattern and makes draggable decision deterministic
-  const isWorkbenchMode = typeof window !== 'undefined' 
-    ? new URLSearchParams(window.location.search).get('workbench') === 'true'
-    : false;
+  // P0 FIX: Use authoritative Workbench-mode from prop (if provided by iframe context)
+  // Fall back to synchronous URL check for backward compatibility
+  // This provides single source of truth and avoids SSR/hydration issues
+  const effectiveWorkbenchMode = propIsWorkbenchMode !== undefined ? propIsWorkbenchMode : (
+    typeof window !== 'undefined' 
+      ? new URLSearchParams(window.location.search).get('workbench') === 'true'
+      : false
+  );
 
-  // FORENSIC: Log URL parameter detection immediately on render
-  console.log('[VS_FORENSIC] URL_PARAM_DETECTION', {
+  // FORENSIC: Log Workbench-mode source and value
+  console.log('[VS_FORENSIC] WORKBENCH_MODE_DETERMINATION', {
     slotId: id,
+    modeSource: propIsWorkbenchMode !== undefined ? 'PROP_CONTEXT' : 'URL_SYNC',
+    isWorkbenchMode: effectiveWorkbenchMode,
+    isGallerySlot,
+    projectId,
     pathname: typeof window !== 'undefined' ? window.location.pathname : 'SSR',
     search: typeof window !== 'undefined' ? window.location.search : 'SSR',
     workbenchParam: typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('workbench') : 'SSR',
-    isWorkbenchMode,
-    isGallerySlot,
-    projectId,
-    windowExists: typeof window !== 'undefined',
     timestamp: Date.now(),
   });
 
@@ -92,7 +104,7 @@ export function VisualSlot({
       slotName,
       pathname: window.location.pathname,
       search: window.location.search,
-      isWorkbenchMode,
+      isWorkbenchMode: effectiveWorkbenchMode,
       isGallerySlot,
       windowIsIframe: window.parent !== window,
     });
@@ -111,8 +123,8 @@ export function VisualSlot({
         console.log('[VS_FORENSIC] ACTUAL_DOM_STATE', {
           slotId: id,
           isGallerySlot,
-          isWorkbenchMode,
-          expectedDraggable: isWorkbenchMode && isGallerySlot,
+          isWorkbenchMode: effectiveWorkbenchMode,
+          expectedDraggable: effectiveWorkbenchMode && isGallerySlot,
           actualDraggableAttribute: actualDraggableAttr,
           computedDraggableProperty: computedDraggable,
           pointerEvents,
@@ -129,90 +141,8 @@ export function VisualSlot({
       }
     }, 100);
 
-    // Register slot on mount
-    const slot: RegisteredSlot = {
-      id,
-      route,
-      page,
-      section,
-      slotName,
-      currentMediaId,
-      element: elementRef.current,
-      component,
-    };
-
-    console.log('[SLOT] REGISTER_ATTEMPT', {
-      slotId: id,
-      isWorkbenchMode,
-      windowIsIframe: window.parent !== window,
-      registryInstanceId: (slotRegistry as any).instanceId,
-      registryImplementation: 'SlotRegistry class',
-    });
-    slotRegistry.register(slot);
-    console.log('[SLOT] REGISTER_COMPLETE', {
-      slotId: id,
-      registryInstanceId: (slotRegistry as any).instanceId,
-      registeredCount: slotRegistry.getAll().length,
-    });
-
-    // If in iframe, send SLOT_REGISTER to parent
-    if (window.parent !== window) {
-      const registerMessage = {
-        type: 'SLOT_REGISTER',
-        slot: { id, route, page, section, slotName, currentMediaId, component },
-      };
-      const targetOrigin = window.parent.location.origin;
-      console.log('[VS_FORENSIC] REGISTER_MESSAGE_CONSTRUCTED', {
-        messageType: registerMessage.type,
-        messageShape: Object.keys(registerMessage),
-        slotShape: Object.keys(registerMessage.slot),
-        targetOrigin,
-        parentOrigin: window.parent.location?.origin,
-        currentOrigin: window.location.origin,
-        originsMatch: window.parent.location?.origin === window.location.origin,
-        timestamp: Date.now(),
-      });
-      console.log('[VS_FORENSIC] REGISTER_SENT', {
-        slotId: id,
-        route,
-        page,
-        section,
-        slotName,
-        currentMediaId,
-        component,
-        messageType: registerMessage.type,
-        messageKeys: Object.keys(registerMessage),
-        targetOrigin,
-        windowIsIframe: window.parent !== window,
-        parentExists: !!window.parent,
-        parentWindowExists: window.parent !== window,
-        iframeOrigin: window.location.origin,
-        parentOrigin: window.parent.location?.origin,
-        timestamp: Date.now(),
-      });
-      window.parent.postMessage(registerMessage, targetOrigin);
-      
-      // P0 FIX: Send BRIDGE_READY to indicate message listener is attached
-      // This prevents race condition where parent sends DRAG_START before child listener is ready
-      const bridgeReadyMessage = {
-        type: 'BRIDGE_READY',
-        slotId: id,
-      };
-      console.log('[VS_FORENSIC] BRIDGE_READY_SENT', {
-        slotId: id,
-        targetOrigin,
-        timestamp: Date.now(),
-      });
-      window.parent.postMessage(bridgeReadyMessage, targetOrigin);
-    } else {
-      console.log('[VS_FORENSIC] REGISTRATION_SKIPPED', {
-        slotId: id,
-        reason: 'NOT_IN_IFRAME',
-        windowIsIframe: window.parent !== window,
-      });
-    }
-
-    // Listen for REFRESH_SLOTS and DRAG_START messages from parent
+    // P0 FIX: Correct protocol ordering - create listener BEFORE sending BRIDGE_READY
+    // The invariant is: listener must be attached before parent is permitted to send messages
     const handleMessage = (event: MessageEvent) => {
       console.log('[VS_FORENSIC] MESSAGE_RECEIVED', {
         slotId: id,
@@ -228,7 +158,7 @@ export function VisualSlot({
         // Re-register with current mediaId to sync state
         slotRegistry.register(slot);
         if (window.parent !== window) {
-          const targetOrigin = window.parent.location.origin;
+          const targetOrigin = WORKBENCH_ORIGIN;
           window.parent.postMessage({
             type: 'SLOT_REGISTER',
             slot: { id, route, page, section, slotName, currentMediaId, component },
@@ -327,6 +257,97 @@ export function VisualSlot({
 
     window.addEventListener('message', handleMessage);
 
+    console.log('[VS_FORENSIC] MESSAGE_LISTENER_ATTACHED', {
+      slotId: id,
+      windowIsIframe: window.parent !== window,
+      timestamp: Date.now(),
+    });
+
+    // Register slot on mount
+    const slot: RegisteredSlot = {
+      id,
+      route,
+      page,
+      section,
+      slotName,
+      currentMediaId,
+      element: elementRef.current,
+      component,
+    };
+
+    console.log('[SLOT] REGISTER_ATTEMPT', {
+      slotId: id,
+      isWorkbenchMode: effectiveWorkbenchMode,
+      windowIsIframe: window.parent !== window,
+      registryInstanceId: (slotRegistry as any).instanceId,
+      registryImplementation: 'SlotRegistry class',
+    });
+    slotRegistry.register(slot);
+    console.log('[SLOT] REGISTER_COMPLETE', {
+      slotId: id,
+      registryInstanceId: (slotRegistry as any).instanceId,
+      registeredCount: slotRegistry.getAll().length,
+    });
+
+    // If in iframe, send SLOT_REGISTER to parent
+    if (window.parent !== window) {
+      const registerMessage = {
+        type: 'SLOT_REGISTER',
+        slot: { id, route, page, section, slotName, currentMediaId, component },
+      };
+      const targetOrigin = WORKBENCH_ORIGIN;
+      console.log('[VS_FORENSIC] REGISTER_MESSAGE_CONSTRUCTED', {
+        messageType: registerMessage.type,
+        messageShape: Object.keys(registerMessage),
+        slotShape: Object.keys(registerMessage.slot),
+        targetOrigin,
+        parentOrigin: window.parent.location?.origin,
+        currentOrigin: window.location.origin,
+        originsMatch: window.parent.location?.origin === window.location.origin,
+        timestamp: Date.now(),
+      });
+      console.log('[VS_FORENSIC] REGISTER_SENT', {
+        slotId: id,
+        route,
+        page,
+        section,
+        slotName,
+        currentMediaId,
+        component,
+        messageType: registerMessage.type,
+        messageKeys: Object.keys(registerMessage),
+        targetOrigin,
+        windowIsIframe: window.parent !== window,
+        parentExists: !!window.parent,
+        parentWindowExists: window.parent !== window,
+        iframeOrigin: window.location.origin,
+        parentOrigin: window.parent.location?.origin,
+        timestamp: Date.now(),
+      });
+      window.parent.postMessage(registerMessage, targetOrigin);
+      
+      // P0 FIX: Send BRIDGE_READY AFTER listener is attached and slot is registered
+      // The invariant is: listener must be attached before parent is permitted to send messages
+      const bridgeReadyMessage = {
+        type: 'BRIDGE_READY',
+        slotId: id,
+      };
+      console.log('[VS_FORENSIC] BRIDGE_READY_SENT', {
+        slotId: id,
+        targetOrigin,
+        listenerAttached: true,
+        slotRegistered: true,
+        timestamp: Date.now(),
+      });
+      window.parent.postMessage(bridgeReadyMessage, targetOrigin);
+    } else {
+      console.log('[VS_FORENSIC] REGISTRATION_SKIPPED', {
+        slotId: id,
+        reason: 'NOT_IN_IFRAME',
+        windowIsIframe: window.parent !== window,
+      });
+    }
+
     // Add DOM forensic log after mount
     setTimeout(() => {
       const slots = document.querySelectorAll('[data-slot-id]');
@@ -374,7 +395,7 @@ export function VisualSlot({
     // window.dispatchEvent() inside iframe only dispatches on iframe's own Window
 
     const slotData = { id, route, page, section, slotName, currentMediaId };
-    const targetOrigin = window.parent.location.origin;
+    const targetOrigin = WORKBENCH_ORIGIN;
 
     console.log('[SLOT_CLICK] POSTMESSAGE_PATH', {
       slotId: id,
@@ -423,7 +444,7 @@ export function VisualSlot({
       isGallerySlot,
       currentMediaId,
       projectId,
-      isWorkbenchMode,
+      isWorkbenchMode: effectiveWorkbenchMode,
       windowIsIframe: window.parent !== window,
       eventTarget: (e.target as HTMLElement)?.tagName,
       currentTarget: (e.currentTarget as HTMLElement)?.tagName,
@@ -499,7 +520,7 @@ export function VisualSlot({
       isGallerySlot,
       projectId,
       currentMediaId,
-      isWorkbenchMode,
+      isWorkbenchMode: effectiveWorkbenchMode,
       windowIsIframe: window.parent !== window,
       eventTarget: (e.target as HTMLElement)?.tagName,
       currentTarget: (e.currentTarget as HTMLElement)?.tagName,
@@ -601,7 +622,7 @@ export function VisualSlot({
 
           // Send SLOT_REORDER event to parent
           if (window.parent !== window) {
-            const targetOrigin = window.parent.location.origin;
+            const targetOrigin = WORKBENCH_ORIGIN;
             const message = {
               type: 'SLOT_REORDER',
               sourceSlotId: parsed.sourceSlotId,
@@ -702,7 +723,7 @@ export function VisualSlot({
 
         // Send GALLERY_ADD event to parent with full applicationData
         if (window.parent !== window) {
-          const targetOrigin = window.parent.location.origin;
+          const targetOrigin = WORKBENCH_ORIGIN;
           window.parent.postMessage({
             type: 'GALLERY_ADD',
             slot: { id, route, page, section, slotName, currentMediaId, component },
@@ -802,7 +823,7 @@ export function VisualSlot({
 
       // Send SLOT_DROP event to parent with full applicationData
       if (window.parent !== window) {
-        const targetOrigin = window.parent.location.origin;
+        const targetOrigin = WORKBENCH_ORIGIN;
         window.parent.postMessage({
           type: 'SLOT_DROP',
           slot: { id, route, page, section, slotName, currentMediaId, component },
@@ -853,12 +874,12 @@ export function VisualSlot({
       data-slot-id={id}
       data-slot-route={route}
       data-slot-section={section}
-      style={isWorkbenchMode ? { cursor: 'pointer' } : undefined}
-      onClick={isWorkbenchMode ? handleClick : undefined}
-      onDragOver={isWorkbenchMode ? handleDragOver : undefined}
-      onDrop={isWorkbenchMode ? handleDrop : undefined}
-      draggable={isWorkbenchMode && isGallerySlot}
-      onDragStart={isWorkbenchMode && isGallerySlot ? handleDragStart : undefined}
+      style={effectiveWorkbenchMode ? { cursor: 'pointer' } : undefined}
+      onClick={effectiveWorkbenchMode ? handleClick : undefined}
+      onDragOver={effectiveWorkbenchMode ? handleDragOver : undefined}
+      onDrop={effectiveWorkbenchMode ? handleDrop : undefined}
+      draggable={effectiveWorkbenchMode && isGallerySlot}
+      onDragStart={effectiveWorkbenchMode && isGallerySlot ? handleDragStart : undefined}
     >
       {children}
     </div>
