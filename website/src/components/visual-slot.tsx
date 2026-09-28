@@ -100,6 +100,25 @@ export function VisualSlot({
       timestamp: Date.now(),
     });
 
+    // FORENSIC: Log actual DOM draggable attribute after mount
+    setTimeout(() => {
+      if (elementRef.current) {
+        const actualDraggable = elementRef.current.getAttribute('draggable');
+        const computedDraggable = elementRef.current.draggable;
+        console.log('[VS_FORENSIC] DOM_DRAGGABLE_STATE', {
+          slotId: id,
+          isGallerySlot,
+          isWorkbenchMode,
+          expectedDraggable: isWorkbenchMode && isGallerySlot,
+          actualDraggableAttribute: actualDraggable,
+          computedDraggableProperty: computedDraggable,
+          hasPointerEvents: getComputedStyle(elementRef.current).pointerEvents !== 'none',
+          userSelect: getComputedStyle(elementRef.current).userSelect,
+          timestamp: Date.now(),
+        });
+      }
+    }, 100);
+
     // Register slot on mount
     const slot: RegisteredSlot = {
       id,
@@ -389,6 +408,21 @@ export function VisualSlot({
   };
 
   const handleDragStart = (e: React.DragEvent) => {
+    console.log('[VS_FORENSIC] DRAG_START_EVENT_RECEIVED', {
+      slotId: id,
+      isGallerySlot,
+      currentMediaId,
+      projectId,
+      isWorkbenchMode,
+      windowIsIframe: window.parent !== window,
+      eventTarget: (e.target as HTMLElement)?.tagName,
+      currentTarget: (e.currentTarget as HTMLElement)?.tagName,
+      elementRef: elementRef.current?.tagName,
+      draggableAttribute: elementRef.current?.getAttribute('draggable'),
+      computedDraggable: elementRef.current?.draggable,
+      timestamp: Date.now(),
+    });
+
     if (!isGallerySlot || !currentMediaId || !projectId) {
       console.log('[VS_DND] DRAG_START_SKIPPED', {
         slotId: id,
@@ -448,6 +482,24 @@ export function VisualSlot({
   };
 
   const handleDrop = (e: React.DragEvent) => {
+    console.log('[VS_FORENSIC] DROP_EVENT_RECEIVED', {
+      slotId: id,
+      isGallerySlot,
+      projectId,
+      currentMediaId,
+      isWorkbenchMode,
+      windowIsIframe: window.parent !== window,
+      eventTarget: (e.target as HTMLElement)?.tagName,
+      currentTarget: (e.currentTarget as HTMLElement)?.tagName,
+      dataTransferTypes: e.dataTransfer.types,
+      dataTransferItems: Array.from(e.dataTransfer.items).map(item => ({
+        kind: item.kind,
+        type: item.type,
+      })),
+      hasBridgedData: !!bridgedDragDataRef.current,
+      timestamp: Date.now(),
+    });
+
     e.preventDefault();
 
     console.log('[VS_DND] DROP_RECEIVED', {
