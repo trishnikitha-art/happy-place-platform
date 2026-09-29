@@ -81,9 +81,12 @@ export function VisualSlot({
   console.log('[VS_FORENSIC] WORKBENCH_MODE_DETERMINATION', {
     slotId: id,
     modeSource: propIsWorkbenchMode !== undefined ? 'PROP_CONTEXT' : 'URL_SYNC',
+    propIsWorkbenchMode,
     isWorkbenchMode: effectiveWorkbenchMode,
     isGallerySlot,
     projectId,
+    propIsGallerySlot: isGallerySlot,
+    propProjectId: projectId,
     pathname: typeof window !== 'undefined' ? window.location.pathname : 'SSR',
     search: typeof window !== 'undefined' ? window.location.search : 'SSR',
     workbenchParam: typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('workbench') : 'SSR',

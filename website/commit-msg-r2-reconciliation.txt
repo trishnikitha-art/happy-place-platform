@@ -1,0 +1,45 @@
+Reconcile Blob-to-R2 migration leftovers in diagnostic routes
+
+Fixes remaining Blob references that were missed in the initial R2 migration:
+
+1. CI diagnostic script (diagnose-production-media-via-app-namespace.mjs):
+   - Updated recommendation from storage: "blob" to storage: "r2"
+   - Clarified DriveReference state terminology
+
+2. Production media inspection route:
+   - Migrated from Blob metadata checks to R2 object verification
+   - Updated classification categories (BLOB_* → R2_*)
+   - Now uses verifyR2Hash() for byte-level verification
+   - Added storage field to classification output
+
+3. Media completeness diagnostic:
+   - Replaced Blob existence checks with R2 object existence
+   - Updated report fields (missingBlobMetadata → missingR2Object)
+   - Added static storage support
+
+4. Media resolution trace:
+   - Changed from Blob metadata lookup to R2 object verification
+   - Updated step statuses (BLOB_* → R2_*)
+   - Added static storage branch
+
+5. Incomplete media categorization:
+   - Migrated from Blob categories to R2 categories
+   - Updated repair plan references
+   - Added static storage handling
+
+6. Public completeness contract (media-contracts.ts):
+   - Clarified R2-specific invariant: materialization-time hash verification, public-time structural proof
+   - Documented rationale for avoiding Class B GetObject cost on public reads
+   - Content-addressed keys ensure immutability
+
+7. R2 storage contract (r2-storage.ts):
+   - Removed misleading alreadyExisted field from R2UploadResult
+   - Field was always false due to deterministic PUT without preflight HEAD
+   - Idempotency is guaranteed by content-addressed keys, not a signal
+
+All diagnostic routes now use R2 semantics. blob-storage.ts remains in codebase
+but is no longer imported by active diagnostic routes.
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

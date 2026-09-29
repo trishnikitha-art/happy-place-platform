@@ -1,0 +1,21 @@
+Fix gallery drag cursor behavior and add comprehensive logging
+
+Added cursor affordance for gallery drag reorder:
+- Applied cursor: grab/grabbing for gallery slots in Workbench mode
+- Applied cursor: pointer for non-gallery Workbench slots
+- Added cursor utility classes to globals.css for better browser compatibility
+- Applied cursor via both style prop and className for maximum compatibility
+
+Added comprehensive drag logging:
+- Log cursor computed style in drag start/drag over/drag end
+- Log effectiveWorkbenchMode in all drag events
+- Log cursorComputedStyle from getComputedStyle
+- Added handleDragEnter and handleDragLeave for drag lifecycle tracking
+- Enhanced handleDragStart with cursor diagnostics
+- Enhanced handleDragOver with cursor diagnostics
+
+This enables forensic debugging of cursor behavior issues when rearranging gallery items.
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>

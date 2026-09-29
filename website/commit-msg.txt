@@ -1,0 +1,22 @@
+fix: restore isGallerySlot props and complete BRIDGE_INIT handshake
+
+Fixed two critical issues preventing drag/drop:
+
+1. VisualSlot isGallerySlot was false - removed when moving handlers to outer div
+   - Added isGallerySlot={true} and projectId props back to gallery VisualSlots
+   - VisualSlot now accepts GALLERY_REORDER protocol for same-project gallery reorders
+
+2. BRIDGE_INIT handshake incomplete - iframe sent BRIDGE_READY before receiving generation
+   - Iframe now waits for BRIDGE_INIT from parent before sending BRIDGE_READY
+   - Parent sends BRIDGE_INIT if iframe sends BRIDGE_READY without generation
+   - VisualSlot and OurWorkClient re-send BRIDGE_READY after BRIDGE_INIT with correct generation
+   - Ensures parent and iframe use the same generation token
+
+Protocol flow:
+PARENT load → increment generation → BRIDGE_INIT { generation }
+IFRAME receives BRIDGE_INIT → dragBridge.initialize(generation) → register → BRIDGE_READY { generation }
+PARENT validates generation matches → bridgeReady = true → accept DRAG_START
+
+Generated with [Devin](https://devin.ai)
+
+Co-Authored-By: Devin <158243242+devin-ai-integration[bot]@users.noreply.github.com>
