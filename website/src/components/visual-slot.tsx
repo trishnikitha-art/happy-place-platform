@@ -996,8 +996,17 @@ export function VisualSlot({
       data-slot-section={section}
       style={cursorStyle}
       onClick={effectiveWorkbenchMode ? handleClick : undefined}
+      onDragOver={effectiveWorkbenchMode ? handleDragOver : undefined}
+      onDragEnter={effectiveWorkbenchMode ? handleDragEnter : undefined}
+      onDragLeave={effectiveWorkbenchMode ? handleDragLeave : undefined}
+      onDrop={effectiveWorkbenchMode ? handleDrop : undefined}
+      draggable={effectiveWorkbenchMode && isGallerySlot}
+      onDragStart={effectiveWorkbenchMode && isGallerySlot ? handleDragStart : undefined}
+      onDragEnd={effectiveWorkbenchMode && isGallerySlot ? handleDragEnd : undefined}
     >
-      {children}
+      <div style={isDraggingActive ? { pointerEvents: 'none' } : undefined}>
+        {children}
+      </div>
     </div>
   );
 }
