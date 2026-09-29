@@ -78,7 +78,8 @@ export function getMediaManifest(): MediaManifest {
  * This function is ONLY for explicit bootstrap/recovery operations
  * It must NOT be used as a runtime authority bypass
  * 
- * CONSTITUTIONAL CHECK: Reject synthetic content identity from static authority
+ * CONSTITUTIONAL CHECK: Reject synthetic content identity from static authority ONLY for Drive assets
+ * Local assets can use synthetic hashes as they're static files with canonical IDs
  */
 export function getStaticMediaForBootstrap(id: string): Media | null {
   const manifest = loadMediaManifest();
@@ -87,12 +88,13 @@ export function getStaticMediaForBootstrap(id: string): Media | null {
     return null;
   }
   
-  // CONSTITUTIONAL CHECK: Reject synthetic content identity from static authority
-  if (staticMedia.contentHash && isSyntheticContentHash(id, staticMedia.contentHash)) {
-    console.error('[MEDIA] STATIC_AUTHORITY_REJECTED: Synthetic content identity', {
+  // CONSTITUTIONAL CHECK: Reject synthetic content identity from static authority ONLY for Drive assets
+  // Local assets can use synthetic hashes as they're static files with canonical IDs
+  if (staticMedia.source === 'google-drive' && staticMedia.contentHash && isSyntheticContentHash(id, staticMedia.contentHash)) {
+    console.error('[MEDIA] STATIC_AUTHORITY_REJECTED: Synthetic content identity for Drive asset', {
       mediaId: id,
       contentHash: staticMedia.contentHash,
-      reason: 'Static authority cannot contain synthetic content identity (SHA256(canonicalId))'
+      reason: 'Drive assets cannot have synthetic content identity (SHA256(canonicalId))'
     });
     return null;
   }
