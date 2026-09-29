@@ -488,7 +488,68 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                     data-project-id={project.id}
                     role="button"
                     tabIndex={0}
-                    className="group relative block aspect-[4/3] overflow-hidden cursor-pointer break-inside-avoid mb-4"
+                    className={`group relative block aspect-[4/3] overflow-hidden break-inside-avoid mb-4 ${isWorkbenchMode ? 'cursor-grab' : 'cursor-pointer'}`}
+                    draggable={isWorkbenchMode}
+                    onDragStart={(e) => {
+                      if (!isWorkbenchMode) return;
+                      const slotId = `our-work-gallery::${project.id}::${mediaId}`;
+                      console.log('[OUR_WORK] GALLERY_DRAG_START', { slotId, projectId: project.id, mediaId });
+
+                      const dragData = JSON.stringify({
+                        type: 'GALLERY_REORDER',
+                        sourceSlotId: slotId,
+                        sourceMediaId: mediaId,
+                        projectId: project.id,
+                      });
+
+                      e.dataTransfer.setData('application/x-workbench-gallery-reorder', dragData);
+                      e.dataTransfer.setData('text/plain', dragData);
+                      e.dataTransfer.effectAllowed = 'move';
+                      setIsDragging(true);
+                    }}
+                    onDragEnd={() => {
+                      setIsDragging(false);
+                    }}
+                    onDragOver={(e) => {
+                      if (!isWorkbenchMode) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move';
+                    }}
+                    onDrop={(e) => {
+                      if (!isWorkbenchMode) return;
+                      e.preventDefault();
+                      setIsDragging(false);
+
+                      const slotId = `our-work-gallery::${project.id}::${mediaId}`;
+                      console.log('[OUR_WORK] GALLERY_DROP', { slotId, projectId: project.id, mediaId });
+
+                      const dragData = e.dataTransfer.getData('application/x-workbench-gallery-reorder');
+                      if (!dragData) {
+                        console.log('[OUR_WORK] NO_DRAG_DATA');
+                        return;
+                      }
+
+                      try {
+                        const parsed = JSON.parse(dragData);
+                        if (parsed.type !== 'GALLERY_REORDER') return;
+                        if (parsed.projectId !== project.id) return;
+
+                        if (window.parent !== window) {
+                          window.parent.postMessage({
+                            type: 'SLOT_REORDER',
+                            sourceSlotId: parsed.sourceSlotId,
+                            sourceMediaId: parsed.sourceMediaId,
+                            targetSlotId: slotId,
+                            targetMediaId: mediaId,
+                            projectId: project.id,
+                          }, window.location.origin);
+
+                          console.log('[OUR_WORK] REORDER_SENT', { source: parsed.sourceSlotId, target: slotId });
+                        }
+                      } catch (err) {
+                        console.error('[OUR_WORK] DROP_ERROR', err);
+                      }
+                    }}
                     onClick={() => {
                       console.log('[OUR_WORK] GALLERY_BUTTON_CLICK', {
                         projectId: project.id,
