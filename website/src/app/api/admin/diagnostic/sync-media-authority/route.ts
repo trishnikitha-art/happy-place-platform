@@ -41,7 +41,7 @@ export async function POST() {
         }
         
         // P0 FIX: Ensure storage field is present for public media gate compliance
-        // Published local records MUST have storage field (static or blob)
+        // Published local records MUST have storage field (static or r2)
         // This is a constitutional requirement enforced by saveMedia()
         if (media.lifecycleState === 'published' && media.source === 'local') {
           if (!media.storage) {
@@ -49,8 +49,8 @@ export async function POST() {
             console.log('[SYNC] STORAGE_FIX', { mediaId: media.id, addedStorage: 'static' });
           }
           // Verify storage is valid
-          if (media.storage !== 'static' && media.storage !== 'blob') {
-            console.warn('[SYNC] INVALID_STORAGE', { mediaId: media.id, storage: media.storage, reason: 'Must be static or blob' });
+          if (media.storage !== 'static' && media.storage !== 'r2') {
+            console.warn('[SYNC] INVALID_STORAGE', { mediaId: media.id, storage: media.storage, reason: 'Must be static or r2' });
             media.storage = 'static';
           }
         }

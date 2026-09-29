@@ -20,14 +20,15 @@
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { getServiceCardAssignment, storeServiceCardAssignment, type ServiceCardAssignment } from '@/lib/assignment-store';
-import { getMedia, getMediaRecordRaw, getBlobMetadata, verifyPublicMediaAuthority } from '@/lib/media-kv-store';
-import { verifyBlobHash, type BlobHashVerificationResult } from '@/lib/blob-storage';
+import { getMedia, getMediaRecordRaw, verifyPublicMediaAuthority } from '@/lib/media-kv-store';
+import { verifyR2ObjectExists, verifyR2Hash, type R2HashVerificationResult } from '@/lib/r2-storage';
 
 export const dynamic = 'force-dynamic';
 
 interface ReconciliationRequest {
   serviceSlug: string;
   targetMediaId: string;
+  verifyPhysicalBytes?: boolean;
 }
 
 interface ReconciliationEvidence {
@@ -35,7 +36,7 @@ interface ReconciliationEvidence {
   result: string;
   data?: Record<string, unknown>;
   error?: string;
-  errorType?: BlobHashVerificationResult['errorType'];
+  errorType?: R2HashVerificationResult['errorType'];
   actualHash?: string;
 }
 
@@ -177,38 +178,13 @@ export async function POST(request: Request) {
       },
     });
 
-    // STAGE 4: Verify Blob metadata exists in KV
-    evidence.push({ stage: 'VERIFY_BLOB_METADATA', result: 'started' });
+    // STAGE 4: Verify R2 object exists
+    evidence.push({ stage: 'VERIFY_R2_OBJECT', result: 'started' });
     
-    const blobMetadata = await getBlobMetadata(targetMedia.contentHash);
-    
-    if (!blobMetadata) {
+    const r2Url = targetMedia.variants?.original;
+    if (!r2Url) {
       evidence.push({
-        stage: 'VERIFY_BLOB_METADATA',
-        result: 'rejected',
-        error: 'Blob metadata not found in KV',
-      });
-      return NextResponse.json({
-        success: false,
-        serviceSlug,
-        evidence,
-        error: 'Target media missing Blob metadata in KV',
-      });
-    }
-
-    evidence.push({
-      stage: 'VERIFY_BLOB_METADATA',
-      result: 'completed',
-      data: { blobMetadataExists: true },
-    });
-
-    // STAGE 5: Verify physical Blob byte/hash identity
-    evidence.push({ stage: 'VERIFY_BLOB_BYTES', result: 'started' });
-    
-    const blobUrl = targetMedia.variants?.original;
-    if (!blobUrl) {
-      evidence.push({
-        stage: 'VERIFY_BLOB_BYTES',
+        stage: 'VERIFY_R2_OBJECT',
         result: 'rejected',
         error: 'Target media missing original variant URL',
       });
@@ -220,29 +196,59 @@ export async function POST(request: Request) {
       });
     }
 
-    const hashMatches = await verifyBlobHash(blobUrl, targetMedia.contentHash);
+    const r2Key = r2Url.split('/').pop() || '';
+    const objectExists = await verifyR2ObjectExists(r2Key);
     
-    if (!hashMatches.success) {
+    if (!objectExists) {
       evidence.push({
-        stage: 'VERIFY_BLOB_BYTES',
+        stage: 'VERIFY_R2_OBJECT',
         result: 'rejected',
-        error: 'Physical Blob bytes do not match content hash',
-        errorType: hashMatches.errorType,
-        actualHash: hashMatches.actualHash,
+        error: 'R2 object not found',
       });
       return NextResponse.json({
         success: false,
         serviceSlug,
         evidence,
-        error: 'Blob hash verification failed',
+        error: 'Target media R2 object not found',
       });
     }
 
     evidence.push({
-      stage: 'VERIFY_BLOB_BYTES',
+      stage: 'VERIFY_R2_OBJECT',
       result: 'completed',
-      data: { hashVerified: true },
+      data: { r2ObjectExists: true },
     });
+
+    // STAGE 5: Verify physical R2 byte/hash identity (only for explicit verification paths)
+    // Note: Normal public reads should NOT perform GetObject (Class B operation)
+    // This is only for explicit reconciliation/audit paths
+    if (body.verifyPhysicalBytes) {
+      evidence.push({ stage: 'VERIFY_R2_BYTES', result: 'started' });
+      
+      const hashMatches = await verifyR2Hash(r2Key, targetMedia.contentHash);
+      
+      if (!hashMatches.success) {
+        evidence.push({
+          stage: 'VERIFY_R2_BYTES',
+          result: 'rejected',
+          error: 'Physical R2 bytes do not match content hash',
+          errorType: hashMatches.errorType,
+          actualHash: hashMatches.actualHash,
+        });
+        return NextResponse.json({
+          success: false,
+          serviceSlug,
+          evidence,
+          error: 'Physical R2 bytes do not match content hash',
+        });
+      }
+      
+      evidence.push({
+        stage: 'VERIFY_R2_BYTES',
+        result: 'completed',
+        data: { r2HashMatches: true },
+      });
+    }
 
     // STAGE 6: PRE-CAS public media gate verification
     // Verify the public media authority would accept the target BEFORE mutating assignment

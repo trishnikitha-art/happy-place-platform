@@ -15,12 +15,12 @@
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { listMediaIds, getMediaRecordRaw, saveMedia } from '@/lib/media-kv-store';
 import { loadMediaManifest } from '@/lib/media';
-import { getBlobMetadataByContentHash, verifyBlobHash } from '@/lib/blob-storage';
+import { verifyR2ObjectExists } from '@/lib/r2-storage';
 
-// Mock the KV store, media manifest, and Blob storage
+// Mock the KV store, media manifest, and R2 storage
 jest.mock('@/lib/media-kv-store');
 jest.mock('@/lib/media');
-jest.mock('@/lib/blob-storage');
+jest.mock('@/lib/r2-storage');
 
 describe('Media Audit Classification', () => {
   beforeEach(() => {
@@ -28,7 +28,7 @@ describe('Media Audit Classification', () => {
   });
 
   describe('Drive record with missing storage', () => {
-    it('should classify as REQUIRES_MATERIALIZATION, not repairable blob', async () => {
+    it('should classify as REQUIRES_MATERIALIZATION, not repairable R2', async () => {
       // GIVEN: A Drive-sourced published record with no storage field
       const driveRecord = {
         id: 'drive-test-123',
@@ -45,32 +45,33 @@ describe('Media Audit Classification', () => {
       (getMediaRecordRaw as jest.Mock).mockResolvedValue(driveRecord);
       (listMediaIds as jest.Mock).mockResolvedValue(['drive-test-123']);
       (loadMediaManifest as jest.Mock).mockReturnValue({ media: [] });
-      (getBlobMetadataByContentHash as jest.Mock).mockResolvedValue(null); // NO BLOB METADATA
+      (verifyR2ObjectExists as jest.Mock).mockResolvedValue(false); // NO R2 OBJECT
 
       // WHEN: We classify this record
       // This simulates the logic in media-audit/route.ts
       const isMissingStorage = !driveRecord.storage;
       const hasContentHash = !!driveRecord.contentHash;
       const isDriveSource = driveRecord.source === 'google-drive';
-      const hasBlobMetadata = await getBlobMetadataByContentHash(driveRecord.contentHash);
+      const r2Key = driveRecord.variants.original.split('/').pop() || '';
+      const hasR2Object = await verifyR2ObjectExists(r2Key);
 
       // THEN: It should be classified as REQUIRES_MATERIALIZATION
       expect(isMissingStorage).toBe(true);
       expect(hasContentHash).toBe(true);
       expect(isDriveSource).toBe(true);
-      expect(hasBlobMetadata).toBe(null);
+      expect(hasR2Object).toBe(false);
 
-      // The critical invariant: Drive source without Blob evidence is NOT repairable
-      const isRepairableBlob = hasBlobMetadata !== null;
-      expect(isRepairableBlob).toBe(false);
+      // The critical invariant: Drive source without R2 evidence is NOT repairable
+      const isRepairableR2 = hasR2Object;
+      expect(isRepairableR2).toBe(false);
 
       // It should require materialization
-      const requiresMaterialization = isDriveSource && !hasBlobMetadata;
+      const requiresMaterialization = isDriveSource && !hasR2Object;
       expect(requiresMaterialization).toBe(true);
     });
 
-    it('should NOT classify as repairable blob even with contentHash', async () => {
-      // GIVEN: Drive record with contentHash but no Blob metadata
+    it('should NOT classify as repairable R2 even with contentHash', async () => {
+      // GIVEN: Drive record with contentHash but no R2 object
       const driveRecord = {
         id: 'drive-test-456',
         filename: 'test.jpg',
@@ -83,17 +84,18 @@ describe('Media Audit Classification', () => {
         },
       };
 
-      (getBlobMetadataByContentHash as jest.Mock).mockResolvedValue(null);
+      (verifyR2ObjectExists as jest.Mock).mockResolvedValue(false);
 
-      // WHEN: Checking Blob evidence
-      const blobMetadata = await getBlobMetadataByContentHash(driveRecord.contentHash);
+      // WHEN: Checking R2 evidence
+      const r2Key = driveRecord.variants.original.split('/').pop() || '';
+      const r2ObjectExists = await verifyR2ObjectExists(r2Key);
 
-      // THEN: No Blob metadata → NOT repairable
-      expect(blobMetadata).toBe(null);
+      // THEN: No R2 object → NOT repairable
+      expect(r2ObjectExists).toBe(false);
 
       // Repair requires full evidence chain
-      const hasFullBlobEvidence = blobMetadata !== null;
-      expect(hasFullBlobEvidence).toBe(false);
+      const hasFullR2Evidence = r2ObjectExists;
+      expect(hasFullR2Evidence).toBe(false);
     });
   });
 
@@ -167,9 +169,9 @@ describe('Media Audit Classification', () => {
     });
   });
 
-  describe('Local record with full Blob evidence', () => {
-    it('should classify as REPAIRABLE_BLOB with full evidence chain', async () => {
-      // GIVEN: Local source with contentHash and full Blob evidence
+  describe('Local record with full R2 evidence', () => {
+    it('should classify as REPAIRABLE_R2 with full evidence chain', async () => {
+      // GIVEN: Local source with contentHash and full R2 evidence
       const localRecord = {
         id: 'local-test-789',
         filename: 'test.jpg',
@@ -178,35 +180,26 @@ describe('Media Audit Classification', () => {
         storage: undefined,
         contentHash: 'abc123',
         variants: {
-          original: 'https://blob.vercel-storage.com/test.jpg',
+          original: 'https://r2.example.com/test.jpg',
         },
       };
 
-      const blobMetadata = {
-        url: 'https://blob.vercel-storage.com/test.jpg',
-        contentHash: 'abc123',
-      };
-
       (getMediaRecordRaw as jest.Mock).mockResolvedValue(localRecord);
-      (getBlobMetadataByContentHash as jest.Mock).mockResolvedValue(blobMetadata);
-      (verifyBlobHash as jest.Mock).mockResolvedValue({ success: true });
+      (verifyR2ObjectExists as jest.Mock).mockResolvedValue(true);
 
-      // WHEN: Checking Blob evidence chain
-      const blobMeta = await getBlobMetadataByContentHash(localRecord.contentHash);
-      const urlMatch = localRecord.variants.original === blobMeta.url;
-      const verification = await verifyBlobHash(blobMeta.url, localRecord.contentHash);
+      // WHEN: Checking R2 evidence chain
+      const r2Key = localRecord.variants.original.split('/').pop() || '';
+      const r2ObjectExists = await verifyR2ObjectExists(r2Key);
 
       // THEN: Full evidence chain → repairable
-      expect(blobMeta).not.toBeNull();
-      expect(urlMatch).toBe(true);
-      expect(verification.success).toBe(true);
+      expect(r2ObjectExists).toBe(true);
 
-      const isRepairableBlob = blobMeta !== null && urlMatch && verification.success;
-      expect(isRepairableBlob).toBe(true);
+      const isRepairableR2 = r2ObjectExists;
+      expect(isRepairableR2).toBe(true);
     });
 
-    it('should classify as AMBIGUOUS with URL mismatch', async () => {
-      // GIVEN: Local source with contentHash but URL mismatch
+    it('should classify as AMBIGUOUS with R2 object not found', async () => {
+      // GIVEN: Local source with contentHash but R2 object not found
       const localRecord = {
         id: 'local-test-999',
         filename: 'test.jpg',
@@ -215,26 +208,21 @@ describe('Media Audit Classification', () => {
         storage: undefined,
         contentHash: 'abc123',
         variants: {
-          original: 'https://wrong-url.com/test.jpg',
+          original: 'https://r2.example.com/test.jpg',
         },
       };
 
-      const blobMetadata = {
-        url: 'https://blob.vercel-storage.com/test.jpg',
-        contentHash: 'abc123',
-      };
-
       (getMediaRecordRaw as jest.Mock).mockResolvedValue(localRecord);
-      (getBlobMetadataByContentHash as jest.Mock).mockResolvedValue(blobMetadata);
+      (verifyR2ObjectExists as jest.Mock).mockResolvedValue(false);
 
-      // WHEN: Checking URL match
-      const blobMeta = await getBlobMetadataByContentHash(localRecord.contentHash);
-      const urlMatch = localRecord.variants.original === blobMeta.url;
+      // WHEN: Checking R2 object existence
+      const r2Key = localRecord.variants.original.split('/').pop() || '';
+      const r2ObjectExists = await verifyR2ObjectExists(r2Key);
 
-      // THEN: URL mismatch → ambiguous
-      expect(urlMatch).toBe(false);
+      // THEN: R2 object not found → ambiguous
+      expect(r2ObjectExists).toBe(false);
 
-      const isAmbiguous = blobMeta !== null && !urlMatch;
+      const isAmbiguous = !r2ObjectExists;
       expect(isAmbiguous).toBe(true);
     });
   });
@@ -245,7 +233,7 @@ describe('Media Audit Classification', () => {
       const classification = {
         missingStorageIds: ['drive-1', 'local-1', 'local-2'],
         repairableStaticIds: ['local-1'],
-        repairableBlobIds: ['local-2'],
+        repairableR2Ids: ['local-2'],
         requiresMaterializationIds: ['drive-1'],
         ambiguousIds: [],
       };
@@ -254,7 +242,7 @@ describe('Media Audit Classification', () => {
       // The bug: UI was submitting all missingStorageIds
       const badRepairTarget = classification.missingStorageIds;
       const correctStaticRepairTarget = classification.repairableStaticIds;
-      const correctBlobRepairTarget = classification.repairableBlobIds;
+      const correctR2RepairTarget = classification.repairableR2Ids;
 
       // THEN: Bad target would include non-repairable Drive record
       expect(badRepairTarget).toContain('drive-1');
@@ -262,11 +250,11 @@ describe('Media Audit Classification', () => {
 
       // Correct targets exclude Drive records
       expect(correctStaticRepairTarget).not.toContain('drive-1');
-      expect(correctBlobRepairTarget).not.toContain('drive-1');
+      expect(correctR2RepairTarget).not.toContain('drive-1');
 
       // Correct targets include only proven repairable records
       expect(correctStaticRepairTarget).toEqual(['local-1']);
-      expect(correctBlobRepairTarget).toEqual(['local-2']);
+      expect(correctR2RepairTarget).toEqual(['local-2']);
     });
   });
 });

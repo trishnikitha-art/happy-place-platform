@@ -20,19 +20,18 @@ jest.mock('@/lib/media-kv-store', () => ({
   getMedia: jest.fn(),
 }));
 
-// Mock blob-storage to return null (no Blob metadata)
-jest.mock('@/lib/blob-storage', () => ({
-  getBlobMetadataByContentHash: jest.fn(),
-  verifyBlobHash: jest.fn(),
+// Mock r2-storage to return false (no R2 object)
+jest.mock('@/lib/r2-storage', () => ({
+  verifyR2ObjectExists: jest.fn(),
 }));
 
 describe('Media Proof Gate - Constitutional Boundary', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     
-    // Mock blob-storage to return null (no Blob metadata)
-    const { getBlobMetadataByContentHash } = require('@/lib/blob-storage');
-    getBlobMetadataByContentHash.mockResolvedValue(null);
+    // Mock r2-storage to return false (no R2 object)
+    const { verifyR2ObjectExists } = require('@/lib/r2-storage');
+    verifyR2ObjectExists.mockResolvedValue(false);
   });
 
   describe('Synthetic Content Identity Rejection', () => {
@@ -132,30 +131,27 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
       expect(result).toBeNull();
     });
 
-    it('should allow blob storage assets with valid Blob metadata', async () => {
+    it('should allow R2 storage assets with valid R2 object', async () => {
       const { getMedia } = require('@/lib/media-kv-store');
-      const { getBlobMetadataByContentHash } = require('@/lib/blob-storage');
+      const { verifyR2ObjectExists } = require('@/lib/r2-storage');
       
-      // Blob storage assets with valid Blob metadata should pass
+      // R2 storage assets with valid R2 object should pass
       getMedia.mockResolvedValue({
-        id: 'test-blob-media',
+        id: 'test-r2-media',
         lifecycleState: 'published',
         source: 'local',
-        storage: 'blob',
+        storage: 'r2',
         contentHash: 'real-hash',
         dimensions: { width: 1200, height: 800 },
-        variants: { original: 'https://blob.vercel-storage.com/test.jpg', web: 'https://blob.vercel-storage.com/test.webp' }
+        variants: { original: 'https://r2.example.com/test.jpg', web: 'https://r2.example.com/test.webp' }
       });
 
-      getBlobMetadataByContentHash.mockResolvedValue({
-        url: 'https://blob.vercel-storage.com/test.jpg',
-        uploadedAt: new Date().toISOString()
-      });
+      verifyR2ObjectExists.mockResolvedValue(true);
 
-      const result = await resolvePublicMedia('test-blob-media');
+      const result = await resolvePublicMedia('test-r2-media');
       
       expect(result).not.toBeNull();
-      expect(result?.id).toBe('test-blob-media');
+      expect(result?.id).toBe('test-r2-media');
     });
 
     it('should reject local published assets without storage field', async () => {
@@ -177,19 +173,19 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
       expect(result).toBeNull();
     });
 
-    it('should require Blob verification for Drive published assets', async () => {
+    it('should require R2 verification for Drive published assets', async () => {
       const { getMedia } = require('@/lib/media-kv-store');
       
-      // Drive assets require real Blob metadata and verification
+      // Drive assets require real R2 object verification
       getMedia.mockResolvedValue({
         id: 'test-drive-media',
         lifecycleState: 'published',
         source: 'google-drive',
-        storage: 'blob',
+        storage: 'r2',
         contentHash: 'some-hash',
         dimensions: { width: 1200, height: 800 },
         variants: { original: '/images/test.jpg' }
-        // Missing blob_metadata in KV - should be rejected
+        // Missing R2 object - should be rejected
       });
 
       const result = await resolvePublicMedia('test-drive-media');

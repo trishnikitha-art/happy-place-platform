@@ -201,9 +201,14 @@ export async function uploadToR2(
 ): Promise<R2UploadResult> {
   const client = getR2Client();
   const bucket = getR2Bucket();
+  const publicBaseUrl = process.env.R2_PUBLIC_BASE_URL;
   
   if (!client || !bucket) {
     throw new Error('R2 client or bucket not configured');
+  }
+  
+  if (!publicBaseUrl) {
+    throw new Error('R2_PUBLIC_BASE_URL not configured - required for production R2 materialization');
   }
   
   // Compute content hash for content-addressed key
@@ -215,37 +220,14 @@ export async function uploadToR2(
     contentType,
     bufferSize: buffer.length,
     contentHash,
+    publicBaseUrl,
   });
   
-  // Check if object already exists (idempotency)
-  try {
-    const headCommand = new HeadObjectCommand({
-      Bucket: bucket,
-      Key: key,
-    });
-    
-    await client.send(headCommand);
-    
-    console.log('[R2_STORAGE] Object already exists (idempotent)', { key });
-    
-    // Generate public URL for existing object
-    const url = `https://${bucket}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`;
-    
-    return {
-      url,
-      uploadedAt: new Date().toISOString(),
-      alreadyExisted: true,
-      contentHash,
-    };
-  } catch (error) {
-    // Object doesn't exist, proceed with upload
-    if (error instanceof Error && !error.message.includes('NotFound') && !error.message.includes('NoSuchKey')) {
-      console.error('[R2_STORAGE] Error checking object existence', { key, error: error.message });
-      throw error;
-    }
-  }
+  // P0 FIX: Remove HeadObject before PUT - unnecessary for content-addressed storage
+  // The object key is deterministic from content identity
+  // PUT of the same content-addressed key is idempotent by definition
   
-  // Upload new object
+  // Upload object (PUT is idempotent for content-addressed keys)
   try {
     const putCommand = new PutObjectCommand({
       Bucket: bucket,
@@ -258,8 +240,8 @@ export async function uploadToR2(
     
     console.log('[R2_STORAGE] Upload successful', { key });
     
-    // Generate public URL
-    const url = `https://${bucket}.${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${key}`;
+    // Generate public URL using R2_PUBLIC_BASE_URL
+    const url = `${publicBaseUrl}/${key}`;
     
     return {
       url,

@@ -63,7 +63,7 @@ export async function POST(request: Request) {
       storage: {
         value: record.storage,
         type: typeof record.storage,
-        isValid: record.storage === 'static' || record.storage === 'blob'
+        isValid: record.storage === 'static' || record.storage === 'r2'
       },
       lifecycleState: {
         value: record.lifecycleState,
@@ -129,8 +129,8 @@ function determineRecordType(record: any): string {
   if (record.source === 'local' && record.storage === 'static') {
     return 'STATIC_PUBLISHED_MEDIA';
   }
-  if (record.source === 'local' && record.storage === 'blob') {
-    return 'BLOB_PUBLISHED_MEDIA';
+  if (record.source === 'local' && record.storage === 'r2') {
+    return 'R2_PUBLISHED_MEDIA';
   }
   if (record.lifecycleState === 'materializing') {
     return 'MATERIALIZING';
@@ -142,7 +142,7 @@ function determineRecordType(record: any): string {
 }
 
 function generateRecommendation(record: any): string {
-  const hasStorage = record.storage === 'static' || record.storage === 'blob';
+  const hasStorage = record.storage === 'static' || record.storage === 'r2';
   const isPublished = record.lifecycleState === 'published';
   const isLocal = record.source === 'local';
   const hasVariants = record.variants && Object.keys(record.variants).length > 0;

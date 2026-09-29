@@ -219,9 +219,9 @@ describe('Malformed Media Authority Record Tests', () => {
       const mediaCode = fs.readFileSync(mediaPath, 'utf8');
 
       // Verify the resolver has explicit storage validation
-      expect(mediaCode).toContain('media.storage !== \'static\' && media.storage !== \'blob\'');
+      expect(mediaCode).toContain('media.storage !== \'static\' && media.storage !== \'r2\'');
       expect(mediaCode).toContain('Missing or invalid storage field');
-      expect(mediaCode).toContain('PublishedMediaAsset must have storage field (static or blob)');
+      expect(mediaCode).toContain('PublishedMediaAsset must have storage field (static or r2)');
     });
   });
 });

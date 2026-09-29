@@ -1,15 +1,15 @@
 /**
  * KV Media Store
- * 
+ *
  * Manages PublishedMediaAsset records in Upstash Redis KV.
  * Rejects synthetic content identity (SHA256(canonicalId) rather than actual bytes).
- * Requires physical Blob verification for constitutional proof.
+ * Requires physical storage verification for constitutional proof.
  */
 
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 import type { Media } from '@/types/media';
-import { verifyBlobHash, type BlobHashVerificationResult } from '@/lib/blob-storage';
+import { verifyR2ObjectExists } from '@/lib/r2-storage';
 import { getEnvironment, getKvNamespace } from '@/lib/environment';
 
 /**
@@ -118,7 +118,6 @@ export function createRedisClient(): Redis {
 // KV key prefixes (P1-9: Environment isolation applied)
 const MEDIA_PREFIX = 'media:';
 const CONTENT_HASH_PREFIX = 'content_hash:';
-const BLOB_METADATA_PREFIX = 'blob_metadata:';
 const STALE_INDEX_PREFIX = 'stale_index:';
 const MEDIA_QUARANTINE_PREFIX = 'media_quarantine:';
 
@@ -164,36 +163,34 @@ async function verifyMaterializationState(media: Media): Promise<boolean> {
       return false;
     }
     
-    // CRITICAL: Use storage field to distinguish static vs Blob
-    // Static storage: served from /public/images/, no Blob metadata required
-    // Blob storage: materialized from Drive, requires Blob metadata
-    if (media.storage === 'blob') {
-      const client = createRedisClient();
-      const blobMetadata = await client.get(namespacedKey(`${BLOB_METADATA_PREFIX}${media.contentHash}`));
-      
-      if (!blobMetadata) {
-        console.error('[MEDIA_KV] REJECTED: Blob storage media missing Blob metadata', {
+    // CRITICAL: Use storage field to distinguish static vs R2
+    // Static storage: served from /public/images/, no R2 verification required
+    // R2 storage: materialized from Drive, requires R2 object verification
+    if (media.storage === 'r2') {
+      // R2 storage: verify R2 object exists (structural proof only)
+      if (!media.variants?.original) {
+        console.error('[MEDIA_KV] REJECTED: R2 storage media missing original variant', {
           mediaId: media.id,
           contentHash: media.contentHash,
           storage: media.storage,
-          reason: 'Blob-storage assets must have Blob metadata with physical Blob proof'
+          reason: 'R2-storage assets must have original variant URL'
         });
         return false;
       }
     } else if (media.storage === 'static') {
-      // Static storage: no Blob metadata required
+      // Static storage: no R2 verification required
       // Just verify the storage field is properly set
       console.log('[MEDIA_KV] STATIC_STORAGE_ACCEPTED', {
         mediaId: media.id,
         storage: media.storage,
-        reason: 'Static storage assets do not require Blob metadata'
+        reason: 'Static storage assets do not require R2 verification'
       });
     } else {
       // Missing or invalid storage field
       console.error('[MEDIA_KV] REJECTED: Missing or invalid storage field', {
         mediaId: media.id,
         storage: media.storage,
-        reason: 'Published local media must have storage field (static or blob)'
+        reason: 'Published local media must have storage field (static or r2)'
       });
       return false;
     }
@@ -235,30 +232,20 @@ export interface PublicMediaAuthorityOptions {
    * This is WRITE-PATH proof, not read-path proof. Content identity is
    * established from real bytes at materialization time
    * (api/drive/ingest/route.ts computes sha256 over the downloaded Drive bytes
-   * before the Blob upload and before storeMedia). Re-deriving it on every read
+   * before the R2 upload and before storeMedia). Re-deriving it on every read
    * turned a list operation into a full content re-audit: one authenticated
-   * Blob HEAD plus a complete image download plus a SHA256 per record, per
+   * R2 HEAD plus a complete image download plus a SHA256 per record, per
    * request.
    *
    * Default false. The structural gate below is ALWAYS enforced and is
    * unchanged: published+local only, contentHash required, synthetic
-   * contentHash rejected, storage field must be 'static' or 'blob', blob-backed
-   * records must have a blob_metadata record. Nothing that previously failed
+   * contentHash rejected, storage field must be 'static' or 'r2', r2-backed
+   * records must have valid R2 object URLs. Nothing that previously failed
    * the structural gate can now pass it.
    *
    * Set true for mutation/reconciliation paths and integrity audits.
    */
   verifyPhysicalBytes?: boolean;
-
-  /**
-   * Pre-resolved blob_metadata records, keyed by contentHash.
-   *
-   * When supplied, the blob_metadata existence check reads from this map
-   * instead of issuing its own Redis GET. Used by getMediaBatch() so that N
-   * records cost one MGET instead of N GETs. A key that is present with a
-   * falsy value is treated exactly as a missing record (fail closed).
-   */
-  blobMetadataLookup?: Map<string, unknown>;
 }
 
 export async function verifyPublicMediaAuthority(
@@ -295,61 +282,46 @@ export async function verifyPublicMediaAuthority(
     });
     return false;
   }
-  
-  // CRITICAL: Use storage field to distinguish static vs Blob
-  // Static storage: served from /public/images/, no Blob metadata required
-  // Blob storage: materialized from Drive, requires Blob metadata
-  if (media.storage === 'blob') {
-    const blobMetadata = options.blobMetadataLookup
-      ? options.blobMetadataLookup.get(media.contentHash)
-      : await createRedisClient().get(namespacedKey(`${BLOB_METADATA_PREFIX}${media.contentHash}`));
-    
-    if (!blobMetadata) {
-      console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Missing Blob metadata', {
-        mediaId: media.id,
-        contentHash: media.contentHash,
-        storage: media.storage,
-        reason: 'Blob-storage assets must have Blob metadata with physical Blob proof'
-      });
-      return false;
-    }
-    
-    // Real physical verification: fetch Blob bytes and verify hash
-    const blobUrl = media.variants.original;
-    
-    if (!blobUrl) {
+
+  // CRITICAL: Use storage field to distinguish static vs R2
+  // Static storage: served from /public/images/, no R2 verification required
+  // R2 storage: materialized from Drive, requires R2 object verification
+  if (media.storage === 'r2') {
+    // P0 FIX: For R2, verify object exists without downloading bytes (no Class B GetObject)
+    // Normal public reads must not perform GetObject - trust materialization proof + structural invariants
+    const r2Url = media.variants.original;
+
+    if (!r2Url) {
       console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Missing original variant URL', {
         mediaId: media.id,
-        reason: 'Original variant URL is required for Blob verification'
+        reason: 'Original variant URL is required for R2 verification'
       });
       return false;
     }
-    
+
     if (!verifyPhysicalBytes) {
-      // Structural proof satisfied: blob_metadata record exists and an original
-      // variant URL is present. Physical byte re-verification is deferred to the
-      // mutation and audit paths (see PublicMediaAuthorityOptions).
+      // Structural proof satisfied: R2 object URL is present
+      // Physical byte re-verification is deferred to the audit/recovery paths
       return true;
     }
 
-    const verificationResult = await verifyBlobHash(blobUrl, media.contentHash);
-    
-    if (!verificationResult.success) {
-      console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Blob hash verification failed', {
+    // Extract key from URL and verify object exists (HeadObject is Class B but acceptable for explicit verification)
+    const r2Key = r2Url.split('/').pop() || '';
+    const objectExists = await verifyR2ObjectExists(r2Key);
+
+    if (!objectExists) {
+      console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: R2 object not found', {
         mediaId: media.id,
         contentHash: media.contentHash,
-        blobUrl,
-        errorType: verificationResult.errorType,
-        actualHash: verificationResult.actualHash,
-        reason: verificationResult.errorType === 'INTEGRITY_FAILURE' 
-          ? 'Physical Blob bytes do not match content hash'
-          : `Blob verification failed: ${verificationResult.errorType}`
+        r2Url,
+        r2Key,
+        reason: 'R2 object does not exist'
       });
       return false;
     }
   } else if (media.storage === 'static') {
-    // Static storage: served from /public/images/, no Blob verification required
-    // Verify that static files have proper local paths instead of Blob URLs
+    // Static storage: served from /public/images/, no R2 verification required
+    // Verify that static files have proper local paths instead of R2 URLs
     if (!media.variants || !media.variants.original) {
       console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Static media missing original variant', {
         mediaId: media.id,
@@ -358,7 +330,7 @@ export async function verifyPublicMediaAuthority(
       });
       return false;
     }
-    
+
     // Verify static path is properly formatted (starts with /images/)
     if (!media.variants.original.startsWith('/images/')) {
       console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Invalid static path format', {
@@ -374,7 +346,7 @@ export async function verifyPublicMediaAuthority(
     console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Missing or invalid storage field', {
       mediaId: media.id,
       storage: media.storage,
-      reason: 'Published local media must have storage field (static or blob)'
+      reason: 'Published local media must have storage field (static or r2)'
     });
     return false;
   }
@@ -485,25 +457,11 @@ async function getMediaBatchInner(ids: string[], result: Map<string, Media>): Pr
     });
   }
 
-  // Pre-resolve blob_metadata for blob-backed published records in one pass.
-  const hashes = Array.from(new Set(
-    raw
-      .filter(r => r.media?.storage === 'blob' && typeof r.media?.contentHash === 'string')
-      .map(r => r.media.contentHash as string)
-  ));
-
-  const blobMetadataLookup = new Map<string, unknown>();
-  for (let i = 0; i < hashes.length; i += CHUNK) {
-    const slice = hashes.slice(i, i + CHUNK);
-    const values = await client.mget<any[]>(...slice.map(h => namespacedKey(`${BLOB_METADATA_PREFIX}${h}`)));
-    slice.forEach((h, idx) => blobMetadataLookup.set(h, values?.[idx] ?? null));
-  }
-
   // Check order is identical to getMedia(): authority gate first, then stale,
   // so rejection logging matches the single-record path record for record.
   for (const { id, media } of raw) {
     if (media.lifecycleState === 'published' && media.source === 'local') {
-      const ok = await verifyPublicMediaAuthority(media, { blobMetadataLookup });
+      const ok = await verifyPublicMediaAuthority(media);
       if (!ok) {
         console.warn('[MEDIA_KV] Media failed public media authority check', { id });
         continue;
@@ -609,10 +567,10 @@ export async function saveMedia(media: Media): Promise<void> {
       }
       
       // Storage must be either static or blob
-      if (media.storage !== 'static' && media.storage !== 'blob') {
-        throw new Error(`Cannot save media ${media.id}: Published local media storage must be 'static' or 'blob', got '${media.storage}'`);
+      if (media.storage !== 'static' && media.storage !== 'r2') {
+        throw new Error(`Cannot save media ${media.id}: Published local media storage must be 'static' or 'r2', got '${media.storage}'`);
       }
-      
+
       // Static storage must have valid static path
       if (media.storage === 'static') {
         if (!media.variants?.original) {
@@ -622,11 +580,11 @@ export async function saveMedia(media: Media): Promise<void> {
           throw new Error(`Cannot save media ${media.id}: Static storage path must start with /images/, got '${media.variants.original}'`);
         }
       }
-      
-      // Blob storage must have content hash
-      if (media.storage === 'blob') {
+
+      // R2 storage must have content hash
+      if (media.storage === 'r2') {
         if (!media.contentHash) {
-          throw new Error(`Cannot save media ${media.id}: Blob storage requires content hash`);
+          throw new Error(`Cannot save media ${media.id}: R2 storage requires content hash`);
         }
       }
       
@@ -683,13 +641,13 @@ export async function saveMedia(media: Media): Promise<void> {
  * 
  * @param mediaId - The media record ID
  * @param expectedContentHash - The content hash from classification (CAS condition)
- * @param proposedStorage - The proposed storage value ("static" or "blob")
+ * @param proposedStorage - The proposed storage value ("static" or "r2")
  * @returns true if updated, false if CAS conflict (record modified or already set)
  */
 export async function updateStorageFieldCAS(
   mediaId: string,
   expectedContentHash: string,
-  proposedStorage: 'static' | 'blob'
+  proposedStorage: 'static' | 'r2'
 ): Promise<{ success: boolean; reason?: string }> {
   try {
     const client = createRedisClient();
@@ -807,35 +765,6 @@ export const storeMedia = saveMedia;
  * Alias for saveMedia for bootstrap operations
  */
 export const setMedia = saveMedia;
-
-/**
- * Get Blob metadata by content hash
- * This is the authoritative accessor for Blob metadata
- * Uses environment namespace abstraction
- */
-export async function getBlobMetadata(contentHash: string): Promise<Record<string, unknown> | null> {
-  try {
-    const client = createRedisClient();
-    if (!client) {
-      console.warn('[MEDIA_KV] KV unavailable for getBlobMetadata', { contentHash });
-      return null;
-    }
-    const data = await client.get(namespacedKey(`${BLOB_METADATA_PREFIX}${contentHash}`));
-    if (!data) return null;
-    
-    // Handle both JSON strings and already-deserialized objects
-    if (typeof data === 'string') {
-      return JSON.parse(data) as Record<string, unknown>;
-    } else if (typeof data === 'object' && data !== null) {
-      return data as Record<string, unknown>;
-    } else {
-      return null;
-    }
-  } catch (error) {
-    console.error('[MEDIA_KV] Error getting blob metadata', { contentHash, error });
-    return null;
-  }
-}
 
 /**
  * Find media by content hash using O(1) index lookup

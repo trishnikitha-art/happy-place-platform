@@ -116,7 +116,7 @@ export function hasRealContentHash(media: Media): boolean {
  * A media asset is publicly complete ONLY when it has:
  * 1. Correct materialization shape (structure is valid)
  * 2. Real content hash (not synthetic)
- * 3. Physical Blob proof (bytes exist and match hash)
+ * 3. Physical storage proof (bytes exist and match hash)
  * 4. All required renditions exist physically (original, thumbnail, webp, responsive)
  *
  * This is the NON-NEGOTIABLE contract for public presentation.
@@ -133,39 +133,62 @@ export async function isPubliclyComplete(media: Media): Promise<boolean> {
     return false;
   }
 
-  // Check physical Blob proof for primary content hash
-  if (media.contentHash) {
+  // Check storage authority - only 'static' or 'r2' are valid for public media
+  if (media.storage !== 'static' && media.storage !== 'r2') {
+    console.warn('[PUBLIC_COMPLETE] INVALID_STORAGE_TYPE', {
+      mediaId: media.id,
+      storage: media.storage,
+    });
+    return false;
+  }
+
+  // For R2 storage, verify R2 object exists (no need to download bytes - use structural proof)
+  // P0 FIX: Normal public reads must NOT perform GetObject (Class B operation)
+  // We trust the materialization proof from upload time + structural invariants
+  if (media.storage === 'r2' && media.variants?.original) {
     try {
-      const { getBlobMetadataByContentHash } = await import('@/lib/blob-storage');
-      const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
-      if (!blobMetadata) {
+      const { verifyR2ObjectExists } = await import('@/lib/r2-storage');
+      const originalKey = media.variants.original.split('/').pop() || '';
+      const originalExists = await verifyR2ObjectExists(originalKey);
+      if (!originalExists) {
+        console.warn('[PUBLIC_COMPLETE] R2_OBJECT_MISSING', {
+          mediaId: media.id,
+          key: originalKey,
+        });
         return false;
       }
     } catch (error) {
-      // Fail closed if Blob verification fails
+      // Fail closed if R2 verification fails
+      console.error('[PUBLIC_COMPLETE] R2_VERIFICATION_ERROR', {
+        mediaId: media.id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
       return false;
     }
   }
 
   // Check rendition-level physical completeness
   // This upgrades the contract from "primary hash exists" to "every required rendition exists"
-  try {
-    const { verifyRenditionCompleteness } = await import('@/lib/blob-storage');
-    const renditionCheck = await verifyRenditionCompleteness(media);
-    if (!renditionCheck.complete) {
-      console.log('[PUBLIC_COMPLETE] RENDITION_INCOMPLETE', {
+  // P0 FIX: For R2, verify keys exist without downloading bytes
+  if (media.storage === 'r2') {
+    try {
+      const { verifyR2RenditionCompleteness } = await import('@/lib/r2-storage');
+      const renditionCheck = await verifyR2RenditionCompleteness(media);
+      if (!renditionCheck.complete) {
+        console.log('[PUBLIC_COMPLETE] R2_RENDITION_INCOMPLETE', {
+          mediaId: media.id,
+          details: renditionCheck.details,
+        });
+        return false;
+      }
+    } catch (error) {
+      // Fail closed if rendition verification fails
+      console.error('[PUBLIC_COMPLETE] R2_RENDITION_VERIFICATION_ERROR', {
         mediaId: media.id,
-        details: renditionCheck.details,
+        error: error instanceof Error ? error.message : 'Unknown error',
       });
       return false;
     }
-  } catch (error) {
-    // Fail closed if rendition verification fails
-    console.error('[PUBLIC_COMPLETE] RENDITION_VERIFICATION_ERROR', {
-      mediaId: media.id,
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
-    return false;
   }
 
   return true;

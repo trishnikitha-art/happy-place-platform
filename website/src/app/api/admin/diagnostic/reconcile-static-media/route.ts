@@ -2,14 +2,14 @@
  * Static Media Reconciliation
  *
  * Idempotent reconciliation of canonical static media records into MEDIA_KV
- * No Blob materialization for static assets
+ * No R2 materialization for static assets
  * Inspection-based repair instead of blind skip
  *
  * CLASSIFICATION: SYNTHETIC-WRITE
  * - Reconciles media.v1.json canonical records into MEDIA_KV
- * - Static assets (served from /public/images/) are written without Blob materialization
+ * - Static assets (served from /public/images/) are written without R2 materialization
  * - Idempotent: inspects existing records and repairs incomplete ones
- * - Blob records are preserved without repair to avoid data loss
+ * - R2 records are preserved without repair to avoid data loss
  * - Must be run with explicit admin authorization
  *
  * POST /api/admin/diagnostic/reconcile-static-media
@@ -43,7 +43,7 @@ interface ReconciliationResult {
       missing: number;
       incomplete: number;
       validStatic: number;
-      validBlob: number;
+      validR2: number;
       corrupt: number;
       synthetic: number;
       unexpected: number;
@@ -121,7 +121,7 @@ export async function POST() {
       missing: 0,
       incomplete: 0,
       validStatic: 0,
-      validBlob: 0,
+      validR2: 0,
       corrupt: 0,
       synthetic: 0,
       unexpected: 0,
@@ -176,7 +176,7 @@ export async function POST() {
             ...media,
             storage: (media.lifecycleState === 'published' && media.source === 'local' && !media.storage)
               ? 'static'
-              : (media.storage || (media.source === 'local' ? 'static' : undefined)) as 'static' | 'blob' | undefined,
+              : (media.storage || (media.source === 'local' ? 'static' : undefined)) as 'static' | 'r2' | undefined,
           };
           
           // Write to KV
@@ -192,14 +192,14 @@ export async function POST() {
           // EXISTING: Inspect for completeness
           const canonicalHash = media.contentHash;
           const kvHash = existing.contentHash;
-          const canonicalStorage = (media.source === 'local' ? 'static' : undefined) as 'static' | 'blob' | undefined;
+          const canonicalStorage = (media.source === 'local' ? 'static' : undefined) as 'static' | 'r2' | undefined;
           const kvStorage = existing.storage;
           
           // Check for critical fields
           const isComplete = 
             existing.lifecycleState === 'published' &&
             existing.source === media.source &&
-            existing.storage === (canonicalStorage as 'static' | 'blob' | undefined) &&
+            existing.storage === (canonicalStorage as 'static' | 'r2' | undefined) &&
             existing.contentHash === canonicalHash &&
             existing.variants && Object.keys(existing.variants).length > 0;
           
@@ -208,21 +208,21 @@ export async function POST() {
             classification.incomplete++;
             
             // Repair through authoritative saveMedia()
-            // Do NOT blindly overwrite Blob-backed records
-            if (existing.storage === 'blob') {
-              // Blob records require careful handling - preserve, don't repair
-              classification.validBlob++;
+            // Do NOT blindly overwrite R2-backed records
+            if (existing.storage === 'r2') {
+              // R2 records require careful handling - preserve, don't repair
+              classification.validR2++;
               preserved++;
-              console.log('[STATIC_MEDIA_RECONCILIATION] PRESERVED_BLOB', { 
+              console.log('[STATIC_MEDIA_RECONCILIATION] PRESERVED_R2', { 
                 testId, 
                 mediaId: media.id,
-                reason: 'Blob record - preserve without repair'
+                reason: 'R2 record - preserve without repair'
               });
             } else {
               // Static records can be repaired
               const reconciledMedia = {
                 ...media,
-                storage: canonicalStorage as 'static' | 'blob' | undefined,
+                storage: canonicalStorage as 'static' | 'r2' | undefined,
               };
               
               await saveMedia(reconciledMedia);
@@ -240,8 +240,8 @@ export async function POST() {
             // VALID: Record is materially equivalent to canonical
             if (existing.storage === 'static') {
               classification.validStatic++;
-            } else if (existing.storage === 'blob') {
-              classification.validBlob++;
+            } else if (existing.storage === 'r2') {
+              classification.validR2++;
             } else {
               classification.unexpected++;
             }

@@ -271,12 +271,12 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
   }
 
   // REJECT: Missing or invalid storage field
-  // PublishedMediaAsset must have storage: 'static' or 'blob'
-  if (media.storage !== 'static' && media.storage !== 'blob') {
+  // PublishedMediaAsset must have storage: 'static' or 'r2'
+  if (media.storage !== 'static' && media.storage !== 'r2') {
     console.error('[PUBLIC_MEDIA_GATE] REJECTED: Missing or invalid storage field', {
       mediaId: id,
       storage: media.storage,
-      reason: 'PublishedMediaAsset must have storage field (static or blob)'
+      reason: 'PublishedMediaAsset must have storage field (static or r2)'
     });
     return null;
   }
@@ -306,28 +306,40 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
     return null;
   }
 
-  // REJECT: Missing physical Blob metadata for Blob-storage assets
-  // PublishedMediaAsset with storage: 'blob' must have proof of physical bytes
-  // Static storage assets (storage: 'static') are served from static files and don't require Blob metadata
-  if (media.storage === 'blob' && media.contentHash) {
+  // REJECT: Missing physical R2 verification for R2-storage assets
+  // PublishedMediaAsset with storage: 'r2' must have proof of physical bytes
+  // Static storage assets (storage: 'static') are served from static files and don't require R2 verification
+  if (media.storage === 'r2' && media.contentHash) {
     try {
-      const { getBlobMetadataByContentHash } = await import('@/lib/blob-storage');
-      const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
-      if (!blobMetadata) {
-        console.error('[PUBLIC_MEDIA_GATE] REJECTED: Missing Blob metadata', {
+      const { verifyR2ObjectExists } = await import('@/lib/r2-storage');
+      const r2Url = media.variants?.original;
+      if (!r2Url) {
+        console.error('[PUBLIC_MEDIA_GATE] REJECTED: Missing R2 URL', {
           mediaId: id,
           contentHash: media.contentHash,
           storage: media.storage,
-          reason: 'Blob-storage assets must have Blob metadata with physical Blob proof'
+          reason: 'R2-storage assets must have original variant URL'
+        });
+        return null;
+      }
+      const r2Key = r2Url.split('/').pop() || '';
+      const objectExists = await verifyR2ObjectExists(r2Key);
+      if (!objectExists) {
+        console.error('[PUBLIC_MEDIA_GATE] REJECTED: R2 object not found', {
+          mediaId: id,
+          contentHash: media.contentHash,
+          storage: media.storage,
+          r2Key,
+          reason: 'R2-storage assets must have physical R2 object proof'
         });
         return null;
       }
     } catch (error) {
-      console.error('[PUBLIC_MEDIA_GATE] BLOB_VERIFICATION_ERROR', {
+      console.error('[PUBLIC_MEDIA_GATE] R2_VERIFICATION_ERROR', {
         mediaId: id,
         error: error instanceof Error ? error.message : 'Unknown error'
       });
-      // Fail closed if Blob verification infrastructure fails
+      // Fail closed if R2 verification infrastructure fails
       return null;
     }
   }

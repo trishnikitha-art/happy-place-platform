@@ -26,7 +26,6 @@
 import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { listMediaIds, getMedia, saveMedia } from '@/lib/media-kv-store';
-import { getBlobMetadataByContentHash } from '@/lib/blob-storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,7 +45,7 @@ export async function POST(request: Request) {
     const missingStorage: string[] = [];
     const invalidStorage: string[] = [];
     const definitelyStatic: string[] = [];
-    const definitelyBlob: string[] = [];
+    const definitelyR2: string[] = [];
     const ambiguous: string[] = [];
     const repaired: string[] = [];
     const repairErrors: Array<{ id: string; error: string }> = [];
@@ -60,32 +59,36 @@ export async function POST(request: Request) {
       }
 
       // Check if storage field is missing or invalid
-      if (!media.storage || (media.storage !== 'static' && media.storage !== 'blob')) {
+      if (!media.storage || (media.storage !== 'static' && media.storage !== 'r2')) {
         if (!media.storage) {
           missingStorage.push(mediaId);
         } else {
           invalidStorage.push(mediaId);
         }
 
-        // Classify record based on contentHash and Blob metadata
+        // Classify record based on contentHash and R2 object existence
         if (!media.contentHash) {
-          // DEFINITELY_STATIC: No contentHash means cannot be blob-backed
+          // DEFINITELY_STATIC: No contentHash means cannot be r2-backed
           definitelyStatic.push(mediaId);
         } else {
-          // Has contentHash - check if Blob metadata exists
+          // Has contentHash - check if R2 object exists
           try {
-            const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
-            if (blobMetadata) {
-              // DEFINITELY_BLOB: Blob metadata confirms blob storage
-              definitelyBlob.push(mediaId);
+            const { verifyR2ObjectExists } = await import('@/lib/r2-storage');
+            const originalUrl = media.variants?.original || '';
+            const r2Key = originalUrl.split('/').pop() || '';
+            const objectExists = await verifyR2ObjectExists(r2Key);
+            
+            if (objectExists) {
+              // DEFINITELY_R2: R2 object exists confirms r2 storage
+              definitelyR2.push(mediaId);
             } else {
-              // AMBIGUOUS: Has contentHash but no Blob metadata
-              // Could be: failed Blob lookup, misclassified static, or deleted Blob
+              // AMBIGUOUS: Has contentHash but no R2 object
+              // Could be: failed R2 lookup, misclassified static, or deleted R2 object
               ambiguous.push(mediaId);
             }
           } catch (error) {
-            console.error('[MEDIA_STORAGE_REPAIR] Blob metadata check failed:', { mediaId, error });
-            // AMBIGUOUS: Blob lookup failed, cannot determine storage
+            console.error('[MEDIA_STORAGE_REPAIR] R2 object check failed:', { mediaId, error });
+            // AMBIGUOUS: R2 lookup failed, cannot determine storage
             ambiguous.push(mediaId);
           }
         }
@@ -113,13 +116,13 @@ export async function POST(request: Request) {
       }
     }
 
-    for (const mediaId of definitelyBlob) {
+    for (const mediaId of definitelyR2) {
       try {
         const media = await getMedia(mediaId);
         if (media) {
           const repairedMedia = {
             ...media,
-            storage: 'blob' as const,
+            storage: 'r2' as const,
           };
           await saveMedia(repairedMedia);
           repaired.push(mediaId);
@@ -148,9 +151,9 @@ export async function POST(request: Request) {
           count: definitelyStatic.length,
           ids: definitelyStatic.slice(0, 10),
         },
-        definitelyBlob: {
-          count: definitelyBlob.length,
-          ids: definitelyBlob.slice(0, 10),
+        definitelyR2: {
+          count: definitelyR2.length,
+          ids: definitelyR2.slice(0, 10),
         },
         ambiguous: {
           count: ambiguous.length,

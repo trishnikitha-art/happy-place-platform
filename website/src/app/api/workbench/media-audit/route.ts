@@ -17,7 +17,7 @@ import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { listMediaIds, getMediaRecordRaw } from '@/lib/media-kv-store';
 import { loadMediaManifest } from '@/lib/media';
-import { getBlobMetadataByContentHash, verifyBlobHash } from '@/lib/blob-storage';
+import { verifyR2ObjectExists } from '@/lib/r2-storage';
 
 export const dynamic = 'force-dynamic';
 
@@ -27,7 +27,7 @@ export const dynamic = 'force-dynamic';
  * Operates on RAW AUTHORITY only
  */
 async function classifyRecord(media: any, staticMediaMap: Map<string, any>): Promise<{
-  classification: 'VALID_PUBLISHED' | 'DRIVE_REFERENCE' | 'MATERIALIZING' | 'STALE' | 'MISSING_STORAGE' | 'MALFORMED' | 'REPAIRABLE_STATIC' | 'REPAIRABLE_BLOB' | 'REQUIRES_MATERIALIZATION' | 'AMBIGUOUS' | 'UNKNOWN';
+  classification: 'VALID_PUBLISHED' | 'DRIVE_REFERENCE' | 'MATERIALIZING' | 'STALE' | 'MISSING_STORAGE' | 'MALFORMED' | 'REPAIRABLE_STATIC' | 'REPAIRABLE_R2' | 'REQUIRES_MATERIALIZATION' | 'AMBIGUOUS' | 'UNKNOWN';
   reason: string;
 }> {
   // Classify by lifecycle state
@@ -48,7 +48,7 @@ async function classifyRecord(media: any, staticMediaMap: Map<string, any>): Pro
   }
   
   // Published record - check constitutional contract independently
-  const hasStorage = media.storage === 'static' || media.storage === 'blob';
+  const hasStorage = media.storage === 'static' || media.storage === 'r2';
   const hasContentHash = !!media.contentHash;
   const hasDimensions = media.dimensions?.width > 0 && media.dimensions?.height > 0;
   const hasVariants = media.variants?.original;
@@ -69,7 +69,7 @@ async function classifyRecord(media: any, staticMediaMap: Map<string, any>): Pro
     
     if (media.source === 'local') {
       if (!hasContentHash) {
-        // No contentHash → cannot be blob-backed
+        // No contentHash → cannot be r2-backed
         if (staticMediaMap.has(media.id)) {
           // Has static manifest evidence → repairable to static
           return { classification: 'REPAIRABLE_STATIC', reason: 'Local source with static manifest evidence' };
@@ -78,24 +78,19 @@ async function classifyRecord(media: any, staticMediaMap: Map<string, any>): Pro
         return { classification: 'AMBIGUOUS', reason: 'Local source without static manifest evidence or contentHash' };
       }
       
-      // Has contentHash - check for Blob evidence
+      // Has contentHash - check for R2 evidence
       try {
-        const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
-        if (blobMetadata) {
-          const originalUrl = media.variants?.original || '';
-          if (originalUrl === blobMetadata.url) {
-            const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
-            if (verification.success) {
-              // Full Blob evidence chain → repairable to blob
-              return { classification: 'REPAIRABLE_BLOB', reason: 'Local source with full Blob evidence chain' };
-            }
-            return { classification: 'AMBIGUOUS', reason: 'Blob hash verification failed' };
-          }
-          return { classification: 'AMBIGUOUS', reason: 'Blob URL mismatch' };
+        const originalUrl = media.variants?.original || '';
+        const r2Key = originalUrl.split('/').pop() || '';
+        const objectExists = await verifyR2ObjectExists(r2Key);
+        
+        if (objectExists) {
+          // Full R2 evidence chain → repairable to r2
+          return { classification: 'REPAIRABLE_R2', reason: 'Local source with full R2 evidence chain' };
         }
-        return { classification: 'AMBIGUOUS', reason: 'No Blob metadata for contentHash' };
+        return { classification: 'AMBIGUOUS', reason: 'R2 object not found' };
       } catch (error) {
-        return { classification: 'AMBIGUOUS', reason: 'Blob verification error' };
+        return { classification: 'AMBIGUOUS', reason: 'R2 verification error' };
       }
     }
     
@@ -103,29 +98,22 @@ async function classifyRecord(media: any, staticMediaMap: Map<string, any>): Pro
   }
   
   // Has storage - validate contract
-  if (media.storage === 'blob') {
+  if (media.storage === 'r2') {
     if (!hasContentHash) {
-      return { classification: 'MALFORMED', reason: 'Blob storage requires contentHash' };
+      return { classification: 'MALFORMED', reason: 'R2 storage requires contentHash' };
     }
     
-    // Verify Blob evidence
+    // Verify R2 evidence
     try {
-      const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
-      if (!blobMetadata) {
-        return { classification: 'MALFORMED', reason: 'Blob storage missing Blob metadata' };
-      }
-      
       const originalUrl = media.variants?.original || '';
-      if (originalUrl !== blobMetadata.url) {
-        return { classification: 'MALFORMED', reason: 'Blob URL mismatch with metadata' };
-      }
+      const r2Key = originalUrl.split('/').pop() || '';
+      const objectExists = await verifyR2ObjectExists(r2Key);
       
-      const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
-      if (!verification.success) {
-        return { classification: 'MALFORMED', reason: `Blob hash verification failed: ${verification.errorType}` };
+      if (!objectExists) {
+        return { classification: 'MALFORMED', reason: 'R2 storage missing R2 object' };
       }
     } catch (error) {
-      return { classification: 'MALFORMED', reason: 'Blob verification error' };
+      return { classification: 'MALFORMED', reason: 'R2 verification error' };
     }
   }
   
@@ -205,8 +193,8 @@ export async function POST(request: Request) {
         missingStorageIds: [] as string[],
         repairableStatic: 0,
         repairableStaticIds: [] as string[],
-        repairableBlob: 0,
-        repairableBlobIds: [] as string[],
+        repairableR2: 0,
+        repairableR2Ids: [] as string[],
         requiresMaterialization: 0,
         requiresMaterializationIds: [] as string[],
         ambiguous: 0,
@@ -249,9 +237,9 @@ export async function POST(request: Request) {
             results.repairableStatic++;
             results.repairableStaticIds.push(mediaId);
             break;
-          case 'REPAIRABLE_BLOB':
-            results.repairableBlob++;
-            results.repairableBlobIds.push(mediaId);
+          case 'REPAIRABLE_R2':
+            results.repairableR2++;
+            results.repairableR2Ids.push(mediaId);
             break;
           case 'REQUIRES_MATERIALIZATION':
             results.requiresMaterialization++;
@@ -294,7 +282,7 @@ export async function POST(request: Request) {
         malformedPublished: results.malformedPublished,
         missingStorage: results.missingStorage,
         repairableStatic: results.repairableStatic,
-        repairableBlob: results.repairableBlob,
+        repairableR2: results.repairableR2,
         requiresMaterialization: results.requiresMaterialization,
         ambiguous: results.ambiguous,
       });

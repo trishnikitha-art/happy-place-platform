@@ -13,14 +13,13 @@
  * }
  *
  * Constitutional Rules:
- * - Never infer storage: blob merely because a record has Drive provenance
+ * - Never infer storage: r2 merely because a record has Drive provenance
  * - Preserve all existing media identity, content hashes, variants, Drive provenance, and assignments
  * - Never delete records
  * - Never overwrite a valid storage declaration
  * - Skip records that are legitimately lifecycle states without storage
  * - For local source: only add storage: static if record exists in static media.v1.json manifest
- * - For Drive source: only set storage: blob with physical Blob evidence (contentHash + Blob metadata + URL match + physical hash verification)
- * - P0 FIX: Also repair source field from 'local' to 'blob' when full Blob evidence exists (REPAIRABLE_BLOB case)
+ * - For Drive source: only set storage: r2 with physical R2 evidence (contentHash + R2 object existence)
  * - P0 FIX: Prefer explicit ID list over bulk mutation for safe production repair
  */
 
@@ -28,7 +27,7 @@ import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { listMediaIds, getMediaRecordRaw, saveMedia } from '@/lib/media-kv-store';
 import { loadMediaManifest } from '@/lib/media';
-import { getBlobMetadataByContentHash, verifyBlobHash } from '@/lib/blob-storage';
+import { verifyR2ObjectExists } from '@/lib/r2-storage';
 import type { Media } from '@/types/media';
 
 interface RepairRequest {
@@ -108,7 +107,7 @@ export async function POST(request: Request) {
         const hasStorage = !!media.storage;
         
         // Evidence-based storage classification
-        let storage: 'static' | 'blob' | null = null;
+        let storage: 'static' | 'r2' | null = null;
         let reason = '';
         
         // Skip legitimate lifecycle states that should not have storage
@@ -137,34 +136,25 @@ export async function POST(request: Request) {
         if (hasStorage) {
           const originalUrl = media.variants?.original || '';
           
-          if (media.storage === 'blob' && (originalUrl.startsWith('/images/') || originalUrl.startsWith('/public/'))) {
-            // STATIC_MARKED_BLOB: Static URL but marked as blob
+          if (media.storage === 'r2' && (originalUrl.startsWith('/images/') || originalUrl.startsWith('/public/'))) {
+            // STATIC_MARKED_R2: Static URL but marked as r2
             // Repair to storage: static
             storage = 'static';
-            reason = 'Contract violation repair: static URL but marked as blob → corrected to static';
+            reason = 'Contract violation repair: static URL but marked as r2 → corrected to static';
           } else if (media.storage === 'static' && (originalUrl.startsWith('http://') || originalUrl.startsWith('https://'))) {
-            // BLOB_MARKED_STATIC: Blob URL but marked as static
-            // Repair to storage: blob, but only with Blob evidence
+            // R2_MARKED_STATIC: R2 URL but marked as static
+            // Repair to storage: r2, but only with R2 evidence
             if (media.contentHash) {
-              const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
-              if (blobMetadata && originalUrl === blobMetadata.url) {
-                const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
-                if (verification.success) {
-                  storage = 'blob';
-                  reason = 'Contract violation repair: Blob URL but marked as static + physical Blob verification → corrected to blob';
-                } else {
-                  skipped++;
-                  skips.push({ 
-                    mediaId, 
-                    reason: `Contract violation (Blob URL marked static) but physical hash verification failed (${verification.errorType}) - requires manual review` 
-                  });
-                  continue;
-                }
+              const r2Key = originalUrl.split('/').pop() || '';
+              const objectExists = await verifyR2ObjectExists(r2Key);
+              if (objectExists) {
+                storage = 'r2';
+                reason = 'Contract violation repair: R2 URL but marked as static + R2 object verification → corrected to r2';
               } else {
                 skipped++;
                 skips.push({ 
                   mediaId, 
-                  reason: 'Contract violation (Blob URL marked static) but no Blob metadata or URL mismatch - requires manual review' 
+                  reason: 'Contract violation (R2 URL marked static) but R2 object not found - requires manual review' 
                 });
                 continue;
               }
@@ -172,7 +162,7 @@ export async function POST(request: Request) {
               skipped++;
               skips.push({ 
                 mediaId, 
-                reason: 'Contract violation (Blob URL marked static) but no contentHash - requires manual review' 
+                reason: 'Contract violation (R2 URL marked static) but no contentHash - requires manual review' 
               });
               continue;
             }
@@ -188,7 +178,7 @@ export async function POST(request: Request) {
           if (storage) {
             const repairedMedia: Media = {
               ...media,
-              storage,
+              storage: storage as 'static' | 'r2' | undefined,
             };
             
             await saveMedia(repairedMedia);
@@ -208,24 +198,22 @@ export async function POST(request: Request) {
         
         // Source-based classification (only if storage not yet determined)
         if (media.source === 'local') {
-          // P0 FIX: Check for REPAIRABLE_BLOB case - local source with full Blob evidence
-          // This happens when media was successfully uploaded to Blob but storage field was never set
+          // P0 FIX: Check for REPAIRABLE_R2 case - local source with R2 evidence
+          // This happens when media was successfully uploaded to R2 but storage field was never set
           if (media.contentHash) {
-            const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
             const originalUrl = media.variants?.original || '';
+            const r2Key = originalUrl.split('/').pop() || '';
+            const objectExists = await verifyR2ObjectExists(r2Key);
             
-            if (blobMetadata && originalUrl === blobMetadata.url) {
-              const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
-              if (verification.success) {
-                // Full Blob evidence chain exists → repair storage to blob
-                // Source remains 'local' per PublishedMediaAsset contract
-                storage = 'blob';
-                reason = 'REPAIRABLE_BLOB: local source with full Blob evidence (contentHash + metadata + URL match + physical hash) → corrected to storage: blob';
-              }
+            if (objectExists) {
+              // R2 object exists → repair storage to r2
+              // Source remains 'local' per PublishedMediaAsset contract
+              storage = 'r2';
+              reason = 'REPAIRABLE_R2: local source with R2 object evidence (contentHash + object exists) → corrected to storage: r2';
             }
           }
           
-          // If not REPAIRABLE_BLOB, check for static manifest evidence
+          // If not REPAIRABLE_R2, check for static manifest evidence
           if (!storage) {
             const staticRecord = staticMediaMap.get(mediaId);
             if (staticRecord) {
@@ -237,57 +225,32 @@ export async function POST(request: Request) {
               skipped++;
               skips.push({ 
                 mediaId, 
-                reason: 'Local source without static manifest evidence or Blob evidence - requires manual verification' 
+                reason: 'Local source without static manifest evidence or R2 evidence - requires manual verification' 
               });
               continue;
             }
           }
         } else if (media.source === 'google-drive') {
           // P0 FIX: Drive source without storage → REQUIRES MATERIALIZATION, NOT STORAGE REPAIR
-          // NEVER infer blob merely from Drive provenance
-          // Only repair to blob if FULL Blob evidence chain exists (rare edge case)
+          // NEVER infer r2 merely from Drive provenance
+          // Only repair to r2 if R2 object exists (rare edge case)
           if (media.lifecycleState === 'published' && media.contentHash) {
-            // Published Drive asset with content hash → check for Blob evidence
-            const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
+            // Published Drive asset with content hash → check for R2 evidence
+            const originalUrl = media.variants?.original || '';
+            const r2Key = originalUrl.split('/').pop() || '';
+            const objectExists = await verifyR2ObjectExists(r2Key);
             
-            if (blobMetadata) {
-              // Blob metadata exists → verify physical integrity
-              const originalUrl = media.variants?.original || '';
-              
-              // Check if media URL matches Blob URL
-              if (originalUrl === blobMetadata.url) {
-                // URL matches → verify physical hash
-                const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
-                
-                if (verification.success) {
-                  // Physical Blob hash verified → safe to set storage: blob
-                  // This is the rare case where a Drive record was materialized but storage field was not set
-                  storage = 'blob';
-                  reason = 'Drive source with published state + contentHash + Blob metadata + URL match + physical hash verification → blob storage';
-                } else {
-                  // Hash verification failed → requires materialization
-                  skipped++;
-                  skips.push({ 
-                    mediaId, 
-                    reason: 'Drive source without sufficient Blob evidence - requires Drive materialization (not storage repair)' 
-                  });
-                  continue;
-                }
-              } else {
-                // URL mismatch → requires materialization
-                skipped++;
-                skips.push({ 
-                  mediaId, 
-                  reason: 'Drive source without sufficient Blob evidence - requires Drive materialization (not storage repair)' 
-                });
-                continue;
-              }
+            if (objectExists) {
+              // R2 object exists → safe to set storage: r2
+              // This is the rare case where a Drive record was materialized but storage field was not set
+              storage = 'r2';
+              reason = 'Drive source with published state + contentHash + R2 object exists → r2 storage';
             } else {
-              // No Blob metadata → requires materialization
+              // R2 object not found → requires materialization
               skipped++;
               skips.push({ 
                 mediaId, 
-                reason: 'Drive source without Blob evidence - requires Drive materialization (not storage repair)' 
+                reason: 'Drive source without R2 object evidence - requires Drive materialization (not storage repair)' 
               });
               continue;
             }
@@ -316,7 +279,7 @@ export async function POST(request: Request) {
         // Apply repair
         const repairedMedia: Media = {
           ...media,
-          storage,
+          storage: storage as 'static' | 'r2' | undefined,
         };
         
         await saveMedia(repairedMedia);

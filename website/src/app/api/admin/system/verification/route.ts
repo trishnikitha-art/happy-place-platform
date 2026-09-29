@@ -59,7 +59,7 @@ interface VerificationResult {
     driveDiscoveryTest: string;
     corpusAuthTest: string;
     materializationTest: string;
-    kvBlobAuthorityTest: string;
+    kvR2AuthorityTest: string;
   };
 }
 
@@ -114,7 +114,7 @@ export async function GET(request: Request) {
         driveDiscoveryTest: 'not_tested',
         corpusAuthTest: 'not_tested',
         materializationTest: 'not_tested',
-        kvBlobAuthorityTest: 'not_tested',
+        kvR2AuthorityTest: 'not_tested',
       },
     };
 
@@ -196,11 +196,11 @@ export async function GET(request: Request) {
     try {
       const { verifyCrossStateConsistency } = await import('@/lib/materialization-recovery');
       const consistency = await verifyCrossStateConsistency();
-      result.runtime.materializationTest = consistency.kvBlobConsistent ? 'consistent' : 'inconsistent';
-      result.runtime.kvBlobAuthorityTest = consistency.kvBlobConsistent ? 'consistent' : 'inconsistent';
+      result.runtime.materializationTest = consistency.kvR2Consistent ? 'consistent' : 'inconsistent';
+      result.runtime.kvR2AuthorityTest = consistency.kvR2Consistent ? 'consistent' : 'inconsistent';
     } catch (error) {
       result.runtime.materializationTest = error instanceof Error ? error.message : 'failed';
-      result.runtime.kvBlobAuthorityTest = error instanceof Error ? error.message : 'failed';
+      result.runtime.kvR2AuthorityTest = error instanceof Error ? error.message : 'failed';
     }
 
     return NextResponse.json({

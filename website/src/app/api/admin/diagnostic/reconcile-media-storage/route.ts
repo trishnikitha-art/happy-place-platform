@@ -44,7 +44,7 @@ import {
   getDatasetSnapshot, 
   validateSnapshot,
 } from '@/lib/dataset-snapshots';
-import { getBlobMetadataByContentHash, verifyBlobHash } from '@/lib/blob-storage';
+import { verifyR2ObjectExists } from '@/lib/r2-storage';
 import type { Media } from '@/types/media';
 
 // P0 FIX: Use canonical forensic classifier from media-audit (not duplicate)
@@ -67,7 +67,7 @@ async function classifyRecord(media: any, staticMediaMap: Map<string, any>): Pro
   }
   
   // Published record - check constitutional contract independently
-  const hasStorage = media.storage === 'static' || media.storage === 'blob';
+  const hasStorage = media.storage === 'static' || media.storage === 'r2';
   const hasContentHash = !!media.contentHash;
   const hasDimensions = media.dimensions?.width > 0 && media.dimensions?.height > 0;
   const hasVariants = media.variants?.original;
@@ -88,7 +88,7 @@ async function classifyRecord(media: any, staticMediaMap: Map<string, any>): Pro
     
     if (media.source === 'local') {
       if (!hasContentHash) {
-        // No contentHash → cannot be blob-backed
+        // No contentHash → cannot be r2-backed
         if (staticMediaMap.has(media.id)) {
           // Has static manifest evidence → repairable to static
           return { mediaId: media.id, classification: 'REPAIRABLE_STATIC', reason: 'Local source with static manifest evidence' };
@@ -97,24 +97,19 @@ async function classifyRecord(media: any, staticMediaMap: Map<string, any>): Pro
         return { mediaId: media.id, classification: 'AMBIGUOUS', reason: 'Local source without static manifest evidence or contentHash' };
       }
       
-      // Has contentHash - check for Blob evidence
+      // Has contentHash - check for R2 evidence
       try {
-        const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
-        if (blobMetadata) {
-          const originalUrl = media.variants?.original || '';
-          if (originalUrl === blobMetadata.url) {
-            const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
-            if (verification.success) {
-              // Full Blob evidence chain → repairable to blob
-              return { mediaId: media.id, classification: 'REPAIRABLE_BLOB', reason: 'Local source with full Blob evidence chain' };
-            }
-            return { mediaId: media.id, classification: 'AMBIGUOUS', reason: 'Blob hash verification failed' };
-          }
-          return { mediaId: media.id, classification: 'AMBIGUOUS', reason: 'Blob URL mismatch' };
+        const originalUrl = media.variants?.original || '';
+        const r2Key = originalUrl.split('/').pop() || '';
+        const objectExists = await verifyR2ObjectExists(r2Key);
+        
+        if (objectExists) {
+          // Full R2 evidence chain → repairable to r2
+          return { mediaId: media.id, classification: 'REPAIRABLE_R2', reason: 'Local source with R2 object evidence' };
         }
-        return { mediaId: media.id, classification: 'AMBIGUOUS', reason: 'No Blob metadata for contentHash' };
+        return { mediaId: media.id, classification: 'AMBIGUOUS', reason: 'R2 object not found' };
       } catch (error) {
-        return { mediaId: media.id, classification: 'AMBIGUOUS', reason: 'Blob verification error' };
+        return { mediaId: media.id, classification: 'AMBIGUOUS', reason: 'R2 verification error' };
       }
     }
     
@@ -122,29 +117,22 @@ async function classifyRecord(media: any, staticMediaMap: Map<string, any>): Pro
   }
   
   // Has storage - validate contract
-  if (media.storage === 'blob') {
+  if (media.storage === 'r2') {
     if (!hasContentHash) {
-      return { mediaId: media.id, classification: 'MALFORMED', reason: 'Blob storage requires contentHash' };
+      return { mediaId: media.id, classification: 'MALFORMED', reason: 'R2 storage requires contentHash' };
     }
     
-    // Verify Blob evidence
+    // Verify R2 evidence
     try {
-      const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
-      if (!blobMetadata) {
-        return { mediaId: media.id, classification: 'MALFORMED', reason: 'Blob storage missing Blob metadata' };
-      }
-      
       const originalUrl = media.variants?.original || '';
-      if (originalUrl !== blobMetadata.url) {
-        return { mediaId: media.id, classification: 'MALFORMED', reason: 'Blob URL mismatch with metadata' };
-      }
+      const r2Key = originalUrl.split('/').pop() || '';
+      const objectExists = await verifyR2ObjectExists(r2Key);
       
-      const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
-      if (!verification.success) {
-        return { mediaId: media.id, classification: 'MALFORMED', reason: `Blob hash verification failed: ${verification.errorType}` };
+      if (!objectExists) {
+        return { mediaId: media.id, classification: 'MALFORMED', reason: 'R2 storage missing R2 object' };
       }
     } catch (error) {
-      return { mediaId: media.id, classification: 'MALFORMED', reason: 'Blob verification error' };
+      return { mediaId: media.id, classification: 'MALFORMED', reason: 'R2 verification error' };
     }
   }
   
@@ -197,7 +185,7 @@ interface ReconcilePlan {
   eligibleForRepair: Array<{
     mediaId: string;
     currentStorage: string | undefined;
-    proposedStorage: 'static' | 'blob';
+    proposedStorage: 'static' | 'r2';
     evidence: string;
   }>;
   ambiguous: Array<{
@@ -231,7 +219,7 @@ function generatePageFingerprint(pageMediaIds: string[], classifications: Classi
         );
       }
       // Only include evidence for repairable records on this page
-      if (c.classification === 'REPAIRABLE_BLOB' || c.classification === 'REPAIRABLE_STATIC') {
+      if (c.classification === 'REPAIRABLE_R2' || c.classification === 'REPAIRABLE_STATIC') {
         evidenceParts.push(c.reason);
       }
       return evidenceParts.join(':');
@@ -339,13 +327,13 @@ export async function POST(request: Request) {
       stale: 0,
       malformed: 0,
       repairableStatic: 0,
-      repairableBlob: 0,
+      repairableR2: 0,
       requiresMaterialization: 0,
       ambiguous: 0,
       unknown: 0,
     };
     
-    const repairableBlobIds: string[] = [];
+    const repairableR2Ids: string[] = [];
     const repairableStaticIds: string[] = [];
     const ambiguousIds: string[] = [];
     
@@ -370,9 +358,9 @@ export async function POST(request: Request) {
           counts.repairableStatic++;
           repairableStaticIds.push(c.mediaId);
           break;
-        case 'REPAIRABLE_BLOB':
-          counts.repairableBlob++;
-          repairableBlobIds.push(c.mediaId);
+        case 'REPAIRABLE_R2':
+          counts.repairableR2++;
+          repairableR2Ids.push(c.mediaId);
           break;
         case 'REQUIRES_MATERIALIZATION':
           counts.requiresMaterialization++;
@@ -403,7 +391,7 @@ export async function POST(request: Request) {
           hasNextPage: currentPage < totalPages,
         },
         counts,
-        repairableBlobIds,
+        repairableR2Ids,
         repairableStaticIds,
         ambiguousIds,
         timestamp: new Date().toISOString(),
@@ -430,13 +418,13 @@ export async function POST(request: Request) {
       
       // Only plan current page
       for (const classification of classifications) {
-        if (classification.classification === 'REPAIRABLE_BLOB') {
+        if (classification.classification === 'REPAIRABLE_R2') {
           const media = await getMediaRecordRaw(classification.mediaId);
           if (media) {
             plan.eligibleForRepair.push({
               mediaId: classification.mediaId,
               currentStorage: media.storage,
-              proposedStorage: 'blob',
+              proposedStorage: 'r2',
               evidence: classification.reason,
             });
           }
@@ -547,25 +535,25 @@ export async function POST(request: Request) {
           action: 'repair',
           dryRun: true,
           message: 'Dry run mode - no mutations performed',
-          eligibleForRepair: repairableBlobIds.length + repairableStaticIds.length,
+          eligibleForRepair: repairableR2Ids.length + repairableStaticIds.length,
           timestamp: new Date().toISOString(),
         });
       }
       
       // P0 FIX: Repair only current page (bounded HTTP request)
       // Filter repairable IDs to current page
-      const pageRepairableBlobIds = repairableBlobIds.filter(id => pageIds.includes(id));
+      const pageRepairableR2Ids = repairableR2Ids.filter(id => pageIds.includes(id));
       const pageRepairableStaticIds = repairableStaticIds.filter(id => pageIds.includes(id));
       
       console.log('[MEDIA_RECONCILIATION] Repairing current page only', {
-        totalRepairableBlob: repairableBlobIds.length,
-        pageRepairableBlob: pageRepairableBlobIds.length,
+        totalRepairableR2: repairableR2Ids.length,
+        pageRepairableR2: pageRepairableR2Ids.length,
         totalRepairableStatic: repairableStaticIds.length,
         pageRepairableStatic: pageRepairableStaticIds.length,
       });
       
-      // P0 FIX: Strengthen static evidence verification
-      const { getBlobMetadataByContentHash, verifyBlobHash } = await import('@/lib/blob-storage');
+      // P0 FIX: Strengthen R2 evidence verification
+      const { verifyR2ObjectExists } = await import('@/lib/r2-storage');
       
       let repaired = 0;
       let skipped = 0;
@@ -573,8 +561,8 @@ export async function POST(request: Request) {
       const repairs: Array<{ mediaId: string; storage: string; reason: string; before: any; after: any }> = [];
       const errors: Record<string, string> = {};
       
-      // Repair REPAIRABLE_BLOB records (current page only)
-      for (const mediaId of pageRepairableBlobIds) {
+      // Repair REPAIRABLE_R2 records (current page only)
+      for (const mediaId of pageRepairableR2Ids) {
         try {
           const media = await getMediaRecordRaw(mediaId);
           if (!media) {
@@ -598,16 +586,11 @@ export async function POST(request: Request) {
             continue;
           }
           
-          const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
           const originalUrl = media.variants?.original || '';
+          const r2Key = originalUrl.split('/').pop() || '';
           
-          if (!blobMetadata || originalUrl !== blobMetadata.url) {
-            skipped++;
-            continue;
-          }
-          
-          const verification = await verifyBlobHash(blobMetadata.url, media.contentHash);
-          if (!verification.success) {
+          const objectExists = await verifyR2ObjectExists(r2Key);
+          if (!objectExists) {
             skipped++;
             continue;
           }
@@ -615,7 +598,7 @@ export async function POST(request: Request) {
           // Mutation: only storage field
           const repairedMedia: Media = {
             ...media,
-            storage: 'blob',
+            storage: 'r2',
           };
           
           await saveMedia(repairedMedia);
@@ -670,13 +653,13 @@ export async function POST(request: Request) {
           repaired++;
           repairs.push({
             mediaId,
-            storage: 'blob',
-            reason: 'REPAIRABLE_BLOB with full Blob evidence',
+            storage: 'r2',
+            reason: 'REPAIRABLE_R2 with full R2 evidence',
             before: beforeState,
             after: afterState,
           });
           
-          console.log('[MEDIA_RECONCILIATION] REPAIRED', { mediaId, storage: 'blob' });
+          console.log('[MEDIA_RECONCILIATION] REPAIRED', { mediaId, storage: 'r2' });
         } catch (error) {
           failed++;
           errors[mediaId] = error instanceof Error ? error.message : 'Unknown error';
@@ -849,7 +832,7 @@ export async function POST(request: Request) {
       const verifyCounts = {
         totalRecords: mediaIds.length,
         validPublished: 0,
-        repairableBlob: 0,
+        repairableR2: 0,
         repairableStatic: 0,
         ambiguous: 0,
       };
@@ -859,8 +842,8 @@ export async function POST(request: Request) {
           case 'VALID_PUBLISHED':
             verifyCounts.validPublished++;
             break;
-          case 'REPAIRABLE_BLOB':
-            verifyCounts.repairableBlob++;
+          case 'REPAIRABLE_R2':
+            verifyCounts.repairableR2++;
             break;
           case 'REPAIRABLE_STATIC':
             verifyCounts.repairableStatic++;

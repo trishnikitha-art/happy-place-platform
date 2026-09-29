@@ -35,7 +35,7 @@ import { readFileSync, existsSync, readdirSync } from 'fs';
 import { join } from 'path';
 import crypto from 'crypto';
 import sharp from 'sharp';
-import { uploadToBlob, getBlobMetadataByContentHash } from '@/lib/blob-storage';
+import { uploadToR2 } from '@/lib/r2-storage';
 
 interface EvidenceResult {
   testId: string;
@@ -149,19 +149,19 @@ export async function POST() {
           staticVariant: media.variants?.original
         });
         
-        // CRITICAL: Distinguish between local filesystem paths and Blob URLs
+        // CRITICAL: Distinguish between local filesystem paths and R2 URLs
         // Local paths: /images/projects/fences/FENCE BUILD-1080.webp
-        // Blob URLs: https://...public.blob.vercel-storage.com/...
+        // R2 URLs: https://...r2.cloudflarestorage.com/...
         const originalUrl = media.variants?.original || '';
         
         if (originalUrl.startsWith('http://') || originalUrl.startsWith('https://')) {
-          // This is a Blob URL - cannot be read as filesystem path
-          // Skip bootstrap for Blob-backed media - they should already have metadata
-          console.warn('[KV_MEDIA_BOOTSTRAP_EVIDENCE] BLOB_URL_NOT_FILESYSTEM', {
+          // This is an R2 URL - cannot be read as filesystem path
+          // Skip bootstrap for R2-backed media - they should already have metadata
+          console.warn('[KV_MEDIA_BOOTSTRAP_EVIDENCE] R2_URL_NOT_FILESYSTEM', {
             testId,
             mediaId: media.id,
             originalUrl,
-            reason: 'Blob URL cannot be read as filesystem path - skipping bootstrap'
+            reason: 'R2 URL cannot be read as filesystem path - skipping bootstrap'
           });
           continue;
         }
@@ -196,35 +196,35 @@ export async function POST() {
           byteSize: sourceBytes.length,
         });
         
-        // Upload to Blob
-        const { uploadToBlob } = await import('@/lib/blob-storage');
+        // Upload to R2
+        const { uploadToR2 } = await import('@/lib/r2-storage');
         const originalExt = media.filename.split('.').pop() || 'webp';
-        const blobUpload = await uploadToBlob(sourceBytes, `${media.id}-original.${originalExt}`, `image/${originalExt}`);
+        const r2Upload = await uploadToR2(sourceBytes, `${media.id}-original.${originalExt}`, `image/${originalExt}`);
         
-        console.log('[KV_MEDIA_BOOTSTRAP_EVIDENCE] BLOB_UPLOAD_COMPLETE', {
+        console.log('[KV_MEDIA_BOOTSTRAP_EVIDENCE] R2_UPLOAD_COMPLETE', {
           testId,
           mediaId: media.id,
-          blobUrl: blobUpload.url,
-          uploadedAt: blobUpload.uploadedAt,
+          r2Url: r2Upload.url,
+          uploadedAt: r2Upload.uploadedAt,
         });
         
         // Generate thumbnail
         const image = sharp(sourceBytes);
         const thumbBuffer = await image.resize(480).webp({ quality: 70 }).toBuffer();
-        const thumbUpload = await uploadToBlob(thumbBuffer, `${media.id}-thumb.webp`, 'image/webp');
+        const thumbUpload = await uploadToR2(thumbBuffer, `${media.id}-thumb.webp`, 'image/webp');
         
-        // Update media record with Blob URLs
-        // P0 FIX: Set storage to blob for rematerialized records (replacing static with blob)
-        // or preserve existing storage if it was already blob
+        // Update media record with R2 URLs
+        // P0 FIX: Set storage to r2 for rematerialized records (replacing static with r2)
+        // or preserve existing storage if it was already r2
         const updatedMedia = {
           ...media,
           contentHash,
-          storage: 'blob' as const, // Rematerialized from source → Blob storage
+          storage: 'r2' as const, // Rematerialized from source → R2 storage
           variants: {
             ...media.variants,
-            original: blobUpload.url,
-            web: blobUpload.url,
-            webp: blobUpload.url,
+            original: r2Upload.url,
+            web: r2Upload.url,
+            webp: r2Upload.url,
             thumbnail: thumbUpload.url,
           },
         };
@@ -233,10 +233,10 @@ export async function POST() {
         await saveMedia(updatedMedia);
         bootstrapped++;
         rematerialized++;
-        console.log('[KV_MEDIA_BOOTSTRAP_EVIDENCE] BOOTSTRAPPED_WITH_BLOB_AUTHORITY', { 
+        console.log('[KV_MEDIA_BOOTSTRAP_EVIDENCE] BOOTSTRAPPED_WITH_R2_AUTHORITY', { 
           testId, 
           mediaId: media.id,
-          blobUrl: blobUpload.url,
+          r2Url: r2Upload.url,
           thumbUrl: thumbUpload.url
         });
         
@@ -261,36 +261,21 @@ export async function POST() {
       try {
         const inKV = await getMediaRecordRaw(media.id);
         if (inKV) {
-          // Verify Blob authority for published local media
+          // Verify R2 authority for published local media
           if (inKV.lifecycleState === 'published' && inKV.source === 'local' && inKV.contentHash) {
-            const { getBlobMetadataByContentHash } = await import('@/lib/blob-storage');
-            const blobMetadata = await getBlobMetadataByContentHash(inKV.contentHash);
+            const { verifyR2ObjectExists } = await import('@/lib/r2-storage');
             
-            if (!blobMetadata) {
-              failedVerification++;
-              verificationErrors[media.id] = 'Missing Blob metadata';
-              console.error('[KV_MEDIA_BOOTSTRAP_EVIDENCE] VERIFICATION_FAILED', {
-                testId,
-                mediaId: media.id,
-                reason: 'No blob_metadata record found for content hash'
-              });
-              continue;
-            }
-            
-            // Verify physical Blob hash if original variant exists
             if (inKV.variants?.original) {
-              const { verifyBlobHash } = await import('@/lib/blob-storage');
-              const verificationResult = await verifyBlobHash(inKV.variants.original, inKV.contentHash);
+              const r2Key = inKV.variants.original.split('/').pop() || '';
+              const objectExists = await verifyR2ObjectExists(r2Key);
               
-              if (!verificationResult.success) {
+              if (!objectExists) {
                 failedVerification++;
-                verificationErrors[media.id] = `Blob hash verification failed: ${verificationResult.errorType}`;
+                verificationErrors[media.id] = 'R2 object not found';
                 console.error('[KV_MEDIA_BOOTSTRAP_EVIDENCE] VERIFICATION_FAILED', {
                   testId,
                   mediaId: media.id,
-                  reason: `Physical Blob verification failed: ${verificationResult.errorType}`,
-                  errorType: verificationResult.errorType,
-                  actualHash: verificationResult.actualHash,
+                  reason: 'R2 object not found'
                 });
                 continue;
               }

@@ -22,26 +22,26 @@ import type { Media } from '@/types/media';
 export interface RecoveryResult {
   recovered: number;
   repaired: number;
-  orphanedBlobs: number;
+  orphanedR2Objects: number;
   incompleteKvRecords: number;
   staleAssignments: number;
   errors: string[];
 }
 
 /**
- * Detect orphaned Blob assets
- * Blob assets that exist in Blob storage but have no corresponding KV record
+ * Detect orphaned R2 assets
+ * R2 assets that exist in R2 storage but have no corresponding KV record
  */
-export async function detectOrphanedBlobs(): Promise<string[]> {
+export async function detectOrphanedR2Objects(): Promise<string[]> {
   const orphaned: string[] = [];
   
   try {
-    // This would require Blob listing capability which may not be available
+    // This would require R2 listing capability which may not be available
     // For now, we rely on content hash index lookups from KV
     // If KV has content hash index but record is missing, that's our orphan detection
-    console.log('[MATERIALIZATION_RECOVERY] Orphaned Blob detection relies on KV-Blob consistency checks');
+    console.log('[MATERIALIZATION_RECOVERY] Orphaned R2 detection relies on KV-R2 consistency checks');
   } catch (error) {
-    console.error('[MATERIALIZATION_RECOVERY] Failed to detect orphaned Blobs:', error);
+    console.error('[MATERIALIZATION_RECOVERY] Failed to detect orphaned R2 objects:', error);
   }
   
   return orphaned;
@@ -49,7 +49,7 @@ export async function detectOrphanedBlobs(): Promise<string[]> {
 
 /**
  * Detect incomplete KV records
- * KV records that exist but fail constitutional proof (missing Blob metadata)
+ * KV records that exist but fail constitutional proof (missing R2 object)
  */
 export async function detectIncompleteKvRecords(): Promise<Media[]> {
   const incomplete: Media[] = [];
@@ -339,8 +339,8 @@ export async function repairIncompleteKvRecord(media: Media): Promise<boolean> {
       ...media,
       variants: repairedVariants,
       // P0 FIX: Ensure storage field is set when repairing published local records
-      // If original had Blob proof (we verified original Blob exists), this must be blob storage
-      ...(media.lifecycleState === 'published' && media.source === 'local' && !media.storage ? { storage: 'blob' } : {}),
+      // If original had R2 proof (we verified original R2 exists), this must be r2 storage
+      ...(media.lifecycleState === 'published' && media.source === 'local' && !media.storage ? { storage: 'r2' } : {}),
     };
     
     await storeMedia(repairedMedia);
@@ -420,7 +420,7 @@ export async function runMaterializationRecovery(): Promise<RecoveryResult> {
   const result: RecoveryResult = {
     recovered: 0,
     repaired: 0,
-    orphanedBlobs: 0,
+    orphanedR2Objects: 0,
     incompleteKvRecords: 0,
     staleAssignments: 0,
     errors: [],
@@ -468,27 +468,27 @@ export async function runMaterializationRecovery(): Promise<RecoveryResult> {
 
 /**
  * Verify cross-state consistency
- * Checks KV-Blob, KV-assignment, and Drive-provenance consistency
+ * Checks KV-R2, KV-assignment, and Drive-provenance consistency
  */
 export async function verifyCrossStateConsistency(): Promise<{
-  kvBlobConsistent: boolean;
+  kvR2Consistent: boolean;
   kvAssignmentConsistent: boolean;
   driveProvenanceConsistent: boolean;
   details: string[];
 }> {
   const details: string[] = [];
-  let kvBlobConsistent = true;
+  let kvR2Consistent = true;
   let kvAssignmentConsistent = true;
   let driveProvenanceConsistent = true;
   
   try {
-    // Check KV-Blob consistency
+    // Check KV-R2 consistency
     const incompleteRecords = await detectIncompleteKvRecords();
     if (incompleteRecords.length > 0) {
-      kvBlobConsistent = false;
-      details.push(`KV-Blob inconsistency: ${incompleteRecords.length} incomplete KV records`);
+      kvR2Consistent = false;
+      details.push(`KV-R2 inconsistency: ${incompleteRecords.length} incomplete KV records`);
     } else {
-      details.push('KV-Blob consistency: OK');
+      details.push('KV-R2 consistency: OK');
     }
     
     // Check KV-assignment consistency
@@ -509,7 +509,7 @@ export async function verifyCrossStateConsistency(): Promise<{
   }
   
   return {
-    kvBlobConsistent,
+    kvR2Consistent,
     kvAssignmentConsistent,
     driveProvenanceConsistent,
     details,

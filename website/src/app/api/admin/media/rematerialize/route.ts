@@ -14,8 +14,8 @@
  * 2. Resolve actual source bytes (photo-intake or Drive)
  * 3. Compute SHA-256 from actual bytes
  * 4. Generate all required renditions (original, thumbnail, blur, responsive WebP/AVIF)
- * 5. Upload to Blob
- * 6. Verify Blob metadata
+ * 5. Upload to R2
+ * 6. Verify R2 metadata
  * 7. Write PublishedMediaAsset to KV
  * 8. Rebuild content-hash index
  * 9. Preserve provenance
@@ -29,7 +29,7 @@ import { workbenchSession } from "@/lib/workbench-session";
 import { loadMediaManifest } from "@/lib/media";
 import { isMaterializationComplete, isPubliclyComplete } from "@/lib/media-contracts";
 import { storeMedia, getMediaRecordRaw } from "@/lib/media-kv-store";
-import { uploadToBlob, getBlobMetadataByContentHash } from "@/lib/blob-storage";
+import { uploadToR2 } from '@/lib/r2-storage';
 import crypto from 'crypto';
 import { readFileSync, existsSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
@@ -187,9 +187,9 @@ function readSourceBytesFromPhotoIntake(filename: string): Buffer | null {
 }
 
 /**
- * Generate Blob filename for media
+ * Generate R2 filename for media
  */
-function generateBlobFilename(mediaId: string, variant: string, format: string): string {
+function generateR2Filename(mediaId: string, variant: string, format: string): string {
   return `${mediaId}-${variant}.${format}`;
 }
 
@@ -405,16 +405,14 @@ async function rematerializeMediaRecord(
     const image = sharp(sourceBytes);
     const metadata = await image.metadata();
 
-    // Generate Blob IDs
+    // Generate R2 uploads
     const mediaId = media.id; // Preserve canonical ID
     const originalExt = media.filename.split('.').pop() || 'jpg';
-    const originalFilename = generateBlobFilename(mediaId, 'original', originalExt);
-    const originalUpload = await uploadToBlob(sourceBytes, originalFilename, `image/${originalExt}`);
+    const originalUpload = await uploadToR2(sourceBytes, `image/${originalExt}`, originalExt);
 
     // Generate thumbnail
-    const thumbFilename = generateBlobFilename(mediaId, 'thumb', 'webp');
     const thumbBuffer = await image.resize(480).webp({ quality: 70 }).toBuffer();
-    const thumbUpload = await uploadToBlob(thumbBuffer, thumbFilename, 'image/webp');
+    const thumbUpload = await uploadToR2(thumbBuffer, 'image/webp', 'webp');
 
     // Generate blur placeholder
     const blurBuffer = await image.resize(10).webp({ quality: 30 }).toBuffer();
@@ -434,9 +432,8 @@ async function rematerializeMediaRecord(
           [fmt === 'avif' ? 'avif' : 'webp']({ quality: fmt === 'avif' ? 75 : 80 })
           .toBuffer();
 
-        const variantFilename = generateBlobFilename(mediaId, vw.toString(), fmt);
         const variantContentType = fmt === 'avif' ? 'image/avif' : 'image/webp';
-        const variantUpload = await uploadToBlob(variantBuffer, variantFilename, variantContentType);
+        const variantUpload = await uploadToR2(variantBuffer, variantContentType, fmt);
 
         // Build responsive array
         const existingEntry = responsiveVariants.find(r => r.width === vw);
@@ -466,6 +463,7 @@ async function rematerializeMediaRecord(
       contentHash,
       source: 'local',
       lifecycleState: 'published',
+      storage: 'r2',
       drive: undefined, // Remove runtime Drive dependency
       variants: {
         original: originalUpload.url,

@@ -74,36 +74,36 @@ describe('Materialization Atomicity', () => {
       expect(recoveryAction).toBe('retry entire ingest');
     });
 
-    it('should identify Blob upload failure window', () => {
-      // Failure window: during Blob upload of variants
-      // Impact: Incomplete Blob storage, asset not usable
-      // Recovery: Retry upload (Blob idempotency allows safe retry)
-      // State: Some variants may be in Blob, KV not yet written
+    it('should identify R2 upload failure window', () => {
+      // Failure window: during R2 upload of variants
+      // Impact: Incomplete R2 storage, asset not usable
+      // Recovery: Retry upload (R2 idempotency allows safe retry)
+      // State: Some variants may be in R2, KV not yet written
       
-      const stage = 'BLOB_UPLOAD';
-      const crashWindow = 'uploadToBlob()';
-      const partialState = 'partial Blob variants, no KV record';
+      const stage = 'R2_UPLOAD';
+      const crashWindow = 'uploadToR2()';
+      const partialState = 'partial R2 variants, no KV record';
       const recoveryAction = 'retry upload (idempotent)';
       
-      expect(stage).toBe('BLOB_UPLOAD');
-      expect(partialState).toBe('partial Blob variants, no KV record');
+      expect(stage).toBe('R2_UPLOAD');
+      expect(partialState).toBe('partial R2 variants, no KV record');
       expect(recoveryAction).toBe('retry upload (idempotent)');
     });
 
     it('should identify KV store failure window', () => {
       // Failure window: during KV write of PublishedMediaAsset
-      // Impact: Blob variants exist but no KV record (orphaned Blob)
-      // Recovery: Must detect orphaned Blob and recreate KV record
-      // State: Complete Blob storage, no KV record
+      // Impact: R2 variants exist but no KV record (orphaned R2)
+      // Recovery: Must detect orphaned R2 and recreate KV record
+      // State: Complete R2 storage, no KV record
       
       const stage = 'KV_STORE';
       const crashWindow = 'storeMedia()';
-      const partialState = 'complete Blob storage, no KV record';
-      const recoveryAction = 'detect orphaned Blob, recreate KV record';
+      const partialState = 'complete R2 storage, no KV record';
+      const recoveryAction = 'detect orphaned R2, recreate KV record';
       
       expect(stage).toBe('KV_STORE');
-      expect(partialState).toBe('complete Blob storage, no KV record');
-      expect(recoveryAction).toBe('detect orphaned Blob, recreate KV record');
+      expect(partialState).toBe('complete R2 storage, no KV record');
+      expect(recoveryAction).toBe('detect orphaned R2, recreate KV record');
     });
 
     it('should identify assignment reconciliation failure window', () => {

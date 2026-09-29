@@ -1,28 +1,28 @@
 /**
  * KV Storage Schema Reconciliation Diagnostic
- * 
+ *
  * P0 FIX: Evidence-driven migration of legacy KV records to new storage schema
- * 
+ *
  * The constitutional public gate now requires:
  * - storage: "static" for local files with /images/ paths
- * - storage: "blob" for Vercel Blob storage with blob_metadata
- * 
+ * - storage: "r2" for R2 cloud storage
+ *
  * Legacy KV records have storage: undefined, causing PUBLIC_GATE_REJECTED
- * 
+ *
  * This diagnostic:
  * 1. Enumerates every live KV media record
  * 2. Classifies by actual evidence (not guessing)
  * 3. Produces dry-run report with repair actions
  * 4. Applies deterministic repairs only when evidence is unambiguous
- * 
+ *
  * SECURITY: Mutations are POST-only with CAS protection
- * 
+ *
  * DOES NOT touch:
  * - media.v1.json (static authority)
  * - projects.v1.json (project assignments)
  * - physical /public/images files
  * - recovered gallery assignments
- * 
+ *
  * ONLY operates on live KV representation.
  */
 
@@ -30,16 +30,16 @@ import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { getMediaRecordRaw, listMediaIds, updateStorageFieldCAS } from '@/lib/media-kv-store';
 import { getEnvironment } from '@/lib/environment';
-import { verifyBlobHash } from '@/lib/blob-storage';
+import { verifyR2ObjectExists } from '@/lib/r2-storage';
 import { loadProjectsManifest } from '@/lib/projects';
 
 export const dynamic = 'force-dynamic';
 
-type StorageClassification = 
+type StorageClassification =
   | 'VALID_STATIC'
-  | 'VALID_BLOB'
+  | 'VALID_R2'
   | 'MISSING_STORAGE'
-  | 'MISSING_BLOB_METADATA'
+  | 'MISSING_R2_OBJECT'
   | 'INVALID_STATIC_PATH'
   | 'SYNTHETIC_HASH'
   | 'MISSING_CONTENT_HASH'
@@ -53,7 +53,7 @@ interface MediaRecordClassification {
   source: string | null;
   lifecycleState: string | null;
   variantsOriginal: string | null;
-  blobMetadataPresent: boolean;
+  r2ObjectExists: boolean;
   classification: StorageClassification;
   evidence: string;
   proposedStorage: string | null;
@@ -71,7 +71,7 @@ interface ReconciliationReport {
   records: MediaRecordClassification[];
   summary: {
     validStatic: number;
-    validBlob: number;
+    validR2: number;
     needsRepair: number;
     ambiguous: number;
     safeToAutoRepair: number;
@@ -88,13 +88,13 @@ async function classifyRecord(record: any): Promise<MediaRecordClassification> {
   const source = record.source || null;
   const lifecycleState = record.lifecycleState || null;
   const variantsOriginal = record.variants?.original || null;
-  const blobMetadataPresent = !!record.blob_metadata;
   
   let classification: StorageClassification;
   let evidence: string;
   let proposedStorage: string | null;
   let publicGateResult: string;
   let repairAction: string;
+  let r2ObjectExists = false;
   
   // Check for synthetic/placeholder hashes
   if (contentHash && contentHash.startsWith('00000000')) {
@@ -120,78 +120,41 @@ async function classifyRecord(record: any): Promise<MediaRecordClassification> {
     publicGateResult = 'BYPASSED';
     repairAction = 'NONE - Not published, no repair needed';
   }
-  // Check for Blob records with actual integrity verification
-  else if (source === 'blob' || blobMetadataPresent) {
-    const blobMetadata = record.blob_metadata as { url?: string } | null;
-    const blobUrl = blobMetadata?.url || null;
-    
-    if (storage === 'blob' && blobMetadataPresent && contentHash && blobUrl) {
-      // Verify actual Blob integrity
-      try {
-        const blobVerification = await verifyBlobHash(blobUrl, contentHash);
-        if (blobVerification.success) {
-          classification = 'VALID_BLOB';
-          evidence = 'Source is blob, storage is blob, blob_metadata present, Blob integrity verified';
-          proposedStorage = 'blob';
-          publicGateResult = 'APPROVED';
-          repairAction = 'NONE - Already valid';
-        } else {
-          classification = 'MISSING_BLOB_METADATA';
-          evidence = `Storage is blob and blob_metadata present but Blob integrity verification failed: ${blobVerification.errorType}`;
-          proposedStorage = 'blob';
-          publicGateResult = 'REJECTED';
-          repairAction = 'MANUAL_REVIEW - Blob integrity verification failed';
-        }
-      } catch (error) {
-        classification = 'AMBIGUOUS';
-        evidence = `Blob integrity verification error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+  // Check for R2 records with actual object verification
+  else if (storage === 'r2' && variantsOriginal) {
+    // Verify R2 object exists (structural proof)
+    try {
+      const r2Key = variantsOriginal.split('/').pop() || '';
+      r2ObjectExists = await verifyR2ObjectExists(r2Key);
+      
+      if (r2ObjectExists) {
+        classification = 'VALID_R2';
+        evidence = 'Storage is r2, R2 object exists';
+        proposedStorage = 'r2';
+        publicGateResult = 'APPROVED';
+        repairAction = 'NONE - Already valid';
+      } else {
+        classification = 'MISSING_R2_OBJECT';
+        evidence = 'Storage is r2 but R2 object does not exist';
         proposedStorage = null;
         publicGateResult = 'REJECTED';
-        repairAction = 'MANUAL_REVIEW - Blob verification error';
+        repairAction = 'MANUAL_REVIEW - R2 object missing, need to re-materialize';
       }
-    } else if (storage === 'blob' && (!blobMetadataPresent || !blobUrl)) {
-      classification = 'MISSING_BLOB_METADATA';
-      evidence = 'Storage is blob but blob_metadata or blob URL missing';
-      proposedStorage = 'blob';
-      publicGateResult = 'REJECTED';
-      repairAction = 'MANUAL_REVIEW - Missing blob_metadata/blob URL, cannot verify integrity';
-    } else if (!storage && blobMetadataPresent && contentHash && blobUrl) {
-      // Verify Blob integrity before auto-repair
-      try {
-        const blobVerification = await verifyBlobHash(blobUrl, contentHash);
-        if (blobVerification.success) {
-          classification = 'MISSING_STORAGE';
-          evidence = 'Source is blob, blob_metadata present, Blob integrity verified, storage missing';
-          proposedStorage = 'blob';
-          publicGateResult = 'REJECTED_NOW';
-          repairAction = 'AUTO_REPAIR - Set storage: "blob"';
-        } else {
-          classification = 'MISSING_BLOB_METADATA';
-          evidence = `blob_metadata present but Blob integrity verification failed: ${blobVerification.errorType}`;
-          proposedStorage = null;
-          publicGateResult = 'REJECTED';
-          repairAction = 'MANUAL_REVIEW - Blob integrity verification failed';
-        }
-      } catch (error) {
-        classification = 'AMBIGUOUS';
-        evidence = `Blob integrity verification error: ${error instanceof Error ? error.message : 'Unknown error'}`;
-        proposedStorage = null;
-        publicGateResult = 'REJECTED';
-        repairAction = 'MANUAL_REVIEW - Blob verification error';
-      }
-    } else if (!storage && blobMetadataPresent && (!contentHash || !blobUrl)) {
-      classification = 'MISSING_BLOB_METADATA';
-      evidence = 'blob_metadata present but missing content hash or blob URL for verification';
-      proposedStorage = null;
-      publicGateResult = 'REJECTED';
-      repairAction = 'MANUAL_REVIEW - Insufficient blob evidence for verification';
-    } else {
+    } catch (error) {
       classification = 'AMBIGUOUS';
-      evidence = 'Mixed blob evidence but unclear state';
+      evidence = `R2 verification error: ${error instanceof Error ? error.message : 'Unknown error'}`;
       proposedStorage = null;
       publicGateResult = 'REJECTED';
-      repairAction = 'MANUAL_REVIEW - Ambiguous blob state';
+      repairAction = 'MANUAL_REVIEW - R2 verification error';
     }
+  }
+  // Legacy Blob storage - now deprecated
+  else if (storage === 'blob' || source === 'blob') {
+    classification = 'AMBIGUOUS';
+    evidence = 'Legacy Blob storage detected - migration to R2 required';
+    proposedStorage = null;
+    publicGateResult = 'REJECTED';
+    repairAction = 'MANUAL_REVIEW - Legacy Blob storage deprecated, requires R2 migration';
   }
   // Check for static/local records
   else if (source === 'local' || variantsOriginal?.startsWith('/images/')) {
@@ -251,7 +214,7 @@ async function classifyRecord(record: any): Promise<MediaRecordClassification> {
     source,
     lifecycleState,
     variantsOriginal,
-    blobMetadataPresent,
+    r2ObjectExists,
     classification,
     evidence,
     proposedStorage,
@@ -351,9 +314,9 @@ async function enumerateAndClassifyRecords(): Promise<MediaRecordClassification[
 function generateSummary(classifications: MediaRecordClassification[]) {
   const classificationCounts: Record<StorageClassification, number> = {
     VALID_STATIC: 0,
-    VALID_BLOB: 0,
+    VALID_R2: 0,
     MISSING_STORAGE: 0,
-    MISSING_BLOB_METADATA: 0,
+    MISSING_R2_OBJECT: 0,
     INVALID_STATIC_PATH: 0,
     SYNTHETIC_HASH: 0,
     MISSING_CONTENT_HASH: 0,
@@ -366,14 +329,14 @@ function generateSummary(classifications: MediaRecordClassification[]) {
   }
   
   const validStatic = classificationCounts.VALID_STATIC;
-  const validBlob = classificationCounts.VALID_BLOB;
-  const needsRepair = classificationCounts.MISSING_STORAGE + classificationCounts.MISSING_BLOB_METADATA;
+  const validR2 = classificationCounts.VALID_R2;
+  const needsRepair = classificationCounts.MISSING_STORAGE + classificationCounts.MISSING_R2_OBJECT;
   const ambiguous = classificationCounts.AMBIGUOUS + classificationCounts.INVALID_STATIC_PATH + classificationCounts.SYNTHETIC_HASH + classificationCounts.MISSING_CONTENT_HASH;
   const safeToAutoRepair = classificationCounts.MISSING_STORAGE; // Only safe when evidence is unambiguous
   
   return {
     validStatic,
-    validBlob,
+    validR2,
     needsRepair,
     ambiguous,
     safeToAutoRepair,
@@ -401,9 +364,9 @@ export async function GET(request: Request) {
     // Generate classification counts (per-class counters)
     const classificationCounts: Record<StorageClassification, number> = {
       VALID_STATIC: 0,
-      VALID_BLOB: 0,
+      VALID_R2: 0,
       MISSING_STORAGE: 0,
-      MISSING_BLOB_METADATA: 0,
+      MISSING_R2_OBJECT: 0,
       INVALID_STATIC_PATH: 0,
       SYNTHETIC_HASH: 0,
       MISSING_CONTENT_HASH: 0,
@@ -486,7 +449,7 @@ export async function POST(request: Request) {
         const casResult = await updateStorageFieldCAS(
           repair.mediaId,
           repair.contentHash || '',
-          repair.proposedStorage as 'static' | 'blob'
+          repair.proposedStorage as 'static' | 'r2'
         );
         
         if (casResult.success) {
@@ -521,9 +484,9 @@ export async function POST(request: Request) {
     // Generate classification counts (per-class counters)
     const classificationCounts: Record<StorageClassification, number> = {
       VALID_STATIC: 0,
-      VALID_BLOB: 0,
+      VALID_R2: 0,
       MISSING_STORAGE: 0,
-      MISSING_BLOB_METADATA: 0,
+      MISSING_R2_OBJECT: 0,
       INVALID_STATIC_PATH: 0,
       SYNTHETIC_HASH: 0,
       MISSING_CONTENT_HASH: 0,
