@@ -273,12 +273,21 @@ export async function GET(request: Request) {
       
       googleSubject = userInfo.sub;
       
-      // Email is optional display field - do not fabricate
-      email = userInfo.email && typeof userInfo.email === 'string' ? userInfo.email : '';
+      // Email is required for authorization - fail closed if missing
+      // The requested scope includes email, and validation requires non-empty email
+      if (!userInfo.email || typeof userInfo.email !== 'string' || userInfo.email.trim().length === 0) {
+        console.error('[DRIVE OAUTH CALLBACK] Email missing or invalid - authorization requires email identity');
+        const url = new URL('/workbench/media', request.url);
+        return NextResponse.redirect(url);
+      }
       
-      console.log('[DRIVE OAUTH FORENSIC] Google identity extracted:', {
+      email = userInfo.email;
+      
+    console.log('[DRIVE OAUTH FORENSIC] Google identity extracted:', {
         hasGoogleSubject: !!googleSubject,
+        googleSubject: googleSubject ? `${googleSubject.substring(0, 8)}...` : null,
         hasEmail: !!email,
+        emailLength: email?.length,
       });
     } catch (error) {
       console.error('[DRIVE OAUTH FORENSIC] Failed to extract Google identity:', error);
@@ -298,13 +307,17 @@ export async function GET(request: Request) {
       tokenData.refresh_token
     );
 
-    console.log('[DRIVE OAUTH FORENSIC] Authorization persisted');
+    console.log('[DRIVE OAUTH FORENSIC] Authorization persisted', {
+      authorizationId: `${authorization.id.substring(0, 8)}...`,
+    });
 
     // Create browser session
     const userAgent = request.headers.get('user-agent') || 'unknown';
     const session = await createSession(authorization.id, userAgent);
 
-    console.log('[DRIVE OAUTH FORENSIC] Session created successfully');
+    console.log('[DRIVE OAUTH FORENSIC] Session created successfully', {
+      sessionId: `${session.id.substring(0, 8)}...`,
+    });
 
     // Clear old OAuth credential cookies (legacy cleanup)
     const cookieStore = await cookies();

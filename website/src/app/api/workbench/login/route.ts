@@ -17,7 +17,7 @@ export async function POST(request: Request) {
   console.log('[WORKBENCH_LOGIN] REQUEST_RECEIVED', {
     url: request.url,
     hasCookie: request.headers.has('cookie'),
-    cookieHeader: request.headers.get('cookie'),
+    cookieLength: request.headers.get('cookie')?.length,
     userAgent: request.headers.get('user-agent'),
     origin: request.headers.get('origin'),
     referer: request.headers.get('referer'),

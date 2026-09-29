@@ -177,7 +177,7 @@ export class WorkbenchSession {
         
         console.log('[WORKBENCH_SESSION] AUTHENTICATE_STORING_SESSION', {
           sessionId: `${sessionId.substring(0, 8)}...`,
-          sessionKey,
+          sessionKey: `${sessionKey.substring(0, 8)}...${sessionKey.length > 50 ? '...' : ''}`,
           expiresAt,
           ttl: SESSION_DURATION / 1000,
         });
@@ -239,7 +239,7 @@ export class WorkbenchSession {
       const sessionData = await client.get(sessionKey);
       
       console.log('[WORKBENCH_SESSION] AUTH_CHECK_REDIS_LOOKUP', {
-        sessionKey,
+        sessionKey: `${sessionKey.substring(0, 8)}...${sessionKey.length > 50 ? '...' : ''}`,
         hasSessionData: !!sessionData,
         sessionDataType: typeof sessionData,
       });

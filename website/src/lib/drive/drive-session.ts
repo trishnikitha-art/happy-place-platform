@@ -42,8 +42,12 @@ export async function getSessionIdFromCookies(): Promise<string | null> {
 }
 
 export class DriveSession {
-  // Singleton removed - per-request instance creation
-  // No process-level state
+  /**
+   * Singleton removed - per-request instance creation
+   * This class is stateless - it contains no process-level credential state
+   * All credentials are resolved from session/authorization repositories per request
+   * The singleton export is a convenience constructor only
+   */
   
   constructor() {}
 
@@ -220,7 +224,14 @@ export class DriveSession {
     try {
       const cookieStore = await cookies();
       const cookie = cookieStore.get('drive_session_id');
-      return cookie?.value || null;
+      const sessionId = cookie?.value || null;
+      
+      console.log('[DRIVE SESSION] getSessionId', {
+        hasSessionId: !!sessionId,
+        sessionId: sessionId ? `${sessionId.substring(0, 8)}...` : null,
+      });
+      
+      return sessionId;
     } catch (error) {
       console.log('DriveSession.getSessionId(): cookies() failed', error);
       return null;
@@ -228,5 +239,6 @@ export class DriveSession {
   }
 }
 
-// Per-request instance creation - no singleton
+// Per-request instance creation for convenience - class is stateless and contains no credential state
+// The singleton export is a constructor convenience only; all credentials are resolved from repositories per request
 export const driveSession = new DriveSession();
