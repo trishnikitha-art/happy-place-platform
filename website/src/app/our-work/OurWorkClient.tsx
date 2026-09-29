@@ -580,6 +580,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                           alt={photo!.alt || `${project.title} photo ${photoIndex + 1}`}
                           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                           loading="lazy"
+                          draggable={false}
                           onLoad={() => {
                             console.log('[OUR_WORK] GALLERY_IMAGE_LOADED', {
                               projectId: project.id,
