@@ -1004,7 +1004,9 @@ export function VisualSlot({
       onDragStart={effectiveWorkbenchMode && isGallerySlot ? handleDragStart : undefined}
       onDragEnd={effectiveWorkbenchMode && isGallerySlot ? handleDragEnd : undefined}
     >
-      {children}
+      <div style={isDraggingActive ? { pointerEvents: 'none' } : undefined}>
+        {children}
+      </div>
     </div>
   );
 }
