@@ -67,6 +67,7 @@ export function VisualSlot({
 }: VisualSlotProps) {
   const elementRef = useRef<HTMLDivElement>(null);
   const lastDragOverLogRef = useRef<number>(0);
+  const [isDraggingActive, setIsDraggingActive] = useState(false);
 
   // P0 FIX: Use authoritative Workbench-mode from prop (if provided by iframe context)
   // Fall back to synchronous URL check for backward compatibility
@@ -508,6 +509,7 @@ export function VisualSlot({
 
   const handleDragStart = (e: React.DragEvent) => {
     e.stopPropagation(); // P0 FIX: Prevent event bubbling to parent containers
+    setIsDraggingActive(true); // P0 FIX: Switch cursor to grabbing during active drag
 
     console.log('[VS_FORENSIC] DRAG_START_NATIVE_EVENT', {
       slotId: id,
@@ -589,6 +591,8 @@ export function VisualSlot({
   };
 
   const handleDragEnd = (e: React.DragEvent) => {
+    setIsDraggingActive(false); // P0 FIX: Restore cursor to grab after drag ends
+
     console.log('[VS_DND] DRAG_END', {
       slotId: id,
       isGallerySlot,
@@ -955,15 +959,19 @@ export function VisualSlot({
   // Only conditionally apply handlers and cursor style
   // P0 FIX: Do NOT override caller geometry - VisualSlot should be invisible wrapper
   // P0 FIX: Restore proper drag cursor for gallery reorder affordance
-  // Gallery slots: grab/grabbing for drag affordance
+  // Gallery slots: grab at rest, grabbing during active drag
   // Non-gallery Workbench slots: pointer for click-to-select
   const cursorStyle = effectiveWorkbenchMode
-    ? (isGallerySlot ? { cursor: 'grab' } : { cursor: 'pointer' })
+    ? (isGallerySlot 
+        ? { cursor: isDraggingActive ? 'grabbing' : 'grab' } 
+        : { cursor: 'pointer' })
     : undefined;
 
   // P0 FIX: Also apply cursor via className for better browser compatibility
   const cursorClass = effectiveWorkbenchMode
-    ? (isGallerySlot ? 'cursor-grab' : 'cursor-pointer')
+    ? (isGallerySlot 
+        ? (isDraggingActive ? 'cursor-grabbing' : 'cursor-grab') 
+        : 'cursor-pointer')
     : '';
 
   console.log('[VS_CURSOR] CURSOR_STYLE_COMPUTED', {
