@@ -229,12 +229,36 @@ export async function GET(request: Request) {
     const expiresIn = tokenData.expires_in || 3600;
     const expiryDate = Date.now() + (expiresIn * 1000);
 
+    // P0 FIX: Verify granted scopes include required scopes
+    // Google may not grant all requested scopes - validate actual granted scopes
+    const grantedScopes = tokenData.scope ? tokenData.scope.split(' ') : [];
+    const requiredScopes = [
+      'openid',
+      'profile',
+      'email',
+      'https://www.googleapis.com/auth/drive.readonly',
+      'https://www.googleapis.com/auth/drive.metadata.readonly',
+      'https://www.googleapis.com/auth/drive.photos.readonly',
+    ];
+
+    const missingScopes = requiredScopes.filter(scope => !grantedScopes.includes(scope));
+    if (missingScopes.length > 0) {
+      console.error('[DRIVE OAUTH CALLBACK] Required scopes not granted', {
+        missingScopes,
+        grantedScopes,
+      });
+      const url = new URL('/workbench/media', request.url);
+      return NextResponse.redirect(url);
+    }
+
     console.log('[DRIVE OAUTH FORENSIC] Token validation passed', {
       hasAccessToken: !!tokenData.access_token,
       hasRefreshToken: !!tokenData.refresh_token,
       expiresIn,
       expiryDate: new Date(expiryDate).toISOString(),
       hasScope: !!tokenData.scope,
+      grantedScopesCount: grantedScopes.length,
+      requiredScopesCount: requiredScopes.length,
     });
 
     console.log('[DRIVE OAUTH FORENSIC] Integrating with authority layers...');
@@ -298,10 +322,11 @@ export async function GET(request: Request) {
     
     // Persist authorization through oauth-credential-store
     // refresh_token is guaranteed non-empty due to fail-closed validation above
+    // Use actual granted scopes from Google, not requested scopes
     const authorization = await upsertAuthorization(
       googleSubject,
       email,
-      tokenData.scope ? tokenData.scope.split(' ') : [],
+      grantedScopes,
       tokenData.access_token,
       expiryDate,
       tokenData.refresh_token
@@ -309,6 +334,7 @@ export async function GET(request: Request) {
 
     console.log('[DRIVE OAUTH FORENSIC] Authorization persisted', {
       authorizationId: `${authorization.id.substring(0, 8)}...`,
+      scopesPersisted: grantedScopes.length,
     });
 
     // Create browser session
