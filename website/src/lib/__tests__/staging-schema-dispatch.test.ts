@@ -8,6 +8,19 @@
 
 import { describe, it, expect } from '@jest/globals';
 
+/**
+ * Custom error class for staging schema errors with distinguishable error codes
+ */
+class StagingSchemaError extends Error {
+  constructor(
+    message: string,
+    public readonly errorCode: 'STAGING_SCHEMA_UNSUPPORTED' | 'STAGING_SCHEMA_INVALID'
+  ) {
+    super(message);
+    this.name = 'StagingSchemaError';
+  }
+}
+
 // Extract the dispatch functions for testing
 // These are tested as isolated unit functions for the schema contract
 // The actual deployment integration is tested separately
@@ -45,34 +58,34 @@ function decodeAssignmentStaging(value: unknown): { mediaId: string; expectedRev
     try {
       parsed = JSON.parse(value);
     } catch (e) {
-      throw new Error(`Invalid assignment staging: string is not valid JSON`);
+      throw new StagingSchemaError(`Invalid assignment staging: string is not valid JSON`, 'STAGING_SCHEMA_INVALID');
     }
   } else if (typeof value === 'object' && value !== null) {
     parsed = value;
   } else {
-    throw new Error(`Invalid assignment staging: unexpected type ${typeof value}`);
+    throw new StagingSchemaError(`Invalid assignment staging: unexpected type ${typeof value}`, 'STAGING_SCHEMA_INVALID');
   }
 
   if (!parsed || typeof parsed !== 'object') {
-    throw new Error('Invalid assignment staging: parsed result is not an object');
+    throw new StagingSchemaError('Invalid assignment staging: parsed result is not an object', 'STAGING_SCHEMA_INVALID');
   }
 
   const staging = parsed as Record<string, unknown>;
 
   if (typeof staging.mediaId !== 'string') {
-    throw new Error(`Invalid assignment staging: mediaId is missing or not a string (got ${typeof staging.mediaId})`);
+    throw new StagingSchemaError(`Invalid assignment staging: mediaId is missing or not a string (got ${typeof staging.mediaId})`, 'STAGING_SCHEMA_INVALID');
   }
 
   if (typeof staging.expectedRevision !== 'number') {
-    throw new Error(`Invalid assignment staging: expectedRevision is missing or not a number (got ${typeof staging.expectedRevision})`);
+    throw new StagingSchemaError(`Invalid assignment staging: expectedRevision is missing or not a number (got ${typeof staging.expectedRevision})`, 'STAGING_SCHEMA_INVALID');
   }
 
   if (typeof staging.updatedAt !== 'string') {
-    throw new Error(`Invalid assignment staging: updatedAt is missing or not a string (got ${typeof staging.updatedAt})`);
+    throw new StagingSchemaError(`Invalid assignment staging: updatedAt is missing or not a string (got ${typeof staging.updatedAt})`, 'STAGING_SCHEMA_INVALID');
   }
 
   if (typeof staging.source !== 'string') {
-    throw new Error(`Invalid assignment staging: source is missing or not a string (got ${typeof staging.source})`);
+    throw new StagingSchemaError(`Invalid assignment staging: source is missing or not a string (got ${typeof staging.source})`, 'STAGING_SCHEMA_INVALID');
   }
 
   return {
@@ -90,34 +103,34 @@ function decodeGalleryStaging(value: unknown): { gallery: string[]; currentRevis
     try {
       parsed = JSON.parse(value);
     } catch (e) {
-      throw new Error(`Invalid gallery staging: string is not valid JSON`);
+      throw new StagingSchemaError(`Invalid gallery staging: string is not valid JSON`, 'STAGING_SCHEMA_INVALID');
     }
   } else if (typeof value === 'object' && value !== null) {
     parsed = value;
   } else {
-    throw new Error(`Invalid gallery staging: unexpected type ${typeof value}`);
+    throw new StagingSchemaError(`Invalid gallery staging: unexpected type ${typeof value}`, 'STAGING_SCHEMA_INVALID');
   }
 
   if (!parsed || typeof parsed !== 'object') {
-    throw new Error('Invalid gallery staging: parsed result is not an object');
+    throw new StagingSchemaError('Invalid gallery staging: parsed result is not an object', 'STAGING_SCHEMA_INVALID');
   }
 
   const staging = parsed as Record<string, unknown>;
 
   if (!Array.isArray(staging.gallery)) {
-    throw new Error(`Invalid gallery staging: gallery is missing or not an array (got ${typeof staging.gallery})`);
+    throw new StagingSchemaError(`Invalid gallery staging: gallery is missing or not an array (got ${typeof staging.gallery})`, 'STAGING_SCHEMA_INVALID');
   }
 
   if (typeof staging.currentRevision !== 'number') {
-    throw new Error(`Invalid gallery staging: currentRevision is missing or not a number (got ${typeof staging.currentRevision})`);
+    throw new StagingSchemaError(`Invalid gallery staging: currentRevision is missing or not a number (got ${typeof staging.currentRevision})`, 'STAGING_SCHEMA_INVALID');
   }
 
   if (!Array.isArray(staging.previousGallery)) {
-    throw new Error(`Invalid gallery staging: previousGallery is missing or not an array (got ${typeof staging.previousGallery})`);
+    throw new StagingSchemaError(`Invalid gallery staging: previousGallery is missing or not an array (got ${typeof staging.previousGallery})`, 'STAGING_SCHEMA_INVALID');
   }
 
   if (typeof staging.mutationTimestamp !== 'string') {
-    throw new Error(`Invalid gallery staging: mutationTimestamp is missing or not a string (got ${typeof staging.mutationTimestamp})`);
+    throw new StagingSchemaError(`Invalid gallery staging: mutationTimestamp is missing or not a string (got ${typeof staging.mutationTimestamp})`, 'STAGING_SCHEMA_INVALID');
   }
 
   return {
@@ -132,9 +145,9 @@ function decodePointerStaging(value: unknown): string {
   if (typeof value === 'string') {
     return value;
   } else if (typeof value === 'object' && value !== null) {
-    throw new Error(`Invalid pointer staging: unexpected object type (expected plain string)`);
+    throw new StagingSchemaError(`Invalid pointer staging: unexpected object type (expected plain string)`, 'STAGING_SCHEMA_INVALID');
   } else {
-    throw new Error(`Invalid pointer staging: unexpected type ${typeof value}`);
+    throw new StagingSchemaError(`Invalid pointer staging: unexpected type ${typeof value}`, 'STAGING_SCHEMA_INVALID');
   }
 }
 
