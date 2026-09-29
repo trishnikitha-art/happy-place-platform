@@ -30,6 +30,7 @@ import { storeServiceCardAssignment, getServiceCardAssignment, type ServiceCardA
 import { loadProjectsManifest } from "@/lib/projects";
 import { loadMediaManifest } from "@/lib/media";
 import { loadBrandManifest } from "@/lib/brand";
+import { getNonArchivedServices } from "@/lib/registries";
 
 interface ReconciliationResult {
   testId: string;
@@ -88,13 +89,15 @@ export async function POST() {
     const projectsData = loadProjectsManifest();
     const mediaData = loadMediaManifest();
     const brandData = loadBrandManifest();
+    const servicesData = getNonArchivedServices();
     
     // Build media ID set for validation
     const canonicalMediaIds = new Set<string>(mediaData.media.map((m) => m.id));
     
     console.log('[ASSIGNMENT_RECONCILIATION] CANONICAL_LOADED', { 
       projects: projectsData.projects.length,
-      media: mediaData.media.length
+      media: mediaData.media.length,
+      services: servicesData.length
     });
     
     let reconciled = 0;
@@ -224,6 +227,25 @@ export async function POST() {
       );
     }
     
+    // Reconcile service card assignments
+    for (const service of servicesData) {
+      try {
+        if (service.cardMediaId) {
+          await reconcileAssignment(
+            `service-card:${service.slug}`,
+            service.cardMediaId
+          );
+        }
+      } catch (error) {
+        failed++;
+        errors[service.slug] = error instanceof Error ? error.message : 'Unknown error';
+        console.error('[ASSIGNMENT_RECONCILIATION] SERVICE_FAILED', {
+          serviceSlug: service.slug,
+          error: error instanceof Error ? error.message : 'Unknown error',
+        });
+      }
+    }
+    
     const endTime = new Date().toISOString();
     
     return NextResponse.json({
@@ -236,6 +258,7 @@ export async function POST() {
       evidence: {
         projects: projectsData.projects.length,
         media: mediaData.media.length,
+        services: servicesData.length,
         reconciled,
         skipped,
         failed,
