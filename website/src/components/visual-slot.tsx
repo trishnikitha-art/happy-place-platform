@@ -463,8 +463,10 @@ export function VisualSlot({
     console.log('[VS_DND] DRAG_OVER', {
       slotId: id,
       isGallerySlot,
+      effectiveWorkbenchMode,
       dropEffect,
       incomingEffectAllowed: e.dataTransfer.effectAllowed,
+      cursorComputedStyle: elementRef.current ? getComputedStyle(elementRef.current).cursor : 'NO_ELEMENT',
       windowIsIframe: window.parent !== window,
       timestamp: Date.now(),
     });
@@ -474,6 +476,31 @@ export function VisualSlot({
     if (now - lastDragOverLogRef.current > 100) { // Log at most once per 100ms
       lastDragOverLogRef.current = now;
     }
+  };
+
+  const handleDragEnter = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('[VS_DND] DRAG_ENTER', {
+      slotId: id,
+      isGallerySlot,
+      effectiveWorkbenchMode,
+      cursorComputedStyle: elementRef.current ? getComputedStyle(elementRef.current).cursor : 'NO_ELEMENT',
+      timestamp: Date.now(),
+    });
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    console.log('[VS_DND] DRAG_LEAVE', {
+      slotId: id,
+      isGallerySlot,
+      effectiveWorkbenchMode,
+      timestamp: Date.now(),
+    });
   };
 
   const handleDragStart = (e: React.DragEvent) => {
@@ -493,6 +520,7 @@ export function VisualSlot({
       computedDraggable: elementRef.current?.draggable,
       dataTransferEffectAllowed: e.dataTransfer.effectAllowed,
       dataTransferTypes: e.dataTransfer.types,
+      cursorComputedStyle: elementRef.current ? getComputedStyle(elementRef.current).cursor : 'NO_ELEMENT',
       timestamp: Date.now(),
     });
 
@@ -511,12 +539,15 @@ export function VisualSlot({
       slotId: id,
       currentMediaId,
       projectId,
+      effectiveWorkbenchMode,
+      isGallerySlot,
       windowIsIframe: window.parent !== window,
       element: elementRef.current?.tagName,
       parentElement: elementRef.current?.parentElement?.tagName,
       hasButtonParent: elementRef.current?.parentElement?.tagName === 'BUTTON',
       hasClickHandler: elementRef.current?.parentElement?.hasAttribute('onclick'),
       draggableAttribute: elementRef.current?.getAttribute('draggable'),
+      computedCursor: effectiveWorkbenchMode ? (isGallerySlot ? 'grab' : 'pointer') : 'default',
       timestamp: Date.now(),
     });
 
@@ -551,6 +582,16 @@ export function VisualSlot({
       dataLength: dragData.length,
       effectAllowed: 'move',
       dataPreview: dragData.substring(0, 100),
+    });
+  };
+
+  const handleDragEnd = (e: React.DragEvent) => {
+    console.log('[VS_DND] DRAG_END', {
+      slotId: id,
+      isGallerySlot,
+      effectiveWorkbenchMode,
+      cursorComputedStyle: elementRef.current ? getComputedStyle(elementRef.current).cursor : 'NO_ELEMENT',
+      timestamp: Date.now(),
     });
   };
 
@@ -916,20 +957,41 @@ export function VisualSlot({
   const cursorStyle = effectiveWorkbenchMode
     ? (isGallerySlot ? { cursor: 'grab' } : { cursor: 'pointer' })
     : undefined;
+
+  // P0 FIX: Also apply cursor via className for better browser compatibility
+  const cursorClass = effectiveWorkbenchMode
+    ? (isGallerySlot ? 'cursor-grab' : 'cursor-pointer')
+    : '';
+
+  console.log('[VS_CURSOR] CURSOR_STYLE_COMPUTED', {
+    slotId: id,
+    effectiveWorkbenchMode,
+    isGallerySlot,
+    cursorStyle,
+    computedCursor: cursorStyle?.cursor,
+    cursorClass,
+    route,
+    section,
+    currentMediaId,
+    projectId,
+  });
   
   return (
     <div
       ref={elementRef}
-      className={`visual-slot ${className}`}
+      className={`visual-slot ${className} ${cursorClass}`}
       data-slot-id={id}
       data-slot-route={route}
       data-slot-section={section}
       style={cursorStyle}
       onClick={effectiveWorkbenchMode ? handleClick : undefined}
       onDragOver={effectiveWorkbenchMode ? handleDragOver : undefined}
+      onDragEnter={effectiveWorkbenchMode ? handleDragEnter : undefined}
+      onDragLeave={effectiveWorkbenchMode ? handleDragLeave : undefined}
       onDrop={effectiveWorkbenchMode ? handleDrop : undefined}
       draggable={effectiveWorkbenchMode && isGallerySlot}
       onDragStart={effectiveWorkbenchMode && isGallerySlot ? handleDragStart : undefined}
+      onDragEnd={effectiveWorkbenchMode && isGallerySlot ? handleDragEnd : undefined}
     >
       {children}
     </div>

@@ -12,6 +12,20 @@
  *   --color-forest      = Forest Green   (grounding accent, 10% usage)
  * To re-skin for another business, change tokens only.
  */
+
+/* Workbench cursor utilities for gallery drag affordance */
+.cursor-grab {
+  cursor: grab;
+}
+
+.cursor-grabbing {
+  cursor: grabbing;
+}
+
+.cursor-pointer {
+  cursor: pointer;
+}
+
 @theme {
   /* Brand — Deep Navy (primary brand color) */
   --color-primary: #44483D;
