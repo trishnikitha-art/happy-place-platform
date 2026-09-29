@@ -174,7 +174,6 @@ export async function verifyR2Hash(objectKey: string, expectedContentHash: strin
 export interface R2UploadResult {
   url: string;
   uploadedAt: string;
-  alreadyExisted: boolean;
   contentHash: string;
 }
 
@@ -246,7 +245,6 @@ export async function uploadToR2(
     return {
       url,
       uploadedAt: new Date().toISOString(),
-      alreadyExisted: false,
       contentHash,
     };
   } catch (error) {

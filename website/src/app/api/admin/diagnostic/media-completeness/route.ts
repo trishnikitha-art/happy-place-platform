@@ -2,7 +2,7 @@
  * Media Completeness Diagnostic API Endpoint
  *
  * Enumerates all media records in KV and identifies which ones are incomplete
- * or missing Blob metadata. This is used to understand the current state of
+ * or missing R2 objects. This is used to understand the current state of
  * the media authority and plan repairs.
  *
  * GET /api/admin/diagnostic/media-completeness
@@ -14,19 +14,18 @@ import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
 import { Redis } from '@upstash/redis';
 import { hasMaterializationShape, hasRealContentHash, isPubliclyComplete } from '@/lib/media-contracts';
-import { getBlobMetadataByContentHash, verifyBlobExists } from '@/lib/blob-storage';
+import { verifyR2ObjectExists } from '@/lib/r2-storage';
 
 interface MediaDiagnostic {
   id: string;
   lifecycleState: string;
   source: string;
+  storage: string;
   hasContentHash: boolean;
   hasShape: boolean;
   hasRealHash: boolean;
-  hasBlobObject: boolean;
-  hasBlobMetadata: boolean;
-  blobMetadataKeys: string[];
-  blobUrlAccessible: boolean;
+  hasR2Object: boolean;
+  r2UrlAccessible: boolean;
   isPubliclyComplete: boolean;
   contentHash?: string;
   variants?: {
@@ -44,9 +43,8 @@ interface DiagnosticReport {
   totalRecords: number;
   completeRecords: number;
   incompleteRecords: number;
-  missingBlobMetadata: number;
-  missingBlobObject: number;
-  blobObjectInaccessible: number;
+  missingR2Object: number;
+  r2ObjectInaccessible: number;
   syntheticHashRecords: number;
   shapeErrors: number;
   details: MediaDiagnostic[];
@@ -92,9 +90,8 @@ export async function GET(request: Request) {
       totalRecords: 0,
       completeRecords: 0,
       incompleteRecords: 0,
-      missingBlobMetadata: 0,
-      missingBlobObject: 0,
-      blobObjectInaccessible: 0,
+      missingR2Object: 0,
+      r2ObjectInaccessible: 0,
       syntheticHashRecords: 0,
       shapeErrors: 0,
       details: [],
@@ -134,13 +131,12 @@ export async function GET(request: Request) {
           id: mediaId,
           lifecycleState: media.lifecycleState || 'unknown',
           source: media.source || 'unknown',
+          storage: media.storage || 'unknown',
           hasContentHash: !!media.contentHash,
           hasShape: false,
           hasRealHash: false,
-          hasBlobObject: false,
-          hasBlobMetadata: false,
-          blobMetadataKeys: [],
-          blobUrlAccessible: false,
+          hasR2Object: false,
+          r2UrlAccessible: false,
           isPubliclyComplete: false,
           contentHash: media.contentHash,
           variants: media.variants,
@@ -167,42 +163,28 @@ export async function GET(request: Request) {
           report.syntheticHashRecords++;
         }
 
-        // Check Blob metadata existence
-        if (media.contentHash) {
+        // Check R2 object existence
+        if (media.contentHash && media.storage === 'r2') {
           try {
-            const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
-            if (blobMetadata) {
-              diagnostic.hasBlobMetadata = true;
-              diagnostic.blobMetadataKeys = Object.keys(blobMetadata);
-              
-              // CRITICAL: Verify actual Blob object existence (not just metadata)
-              // This is separate from metadata existence - metadata can exist without the object
-              if (blobMetadata.url) {
-                try {
-                  diagnostic.blobUrlAccessible = await verifyBlobExists(blobMetadata.url);
-                  if (diagnostic.blobUrlAccessible) {
-                    diagnostic.hasBlobObject = true;
-                  } else {
-                    diagnostic.issues.push('Blob URL not accessible - object may not exist');
-                    report.missingBlobObject++;
-                  }
-                } catch (error) {
-                  diagnostic.issues.push(`Blob object verification failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
-                  report.blobObjectInaccessible++;
-                }
+            const originalUrl = media.variants?.original;
+            const objectKey = originalUrl?.split('/').pop() || '';
+            
+            if (objectKey) {
+              diagnostic.r2UrlAccessible = await verifyR2ObjectExists(objectKey);
+              if (diagnostic.r2UrlAccessible) {
+                diagnostic.hasR2Object = true;
               } else {
-                diagnostic.issues.push('Blob metadata exists but has no URL');
-                report.missingBlobObject++;
+                diagnostic.issues.push('R2 object not accessible - object may not exist');
+                report.missingR2Object++;
               }
             } else {
-              diagnostic.issues.push('Missing Blob metadata');
-              report.missingBlobMetadata++;
+              diagnostic.issues.push('Cannot extract R2 object key from original URL');
+              report.r2ObjectInaccessible++;
             }
           } catch (error) {
-            diagnostic.issues.push(`Blob metadata check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            diagnostic.issues.push(`R2 check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+            report.r2ObjectInaccessible++;
           }
-        } else {
-          diagnostic.issues.push('Missing content hash');
         }
 
         // Check public completeness
@@ -238,7 +220,8 @@ export async function GET(request: Request) {
         totalRecords: report.totalRecords,
         completeRecords: report.completeRecords,
         incompleteRecords: report.incompleteRecords,
-        missingBlobMetadata: report.missingBlobMetadata,
+        missingR2Object: report.missingR2Object,
+        r2ObjectInaccessible: report.r2ObjectInaccessible,
         syntheticHashRecords: report.syntheticHashRecords,
         shapeErrors: report.shapeErrors,
       },

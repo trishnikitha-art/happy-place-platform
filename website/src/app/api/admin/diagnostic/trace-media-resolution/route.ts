@@ -192,33 +192,49 @@ export async function GET(request: Request) {
       });
     }
 
-    // STEP 5: Check Blob metadata if contentHash exists
-    trace.steps.push({ step: '5', status: 'CHECKING_BLOB_METADATA' });
+    // STEP 5: Check R2 object if contentHash exists
+    trace.steps.push({ step: '5', status: 'CHECKING_R2_OBJECT' });
     try {
       const { getMediaByIdAsync } = await import('@/lib/media');
       const kvMedia = await getMediaByIdAsync(mediaId);
       
-      if (kvMedia && kvMedia.contentHash) {
-        const { getBlobMetadataByContentHash } = await import('@/lib/blob-storage');
-        const blobMetadata = await getBlobMetadataByContentHash(kvMedia.contentHash);
+      if (kvMedia && kvMedia.contentHash && kvMedia.storage === 'r2') {
+        const { verifyR2ObjectExists } = await import('@/lib/r2-storage');
+        const originalUrl = kvMedia.variants?.original;
+        const objectKey = originalUrl?.split('/').pop() || '';
         
-        if (blobMetadata) {
-          trace.steps.push({ 
-            step: '5', 
-            status: 'BLOB_METADATA_FOUND',
-            data: {
-              hasUrl: typeof blobMetadata.url !== 'undefined',
-              hasUploadedAt: typeof blobMetadata.uploadedAt !== 'undefined',
-              hasContentType: typeof blobMetadata.contentType !== 'undefined',
-            }
-          });
+        if (objectKey) {
+          const r2Exists = await verifyR2ObjectExists(objectKey);
+          
+          if (r2Exists) {
+            trace.steps.push({ 
+              step: '5', 
+              status: 'R2_OBJECT_FOUND',
+              data: {
+                objectKey,
+                originalUrl,
+              }
+            });
+          } else {
+            trace.steps.push({ 
+              step: '5', 
+              status: 'R2_OBJECT_NOT_FOUND',
+              data: { objectKey, contentHash: kvMedia.contentHash }
+            });
+          }
         } else {
           trace.steps.push({ 
             step: '5', 
-            status: 'BLOB_METADATA_NOT_FOUND',
-            data: { contentHash: kvMedia.contentHash }
+            status: 'R2_KEY_EXTRACTION_FAILED',
+            data: { originalUrl }
           });
         }
+      } else if (kvMedia && kvMedia.storage === 'static') {
+        trace.steps.push({ 
+          step: '5', 
+          status: 'STATIC_STORAGE',
+          data: { storage: 'static' }
+        });
       } else {
         trace.steps.push({ 
           step: '5', 
@@ -229,7 +245,7 @@ export async function GET(request: Request) {
     } catch (error) {
       trace.steps.push({ 
         step: '5', 
-        status: 'BLOB_METADATA_CHECK_ERROR',
+        status: 'R2_OBJECT_CHECK_ERROR',
         data: { error: error instanceof Error ? error.message : 'Unknown error' }
       });
     }

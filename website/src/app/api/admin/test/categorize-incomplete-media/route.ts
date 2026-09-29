@@ -2,8 +2,8 @@
  * Incomplete Media Categorization Endpoint
  *
  * Categorizes incomplete PublishedMediaAsset records into repair categories:
- * - valid Blob objects → repair/reconstruct
- * - missing Blob objects → rematerialize from actual Drive/source bytes
+ * - valid R2 objects → repair/reconstruct
+ * - missing R2 objects → rematerialize from actual Drive/source bytes
  * - synthetic hashes → recompute from actual bytes
  * - missing assignments → rebuild assignments through authoritative Workbench/deployment transaction path
  *
@@ -14,7 +14,7 @@
 
 import { NextResponse } from "next/server";
 import { detectIncompleteKvRecords } from "@/lib/materialization-recovery";
-import { getBlobMetadataByContentHash, verifyBlobExists } from "@/lib/blob-storage";
+import { verifyR2ObjectExists } from "@/lib/r2-storage";
 import { getAllServiceCardAssignments } from "@/lib/assignment-store";
 import { workbenchSession } from "@/lib/workbench-session";
 
@@ -24,10 +24,10 @@ export const runtime = 'nodejs';
 interface CategorizedRecord {
   mediaId: string;
   contentHash: string;
-  category: 'valid_blob' | 'missing_blob' | 'synthetic_hash' | 'missing_assignment';
+  category: 'valid_r2' | 'missing_r2' | 'synthetic_hash' | 'missing_assignment';
   details: {
-    hasBlobMetadata: boolean;
-    blobAccessible: boolean;
+    hasR2Object: boolean;
+    r2Accessible: boolean;
     hashLooksSynthetic: boolean;
     hasAssignment: boolean;
     assignmentServiceSlugs: string[];
@@ -73,23 +73,23 @@ export async function POST(request: Request) {
     const categorized: CategorizedRecord[] = [];
 
     for (const media of incompleteRecords) {
-      let category: CategorizedRecord['category'] = 'valid_blob';
+      let category: CategorizedRecord['category'] = 'valid_r2';
       const details = {
-        hasBlobMetadata: false,
-        blobAccessible: false,
+        hasR2Object: false,
+        r2Accessible: false,
         hashLooksSynthetic: false,
         hasAssignment: false,
         assignmentServiceSlugs: [] as string[],
       };
 
-      // Check for Blob metadata
-      if (media.contentHash) {
-        const blobMetadata = await getBlobMetadataByContentHash(media.contentHash);
-        details.hasBlobMetadata = !!blobMetadata;
-
-        // Check if Blob is accessible
-        if (blobMetadata) {
-          details.blobAccessible = await verifyBlobExists(blobMetadata.url);
+      // Check for R2 object existence
+      if (media.contentHash && media.storage === 'r2') {
+        const originalUrl = media.variants?.original;
+        const objectKey = originalUrl?.split('/').pop() || '';
+        
+        if (objectKey) {
+          details.hasR2Object = await verifyR2ObjectExists(objectKey);
+          details.r2Accessible = details.hasR2Object; // R2 accessibility = object existence
         }
 
         // Check for synthetic hash (heuristics)
@@ -98,6 +98,10 @@ export async function POST(request: Request) {
         const allSameChar = hash.split('').every(c => c === hash[0]);
         const hasRepeatedPattern = /^(.)\1{10,}$/.test(hash);
         details.hashLooksSynthetic = allSameChar || hasRepeatedPattern;
+      } else if (media.storage === 'static') {
+        // Static storage: assume files exist (local file system)
+        details.hasR2Object = true;
+        details.r2Accessible = true;
       }
 
       // Check for assignments
@@ -106,14 +110,14 @@ export async function POST(request: Request) {
       details.assignmentServiceSlugs = assignmentsForMedia.map(a => a.serviceSlug);
 
       // Determine category
-      if (!details.hasBlobMetadata || !details.blobAccessible) {
-        category = 'missing_blob';
+      if (!details.hasR2Object || !details.r2Accessible) {
+        category = 'missing_r2';
       } else if (details.hashLooksSynthetic) {
         category = 'synthetic_hash';
       } else if (!details.hasAssignment) {
         category = 'missing_assignment';
       } else {
-        category = 'valid_blob';
+        category = 'valid_r2';
       }
 
       categorized.push({
@@ -126,8 +130,8 @@ export async function POST(request: Request) {
 
     // Summarize by category
     const summary = {
-      valid_blob: categorized.filter(c => c.category === 'valid_blob').length,
-      missing_blob: categorized.filter(c => c.category === 'missing_blob').length,
+      valid_r2: categorized.filter(c => c.category === 'valid_r2').length,
+      missing_r2: categorized.filter(c => c.category === 'missing_r2').length,
       synthetic_hash: categorized.filter(c => c.category === 'synthetic_hash').length,
       missing_assignment: categorized.filter(c => c.category === 'missing_assignment').length,
     };
@@ -144,8 +148,8 @@ export async function POST(request: Request) {
       summary,
       categorized,
       repairPlan: {
-        valid_blob: 'Use repairIncompleteKvRecord() to reconstruct all variant metadata',
-        missing_blob: 'Rematerialize from actual Drive/source bytes → full materialization chain',
+        valid_r2: 'Use repairIncompleteKvRecord() to reconstruct all variant metadata',
+        missing_r2: 'Rematerialize from actual Drive/source bytes → full materialization chain',
         synthetic_hash: 'Recompute hash from actual bytes → full materialization chain',
         missing_assignment: 'Rebuild assignments through authoritative Workbench/deployment transaction path',
       },

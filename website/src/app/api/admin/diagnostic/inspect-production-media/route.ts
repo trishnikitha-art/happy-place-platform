@@ -9,7 +9,7 @@
  * - PROVEN: System-level invariants independently satisfied (NOT IMPLEMENTED)
  * 
  * CLASSIFICATION: SYNTHETIC-READ
- * - Inspects production KV media records and Blob metadata
+ * - Inspects production KV media records and R2 objects
  * - Classifies records by health status with fail-closed logic
  * - Does NOT perform repairs (inspection-only diagnostic)
  * - Does NOT provide physical verification evidence (classification only)
@@ -27,20 +27,19 @@
  * Classification categories (stricter than production public gate):
  * - SYNTHETIC_HASH: Hash derived from canonical ID, not actual bytes → QUARANTINE
  * - MISSING_CONTENT_HASH: No contentHash present → INVALID
- * - MISSING_ORIGINAL_BLOB: No original variant present → INVALID
- * - MISSING_BLOB_METADATA: Media exists but blob_metadata:* record missing → INVALID
- * - BLOB_NOT_FOUND: Blob URL present but object doesn't exist → INVALID
- * - BLOB_HASH_MISMATCH: Blob bytes don't match expected hash → QUARANTINE
- * - BLOB_UNVERIFIABLE: Infrastructure error prevents verification → UNVERIFIABLE
- * - PHYSICALLY_VERIFIED: Real hash + valid Blob metadata + original Blob bytes match → VALID
+ * - MISSING_R2_OBJECT: No original variant present → INVALID
+ * - R2_NOT_FOUND: R2 object doesn't exist → INVALID
+ * - R2_HASH_MISMATCH: R2 bytes don't match expected hash → QUARANTINE
+ * - R2_UNVERIFIABLE: Infrastructure error prevents verification → UNVERIFIABLE
+ * - PHYSICALLY_VERIFIED: Real hash + valid R2 object + bytes match → VALID
  * - ERROR: Classification error
  * 
  * P0 FIXES:
  * - Requires Workbench authentication (admin authorization boundary)
  * - Missing contentHash is explicit failure classification
- * - Missing original Blob URL is explicit failure classification
+ * - Missing original variant is explicit failure classification
  * - Never uses web variant as substitute for original hash verification
- * - Storage errors have typed classification (UNVERIFIABLE vs BLOB_NOT_FOUND)
+ * - Storage errors have typed classification (UNVERIFIABLE vs R2_NOT_FOUND)
  * - Enumeration/classification accounting is exact (no double-counting)
  * - CLASSIFIED verdict only after accounting validation
  * - Diagnostic is stricter than production public gate
@@ -51,7 +50,7 @@
 import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
 import { getMediaRecordRaw, listMediaIds } from "@/lib/media-kv-store";
-import { getBlobMetadataByContentHash, verifyBlobHash, type BlobHashVerificationResult } from "@/lib/blob-storage";
+import { verifyR2Hash, type R2HashVerificationResult } from "@/lib/r2-storage";
 import crypto from "crypto";
 
 interface EvidenceResult {
@@ -71,15 +70,16 @@ interface EvidenceResult {
 
 interface MediaClassification {
   mediaId: string;
-  classification: 'SYNTHETIC_HASH' | 'MISSING_CONTENT_HASH' | 'MISSING_ORIGINAL_BLOB' | 'MISSING_BLOB_METADATA' | 'BLOB_NOT_FOUND' | 'BLOB_HASH_MISMATCH' | 'BLOB_UNVERIFIABLE' | 'PHYSICALLY_VERIFIED' | 'ERROR';
+  classification: 'SYNTHETIC_HASH' | 'MISSING_CONTENT_HASH' | 'MISSING_R2_OBJECT' | 'R2_NOT_FOUND' | 'R2_HASH_MISMATCH' | 'R2_UNVERIFIABLE' | 'PHYSICALLY_VERIFIED' | 'ERROR';
   contentHash?: string;
   isSynthetic?: boolean;
-  hasBlobMetadata?: boolean;
-  blobUrl?: string;
-  blobExists?: boolean;
-  blobHashValid?: boolean;
+  hasR2Object?: boolean;
+  r2Url?: string;
+  r2Exists?: boolean;
+  r2HashValid?: boolean;
   lifecycleState?: string;
   source?: string;
+  storage?: string;
   error?: string;
   errorType?: string;
 }
@@ -137,11 +137,10 @@ export async function POST(request: Request) {
     const classificationCounts: Record<string, number> = {
       SYNTHETIC_HASH: 0,
       MISSING_CONTENT_HASH: 0,
-      MISSING_ORIGINAL_BLOB: 0,
-      MISSING_BLOB_METADATA: 0,
-      BLOB_NOT_FOUND: 0,
-      BLOB_HASH_MISMATCH: 0,
-      BLOB_UNVERIFIABLE: 0,
+      MISSING_R2_OBJECT: 0,
+      R2_NOT_FOUND: 0,
+      R2_HASH_MISMATCH: 0,
+      R2_UNVERIFIABLE: 0,
       PHYSICALLY_VERIFIED: 0,
       ERROR: 0,
     };
@@ -161,6 +160,7 @@ export async function POST(request: Request) {
           classification: 'ERROR',
           lifecycleState: media.lifecycleState,
           source: media.source,
+          storage: media.storage,
         };
 
         // P0: Missing contentHash is explicit failure
@@ -185,98 +185,84 @@ export async function POST(request: Request) {
           continue;
         }
 
-        // Check for Blob metadata
-        const blobMetadata = await getBlobMetadataByContentHash(contentHash);
-        classification.hasBlobMetadata = !!blobMetadata;
-
-        if (!blobMetadata) {
-          classification.classification = 'MISSING_BLOB_METADATA';
-          classificationCounts.MISSING_BLOB_METADATA++;
+        // R2-SPECIFIC: Check storage type
+        if (media.storage !== 'r2' && media.storage !== 'static') {
+          classification.classification = 'ERROR';
+          classification.errorType = 'INVALID_STORAGE_TYPE';
+          classification.error = `Invalid storage type: ${media.storage}`;
+          classificationCounts.ERROR++;
           classifications.push(classification);
           continue;
         }
 
-        // P0: Missing original Blob URL is explicit failure
-        const originalBlobUrl = media.variants?.original;
-        if (!originalBlobUrl) {
-          classification.classification = 'MISSING_ORIGINAL_BLOB';
-          classificationCounts.MISSING_ORIGINAL_BLOB++;
-          classifications.push(classification);
-          continue;
-        }
-
-        classification.blobUrl = originalBlobUrl;
-
-        // P0: Verify media record → Blob metadata consistency
-        // The metadata must correspond to the media record
-        if (blobMetadata.contentHash !== contentHash) {
-          classification.classification = 'BLOB_HASH_MISMATCH';
-          classificationCounts.BLOB_HASH_MISMATCH++;
-          classification.errorType = 'METADATA_CONTENT_HASH_MISMATCH';
-          classification.error = 'METADATA_CONTENT_HASH_MISMATCH'; // Safe error code
-          classifications.push(classification);
-          continue;
-        }
-
-        if (blobMetadata.url !== originalBlobUrl) {
-          classification.classification = 'BLOB_HASH_MISMATCH';
-          classificationCounts.BLOB_HASH_MISMATCH++;
-          classification.errorType = 'METADATA_URL_MISMATCH';
-          classification.error = 'METADATA_URL_MISMATCH'; // Safe error code
-          classifications.push(classification);
-          continue;
-        }
-
-        // P0: Verify contentHash only against original variant (never web)
-        // Use structured error types from verifyBlobHash instead of string matching
-        const verificationResult = await verifyBlobHash(originalBlobUrl, contentHash);
-        
-        classification.blobExists = verificationResult.success;
-        classification.blobHashValid = verificationResult.success;
-
-        if (!verificationResult.success) {
-          // P0: Use structured error types instead of string matching
-          switch (verificationResult.errorType) {
-            case 'BLOB_NOT_FOUND':
-              classification.classification = 'BLOB_NOT_FOUND';
-              classificationCounts.BLOB_NOT_FOUND++;
-              classification.errorType = 'BLOB_NOT_FOUND';
-              break;
-            case 'AUTH_FAILURE':
-              classification.classification = 'BLOB_UNVERIFIABLE';
-              classificationCounts.BLOB_UNVERIFIABLE++;
-              classification.errorType = 'AUTH_FAILURE';
-              break;
-            case 'INTEGRITY_FAILURE':
-              classification.classification = 'BLOB_HASH_MISMATCH';
-              classificationCounts.BLOB_HASH_MISMATCH++;
-              classification.errorType = 'INTEGRITY_FAILURE';
-              break;
-            case 'TRANSPORT_ERROR':
-              classification.classification = 'BLOB_UNVERIFIABLE';
-              classificationCounts.BLOB_UNVERIFIABLE++;
-              classification.errorType = 'TRANSPORT_ERROR';
-              break;
-            case 'INVALID_URL':
-              classification.classification = 'MISSING_ORIGINAL_BLOB';
-              classificationCounts.MISSING_ORIGINAL_BLOB++;
-              classification.errorType = 'INVALID_URL';
-              break;
-            default:
-              classification.classification = 'BLOB_UNVERIFIABLE';
-              classificationCounts.BLOB_UNVERIFIABLE++;
-              classification.errorType = 'UNKNOWN_ERROR';
+        // For R2 storage, verify R2 object exists and hash matches
+        if (media.storage === 'r2') {
+          const originalUrl = media.variants?.original;
+          if (!originalUrl) {
+            classification.classification = 'MISSING_R2_OBJECT';
+            classificationCounts.MISSING_R2_OBJECT++;
+            classification.errorType = 'MISSING_ORIGINAL_VARIANT';
+            classifications.push(classification);
+            continue;
           }
-          
-          classification.error = verificationResult.errorType; // Safe error type code (not raw message)
-          classifications.push(classification);
-          continue;
-        }
 
-        // If we got here, the record is physically verified
-        classification.classification = 'PHYSICALLY_VERIFIED';
-        classificationCounts.PHYSICALLY_VERIFIED++;
-        classifications.push(classification);
+          classification.r2Url = originalUrl;
+
+          // Extract R2 object key from URL
+          const objectKey = originalUrl.split('/').pop() || '';
+          if (!objectKey) {
+            classification.classification = 'ERROR';
+            classification.errorType = 'INVALID_R2_URL';
+            classification.error = 'Cannot extract object key from R2 URL';
+            classificationCounts.ERROR++;
+            classifications.push(classification);
+            continue;
+          }
+
+          // Verify R2 object hash
+          const verificationResult = await verifyR2Hash(objectKey, contentHash);
+          
+          classification.r2Exists = verificationResult.success;
+          classification.r2HashValid = verificationResult.success;
+
+          if (!verificationResult.success) {
+            switch (verificationResult.errorType) {
+              case 'OBJECT_NOT_FOUND':
+                classification.classification = 'R2_NOT_FOUND';
+                classificationCounts.R2_NOT_FOUND++;
+                classification.errorType = 'OBJECT_NOT_FOUND';
+                break;
+              case 'AUTH_FAILURE':
+                classification.classification = 'R2_UNVERIFIABLE';
+                classificationCounts.R2_UNVERIFIABLE++;
+                classification.errorType = 'AUTH_FAILURE';
+                break;
+              case 'INTEGRITY_FAILURE':
+                classification.classification = 'R2_HASH_MISMATCH';
+                classificationCounts.R2_HASH_MISMATCH++;
+                classification.errorType = 'INTEGRITY_FAILURE';
+                classification.error = `Hash mismatch: expected ${contentHash}, got ${verificationResult.actualHash}`;
+                break;
+              case 'TRANSPORT_ERROR':
+                classification.classification = 'R2_UNVERIFIABLE';
+                classificationCounts.R2_UNVERIFIABLE++;
+                classification.errorType = 'TRANSPORT_ERROR';
+                break;
+              default:
+                classification.classification = 'R2_UNVERIFIABLE';
+                classificationCounts.R2_UNVERIFIABLE++;
+                classification.errorType = 'UNKNOWN_ERROR';
+                break;
+            }
+            classifications.push(classification);
+            continue;
+          }
+
+          // P0: Physical verification succeeded
+          classification.classification = 'PHYSICALLY_VERIFIED';
+          classificationCounts.PHYSICALLY_VERIFIED++;
+          classifications.push(classification);
+        }
 
       } catch (error) {
         console.error('[PRODUCTION_MEDIA_INSPECTION] CLASSIFICATION_ERROR', {

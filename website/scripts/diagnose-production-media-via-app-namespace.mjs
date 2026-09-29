@@ -98,10 +98,10 @@ async function diagnoseMalformedRecord() {
         }
       }
     } else if (media.source === 'google-drive') {
-      console.log('  This is a Drive-originated asset');
-      console.log('  ❌ PROBLEM: Drive assets should be materialized with storage: "blob"');
+      console.log('  This is a Drive-originated asset (DriveReference state)');
+      console.log('  ❌ PROBLEM: Drive-originated assets should be materialized with storage: "r2"');
       console.log('  ✅ RECOMMENDATION: This record may be from an incomplete materialization');
-      console.log('  ✅ RECOMMENDATION: Re-materialize from Drive or remove if no longer needed');
+      console.log('  ✅ RECOMMENDATION: Re-materialize from Drive to R2 or remove if no longer needed');
     } else {
       console.log('  Unknown source type:', media.source);
       console.log('  ⚠️  Manual inspection required');

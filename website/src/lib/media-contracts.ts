@@ -116,8 +116,14 @@ export function hasRealContentHash(media: Media): boolean {
  * A media asset is publicly complete ONLY when it has:
  * 1. Correct materialization shape (structure is valid)
  * 2. Real content hash (not synthetic)
- * 3. Physical storage proof (bytes exist and match hash)
+ * 3. Physical storage proof (bytes exist at materialization time with hash verification, structural invariants maintained thereafter)
  * 4. All required renditions exist physically (original, thumbnail, webp, responsive)
+ *
+ * R2-SPECIFIC INVARIANT:
+ * - Materialization time: byte-level SHA-256 hash verification via verifyR2Hash()
+ * - Public time: structural proof via HeadObject (object existence + rendition completeness)
+ * - Rationale: Materialization already proved byte integrity; public reads avoid Class B GetObject cost
+ * - Content-addressed keys ensure immutability; re-PUT of same content is idempotent
  *
  * This is the NON-NEGOTIABLE contract for public presentation.
  * Any asset failing this check must not be rendered publicly.
