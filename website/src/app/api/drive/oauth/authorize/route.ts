@@ -87,9 +87,11 @@ export async function GET(request: Request) {
 
   const scopes = [
     // OpenID identity scopes for authoritative Google sub extraction
+    // Production evidence: Google grants userinfo scopes as full URIs, not shorthand
+    // Previous fix attempt used 'profile'/'email' which caused scope validation failure
     'openid',
-    'profile',
-    'email',
+    'https://www.googleapis.com/auth/userinfo.profile',
+    'https://www.googleapis.com/auth/userinfo.email',
     // Drive read-only scopes for file access
     'https://www.googleapis.com/auth/drive.readonly',
     'https://www.googleapis.com/auth/drive.metadata.readonly',
@@ -98,7 +100,7 @@ export async function GET(request: Request) {
 
   console.log('[DRIVE OAUTH FORENSIC] OAuth scopes:', {
     scopeCount: scopes.length,
-    hasOpenIdIdentityScopes: scopes.includes('openid') && scopes.includes('profile') && scopes.includes('email'),
+    hasOpenIdIdentityScopes: scopes.includes('openid') && scopes.includes('https://www.googleapis.com/auth/userinfo.profile') && scopes.includes('https://www.googleapis.com/auth/userinfo.email'),
     hasDriveReadOnlyScopes: scopes.includes('https://www.googleapis.com/auth/drive.readonly'),
   });
 

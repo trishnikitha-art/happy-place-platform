@@ -229,28 +229,36 @@ export async function GET(request: Request) {
     const expiresIn = tokenData.expires_in || 3600;
     const expiryDate = Date.now() + (expiresIn * 1000);
 
-    // P0 FIX: Forensic logging of granted scopes
-    // Google may not grant all requested scopes - log actual granted scopes for investigation
+    // P0 FIX: Validate granted scopes include required scopes
+    // Google grants userinfo scopes as full URIs, not shorthand
+    // Production evidence: Google returns https://www.googleapis.com/auth/userinfo.profile/email
+    // NOT the shorthand profile/email strings
     const grantedScopes = tokenData.scope ? tokenData.scope.split(' ') : [];
     const requiredScopes = [
       'openid',
-      'profile',
-      'email',
+      'https://www.googleapis.com/auth/userinfo.profile',
+      'https://www.googleapis.com/auth/userinfo.email',
       'https://www.googleapis.com/auth/drive.readonly',
       'https://www.googleapis.com/auth/drive.metadata.readonly',
       'https://www.googleapis.com/auth/drive.photos.readonly',
     ];
 
     const missingScopes = requiredScopes.filter(scope => !grantedScopes.includes(scope));
-    console.log('[DRIVE OAUTH CALLBACK] Scope validation forensic', {
+    console.log('[DRIVE OAUTH CALLBACK] Scope validation', {
       grantedScopes,
       missingScopes,
       grantedScopesCount: grantedScopes.length,
       requiredScopesCount: requiredScopes.length,
     });
 
-    // TEMPORARY: Do not fail on missing scopes to restore OAuth functionality
-    // Will investigate which scopes Google actually grants and adjust validation accordingly
+    if (missingScopes.length > 0) {
+      console.error('[DRIVE OAUTH CALLBACK] Required scopes not granted', {
+        missingScopes,
+        grantedScopes,
+      });
+      const url = new URL('/workbench/media', request.url);
+      return NextResponse.redirect(url);
+    }
 
     console.log('[DRIVE OAUTH FORENSIC] Token validation passed', {
       hasAccessToken: !!tokenData.access_token,
@@ -321,10 +329,11 @@ export async function GET(request: Request) {
     
     // Persist authorization through oauth-credential-store
     // refresh_token is guaranteed non-empty due to fail-closed validation above
+    // Persist actual granted scopes from Google, not requested scopes
     const authorization = await upsertAuthorization(
       googleSubject,
       email,
-      tokenData.scope ? tokenData.scope.split(' ') : [],
+      grantedScopes,
       tokenData.access_token,
       expiryDate,
       tokenData.refresh_token
@@ -332,6 +341,7 @@ export async function GET(request: Request) {
 
     console.log('[DRIVE OAUTH FORENSIC] Authorization persisted', {
       authorizationId: `${authorization.id.substring(0, 8)}...`,
+      scopesPersisted: grantedScopes.length,
     });
 
     // Create browser session
