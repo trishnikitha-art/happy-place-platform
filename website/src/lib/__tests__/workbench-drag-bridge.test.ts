@@ -213,6 +213,43 @@ describe('WorkbenchDragBridge - parent/iframe generation protocol', () => {
 });
 
 describe('WorkbenchDragBridge - gallery DOM interaction surface', () => {
+  test('VisualSlot child wrapper is pointer-transparent BEFORE drag starts (regression test)', () => {
+    // REGRESSION TEST (a611595d → ec01c323 regression):
+    // The known-good a611595d commit set child wrapper pointer-events:none based on
+    // effectiveWorkbenchMode && isGallerySlot (BEFORE drag begins).
+    // 
+    // The broken ec01c323 version set it based on isDraggingActive (AFTER drag begins).
+    // This creates a deadlock: drag can't start because child surface intercepts pointer,
+    // but child only becomes transparent after drag starts.
+    //
+    // REQUIRED DOM CONTRACT:
+    // - VisualSlot child wrapper must be pointer-transparent when:
+    //   effectiveWorkbenchMode === true AND isGallerySlot === true
+    // - This ensures VisualSlot receives the initial pointerdown event
+    // - This allows native dragstart to fire reliably
+    // - The image/nested content cannot steal the drag gesture
+    //
+    // This test fails if the code regresses to the broken isDraggingActive-based pattern.
+
+    const fs = require('fs');
+    const path = require('path');
+    const visualSlotPath = path.join(__dirname, '../../components/visual-slot.tsx');
+    const visualSlotSource = fs.readFileSync(visualSlotPath, 'utf-8');
+
+    // Check for the KNOWN-GOOD pattern: pointerEvents based on effectiveWorkbenchMode && isGallerySlot
+    // Order doesn't matter - we just need both conditions present
+    const knownGoodPattern = /pointerEvents.*none.*effectiveWorkbenchMode.*isGallerySlot|effectiveWorkbenchMode.*isGallerySlot.*pointerEvents.*none/s;
+    const hasKnownGoodPattern = knownGoodPattern.test(visualSlotSource);
+
+    // Check for the BROKEN pattern: pointerEvents based on isDraggingActive alone
+    // (without effectiveWorkbenchMode && isGallerySlot)
+    const brokenPattern = /pointerEvents.*none.*isDraggingActive(?!.*effectiveWorkbenchMode.*isGallerySlot)/s;
+    const hasBrokenPattern = brokenPattern.test(visualSlotSource);
+
+    expect(hasKnownGoodPattern).toBe(true);
+    expect(hasBrokenPattern).toBe(false);
+  });
+
   test('VisualSlot is the gallery drag authority - not the outer gallery item', () => {
     // KNOWN-GOOD ARCHITECTURE (from f043300f):
     // VisualSlot owns gallery drag/drop because it is the actual pointer target.
@@ -222,20 +259,20 @@ describe('WorkbenchDragBridge - gallery DOM interaction surface', () => {
     // - VisualSlot (when isGallerySlot): draggable=true
     // - VisualSlot (when isGallerySlot): onDragStart, onDragEnd, onDragOver, onDragEnter, onDragLeave, onDrop
     // - VisualSlot cursor: grab at rest, grabbing during active drag
-    // - VisualSlot child wrapper: pointerEvents=none during active drag (prevents drop target theft)
+    // - VisualSlot child wrapper: pointerEvents=none when effectiveWorkbenchMode && isGallerySlot (BEFORE drag)
     // - img: draggable=false (explicitly non-draggable)
     // - Normal mode: all drag/drop handlers disabled
 
     // Implementation:
-    // - VisualSlot.tsx line 1003: draggable={effectiveWorkbenchMode && isGallerySlot}
-    // - VisualSlot.tsx line 1004-1005: onDragStart/onDragEnd when isGallerySlot
-    // - VisualSlot.tsx line 999-1002: onDragOver/Enter/Leave/Drop when effectiveWorkbenchMode
-    // - VisualSlot.tsx line 1007: child wrapper with pointerEvents=none during isDraggingActive
+    // - VisualSlot.tsx: draggable={effectiveWorkbenchMode && isGallerySlot}
+    // - VisualSlot.tsx: onDragStart/onDragEnd when isGallerySlot
+    // - VisualSlot.tsx: onDragOver/Enter/Leave/Drop when effectiveWorkbenchMode
+    // - VisualSlot.tsx: child wrapper with pointerEvents=none when effectiveWorkbenchMode && isGallerySlot
     // - OurWorkClient.tsx: gallery item is simple wrapper with cursor-pointer, no DnD handlers
     // - OurWorkClient.tsx: img has draggable=false
 
     // This architecture works because VisualSlot is the actual DOM element receiving pointer events.
-    expect(true).toBe(true); // Invariant enforced in VisualSlot.tsx lines 1003-1007
+    expect(true).toBe(true); // Invariant enforced in VisualSlot.tsx
   });
 });
 

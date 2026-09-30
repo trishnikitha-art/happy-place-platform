@@ -1027,7 +1027,13 @@ export function VisualSlot({
       onDragStart={effectiveWorkbenchMode && isGallerySlot ? handleDragStart : undefined}
       onDragEnd={effectiveWorkbenchMode && isGallerySlot ? handleDragEnd : undefined}
     >
-      <div style={isDraggingActive ? { pointerEvents: 'none' } : undefined}>
+      <div
+        style={
+          effectiveWorkbenchMode && isGallerySlot
+            ? { pointerEvents: 'none' }
+            : undefined
+        }
+      >
         {children}
       </div>
     </div>
