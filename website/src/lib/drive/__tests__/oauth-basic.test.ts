@@ -1,10 +1,13 @@
 /**
  * OAuth Basic Unit Tests
- * 
+ *
  * These tests validate basic OAuth functionality without requiring Redis mocking.
  * More complex invariants (concurrency, browser binding, atomic identity) are tested
  * in integration tests with real Redis.
  */
+
+import * as fs from 'fs';
+import * as path from 'path';
 
 describe('OAuth Basic Unit Tests', () => {
   it('should export encryption utilities', () => {
@@ -56,10 +59,34 @@ describe('OAuth Basic Unit Tests', () => {
     const { generateState } = require('../oauth-state-manager');
     const state1 = generateState();
     const state2 = generateState();
-    
+
     expect(state1).toBeDefined();
     expect(state2).toBeDefined();
     expect(state1).not.toBe(state2); // Should be different each time
     expect(state1.length).toBeGreaterThan(20); // Should be reasonably long
+  });
+
+  it('should have single authoritative refresh path - no getAccessToken() bypass', () => {
+    // CRITICAL: Verify that getOAuthClient() does NOT call getAccessToken()
+    // getAccessToken() can trigger Google's automatic refresh, which bypasses explicitTokenRefresh()
+    // This would cause the new token to be used in-memory without being persisted
+    // The explicit refresh path in explicitTokenRefresh() is the single authoritative refresh mechanism
+
+    const oauthManagerSource = fs.readFileSync(
+      path.join(__dirname, '../oauth-manager.ts'),
+      'utf-8'
+    );
+
+    // Verify getAccessToken() is NOT called in getOAuthClient()
+    // This ensures all refresh goes through explicitTokenRefresh() which persists to authorization store
+    expect(oauthManagerSource).not.toContain('getAccessToken()');
+
+    // Verify explicitTokenRefresh() exists and calls updateAuthorizationAfterRefresh
+    expect(oauthManagerSource).toContain('explicitTokenRefresh');
+    expect(oauthManagerSource).toContain('updateAuthorizationAfterRefresh');
+
+    // Verify refresh happens when token is expired or near expiry
+    expect(oauthManagerSource).toContain('needsRefresh');
+    expect(oauthManagerSource).toContain('explicitTokenRefresh(oauth2Client, effectiveAuthorizationId)');
   });
 });

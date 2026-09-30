@@ -241,49 +241,12 @@ export async function getOAuthClient(): Promise<InstanceType<typeof google.auth.
     console.log('[OAUTH_MANAGER] Token refresh successful');
   }
 
-  // Validate token is accessible without triggering internal refresh
-  try {
-    const tokens = await oauth2Client.getAccessToken();
-    if (!tokens.token) {
-      console.log('[OAUTH_MANAGER] Token validation failed, attempting recovery refresh');
-      await explicitTokenRefresh(oauth2Client, effectiveAuthorizationId);
-      console.log('[OAUTH_MANAGER] Recovery refresh successful');
-    }
-  } catch (error) {
-    console.error('[OAUTH_MANAGER] Token validation failed, attempting recovery refresh:', error);
-
-    // Attempt explicit refresh as recovery
-    try {
-      await explicitTokenRefresh(oauth2Client, effectiveAuthorizationId);
-      console.log('[OAUTH_MANAGER] Recovery refresh succeeded');
-    } catch (refreshError) {
-      console.error('[OAUTH_MANAGER] Recovery refresh failed:', refreshError);
-
-      // Classify error type with explicit semantics
-      const errorMessage = refreshError instanceof Error ? refreshError.message : String(refreshError);
-      const isPermanentFailure = errorMessage.includes('invalid_grant') ||
-                                  errorMessage.includes('revoked') ||
-                                  errorMessage.includes('Token has been revoked');
-
-      if (isPermanentFailure) {
-        console.log('[OAUTH_MANAGER] Permanent authorization failure, revoking authorization');
-
-        // Use authoritative revocation path
-        await revokeAuthorizationWithSessions(effectiveAuthorizationId);
-        console.log('[OAUTH_MANAGER] Authorization revoked');
-        
-        // Clear session cookie
-        const cookieStore = await cookies();
-        cookieStore.delete('drive_session_id');
-        
-        throw new Error('OAuth authorization failed. Please re-authenticate with Google Drive.');
-      } else {
-        // Transient failure - explicit error, not swallowed
-        console.log('[OAUTH_MANAGER] Transient token refresh failure');
-        throw new Error(`Token refresh failed (transient): ${errorMessage}`);
-      }
-    }
-  }
+  // P0 FIX: Removed getAccessToken() validation call
+  // getAccessToken() can trigger Google's automatic refresh, which bypasses explicitTokenRefresh()
+  // This would cause the new token to be used in-memory without being persisted to the authorization store
+  // The explicit refresh path at lines 233-242 is the single authoritative refresh mechanism
+  // If the token was successfully refreshed, it is already persisted by explicitTokenRefresh()
+  // If the token is still valid, it can be used directly without validation
 
   return oauth2Client;
 }
