@@ -145,10 +145,25 @@ export async function POST() {
         };
         
         await storeServiceCardAssignment(assignment, currentRevision, `reconcile-${slotKey}`);
+
+        // READBACK PROOF: Verify the assignment was written correctly using the exact consumer path
+        const readback = await getServiceCardAssignment(slotKey, `reconcile-readback-${slotKey}`);
+        if (!readback || readback.serviceSlug !== slotKey || readback.mediaId !== mediaId) {
+          failed++;
+          errors[slotKey] = `Readback verification failed: expected serviceSlug=${slotKey}, mediaId=${mediaId}, got ${JSON.stringify(readback)}`;
+          console.error('[ASSIGNMENT_RECONCILIATION] READBACK_FAILED', {
+            slotKey,
+            mediaId,
+            readback,
+          });
+          return;
+        }
+
         reconciled++;
-        console.log('[ASSIGNMENT_RECONCILIATION] RECONCILED', { 
+        console.log('[ASSIGNMENT_RECONCILIATION] RECONCILED', {
           slotKey,
-          mediaId
+          mediaId,
+          readbackVerified: true
         });
         
       } catch (error) {
@@ -232,7 +247,7 @@ export async function POST() {
       try {
         if (service.cardMediaId) {
           await reconcileAssignment(
-            `service-card:${service.slug}`,
+            service.slug,
             service.cardMediaId
           );
         }

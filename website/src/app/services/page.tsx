@@ -33,6 +33,16 @@ export default async function ServicesPage() {
           serviceCardMediaMap.set(service.slug, resolvedMedia);
         }
       }
+
+      // Defensive fallback: if no runtime assignment or resolution failed, try canonical static cardMediaId
+      // This preserves runtime assignment as authoritative while providing fallback for missing assignments
+      if (!serviceCardMediaMap.has(service.slug) && service.cardMediaId) {
+        const staticMedia = await resolvePublicMedia(service.cardMediaId);
+        if (staticMedia) {
+          serviceCardMediaMap.set(service.slug, staticMedia);
+          console.log('[SERVICES_PAGE] Using static fallback for service:', service.slug);
+        }
+      }
     } catch (error) {
       console.error('[SERVICES_PAGE] Failed to resolve media for service:', service.slug, error);
     }
