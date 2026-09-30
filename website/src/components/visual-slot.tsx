@@ -991,12 +991,13 @@ export function VisualSlot({
       data-slot-section={section}
       style={cursorStyle}
       onClick={effectiveWorkbenchMode ? handleClick : undefined}
-      onDragOver={effectiveWorkbenchMode ? handleDragOver : undefined}
-      onDragEnter={effectiveWorkbenchMode ? handleDragEnter : undefined}
-      onDragLeave={effectiveWorkbenchMode ? handleDragLeave : undefined}
-      onDrop={effectiveWorkbenchMode ? handleDrop : undefined}
-      // NOTE: VisualSlot is no longer the gallery drag authority
-      // Gallery items in OurWorkClient are now the sole draggable elements
+      // ARCHITECTURAL INVARIANT: VisualSlot is registration infrastructure only
+      // Gallery items in OurWorkClient are the sole DnD authority
+      // When isGallerySlot, VisualSlot must have ZERO drag/drop handlers
+      onDragOver={effectiveWorkbenchMode && !isGallerySlot ? handleDragOver : undefined}
+      onDragEnter={effectiveWorkbenchMode && !isGallerySlot ? handleDragEnter : undefined}
+      onDragLeave={effectiveWorkbenchMode && !isGallerySlot ? handleDragLeave : undefined}
+      onDrop={effectiveWorkbenchMode && !isGallerySlot ? handleDrop : undefined}
       draggable={false}
       onDragStart={undefined}
       onDragEnd={undefined}
