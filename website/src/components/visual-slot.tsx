@@ -507,6 +507,13 @@ export function VisualSlot({
   };
 
   const handleDragOver = (e: React.DragEvent) => {
+    console.log('[VS_DND] DRAG_OVER_RECEIVED', {
+      slotId: id,
+      isGallerySlot,
+      effectiveWorkbenchMode,
+      timestamp: Date.now(),
+    });
+
     e.preventDefault();
     e.stopPropagation(); // P0 FIX: Prevent event bubbling to parent containers
 
@@ -1080,7 +1087,7 @@ export function VisualSlot({
     >
       <div
         style={
-          effectiveWorkbenchMode && isGallerySlot
+          isDraggingActive
             ? { pointerEvents: 'none' }
             : undefined
         }
