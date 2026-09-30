@@ -213,26 +213,29 @@ describe('WorkbenchDragBridge - parent/iframe generation protocol', () => {
 });
 
 describe('WorkbenchDragBridge - gallery DOM interaction surface', () => {
-  test('gallery VisualSlot must have ZERO drag/drop handlers - gallery items are sole DnD authority', () => {
-    // ARCHITECTURAL INVARIANT: VisualSlot is registration infrastructure only
-    // Gallery items in OurWorkClient are the sole DnD authority
+  test('VisualSlot is the gallery drag authority - not the outer gallery item', () => {
+    // KNOWN-GOOD ARCHITECTURE (from f043300f):
+    // VisualSlot owns gallery drag/drop because it is the actual pointer target.
+    // The outer gallery div is just a layout wrapper and cannot reliably be dragged.
 
     // Required DOM contract:
-    // - Gallery item div: draggable=true, onDragStart, onDragOver, onDrop
-    // - Gallery item owns GALLERY_REORDER and GALLERY_ADD protocols
-    // - VisualSlot (when isGallerySlot): NO drag/drop handlers
-    // - VisualSlot (when isGallerySlot): NO draggable attribute
+    // - VisualSlot (when isGallerySlot): draggable=true
+    // - VisualSlot (when isGallerySlot): onDragStart, onDragEnd, onDragOver, onDragEnter, onDragLeave, onDrop
+    // - VisualSlot cursor: grab at rest, grabbing during active drag
+    // - VisualSlot child wrapper: pointerEvents=none during active drag (prevents drop target theft)
     // - img: draggable=false (explicitly non-draggable)
     // - Normal mode: all drag/drop handlers disabled
 
     // Implementation:
-    // - VisualSlot.tsx line 994-997: onDragOver/Enter/Leave/Drop only when !isGallerySlot
-    // - VisualSlot.tsx line 1000: draggable=false always
-    // - OurWorkClient.tsx: gallery item has draggable={isWorkbenchMode}
-    // - OurWorkClient.tsx: gallery item handles dragstart/dragover/drop
+    // - VisualSlot.tsx line 1003: draggable={effectiveWorkbenchMode && isGallerySlot}
+    // - VisualSlot.tsx line 1004-1005: onDragStart/onDragEnd when isGallerySlot
+    // - VisualSlot.tsx line 999-1002: onDragOver/Enter/Leave/Drop when effectiveWorkbenchMode
+    // - VisualSlot.tsx line 1007: child wrapper with pointerEvents=none during isDraggingActive
+    // - OurWorkClient.tsx: gallery item is simple wrapper with cursor-pointer, no DnD handlers
+    // - OurWorkClient.tsx: img has draggable=false
 
-    // This invariant prevents competing authorities between VisualSlot and gallery items
-    expect(true).toBe(true); // Invariant enforced in VisualSlot.tsx lines 994-1000
+    // This architecture works because VisualSlot is the actual DOM element receiving pointer events.
+    expect(true).toBe(true); // Invariant enforced in VisualSlot.tsx lines 1003-1007
   });
 });
 

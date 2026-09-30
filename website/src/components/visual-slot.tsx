@@ -959,14 +959,20 @@ export function VisualSlot({
   // Always render same structure to avoid hydration mismatch
   // Only conditionally apply handlers and cursor style
   // P0 FIX: Do NOT override caller geometry - VisualSlot should be invisible wrapper
-  // NOTE: Gallery drag authority moved to gallery items in OurWorkClient
-  // VisualSlot is now slot registration infrastructure only
+  // P0 FIX: Restore proper drag cursor for gallery reorder affordance
+  // Gallery slots: grab at rest, grabbing during active drag
+  // Non-gallery Workbench slots: pointer for click-to-select
   const cursorStyle = effectiveWorkbenchMode
-    ? { cursor: 'pointer' }
+    ? (isGallerySlot 
+        ? { cursor: isDraggingActive ? 'grabbing' : 'grab' } 
+        : { cursor: 'pointer' })
     : undefined;
 
+  // P0 FIX: Also apply cursor via className for better browser compatibility
   const cursorClass = effectiveWorkbenchMode
-    ? 'cursor-pointer'
+    ? (isGallerySlot 
+        ? (isDraggingActive ? 'cursor-grabbing' : 'cursor-grab') 
+        : 'cursor-pointer')
     : '';
 
   console.log('[VS_CURSOR] CURSOR_STYLE_COMPUTED', {
@@ -991,18 +997,15 @@ export function VisualSlot({
       data-slot-section={section}
       style={cursorStyle}
       onClick={effectiveWorkbenchMode ? handleClick : undefined}
-      // ARCHITECTURAL INVARIANT: VisualSlot is registration infrastructure only
-      // Gallery items in OurWorkClient are the sole DnD authority
-      // When isGallerySlot, VisualSlot must have ZERO drag/drop handlers
-      onDragOver={effectiveWorkbenchMode && !isGallerySlot ? handleDragOver : undefined}
-      onDragEnter={effectiveWorkbenchMode && !isGallerySlot ? handleDragEnter : undefined}
-      onDragLeave={effectiveWorkbenchMode && !isGallerySlot ? handleDragLeave : undefined}
-      onDrop={effectiveWorkbenchMode && !isGallerySlot ? handleDrop : undefined}
-      draggable={false}
-      onDragStart={undefined}
-      onDragEnd={undefined}
+      onDragOver={effectiveWorkbenchMode ? handleDragOver : undefined}
+      onDragEnter={effectiveWorkbenchMode ? handleDragEnter : undefined}
+      onDragLeave={effectiveWorkbenchMode ? handleDragLeave : undefined}
+      onDrop={effectiveWorkbenchMode ? handleDrop : undefined}
+      draggable={effectiveWorkbenchMode && isGallerySlot}
+      onDragStart={effectiveWorkbenchMode && isGallerySlot ? handleDragStart : undefined}
+      onDragEnd={effectiveWorkbenchMode && isGallerySlot ? handleDragEnd : undefined}
     >
-      <div>
+      <div style={isDraggingActive ? { pointerEvents: 'none' } : undefined}>
         {children}
       </div>
     </div>
