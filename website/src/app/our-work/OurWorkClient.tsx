@@ -39,6 +39,15 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     ? new URLSearchParams(window.location.search).get('workbench') === 'true'
     : false;
 
+  console.log('[OURWORK] WORKBENCH_MODE_DETERMINATION', {
+    pathname: typeof window !== 'undefined' ? window.location.pathname : 'SSR',
+    search: typeof window !== 'undefined' ? window.location.search : 'SSR',
+    workbenchParam: typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('workbench') : 'SSR',
+    isWorkbenchMode,
+    windowIsIframe: typeof window !== 'undefined' ? window.parent !== window : 'SSR',
+    timestamp: Date.now(),
+  });
+
 
 
   // P0 FIX: Runtime drag-data schema validation
@@ -589,6 +598,9 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                               mediaId,
                               slotId: `our-work-gallery::${project.id}::${mediaId}`,
                               src: src.substring(0, 100),
+                              isWorkbenchMode,
+                              isGallerySlot: true,
+                              expectedDraggable: isWorkbenchMode && true,
                               timestamp: Date.now(),
                             });
                           }}

@@ -146,7 +146,11 @@ export function VisualSlot({
         const userSelect = getComputedStyle(elementRef.current).userSelect;
         const computedDisplay = getComputedStyle(elementRef.current).display;
         const computedVisibility = getComputedStyle(elementRef.current).visibility;
-        
+
+        // Check child wrapper pointer events
+        const childWrapper = elementRef.current.firstElementChild as HTMLElement;
+        const childPointerEvents = childWrapper ? getComputedStyle(childWrapper).pointerEvents : 'NO_CHILD';
+
         console.log('[VS_FORENSIC] ACTUAL_DOM_STATE', {
           slotId: id,
           isGallerySlot,
@@ -158,6 +162,8 @@ export function VisualSlot({
           userSelect,
           computedDisplay,
           computedVisibility,
+          childPointerEvents,
+          expectedChildPointerEvents: effectiveWorkbenchMode && isGallerySlot ? 'none' : 'auto',
           elementExists: !!elementRef.current,
           elementTagName: elementRef.current.tagName,
           dataSlotId: elementRef.current.getAttribute('data-slot-id'),
@@ -1008,8 +1014,30 @@ export function VisualSlot({
     section,
     currentMediaId,
     projectId,
+    draggableProp: effectiveWorkbenchMode && isGallerySlot,
+    childPointerEvents: effectiveWorkbenchMode && isGallerySlot ? 'none' : 'auto',
   });
   
+  // CRITICAL: Log pointer events to diagnose why drag doesn't start
+  const handleMouseDown = (e: React.MouseEvent) => {
+    console.log('[VS_POINTER] MOUSE_DOWN', {
+      slotId: id,
+      isGallerySlot,
+      effectiveWorkbenchMode,
+      expectedDraggable: effectiveWorkbenchMode && isGallerySlot,
+      eventTarget: (e.target as HTMLElement).tagName,
+      eventTargetClassName: (e.target as HTMLElement).className,
+      eventTargetId: (e.target as HTMLElement).id,
+      currentTarget: (e.currentTarget as HTMLElement).tagName,
+      currentTargetId: (e.currentTarget as HTMLElement).id,
+      button: e.button,
+      shiftKey: e.shiftKey,
+      ctrlKey: e.ctrlKey,
+      metaKey: e.metaKey,
+      timestamp: Date.now(),
+    });
+  };
+
   return (
     <div
       ref={elementRef}
@@ -1019,6 +1047,7 @@ export function VisualSlot({
       data-slot-section={section}
       style={cursorStyle}
       onClick={effectiveWorkbenchMode ? handleClick : undefined}
+      onMouseDown={handleMouseDown}
       onDragOver={effectiveWorkbenchMode ? handleDragOver : undefined}
       onDragEnter={effectiveWorkbenchMode ? handleDragEnter : undefined}
       onDragLeave={effectiveWorkbenchMode ? handleDragLeave : undefined}
