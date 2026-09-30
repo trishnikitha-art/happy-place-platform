@@ -78,6 +78,18 @@ export function VisualSlot({
       : false
   );
 
+  // CRITICAL DEBUG: Log workbench mode determination to console
+  console.log('[VS_DEBUG] WORKBENCH_MODE', {
+    slotId: id,
+    isGallerySlot,
+    propIsWorkbenchMode,
+    effectiveWorkbenchMode,
+    urlSearch: typeof window !== 'undefined' ? window.location.search : 'SSR',
+    workbenchParam: typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('workbench') : 'SSR',
+    expectedDraggable: effectiveWorkbenchMode && isGallerySlot,
+    timestamp: Date.now(),
+  });
+
   // FORENSIC: Log Workbench-mode source and value
   console.log('[VS_FORENSIC] WORKBENCH_MODE_DETERMINATION', {
     slotId: id,
