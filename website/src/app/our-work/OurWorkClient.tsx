@@ -187,8 +187,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
 
     const handleDragOver = (e: DragEvent) => {
       e.preventDefault();
-      // P0 FIX: Do not stopPropagation() - allow events to bubble for gallery reorder
-      // Gallery→gallery should be "move", but project-section boundary only handles right-panel asset drops
+      e.stopPropagation(); // P0 FIX: Prevent event bubbling to parent containers
       e.dataTransfer!.dropEffect = 'copy';
     };
 
@@ -196,7 +195,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     // Each project section has data-project-id, so we read it directly from currentTarget
     const handleProjectDrop = (e: DragEvent, projectId: string) => {
       e.preventDefault();
-      // P0 FIX: Do not stopPropagation() - allow events to bubble to parent for gallery reorder
+      e.stopPropagation(); // P0 FIX: Prevent event bubbling to parent containers
       setIsDragging(false);
 
       console.log('[OUR_WORK] PROJECT_DROP_RECEIVED', {

@@ -457,8 +457,7 @@ export function VisualSlot({
 
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
-    // NOTE: Removed stopPropagation to allow event bubbling for proper gallery reorder protocol
-    // VisualSlot is the gallery drag authority; parent containers should not swallow events
+    e.stopPropagation(); // P0 FIX: Prevent event bubbling to parent containers
 
     // PROTOCOL SEMANTICS: dragstart owns effectAllowed, dragover owns dropEffect
     // Do NOT mutate effectAllowed in dragover
@@ -485,7 +484,7 @@ export function VisualSlot({
 
   const handleDragEnter = (e: React.DragEvent) => {
     e.preventDefault();
-    // NOTE: Removed stopPropagation to allow event bubbling for proper gallery reorder protocol
+    e.stopPropagation();
 
     console.log('[VS_DND] DRAG_ENTER', {
       slotId: id,
@@ -498,7 +497,7 @@ export function VisualSlot({
 
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
-    // NOTE: Removed stopPropagation to allow event bubbling for proper gallery reorder protocol
+    e.stopPropagation();
 
     console.log('[VS_DND] DRAG_LEAVE', {
       slotId: id,
