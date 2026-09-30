@@ -33,6 +33,17 @@ import { dragBridge } from '@/lib/workbench-drag-bridge';
 // The iframe is guaranteed same-origin in production; this invariant is explicit here
 const WORKBENCH_ORIGIN = typeof window !== 'undefined' ? window.location.origin : '';
 
+// P0 FIX: Try to consume WorkbenchModeContext from preview layout if available
+// This provides authoritative context from iframe/page level
+// If not available (normal page render), fall back to URL check
+let WorkbenchModeContext: React.Context<boolean> | null = null;
+try {
+  const contextModule = require('@/app/workbench/preview/workbench-mode-context');
+  WorkbenchModeContext = contextModule.WorkbenchModeContext || null;
+} catch (e) {
+  // Preview layout not available (normal page render)
+}
+
 interface VisualSlotProps {
   id: string;
   route: string;

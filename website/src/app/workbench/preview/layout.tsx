@@ -10,15 +10,7 @@
 
 'use client';
 
-import { createContext, useContext } from 'react';
-
-// P0 FIX: Authoritative Workbench-mode context
-// The iframe page determines Workbench mode from URL once and provides it to all slots
-const WorkbenchModeContext = createContext(false);
-
-function useWorkbenchMode() {
-  return useContext(WorkbenchModeContext);
-}
+import { WorkbenchModeContext } from './workbench-mode-context';
 
 // P0 FIX: Read workbench mode once at iframe/page level, not per-slot
 // This provides authoritative context and avoids SSR/hydration issues
