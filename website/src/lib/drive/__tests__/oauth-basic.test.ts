@@ -77,9 +77,10 @@ describe('OAuth Basic Unit Tests', () => {
       'utf-8'
     );
 
-    // Verify getAccessToken() is NOT called in getOAuthClient()
-    // This ensures all refresh goes through explicitTokenRefresh() which persists to authorization store
-    expect(oauthManagerSource).not.toContain('getAccessToken()');
+    // Verify getAccessToken() is NOT called as a function in getOAuthClient()
+    // Look for actual function call pattern, not comments
+    expect(oauthManagerSource).not.toMatch(/oauth2Client\.getAccessToken\(\)/);
+    expect(oauthManagerSource).not.toMatch(/await.*getAccessToken\(\)/);
 
     // Verify explicitTokenRefresh() exists and calls updateAuthorizationAfterRefresh
     expect(oauthManagerSource).toContain('explicitTokenRefresh');
