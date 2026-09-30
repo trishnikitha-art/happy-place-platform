@@ -959,20 +959,14 @@ export function VisualSlot({
   // Always render same structure to avoid hydration mismatch
   // Only conditionally apply handlers and cursor style
   // P0 FIX: Do NOT override caller geometry - VisualSlot should be invisible wrapper
-  // P0 FIX: Restore proper drag cursor for gallery reorder affordance
-  // Gallery slots: grab at rest, grabbing during active drag
-  // Non-gallery Workbench slots: pointer for click-to-select
+  // NOTE: Gallery drag authority moved to gallery items in OurWorkClient
+  // VisualSlot is now slot registration infrastructure only
   const cursorStyle = effectiveWorkbenchMode
-    ? (isGallerySlot 
-        ? { cursor: isDraggingActive ? 'grabbing' : 'grab' } 
-        : { cursor: 'pointer' })
+    ? { cursor: 'pointer' }
     : undefined;
 
-  // P0 FIX: Also apply cursor via className for better browser compatibility
   const cursorClass = effectiveWorkbenchMode
-    ? (isGallerySlot 
-        ? (isDraggingActive ? 'cursor-grabbing' : 'cursor-grab') 
-        : 'cursor-pointer')
+    ? 'cursor-pointer'
     : '';
 
   console.log('[VS_CURSOR] CURSOR_STYLE_COMPUTED', {
@@ -1001,11 +995,13 @@ export function VisualSlot({
       onDragEnter={effectiveWorkbenchMode ? handleDragEnter : undefined}
       onDragLeave={effectiveWorkbenchMode ? handleDragLeave : undefined}
       onDrop={effectiveWorkbenchMode ? handleDrop : undefined}
-      draggable={effectiveWorkbenchMode && isGallerySlot}
-      onDragStart={effectiveWorkbenchMode && isGallerySlot ? handleDragStart : undefined}
-      onDragEnd={effectiveWorkbenchMode && isGallerySlot ? handleDragEnd : undefined}
+      // NOTE: VisualSlot is no longer the gallery drag authority
+      // Gallery items in OurWorkClient are now the sole draggable elements
+      draggable={false}
+      onDragStart={undefined}
+      onDragEnd={undefined}
     >
-      <div style={effectiveWorkbenchMode && isGallerySlot ? { pointerEvents: 'none' } : undefined}>
+      <div>
         {children}
       </div>
     </div>

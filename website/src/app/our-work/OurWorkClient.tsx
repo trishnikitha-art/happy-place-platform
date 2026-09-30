@@ -31,6 +31,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxImages, setLightboxImages] = useState<Array<{src: string; alt: string; blurDataURL?: string}>>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [activeDragItem, setActiveDragItem] = useState<string | null>(null);
   const [galleryAddStatus, setGalleryAddStatus] = useState<'idle' | 'pending' | 'accepted' | 'rejected'>('idle');
   const galleryGridRef = useRef<HTMLDivElement>(null);
 
@@ -188,6 +189,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     const handleDragOver = (e: DragEvent) => {
       e.preventDefault();
       // P0 FIX: Do not stopPropagation() - allow events to bubble for gallery reorder
+      // Gallery→gallery should be "move", but project-section boundary only handles right-panel asset drops
       e.dataTransfer!.dropEffect = 'copy';
     };
 
@@ -486,21 +488,139 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                   <div
                     key={`${project.id}-${mediaId}`}
                     data-project-id={project.id}
+                    data-media-id={mediaId}
+                    data-photo-index={photoIndex}
                     role="button"
                     tabIndex={0}
-                    className="group relative block aspect-[4/3] overflow-hidden cursor-pointer break-inside-avoid mb-4"
+                    className={`group relative block aspect-[4/3] overflow-hidden break-inside-avoid mb-4 ${isWorkbenchMode ? (activeDragItem === `${project.id}-${mediaId}` ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-pointer'}`}
+                    draggable={isWorkbenchMode}
+                    onDragStart={(e) => {
+                      if (!isWorkbenchMode) return;
+
+                      e.stopPropagation();
+                      setActiveDragItem(`${project.id}-${mediaId}`);
+                      console.log('[OUR_WORK] GALLERY_ITEM_DRAG_START', {
+                        projectId: project.id,
+                        mediaId,
+                        photoIndex,
+                        timestamp: Date.now(),
+                      });
+
+                      // GALLERY_REORDER protocol for gallery→gallery movement
+                      const dragData = JSON.stringify({
+                        type: 'GALLERY_REORDER',
+                        sourceSlotId: `our-work-gallery::${project.id}::${mediaId}`,
+                        sourceMediaId: mediaId,
+                        projectId: project.id,
+                        sourcePhotoIndex: photoIndex,
+                      });
+
+                      e.dataTransfer.setData('application/x-workbench-gallery-reorder', dragData);
+                      e.dataTransfer.setData('text/plain', dragData);
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
+                    onDragEnd={() => {
+                      setActiveDragItem(null);
+                      console.log('[OUR_WORK] GALLERY_ITEM_DRAG_END', {
+                        projectId: project.id,
+                        mediaId,
+                        timestamp: Date.now(),
+                      });
+                    }}
+                    onDragOver={(e) => {
+                      if (!isWorkbenchMode) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = 'move'; // Gallery→gallery is move, not copy
+                    }}
+                    onDrop={(e) => {
+                      if (!isWorkbenchMode) return;
+                      e.preventDefault();
+                      e.stopPropagation();
+
+                      console.log('[OUR_WORK] GALLERY_ITEM_DROP', {
+                        projectId: project.id,
+                        mediaId,
+                        photoIndex,
+                        hasBridgedData: !!dragBridge.getDragData(),
+                        timestamp: Date.now(),
+                      });
+
+                      // Handle GALLERY_REORDER from another gallery item
+                      const galleryReorderData = e.dataTransfer.getData('application/x-workbench-gallery-reorder');
+                      if (galleryReorderData) {
+                        try {
+                          const parsed = JSON.parse(galleryReorderData);
+                          if (parsed.type === 'GALLERY_REORDER') {
+                            console.log('[OUR_WORK] GALLERY_REORDER_RECEIVED', {
+                              sourceSlotId: parsed.sourceSlotId,
+                              sourceMediaId: parsed.sourceMediaId,
+                              sourceProjectId: parsed.projectId,
+                              sourcePhotoIndex: parsed.sourcePhotoIndex,
+                              targetSlotId: `our-work-gallery::${project.id}::${mediaId}`,
+                              targetMediaId: mediaId,
+                              targetProjectId: project.id,
+                              targetPhotoIndex: photoIndex,
+                            });
+
+                            // Send SLOT_REORDER to parent Workbench
+                            if (window.parent !== window) {
+                              window.parent.postMessage({
+                                type: 'SLOT_REORDER',
+                                sourceSlotId: parsed.sourceSlotId,
+                                sourceMediaId: parsed.sourceMediaId,
+                                targetSlotId: `our-work-gallery::${project.id}::${mediaId}`,
+                                targetMediaId: mediaId,
+                                projectId: parsed.projectId,
+                                sourcePhotoIndex: parsed.sourcePhotoIndex,
+                                targetPhotoIndex: photoIndex,
+                              }, window.location.origin);
+                            }
+                            return;
+                          }
+                        } catch (error) {
+                          console.error('[OUR_WORK] GALLERY_REORDER_PARSE_FAILED', {
+                            error: error instanceof Error ? error.message : 'Unknown error',
+                          });
+                        }
+                      }
+
+                      // Handle GALLERY_ADD from right panel
+                      const bridgedData = dragBridge.getDragData();
+                      if (bridgedData) {
+                        console.log('[OUR_WORK] GALLERY_ADD_FROM_BRIDGE', {
+                          projectId: project.id,
+                          assetId: bridgedData.assetId || bridgedData.fileId,
+                          source: bridgedData.source,
+                          timestamp: Date.now(),
+                        });
+
+                        if (window.parent !== window) {
+                          setGalleryAddStatus('pending');
+                          window.parent.postMessage({
+                            type: 'GALLERY_ADD',
+                            slotId: `our-work-gallery::${project.id}::${mediaId}`,
+                            projectId: project.id,
+                            assetId: bridgedData.assetId || bridgedData.fileId,
+                            applicationData: bridgedData,
+                          }, window.location.origin);
+                        }
+
+                        dragBridge.clearDragData();
+                      }
+                    }}
                     onClick={() => {
                       console.log('[OUR_WORK] GALLERY_BUTTON_CLICK', {
                         projectId: project.id,
                         mediaId,
                         slotId: `our-work-gallery::${project.id}::${mediaId}`,
                         isDragging,
+                        activeDragItem,
                         timestamp: Date.now(),
                       });
 
                       // P0 FIX: Prevent lightbox from opening during/after drag operation
-                      if (isDragging) {
-                        console.log('[OUR_WORK] LIGHTBOX_PREVENTED_BY_DRAG', { isDragging });
+                      if (isDragging || activeDragItem) {
+                        console.log('[OUR_WORK] LIGHTBOX_PREVENTED_BY_DRAG', { isDragging, activeDragItem });
                         return;
                       }
 
@@ -537,8 +657,8 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                         });
 
                         // P0 FIX: Prevent lightbox from opening during/after drag operation
-                        if (isDragging) {
-                          console.log('[OUR_WORK] LIGHTBOX_PREVENTED_BY_DRAG', { isDragging });
+                        if (isDragging || activeDragItem) {
+                          console.log('[OUR_WORK] LIGHTBOX_PREVENTED_BY_DRAG', { isDragging, activeDragItem });
                           return;
                         }
 
