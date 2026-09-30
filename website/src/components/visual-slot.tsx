@@ -174,6 +174,28 @@ export function VisualSlot({
       }
     }, 100);
 
+    // CRITICAL FIX: Force draggable attribute on DOM to prevent external overrides
+    // Some parent wrapper or CSS may be overriding React's draggable attribute
+    if (elementRef.current && effectiveWorkbenchMode && isGallerySlot) {
+      const forceDraggable = () => {
+        if (elementRef.current) {
+          elementRef.current.setAttribute('draggable', 'true');
+          console.log('[VS_FIX] FORCED_DRAGGABLE', {
+            slotId: id,
+            isGallerySlot,
+            effectiveWorkbenchMode,
+            attribute: elementRef.current.getAttribute('draggable'),
+            property: elementRef.current.draggable,
+            timestamp: Date.now(),
+          });
+        }
+      };
+      forceDraggable();
+      // Use requestAnimationFrame to ensure it's set after React's render
+      requestAnimationFrame(forceDraggable);
+      requestAnimationFrame(() => requestAnimationFrame(forceDraggable));
+    }
+
     // P0 FIX: Correct protocol ordering - create listener BEFORE sending BRIDGE_READY
     // The invariant is: listener must be attached before parent is permitted to send messages
     const handleMessage = (event: MessageEvent) => {
