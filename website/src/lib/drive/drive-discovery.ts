@@ -633,12 +633,11 @@ export class DriveDiscovery {
       } else {
         // Search within user corpus (My Drive + files shared directly with user)
         // Note: corpora=user includes My Drive AND "Shared with me" - not My Drive only
-        // P0 FIX: Add constraint to ensure files are in My Drive, not just "Shared with me"
-        // This matches the semantics of My Drive browsing context
+        // P0 FIX: Request driveId field to distinguish My Drive from Shared Drive files
+        // Drive API does not support 'driveId' as a query term, so we filter application-side
         params.corpora = 'user';
-        // Add constraint: file must be in user's own Drive (not shared from other drives)
-        const myDriveQuery = `(${baseQuery}) and (not 'driveId' in parents or 'driveId' in parents = 'root')`;
-        params.q = myDriveQuery;
+        params.fields = 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,parents,driveId)';
+        params.q = baseQuery;
       }
 
       console.log('[Drive Discovery] searchFiles params:', {
@@ -652,7 +651,23 @@ export class DriveDiscovery {
       const response = await (drive as any).files.list(params);
 
       if (response.data.files) {
-        return response.data.files.map((file: { id: string; name: string; mimeType: string; size?: string; createdTime?: string; modifiedTime?: string; thumbnailLink?: string; webViewLink?: string; description?: string; parents?: string[] }) => ({
+        // P0 FIX: Filter application-side to exclude Shared Drive files from My Drive search
+        // Drive API does not support 'driveId' as a query term
+        // Files with driveId == null are in My Drive; files with driveId != null are in Shared Drives
+        const myDriveFiles = response.data.files.filter((file: any) => {
+          const isMyDrive = file.driveId === null || file.driveId === undefined;
+          if (!isMyDrive) {
+            console.log('[DRIVE_DISCOVERY] SEARCH_FILTERED_SHARED_DRIVE_FILE', {
+              fileId: file.id,
+              fileName: file.name,
+              driveId: file.driveId,
+              reason: 'My Drive search excludes Shared Drive files',
+            });
+          }
+          return isMyDrive;
+        });
+
+        return myDriveFiles.map((file: { id: string; name: string; mimeType: string; size?: string; createdTime?: string; modifiedTime?: string; thumbnailLink?: string; webViewLink?: string; description?: string; parents?: string[] }) => ({
           id: file.id,
           name: file.name,
           mimeType: file.mimeType,
@@ -726,7 +741,7 @@ export class DriveDiscovery {
 
       const params: Record<string, unknown> = {
         q: `name contains '${escapedQuery}' and trashed = false`,
-        fields: 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,parents),nextPageToken',
+        fields: 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,parents,driveId),nextPageToken',
         pageSize: 100,
         supportsAllDrives: true,
         includeItemsFromAllDrives: true,
@@ -736,18 +751,15 @@ export class DriveDiscovery {
       // Otherwise, scope to specific Shared Drive corpus
       // P0 FIX: My Drive search must match active browsing context semantics
       // corpora='user' includes My Drive AND "Shared with me" - not My Drive only
-      // Add query constraint to ensure files are actually in My Drive corpus
+      // P0 FIX: Request driveId field to distinguish My Drive from Shared Drive files
+      // Drive API does not support 'driveId' as a query term, so we filter application-side
       if (corpusId && corpusId !== 'root') {
         params.corpora = 'drive';
         params.driveId = corpusId;
       } else {
         // My Drive search - only allowed if HPP_AUTHORIZED_MY_DRIVE === true (verified above)
         params.corpora = 'user';
-        // P0 FIX: Add constraint to ensure files are in My Drive, not just "Shared with me"
-        // Query constraint: file must be in user's own Drive (not shared from other drives)
-        // This matches the semantics of My Drive browsing context
-        const myDriveQuery = `name contains '${escapedQuery}' and trashed = false and (not 'driveId' in parents or 'driveId' in parents = 'root')`;
-        params.q = myDriveQuery;
+        // Application-side filtering will exclude Shared Drive files after API response
       }
 
       if (pageToken) {
@@ -767,7 +779,28 @@ export class DriveDiscovery {
 
       const items: (DriveFolder | DriveFile)[] = [];
       if (response.data.files) {
-        for (const file of response.data.files) {
+        // P0 FIX: Filter application-side to exclude Shared Drive files from My Drive search
+        // Drive API does not support 'driveId' as a query term
+        // Files with driveId == null are in My Drive; files with driveId != null are in Shared Drives
+        const filteredFiles = response.data.files.filter((file: any) => {
+          // For Shared Drive search, keep all files
+          if (corpusId && corpusId !== 'root') {
+            return true;
+          }
+          // For My Drive search, exclude Shared Drive files
+          const isMyDrive = file.driveId === null || file.driveId === undefined;
+          if (!isMyDrive) {
+            console.log('[DRIVE_DISCOVERY] SEARCH_FILTERED_SHARED_DRIVE_FILE', {
+              fileId: file.id,
+              fileName: file.name,
+              driveId: file.driveId,
+              reason: 'My Drive search excludes Shared Drive files',
+            });
+          }
+          return isMyDrive;
+        });
+
+        for (const file of filteredFiles) {
           if (file.mimeType === 'application/vnd.google-apps.folder') {
             items.push({
               id: file.id,
