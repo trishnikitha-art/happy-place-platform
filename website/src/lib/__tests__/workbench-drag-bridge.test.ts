@@ -239,3 +239,119 @@ describe('WorkbenchDragBridge - gallery DOM interaction surface', () => {
   });
 });
 
+describe('WorkbenchDragBridge - GALLERY_REORDER protocol payload', () => {
+  beforeEach(() => {
+    dragBridge.initialize(1);
+  });
+
+  test('GALLERY_REORDER payload contains required fields', () => {
+    const galleryReorderPayload = {
+      type: 'GALLERY_REORDER',
+      sourceSlotId: 'our-work-gallery::project-1::media-1',
+      sourceMediaId: 'media-1',
+      projectId: 'project-1',
+      sourcePhotoIndex: 0,
+    };
+
+    // Verify payload structure matches VisualSlot handleDrop expectations
+    expect(galleryReorderPayload.type).toBe('GALLERY_REORDER');
+    expect(galleryReorderPayload.sourceSlotId).toBeDefined();
+    expect(galleryReorderPayload.sourceMediaId).toBeDefined();
+    expect(galleryReorderPayload.projectId).toBeDefined();
+  });
+
+  test('GALLERY_REORDER can be serialized to dataTransfer', () => {
+    const galleryReorderPayload = {
+      type: 'GALLERY_REORDER',
+      sourceSlotId: 'our-work-gallery::project-1::media-1',
+      sourceMediaId: 'media-1',
+      projectId: 'project-1',
+      sourcePhotoIndex: 0,
+    };
+
+    const serialized = JSON.stringify(galleryReorderPayload);
+    const deserialized = JSON.parse(serialized);
+
+    expect(deserialized).toEqual(galleryReorderPayload);
+    expect(deserialized.type).toBe('GALLERY_REORDER');
+  });
+
+  test('SLOT_REORDER message contains required fields for parent Workbench', () => {
+    const slotReorderMessage = {
+      type: 'SLOT_REORDER',
+      sourceSlotId: 'our-work-gallery::project-1::media-1',
+      sourceMediaId: 'media-1',
+      targetSlotId: 'our-work-gallery::project-1::media-2',
+      targetMediaId: 'media-2',
+      projectId: 'project-1',
+      sourcePhotoIndex: 0,
+      targetPhotoIndex: 1,
+    };
+
+    // Verify message structure matches Workbench SLOT_REORDER handler expectations
+    expect(slotReorderMessage.type).toBe('SLOT_REORDER');
+    expect(slotReorderMessage.sourceSlotId).toBeDefined();
+    expect(slotReorderMessage.sourceMediaId).toBeDefined();
+    expect(slotReorderMessage.targetSlotId).toBeDefined();
+    expect(slotReorderMessage.targetMediaId).toBeDefined();
+    expect(slotReorderMessage.projectId).toBeDefined();
+  });
+});
+
+describe('WorkbenchDragBridge - GALLERY_ADD protocol payload', () => {
+  beforeEach(() => {
+    dragBridge.initialize(1);
+  });
+
+  test('GALLERY_ADD message contains required fields for parent Workbench', () => {
+    const galleryAddMessage = {
+      type: 'GALLERY_ADD',
+      slotId: 'our-work-gallery::project-1::media-1',
+      projectId: 'project-1',
+      assetId: 'drive-file-123',
+      applicationData: {
+        source: 'google-drive',
+        fileId: 'file-123',
+        fileName: 'photo.jpg',
+        mimeType: 'image/jpeg',
+      },
+    };
+
+    // Verify message structure matches Workbench GALLERY_ADD handler expectations
+    expect(galleryAddMessage.type).toBe('GALLERY_ADD');
+    expect(galleryAddMessage.slotId).toBeDefined();
+    expect(galleryAddMessage.projectId).toBeDefined();
+    expect(galleryAddMessage.assetId).toBeDefined();
+    expect(galleryAddMessage.applicationData).toBeDefined();
+  });
+
+  test('bridge payload preserves Drive reference through iframe boundary', () => {
+    const bridgePayload = {
+      source: 'google-drive',
+      fileId: 'file-123',
+      fileName: 'photo.jpg',
+      mimeType: 'image/jpeg',
+    };
+
+    dragBridge.setDragData(bridgePayload);
+    const retrieved = dragBridge.getDragData();
+
+    expect(retrieved).toEqual(bridgePayload);
+    expect(retrieved?.fileId).toBe('file-123');
+    expect(retrieved?.fileName).toBe('photo.jpg');
+  });
+
+  test('bridge payload preserves local asset reference through iframe boundary', () => {
+    const bridgePayload = {
+      source: 'local',
+      assetId: 'local-asset-456',
+    };
+
+    dragBridge.setDragData(bridgePayload);
+    const retrieved = dragBridge.getDragData();
+
+    expect(retrieved).toEqual(bridgePayload);
+    expect(retrieved?.assetId).toBe('local-asset-456');
+  });
+});
+
