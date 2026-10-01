@@ -1087,7 +1087,7 @@ export function VisualSlot({
     >
       <div
         style={
-          isDraggingActive
+          effectiveWorkbenchMode && isGallerySlot
             ? { pointerEvents: 'none' }
             : undefined
         }
