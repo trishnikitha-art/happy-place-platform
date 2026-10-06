@@ -144,7 +144,26 @@ async function explicitTokenRefresh(
       errorMessage: error instanceof Error ? error.message : String(error),
       errorStack: error instanceof Error ? error.stack : 'none',
     });
-    throw new Error(`Explicit token refresh failed: ${error instanceof Error ? error.message : String(error)}`);
+    
+    // P0 FIX: Detect permanent Google authorization failure (invalid_grant)
+    // and execute authoritative revocation path
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    if (errorMessage.includes('invalid_grant')) {
+      console.log('[OAUTH_MANAGER] Permanent Google authorization failure detected (invalid_grant), executing authoritative revocation');
+      try {
+        await revokeAuthorizationWithSessions(effectiveAuthorizationId);
+        console.log('[OAUTH_MANAGER] Authorization and all sessions revoked');
+      } catch (revokeError) {
+        console.error('[OAUTH_MANAGER] Failed to revoke authorization:', revokeError);
+      }
+      
+      // Clear session cookie to force reauthentication
+      const cookieStore = await cookies();
+      cookieStore.delete('drive_session_id');
+      console.log('[OAUTH_MANAGER] Session cookie cleared');
+    }
+    
+    throw new Error(`Explicit token refresh failed: ${errorMessage}`);
   }
 }
 
