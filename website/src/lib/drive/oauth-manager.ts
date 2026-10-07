@@ -151,7 +151,7 @@ async function explicitTokenRefresh(
     if (errorMessage.includes('invalid_grant')) {
       console.log('[OAUTH_MANAGER] Permanent Google authorization failure detected (invalid_grant), executing authoritative revocation');
       try {
-        await revokeAuthorizationWithSessions(effectiveAuthorizationId);
+        await revokeAuthorizationWithSessions(authorizationId);
         console.log('[OAUTH_MANAGER] Authorization and all sessions revoked');
       } catch (revokeError) {
         console.error('[OAUTH_MANAGER] Failed to revoke authorization:', revokeError);
@@ -314,4 +314,6 @@ export async function logout(): Promise<void> {
   
   // Note: Authorization revocation should be handled explicitly via revokeAuthorizationWithSessions
   // This is a simple session cookie clear for browser logout
+  
+  return;
 }
