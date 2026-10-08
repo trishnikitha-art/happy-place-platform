@@ -10,6 +10,7 @@ const config: Config = {
     }],
   },
   testMatch: [
+    "**/src/lib/drive/__tests__/materialization-lease.integration.test.ts",
     // Phase A: Redis-backed integration tests (HTTP tests excluded)
     "**/src/lib/drive/__tests__/oauth-atomic-identity.integration.test.ts",
     "**/src/lib/drive/__tests__/oauth-negative-security.integration.test.ts",

@@ -23,6 +23,7 @@ jest.mock('@/lib/media-kv-store', () => ({
 // Mock r2-storage to return false (no R2 object)
 jest.mock('@/lib/r2-storage', () => ({
   verifyR2ObjectExists: jest.fn(),
+  verifyR2RenditionCompleteness: jest.fn(),
 }));
 
 describe('Media Proof Gate - Constitutional Boundary', () => {
@@ -131,7 +132,7 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
       expect(result).toBeNull();
     });
 
-    it('should allow R2 storage assets with valid R2 object', async () => {
+    it('should allow R2 storage assets with complete physical renditions', async () => {
       const { getMedia } = require('@/lib/media-kv-store');
       const { verifyR2ObjectExists } = require('@/lib/r2-storage');
       
@@ -143,10 +144,18 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
         storage: 'r2',
         contentHash: 'real-hash',
         dimensions: { width: 1200, height: 800 },
-        variants: { original: 'https://r2.example.com/test.jpg', web: 'https://r2.example.com/test.webp' }
+        variants: {
+          original: 'https://r2.example.com/test.jpg', web: 'https://r2.example.com/test.webp',
+          webp: 'https://r2.example.com/test.webp', avif: 'https://r2.example.com/test.avif',
+          thumbnail: 'https://r2.example.com/thumb.webp', blur: 'https://r2.example.com/blur.webp',
+          responsive: [480, 768, 1080].map(width => ({ width,
+            webp: 'https://r2.example.com/' + width + '.webp', avif: 'https://r2.example.com/' + width + '.avif',
+          })),
+        }
       });
 
       verifyR2ObjectExists.mockResolvedValue(true);
+      require('@/lib/r2-storage').verifyR2RenditionCompleteness.mockResolvedValue({ complete: true });
 
       const result = await resolvePublicMedia('test-r2-media');
       

@@ -308,40 +308,11 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
     return null;
   }
 
-  // REJECT: Missing physical R2 verification for R2-storage assets
-  // PublishedMediaAsset with storage: 'r2' must have proof of physical bytes
-  // Static storage assets (storage: 'static') are served from static files and don't require R2 verification
-  if (media.storage === 'r2' && media.contentHash) {
-    try {
-      const { verifyR2ObjectExists } = await import('@/lib/r2-storage');
-      const r2Url = media.variants?.original;
-      if (!r2Url) {
-        console.error('[PUBLIC_MEDIA_GATE] REJECTED: Missing R2 URL', {
-          mediaId: id,
-          contentHash: media.contentHash,
-          storage: media.storage,
-          reason: 'R2-storage assets must have original variant URL'
-        });
-        return null;
-      }
-      const r2Key = r2Url.split('/').pop() || '';
-      const objectExists = await verifyR2ObjectExists(r2Key);
-      if (!objectExists) {
-        console.error('[PUBLIC_MEDIA_GATE] REJECTED: R2 object not found', {
-          mediaId: id,
-          contentHash: media.contentHash,
-          storage: media.storage,
-          r2Key,
-          reason: 'R2-storage assets must have physical R2 object proof'
-        });
-        return null;
-      }
-    } catch (error) {
-      console.error('[PUBLIC_MEDIA_GATE] R2_VERIFICATION_ERROR', {
-        mediaId: id,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      });
-      // Fail closed if R2 verification infrastructure fails
+  // Use the same shape, content identity, and physical rendition contract as ingest.
+  if (media.storage === 'r2') {
+    const { isPubliclyComplete } = await import('@/lib/media-contracts');
+    if (!await isPubliclyComplete(media)) {
+      console.error('[PUBLIC_MEDIA_GATE] REJECTED: Incomplete R2 materialization', { mediaId: id });
       return null;
     }
   }

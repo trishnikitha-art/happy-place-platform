@@ -36,6 +36,7 @@ import type { Media, MediaRole } from '@/types/media';
 import { RESPONSIVE_WIDTHS, THUMBNAIL_WIDTH, THUMBNAIL_QUALITY, WEBP_QUALITY, AVIF_QUALITY } from '@/lib/media-constants';
 import { needsMaterialization, isPubliclyComplete } from '@/lib/media-contracts';
 import { applyStateTransition, isValidTransition } from '@/lib/materialization-state-machine';
+import { replaceMaterializationLease } from '@/lib/drive/materialization-lease';
 import { verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
 
 /**
@@ -162,6 +163,8 @@ export async function POST(request: Request) {
   let client: any = null;
   let canonicalSourceKey: string = '';
   let ownerToken: string = '';
+  let ownedLease: Record<string, any> | null = null;
+  let completedMediaId: string | null = null;
 
   try {
     const body: IngestRequest = await request.json();
@@ -288,7 +291,7 @@ export async function POST(request: Request) {
     // CEO FIX: Acquire atomic lease AFTER authentication AND authorization
     // Prevents concurrent materialization of same source BY AUTHENTICATED AND AUTHORIZED REQUESTS ONLY
     const { createRedisClient, namespacedKey } = await import('@/lib/media-kv-store');
-    const client = createRedisClient();
+    client = createRedisClient();
 
     if (client) {
       const leaseKey = namespacedKey(canonicalSourceKey);
@@ -313,12 +316,14 @@ export async function POST(request: Request) {
         ex: leaseExpiry,
       });
 
+      if (acquired) ownedLease = leaseRecord;
+
       if (!acquired) {
         // Lease already held - check state
         const existingLease = await client.get(leaseKey);
-        if (existingLease && typeof existingLease === 'string') {
+        if (existingLease) {
           try {
-            const leaseData = JSON.parse(existingLease);
+            const leaseData = typeof existingLease === 'string' ? JSON.parse(existingLease) : existingLease;
             console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_HELD', {
               requestId,
               canonicalSourceKey,
@@ -330,7 +335,7 @@ export async function POST(request: Request) {
             // If lease is SUCCEEDED with mediaId, return it
             if (leaseData.status === 'SUCCEEDED' && leaseData.mediaId) {
               const existingMedia = await getMedia(leaseData.mediaId);
-              if (existingMedia) {
+              if (existingMedia && await isPubliclyComplete(existingMedia)) {
                 return NextResponse.json({
                   success: true,
                   action: 'existing',
@@ -379,12 +384,12 @@ export async function POST(request: Request) {
                 retryCount: (leaseData.retryCount || 0) + 1,
               };
 
-              const reclaimed = await client.set(leaseKey, JSON.stringify(retryLease), {
-                nx: true, // Only set if key still exists (atomic)
-                ex: leaseExpiry,
-              });
+              const reclaimed = await replaceMaterializationLease(
+                client, leaseKey, 'FAILED_RETRYABLE', leaseData.ownerToken, retryLease, leaseExpiry,
+              );
 
               if (reclaimed) {
+                ownedLease = retryLease;
                 console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_RECLAIMED', {
                   requestId,
                   canonicalSourceKey,
@@ -413,32 +418,15 @@ export async function POST(request: Request) {
 
         // If we didn't reclaim a FAILED_RETRYABLE lease, return conflict
         // Check if we successfully reclaimed above
-        const finalLease = await client.get(leaseKey);
-        if (finalLease && typeof finalLease === 'string') {
-          const leaseData = JSON.parse(finalLease);
-          if (leaseData.ownerToken === ownerToken && leaseData.status === 'PROCESSING') {
-            // We successfully reclaimed - continue with materialization
-            console.log('[MEDIA_INGEST] PROCEEDING_WITH_RECLAIMED_LEASE', {
-              requestId,
-              canonicalSourceKey,
-            });
-          } else {
-            // Still held by someone else
-            return NextResponse.json({
-              success: false,
-              error: 'MATERIALIZATION_LOCKED',
-              stage: 'IDEMPOTENCY',
-              message: 'Source is currently being materialized by another request',
-              retryable: false,
-              requestId,
-            }, { status: 409 }); // 409 Conflict
-          }
-        } else {
-          // Lease is now available - fall through to acquire new lease
-          console.log('[MEDIA_INGEST] LEASE_NOW_AVAILABLE', {
+        if (!ownedLease) {
+          return NextResponse.json({
+            success: false,
+            error: 'MATERIALIZATION_LOCKED',
+            stage: 'IDEMPOTENCY',
+            message: 'Source is currently being materialized by another request',
+            retryable: true,
             requestId,
-            canonicalSourceKey,
-          });
+          }, { status: 409 });
         }
       }
 
@@ -668,6 +656,7 @@ export async function POST(request: Request) {
 
           // P0 FIX: Assignment reconciliation removed from ingest route
           // Assignment is now handled exclusively by use-drive-asset with explicit CAS semantics
+          completedMediaId = existingMedia.id;
           return NextResponse.json({
             success: true,
             action: 'existing',
@@ -714,6 +703,12 @@ export async function POST(request: Request) {
     console.log('[MEDIA_INGEST] VARIANT_GENERATION uploading original to R2', { requestId });
     const originalR2Result = await uploadToR2(driveBytes, originalMimeType, originalExtension);
     const originalR2Url = originalR2Result.url;
+    const originalKey = new URL(originalR2Url).pathname.split('/').pop() || '';
+    const integrity = await verifyR2Hash(originalKey, contentHash);
+    if (!integrity.success) {
+      throw new Error('R2 original byte verification failed: ' + integrity.errorType);
+    }
+    console.log('[MEDIA_INGEST] R2_BYTE_VERIFICATION_SUCCEEDED', { requestId, contentHash, originalKey });
     console.log('[MEDIA_INGEST] VARIANT_GENERATION original uploaded to R2', { requestId, url: originalR2Url });
 
     // Generate WebP variant
@@ -834,59 +829,17 @@ export async function POST(request: Request) {
       storage: 'r2', // P0 FIX: R2 storage declaration required for public media gate
     };
 
+    if (!await isPubliclyComplete(mediaRecord)) {
+      throw new Error('R2 rendition completeness verification failed');
+    }
     await storeMedia(mediaRecord);
+    completedMediaId = mediaId;
     console.log('[MEDIA_INGEST] MEDIA_KV_WRITE stage succeeded', {
       requestId,
       mediaId,
       lifecycleState: mediaRecord.lifecycleState,
       source: mediaRecord.source,
     });
-
-    // P0 FIX: Update lease with SUCCEEDED state and mediaId using CAS
-    // Only the lease owner may complete the materialization
-    if (client) {
-      const leaseKey = namespacedKey(canonicalSourceKey);
-
-      // CAS check: verify we still own the lease before completing
-      const currentLease = await client.get(leaseKey);
-      if (currentLease && typeof currentLease === 'string') {
-        try {
-          const leaseData = JSON.parse(currentLease);
-
-          // Only complete if we are the owner
-          if (leaseData.ownerToken === ownerToken && leaseData.status === 'PROCESSING') {
-            const completedLease = {
-              ...leaseData,
-              status: 'SUCCEEDED',
-              mediaId,
-              completedAt: new Date().toISOString(),
-            };
-
-            await client.set(leaseKey, JSON.stringify(completedLease), { ex: 1800 });
-            console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_COMPLETED', {
-              requestId,
-              canonicalSourceKey,
-              ownerToken,
-              mediaId,
-            });
-          } else {
-            console.warn('[MEDIA_INGEST] IDEMPOTENCY_LEASE_OWNER_MISMATCH', {
-              requestId,
-              canonicalSourceKey,
-              ourOwner: ownerToken,
-              existingOwner: leaseData.ownerToken,
-              existingStatus: leaseData.status,
-            });
-          }
-        } catch (parseError) {
-          console.error('[MEDIA_INGEST] IDEMPOTENCY_LEASE_COMPLETION_PARSE_FAILED', {
-            requestId,
-            leaseKey,
-            error: parseError instanceof Error ? parseError.message : String(parseError),
-          });
-        }
-      }
-    }
 
     // P0 FIX: Assignment reconciliation removed from ingest route
     // Assignment is now handled exclusively by use-drive-asset with explicit CAS semantics
@@ -903,44 +856,6 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('[MEDIA_INGEST] ERROR', error);
 
-    // P0 FIX: Update lease to FAILED state on error
-    // Only the lease owner may transition to FAILED
-    if (client && canonicalSourceKey && ownerToken) {
-      const { namespacedKey } = await import('@/lib/media-kv-store');
-      const leaseKey = namespacedKey(canonicalSourceKey);
-
-      try {
-        const currentLease = await client.get(leaseKey);
-        if (currentLease && typeof currentLease === 'string') {
-          const leaseData = JSON.parse(currentLease);
-
-          if (leaseData.ownerToken === ownerToken && leaseData.status === 'PROCESSING') {
-            const failedLease = {
-              ...leaseData,
-              status: 'FAILED_RETRYABLE',
-              failedAt: new Date().toISOString(),
-              errorCode: error instanceof Error ? error.name : 'UNKNOWN',
-              errorMessage: error instanceof Error ? error.message : String(error),
-            };
-
-            await client.set(leaseKey, JSON.stringify(failedLease), { ex: 1800 });
-            console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_FAILED', {
-              requestId,
-              canonicalSourceKey,
-              ownerToken,
-              errorCode: failedLease.errorCode,
-            });
-          }
-        }
-      } catch (leaseError) {
-        console.error('[MEDIA_INGEST] IDEMPOTENCY_LEASE_FAILURE_UPDATE_FAILED', {
-          requestId,
-          leaseKey,
-          error: leaseError instanceof Error ? leaseError.message : String(leaseError),
-        });
-      }
-    }
-
     return NextResponse.json(
       {
         success: false,
@@ -951,5 +866,22 @@ export async function POST(request: Request) {
       },
       { status: 500 }
     );
+  } finally {
+    // Include early validation/download returns; no owned lease remains PROCESSING.
+    if (client && ownedLease) {
+      try {
+        const { namespacedKey } = await import('@/lib/media-kv-store');
+        const status = completedMediaId ? 'SUCCEEDED' : 'FAILED_RETRYABLE';
+        const updated = await replaceMaterializationLease(
+          client, namespacedKey(canonicalSourceKey), 'PROCESSING', ownerToken,
+          { ...ownedLease, status, ...(completedMediaId
+            ? { mediaId: completedMediaId, completedAt: new Date().toISOString() }
+            : { failedAt: new Date().toISOString() }) },
+        );
+        console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_TRANSITION', { requestId, status, updated });
+      } catch (leaseError) {
+        console.error('[MEDIA_INGEST] IDEMPOTENCY_LEASE_UPDATE_FAILED', { requestId, leaseError });
+      }
+    }
   }
 }

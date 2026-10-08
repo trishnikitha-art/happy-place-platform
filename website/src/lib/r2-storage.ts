@@ -15,6 +15,7 @@ import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand, Delete
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
+import { RESPONSIVE_WIDTHS } from './media-constants';
 
 /**
  * Verification result with distinct error types
@@ -314,83 +315,30 @@ export async function verifyR2ObjectExists(key: string): Promise<boolean> {
  * @param media - The media record to verify
  * @returns object with verification results for each rendition type
  */
-export async function verifyR2RenditionCompleteness(media: any): Promise<{
-  complete: boolean;
-  details: {
-    original: boolean;
-    thumbnail: boolean;
-    webp: boolean;
-    avif: boolean;
-    responsive: Array<{ width: number; webp: boolean; avif: boolean }>;
+export async function verifyR2RenditionCompleteness(media: any) {
+  // HEAD every required rendition, sharing checks when small images reuse keys.
+  const checks = new Map<string, Promise<boolean>>();
+  const exists = (url?: string): Promise<boolean> => {
+    if (!url) return Promise.resolve(false);
+    const key = url.split('/').pop() || '';
+    if (!key) return Promise.resolve(false);
+    if (!checks.has(key)) checks.set(key, verifyR2ObjectExists(key));
+    return checks.get(key)!;
   };
-}> {
-  const details = {
-    original: false,
-    thumbnail: false,
-    webp: false,
-    avif: false,
-    responsive: [] as Array<{ width: number; webp: boolean; avif: boolean }>,
+  const variants = media.variants || {};
+  const requiredWidths = RESPONSIVE_WIDTHS.filter(w => w <= (media.dimensions?.width || 1920));
+  const [original, thumbnail, blur, webp, avif, responsive] = await Promise.all([
+    exists(variants.original), exists(variants.thumbnail), exists(variants.blur),
+    exists(variants.webp), exists(variants.avif),
+    Promise.all(requiredWidths.map(async width => {
+      const entry = variants.responsive?.find((r: any) => r.width === width);
+      const [webp, avif] = await Promise.all([exists(entry?.webp), exists(entry?.avif)]);
+      return { width, webp, avif };
+    })),
+  ]);
+  const details = { original, thumbnail, blur, webp, avif, responsive };
+  return {
+    complete: original && thumbnail && blur && webp && avif && responsive.every(r => r.webp && r.avif),
+    details,
   };
-
-  if (!media.variants) {
-    return { complete: false, details };
-  }
-
-  // Extract key from URL for verification
-  const extractKey = (url: string) => {
-    const match = url.match(/\/([^/]+)$/);
-    return match ? match[1] : null;
-  };
-
-  // Verify original
-  if (media.variants.original) {
-    const key = extractKey(media.variants.original);
-    if (key) {
-      details.original = await verifyR2ObjectExists(key);
-    }
-  }
-
-  // Verify thumbnail
-  if (media.variants.thumbnail) {
-    const key = extractKey(media.variants.thumbnail);
-    if (key) {
-      details.thumbnail = await verifyR2ObjectExists(key);
-    }
-  }
-
-  // Verify webp (largest responsive or fallback)
-  if (media.variants.webp) {
-    const key = extractKey(media.variants.webp);
-    if (key) {
-      details.webp = await verifyR2ObjectExists(key);
-    }
-  }
-
-  // Verify avif (largest responsive or fallback)
-  if (media.variants.avif) {
-    const key = extractKey(media.variants.avif);
-    if (key) {
-      details.avif = await verifyR2ObjectExists(key);
-    }
-  }
-
-  // Verify responsive variants
-  if (media.variants.responsive && Array.isArray(media.variants.responsive)) {
-    for (const variant of media.variants.responsive) {
-      const webpKey = variant.webp ? extractKey(variant.webp) : null;
-      const avifKey = variant.avif ? extractKey(variant.avif) : null;
-      const webpExists = webpKey ? await verifyR2ObjectExists(webpKey) : false;
-      const avifExists = avifKey ? await verifyR2ObjectExists(avifKey) : false;
-      details.responsive.push({
-        width: variant.width,
-        webp: webpExists,
-        avif: avifExists,
-      });
-    }
-  }
-
-  // Determine overall completeness
-  const complete = details.original && details.thumbnail && details.webp && details.avif;
-  
-  return { complete, details };
 }

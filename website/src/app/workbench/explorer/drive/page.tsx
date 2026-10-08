@@ -10,6 +10,7 @@
 
 import { useState, useEffect } from 'react';
 import { ChevronRight, Folder, FileImage, Search, Grid, List, ExternalLink, Loader2 } from 'lucide-react';
+import { getExplorerNextPageToken } from '@/lib/drive/explorer-pagination';
 import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
 
 interface DriveExplorerState {
@@ -23,7 +24,8 @@ interface DriveExplorerState {
   searchQuery: string;
   activeSearchQuery: string;
   selectedFile: DriveFile | null;
-  nextPageToken?: string;
+  folderNextPageToken?: string;
+  searchNextPageToken?: string;
   loadingMore: boolean;
   requiresReauth: boolean; // P0 FIX: Flag for authorization required
 }
@@ -40,7 +42,8 @@ export default function DriveExplorerPage() {
     searchQuery: '',
     activeSearchQuery: '',
     selectedFile: null,
-    nextPageToken: undefined,
+    folderNextPageToken: undefined,
+    searchNextPageToken: undefined,
     loadingMore: false,
     requiresReauth: false, // P0 FIX: Flag for authorization required
   });
@@ -160,7 +163,8 @@ export default function DriveExplorerPage() {
       setState(prev => ({
         ...prev,
         items: pageToken ? [...prev.items, ...result.items] : result.items,
-        nextPageToken: result.nextPageToken,
+        folderNextPageToken: result.nextPageToken,
+        searchNextPageToken: undefined,
         activeSearchQuery: '',
         loading: false,
         loadingMore: false,
@@ -188,7 +192,8 @@ export default function DriveExplorerPage() {
         items: [],
         searchQuery: '',
         activeSearchQuery: '',
-        nextPageToken: undefined,
+        folderNextPageToken: undefined,
+        searchNextPageToken: undefined,
         loading: true,
       }));
       await loadChildren(folder.id, undefined, null);
@@ -211,7 +216,8 @@ export default function DriveExplorerPage() {
         items: [],
         searchQuery: '',
         activeSearchQuery: '',
-        nextPageToken: undefined,
+        folderNextPageToken: undefined,
+        searchNextPageToken: undefined,
         loading: true,
       }));
       await loadChildren(folder.id, undefined, sharedDriveId || undefined);
@@ -232,7 +238,8 @@ export default function DriveExplorerPage() {
         items: [],
         searchQuery: '',
         activeSearchQuery: '',
-        nextPageToken: undefined,
+        folderNextPageToken: undefined,
+        searchNextPageToken: undefined,
         loading: true,
       }));
       await loadChildren(folder.id, undefined, folderCorpusId || undefined);
@@ -273,7 +280,8 @@ export default function DriveExplorerPage() {
         items: [],
         searchQuery: '',
         activeSearchQuery: '',
-        nextPageToken: undefined,
+        folderNextPageToken: undefined,
+        searchNextPageToken: undefined,
         loading: true,
       }));
       loadChildren(target.id, undefined, targetCorpusId || (isSharedDriveRoot ? state.activeDriveId || undefined : undefined));
@@ -292,7 +300,8 @@ export default function DriveExplorerPage() {
         items: [],
         searchQuery: '',
         activeSearchQuery: '',
-        nextPageToken: undefined,
+        folderNextPageToken: undefined,
+        searchNextPageToken: undefined,
         loading: true,
       }));
       loadChildren(target.id, undefined, targetCorpusId || state.activeDriveId || undefined);
@@ -300,12 +309,13 @@ export default function DriveExplorerPage() {
   };
 
   const loadMore = () => {
-    if (state.nextPageToken && !state.loadingMore) {
+    const pageToken = getExplorerNextPageToken(state);
+    if (pageToken && !state.loadingMore && !state.loading) {
       setState(prev => ({ ...prev, loadingMore: true }));
       if (state.activeSearchQuery) {
-        handleSearch(state.nextPageToken, state.activeSearchQuery);
+        handleSearch(pageToken, state.activeSearchQuery);
       } else {
-        loadChildren(state.currentFolderId, state.nextPageToken, state.activeDriveId);
+        loadChildren(state.currentFolderId, pageToken, state.activeDriveId);
       }
     }
   };
@@ -322,7 +332,7 @@ export default function DriveExplorerPage() {
     }
 
     try {
-      setState(prev => ({ ...prev, loading: !pageToken, error: null, ...(!pageToken ? { nextPageToken: undefined } : {}) }));
+      setState(prev => ({ ...prev, loading: !pageToken, error: null, ...(!pageToken ? { searchNextPageToken: undefined, activeSearchQuery: query } : {}) }));
 
       const params = new URLSearchParams({ query });
       if (pageToken) params.set('pageToken', pageToken);
@@ -341,7 +351,7 @@ export default function DriveExplorerPage() {
       setState(prev => ({
         ...prev,
         items: pageToken ? [...prev.items, ...(result.items || [])] : result.items || [],
-        nextPageToken: result.nextPageToken,
+        searchNextPageToken: result.nextPageToken,
         activeSearchQuery: query,
         loading: false,
         loadingMore: false,
@@ -451,7 +461,10 @@ export default function DriveExplorerPage() {
                 activeDriveId: null,
                 breadcrumb: [{ id: 'root', name: 'My Drive' }],
                 items: [],
-                nextPageToken: undefined,
+                searchQuery: '',
+                activeSearchQuery: '',
+                folderNextPageToken: undefined,
+                searchNextPageToken: undefined,
                 loading: true,
               }));
               loadDriveStructure();
@@ -618,7 +631,7 @@ export default function DriveExplorerPage() {
               )}
 
               {/* Load more button */}
-              {state.nextPageToken && (
+              {getExplorerNextPageToken(state) && (
                 <button
                   onClick={loadMore}
                   disabled={state.loadingMore}
