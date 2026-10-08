@@ -35,6 +35,30 @@ jobs:
 
   oauth-tests:
     runs-on: ubuntu-latest
+    # Ephemeral real Redis with an Upstash REST-compatible transport.
+    # These test-only credentials never select a production database/account.
+    services:
+      redis:
+        image: redis:7.4-alpine@sha256:858f009f9709ce576febc734aa78b8f6d624b82571f9ddb6bda4377c833b3499
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+      redis-http:
+        image: hiett/serverless-redis-http@sha256:5b0bb9239fce53abf87b2018a7a0deb9ec7bd900c5360738fe5fbeeb426f9150
+        env:
+          SRH_MODE: env
+          SRH_TOKEN: hpp-isolated-ci-token
+          SRH_CONNECTION_STRING: redis://redis:6379
+        ports:
+          - 8079:80
+    env:
+      KV_REST_API_URL: http://127.0.0.1:8079
+      KV_REST_API_TOKEN: hpp-isolated-ci-token
+      ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
+      ENCRYPTION_KEY_V1: abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789
+      GOOGLE_CLIENT_ID: ci-client.apps.googleusercontent.com
+      GOOGLE_CLIENT_SECRET: ci-oauth-secret-no-google
+      GOOGLE_REDIRECT_URI: http://127.0.0.1:3100/api/drive/oauth/callback
     defaults:
       run:
         working-directory: website
@@ -44,54 +68,15 @@ jobs:
         with:
           node-version: 24
       - run: npm install --include=optional
-      - name: Validate required secrets are present
+      - name: Prove isolated Redis service is reachable
         id: ci-config
         run: |
-          echo "Validating required GitHub Actions secrets..."
-          required_secrets=("KV_REST_API_URL" "KV_REST_API_TOKEN" "GOOGLE_CLIENT_ID" "GOOGLE_CLIENT_SECRET" "GOOGLE_REDIRECT_URI" "ENCRYPTION_KEY")
-          missing_secrets=()
-          for secret in "${required_secrets[@]}"; do
-            if [ -z "${!secret}" ]; then
-              missing_secrets+=("$secret")
-            fi
-          done
-          if [ ${#missing_secrets[@]} -gt 0 ]; then
-            echo "❌ ERROR: Missing required GitHub Actions secrets:"
-            for secret in "${missing_secrets[@]}"; do
-              echo "   - CI_$secret"
-            done
-            echo ""
-            echo "To fix this, add the missing secrets in your GitHub repository:"
-            echo "  1. Go to Settings → Secrets and variables → Actions"
-            echo "  2. Click 'New repository secret'"
-            echo "  3. Add each CI_ secret using a dedicated test service account or database"
-            echo ""
-            echo "CI_ secrets must belong to an isolated test database and OAuth client. Never copy production credentials."
-            exit 1
-          fi
-          echo "✅ All required secrets are present"
-        env:
-          KV_REST_API_URL: ${{ secrets.CI_KV_REST_API_URL }}
-          KV_REST_API_TOKEN: ${{ secrets.CI_KV_REST_API_TOKEN }}
-          GOOGLE_CLIENT_ID: ${{ secrets.CI_GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.CI_GOOGLE_CLIENT_SECRET }}
-          GOOGLE_REDIRECT_URI: ${{ secrets.CI_GOOGLE_REDIRECT_URI }}
-          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY }}
-      - name: Verify secrets are not empty
-        run: |
-          echo "Verifying secrets are not empty..."
-          if [ -z "$KV_REST_API_URL" ] || [ -z "$KV_REST_API_TOKEN" ] || [ -z "$GOOGLE_CLIENT_ID" ] || [ -z "$GOOGLE_CLIENT_SECRET" ] || [ -z "$GOOGLE_REDIRECT_URI" ] || [ -z "$ENCRYPTION_KEY" ]; then
-            echo "❌ ERROR: One or more secrets are empty strings"
-            exit 1
-          fi
-          echo "✅ All required secrets have non-empty values"
-        env:
-          KV_REST_API_URL: ${{ secrets.CI_KV_REST_API_URL }}
-          KV_REST_API_TOKEN: ${{ secrets.CI_KV_REST_API_TOKEN }}
-          GOOGLE_CLIENT_ID: ${{ secrets.CI_GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.CI_GOOGLE_CLIENT_SECRET }}
-          GOOGLE_REDIRECT_URI: ${{ secrets.CI_GOOGLE_REDIRECT_URI }}
-          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY }}
+          node --input-type=module <<'JS'
+          import { Redis } from '@upstash/redis';
+          const client = new Redis({ url: process.env.KV_REST_API_URL, token: process.env.KV_REST_API_TOKEN });
+          if (await client.ping() !== 'PONG') throw new Error('Isolated Redis PING failed');
+          console.log('Isolated real Redis reachable; no production credentials used.');
+          JS
       - name: Run OAuth unit tests with Redis mocks
         run: npx jest --config jest.oauth.unit.config.ts
         env:
@@ -105,14 +90,14 @@ jobs:
           set -o pipefail
           npx jest --config jest.oauth.integration.config.ts --runInBand --verbose --no-coverage 2>&1 | tee phase-a-test-output.log
         env:
-          KV_REST_API_URL: ${{ secrets.CI_KV_REST_API_URL }}
-          KV_REST_API_TOKEN: ${{ secrets.CI_KV_REST_API_TOKEN }}
-          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY }}
-          GOOGLE_CLIENT_ID: ${{ secrets.CI_GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.CI_GOOGLE_CLIENT_SECRET }}
-          GOOGLE_REDIRECT_URI: ${{ secrets.CI_GOOGLE_REDIRECT_URI }}
+          KV_REST_API_URL: ${{ env.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ env.KV_REST_API_TOKEN }}
+          ENCRYPTION_KEY: ${{ env.ENCRYPTION_KEY }}
+          GOOGLE_CLIENT_ID: ${{ env.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ env.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI: ${{ env.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
-          TEST_NAMESPACE: "hpp:ci-test:${{ github.run_id }}:"
+          TEST_NAMESPACE: "hpp:ci-test:${{ github.run_id }}:${{ github.run_attempt }}:"
           REDIS_INTEGRATION_TESTS_ENABLED: 'true'
           # CI-only test credentials for Workbench (not production secrets)
           WORKBENCH_PASSWORD: ci-workbench-password-not-production
@@ -129,14 +114,14 @@ jobs:
       - name: Phase B - Build application for HTTP integration tests
         run: npm run build
         env:
-          KV_REST_API_URL: ${{ secrets.CI_KV_REST_API_URL }}
-          KV_REST_API_TOKEN: ${{ secrets.CI_KV_REST_API_TOKEN }}
-          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY }}
-          GOOGLE_CLIENT_ID: ${{ secrets.CI_GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.CI_GOOGLE_CLIENT_SECRET }}
-          GOOGLE_REDIRECT_URI: ${{ secrets.CI_GOOGLE_REDIRECT_URI }}
+          KV_REST_API_URL: ${{ env.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ env.KV_REST_API_TOKEN }}
+          ENCRYPTION_KEY: ${{ env.ENCRYPTION_KEY }}
+          GOOGLE_CLIENT_ID: ${{ env.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ env.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI: ${{ env.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
-          TEST_NAMESPACE: "hpp:ci-test:${{ github.run_id }}:"
+          TEST_NAMESPACE: "hpp:ci-test:${{ github.run_id }}:${{ github.run_attempt }}:"
           # CI-only test credentials for Workbench (not production secrets)
           WORKBENCH_PASSWORD: ci-workbench-password-not-production
           HPP_WORKBENCH_PRINCIPAL_ID: ci-workbench-principal
@@ -147,15 +132,15 @@ jobs:
           echo $! > logs/server.pid
           echo "Server started with PID: $(cat logs/server.pid)"
         env:
-          KV_REST_API_URL: ${{ secrets.CI_KV_REST_API_URL }}
-          KV_REST_API_TOKEN: ${{ secrets.CI_KV_REST_API_TOKEN }}
-          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY }}
-          GOOGLE_CLIENT_ID: ${{ secrets.CI_GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.CI_GOOGLE_CLIENT_SECRET }}
-          GOOGLE_REDIRECT_URI: ${{ secrets.CI_GOOGLE_REDIRECT_URI }}
+          KV_REST_API_URL: ${{ env.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ env.KV_REST_API_TOKEN }}
+          ENCRYPTION_KEY: ${{ env.ENCRYPTION_KEY }}
+          GOOGLE_CLIENT_ID: ${{ env.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ env.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI: ${{ env.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
           VERCEL_ENV: test
-          TEST_NAMESPACE: "hpp:ci-test:${{ github.run_id }}:"
+          TEST_NAMESPACE: "hpp:ci-test:${{ github.run_id }}:${{ github.run_attempt }}:"
           PORT: 3100
           # CI-only test credentials for Workbench (not production secrets)
           WORKBENCH_PASSWORD: ci-workbench-password-not-production
@@ -173,14 +158,14 @@ jobs:
           echo "Drive route verified"
           echo "Server is ready for HTTP integration tests"
         env:
-          KV_REST_API_URL: ${{ secrets.CI_KV_REST_API_URL }}
-          KV_REST_API_TOKEN: ${{ secrets.CI_KV_REST_API_TOKEN }}
-          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY }}
-          GOOGLE_CLIENT_ID: ${{ secrets.CI_GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.CI_GOOGLE_CLIENT_SECRET }}
-          GOOGLE_REDIRECT_URI: ${{ secrets.CI_GOOGLE_REDIRECT_URI }}
+          KV_REST_API_URL: ${{ env.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ env.KV_REST_API_TOKEN }}
+          ENCRYPTION_KEY: ${{ env.ENCRYPTION_KEY }}
+          GOOGLE_CLIENT_ID: ${{ env.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ env.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI: ${{ env.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
-          TEST_NAMESPACE: "hpp:ci-test:${{ github.run_id }}:"
+          TEST_NAMESPACE: "hpp:ci-test:${{ github.run_id }}:${{ github.run_attempt }}:"
           # CI-only test credentials for Workbench (not production secrets)
           WORKBENCH_PASSWORD: ci-workbench-password-not-production
           HPP_WORKBENCH_PRINCIPAL_ID: ci-workbench-principal
@@ -191,15 +176,15 @@ jobs:
           set -o pipefail
           npx jest --config jest.http.integration.config.ts --runInBand --verbose --no-coverage 2>&1 | tee phase-b-test-output.log
         env:
-          KV_REST_API_URL: ${{ secrets.CI_KV_REST_API_URL }}
-          KV_REST_API_TOKEN: ${{ secrets.CI_KV_REST_API_TOKEN }}
-          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY }}
-          GOOGLE_CLIENT_ID: ${{ secrets.CI_GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.CI_GOOGLE_CLIENT_SECRET }}
-          GOOGLE_REDIRECT_URI: ${{ secrets.CI_GOOGLE_REDIRECT_URI }}
+          KV_REST_API_URL: ${{ env.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ env.KV_REST_API_TOKEN }}
+          ENCRYPTION_KEY: ${{ env.ENCRYPTION_KEY }}
+          GOOGLE_CLIENT_ID: ${{ env.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ env.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI: ${{ env.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
           VERCEL_ENV: test
-          TEST_NAMESPACE: "hpp:ci-test:${{ github.run_id }}:"
+          TEST_NAMESPACE: "hpp:ci-test:${{ github.run_id }}:${{ github.run_attempt }}:"
           REDIS_INTEGRATION_TESTS_ENABLED: 'true'
           NEXT_PUBLIC_TEST_BASE_URL: http://127.0.0.1:3100
           # CI-only test credentials for Workbench (not production secrets)
@@ -231,21 +216,21 @@ jobs:
             echo "Server terminated (PID: $pid)"
           fi
         env:
-          KV_REST_API_URL: ${{ secrets.CI_KV_REST_API_URL }}
-          KV_REST_API_TOKEN: ${{ secrets.CI_KV_REST_API_TOKEN }}
-          ENCRYPTION_KEY: ${{ secrets.CI_ENCRYPTION_KEY }}
-          GOOGLE_CLIENT_ID: ${{ secrets.CI_GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.CI_GOOGLE_CLIENT_SECRET }}
-          GOOGLE_REDIRECT_URI: ${{ secrets.CI_GOOGLE_REDIRECT_URI }}
+          KV_REST_API_URL: ${{ env.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ env.KV_REST_API_TOKEN }}
+          ENCRYPTION_KEY: ${{ env.ENCRYPTION_KEY }}
+          GOOGLE_CLIENT_ID: ${{ env.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ env.GOOGLE_CLIENT_SECRET }}
+          GOOGLE_REDIRECT_URI: ${{ env.GOOGLE_REDIRECT_URI }}
           NODE_ENV: test
-          TEST_NAMESPACE: "hpp:ci-test:${{ github.run_id }}:"
+          TEST_NAMESPACE: "hpp:ci-test:${{ github.run_id }}:${{ github.run_attempt }}:"
           # CI-only test credentials for Workbench (not production secrets)
           WORKBENCH_PASSWORD: ci-workbench-password-not-production
           HPP_WORKBENCH_PRINCIPAL_ID: ci-workbench-principal
       - name: Phase B - Cleanup CI test namespace
         if: always() && steps.ci-config.outcome == 'success'
         run: |
-          echo "Cleaning up CI test namespace: hpp:ci-test:${{ github.run_id }}:"
+          echo "Cleaning up CI test namespace: hpp:ci-test:${{ github.run_id }}:${{ github.run_attempt }}:"
           # Scan and delete all keys in the run-scoped namespace
           node -e "
             const { Redis } = require('@upstash/redis');
@@ -253,7 +238,7 @@ jobs:
               url: process.env.KV_REST_API_URL,
               token: process.env.KV_REST_API_TOKEN
             });
-            const namespace = 'hpp:ci-test:${{ github.run_id }}:';
+            const namespace = 'hpp:ci-test:${{ github.run_id }}:${{ github.run_attempt }}:';
             let cursor = '0';
             let deleted = 0;
             (async () => {
@@ -273,5 +258,5 @@ jobs:
             });
           "
         env:
-          KV_REST_API_URL: ${{ secrets.CI_KV_REST_API_URL }}
-          KV_REST_API_TOKEN: ${{ secrets.CI_KV_REST_API_TOKEN }}
+          KV_REST_API_URL: ${{ env.KV_REST_API_URL }}
+          KV_REST_API_TOKEN: ${{ env.KV_REST_API_TOKEN }}

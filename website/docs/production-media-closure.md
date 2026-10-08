@@ -30,9 +30,12 @@ batch Save behavior.
 
 ## Checked locally
 
-- 492 default-suite tests passed; 8 existing tests remain skipped.
-- 9 OAuth unit tests passed. Real Redis and production Google integration have
-  not been established by these tests.
+- 499 default-suite tests passed; 8 existing tests remain skipped.
+- 9 OAuth unit tests passed.
+- 67 integration tests passed against a disposable real Redis 7.4 service via
+  its Upstash-compatible HTTP transport. Lua, concurrency, encrypted credential
+  storage, TTL and batch assignment executed against Redis, not a Redis mock.
+  Google consent, tokens and the production account were not established by these tests.
 - TypeScript and the optimized Next production build passed.
 - Image QA passed: 234 files and 156 referenced image paths. It still reports
   existing manifest-age and placeholder warnings.
@@ -48,11 +51,44 @@ batch Save behavior.
 
 ## Production prerequisites and proof still required
 
-The credential file at
-`/home/nolan/projects/happy-place-platform/website/.env.local` was actually tried.
-Its Google refresh token returned `invalid_grant`; its Workbench password returned
-401 from production. It has no R2, Redis, Vercel or Cloudflare credentials.
-No production record has been repaired, deleted or quarantined by this pass.
+The user-provided production Workbench password succeeded (HTTP 200). Runtime
+configuration reports KV, encryption, Google client ID/secret/redirect URI,
+Workbench and Blob variables present. Actual Redis PING succeeds. The deployed
+commit and current remote main both report `a4c2837ada1d23680025589a6b5444df268f06c2`.
+`bcb8e0f` is an ancestor of that main; saved media commit `a4c2837` is preserved.
+
+OAuth initiation creates Redis state and the CSRF cookie, then redirects to
+Google with the correct production callback. Google accepts the handoff and
+requires account sign-in in the fresh test session. A Workbench login does not
+create a Drive session. Existing production inventory reports two active
+Google authorizations and six valid Drive sessions; it does not grant this
+fresh browser access to those sessions. No existing session was impersonated.
+
+Production inventory enumerated 130 records: 110 static, 19 legacy Blob records,
+and one Drive source reference. The deployed inspection route skipped all 110
+static records, failed exact accounting and classified the reference as missing
+a hash. This patch fixes those diagnostic defects, deduplicates enumeration,
+keeps transport/auth errors distinct from 404, and adds authenticated variable
+presence flags. Static catalogue matching is explicitly not byte verification.
+
+All 11 production effective galleries match their saved deployment baseline,
+including Repairs revision 14 with its former final hero photo now first.
+A background Chromium session on the actual production Workbench also exercised
+last-to-first, first-to-last and nearby native pointer gestures. All four
+gestures received real parent acknowledgements and stayed in one unsaved queue.
+The original UI order was restored; Save/deploy were not invoked. This proves
+production interaction, separately from the read-only persisted-order check.
+110 records appear in the current published list; only 27 match the proposed
+strict catalogue contract. Anonymous HEAD checked 101 distinct static image
+URLs: 94 image responses and seven failures. The 83 catalogue discrepancies
+include 70 non-SHA hash values; classification alone cannot approve, rewrite
+or delete them. **These authority changes remain held in draft.** No production
+media record was repaired, deleted or quarantined. R2 environment presence and
+its actual bucket/public-origin mapping remain unverified by available routes.
+
+A local HTTP test-server launch was rejected by automatic approval review with
+only "blocked by policy". TypeScript, build, unit and real Redis integration
+checks ran. Remote CI HTTP results must be recorded separately.
 
 1. Obtain authenticated Vercel/Cloudflare access, determine the bucket's actual
    public address, and prove an uploaded object is anonymously accessible before
@@ -71,12 +107,17 @@ No production record has been repaired, deleted or quarantined by this pass.
 
 ## CI credential boundary
 
-Regular CI no longer takes production credentials. Provision six dedicated test
-secrets: `CI_KV_REST_API_URL`, `CI_KV_REST_API_TOKEN`, `CI_GOOGLE_CLIENT_ID`,
-`CI_GOOGLE_CLIENT_SECRET`, `CI_GOOGLE_REDIRECT_URI`, `CI_ENCRYPTION_KEY`.
-Use a separate test database and OAuth client, not renamed production values.
-All six were absent in repository secret metadata when checked. The integration
-job intentionally fails closed until provisioned; it is not disabled or mocked.
+Regular CI now provisions an ephemeral Redis service and a pinned
+`hiett/serverless-redis-http` transport. It uses test-only OAuth configuration,
+Workbench password, encryption keys and a run/attempt-scoped namespace. No
+Vercel Production or repository production credential is consumed. A real Redis
+PING is required before tests or cleanup. This replaces the unprovisioned
+`CI_*` secret requirement; production variables were never evidence of GitHub
+Actions configuration. Google API consent is still a separate production proof.
+
+The Tailwind compatibility layer aliases foreground, muted-foreground, muted,
+card and destructive to the existing brand tokens through `@theme inline`.
+Existing usages are preserved; generated CSS and dark-mode bindings are checked.
 
 The separate manually dispatched `production-media-audit` workflow uses the
 `production-read-only` environment, a Redis read-only token and R2 object-read

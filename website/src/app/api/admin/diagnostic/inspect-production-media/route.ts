@@ -50,7 +50,9 @@
 import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
 import { getMediaRecordRaw, listMediaIds } from "@/lib/media-kv-store";
-import { verifyR2Hash, type R2HashVerificationResult } from "@/lib/r2-storage";
+import { verifyR2Hash, getR2ObjectKey } from "@/lib/r2-storage";
+import { hasPublicMediaStructure } from "@/lib/media-contracts";
+import { getKvNamespace } from "@/lib/environment";
 import crypto from "crypto";
 
 interface EvidenceResult {
@@ -70,7 +72,7 @@ interface EvidenceResult {
 
 interface MediaClassification {
   mediaId: string;
-  classification: 'SYNTHETIC_HASH' | 'MISSING_CONTENT_HASH' | 'MISSING_R2_OBJECT' | 'R2_NOT_FOUND' | 'R2_HASH_MISMATCH' | 'R2_UNVERIFIABLE' | 'PHYSICALLY_VERIFIED' | 'ERROR';
+  classification: 'DRIVE_REFERENCE' | 'STATIC_MANIFEST_MATCH' | 'STATIC_MANIFEST_MISMATCH' | 'SYNTHETIC_HASH' | 'MISSING_CONTENT_HASH' | 'MISSING_R2_OBJECT' | 'R2_NOT_FOUND' | 'R2_HASH_MISMATCH' | 'R2_UNVERIFIABLE' | 'PHYSICALLY_VERIFIED' | 'ERROR';
   contentHash?: string;
   isSynthetic?: boolean;
   hasR2Object?: boolean;
@@ -119,13 +121,20 @@ export async function POST(request: Request) {
 
   try {
     const body: InspectionRequest = await request.json();
+    // Authenticated presence flags only: never expose credentials or key hashes.
+    const variableNames = ['KV_REST_API_URL', 'KV_REST_API_TOKEN', 'ENCRYPTION_KEY',
+      'ENCRYPTION_KEY_V1', 'GOOGLE_CLIENT_ID', 'GOOGLE_CLIENT_SECRET', 'GOOGLE_REDIRECT_URI',
+      'WORKBENCH_PASSWORD', 'HPP_WORKBENCH_PRINCIPAL_ID', 'BLOB_READ_WRITE_TOKEN',
+      'R2_ACCOUNT_ID', 'R2_BUCKET_NAME', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_PUBLIC_BASE_URL'];
+    const runtimeConfiguration = Object.fromEntries(variableNames.map(name =>
+      [name, process.env[name] ? 'PRESENT' : 'MISSING']));
 
     console.log('[PRODUCTION_MEDIA_INSPECTION] CONFIGURED', { 
       testId,
     });
 
     // STATE: CONFIGURED → ENUMERATED
-    const mediaIds = await listMediaIds();
+    const mediaIds = [...new Set(await listMediaIds())];
     
     console.log('[PRODUCTION_MEDIA_INSPECTION] ENUMERATED', { 
       testId, 
@@ -135,6 +144,9 @@ export async function POST(request: Request) {
     // STATE: ENUMERATED → CLASSIFIED
     const classifications: MediaClassification[] = [];
     const classificationCounts: Record<string, number> = {
+      DRIVE_REFERENCE: 0,
+      STATIC_MANIFEST_MATCH: 0,
+      STATIC_MANIFEST_MISMATCH: 0,
       SYNTHETIC_HASH: 0,
       MISSING_CONTENT_HASH: 0,
       MISSING_R2_OBJECT: 0,
@@ -162,6 +174,16 @@ export async function POST(request: Request) {
           source: media.source,
           storage: media.storage,
         };
+
+        // Source references have their own lifecycle. Missing published fields
+        // do not justify deleting a reference or classifying it as published.
+        if (media.source === 'google-drive' || media.lifecycleState === 'source_reference'
+          || mediaId.startsWith('drive-')) {
+          classification.classification = 'DRIVE_REFERENCE';
+          classificationCounts.DRIVE_REFERENCE++;
+          classifications.push(classification);
+          continue;
+        }
 
         // P0: Missing contentHash is explicit failure
         const contentHash = media.contentHash;
@@ -195,6 +217,15 @@ export async function POST(request: Request) {
           continue;
         }
 
+        if (media.storage === 'static') {
+          // Manifest identity is release evidence, not deployed byte proof.
+          classification.classification = hasPublicMediaStructure(media)
+            ? 'STATIC_MANIFEST_MATCH' : 'STATIC_MANIFEST_MISMATCH';
+          classificationCounts[classification.classification]++;
+          classifications.push(classification);
+          continue;
+        }
+
         // For R2 storage, verify R2 object exists and hash matches
         if (media.storage === 'r2') {
           const originalUrl = media.variants?.original;
@@ -209,12 +240,11 @@ export async function POST(request: Request) {
           classification.r2Url = originalUrl;
 
           // Extract R2 object key from URL
-          const objectKey = originalUrl.split('/').pop() || '';
+          const objectKey = getR2ObjectKey(originalUrl);
           if (!objectKey) {
-            classification.classification = 'ERROR';
-            classification.errorType = 'INVALID_R2_URL';
-            classification.error = 'Cannot extract object key from R2 URL';
-            classificationCounts.ERROR++;
+            classification.classification = 'R2_UNVERIFIABLE';
+            classification.errorType = 'UNVERIFIED_PUBLIC_ORIGIN';
+            classificationCounts.R2_UNVERIFIABLE++;
             classifications.push(classification);
             continue;
           }
@@ -222,7 +252,8 @@ export async function POST(request: Request) {
           // Verify R2 object hash
           const verificationResult = await verifyR2Hash(objectKey, contentHash);
           
-          classification.r2Exists = verificationResult.success;
+          classification.r2Exists = verificationResult.success || verificationResult.errorType === 'INTEGRITY_FAILURE'
+            ? true : verificationResult.errorType === 'OBJECT_NOT_FOUND' ? false : undefined;
           classification.r2HashValid = verificationResult.success;
 
           if (!verificationResult.success) {
@@ -327,6 +358,13 @@ export async function POST(request: Request) {
         ? `Classified ${totalClassified} media records with exact accounting`
         : `Accounting mismatch: ${totalClassified + missingRecords} accounted vs ${mediaIds.length} enumerated`,
       evidence: {
+        namespace: getKvNamespace(),
+        runtimeConfiguration,
+        verificationScope: {
+          static: 'committed-manifest-identity-only',
+          r2: 'original-object-byte-hash-only',
+          publicRenditions: 'not-audited-by-this-route',
+        },
         classificationCounts,
         // Aggregate counts cover ALL records (no truncation)
         totalMediaRecords: mediaIds.length,
