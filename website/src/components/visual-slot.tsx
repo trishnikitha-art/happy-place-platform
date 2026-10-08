@@ -502,8 +502,11 @@ export function VisualSlot({
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
-    e.stopPropagation(); // P0 FIX: Prevent event bubbling to parent containers
     setIsDropTarget(false);
+
+    // Gallery ownership is decided after reading the payload below. Ordinary
+    // slots retain their existing assignment boundary.
+    if (!isGallerySlot) e.stopPropagation();
 
     if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] DROP_NATIVE_EVENT', {
       slotId: id,
@@ -560,6 +563,10 @@ export function VisualSlot({
           assetData = JSON.stringify(bridgedData);
         }
       }
+
+      // MIME labels alone do not prove a readable payload. Consume recognized
+      // drops once; let the project fallback try drops we cannot handle.
+      if (galleryReorderData || assetData) e.stopPropagation();
 
       if (WORKBENCH_DEBUG) console.log('[VS_DND] GALLERY_PROTOCOL_CHECK', {
         slotId: id,
@@ -749,16 +756,14 @@ export function VisualSlot({
         return;
       }
 
-      // REJECT: No recognized protocol
-      console.error('[VS_DND] GALLERY_PROTOCOL_REJECTED', {
+      // This slot did not consume the drop; the project fallback still owns it.
+      if (WORKBENCH_DEBUG) console.debug('[VS_DND] GALLERY_PROJECT_FALLBACK', {
         slotId: id,
         reason: 'NO_RECOGNIZED_PROTOCOL',
         availableTypes: e.dataTransfer.types,
         message: 'Gallery slots require GALLERY_REORDER or GALLERY_ADD protocol',
       });
 
-      // P0 FIX: Clear bridged data on protocol rejection
-      dragBridge.clearDragData();
       return;
     }
 
