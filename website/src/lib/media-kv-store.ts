@@ -534,17 +534,19 @@ export async function listMediaIds(): Promise<string[]> {
       return [];
     }
     
-    const keys: string[] = [];
+    const keys = new Set<string>();
     let cursor = '0';
+    let pages = 0;
     
     do {
       const result = await client.scan(cursor, { match: namespacedKey(`${MEDIA_PREFIX}*`), count: 100 });
-      cursor = result[0];
-      keys.push(...result[1]);
+      cursor = String(result[0]);
+      for (const key of result[1]) keys.add(key);
+      if (++pages >= 1000 && cursor !== '0') throw new Error('Media enumeration exceeded page limit');
     } while (cursor !== '0');
     
     const namespace = getKvNamespace();
-    return keys.map(key => key.replace(namespace + MEDIA_PREFIX, ''));
+    return [...keys].map(key => key.slice((namespace + MEDIA_PREFIX).length));
   } catch (error) {
     console.error('[MEDIA_KV] Failed to list media IDs:', error);
     throw new Error(`Failed to list media IDs: ${error instanceof Error ? error.message : 'Unknown error'}`);
