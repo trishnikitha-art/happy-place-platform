@@ -14,6 +14,8 @@
 
 import { describe, it, expect, beforeEach } from '@jest/globals';
 import { resolvePublicMedia, getStaticMediaForBootstrap, isStaticBuild } from '@/lib/media';
+import staticManifest from '@/config/media.v1.json';
+import crypto from 'crypto';
 
 // Mock the media-kv-store to return synthetic record
 jest.mock('@/lib/media-kv-store', () => ({
@@ -23,6 +25,7 @@ jest.mock('@/lib/media-kv-store', () => ({
 // Mock r2-storage to return false (no R2 object)
 jest.mock('@/lib/r2-storage', () => ({
   verifyR2ObjectExists: jest.fn(),
+  verifyR2RenditionCompleteness: jest.fn(),
 }));
 
 describe('Media Proof Gate - Constitutional Boundary', () => {
@@ -30,8 +33,9 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
     jest.clearAllMocks();
     
     // Mock r2-storage to return false (no R2 object)
-    const { verifyR2ObjectExists } = require('@/lib/r2-storage');
+    const { verifyR2ObjectExists, verifyR2RenditionCompleteness } = require('@/lib/r2-storage');
     verifyR2ObjectExists.mockResolvedValue(false);
+    verifyR2RenditionCompleteness.mockResolvedValue({ complete: false });
   });
 
   describe('Synthetic Content Identity Rejection', () => {
@@ -53,24 +57,23 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
       expect(result).toBeNull();
     });
 
-    it('should allow local assets with synthetic hashes', async () => {
+    it('should reject synthetic content identity even for a local static record', async () => {
       const { getMedia } = require('@/lib/media-kv-store');
       
-      // Local assets can use synthetic hashes (canonical ID based)
+      // A local source does not excuse synthetic identity.
       getMedia.mockResolvedValue({
         id: 'brand-hero',
         lifecycleState: 'published',
         source: 'local',
         storage: 'static',
-        contentHash: 'ae2b1fca596bf1268e37357044f8a8613b11a8c8', // SHA256('brand-hero')
+        contentHash: crypto.createHash('sha256').update('brand-hero').digest('hex'),
         dimensions: { width: 1200, height: 800 },
         variants: { original: '/images/test.jpg', web: '/images/test.webp' }
       });
 
       const result = await resolvePublicMedia('brand-hero');
       
-      expect(result).not.toBeNull();
-      expect(result?.id).toBe('brand-hero');
+      expect(result).toBeNull();
     });
 
     it('should allow local assets with synthetic hashes in static bootstrap', () => {
@@ -96,13 +99,14 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
       // Static storage assets don't require Blob metadata
       // They use local /images/... paths
       getMedia.mockResolvedValue({
+        ...staticManifest.media[0],
         id: 'test-media',
         lifecycleState: 'published',
         source: 'local',
         storage: 'static',
-        contentHash: 'some-hash',
+        contentHash: staticManifest.media[0].contentHash,
         dimensions: { width: 1200, height: 800 },
-        variants: { original: '/images/test.jpg', web: '/images/test.webp' }
+        variants: staticManifest.media[0].variants,
       });
 
       const result = await resolvePublicMedia('test-media');
@@ -131,7 +135,7 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
       expect(result).toBeNull();
     });
 
-    it('should allow R2 storage assets with valid R2 object', async () => {
+    it('should allow R2 storage assets with complete materialization and rendition proof', async () => {
       const { getMedia } = require('@/lib/media-kv-store');
       const { verifyR2ObjectExists } = require('@/lib/r2-storage');
       
@@ -141,12 +145,15 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
         lifecycleState: 'published',
         source: 'local',
         storage: 'r2',
-        contentHash: 'real-hash',
+        contentHash: 'a'.repeat(64),
         dimensions: { width: 1200, height: 800 },
-        variants: { original: 'https://r2.example.com/test.jpg', web: 'https://r2.example.com/test.webp' }
+        variants: { original: `https://r2.example.com/${'a'.repeat(64)}-original.jpg`, thumbnail: 'https://r2.example.com/thumb.webp',
+          webp: 'https://r2.example.com/test.webp', avif: 'https://r2.example.com/test.avif', blur: 'data:image/jpeg;base64,AA==',
+          responsive: [480, 768, 1080].map(width => ({ width, webp: `https://r2.example.com/${width}.webp`, avif: `https://r2.example.com/${width}.avif` })) }
       });
 
       verifyR2ObjectExists.mockResolvedValue(true);
+      require('@/lib/r2-storage').verifyR2RenditionCompleteness.mockResolvedValue({ complete: true });
 
       const result = await resolvePublicMedia('test-r2-media');
       
@@ -277,13 +284,14 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
       
       // Static storage assets with /images/... paths don't require Blob metadata
       getMedia.mockResolvedValue({
+        ...staticManifest.media[0],
         id: 'local-static-media',
         lifecycleState: 'published',
         source: 'local',
         storage: 'static',
-        contentHash: 'real-hash',
+        contentHash: staticManifest.media[0].contentHash,
         dimensions: { width: 1200, height: 800 },
-        variants: { original: '/images/test.jpg', web: '/images/test.webp' }
+        variants: staticManifest.media[0].variants,
       });
 
       const result = await resolvePublicMedia('local-static-media');

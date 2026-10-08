@@ -12,7 +12,7 @@
 import { NextResponse } from "next/server";
 import { workbenchSession } from "@/lib/workbench-session";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
-import { getMediaByIdAsync } from "@/lib/media";
+import { getMediaByIdAsync, resolvePublicMedia } from "@/lib/media";
 import { isDriveReference, isPublishedMediaAsset } from "@/types/media";
 import type { Media } from "@/types/media";
 import { Redis } from '@upstash/redis';
@@ -146,6 +146,11 @@ export async function POST(request: Request) {
         },
         { status: 400 }
       );
+    }
+
+    if (!await resolvePublicMedia(mediaId)) {
+      return NextResponse.json({ error: 'MEDIA_NOT_PUBLICLY_COMPLETE',
+        message: 'The selected asset must pass the public media gate before assignment' }, { status: 400 });
     }
 
     console.log('[WORKBENCH_ACCEPTANCE] APPROVED: PublishedMediaAsset can be assigned', {

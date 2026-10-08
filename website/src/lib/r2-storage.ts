@@ -15,6 +15,7 @@ import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand, Delete
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
+import { RESPONSIVE_WIDTHS } from './media-constants';
 
 /**
  * Verification result with distinct error types
@@ -299,12 +300,26 @@ export async function verifyR2ObjectExists(key: string): Promise<boolean> {
       Key: key,
     });
     
-    await client.send(command);
+    await client.send(command, { abortSignal: AbortSignal.timeout(5000) });
     return true;
   } catch (error) {
     console.error('[R2_STORAGE] Error verifying R2 object existence', { key, error });
     return false;
   }
+}
+
+/** Resolve only addresses under the explicitly configured public bucket URL. */
+export function getR2ObjectKey(value: string): string | null {
+  try {
+    const base = new URL(process.env.R2_PUBLIC_BASE_URL || '');
+    const url = new URL(value);
+    const prefix = base.pathname.replace(/\/$/, '') + '/';
+    if (base.protocol !== 'https:' || base.username || base.password || base.search || base.hash
+      || url.origin !== base.origin || !url.pathname.startsWith(prefix)
+      || url.username || url.password || url.search || url.hash) return null;
+    const key = decodeURIComponent(url.pathname.slice(prefix.length));
+    return key && !key.split('/').some(segment => segment === '..' || segment === '.') ? key : null;
+  } catch { return null; }
 }
 
 /**
@@ -336,61 +351,51 @@ export async function verifyR2RenditionCompleteness(media: any): Promise<{
     return { complete: false, details };
   }
 
-  // Extract key from URL for verification
-  const extractKey = (url: string) => {
-    const match = url.match(/\/([^/]+)$/);
-    return match ? match[1] : null;
+  // Deduplicate URLs and bound storage/network fan-out. Also verify web/blur
+  // when present: these are rendered URLs, not just descriptive metadata.
+  const urls = new Set<string>();
+  const collectUrls = (value: unknown): void => {
+    if (typeof value === 'string' && !value.startsWith('data:image/')) urls.add(value);
+    else if (value && typeof value === 'object') Object.values(value).forEach(collectUrls);
   };
-
-  // Verify original
-  if (media.variants.original) {
-    const key = extractKey(media.variants.original);
-    if (key) {
-      details.original = await verifyR2ObjectExists(key);
+  collectUrls(media.variants);
+  const pending = [...urls];
+  const verified = new Map<string, boolean>();
+  let next = 0;
+  await Promise.all(Array.from({ length: Math.min(4, pending.length) }, async () => {
+    while (next < pending.length) {
+      const url = pending[next++];
+      const key = getR2ObjectKey(url);
+      let accessible = false;
+      if (key && await verifyR2ObjectExists(key)) {
+        try {
+          const response = await fetch(url, { method: 'HEAD', redirect: 'error',
+            cache: 'no-store', signal: AbortSignal.timeout(5000) });
+          accessible = response.ok && (response.headers.get('content-type') ?? '').startsWith('image/');
+        } catch { /* Transport, redirects and private URLs fail closed. */ }
+      }
+      verified.set(url, accessible);
     }
-  }
+  }));
 
-  // Verify thumbnail
-  if (media.variants.thumbnail) {
-    const key = extractKey(media.variants.thumbnail);
-    if (key) {
-      details.thumbnail = await verifyR2ObjectExists(key);
-    }
-  }
-
-  // Verify webp (largest responsive or fallback)
-  if (media.variants.webp) {
-    const key = extractKey(media.variants.webp);
-    if (key) {
-      details.webp = await verifyR2ObjectExists(key);
-    }
-  }
-
-  // Verify avif (largest responsive or fallback)
-  if (media.variants.avif) {
-    const key = extractKey(media.variants.avif);
-    if (key) {
-      details.avif = await verifyR2ObjectExists(key);
-    }
-  }
-
-  // Verify responsive variants
-  if (media.variants.responsive && Array.isArray(media.variants.responsive)) {
-    for (const variant of media.variants.responsive) {
-      const webpKey = variant.webp ? extractKey(variant.webp) : null;
-      const avifKey = variant.avif ? extractKey(variant.avif) : null;
-      const webpExists = webpKey ? await verifyR2ObjectExists(webpKey) : false;
-      const avifExists = avifKey ? await verifyR2ObjectExists(avifKey) : false;
-      details.responsive.push({
-        width: variant.width,
-        webp: webpExists,
-        avif: avifExists,
-      });
-    }
+  const proved = (url: unknown): boolean => typeof url === 'string' && verified.get(url) === true;
+  details.original = proved(media.variants.original);
+  details.thumbnail = proved(media.variants.thumbnail);
+  details.webp = proved(media.variants.webp);
+  details.avif = proved(media.variants.avif);
+  if (Array.isArray(media.variants.responsive)) {
+    details.responsive = media.variants.responsive.map((variant: any) => ({
+      width: variant?.width, webp: proved(variant?.webp), avif: proved(variant?.avif),
+    }));
   }
 
   // Determine overall completeness
-  const complete = details.original && details.thumbnail && details.webp && details.avif;
+  const requiredWidths = RESPONSIVE_WIDTHS.filter(width => width <= media.dimensions?.width);
+  const complete = Number.isFinite(media.dimensions?.width) && media.dimensions.width > 0
+    && details.original && details.thumbnail && details.webp && details.avif
+    && requiredWidths.every(width => details.responsive.some(variant => variant.width === width && variant.webp && variant.avif))
+    && details.responsive.every(variant => variant.webp && variant.avif)
+    && [...verified.values()].every(Boolean);
   
   return { complete, details };
 }

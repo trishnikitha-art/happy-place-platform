@@ -6,12 +6,17 @@
  *
  * SEPARATION OF CONCERNS:
  * - Materialization shape: Does the media have the correct structure?
- * - Physical proof: Do the actual bytes exist and match the hash?
- * - Public completeness: Both shape + proof for public presentation
+ * - Physical proof: Are required storage objects and public URLs accessible?
+ * - Public completeness: Stored shape plus the applicable physical proof
  */
 
-import type { Media } from '@/types/media';
+import { isPublishedMediaAsset, type Media } from '@/types/media';
 import { RESPONSIVE_WIDTHS } from './media-constants';
+import staticManifest from '@/config/media.v1.json';
+
+// Release-time image QA proves these committed files exist. Runtime records
+// cannot claim an arbitrary /images/ path as physical static authority.
+const staticAssets = staticManifest.media;
 
 /**
  * Materialization Shape Contract
@@ -96,81 +101,79 @@ export function hasMaterializationShape(media: Media): boolean {
 /**
  * Real Content Hash Check
  *
- * Verifies that the contentHash is derived from actual bytes, not synthetic.
- * Synthetic hash = SHA256(canonicalId)
- * Real hash = SHA256(actual source bytes)
+ * Rejects malformed hashes and the known ID-derived synthetic identity.
+ * This check alone does not prove that a hash matches physical bytes.
  */
 export function hasRealContentHash(media: Media): boolean {
-  if (!media.contentHash) {
+  if (typeof media.contentHash !== 'string' || !/^[a-f0-9]{64}$/i.test(media.contentHash)) {
     return false;
   }
 
   const crypto = require('crypto');
   const syntheticHash = crypto.createHash('sha256').update(media.id).digest('hex');
-  return media.contentHash !== syntheticHash;
+  return media.contentHash.toLowerCase() !== syntheticHash;
+}
+
+/** Stored shape is necessary, but does not establish public eligibility. */
+export function hasPublicMediaStructure(media: Media): boolean {
+  if (!isPublishedMediaAsset(media) || !['static', 'r2'].includes(media.storage ?? '')
+    || (media as Media & { thumbnailProxyUrl?: string }).thumbnailProxyUrl
+    || !media.variants || typeof media.variants.original !== 'string' || !media.variants.original) return false;
+
+  if (!/^[a-f0-9]{64}$/i.test(media.contentHash ?? '') || !hasRealContentHash(media)) return false;
+  if (media.storage === 'static') {
+    const approved = staticAssets.find(asset => asset.contentHash === media.contentHash
+      && asset.variants.original === media.variants.original);
+    if (!approved) return false;
+    // Static identity and every emitted variant must match a committed,
+    // release-verified asset. A known path alone is not content identity.
+    return Object.entries(approved.variants).every(([key, value]) =>
+      (media.variants as Record<string, unknown>)[key] === value)
+      && Object.entries(media.variants).every(([key, value]) =>
+        (approved.variants as Record<string, unknown>)[key] === value);
+  }
+  // R2 ingestion content-addresses the original by its SHA-256. A record
+  // cannot borrow an existing object's URL while claiming another identity.
+  try {
+    const filename = decodeURIComponent(new URL(media.variants.original).pathname.split('/').at(-1) ?? '').toLowerCase();
+    const prefix = `${media.contentHash!.toLowerCase()}-original`;
+    if (!filename.startsWith(`${prefix}.`) && !filename.startsWith(`${prefix}-`)) return false;
+  } catch { return false; }
+  const validUrls = (value: unknown, field = ''): boolean => {
+    if (typeof value === 'string') {
+      if (field === 'blur' && value.startsWith('data:image/')) return true;
+      try {
+        const url = new URL(value);
+        return url.protocol === 'https:' && !url.username && !url.password;
+      } catch { return false; }
+    }
+    if (Array.isArray(value)) return value.every(entry => validUrls(entry, field));
+    if (value && typeof value === 'object') return Object.entries(value).every(([key, entry]) => validUrls(entry, key));
+    return typeof value === 'number' && Number.isFinite(value);
+  };
+  return validUrls(media.variants);
 }
 
 /**
  * Public Completeness Contract
  *
- * A media asset is publicly complete ONLY when it has:
- * 1. Correct materialization shape (structure is valid)
- * 2. Real content hash (not synthetic)
- * 3. Physical storage proof (bytes exist at materialization time with hash verification, structural invariants maintained thereafter)
- * 4. All required renditions exist physically (original, thumbnail, webp, responsive)
- *
- * R2-SPECIFIC INVARIANT:
- * - Materialization time: byte-level SHA-256 hash verification via verifyR2Hash()
- * - Public time: structural proof via HeadObject (object existence + rendition completeness)
- * - Rationale: Materialization already proved byte integrity; public reads avoid Class B GetObject cost
- * - Content-addressed keys ensure immutability; re-PUT of same content is idempotent
- *
- * This is the NON-NEGOTIABLE contract for public presentation.
- * Any asset failing this check must not be rendered publicly.
+ * Final predicate for public resolution, Workbench eligibility and assignment.
+ * Static assets must match the committed manifest verified by release image QA.
+ * R2 assets require the full materialization shape, authenticated existence and
+ * anonymous image access for every variant, including responsive renditions.
+ * Byte-level content integrity is established at ingestion and can be audited
+ * separately; a HEAD request cannot establish a SHA-256 byte match.
  */
 export async function isPubliclyComplete(media: Media): Promise<boolean> {
+  if (!hasPublicMediaStructure(media)) return false;
+
+  // The committed static pipeline has its own release-time image proof. It
+  // does not emit the Drive materializer's blur/responsive record shape.
+  if (media.storage === 'static') return true;
+
   // Check shape
   if (!hasMaterializationShape(media)) {
     return false;
-  }
-
-  // Check content hash is real
-  if (!hasRealContentHash(media)) {
-    return false;
-  }
-
-  // Check storage authority - only 'static' or 'r2' are valid for public media
-  if (media.storage !== 'static' && media.storage !== 'r2') {
-    console.warn('[PUBLIC_COMPLETE] INVALID_STORAGE_TYPE', {
-      mediaId: media.id,
-      storage: media.storage,
-    });
-    return false;
-  }
-
-  // For R2 storage, verify R2 object exists (no need to download bytes - use structural proof)
-  // P0 FIX: Normal public reads must NOT perform GetObject (Class B operation)
-  // We trust the materialization proof from upload time + structural invariants
-  if (media.storage === 'r2' && media.variants?.original) {
-    try {
-      const { verifyR2ObjectExists } = await import('@/lib/r2-storage');
-      const originalKey = media.variants.original.split('/').pop() || '';
-      const originalExists = await verifyR2ObjectExists(originalKey);
-      if (!originalExists) {
-        console.warn('[PUBLIC_COMPLETE] R2_OBJECT_MISSING', {
-          mediaId: media.id,
-          key: originalKey,
-        });
-        return false;
-      }
-    } catch (error) {
-      // Fail closed if R2 verification fails
-      console.error('[PUBLIC_COMPLETE] R2_VERIFICATION_ERROR', {
-        mediaId: media.id,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      return false;
-    }
   }
 
   // Check rendition-level physical completeness
@@ -204,7 +207,7 @@ export async function isPubliclyComplete(media: Media): Promise<boolean> {
  * Materialization Completeness (Drive Ingest Context)
  *
  * Used by /api/drive/ingest to determine if an existing asset needs re-materialization.
- * This checks shape but not Blob proof (since Blob upload happens during ingest).
+ * This checks shape but not storage proof (upload happens during ingest).
  *
  * An asset needs materialization if it lacks the correct shape or has synthetic hash.
  */
@@ -213,13 +216,12 @@ export function needsMaterialization(media: Media): boolean {
 }
 
 /**
- * Materialization Completeness (Non-Blob Context)
+ * Materialization Completeness (Shape Context)
  *
  * Checks if a media asset has correct materialization shape and real content hash.
  * This is the same as !needsMaterialization() but expressed positively.
  *
- * Used by verification endpoints that need to check materialization before Blob proof.
- * For public presentation with Blob proof, use isPubliclyComplete() instead.
+ * For public presentation with storage and URL proof, use isPubliclyComplete().
  */
 export function isMaterializationComplete(media: Media): boolean {
   return hasMaterializationShape(media) && hasRealContentHash(media);

@@ -268,16 +268,14 @@ export function isMaterializingMedia(media: Media): boolean {
 }
 
 export function isPublishedMediaAsset(media: Media): boolean {
-  // CRITICAL: Constitutional validation for PublishedMediaAsset
-  // Only PublishedMediaAsset can cross the public boundary
-  // Static storage assets don't require Blob metadata
-  // Blob storage assets require Blob metadata (enforced in verifyPublicMediaAuthority)
-  return media.lifecycleState === 'published' && 
+  // Structural discriminator only. Public rendering and assignment must also
+  // await isPubliclyComplete(), which owns storage and rendition verification.
+  return !!media && typeof media.id === 'string' && media.lifecycleState === 'published' &&
          media.source === 'local' && 
          typeof media.contentHash === 'string' &&
          media.contentHash.length > 0 &&
-         media.dimensions.width > 0 &&
-         media.dimensions.height > 0 &&
+         Number.isFinite(media.dimensions?.width) && media.dimensions.width > 0 &&
+         Number.isFinite(media.dimensions?.height) && media.dimensions.height > 0 &&
          !media.drive && // No Drive dependency
          !media.id.startsWith('drive-') && // No drive- prefix (reserved for DriveReference)
          !media.id.startsWith('drive-ref-'); // No drive-ref- prefix (reserved for DriveReference)

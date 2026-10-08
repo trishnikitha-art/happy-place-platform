@@ -72,7 +72,7 @@ export async function GET(request: Request) {
     }
 
     // Check if the asset is publicly complete
-    const complete = isPubliclyComplete(media);
+    const complete = await isPubliclyComplete(media);
 
     console.log('[WORKBENCH_VERIFICATION] Verification complete', {
       requestId,

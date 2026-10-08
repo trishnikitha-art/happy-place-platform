@@ -7,9 +7,7 @@
  */
 
 import { Redis } from '@upstash/redis';
-import crypto from 'crypto';
 import type { Media } from '@/types/media';
-import { verifyR2ObjectExists } from '@/lib/r2-storage';
 import { getEnvironment, getKvNamespace } from '@/lib/environment';
 
 /**
@@ -122,22 +120,6 @@ const STALE_INDEX_PREFIX = 'stale_index:';
 const MEDIA_QUARANTINE_PREFIX = 'media_quarantine:';
 
 /**
- * Compute synthetic content hash (SHA256 of canonical ID)
- * This is used to detect and reject synthetic content identity
- */
-function computeSyntheticHash(canonicalId: string): string {
-  return crypto.createHash('sha256').update(canonicalId).digest('hex');
-}
-
-/**
- * Check if a content hash is synthetic (derived from canonical ID rather than actual bytes)
- */
-function isSyntheticContentHash(canonicalId: string, actualContentHash: string): boolean {
-  const syntheticHash = computeSyntheticHash(canonicalId);
-  return actualContentHash === syntheticHash;
-}
-
-/**
  * Verify media state for internal materialization operations
  * This is permissive for intermediate states during materialization
  * Used by ingestion/materialization paths, NOT the public gate
@@ -226,24 +208,9 @@ async function verifyMaterializationState(media: Media): Promise<boolean> {
  */
 export interface PublicMediaAuthorityOptions {
   /**
-   * Re-download the physical Blob bytes and re-derive SHA256 to confirm the
-   * stored contentHash.
-   *
-   * This is WRITE-PATH proof, not read-path proof. Content identity is
-   * established from real bytes at materialization time
-   * (api/drive/ingest/route.ts computes sha256 over the downloaded Drive bytes
-   * before the R2 upload and before storeMedia). Re-deriving it on every read
-   * turned a list operation into a full content re-audit: one authenticated
-   * R2 HEAD plus a complete image download plus a SHA256 per record, per
-   * request.
-   *
-   * Default false. The structural gate below is ALWAYS enforced and is
-   * unchanged: published+local only, contentHash required, synthetic
-   * contentHash rejected, storage field must be 'static' or 'r2', r2-backed
-   * records must have valid R2 object URLs. Nothing that previously failed
-   * the structural gate can now pass it.
-   *
-   * Set true for mutation/reconciliation paths and integrity audits.
+   * Additionally download the R2 original and compare its SHA-256 with the
+   * claimed contentHash. Public URL and rendition proof is always required,
+   * even when this explicit integrity audit is omitted.
    */
   verifyPhysicalBytes?: boolean;
 }
@@ -252,106 +219,22 @@ export async function verifyPublicMediaAuthority(
   media: Media,
   options: PublicMediaAuthorityOptions = {}
 ): Promise<boolean> {
-  const { verifyPhysicalBytes = false } = options;
-  // ONLY published + local is publicly assignable
-  if (media.lifecycleState !== 'published' || media.source !== 'local') {
-    console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Not published local media', {
-      mediaId: media.id,
-      lifecycleState: media.lifecycleState,
-      source: media.source,
-      reason: 'Only published + local media is publicly assignable'
-    });
-    return false;
+  // Callers cannot opt out of the final public eligibility predicate.
+  const { isPubliclyComplete } = await import('./media-contracts');
+  if (!await isPubliclyComplete(media)) return false;
+  if (options.verifyPhysicalBytes && media.storage === 'r2') {
+    const { getR2ObjectKey, verifyR2Hash } = await import('./r2-storage');
+    const key = getR2ObjectKey(media.variants.original!);
+    return !!key && (await verifyR2Hash(key, media.contentHash!)).success;
   }
-  
-  // Reject synthetic content identity
-  if (media.contentHash && isSyntheticContentHash(media.id, media.contentHash)) {
-    console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Synthetic content identity', {
-      mediaId: media.id,
-      contentHash: media.contentHash,
-      reason: 'Content hash is SHA256(canonicalId), not actual bytes'
-    });
-    return false;
-  }
-  
-  // Require contentHash for published records
-  if (!media.contentHash) {
-    console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Missing content hash', {
-      mediaId: media.id,
-      reason: 'PublishedMediaAsset must have content hash for public gate'
-    });
-    return false;
-  }
-
-  // CRITICAL: Use storage field to distinguish static vs R2
-  // Static storage: served from /public/images/, no R2 verification required
-  // R2 storage: materialized from Drive, requires R2 object verification
-  if (media.storage === 'r2') {
-    // P0 FIX: For R2, verify object exists without downloading bytes (no Class B GetObject)
-    // Normal public reads must not perform GetObject - trust materialization proof + structural invariants
-    const r2Url = media.variants.original;
-
-    if (!r2Url) {
-      console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Missing original variant URL', {
-        mediaId: media.id,
-        reason: 'Original variant URL is required for R2 verification'
-      });
-      return false;
-    }
-
-    if (!verifyPhysicalBytes) {
-      // Structural proof satisfied: R2 object URL is present
-      // Physical byte re-verification is deferred to the audit/recovery paths
-      return true;
-    }
-
-    // Extract key from URL and verify object exists (HeadObject is Class B but acceptable for explicit verification)
-    const r2Key = r2Url.split('/').pop() || '';
-    const objectExists = await verifyR2ObjectExists(r2Key);
-
-    if (!objectExists) {
-      console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: R2 object not found', {
-        mediaId: media.id,
-        contentHash: media.contentHash,
-        r2Url,
-        r2Key,
-        reason: 'R2 object does not exist'
-      });
-      return false;
-    }
-  } else if (media.storage === 'static') {
-    // Static storage: served from /public/images/, no R2 verification required
-    // Verify that static files have proper local paths instead of R2 URLs
-    if (!media.variants || !media.variants.original) {
-      console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Static media missing original variant', {
-        mediaId: media.id,
-        storage: media.storage,
-        reason: 'Static storage assets must have original variant path'
-      });
-      return false;
-    }
-
-    // Verify static path is properly formatted (starts with /images/)
-    if (!media.variants.original.startsWith('/images/')) {
-      console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Invalid static path format', {
-        mediaId: media.id,
-        storage: media.storage,
-        path: media.variants.original,
-        reason: 'Static storage assets must have paths starting with /images/'
-      });
-      return false;
-    }
-  } else {
-    // Missing or invalid storage field
-    console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Missing or invalid storage field', {
-      mediaId: media.id,
-      storage: media.storage,
-      reason: 'Published local media must have storage field (static or r2)'
-    });
-    return false;
-  }
-  
   return true;
+}
+
+async function verifyStoredMediaStructure(media: Media): Promise<boolean> {
+  // Reading a stored record is not publishing or assigning it. Raw forensic
+  // access remains available through getMediaRecordRaw().
+  const { hasPublicMediaStructure } = await import('./media-contracts');
+  return hasPublicMediaStructure(media);
 }
 
 /**
@@ -376,12 +259,12 @@ export async function getMedia(id: string): Promise<Media | null> {
     // Handle both JSON strings and already-deserialized objects
     const media = typeof data === 'string' ? JSON.parse(data) : data;
     
-    // Verify public media authority before returning (strict public gate)
+    // Validate stored shape here. Public and assignment callers must await
+    // isPubliclyComplete() before exposing this record as eligible.
     if (media.lifecycleState === 'published' && media.source === 'local') {
-      // Read path: structural gate only. See PublicMediaAuthorityOptions.
-      const hasPublicAuthority = await verifyPublicMediaAuthority(media);
-      if (!hasPublicAuthority) {
-        console.warn('[MEDIA_KV] Media failed public media authority check', { id });
+      const hasStoredShape = await verifyStoredMediaStructure(media);
+      if (!hasStoredShape) {
+        console.warn('[MEDIA_KV] Media failed stored structure check', { id });
         return null;
       }
     }
@@ -461,7 +344,7 @@ async function getMediaBatchInner(ids: string[], result: Map<string, Media>): Pr
   // so rejection logging matches the single-record path record for record.
   for (const { id, media } of raw) {
     if (media.lifecycleState === 'published' && media.source === 'local') {
-      const ok = await verifyPublicMediaAuthority(media);
+      const ok = await verifyStoredMediaStructure(media);
       if (!ok) {
         console.warn('[MEDIA_KV] Media failed public media authority check', { id });
         continue;
