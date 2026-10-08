@@ -14,6 +14,9 @@ import { google } from 'googleapis';
 import { getAuthorizedCorpora, verifyCorpusAuthorization } from './corpus-authorization';
 import { normalizeCorpusId, isMyDrive, MY_DRIVE_CANONICAL_ID } from './corpus-normalization';
 
+// Bound initial thumbnail work; subsequent pages retain the same corpus/query.
+const DRIVE_PAGE_SIZE = 24;
+
 export interface DriveFolder {
   id: string;
   name: string;
@@ -148,7 +151,7 @@ export class DriveDiscovery {
 
     const params: Record<string, unknown> = {
       fields: 'nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,parents,shortcutDetails)',
-      pageSize: 100,
+      pageSize: DRIVE_PAGE_SIZE,
       orderBy: 'folder,name_natural',
       supportsAllDrives: true,
       includeItemsFromAllDrives: true,
@@ -535,7 +538,7 @@ export class DriveDiscovery {
       const params: Record<string, unknown> = {
         q: `name contains '${escapedQuery}' and trashed = false`,
         fields: 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,parents,driveId,shortcutDetails),nextPageToken',
-        pageSize: 100,
+        pageSize: DRIVE_PAGE_SIZE,
         supportsAllDrives: true,
         includeItemsFromAllDrives: true,
       };
