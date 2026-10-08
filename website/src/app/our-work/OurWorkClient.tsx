@@ -18,6 +18,7 @@ import { mergeVisibleGalleryOrder } from "@/lib/gallery-pointer-sort";
 import type { Project } from "@/types/projects";
 import { dragBridge } from "@/lib/workbench-drag-bridge";
 import { isGalleryOrder, orderResolvedGallery } from "@/lib/workbench-gallery-order";
+import { parseDropJson, readWorkbenchAsset } from "@/lib/workbench-drop-protocol";
 
 interface OurWorkClientProps {
   company: {
@@ -64,41 +65,6 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       iframeGeneration: dragBridge.getIframeGeneration() }, window.location.origin);
   });
 
-  // P0 FIX: Runtime drag-data schema validation
-  // Validates that dragData conforms to expected DriveReference or AssetReference contract
-  const validateDragData = (dragData: any): { valid: boolean; reason?: string } => {
-    if (!dragData || typeof dragData !== 'object') {
-      return { valid: false, reason: 'dragData is not an object' };
-    }
-
-    // Validate source field (discriminator)
-    const validSources = ['google-drive', 'local', 'drive'];
-    if (!dragData.source || !validSources.includes(dragData.source)) {
-      return { valid: false, reason: `invalid source: ${dragData.source}` };
-    }
-
-    // Validate identity fields (at least one required)
-    const hasAssetId = !!dragData.assetId && typeof dragData.assetId === 'string';
-    const hasFileId = !!dragData.fileId && typeof dragData.fileId === 'string';
-
-    if (!hasAssetId && !hasFileId) {
-      return { valid: false, reason: 'missing assetId or fileId' };
-    }
-
-    // Validate Google Drive specific fields
-    if (dragData.source === 'google-drive' || dragData.source === 'drive') {
-      if (!hasFileId) {
-        return { valid: false, reason: 'Drive source requires fileId' };
-      }
-      // P1 FIX: Require canonical fileName field only (eliminate schema duality)
-      if (!dragData.fileName || typeof dragData.fileName !== 'string') {
-        return { valid: false, reason: 'Drive source requires fileName' };
-      }
-    }
-
-    return { valid: true };
-  };
-
   useEffect(() => {
     if (!isWorkbenchMode) return;
     const handleMessage = (event: MessageEvent) => {
@@ -113,7 +79,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       } else if (data.type === 'DRAG_START') {
         const payload = { ...data.dragData };
         if (!payload.fileName && payload.name) payload.fileName = payload.name;
-        if (!validateDragData(payload).valid) return;
+        if (!readWorkbenchAsset(payload, dragBridge.getIframeGeneration())) return;
         dragBridge.setDragData(payload);
         setIsDragging(true);
       } else if (data.type === 'DRAG_END') {
@@ -171,21 +137,16 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
   };
 
   const handleProjectDrop = (event: React.DragEvent, projectId: string) => {
-    if (event.dataTransfer.types.includes('application/x-workbench-gallery-reorder')) return;
     event.preventDefault();
-    event.stopPropagation();
     setIsDragging(false);
-    let payload = dragBridge.getDragData();
-    if (!payload) {
-      try { payload = JSON.parse(event.dataTransfer.getData('application/x-workbench-asset')); }
-      catch { return; }
-    }
-    if (!validateDragData(payload).valid || !allProjects.some(project => project.id === projectId)) return;
-    if (window.parent !== window) {
-      setGalleryAddStatus('pending');
-      window.parent.postMessage({ type: 'GALLERY_ADD', slotId: `gallery:${projectId}`,
-        projectId, assetId: payload!.assetId || payload!.fileId, applicationData: payload, iframeGeneration: dragBridge.getIframeGeneration() }, window.location.origin);
-    }
+    const generation = dragBridge.getIframeGeneration();
+    const payload = readWorkbenchAsset(parseDropJson(event.dataTransfer.getData('application/x-workbench-asset')), generation)
+      || readWorkbenchAsset(dragBridge.getDragData(), generation);
+    if (!payload || !allProjects.some(project => project.id === projectId) || window.parent === window) return;
+    event.stopPropagation();
+    setGalleryAddStatus('pending');
+    window.parent.postMessage({ type: 'GALLERY_ADD', slotId: `gallery:${projectId}`,
+      projectId, assetId: payload.assetId || payload.fileId, applicationData: payload, iframeGeneration: generation }, window.location.origin);
     dragBridge.clearDragData();
   };
 

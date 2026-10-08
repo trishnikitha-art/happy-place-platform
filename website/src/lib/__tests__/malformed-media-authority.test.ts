@@ -10,6 +10,7 @@
 
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { resolvePublicMedia, isPublishedMediaAsset } from '@/lib/media';
+import { isPubliclyComplete } from '@/lib/media-contracts';
 
 describe('Malformed Media Authority Record Tests', () => {
   beforeEach(() => {
@@ -212,16 +213,10 @@ describe('Malformed Media Authority Record Tests', () => {
       expect(resolvePublicMedia).toBeDefined();
     });
 
-    it('should verify the resolver has explicit storage validation', () => {
-      const fs = require('fs');
-      const path = require('path');
-      const mediaPath = path.join(__dirname, '../media.ts');
-      const mediaCode = fs.readFileSync(mediaPath, 'utf8');
-
-      // Verify the resolver has explicit storage validation
-      expect(mediaCode).toContain('media.storage !== \'static\' && media.storage !== \'r2\'');
-      expect(mediaCode).toContain('Missing or invalid storage field');
-      expect(mediaCode).toContain('PublishedMediaAsset must have storage field (static or r2)');
+    it.each([undefined, 'blob', 'drive'])('rejects unsupported storage %s at the final public boundary', async storage => {
+      expect(await isPubliclyComplete({ id: 'malformed', source: 'local', lifecycleState: 'published',
+        storage, contentHash: 'a'.repeat(64), dimensions: { width: 1920, height: 1080 },
+        variants: { original: '/images/missing.jpg' } } as any)).toBe(false);
     });
   });
 });

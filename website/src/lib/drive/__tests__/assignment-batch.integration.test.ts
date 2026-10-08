@@ -2,6 +2,7 @@ import { Redis } from '@upstash/redis';
 import { POST } from '@/app/api/workbench/assign-media/route';
 import { saveMedia } from '@/lib/media-kv-store';
 import { resolveAssignmentKey } from '@/lib/workbench-assignment-contract';
+import staticManifest from '@/config/media.v1.json';
 
 // In direct mode only WB auth is stubbed; the media gate, store, and Lua are real.
 // HTTP mode logs in to the running server and exercises its real WB session.
@@ -42,14 +43,10 @@ beforeAll(async () => {
     expect(cookie).toContain('workbench_session_id=');
   }
   for (const id of [mediaId, otherMedia]) {
-    await saveMedia({ id, filename: `${id}.jpg`, type: 'image', orientation: 'landscape',
-      alt: 'Integration fixture', description: '', tags: [], roles: [],
-      source: 'local', classification: 'hero', lifecycleState: 'published', storage: 'static',
-      contentHash: `fixture-${id}`, dimensions: { width: 1920, height: 1080 },
-      variants: { original: '/images/test.jpg', webp: '/images/test.webp', thumbnail: '/images/test-thumb.jpg' },
-      usageSlots: [], physicalPath: '/images/test.jpg', physicalStatus: 'PHYSICAL_PRESENT',
-      createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
-    } as any);
+    // Exercise the real public gate using a committed, release-verified asset.
+    // An invented path/hash must fail before assignment Lua can execute.
+    const approved = staticManifest.media.find(asset => asset.storage === 'static')!;
+    await saveMedia({ ...approved, id } as any);
   }
 });
 

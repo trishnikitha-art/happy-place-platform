@@ -27,6 +27,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
 import { dragBridge } from '@/lib/workbench-drag-bridge';
+import { parseDropJson, readGalleryReorder, readWorkbenchAsset } from '@/lib/workbench-drop-protocol';
 
 // P0 FIX: Explicit Workbench origin constant for postMessage validation
 // Do not use implicit cross-origin discovery via window.parent.location.origin
@@ -220,51 +221,8 @@ export function VisualSlot({
           return;
         }
 
-        // Validate payload schema
-        const dragData = event.data.dragData;
-        if (!dragData || typeof dragData !== 'object') {
-          console.error('[VS_FORENSIC] DRAG_START_BRIDGE_REJECTED', {
-            slotId: id,
-            reason: 'INVALID_PAYLOAD_TYPE',
-            payloadType: typeof dragData,
-            timestamp: Date.now(),
-          });
-          return;
-        }
-
-        // Validate Drive reference schema
-        if (dragData.source === 'google-drive') {
-          // CEO FIX: Use canonical fileName field (not legacy name)
-          if (!dragData.fileId || !dragData.fileName || !dragData.mimeType) {
-            console.error('[VS_FORENSIC] DRAG_START_BRIDGE_REJECTED', {
-              slotId: id,
-              reason: 'MALFORMED_DRIVE_REFERENCE',
-              hasFileId: !!dragData.fileId,
-              hasFileName: !!dragData.fileName,
-              hasMimeType: !!dragData.mimeType,
-              timestamp: Date.now(),
-            });
-            return;
-          }
-        } else if (dragData.source === 'local') {
-          if (!dragData.assetId) {
-            console.error('[VS_FORENSIC] DRAG_START_BRIDGE_REJECTED', {
-              slotId: id,
-              reason: 'MALFORMED_ASSET_REFERENCE',
-              hasAssetId: !!dragData.assetId,
-              timestamp: Date.now(),
-            });
-            return;
-          }
-        } else {
-          console.error('[VS_FORENSIC] DRAG_START_BRIDGE_REJECTED', {
-            slotId: id,
-            reason: 'UNKNOWN_SOURCE_TYPE',
-            source: dragData.source,
-            timestamp: Date.now(),
-          });
-          return;
-        }
+        const dragData = readWorkbenchAsset(event.data.dragData, dragBridge.getIframeGeneration());
+        if (!dragData) return;
 
         // CEO FIX: Bridge drag data from parent across iframe boundary
         // Store the drag data in shared bridge so all components can access it
@@ -544,226 +502,39 @@ export function VisualSlot({
       timestamp: Date.now(),
     });
 
-    // PROTOCOL SEPARATION: Gallery slots accept GALLERY_REORDER and GALLERY_ADD
-    // P0 FIX: Use explicit MIME types to avoid protocol ambiguity
     if (isGallerySlot) {
-      let galleryReorderData = e.dataTransfer.getData('application/x-workbench-gallery-reorder');
-      let assetData = e.dataTransfer.getData('application/x-workbench-asset');
+      // Readability alone does not establish ownership. Invalid native payloads
+      // retain the bridge and bubble to the project's fallback boundary.
+      if (!projectId || window.parent === window) return;
+      const generation = dragBridge.getIframeGeneration();
+      const reorderText = e.dataTransfer.getData('application/x-workbench-gallery-reorder');
+      const assetText = e.dataTransfer.getData('application/x-workbench-asset');
+      const bridged = dragBridge.getDragData();
+      const reorder = readGalleryReorder(reorderText ? parseDropJson(reorderText)
+        : !assetText ? bridged : null, { projectId, mediaId: currentMediaId, slotId: id, generation });
 
-      // P0 FIX: If dataTransfer is empty (iframe boundary issue), use bridged data
-      const bridgedData = dragBridge.getDragData();
-      if (!galleryReorderData && !assetData && bridgedData) {
-        if (WORKBENCH_DEBUG) console.log('[VS_DND] GALLERY_FALLBACK_TO_BRIDGED_DATA', {
-          slotId: id,
-          bridgedDataType: bridgedData.type,
-        });
-        if (bridgedData.type === 'GALLERY_REORDER') {
-          galleryReorderData = JSON.stringify(bridgedData);
-        } else {
-          assetData = JSON.stringify(bridgedData);
-        }
-      }
-
-      // MIME labels alone do not prove a readable payload. Consume recognized
-      // drops once; let the project fallback try drops we cannot handle.
-      if (galleryReorderData || assetData) e.stopPropagation();
-
-      if (WORKBENCH_DEBUG) console.log('[VS_DND] GALLERY_PROTOCOL_CHECK', {
-        slotId: id,
-        hasGalleryReorderData: !!galleryReorderData,
-        hasAssetData: !!assetData,
-        usedBridgedData: !e.dataTransfer.getData('application/x-workbench-gallery-reorder') && !e.dataTransfer.getData('application/x-workbench-asset') && !!dragBridge.getDragData(),
-        dataTransferTypes: e.dataTransfer.types,
-      });
-
-      // GALLERY_REORDER: Accept gallery-to-gallery reordering via explicit MIME type
-      if (galleryReorderData) {
-        try {
-          const parsed = JSON.parse(galleryReorderData);
-          
-          if (WORKBENCH_DEBUG) console.log('[VS_DND] GALLERY_REORDER_PARSED', {
-            slotId: id,
-            parsedType: parsed.type,
-            sourceSlotId: parsed.sourceSlotId,
-            sourceMediaId: parsed.sourceMediaId,
-            targetSlotId: id,
-            targetMediaId: currentMediaId,
-            projectId: parsed.projectId,
-            protocolMatch: parsed.type === 'GALLERY_REORDER',
-          });
-
-          if (parsed.type !== 'GALLERY_REORDER') {
-            console.error('[VS_DND] GALLERY_PROTOCOL_REJECTED', {
-              slotId: id,
-              reason: 'WRONG_PROTOCOL_TYPE',
-              expectedType: 'GALLERY_REORDER',
-              actualType: parsed.type,
-              message: 'Gallery slots only accept GALLERY_REORDER protocol',
-            });
-            return;
-          }
-
-          if (!parsed.sourceSlotId || !parsed.sourceMediaId || !parsed.projectId) {
-            console.error('[VS_DND] GALLERY_PROTOCOL_REJECTED', {
-              slotId: id,
-              reason: 'MALFORMED_PAYLOAD',
-              missingFields: {
-                sourceSlotId: !parsed.sourceSlotId,
-                sourceMediaId: !parsed.sourceMediaId,
-                projectId: !parsed.projectId,
-              },
-            });
-            return;
-          }
-
-          if (parsed.projectId !== projectId || typeof parsed.sourceMediaId !== 'string'
-            || parsed.sourceSlotId !== `our-work-gallery::${projectId}::${parsed.sourceMediaId}`
-            || parsed.iframeGeneration !== dragBridge.getIframeGeneration()
-            || parsed.sourceMediaId === currentMediaId) return;
-
-          // Send SLOT_REORDER event to parent
-          if (window.parent !== window) {
-            const targetOrigin = WORKBENCH_ORIGIN;
-            const message = {
-              type: 'SLOT_REORDER',
-              sourceSlotId: parsed.sourceSlotId,
-              sourceMediaId: parsed.sourceMediaId,
-              targetSlotId: id,
-              targetMediaId: currentMediaId,
-              projectId: parsed.projectId,
-              iframeGeneration: dragBridge.getIframeGeneration(),
-            };
-
-            if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] SLOT_REORDER_POSTMESSAGE_SENDING', {
-              slotId: id,
-              messageType: message.type,
-              messageKeys: Object.keys(message),
-              messageValues: message,
-              targetOrigin,
-              iframeOrigin: window.location.origin,
-              parentOrigin: window.parent.location?.origin,
-              originsMatch: window.parent.location?.origin === window.location.origin,
-              parentExists: !!window.parent,
-              parentEqualsWindow: window.parent === window,
-              timestamp: Date.now(),
-            });
-
-            window.parent.postMessage(message, targetOrigin);
-
-            if (WORKBENCH_DEBUG) console.log('[VS_DND] SLOT_REORDER_POSTED', {
-              messageType: 'SLOT_REORDER',
-              targetOrigin,
-              timestamp: Date.now(),
-            });
-          } else {
-            console.error('[VS_DND] SLOT_REORDER_FAILED', {
-              reason: 'NOT_IN_IFRAME',
-              hasParent: !!window.parent,
-              parentEqualsWindow: window.parent === window,
-            });
-          }
-
-          // P0 FIX: Clear bridged data after successful reorder
-          dragBridge.clearDragData();
-          return;
-        } catch (error) {
-          console.error('[VS_DND] GALLERY_REORDER_PARSE_FAILED', {
-            slotId: id,
-            error: error instanceof Error ? error.message : 'Unknown error',
-          });
-
-          // P0 FIX: Clear bridged data on parse failure
-          dragBridge.clearDragData();
-          return;
-        }
-      }
-
-      // GALLERY_ADD: Accept regular asset drops via explicit MIME type
-      if (assetData) {
-        let assetId: string;
-        let applicationData: any = null;
-
-        try {
-          // Parse JSON payload
-          const parsed = JSON.parse(assetData);
-
-          // Preserve full applicationData for Drive references
-          applicationData = parsed;
-
-          // Handle both Drive reference and asset reference formats
-          if (parsed.assetId) {
-            assetId = parsed.assetId;
-          } else if (parsed.fileId) {
-            // Drive reference - use drive fileId as assetId
-            assetId = `drive-${parsed.fileId}`;
-          } else {
-            console.error('[VS_DND] GALLERY_ADD_PARSE_FAILED', {
-              slotId: id,
-              reason: 'NO_ASSET_ID_IN_PAYLOAD',
-              payload: parsed,
-            });
-            return;
-          }
-        } catch (error) {
-          // Fallback: treat as plain asset ID if JSON parse fails
-          console.warn('[VS_DND] GALLERY_ADD_PARSE_FALLBACK', {
-            slotId: id,
-            reason: 'JSON_PARSE_FAILED',
-            usingRawValue: true,
-          });
-          assetId = assetData;
-        }
-
-        if (WORKBENCH_DEBUG) console.log('[VS_DND] GALLERY_ADD_ACCEPTED', {
-          slotId: id,
-          projectId,
-          assetId,
-          applicationData,
-          reason: 'EXPLICIT_ASSET_MIME_TYPE',
-          usedBridgedData: !e.dataTransfer.getData('application/x-workbench-asset') && !!dragBridge.getDragData(),
-        });
-
-        // Send GALLERY_ADD event to parent with full applicationData
-        if (window.parent !== window) {
-          const targetOrigin = WORKBENCH_ORIGIN;
-          window.parent.postMessage({
-            type: 'GALLERY_ADD',
-            iframeGeneration: dragBridge.getIframeGeneration(),
-            slot: { id, route, page, section, slotName, currentMediaId, component },
-            slotId: id,
-            projectId,
-            assetId,
-            applicationData, // P0 FIX: Preserve Drive payload through iframe boundary
-          }, targetOrigin);
-
-          if (WORKBENCH_DEBUG) console.log('[VS_DND] GALLERY_ADD_POSTED', {
-            messageType: 'GALLERY_ADD',
-            targetOrigin,
-            hasApplicationData: !!applicationData,
-            applicationDataKeys: applicationData ? Object.keys(applicationData) : [],
-            timestamp: Date.now(),
-          });
-        } else {
-          console.error('[VS_DND] GALLERY_ADD_FAILED', {
-            reason: 'NOT_IN_IFRAME',
-            hasParent: !!window.parent,
-            parentEqualsWindow: window.parent === window,
-          });
-        }
-
-        // P0 FIX: Clear bridged data after successful gallery add
+      if (reorder) {
+        // A syntactically correct source slot must exist in this preview too.
+        const source = document.querySelector(`[data-slot-id="${CSS.escape(reorder.sourceSlotId)}"]`);
+        if (!source) return;
+        e.stopPropagation();
+        window.parent.postMessage({ type: 'SLOT_REORDER',
+          sourceSlotId: reorder.sourceSlotId, sourceMediaId: reorder.sourceMediaId,
+          targetSlotId: id, targetMediaId: currentMediaId, projectId,
+          iframeGeneration: generation }, WORKBENCH_ORIGIN);
         dragBridge.clearDragData();
         return;
       }
 
-      // This slot did not consume the drop; the project fallback still owns it.
-      if (WORKBENCH_DEBUG) console.debug('[VS_DND] GALLERY_PROJECT_FALLBACK', {
-        slotId: id,
-        reason: 'NO_RECOGNIZED_PROTOCOL',
-        availableTypes: e.dataTransfer.types,
-        message: 'Gallery slots require GALLERY_REORDER or GALLERY_ADD protocol',
-      });
-
+      const asset = readWorkbenchAsset(assetText ? parseDropJson(assetText)
+        : !reorderText ? bridged : null, generation);
+      if (!asset) return;
+      e.stopPropagation();
+      window.parent.postMessage({ type: 'GALLERY_ADD', iframeGeneration: generation,
+        slot: { id, route, page, section, slotName, currentMediaId, component },
+        slotId: id, projectId, assetId: asset.assetId || `drive-${asset.fileId}`,
+        applicationData: asset }, WORKBENCH_ORIGIN);
+      dragBridge.clearDragData();
       return;
     }
 

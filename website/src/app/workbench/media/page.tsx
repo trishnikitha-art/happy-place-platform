@@ -850,6 +850,7 @@ export default function MediaWorkbench() {
     if (driveFile && driveFile.id) {
       const driveReference = {
         source: 'google-drive' as const,
+        iframeGeneration: currentIframeGenerationRef.current,
         fileId: driveFile.id,
         sharedDriveId: state.driveCurrentDriveId || undefined,
         fileName: driveFile.name, // Canonical field
@@ -882,6 +883,7 @@ export default function MediaWorkbench() {
       dragData = {
         assetId,
         source: asset.source,
+        iframeGeneration: currentIframeGenerationRef.current,
       };
 
       e.dataTransfer.setData(

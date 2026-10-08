@@ -164,6 +164,15 @@
   --shadow-float: 0 24px 60px -28px rgba(53, 36, 35, 0.55), 0 10px 30px -16px rgba(0, 0, 0, 0.25);
 }
 
+/* Existing Workbench utilities follow the active brand and dark-mode tokens. */
+@theme inline {
+  --color-foreground: var(--color-text);
+  --color-muted-foreground: var(--color-text-muted);
+  --color-muted: var(--color-surface-muted);
+  --color-card: var(--color-surface);
+  --color-destructive: var(--color-error);
+}
+
 .dark {
   --color-background: #111315;
   --color-surface-2: #181B1E;

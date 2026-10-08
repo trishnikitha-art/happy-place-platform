@@ -420,12 +420,24 @@ export async function getPublishedMediaAssets(): Promise<PublishedMediaAssetsRes
     // 127-record production population cost 127 client constructions and
     // ~254 sequential round trips on the Workbench's initial load.
     const { getMediaBatch } = await import('./media-kv-store');
+    const { isPubliclyComplete } = await import('./media-contracts');
     const mediaBatch = await getMediaBatch(mediaIds);
+
+    // Bound physical proof to two assets at a time and retain listing order.
+    const eligibleIds = new Set<string>();
+    let next = 0;
+    await Promise.all(Array.from({ length: Math.min(2, mediaIds.length) }, async () => {
+      while (next < mediaIds.length) {
+        const mediaId = mediaIds[next++];
+        const media = mediaBatch.get(mediaId);
+        if (media && await isPubliclyComplete(media)) eligibleIds.add(mediaId);
+      }
+    }));
 
     for (const mediaId of mediaIds) {
       const media = mediaBatch.get(mediaId) ?? null;
       
-      if (media && media.source === 'local' && media.lifecycleState === 'published') {
+      if (media && eligibleIds.has(mediaId)) {
         // This is a PublishedMediaAsset (materialized from Drive or other sources)
         const classification = 'PUBLISHED';
         

@@ -1636,7 +1636,7 @@ export async function POST(request: Request) {
 
           // Verify full public completeness (shape + real hash + physical Blob proof)
           // This is the constitutional barrier - no incomplete media may be deployed
-          const isComplete = isPubliclyComplete(media);
+          const isComplete = await isPubliclyComplete(media);
           if (!isComplete) {
             console.error('[DEPLOY API] MEDIA_INCOMPLETE', {
               primaryTransactionId: batchContext.primaryTransactionId,
