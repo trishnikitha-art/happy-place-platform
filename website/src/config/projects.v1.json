@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-08T17:00:33.568Z",
+  "generatedAt": "2026-10-08T20:14:04.552Z",
   "projects": [
     {
       "id": "fences-001",
@@ -84,10 +84,10 @@
       "media": {
         "hero": "pergolas-001-hero",
         "gallery": [
-          "pergolas-001-before",
-          "pergolas-001-hero"
+          "pergolas-001-hero",
+          "pergolas-001-before"
         ],
-        "galleryRevision": 3
+        "galleryRevision": 4
       },
       "story": {
         "challenge": "Customer wanted a custom outdoor living space with privacy",
@@ -222,15 +222,15 @@
       "media": {
         "hero": "repairs-001-hero",
         "gallery": [
+          "repairs-001-hero",
           "repairs-001-drywall",
           "repairs-001-floor",
           "repairs-001-floor0",
           "repairs-001-gutter",
           "repairs-001-img0544",
-          "repairs-001-img0546",
-          "repairs-001-hero"
+          "repairs-001-img0546"
         ],
-        "galleryRevision": 13
+        "galleryRevision": 14
       },
       "story": {
         "challenge": "Multiple home repair issues needed attention",
@@ -301,9 +301,10 @@
           "outdoor-living-001-5",
           "outdoor-living-001-2",
           "outdoor-living-001-4",
-          "outdoor-living-001-3"
+          "outdoor-living-001-3",
+          "builtins-001-hero"
         ],
-        "galleryRevision": 10
+        "galleryRevision": 11
       },
       "story": {
         "challenge": "The home's exterior had years of weather exposure, peeling paint, failing caulk, and worn surfaces that made the entire property look older than it really was.",
