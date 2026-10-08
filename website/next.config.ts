@@ -1,5 +1,11 @@
 import type { NextConfig } from "next";
 
+// Match only the configured bucket origin, including any custom-domain prefix.
+const r2PublicBaseUrl = process.env.R2_PUBLIC_BASE_URL;
+const r2ImagePatterns = r2PublicBaseUrl
+  ? [new URL(`${r2PublicBaseUrl.replace(/\/$/, '')}/**`)]
+  : [];
+
 const nextConfig: NextConfig = {
   // SHARP_IGNORE_GLOBAL_LIBVIPS is configured in vercel.json for Vercel runtime
   // Sharp native binary loading requires this environment variable at Node.js runtime
@@ -33,8 +39,9 @@ const nextConfig: NextConfig = {
         pathname: '/api/drive/files/**',
       },
     ],
-    // Allow Vercel Blob storage for media assets
+    // Keep image delivery aligned with the configured R2 materialization origin.
     remotePatterns: [
+      ...r2ImagePatterns,
       {
         protocol: 'https',
         hostname: '*.public.blob.vercel-storage.com',

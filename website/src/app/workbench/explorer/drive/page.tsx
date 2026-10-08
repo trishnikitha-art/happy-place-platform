@@ -21,6 +21,7 @@ interface DriveExplorerState {
   items: (DriveFolder | DriveFile)[];
   viewMode: 'grid' | 'list';
   searchQuery: string;
+  activeSearchQuery: string;
   selectedFile: DriveFile | null;
   nextPageToken?: string;
   loadingMore: boolean;
@@ -37,6 +38,7 @@ export default function DriveExplorerPage() {
     items: [],
     viewMode: 'grid',
     searchQuery: '',
+    activeSearchQuery: '',
     selectedFile: null,
     nextPageToken: undefined,
     loadingMore: false,
@@ -124,13 +126,13 @@ export default function DriveExplorerPage() {
     }
   };
 
-  const loadChildren = async (folderId: string, pageToken?: string, driveId?: string | null) => {
+  const loadChildren = async (folderId: string, pageToken?: string, driveId: string | null = state.activeDriveId) => {
     try {
       const params = new URLSearchParams({ folderId });
       if (pageToken) params.set('pageToken', pageToken);
       // P0 FIX: Use corpusId (authoritative) instead of driveId for corpus context
       // Pass activeDriveId if in Shared Drive context (either from parameter or state)
-      const contextDriveId = driveId || state.activeDriveId;
+      const contextDriveId = driveId;
       if (contextDriveId) {
         params.set('corpusId', contextDriveId); // Use corpusId to match the new field name
       }
@@ -159,6 +161,7 @@ export default function DriveExplorerPage() {
         ...prev,
         items: pageToken ? [...prev.items, ...result.items] : result.items,
         nextPageToken: result.nextPageToken,
+        activeSearchQuery: '',
         loading: false,
         loadingMore: false,
       }));
@@ -183,10 +186,12 @@ export default function DriveExplorerPage() {
         activeDriveId: null, // My Drive has no active driveId
         breadcrumb: [{ id: folder.id, name: folder.name }],
         items: [],
+        searchQuery: '',
+        activeSearchQuery: '',
         nextPageToken: undefined,
         loading: true,
       }));
-      await loadChildren(folder.id);
+      await loadChildren(folder.id, undefined, null);
     }
     // Handle Shared Drive selection
     else if ((folder as any).isSharedDrive) {
@@ -204,6 +209,8 @@ export default function DriveExplorerPage() {
         activeDriveId: sharedDriveId, // Set active Shared Drive ID
         breadcrumb: [{ id: folder.id, name: folder.name, corpusId: sharedDriveId }], // P0 FIX: Preserve corpus context in breadcrumbs
         items: [],
+        searchQuery: '',
+        activeSearchQuery: '',
         nextPageToken: undefined,
         loading: true,
       }));
@@ -223,6 +230,8 @@ export default function DriveExplorerPage() {
         activeDriveId: folderCorpusId, // P0 FIX: Preserve corpus context from folder
         breadcrumb: [...prev.breadcrumb, { id: folder.id, name: folder.name, corpusId: folderCorpusId }],
         items: [],
+        searchQuery: '',
+        activeSearchQuery: '',
         nextPageToken: undefined,
         loading: true,
       }));
@@ -262,6 +271,8 @@ export default function DriveExplorerPage() {
         activeDriveId: targetCorpusId || (isSharedDriveRoot ? state.activeDriveId : null), // P0 FIX: Use corpus context from breadcrumb
         breadcrumb: newBreadcrumb,
         items: [],
+        searchQuery: '',
+        activeSearchQuery: '',
         nextPageToken: undefined,
         loading: true,
       }));
@@ -279,6 +290,8 @@ export default function DriveExplorerPage() {
         activeDriveId: targetCorpusId || state.activeDriveId, // P0 FIX: Use corpus context from breadcrumb
         breadcrumb: newBreadcrumb,
         items: [],
+        searchQuery: '',
+        activeSearchQuery: '',
         nextPageToken: undefined,
         loading: true,
       }));
@@ -289,7 +302,11 @@ export default function DriveExplorerPage() {
   const loadMore = () => {
     if (state.nextPageToken && !state.loadingMore) {
       setState(prev => ({ ...prev, loadingMore: true }));
-      loadChildren(state.currentFolderId, state.nextPageToken, state.activeDriveId || undefined);
+      if (state.activeSearchQuery) {
+        handleSearch(state.nextPageToken, state.activeSearchQuery);
+      } else {
+        loadChildren(state.currentFolderId, state.nextPageToken, state.activeDriveId);
+      }
     }
   };
 
@@ -297,17 +314,18 @@ export default function DriveExplorerPage() {
     setState(prev => ({ ...prev, selectedFile: file }));
   };
 
-  const handleSearch = async () => {
-    if (!state.searchQuery.trim()) {
+  const handleSearch = async (pageToken?: string, query = state.searchQuery.trim()) => {
+    if (!query) {
       // If search cleared, reload current folder
       await loadChildren(state.currentFolderId, undefined, state.activeDriveId);
       return;
     }
 
     try {
-      setState(prev => ({ ...prev, loading: true, error: null }));
+      setState(prev => ({ ...prev, loading: !pageToken, error: null, ...(!pageToken ? { nextPageToken: undefined } : {}) }));
 
-      const params = new URLSearchParams({ query: state.searchQuery });
+      const params = new URLSearchParams({ query });
+      if (pageToken) params.set('pageToken', pageToken);
       // P0 FIX: Use corpusId (authoritative) instead of driveId for Shared Drive search scoping
       if (state.activeDriveId) {
         params.set('corpusId', state.activeDriveId);
@@ -322,8 +340,11 @@ export default function DriveExplorerPage() {
 
       setState(prev => ({
         ...prev,
-        items: result.items || [],
+        items: pageToken ? [...prev.items, ...(result.items || [])] : result.items || [],
+        nextPageToken: result.nextPageToken,
+        activeSearchQuery: query,
         loading: false,
+        loadingMore: false,
       }));
     } catch (err) {
       console.error('Search failed:', err);
@@ -331,6 +352,7 @@ export default function DriveExplorerPage() {
         ...prev,
         error: 'Search failed',
         loading: false,
+        loadingMore: false,
       }));
     }
   };
@@ -338,7 +360,7 @@ export default function DriveExplorerPage() {
   // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (state.searchQuery.trim()) {
+      if (state.searchQuery.trim() || state.activeSearchQuery) {
         handleSearch();
       }
     }, 500);
