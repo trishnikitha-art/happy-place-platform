@@ -69,6 +69,7 @@ export function ProjectLightbox({ images, initialIndex = 0, isOpen, onClose }: P
   return createPortal(
     <dialog
       ref={dialogRef}
+      data-lenis-prevent
       aria-label="Project photo viewer"
       aria-describedby={captionId}
       aria-modal="true"

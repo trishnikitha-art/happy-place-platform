@@ -4,6 +4,8 @@ export interface GalleryReorder {
   sourceMediaId: string;
   targetSlotId: string;
   targetMediaId: string;
+  orderedMediaIds?: string[];
+  baseOrderedMediaIds?: string[];
 }
 
 export function isGalleryOrder(value: unknown): value is string[] {
@@ -19,7 +21,24 @@ export function parseGalleryReorder(value: unknown): GalleryReorder | null {
   const result = data as unknown as GalleryReorder;
   if (result.sourceSlotId !== `our-work-gallery::${result.projectId}::${result.sourceMediaId}`
     || result.targetSlotId !== `our-work-gallery::${result.projectId}::${result.targetMediaId}`) return null;
+  if (data.orderedMediaIds !== undefined && !isGalleryOrder(data.orderedMediaIds)) return null;
+  if (data.baseOrderedMediaIds !== undefined && !isGalleryOrder(data.baseOrderedMediaIds)) return null;
+  if (data.baseOrderedMediaIds !== undefined && data.orderedMediaIds === undefined) return null;
   return result;
+}
+
+export function applyGalleryReorder(order: readonly string[], request: GalleryReorder): string[] {
+  // Validate source and destination even when the pointer sends a complete order.
+  const moved = moveGalleryImage(order, request.sourceMediaId, request.targetMediaId);
+  if (!request.orderedMediaIds) return moved;
+  if (request.baseOrderedMediaIds && JSON.stringify(request.baseOrderedMediaIds) !== JSON.stringify(order)) {
+    throw new Error('This drag started from an older preview. The accepted order has been restored; try again.');
+  }
+  if (request.orderedMediaIds.length !== order.length
+    || !request.orderedMediaIds.every(id => order.includes(id))) {
+    throw new Error('A reorder must retain every gallery image, including hidden photos. The accepted order has been restored.');
+  }
+  return [...request.orderedMediaIds];
 }
 
 // Move, rather than swap: the images between source and destination retain order.

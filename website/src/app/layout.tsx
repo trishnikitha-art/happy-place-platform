@@ -6,7 +6,6 @@ import { getCompany } from "@/lib/company";
 import { seo } from "@/config/seo";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
-import { ScrollToTop } from "@/components/scroll-to-top";
 import { getHomepageHero } from "@/lib/brand";
 import { ThemeProvider } from "@/components/theme-provider";
 import { LenisProvider } from "@/components/lenis-provider";
@@ -109,7 +108,6 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             >
               Skip to main content
             </a>
-            <ScrollToTop />
             <SiteHeader />
             <main id="main-content" className="flex-1">{children}</main>
             <SiteFooter />

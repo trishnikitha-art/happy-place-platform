@@ -4,7 +4,7 @@ import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, X } from "lucide-react";
+import { Menu } from "lucide-react";
 import { getNavigation } from "@/lib/navigation";
 import { getCompany } from "@/lib/company";
 import { cn } from "@/lib/utils";
@@ -13,6 +13,7 @@ import { CedarCorner } from "@/components/cedar-corner";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { HappyBrandSignature } from "@/components/happy-brand-signature";
 import { TapeMeasureNav } from "@/components/tape-measure-nav";
+import { MobileSiteNavigation } from "@/components/mobile-site-navigation";
 
 function NavShimmer({ children, className }: { children: React.ReactNode; className?: string }) {
   const [isHovered, setIsHovered] = React.useState(false);
@@ -63,52 +64,36 @@ export function SiteHeader() {
   const [open, setOpen] = React.useState(false);
   const navigation = getNavigation();
   const company = getCompany();
-  const menuRef = React.useRef<HTMLDivElement>(null);
   const navRef = React.useRef<HTMLDivElement>(null);
   const menuButtonRef = React.useRef<HTMLButtonElement>(null);
+  const closeMenu = React.useCallback(() => setOpen(false), []);
 
   React.useEffect(() => {
     setOpen(false);
   }, [pathname]);
 
-  const handleMenuClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!menuRef.current) return;
-    const nav = menuRef.current.querySelector('nav');
-    if (nav && !nav.contains(e.target as Node)) {
-      setOpen(false);
-    }
-  };
-
   const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname.startsWith(href);
+    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
 
-  const primary = navigation.filter((n) => !n.secondary);
+  const primary = React.useMemo(() => navigation.filter((n) => !n.secondary), [navigation]);
   const contact = navigation.find((n) => n.secondary);
 
   return (
-    <header
-      className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-md"
-      onKeyDown={(event) => {
-        if (event.key === "Escape" && open) {
-          setOpen(false);
-          menuButtonRef.current?.focus();
-        }
-      }}
-    >
-      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
-        <Link href="/" className="group flex shrink-0 items-center gap-2.5" aria-label={`${company.name} home`}>
+    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-md">
+      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-2 px-4 sm:px-6 md:px-4 lg:gap-3 lg:px-8">
+        <Link href="/" className="group flex shrink-0 items-center gap-2 lg:gap-2.5" aria-label={`${company.name} home`}>
           {/* Happy Place Carpentry logo */}
-          <span className="relative block h-10 w-auto transition-transform duration-300 group-hover:-rotate-3">
+          <span className="relative block h-9 w-auto transition-transform duration-300 group-hover:-rotate-3 lg:h-10">
             <Image src="/brand/logo.png" alt="Happy Place Carpentry logo" width={120} height={40} priority className="h-full w-auto" />
             <CedarCorner className="absolute -left-1 -top-1 h-3 w-3 text-honey" />
           </span>
           <span className="flex flex-col leading-none">
-            <span className="font-display text-xl font-bold tracking-tight text-text"><HappyBrandSignature /> Place</span>
+            <span className="font-display text-lg font-bold tracking-tight text-text lg:text-xl"><HappyBrandSignature /> Place</span>
             <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-text-subtle">Carpentry</span>
           </span>
         </Link>
 
-        <nav className="hidden items-center lg:flex relative" aria-label="Primary" ref={navRef}>
+        <nav className="relative hidden shrink-0 items-center md:flex" aria-label="Primary" ref={navRef}>
           <TapeMeasureNav items={primary} activeHref={pathname} containerRef={navRef} />
           {primary.map((item) => (
             <Link
@@ -116,7 +101,7 @@ export function SiteHeader() {
               href={item.href}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "whitespace-nowrap px-3.5 py-2.5 text-[13px] font-medium tracking-wide transition-all duration-200 relative z-10",
+                "relative z-10 inline-flex min-h-11 min-w-11 items-center justify-center whitespace-nowrap px-2 py-2.5 text-xs font-medium tracking-wide transition-all duration-200 lg:px-3.5 lg:text-[13px]",
                 isActive(item.href) ? "text-primary" : "text-text hover:text-text hover:bg-surface/50 rounded-md"
               )}
             >
@@ -125,12 +110,12 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="hidden shrink-0 lg:flex items-center gap-2">
-          <ThemeToggle />
+        <div className="hidden shrink-0 items-center gap-2 md:flex">
+          <div className="[&>button]:h-11 [&>button]:w-11"><ThemeToggle /></div>
           {contact && (
             <Link
               href={contact.href}
-              className={cn(buttonVariants({ variant: "primary", size: "sm" }), "bg-honey text-honey-foreground shadow-warm hover:bg-honey-hover")}
+              className={cn(buttonVariants({ variant: "primary", size: "sm" }), "min-h-11 bg-honey px-3 text-honey-foreground shadow-warm hover:bg-honey-hover lg:px-4")}
             >
               {contact.label}
             </Link>
@@ -140,40 +125,17 @@ export function SiteHeader() {
         <button
           ref={menuButtonRef}
           type="button"
-          className="flex h-11 w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-muted lg:hidden"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:hidden"
           aria-expanded={open}
           aria-controls="mobile-menu"
           aria-label={open ? "Close menu" : "Open menu"}
-          onClick={() => setOpen((v) => !v)}
+          onClick={() => setOpen(true)}
         >
-          {open ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          <Menu className="h-6 w-6" aria-hidden="true" />
         </button>
       </div>
 
-      {open && (
-        <div id="mobile-menu" ref={menuRef} onClick={handleMenuClick} className="max-h-[calc(100dvh-5rem)] overflow-y-auto border-t border-border/60 bg-[#F8F6F3] dark:bg-surface lg:hidden">
-          <nav className="flex flex-col p-3" aria-label="Mobile">
-            {navigation.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                onClick={() => setOpen(false)}
-                aria-current={isActive(item.href) ? "page" : undefined}
-                className={cn(
-                  "rounded-lg px-3 py-3 text-base font-medium transition-colors duration-200",
-                  isActive(item.href) ? "bg-primary/10 text-primary" : "text-black dark:text-text-on-dark hover:bg-white/50 dark:hover:bg-surface-muted/50"
-                )}
-              >
-                {isActive(item.href) ? <NavShimmer>{item.label}</NavShimmer> : item.label}
-              </Link>
-            ))}
-            <div className="mt-2 pt-2 border-t border-border/40 flex items-center justify-between">
-              <span className="text-sm text-black dark:text-text-on-dark">Theme</span>
-              <ThemeToggle />
-            </div>
-          </nav>
-        </div>
-      )}
+      <MobileSiteNavigation open={open} navigation={navigation} pathname={pathname} openerRef={menuButtonRef} onClose={closeMenu} />
     </header>
   );
 }

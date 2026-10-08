@@ -53,11 +53,14 @@ export function ParallaxImage({
       lenisScroll.set(lenis.scroll);
     };
 
+    // Start at the browser's restored position, without waiting for a wheel
+    // event to update a fresh Lenis instance after navigation.
+    updateScroll();
     lenis.on('scroll', updateScroll);
     return () => {
       lenis.off('scroll', updateScroll);
     };
-  }, [lenis]);
+  }, [lenis, lenisScroll]);
 
   // Use Lenis scroll value if available, otherwise fall back to native scroll
   const { scrollY } = useScroll();

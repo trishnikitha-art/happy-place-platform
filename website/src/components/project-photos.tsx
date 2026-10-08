@@ -72,7 +72,7 @@ export function ProjectPhotos({ photos, limit }: ProjectPhotosProps) {
                   fill
                   className="object-cover transition-transform duration-300 group-hover:scale-105"
                   loading="lazy"
-                  placeholder="blur"
+                  placeholder={photo.variants?.blur ? "blur" : "empty"}
                   blurDataURL={photo.variants?.blur}
                 />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-200" />

@@ -21,6 +21,8 @@
  *   dragBridge.clearDragData();
  */
 
+const WORKBENCH_DEBUG = process.env.NEXT_PUBLIC_WORKBENCH_DEBUG === 'true';
+
 interface DragData {
   source: 'google-drive' | 'local' | 'drive';
   fileId?: string;
@@ -53,7 +55,7 @@ class WorkbenchDragBridge {
     // must not erase another slot's registration or a drag already in flight.
     if (!Number.isSafeInteger(generation) || generation < 0) return;
     if (this.bridgeState.iframeGeneration === generation) return;
-    console.log('[DRAG_BRIDGE] INITIALIZE', {
+    if (WORKBENCH_DEBUG) console.log('[DRAG_BRIDGE] INITIALIZE', {
       generation,
       oldGeneration: this.bridgeState.iframeGeneration,
       timestamp: Date.now(),
@@ -71,7 +73,7 @@ class WorkbenchDragBridge {
    */
   registerSlot(slotId: string): void {
     if (this.bridgeState.iframeGeneration === null) {
-      console.error('[DRAG_BRIDGE] REGISTER_SLOT_BEFORE_INIT', {
+      if (WORKBENCH_DEBUG) console.debug('[DRAG_BRIDGE] REGISTER_SLOT_BEFORE_INIT', {
         slotId,
         error: 'Bridge not initialized with parent generation',
       });
@@ -81,7 +83,7 @@ class WorkbenchDragBridge {
     this.bridgeState.registeredSlots.add(slotId);
     this.bridgeState.isReady = true;
 
-    console.log('[DRAG_BRIDGE] REGISTER_SLOT', {
+    if (WORKBENCH_DEBUG) console.log('[DRAG_BRIDGE] REGISTER_SLOT', {
       slotId,
       iframeGeneration: this.bridgeState.iframeGeneration,
       registeredSlots: Array.from(this.bridgeState.registeredSlots),
@@ -94,7 +96,7 @@ class WorkbenchDragBridge {
    * Only one drag payload exists per iframe document
    */
   setDragData(data: DragData): void {
-    console.log('[DRAG_BRIDGE] SET_DRAG_DATA', {
+    if (WORKBENCH_DEBUG) console.log('[DRAG_BRIDGE] SET_DRAG_DATA', {
       source: data.source,
       fileId: data.fileId || data.assetId,
       iframeGeneration: this.bridgeState.iframeGeneration,
@@ -116,7 +118,7 @@ class WorkbenchDragBridge {
    * Called after successful drop or explicit cancellation
    */
   clearDragData(): void {
-    console.log('[DRAG_BRIDGE] CLEAR_DRAG_DATA', {
+    if (WORKBENCH_DEBUG) console.log('[DRAG_BRIDGE] CLEAR_DRAG_DATA', {
       hadData: !!this.dragData,
       iframeGeneration: this.bridgeState.iframeGeneration,
       timestamp: Date.now(),
@@ -145,7 +147,7 @@ class WorkbenchDragBridge {
    * Diagnostic: log current bridge state
    */
   logState(): void {
-    console.log('[DRAG_BRIDGE] STATE', {
+    if (WORKBENCH_DEBUG) console.log('[DRAG_BRIDGE] STATE', {
       hasDragData: !!this.dragData,
       dragDataSource: this.dragData?.source,
       isReady: this.bridgeState.isReady,

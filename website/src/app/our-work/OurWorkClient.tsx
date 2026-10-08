@@ -12,6 +12,9 @@ import { ProjectLightbox } from "@/components/project-lightbox";
 import { BlueprintGrid } from "@/components/blueprint-grid";
 import { VisualSlot } from "@/components/visual-slot";
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { useGalleryPointerSort } from "@/components/use-gallery-pointer-sort";
+import { mergeVisibleGalleryOrder } from "@/lib/gallery-pointer-sort";
 import type { Project } from "@/types/projects";
 import { dragBridge } from "@/lib/workbench-drag-bridge";
 import { isGalleryOrder, orderResolvedGallery } from "@/lib/workbench-gallery-order";
@@ -35,6 +38,8 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
   const [galleryAddStatus, setGalleryAddStatus] = useState<'idle' | 'pending' | 'accepted' | 'rejected'>('idle');
   const galleryGridRef = useRef<HTMLDivElement>(null);
   const [galleryDraftOrders, setGalleryDraftOrders] = useState<Record<string, string[]>>({});
+  const [galleryHiddenIds, setGalleryHiddenIds] = useState<Record<string, string[]>>({});
+  const pendingPointerProjects = useRef(new Set<string>());
   const [galleryNotice, setGalleryNotice] = useState<string | null>(null);
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isWorkbenchMode, setIsWorkbenchMode] = useState(false);
@@ -42,6 +47,22 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
   useEffect(() => {
     setIsWorkbenchMode(new URLSearchParams(window.location.search).get('workbench') === 'true');
   }, []);
+
+  const pointerSort = useGalleryPointerSort(({ projectId, sourceId, targetId, visibleOrder }) => {
+    const project = allProjects.find(project => project.id === projectId);
+    if (!project || window.parent === window) return;
+    const acceptedOrder = galleryDraftOrders[projectId];
+    const nextOrder = mergeVisibleGalleryOrder(acceptedOrder || project.media.gallery || visibleOrder, visibleOrder);
+    pendingPointerProjects.current.add(projectId);
+    setGalleryDraftOrders(previous => ({ ...previous, [projectId]: nextOrder }));
+    window.parent.postMessage({ type: 'SLOT_REORDER', projectId, sourceMediaId: sourceId, targetMediaId: targetId,
+      sourceSlotId: `our-work-gallery::${projectId}::${sourceId}`,
+      targetSlotId: `our-work-gallery::${projectId}::${targetId}`,
+      // The first gesture uses source/target until the parent supplies its full
+      // order, including IDs the public media gate does not render.
+      ...(acceptedOrder ? { orderedMediaIds: nextOrder, baseOrderedMediaIds: acceptedOrder } : {}),
+      iframeGeneration: dragBridge.getIframeGeneration() }, window.location.origin);
+  });
 
   // P0 FIX: Runtime drag-data schema validation
   // Validates that dragData conforms to expected DriveReference or AssetReference contract
@@ -102,13 +123,27 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
         && data.iframeGeneration === dragBridge.getIframeGeneration()
         && typeof data.projectId === 'string' && isGalleryOrder(data.gallery)
         && allProjects.some(project => project.id === data.projectId)) {
+        pendingPointerProjects.current.delete(data.projectId);
         setGalleryDraftOrders(previous => ({ ...previous, [data.projectId]: [...data.gallery] }));
+        if (isGalleryOrder(data.hiddenGallery)) setGalleryHiddenIds(previous => ({ ...previous, [data.projectId]: [...data.hiddenGallery] }));
         setGalleryNotice('Order updated in preview. Save Gallery Changes to keep it.');
       } else if (data.type === 'GALLERY_ORDER_RESET'
         && data.iframeGeneration === dragBridge.getIframeGeneration()) {
+        pointerSort.cancel();
+        pendingPointerProjects.current.clear();
         setGalleryDraftOrders({});
+        setGalleryHiddenIds({});
         setGalleryNotice(null);
-      } else if (data.type === 'GALLERY_REORDER_NACK') {
+      } else if (data.type === 'GALLERY_REORDER_NACK' && data.iframeGeneration === dragBridge.getIframeGeneration()) {
+        if (typeof data.projectId === 'string') {
+          pendingPointerProjects.current.delete(data.projectId);
+          setGalleryDraftOrders(previous => {
+            const next = { ...previous };
+            if (isGalleryOrder(data.gallery)) next[data.projectId] = [...data.gallery];
+            else delete next[data.projectId];
+            return next;
+          });
+        }
         setGalleryNotice(typeof data.reason === 'string' ? data.reason : 'Could not rearrange this image.');
       } else if (data.type === 'GALLERY_ADD_QUEUED' || data.type === 'GALLERY_ADD_NACK') {
         setGalleryAddStatus(data.type === 'GALLERY_ADD_QUEUED' ? 'accepted' : 'rejected');
@@ -149,7 +184,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     if (window.parent !== window) {
       setGalleryAddStatus('pending');
       window.parent.postMessage({ type: 'GALLERY_ADD', slotId: `gallery:${projectId}`,
-        projectId, assetId: payload!.assetId || payload!.fileId, applicationData: payload }, window.location.origin);
+        projectId, assetId: payload!.assetId || payload!.fileId, applicationData: payload, iframeGeneration: dragBridge.getIframeGeneration() }, window.location.origin);
     }
     dragBridge.clearDragData();
   };
@@ -162,14 +197,23 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
   };
 
   const openLightbox = (images: Array<{src: string; alt: string; blurDataURL?: string}>, index: number) => {
-    // Workbench clicks select/rearrange images instead of opening the public lightbox.
-    if (isDragging || isWorkbenchMode) {
-      console.log('[OUR_WORK] LIGHTBOX_PREVENTED_BY_DRAG', { isDragging });
-      return;
-    }
+    if (isDragging || pointerSort.drag) return;
     setLightboxImages(images);
     setLightboxIndex(index);
     setLightboxOpen(true);
+  };
+
+  const viewGalleryPhoto = (projectId: string, mediaId: string) => {
+    if (pointerSort.suppressClick(mediaId)) return;
+    const photos = allProjects.flatMap(project => orderResolvedGallery(project.media.galleryMedia || [], galleryDraftOrders[project.id])
+      .filter(photo => !(galleryHiddenIds[project.id] || []).includes(photo.id))
+      .map(photo => ({ projectId: project.id, photo })));
+    const images = photos.map(({ photo }) => ({
+      src: photo.variants.responsive?.at(-1)?.webp || photo.variants.web || photo.variants.original || photo.variants.thumbnail!,
+      alt: photo.alt, blurDataURL: photo.variants.blur,
+    }));
+    const index = photos.findIndex(item => item.projectId === projectId && item.photo.id === mediaId);
+    if (index >= 0) openLightbox(images, index);
   };
 
   return (
@@ -297,7 +341,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
           />
           {isWorkbenchMode && (
             <p role="status" aria-live="polite" className="mt-4 text-sm text-text-on-dark/90">
-              {galleryNotice || 'Drag a photo onto another photo in the same project to rearrange it. Save your changes before editing another project.'}
+              {galleryNotice || 'Drag photos to rearrange each project. Make as many changes as you like, then save them together.'}
             </p>
           )}
           {/* P1 FIX: Visual indicator for gallery add status */}
@@ -319,7 +363,8 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
             {allProjects.map((project, projectIndex) => {
               // P0 FIX: Use pre-validated galleryMedia from server-side resolution (passed public media gate)
               // This prevents client-side getMediaById() bypass
-              const galleryPhotos = orderResolvedGallery(project.media.galleryMedia || [], galleryDraftOrders[project.id]);
+              const galleryPhotos = orderResolvedGallery(project.media.galleryMedia || [], galleryDraftOrders[project.id])
+                .filter(photo => !(galleryHiddenIds[project.id] || []).includes(photo.id));
 
               // P0 FIX: Per-project drop zone container
               // Each project gets its own drop surface with explicit project ID
@@ -349,81 +394,16 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                     data-project-id={project.id}
                     data-media-id={mediaId}
                     data-photo-index={photoIndex}
-                    role={isWorkbenchMode ? 'group' : 'button'}
-                    tabIndex={isWorkbenchMode ? undefined : 0}
-                    className="group relative block aspect-[4/3] overflow-hidden break-inside-avoid mb-4 cursor-pointer"
-                    onClick={() => {
-                      console.log('[OUR_WORK] GALLERY_BUTTON_CLICK', {
-                        projectId: project.id,
-                        mediaId,
-                        slotId: `our-work-gallery::${project.id}::${mediaId}`,
-                        isDragging,
-                        timestamp: Date.now(),
-                      });
-
-                      // P0 FIX: Prevent lightbox from opening during/after drag operation
-                      if (isDragging) {
-                        console.log('[OUR_WORK] LIGHTBOX_PREVENTED_BY_DRAG', { isDragging });
-                        return;
-                      }
-
-                      // P0 FIX: Use pre-validated galleryMedia from server-side resolution (passed public media gate)
-                      // This prevents client-side getMediaById() bypass
-                      const allGalleryImages = allProjects.flatMap(p => {
-                        const pGalleryMedia = p.media.galleryMedia || [];
-                        return pGalleryMedia.map(m => {
-                          // Use highest quality variant for lightbox
-                          const responsiveVariants = m.variants?.responsive;
-                          const highestQuality = responsiveVariants && responsiveVariants.length > 0
-                            ? responsiveVariants[responsiveVariants.length - 1].webp
-                            : (m.variants.web || m.variants.original || m.variants.thumbnail!);
-                          return {
-                            src: highestQuality,
-                            alt: m.alt,
-                            blurDataURL: m.variants?.blur
-                          };
-                        });
-                      });
-                      const globalIndex = allGalleryImages.findIndex(img => img.src === src);
-                      openLightbox(allGalleryImages, globalIndex);
+                    role="button"
+                    tabIndex={0}
+                    className="group relative block aspect-[4/3] overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 mb-4"
+                    style={pointerSort.cardStyle(project.id, mediaId)}
+                    onClick={() => viewGalleryPhoto(project.id, mediaId)}
+                    onKeyDown={event => {
+                      if (event.target !== event.currentTarget) return;
+                      if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); viewGalleryPhoto(project.id, mediaId); }
                     }}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        console.log('[OUR_WORK] GALLERY_KEYBOARD_ACTION', {
-                          projectId: project.id,
-                          mediaId,
-                          slotId: `our-work-gallery::${project.id}::${mediaId}`,
-                          key: e.key,
-                          isDragging,
-                          timestamp: Date.now(),
-                        });
-
-                        // P0 FIX: Prevent lightbox from opening during/after drag operation
-                        if (isDragging) {
-                          console.log('[OUR_WORK] LIGHTBOX_PREVENTED_BY_DRAG', { isDragging });
-                          return;
-                        }
-
-                        const allGalleryImages = allProjects.flatMap(p => {
-                          const pGalleryMedia = p.media.galleryMedia || [];
-                          return pGalleryMedia.map(m => {
-                            const responsiveVariants = m.variants?.responsive;
-                            const highestQuality = responsiveVariants && responsiveVariants.length > 0
-                              ? responsiveVariants[responsiveVariants.length - 1].webp
-                              : (m.variants.web || m.variants.original || m.variants.thumbnail!);
-                            return {
-                              src: highestQuality,
-                              alt: m.alt,
-                              blurDataURL: m.variants?.blur
-                            };
-                          });
-                        });
-                        const globalIndex = allGalleryImages.findIndex(img => img.src === src);
-                        openLightbox(allGalleryImages, globalIndex);
-                      }
-                    }}
-                    aria-label={isWorkbenchMode ? `Rearrange ${photo!.alt || project.title}` : `View ${photo!.alt} in full screen`}
+                    aria-label={`View ${photo.alt || project.title} in full screen`}
                   >
                     <CraftCard className="aspect-[4/3] overflow-hidden">
                       <VisualSlot
@@ -438,6 +418,17 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                         isWorkbenchMode={isWorkbenchMode}
                         isGallerySlot={true}
                         projectId={project.id}
+                        galleryDragging={pointerSort.drag?.sourceId === mediaId && pointerSort.drag.projectId === project.id}
+                        onGalleryClick={() => viewGalleryPhoto(project.id, mediaId)}
+                        galleryPointerHandlers={{
+                          onPointerDown: event => {
+                            if (!pendingPointerProjects.current.has(project.id)) pointerSort.onPointerDown(event, project.id, mediaId);
+                          },
+                          onPointerMove: pointerSort.onPointerMove,
+                          onPointerUp: pointerSort.onPointerUp,
+                          onPointerCancel: pointerSort.onPointerCancel,
+                          onLostPointerCapture: pointerSort.onPointerCancel,
+                        }}
                       >
                         <img
                           src={src}
@@ -445,18 +436,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                           loading="lazy"
                           draggable={false}
-                          onLoad={() => {
-                            console.log('[OUR_WORK] GALLERY_IMAGE_LOADED', {
-                              projectId: project.id,
-                              mediaId,
-                              slotId: `our-work-gallery::${project.id}::${mediaId}`,
-                              src: src.substring(0, 100),
-                              isWorkbenchMode,
-                              isGallerySlot: true,
-                              expectedDraggable: isWorkbenchMode && true,
-                              timestamp: Date.now(),
-                            });
-                          }}
+
                         />
                       </VisualSlot>
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none" />
@@ -488,6 +468,18 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
           </div>
         </Container>
       </Section>
+
+      {pointerSort.drag && createPortal(
+        <div ref={pointerSort.ghostRef} aria-hidden="true" data-gallery-drag-ghost
+          className="pointer-events-none fixed z-[100] overflow-hidden rounded-lg shadow-2xl ring-2 ring-honey"
+          style={{ left: pointerSort.drag.rects[pointerSort.drag.sourceIndex].left,
+            top: pointerSort.drag.rects[pointerSort.drag.sourceIndex].top,
+            width: pointerSort.drag.rects[pointerSort.drag.sourceIndex].width,
+            height: pointerSort.drag.rects[pointerSort.drag.sourceIndex].height,
+            transform: `translate3d(${pointerSort.drag.x - pointerSort.drag.startX}px, ${pointerSort.drag.y - pointerSort.drag.startY}px, 0)` }}>
+          <img src={pointerSort.drag.src} alt="" className="h-full w-full object-cover" draggable={false} />
+        </div>, document.body
+      )}
 
       {/* Lightbox */}
       <ProjectLightbox

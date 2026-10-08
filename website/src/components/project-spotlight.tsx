@@ -81,7 +81,7 @@ export function ProjectSpotlight({
                 src={heroSrc}
                 alt={heroAlt}
                 fill
-                placeholder="blur"
+                placeholder={heroMedia?.variants?.blur ? "blur" : "empty"}
                 blurDataURL={heroMedia?.variants?.blur}
                 className="h-full w-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
                 sizes="(max-width: 1024px) 100vw, 50vw"
@@ -177,7 +177,7 @@ export function ProjectSpotlight({
             alt={heroAlt}
             fill
             priority
-            placeholder="blur"
+            placeholder={heroMedia?.variants?.blur ? "blur" : "empty"}
             blurDataURL={heroMedia?.variants?.blur}
             className="absolute inset-0 h-full w-full object-cover opacity-30"
           />
@@ -248,7 +248,7 @@ export function ProjectSpotlight({
                         alt={media!.alt}
                         fill
                         loading="lazy"
-                        placeholder="blur"
+                        placeholder={media?.variants?.blur ? "blur" : "empty"}
                         blurDataURL={media!.variants?.blur}
                         className="object-cover transition-all duration-200 ease-out group-hover:scale-[1.05] group-hover:brightness-110"
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"

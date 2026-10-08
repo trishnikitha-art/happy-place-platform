@@ -31,6 +31,7 @@ import { dragBridge } from '@/lib/workbench-drag-bridge';
 // P0 FIX: Explicit Workbench origin constant for postMessage validation
 // Do not use implicit cross-origin discovery via window.parent.location.origin
 // The iframe is guaranteed same-origin in production; this invariant is explicit here
+const WORKBENCH_DEBUG = process.env.NEXT_PUBLIC_WORKBENCH_DEBUG === 'true';
 const WORKBENCH_ORIGIN = typeof window !== 'undefined' ? window.location.origin : '';
 
 // P0 FIX: Try to consume WorkbenchModeContext from preview layout if available
@@ -60,6 +61,9 @@ interface VisualSlotProps {
   // P0 FIX: Authoritative Workbench-mode from parent context
   // Avoids per-slot window.location inspection and SSR/hydration issues
   isWorkbenchMode?: boolean;
+  galleryPointerHandlers?: Pick<React.HTMLAttributes<HTMLDivElement>, 'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onPointerCancel' | 'onLostPointerCapture'>;
+  onGalleryClick?: (event: React.MouseEvent) => void;
+  galleryDragging?: boolean;
 }
 
 export function VisualSlot({
@@ -75,12 +79,14 @@ export function VisualSlot({
   isGallerySlot = false,
   projectId,
   isWorkbenchMode: propIsWorkbenchMode,
+  galleryPointerHandlers,
+  onGalleryClick,
+  galleryDragging = false,
 }: VisualSlotProps) {
   const elementRef = useRef<HTMLDivElement>(null);
   const lastDragOverLogRef = useRef<number>(0);
-  const [isDraggingActive, setIsDraggingActive] = useState(false);
+  const isDraggingActive = galleryDragging;
   const [isDropTarget, setIsDropTarget] = useState(false);
-  const suppressClickUntilRef = useRef(0);
 
   // P0 FIX: Use authoritative Workbench-mode from prop (if provided by iframe context)
   // Fall back to synchronous URL check for backward compatibility
@@ -92,7 +98,7 @@ export function VisualSlot({
   );
 
   // CRITICAL DEBUG: Log workbench mode determination to console
-  console.log('[VS_DEBUG] WORKBENCH_MODE', {
+  if (WORKBENCH_DEBUG) console.log('[VS_DEBUG] WORKBENCH_MODE', {
     slotId: id,
     isGallerySlot,
     propIsWorkbenchMode,
@@ -104,7 +110,7 @@ export function VisualSlot({
   });
 
   // FORENSIC: Log Workbench-mode source and value
-  console.log('[VS_FORENSIC] WORKBENCH_MODE_DETERMINATION', {
+  if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] WORKBENCH_MODE_DETERMINATION', {
     slotId: id,
     modeSource: propIsWorkbenchMode !== undefined ? 'PROP_CONTEXT' : 'URL_SYNC',
     propIsWorkbenchMode,
@@ -120,14 +126,14 @@ export function VisualSlot({
   });
 
   // UNCONDITIONAL LOG - will appear in iframe console if component renders
-  console.log('[SLOT-RENDER]', id);
+  if (WORKBENCH_DEBUG) console.log('[SLOT-RENDER]', id);
 
   useEffect(() => {
-    console.log('[SLOT] RENDER', { id, route, page, section, slotName, currentMediaId, windowIsIframe: window.parent !== window });
+    if (WORKBENCH_DEBUG) console.log('[SLOT] RENDER', { id, route, page, section, slotName, currentMediaId, windowIsIframe: window.parent !== window });
   }, [id, route, page, section, slotName, currentMediaId]);
 
   useEffect(() => {
-    console.log('[SLOT] COMPONENT_MOUNTING', {
+    if (WORKBENCH_DEBUG) console.log('[SLOT] COMPONENT_MOUNTING', {
       id,
       section,
       slotName,
@@ -138,70 +144,12 @@ export function VisualSlot({
       windowIsIframe: window.parent !== window,
     });
 
-    // FORENSIC: Inspect ACTUAL DOM state, not captured React state
-    // This tells us what the browser actually rendered
-    setTimeout(() => {
-      if (elementRef.current) {
-        const actualDraggableAttr = elementRef.current.getAttribute('draggable');
-        const computedDraggable = elementRef.current.draggable;
-        const pointerEvents = getComputedStyle(elementRef.current).pointerEvents;
-        const userSelect = getComputedStyle(elementRef.current).userSelect;
-        const computedDisplay = getComputedStyle(elementRef.current).display;
-        const computedVisibility = getComputedStyle(elementRef.current).visibility;
-
-        // Check child wrapper pointer events
-        const childWrapper = elementRef.current.firstElementChild as HTMLElement;
-        const childPointerEvents = childWrapper ? getComputedStyle(childWrapper).pointerEvents : 'NO_CHILD';
-
-        console.log('[VS_FORENSIC] ACTUAL_DOM_STATE', {
-          slotId: id,
-          isGallerySlot,
-          isWorkbenchMode: effectiveWorkbenchMode,
-          expectedDraggable: effectiveWorkbenchMode && isGallerySlot,
-          actualDraggableAttribute: actualDraggableAttr,
-          computedDraggableProperty: computedDraggable,
-          pointerEvents,
-          userSelect,
-          computedDisplay,
-          computedVisibility,
-          childPointerEvents,
-          expectedChildPointerEvents: effectiveWorkbenchMode && isGallerySlot ? 'none' : 'auto',
-          elementExists: !!elementRef.current,
-          elementTagName: elementRef.current.tagName,
-          dataSlotId: elementRef.current.getAttribute('data-slot-id'),
-          dataSlotRoute: elementRef.current.getAttribute('data-slot-route'),
-          dataSlotSection: elementRef.current.getAttribute('data-slot-section'),
-          timestamp: Date.now(),
-        });
-      }
-    }, 100);
-
-    // CRITICAL FIX: Force draggable attribute on DOM to prevent external overrides
-    // Some parent wrapper or CSS may be overriding React's draggable attribute
-    if (elementRef.current && effectiveWorkbenchMode && isGallerySlot) {
-      const forceDraggable = () => {
-        if (elementRef.current) {
-          elementRef.current.setAttribute('draggable', 'true');
-          console.log('[VS_FIX] FORCED_DRAGGABLE', {
-            slotId: id,
-            isGallerySlot,
-            effectiveWorkbenchMode,
-            attribute: elementRef.current.getAttribute('draggable'),
-            property: elementRef.current.draggable,
-            timestamp: Date.now(),
-          });
-        }
-      };
-      forceDraggable();
-      // Use requestAnimationFrame to ensure it's set after React's render
-      requestAnimationFrame(forceDraggable);
-      requestAnimationFrame(() => requestAnimationFrame(forceDraggable));
-    }
-
     // P0 FIX: Correct protocol ordering - create listener BEFORE sending BRIDGE_READY
     // The invariant is: listener must be attached before parent is permitted to send messages
     const handleMessage = (event: MessageEvent) => {
-      console.log('[VS_FORENSIC] MESSAGE_RECEIVED', {
+      if (event.origin !== window.location.origin || event.source !== window.parent
+        || !event.data || typeof event.data !== 'object') return;
+      if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] MESSAGE_RECEIVED', {
         slotId: id,
         eventOrigin: event.origin,
         expectedOrigin: window.location.origin,
@@ -211,7 +159,7 @@ export function VisualSlot({
       });
 
       if (event.data.type === 'REFRESH_SLOTS') {
-        console.log('[VS_FORENSIC] REFRESH_SLOTS_ACCEPTED', { id });
+        if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] REFRESH_SLOTS_ACCEPTED', { id });
         // Re-register with current mediaId to sync state
         slotRegistry.register(slot);
         if (window.parent !== window) {
@@ -220,14 +168,14 @@ export function VisualSlot({
             type: 'SLOT_REGISTER',
             slot: { id, route, page, section, slotName, currentMediaId, component },
           }, targetOrigin);
-          console.log('[VS_FORENSIC] REFRESH_REGISTER_SENT', { slotId: id, targetOrigin });
+          if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] REFRESH_REGISTER_SENT', { slotId: id, targetOrigin });
         }
       } else if (event.data.type === 'BRIDGE_INIT') {
         // P0 FIX: Initialize bridge with parent-issued generation
         // Parent owns the generation; iframe initializes with it once
         const generation = event.data.generation;
         if (typeof generation === 'number') {
-          console.log('[VS_FORENSIC] BRIDGE_INIT_RECEIVED', {
+          if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] BRIDGE_INIT_RECEIVED', {
             slotId: id,
             generation,
             timestamp: Date.now(),
@@ -240,7 +188,7 @@ export function VisualSlot({
             slotId: id,
             iframeGeneration: dragBridge.getIframeGeneration(),
           };
-          console.log('[VS_FORENSIC] BRIDGE_READY_RESENT_AFTER_INIT', {
+          if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] BRIDGE_READY_RESENT_AFTER_INIT', {
             slotId: id,
             iframeGeneration: dragBridge.getIframeGeneration(),
             targetOrigin: WORKBENCH_ORIGIN,
@@ -320,7 +268,7 @@ export function VisualSlot({
 
         // CEO FIX: Bridge drag data from parent across iframe boundary
         // Store the drag data in shared bridge so all components can access it
-        console.log('[VS_FORENSIC] DRAG_START_BRIDGE_ACCEPTED', {
+        if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] DRAG_START_BRIDGE_ACCEPTED', {
           slotId: id,
           source: dragData.source,
           fileId: dragData.fileId || dragData.assetId,
@@ -336,7 +284,7 @@ export function VisualSlot({
         // 2. Explicit drag cancellation by user
         // This prevents race condition where slow user interaction times out before drop.
       } else {
-        console.log('[VS_FORENSIC] MESSAGE_IGNORED', {
+        if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] MESSAGE_IGNORED', {
           slotId: id,
           messageType: event.data?.type,
           reason: 'TYPE_MISMATCH',
@@ -346,7 +294,7 @@ export function VisualSlot({
 
     window.addEventListener('message', handleMessage);
 
-    console.log('[VS_FORENSIC] MESSAGE_LISTENER_ATTACHED', {
+    if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] MESSAGE_LISTENER_ATTACHED', {
       slotId: id,
       windowIsIframe: window.parent !== window,
       timestamp: Date.now(),
@@ -364,7 +312,7 @@ export function VisualSlot({
       component,
     };
 
-    console.log('[SLOT] REGISTER_ATTEMPT', {
+    if (WORKBENCH_DEBUG) console.log('[SLOT] REGISTER_ATTEMPT', {
       slotId: id,
       isWorkbenchMode: effectiveWorkbenchMode,
       windowIsIframe: window.parent !== window,
@@ -372,7 +320,7 @@ export function VisualSlot({
       registryImplementation: 'SlotRegistry class',
     });
     slotRegistry.register(slot);
-    console.log('[SLOT] REGISTER_COMPLETE', {
+    if (WORKBENCH_DEBUG) console.log('[SLOT] REGISTER_COMPLETE', {
       slotId: id,
       registryInstanceId: (slotRegistry as any).instanceId,
       registeredCount: slotRegistry.getAll().length,
@@ -385,7 +333,7 @@ export function VisualSlot({
         slot: { id, route, page, section, slotName, currentMediaId, component },
       };
       const targetOrigin = WORKBENCH_ORIGIN;
-      console.log('[VS_FORENSIC] REGISTER_MESSAGE_CONSTRUCTED', {
+      if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] REGISTER_MESSAGE_CONSTRUCTED', {
         messageType: registerMessage.type,
         messageShape: Object.keys(registerMessage),
         slotShape: Object.keys(registerMessage.slot),
@@ -395,7 +343,7 @@ export function VisualSlot({
         originsMatch: window.parent.location?.origin === window.location.origin,
         timestamp: Date.now(),
       });
-      console.log('[VS_FORENSIC] REGISTER_SENT', {
+      if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] REGISTER_SENT', {
         slotId: id,
         route,
         page,
@@ -425,7 +373,7 @@ export function VisualSlot({
         slotId: id,
         iframeGeneration: dragBridge.getIframeGeneration(),
       };
-      console.log('[VS_FORENSIC] BRIDGE_READY_SENT', {
+      if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] BRIDGE_READY_SENT', {
         slotId: id,
         targetOrigin,
         listenerAttached: true,
@@ -435,45 +383,23 @@ export function VisualSlot({
       });
       window.parent.postMessage(bridgeReadyMessage, targetOrigin);
     } else {
-      console.log('[VS_FORENSIC] REGISTRATION_SKIPPED', {
+      if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] REGISTRATION_SKIPPED', {
         slotId: id,
         reason: 'NOT_IN_IFRAME',
         windowIsIframe: window.parent !== window,
       });
     }
 
-    // Add DOM forensic log after mount
-    setTimeout(() => {
-      const slots = document.querySelectorAll('[data-slot-id]');
-      console.log('[VS_FORENSIC] DOM_INVENTORY', {
-        totalSlots: slots.length,
-        slotIds: Array.from(slots).map(s => {
-          const element = s as HTMLElement;
-          return {
-            id: element.dataset.slotId,
-            route: element.dataset.slotRoute,
-            section: element.dataset.slotSection,
-            pointerEvents: getComputedStyle(element).pointerEvents,
-            draggable: element.draggable,
-            hasOnClick: element.getAttribute('onclick') !== null,
-            hasOnDragOver: element.getAttribute('ondragover') !== null,
-            hasOnDrop: element.getAttribute('ondrop') !== null,
-          };
-        }),
-        timestamp: Date.now(),
-      });
-    }, 1000);
-
     // Unregister on unmount
     return () => {
-      console.log('[VS_FORENSIC] UNREGISTER_START', {
+      if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] UNREGISTER_START', {
         slotId: id,
         route,
         timestamp: Date.now(),
       });
       window.removeEventListener('message', handleMessage);
       slotRegistry.unregister(id, route);
-      console.log('[VS_FORENSIC] UNREGISTER_COMPLETE', {
+      if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] UNREGISTER_COMPLETE', {
         slotId: id,
         remainingCount: slotRegistry.getAll().length,
         timestamp: Date.now(),
@@ -483,8 +409,8 @@ export function VisualSlot({
 
   const handleClick = (event: React.MouseEvent) => {
     if (isGallerySlot) event.stopPropagation();
-    if (Date.now() < suppressClickUntilRef.current) return;
-    console.log('[FORENSIC] iframe VisualSlot CLICK HANDLER', { id });
+    if (isGallerySlot && onGalleryClick) { onGalleryClick(event); return; }
+    if (WORKBENCH_DEBUG) console.log('[FORENSIC] iframe VisualSlot CLICK HANDLER', { id });
 
     // P0 FIX: postMessage is the authoritative iframe → parent transport
     // CustomEvent does not bubble across iframe boundaries
@@ -493,7 +419,7 @@ export function VisualSlot({
     const slotData = { id, route, page, section, slotName, currentMediaId };
     const targetOrigin = WORKBENCH_ORIGIN;
 
-    console.log('[SLOT_CLICK] POSTMESSAGE_PATH', {
+    if (WORKBENCH_DEBUG) console.log('[SLOT_CLICK] POSTMESSAGE_PATH', {
       slotId: id,
       method: 'postMessage',
       parentOrigin: window.parent.location?.origin,
@@ -511,7 +437,7 @@ export function VisualSlot({
   };
 
   const handleDragOver = (e: React.DragEvent) => {
-    console.log('[VS_DND] DRAG_OVER_RECEIVED', {
+    if (WORKBENCH_DEBUG) console.log('[VS_DND] DRAG_OVER_RECEIVED', {
       slotId: id,
       isGallerySlot,
       effectiveWorkbenchMode,
@@ -530,7 +456,7 @@ export function VisualSlot({
     e.dataTransfer.dropEffect = dropEffect;
     setIsDropTarget(!wrongProject);
     
-    console.log('[VS_DND] DRAG_OVER', {
+    if (WORKBENCH_DEBUG) console.log('[VS_DND] DRAG_OVER', {
       slotId: id,
       isGallerySlot,
       effectiveWorkbenchMode,
@@ -552,7 +478,7 @@ export function VisualSlot({
     e.preventDefault();
     e.stopPropagation();
 
-    console.log('[VS_DND] DRAG_ENTER', {
+    if (WORKBENCH_DEBUG) console.log('[VS_DND] DRAG_ENTER', {
       slotId: id,
       isGallerySlot,
       effectiveWorkbenchMode,
@@ -566,111 +492,10 @@ export function VisualSlot({
     e.stopPropagation();
     if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsDropTarget(false);
 
-    console.log('[VS_DND] DRAG_LEAVE', {
+    if (WORKBENCH_DEBUG) console.log('[VS_DND] DRAG_LEAVE', {
       slotId: id,
       isGallerySlot,
       effectiveWorkbenchMode,
-      timestamp: Date.now(),
-    });
-  };
-
-  const handleDragStart = (e: React.DragEvent) => {
-    e.stopPropagation(); // P0 FIX: Prevent event bubbling to parent containers
-    setIsDraggingActive(true); // P0 FIX: Switch cursor to grabbing during active drag
-
-    console.log('[VS_FORENSIC] DRAG_START_NATIVE_EVENT', {
-      slotId: id,
-      isGallerySlot,
-      currentMediaId,
-      projectId,
-      isWorkbenchMode: effectiveWorkbenchMode,
-      windowIsIframe: window.parent !== window,
-      eventTarget: (e.target as HTMLElement)?.tagName,
-      currentTarget: (e.currentTarget as HTMLElement)?.tagName,
-      elementRefTagName: elementRef.current?.tagName,
-      actualDraggableAttr: elementRef.current?.getAttribute('draggable'),
-      computedDraggable: elementRef.current?.draggable,
-      dataTransferEffectAllowed: e.dataTransfer.effectAllowed,
-      dataTransferTypes: e.dataTransfer.types,
-      cursorComputedStyle: elementRef.current ? getComputedStyle(elementRef.current).cursor : 'NO_ELEMENT',
-      timestamp: Date.now(),
-    });
-
-    if (!isGallerySlot || !currentMediaId || !projectId) {
-      console.log('[VS_DND] DRAG_START_SKIPPED', {
-        slotId: id,
-        isGallerySlot,
-        currentMediaId,
-        projectId,
-        reason: !isGallerySlot ? 'NOT_GALLERY_SLOT' : !currentMediaId ? 'NO_MEDIA_ID' : 'NO_PROJECT_ID',
-      });
-      return;
-    }
-
-    console.log('[VS_DND] GALLERY_DRAG_START', {
-      slotId: id,
-      currentMediaId,
-      projectId,
-      effectiveWorkbenchMode,
-      isGallerySlot,
-      windowIsIframe: window.parent !== window,
-      element: elementRef.current?.tagName,
-      parentElement: elementRef.current?.parentElement?.tagName,
-      hasButtonParent: elementRef.current?.parentElement?.tagName === 'BUTTON',
-      hasClickHandler: elementRef.current?.parentElement?.hasAttribute('onclick'),
-      draggableAttribute: elementRef.current?.getAttribute('draggable'),
-      computedCursor: effectiveWorkbenchMode ? (isGallerySlot ? 'grab' : 'pointer') : 'default',
-      timestamp: Date.now(),
-    });
-
-    // P0 FIX: Prevent click event from firing after drag completes
-    // Set a flag on the element that parent click handlers can check
-    if (elementRef.current) {
-      (elementRef.current as any).__workbench_dragInProgress = true;
-      setTimeout(() => {
-        if (elementRef.current) {
-          (elementRef.current as any).__workbench_dragInProgress = false;
-        }
-      }, 200);
-    }
-
-    // Set drag data for cross-frame communication
-    // P0 FIX: Use explicit MIME types to avoid protocol ambiguity
-    const reorderPayload = {
-      type: 'GALLERY_REORDER',
-      sourceSlotId: id,
-      sourceMediaId: currentMediaId,
-      projectId,
-      iframeGeneration: dragBridge.getIframeGeneration(),
-    };
-    const dragData = JSON.stringify(reorderPayload);
-    dragBridge.setDragData({ ...reorderPayload, source: 'local', assetId: currentMediaId });
-
-    e.dataTransfer.setData('application/x-workbench-gallery-reorder', dragData);
-    e.dataTransfer.setData('text/plain', dragData); // Fallback for compatibility
-    e.dataTransfer.effectAllowed = 'move';
-
-    console.log('[VS_DND] DRAG_DATA_SET', {
-      slotId: id,
-      dataType: 'application/x-workbench-gallery-reorder',
-      fallbackType: 'text/plain',
-      dataLength: dragData.length,
-      effectAllowed: 'move',
-      dataPreview: dragData.substring(0, 100),
-    });
-  };
-
-  const handleDragEnd = (e: React.DragEvent) => {
-    setIsDraggingActive(false); // P0 FIX: Restore cursor to grab after drag ends
-    setIsDropTarget(false);
-    suppressClickUntilRef.current = Date.now() + 300;
-    dragBridge.clearDragData();
-
-    console.log('[VS_DND] DRAG_END', {
-      slotId: id,
-      isGallerySlot,
-      effectiveWorkbenchMode,
-      cursorComputedStyle: elementRef.current ? getComputedStyle(elementRef.current).cursor : 'NO_ELEMENT',
       timestamp: Date.now(),
     });
   };
@@ -680,7 +505,7 @@ export function VisualSlot({
     e.stopPropagation(); // P0 FIX: Prevent event bubbling to parent containers
     setIsDropTarget(false);
 
-    console.log('[VS_FORENSIC] DROP_NATIVE_EVENT', {
+    if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] DROP_NATIVE_EVENT', {
       slotId: id,
       isGallerySlot,
       projectId,
@@ -700,7 +525,7 @@ export function VisualSlot({
       timestamp: Date.now(),
     });
 
-    console.log('[VS_DND] DROP_RECEIVED', {
+    if (WORKBENCH_DEBUG) console.log('[VS_DND] DROP_RECEIVED', {
       slotId: id,
       isGallerySlot,
       projectId,
@@ -725,7 +550,7 @@ export function VisualSlot({
       // P0 FIX: If dataTransfer is empty (iframe boundary issue), use bridged data
       const bridgedData = dragBridge.getDragData();
       if (!galleryReorderData && !assetData && bridgedData) {
-        console.log('[VS_DND] GALLERY_FALLBACK_TO_BRIDGED_DATA', {
+        if (WORKBENCH_DEBUG) console.log('[VS_DND] GALLERY_FALLBACK_TO_BRIDGED_DATA', {
           slotId: id,
           bridgedDataType: bridgedData.type,
         });
@@ -736,7 +561,7 @@ export function VisualSlot({
         }
       }
 
-      console.log('[VS_DND] GALLERY_PROTOCOL_CHECK', {
+      if (WORKBENCH_DEBUG) console.log('[VS_DND] GALLERY_PROTOCOL_CHECK', {
         slotId: id,
         hasGalleryReorderData: !!galleryReorderData,
         hasAssetData: !!assetData,
@@ -749,7 +574,7 @@ export function VisualSlot({
         try {
           const parsed = JSON.parse(galleryReorderData);
           
-          console.log('[VS_DND] GALLERY_REORDER_PARSED', {
+          if (WORKBENCH_DEBUG) console.log('[VS_DND] GALLERY_REORDER_PARSED', {
             slotId: id,
             parsedType: parsed.type,
             sourceSlotId: parsed.sourceSlotId,
@@ -802,7 +627,7 @@ export function VisualSlot({
               iframeGeneration: dragBridge.getIframeGeneration(),
             };
 
-            console.log('[VS_FORENSIC] SLOT_REORDER_POSTMESSAGE_SENDING', {
+            if (WORKBENCH_DEBUG) console.log('[VS_FORENSIC] SLOT_REORDER_POSTMESSAGE_SENDING', {
               slotId: id,
               messageType: message.type,
               messageKeys: Object.keys(message),
@@ -818,7 +643,7 @@ export function VisualSlot({
 
             window.parent.postMessage(message, targetOrigin);
 
-            console.log('[VS_DND] SLOT_REORDER_POSTED', {
+            if (WORKBENCH_DEBUG) console.log('[VS_DND] SLOT_REORDER_POSTED', {
               messageType: 'SLOT_REORDER',
               targetOrigin,
               timestamp: Date.now(),
@@ -882,7 +707,7 @@ export function VisualSlot({
           assetId = assetData;
         }
 
-        console.log('[VS_DND] GALLERY_ADD_ACCEPTED', {
+        if (WORKBENCH_DEBUG) console.log('[VS_DND] GALLERY_ADD_ACCEPTED', {
           slotId: id,
           projectId,
           assetId,
@@ -896,6 +721,7 @@ export function VisualSlot({
           const targetOrigin = WORKBENCH_ORIGIN;
           window.parent.postMessage({
             type: 'GALLERY_ADD',
+            iframeGeneration: dragBridge.getIframeGeneration(),
             slot: { id, route, page, section, slotName, currentMediaId, component },
             slotId: id,
             projectId,
@@ -903,7 +729,7 @@ export function VisualSlot({
             applicationData, // P0 FIX: Preserve Drive payload through iframe boundary
           }, targetOrigin);
 
-          console.log('[VS_DND] GALLERY_ADD_POSTED', {
+          if (WORKBENCH_DEBUG) console.log('[VS_DND] GALLERY_ADD_POSTED', {
             messageType: 'GALLERY_ADD',
             targetOrigin,
             hasApplicationData: !!applicationData,
@@ -942,7 +768,7 @@ export function VisualSlot({
     // P0 FIX: If dataTransfer is empty (iframe boundary issue), use bridged data
     const bridgedData = dragBridge.getDragData();
     if (!assetData && bridgedData) {
-      console.log('[VS_DND] ASSET_FALLBACK_TO_BRIDGED_DATA', {
+      if (WORKBENCH_DEBUG) console.log('[VS_DND] ASSET_FALLBACK_TO_BRIDGED_DATA', {
         slotId: id,
         bridgedDataType: bridgedData.source,
       });
@@ -984,7 +810,7 @@ export function VisualSlot({
         assetId = assetData;
       }
 
-      console.log('[VS_DND] ASSET_ASSIGNMENT_ACCEPTED', {
+      if (WORKBENCH_DEBUG) console.log('[VS_DND] ASSET_ASSIGNMENT_ACCEPTED', {
         slotId: id,
         assetId,
         applicationData,
@@ -1003,7 +829,7 @@ export function VisualSlot({
           applicationData, // P0 FIX: Preserve Drive payload through iframe boundary
         }, targetOrigin);
 
-        console.log('[VS_DND] SLOT_DROP_POSTED', {
+        if (WORKBENCH_DEBUG) console.log('[VS_DND] SLOT_DROP_POSTED', {
           messageType: 'SLOT_DROP',
           targetOrigin,
           hasApplicationData: !!applicationData,
@@ -1054,7 +880,7 @@ export function VisualSlot({
         : 'cursor-pointer')
     : '';
 
-  console.log('[VS_CURSOR] CURSOR_STYLE_COMPUTED', {
+  if (WORKBENCH_DEBUG) console.log('[VS_CURSOR] CURSOR_STYLE_COMPUTED', {
     slotId: id,
     effectiveWorkbenchMode,
     isGallerySlot,
@@ -1071,7 +897,7 @@ export function VisualSlot({
   
   // CRITICAL: Log pointer events to diagnose why drag doesn't start
   const handleMouseDown = (e: React.MouseEvent) => {
-    console.log('[VS_POINTER] MOUSE_DOWN', {
+    if (WORKBENCH_DEBUG) console.log('[VS_POINTER] MOUSE_DOWN', {
       slotId: id,
       isGallerySlot,
       effectiveWorkbenchMode,
@@ -1096,16 +922,15 @@ export function VisualSlot({
       data-slot-id={id}
       data-slot-route={route}
       data-slot-section={section}
-      style={cursorStyle}
+      style={{ ...cursorStyle, ...(effectiveWorkbenchMode && isGallerySlot ? { touchAction: 'none', userSelect: 'none' } : {}) }}
       onClick={effectiveWorkbenchMode ? handleClick : undefined}
       onMouseDown={handleMouseDown}
       onDragOver={effectiveWorkbenchMode ? handleDragOver : undefined}
       onDragEnter={effectiveWorkbenchMode ? handleDragEnter : undefined}
       onDragLeave={effectiveWorkbenchMode ? handleDragLeave : undefined}
       onDrop={effectiveWorkbenchMode ? handleDrop : undefined}
-      draggable={effectiveWorkbenchMode && isGallerySlot}
-      onDragStart={effectiveWorkbenchMode && isGallerySlot ? handleDragStart : undefined}
-      onDragEnd={effectiveWorkbenchMode && isGallerySlot ? handleDragEnd : undefined}
+      draggable={false}
+      {...(effectiveWorkbenchMode && isGallerySlot ? galleryPointerHandlers : {})}
     >
       <div
         className={isGallerySlot ? 'h-full w-full' : undefined}

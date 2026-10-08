@@ -1,4 +1,4 @@
-import { isGalleryOrder, moveGalleryImage, orderResolvedGallery, parseGalleryReorder } from '../workbench-gallery-order';
+import { applyGalleryReorder, isGalleryOrder, moveGalleryImage, orderResolvedGallery, parseGalleryReorder } from '../workbench-gallery-order';
 
 describe('Workbench gallery handoff', () => {
   const request = { projectId: 'deck', sourceSlotId: 'our-work-gallery::deck::a', sourceMediaId: 'a',
@@ -27,5 +27,17 @@ describe('Workbench gallery handoff', () => {
     expect(resolved.map(item => item.id)).toEqual(['a', 'b', 'c']);
     expect(isGalleryOrder(['a', 'a'])).toBe(false);
     expect(isGalleryOrder(['a', 42])).toBe(false);
+  });
+
+  it('accepts a complete pointer order only for the same full membership and current base', () => {
+    const order = ['a', 'hidden', 'b', 'c'];
+    expect(applyGalleryReorder(order, { ...request, orderedMediaIds: ['c', 'hidden', 'a', 'b'], baseOrderedMediaIds: order }))
+      .toEqual(['c', 'hidden', 'a', 'b']);
+    expect(() => applyGalleryReorder(order, { ...request, orderedMediaIds: ['c', 'a', 'b'] })).toThrow('hidden');
+    expect(() => applyGalleryReorder(order, { ...request, orderedMediaIds: ['c', 'evil', 'a', 'b'] })).toThrow('every');
+    expect(() => applyGalleryReorder(order, { ...request, orderedMediaIds: order, baseOrderedMediaIds: ['c', 'hidden', 'a', 'b'] })).toThrow('older');
+    expect(parseGalleryReorder({ ...request, orderedMediaIds: ['a', 'a'] })).toBeNull();
+    expect(parseGalleryReorder({ ...request, orderedMediaIds: ['a', 7] })).toBeNull();
+    expect(parseGalleryReorder({ ...request, baseOrderedMediaIds: order })).toBeNull();
   });
 });
