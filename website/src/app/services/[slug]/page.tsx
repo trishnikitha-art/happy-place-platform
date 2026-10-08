@@ -103,16 +103,17 @@ export default async function ServicePage({ params }: ServicePageProps) {
       <Section className="bg-deep text-text-on-dark">
         <Container>
           <SectionHeading
+            as="h1"
             eyebrow={<span className="text-honey">{service.name}</span>}
             title={<span className="text-text-on-dark">{service.name}</span>}
             description={<span className="text-text-on-dark/90">{service.description}</span>}
           />
           <div className="mt-8">
             <Link
-              href="/estimate"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition-colors"
+              href="/contact"
+              className="cta-signature inline-flex min-h-11 items-center gap-2 rounded-full px-6 py-3 font-semibold"
             >
-              Get a Free Estimate
+              Talk About Your Project
             </Link>
           </div>
         </Container>
@@ -192,13 +193,13 @@ export default async function ServicePage({ params }: ServicePageProps) {
             ) : (
               <PlaceholderSection
                 type="gallery"
-                title={`${service.name} Projects Coming Soon`}
-                description={`We're currently working on exciting ${service.name.toLowerCase()} projects. Check back soon to see our latest work.`}
+                title={`Ask About ${service.name}`}
+                description="There are no project photos published here yet. Get in touch to talk about the work you're planning."
                 count={0}
                 darkMode={true}
                 action={{
-                  label: "Get a Free Estimate",
-                  href: "/estimate",
+                  label: "Contact Happy Place Carpentry",
+                  href: "/contact",
                 }}
               />
             )}
@@ -227,7 +228,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
             />
             <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {relatedServices.map((s) => (
-                <Link key={s.id} href={`/services/${s.slug}`}>
+                <div key={s.id}>
                   <VisualSlot
                     id={`services-${slug}-related-service-card-${s.slug}`}
                     route={`/services/${slug}`}
@@ -239,7 +240,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
                   >
                     <ServiceCard service={s} runtimeCardMediaObject={serviceCardAssignments.get(s.slug)?.mediaObject || null} />
                   </VisualSlot>
-                </Link>
+                </div>
               ))}
             </div>
           </Container>

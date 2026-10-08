@@ -49,6 +49,10 @@ class WorkbenchDragBridge {
    * Called once per iframe load when parent sends BRIDGE_INIT
    */
   initialize(generation: number): void {
+    // Every slot receives the same broadcast. Reinitializing that generation
+    // must not erase another slot's registration or a drag already in flight.
+    if (!Number.isSafeInteger(generation) || generation < 0) return;
+    if (this.bridgeState.iframeGeneration === generation) return;
     console.log('[DRAG_BRIDGE] INITIALIZE', {
       generation,
       oldGeneration: this.bridgeState.iframeGeneration,

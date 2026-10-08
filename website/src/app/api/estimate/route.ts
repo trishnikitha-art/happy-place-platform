@@ -3,6 +3,7 @@ import { getGoogleAuth, google } from "@/lib/google";
 import type { EstimateRequest } from "@/types";
 import { syncEstimateSubscriber } from "@/lib/kit";
 import { logEvent } from "@/lib/events";
+import { workbenchSession } from "@/lib/workbench-session";
 
 /**
  * POST /api/estimate  — SERVER-ONLY estimate intake (Directive 031).
@@ -94,6 +95,12 @@ async function buildMultipartEmail(req: EstimateRequest, photoIds: string[]): Pr
 }
 
 export async function POST(request: NextRequest) {
+  if (!(await workbenchSession.isAuthenticated())) {
+    return NextResponse.json({ ok: false, error: 'unauthorized' }, { status: 401 });
+  }
+  if (request.headers.get('origin') !== new URL(request.url).origin) {
+    return NextResponse.json({ ok: false, error: 'invalid_origin' }, { status: 403 });
+  }
   if (process.env.GOOGLE_REFRESH_TOKEN == null) {
     return NextResponse.json(
       { ok: false, error: "google_not_configured" },

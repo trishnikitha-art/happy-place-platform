@@ -18,7 +18,7 @@ export default function NotFound() {
         <p className="mt-3 text-text-muted">That page wandered off. Let&apos;s get you back to a happy place.</p>
         <div className="mt-8 flex justify-center gap-3">
           <Link href="/" className={cn(buttonVariants({ variant: "primary", size: "lg" }))}>Go home</Link>
-          <Link href="/estimate" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>Get a free estimate</Link>
+          <Link href="/contact" className={cn(buttonVariants({ variant: "outline", size: "lg" }))}>Contact us</Link>
         </div>
       </Container>
     </Section>

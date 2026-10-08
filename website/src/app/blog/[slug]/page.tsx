@@ -87,7 +87,7 @@ Every spring, inspect your deck for:
 - **Fire safety**: Keep grills away from railings and siding
 - **Lighting**: Ensure adequate lighting for evening use
 
-Need professional deck maintenance or repair? Contact Happy Place Carpentry for a free estimate.
+Need professional deck maintenance or repair? Contact Happy Place Carpentry to talk about your project.
     `,
   },
   "kitchen-remodeling-trends": {
@@ -183,13 +183,13 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           <div className="mt-12 pt-8 border-t border-border-soft">
             <h3 className="text-xl font-bold text-text mb-4">Ready to start your project?</h3>
             <p className="text-text-muted mb-6">
-              Get a free estimate from Happy Place Carpentry. We'll help you plan your project and provide a detailed proposal.
+              Tell Happy Place Carpentry what you're planning and where your project is located.
             </p>
             <a
-              href="/estimate"
+              href="/contact"
               className="inline-flex items-center justify-center rounded-lg bg-honey px-6 py-3 font-semibold text-deep transition-colors hover:bg-honey/90"
             >
-              Get Free Estimate
+              Talk About Your Project
             </a>
           </div>
         </Container>

@@ -1,16 +1,12 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Image from "next/image";
-import { X, ChevronLeft, ChevronRight } from "lucide-react";
+import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-interface LightboxImage {
-  src: string;
-  alt: string;
-  blurDataURL?: string;
-}
-
+interface LightboxImage { src: string; alt: string; blurDataURL?: string }
 interface ProjectLightboxProps {
   images: LightboxImage[];
   initialIndex?: number;
@@ -18,250 +14,131 @@ interface ProjectLightboxProps {
   onClose: () => void;
 }
 
-/**
- * ProjectLightbox - Premium full-screen gallery for project photos
- * 
- * Features:
- * - Full-screen gallery
- * - Swipe on mobile
- * - Pinch zoom
- * - Keyboard arrows
- * - ESC closes
- * - Image counter (4 / 18)
- * - Smooth fade transitions
- * 
- * Your photos are your strongest sales tool.
- */
-export function ProjectLightbox({ 
-  images, 
-  initialIndex = 0, 
-  isOpen, 
-  onClose 
-}: ProjectLightboxProps) {
+/** Full photographs with keyboard, touch and native modal focus handling. */
+export function ProjectLightbox({ images, initialIndex = 0, isOpen, onClose }: ProjectLightboxProps) {
+  const [mounted, setMounted] = useState(false);
   const [currentIndex, setCurrentIndex] = useState(initialIndex);
   const [isZoomed, setIsZoomed] = useState(false);
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const touchStart = useRef<number | null>(null);
+  const touchEnd = useRef<number | null>(null);
+  const captionId = useId();
+  const hasImages = images.length > 0;
+  const safeIndex = Math.max(0, Math.min(currentIndex, images.length - 1));
+  const currentImage = images[safeIndex];
 
-  // Reset index when lightbox opens with new initialIndex
+  useEffect(() => setMounted(true), []);
   useEffect(() => {
     if (isOpen) {
-      setCurrentIndex(initialIndex);
+      setCurrentIndex(Math.max(0, Math.min(initialIndex, images.length - 1)));
+      setIsZoomed(false);
     }
-  }, [isOpen, initialIndex]);
+  }, [isOpen, initialIndex, images.length]);
 
-  // Keyboard navigation
+  // The native modal makes the page inert and traps focus in the viewer.
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isOpen) return;
-
-      switch (e.key) {
-        case "ArrowLeft":
-          goToPrevious();
-          break;
-        case "ArrowRight":
-          goToNext();
-          break;
-        case "Escape":
-          onClose();
-          break;
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, currentIndex]);
-
-  // Prevent body scroll when lightbox is open
-  useEffect(() => {
-    if (isOpen) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    const dialog = dialogRef.current;
+    if (!mounted || !isOpen || !hasImages || !dialog) return;
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+    if (!dialog.open) dialog.showModal();
+    document.body.style.overflow = "hidden";
+    closeRef.current?.focus();
     return () => {
-      document.body.style.overflow = "";
+      if (dialog.open) dialog.close();
+      document.body.style.overflow = previousOverflow;
+      if (opener?.isConnected) opener.focus({ preventScroll: true });
     };
-  }, [isOpen]);
-
-  // Focus trap when lightbox is open
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const handleTab = (e: KeyboardEvent) => {
-      if (e.key !== "Tab") return;
-
-      const focusableElements = document.querySelectorAll(
-        '#lightbox-container button, #lightbox-container [tabindex]:not([tabindex="-1"])'
-      );
-      const firstElement = focusableElements[0] as HTMLElement;
-      const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
-
-      if (e.shiftKey) {
-        if (document.activeElement === firstElement) {
-          lastElement.focus();
-          e.preventDefault();
-        }
-      } else {
-        if (document.activeElement === lastElement) {
-          firstElement.focus();
-          e.preventDefault();
-        }
-      }
-    };
-
-    document.addEventListener("keydown", handleTab);
-    return () => document.removeEventListener("keydown", handleTab);
-  }, [isOpen]);
+  }, [mounted, isOpen, hasImages]);
 
   const goToNext = useCallback(() => {
-    setCurrentIndex((prev) => (prev + 1) % images.length);
+    if (!images.length) return;
+    setCurrentIndex((index) => (Math.max(0, Math.min(index, images.length - 1)) + 1) % images.length);
+    setIsZoomed(false);
   }, [images.length]);
-
   const goToPrevious = useCallback(() => {
-    setCurrentIndex((prev) => (prev - 1 + images.length) % images.length);
+    if (!images.length) return;
+    setCurrentIndex((index) => (Math.max(0, Math.min(index, images.length - 1)) - 1 + images.length) % images.length);
+    setIsZoomed(false);
   }, [images.length]);
 
-  // Touch handling for swipe
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-  };
+  if (!mounted || !isOpen || !currentImage) return null;
+  const controlClass = "inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-honey";
 
-  const handleTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-  };
-
-  const handleTouchEnd = () => {
-    if (!touchStart || !touchEnd) return;
-    
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > 50;
-    const isRightSwipe = distance < -50;
-
-    if (isLeftSwipe) {
-      goToNext();
-    } else if (isRightSwipe) {
-      goToPrevious();
-    }
-  };
-
-  // Pinch zoom handling
-  const handleWheel = (e: React.WheelEvent) => {
-    if (e.ctrlKey) {
-      e.preventDefault();
-      const delta = e.deltaY > 0 ? -0.1 : 0.1;
-      // Could implement zoom level state here
-    }
-  };
-
-  if (!isOpen || images.length === 0) return null;
-
-  const currentImage = images[currentIndex];
-
-  return (
-    <div
-      id="lightbox-container"
-      className="fixed inset-0 z-50 bg-black/95 backdrop-blur-sm"
-      onClick={onClose}
+  return createPortal(
+    <dialog
+      ref={dialogRef}
+      aria-label="Project photo viewer"
+      aria-describedby={captionId}
+      aria-modal="true"
+      className="fixed inset-0 m-0 h-full max-h-none w-full max-w-none overflow-hidden border-0 bg-black/95 p-0 text-white backdrop:bg-black/80"
+      onCancel={(event) => { event.preventDefault(); onClose(); }}
+      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+      onKeyDown={(event) => {
+        if (event.key === "ArrowLeft") { event.preventDefault(); goToPrevious(); }
+        if (event.key === "ArrowRight") { event.preventDefault(); goToNext(); }
+      }}
     >
-      {/* Close button */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation();
-          onClose();
-        }}
-        className="absolute top-4 right-4 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
-        aria-label="Close"
-      >
-        <X className="h-6 w-6" />
-      </button>
-
-      {/* Image counter */}
-      <div className="absolute top-4 left-4 z-20 px-3 py-1.5 rounded-full bg-white/10 text-white text-sm font-medium">
-        {currentIndex + 1} / {images.length}
-      </div>
-
-      {/* Navigation arrows */}
-      {images.length > 1 && (
-        <>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              goToPrevious();
-            }}
-            className="absolute left-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
-            aria-label="Previous image"
-          >
-            <ChevronLeft className="h-6 w-6" />
-          </button>
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              goToNext();
-            }}
-            className="absolute right-4 top-1/2 -translate-y-1/2 z-20 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-white"
-            aria-label="Next image"
-          >
-            <ChevronRight className="h-6 w-6" />
-          </button>
-        </>
-      )}
-
-      {/* Main image */}
-      <div
-        className="relative h-full w-full flex items-center justify-center"
-        onClick={(e) => e.stopPropagation()}
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-        onWheel={handleWheel}
-      >
-        <div className={cn(
-          "relative max-h-[90vh] max-w-[90vw] transition-transform duration-300 ease-out",
-          isZoomed ? "scale-150 cursor-zoom-out" : "scale-100 cursor-zoom-in"
-        )} onClick={() => setIsZoomed(!isZoomed)}>
-          <Image
-            src={currentImage.src}
-            alt={currentImage.alt}
-            width={1920}
-            height={1080}
-            className="object-contain max-h-[90vh] max-w-[90vw]"
-            priority
-            placeholder="blur"
-            blurDataURL={currentImage.blurDataURL}
-          />
-        </div>
-      </div>
-
-      {/* Thumbnail strip */}
-      {images.length > 1 && (
-        <div
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex gap-2 p-2 rounded-full bg-white/10 max-w-[90vw] overflow-x-auto"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {images.map((img, index) => (
-            <button
-              key={index}
-              onClick={() => setCurrentIndex(index)}
-              className={cn(
-                "relative w-12 h-12 rounded-lg overflow-hidden flex-shrink-0 transition-all",
-                index === currentIndex
-                  ? "ring-2 ring-white scale-110"
-                  : "opacity-60 hover:opacity-100"
-              )}
-            >
-              <Image
-                src={img.src}
-                alt={img.alt}
-                fill
-                className="object-cover"
-                sizes="48px"
-              />
+      <div className="flex h-full flex-col gap-3 p-3 sm:p-5">
+        <div className="flex shrink-0 items-center justify-between gap-3">
+          <p className="text-sm font-medium" aria-live="polite" aria-atomic="true">Photo {safeIndex + 1} of {images.length}</p>
+          <div className="flex gap-2">
+            <button type="button" className={controlClass} onClick={() => setIsZoomed((zoomed) => !zoomed)} aria-label={isZoomed ? "Zoom out" : "Zoom in"} aria-pressed={isZoomed}>
+              {isZoomed ? <ZoomOut className="h-5 w-5" aria-hidden="true" /> : <ZoomIn className="h-5 w-5" aria-hidden="true" />}
             </button>
-          ))}
+            <button ref={closeRef} type="button" className={controlClass} onClick={onClose} aria-label="Close photo viewer"><X className="h-6 w-6" aria-hidden="true" /></button>
+          </div>
         </div>
-      )}
-    </div>
+        <div className="relative min-h-0 flex-1">
+          <div
+            className="h-full overflow-auto"
+            onTouchStart={(event) => {
+              touchStart.current = !isZoomed && event.touches.length === 1 ? event.touches[0].clientX : null;
+              touchEnd.current = null;
+            }}
+            onTouchMove={(event) => {
+              if (event.touches.length !== 1) { touchStart.current = null; return; }
+              touchEnd.current = event.touches[0].clientX;
+            }}
+            onTouchEnd={() => {
+              if (touchStart.current !== null && touchEnd.current !== null) {
+                const distance = touchStart.current - touchEnd.current;
+                if (distance > 50) goToNext();
+                if (distance < -50) goToPrevious();
+              }
+              touchStart.current = null;
+              touchEnd.current = null;
+            }}
+          >
+            <div className={cn("relative h-full w-full", isZoomed && "h-[150%] w-[150%]")}>
+              <Image key={currentImage.src} src={currentImage.src} alt={currentImage.alt} fill className="object-contain" sizes="(max-width: 640px) calc(100vw - 24px), calc(100vw - 40px)" priority placeholder={currentImage.blurDataURL ? "blur" : "empty"} blurDataURL={currentImage.blurDataURL} />
+            </div>
+          </div>
+          {images.length > 1 && <>
+            <button type="button" className={cn(controlClass, "absolute left-2 top-1/2 z-10 -translate-y-1/2")} onClick={goToPrevious} aria-label="Previous image"><ChevronLeft className="h-6 w-6" aria-hidden="true" /></button>
+            <button type="button" className={cn(controlClass, "absolute right-2 top-1/2 z-10 -translate-y-1/2")} onClick={goToNext} aria-label="Next image"><ChevronRight className="h-6 w-6" aria-hidden="true" /></button>
+          </>}
+        </div>
+        <p id={captionId} className="shrink-0 text-center text-sm leading-relaxed text-white/85" aria-live="polite">{currentImage.alt}</p>
+        {images.length > 1 && (
+          <div className="mx-auto flex max-w-full shrink-0 gap-2 overflow-x-auto px-1 py-2">
+            {images.map((image, index) => (
+              <button
+                key={image.src + "-" + index}
+                type="button"
+                onClick={() => { setCurrentIndex(index); setIsZoomed(false); }}
+                className={cn("relative h-12 w-12 shrink-0 overflow-hidden rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-honey", index === safeIndex ? "ring-2 ring-white" : "opacity-60 hover:opacity-100")}
+                aria-label={"View photo " + (index + 1) + ": " + image.alt}
+                aria-current={index === safeIndex ? "true" : undefined}
+              >
+                <Image src={image.src} alt="" fill className="object-contain" sizes="48px" />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+    </dialog>,
+    document.body,
   );
 }

@@ -216,7 +216,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
         </Container>
       </Section>
       
-      <CTASection title="Want results like this?" subtitle="Tell us about your project and get a free estimate." />
+      <CTASection title="Want results like this?" subtitle="Tell us about the work you have in mind." />
     </>
   );
 }

@@ -36,17 +36,19 @@ export function SectionHeading({
   description,
   align = "left",
   descriptionColor = "text-text-muted",
+  as: Heading = "h2",
 }: {
   eyebrow?: React.ReactNode;
   title: React.ReactNode;
   description?: React.ReactNode;
   align?: "left" | "center";
   descriptionColor?: string;
+  as?: "h1" | "h2";
 }) {
   return (
     <div className={cn("max-w-2xl", align === "center" && "mx-auto text-center")}>
       {eyebrow && <p className="text-sm font-semibold uppercase tracking-[0.12em] text-accent" style={{ letterSpacing: '0.12em' }}>{eyebrow}</p>}
-      <h2 className="mt-4 font-display text-4xl font-bold text-primary sm:text-5xl" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>{typeof title === 'string' ? title : title}</h2>
+      <Heading className="mt-4 font-display text-4xl font-bold text-primary sm:text-5xl" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>{title}</Heading>
       {description && <p className={cn("mt-5 text-lg sm:text-xl", descriptionColor)} style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>{typeof description === 'string' ? description : description}</p>}
     </div>
   );

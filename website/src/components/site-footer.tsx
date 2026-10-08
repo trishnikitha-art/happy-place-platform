@@ -11,8 +11,6 @@ import { ScrollReveal } from "@/components/scroll-reveal";
 export function SiteFooter() {
   const company = getCompany();
   const navigation = getNavigation();
-  const services = getAllServices();
-  const [taylor, lanie] = company.owners;
   return (
     <footer className="border-t border-border/60 bg-deep text-text-on-dark">
       <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-4 lg:px-8">
@@ -47,8 +45,9 @@ export function SiteFooter() {
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark">About</h3>
-          <p className="mt-3 text-sm text-text-on-dark">{company.description}</p>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark">Service area</h3>
+          <p className="mt-3 text-sm text-text-on-dark">{company.serviceArea}</p>
+          <Link href="/services" className="mt-3 inline-flex min-h-11 items-center text-sm text-honey hover:text-honey/80">Explore our services →</Link>
         </div>
 
         <div>
@@ -59,25 +58,18 @@ export function SiteFooter() {
               {company.address.city}, {company.address.region}
             </li>
             <li>
-              <PhoneLink phone={company.phone} className="flex items-center gap-2 text-text-on-dark hover:text-honey">
+              <PhoneLink phone={company.phone} className="flex min-h-11 items-center gap-2 text-text-on-dark hover:text-honey">
                 <Phone className="h-4 w-4 text-honey" aria-hidden="true" /> {company.phoneDisplay}
               </PhoneLink>
             </li>
             <li>
-              <EmailLink email={company.email} className="flex items-center gap-2 text-text-on-dark hover:text-honey">
-                <Mail className="h-4 w-4 text-honey" aria-hidden="true" /> {company.email}
+              <EmailLink email={company.email} className="flex min-h-11 items-center gap-2 text-text-on-dark hover:text-honey">
+                <Mail className="h-4 w-4 shrink-0 text-honey" aria-hidden="true" /> <span className="break-all">{company.email}</span>
               </EmailLink>
             </li>
             <li className="text-text-on-dark">{company.businessHours}</li>
-            <li className="text-xs text-text-on-dark">
-              {taylor.name.split(' ').map((part, i) => part === 'Happy' ? <span key={i}> <HappyBrandSignature /></span> : <span key={i}>{part}</span>)} &amp; {lanie.name.split(' ').map((part, i) => part === 'Happy' ? <span key={i}> <HappyBrandSignature /></span> : <span key={i}>{part}</span>)} · {company.serviceArea}
-            </li>
           </ul>
         </div>
-      </div>
-
-      <div className="border-t border-text-on-dark/8 py-4 text-center text-xs text-text-on-dark">
-        {company.proof.estimateResponse}
       </div>
 
       <div className="border-t border-text-on-dark/8 py-6 text-center text-xs text-text-on-dark">

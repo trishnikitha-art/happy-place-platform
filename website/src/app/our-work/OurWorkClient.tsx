@@ -14,6 +14,7 @@ import { VisualSlot } from "@/components/visual-slot";
 import { useState, useEffect, useRef } from "react";
 import type { Project } from "@/types/projects";
 import { dragBridge } from "@/lib/workbench-drag-bridge";
+import { isGalleryOrder, orderResolvedGallery } from "@/lib/workbench-gallery-order";
 
 interface OurWorkClientProps {
   company: {
@@ -33,22 +34,14 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
   const [isDragging, setIsDragging] = useState(false);
   const [galleryAddStatus, setGalleryAddStatus] = useState<'idle' | 'pending' | 'accepted' | 'rejected'>('idle');
   const galleryGridRef = useRef<HTMLDivElement>(null);
+  const [galleryDraftOrders, setGalleryDraftOrders] = useState<Record<string, string[]>>({});
+  const [galleryNotice, setGalleryNotice] = useState<string | null>(null);
+  const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [isWorkbenchMode, setIsWorkbenchMode] = useState(false);
 
-  // P0 FIX: Determine workbench mode from URL parameter
-  const isWorkbenchMode = typeof window !== 'undefined'
-    ? new URLSearchParams(window.location.search).get('workbench') === 'true'
-    : false;
-
-  console.log('[OURWORK] WORKBENCH_MODE_DETERMINATION', {
-    pathname: typeof window !== 'undefined' ? window.location.pathname : 'SSR',
-    search: typeof window !== 'undefined' ? window.location.search : 'SSR',
-    workbenchParam: typeof window !== 'undefined' ? new URLSearchParams(window.location.search).get('workbench') : 'SSR',
-    isWorkbenchMode,
-    windowIsIframe: typeof window !== 'undefined' ? window.parent !== window : 'SSR',
-    timestamp: Date.now(),
-  });
-
-
+  useEffect(() => {
+    setIsWorkbenchMode(new URLSearchParams(window.location.search).get('workbench') === 'true');
+  }, []);
 
   // P0 FIX: Runtime drag-data schema validation
   // Validates that dragData conforms to expected DriveReference or AssetReference contract
@@ -85,240 +78,92 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     return { valid: true };
   };
 
-  // CEO FIX: Remove automatic drag state reset timeout
-  // The 5-second timeout was causing GALLERY_DROP_NO_BRIDGED_DATA by clearing
-  // dragBridge data before the user could complete the drop.
-  // Drag state is now only reset explicitly by:
-  // 1. Successful drop (handleProjectDrop clears data after sending GALLERY_ADD)
-  // 2. Explicit drag cancellation by user
-  // This prevents race condition where drop happens after auto-reset.
-
-  // CEO FIX: Make project sections explicit drop boundaries
-  // Each project gallery section carries its own project identity via data-project-id
-  // Drop listeners are attached to each project section, not just the outer container
-  // This eliminates fragile DOM ancestry inference for project context
   useEffect(() => {
-    const isWorkbench = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('workbench');
-    if (!isWorkbench) return;
-
-    const container = galleryGridRef.current;
-    if (!container) return;
-
-    const handleDragStart = (e: MessageEvent) => {
-      // Only accept messages from parent at same origin
-      if (e.origin !== window.location.origin || e.source !== window.parent) {
-        return;
-      }
-
-      // P0 FIX: Handle BRIDGE_INIT to initialize with parent-issued generation
-      if (e.data.type === 'BRIDGE_INIT') {
-        const generation = e.data.generation;
-        if (typeof generation === 'number') {
-          console.log('[OUR_WORK] BRIDGE_INIT_RECEIVED', {
-            generation,
-            timestamp: Date.now(),
-          });
-          dragBridge.initialize(generation);
-
-          // P0 FIX: Re-send BRIDGE_READY with correct generation after initialization
-          dragBridge.registerSlot('our-work-gallery-grid');
-          const iframeGeneration = dragBridge.getIframeGeneration();
-          window.parent.postMessage({
-            type: 'BRIDGE_READY',
-            slotId: 'our-work-gallery-grid',
-            iframeGeneration,
-          }, window.location.origin);
-          console.log('[OUR_WORK] BRIDGE_READY_RESENT_AFTER_INIT', {
-            iframeGeneration,
-            timestamp: Date.now(),
-          });
-        } else {
-          console.error('[OUR_WORK] BRIDGE_INIT_REJECTED', {
-            reason: 'INVALID_GENERATION',
-            generation,
-          });
-        }
-        return;
-      }
-
-      if (e.data.type === 'DRAG_START') {
-        // P1 FIX: Normalize legacy 'name' field to canonical 'fileName' for backward compatibility
-        const normalizedDragData = { ...e.data.dragData };
-        if (normalizedDragData.name && !normalizedDragData.fileName) {
-          normalizedDragData.fileName = normalizedDragData.name;
-          console.log('[OUR_WORK] NORMALIZED_LEGACY_NAME_TO_FILENAME', {
-            originalName: normalizedDragData.name,
-          });
-        }
-
-        // P0 FIX: Validate drag-data schema before accepting
-        const validation = validateDragData(normalizedDragData);
-        if (!validation.valid) {
-          console.error('[OUR_WORK] GALLERY_DRAG_START_REJECTED', {
-            reason: validation.reason,
-            timestamp: Date.now(),
-          });
-          return;
-        }
-
-        console.log('[OUR_WORK] GALLERY_DRAG_START_RECEIVED', {
-          assetType: normalizedDragData?.source,
-          hasAssetId: !!normalizedDragData?.assetId,
-          hasFileId: !!normalizedDragData?.fileId,
-          timestamp: Date.now(),
-        });
-        dragBridge.setDragData(normalizedDragData);
+    if (!isWorkbenchMode) return;
+    const handleMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.source !== window.parent
+        || !event.data || typeof event.data !== 'object') return;
+      const data = event.data;
+      if (data.type === 'BRIDGE_INIT' && Number.isSafeInteger(data.generation) && data.generation >= 0) {
+        dragBridge.initialize(data.generation);
+        dragBridge.registerSlot('our-work-gallery-grid');
+        window.parent.postMessage({ type: 'BRIDGE_READY', slotId: 'our-work-gallery-grid',
+          iframeGeneration: dragBridge.getIframeGeneration() }, window.location.origin);
+      } else if (data.type === 'DRAG_START') {
+        const payload = { ...data.dragData };
+        if (!payload.fileName && payload.name) payload.fileName = payload.name;
+        if (!validateDragData(payload).valid) return;
+        dragBridge.setDragData(payload);
         setIsDragging(true);
-      }
-
-      // P1 FIX: Handle GALLERY_ADD_QUEUED/NACK responses from parent
-      // QUEUED means added to local pending buffer, not yet committed
-      if (e.data.type === 'GALLERY_ADD_QUEUED') {
-        console.log('[OUR_WORK] GALLERY_ADD_QUEUED_RECEIVED', {
-          status: e.data.status,
-          projectId: e.data.projectId,
-          assetId: e.data.assetId,
-          timestamp: Date.now(),
-        });
-        setGalleryAddStatus('accepted');
-        setTimeout(() => setGalleryAddStatus('idle'), 3000);
-      } else if (e.data.type === 'GALLERY_ADD_NACK') {
-        console.error('[OUR_WORK] GALLERY_ADD_NACK_RECEIVED', {
-          status: e.data.status,
-          projectId: e.data.projectId,
-          reason: e.data.reason,
-          timestamp: Date.now(),
-        });
-        setGalleryAddStatus('rejected');
-        setTimeout(() => setGalleryAddStatus('idle'), 3000);
+      } else if (data.type === 'DRAG_END') {
+        dragBridge.clearDragData();
+        setIsDragging(false);
+      } else if (data.type === 'GALLERY_ORDER_PREVIEW'
+        && data.iframeGeneration === dragBridge.getIframeGeneration()
+        && typeof data.projectId === 'string' && isGalleryOrder(data.gallery)
+        && allProjects.some(project => project.id === data.projectId)) {
+        setGalleryDraftOrders(previous => ({ ...previous, [data.projectId]: [...data.gallery] }));
+        setGalleryNotice('Order updated in preview. Save Gallery Changes to keep it.');
+      } else if (data.type === 'GALLERY_ORDER_RESET'
+        && data.iframeGeneration === dragBridge.getIframeGeneration()) {
+        setGalleryDraftOrders({});
+        setGalleryNotice(null);
+      } else if (data.type === 'GALLERY_REORDER_NACK') {
+        setGalleryNotice(typeof data.reason === 'string' ? data.reason : 'Could not rearrange this image.');
+      } else if (data.type === 'GALLERY_ADD_QUEUED' || data.type === 'GALLERY_ADD_NACK') {
+        setGalleryAddStatus(data.type === 'GALLERY_ADD_QUEUED' ? 'accepted' : 'rejected');
+        if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
+        statusTimerRef.current = setTimeout(() => setGalleryAddStatus('idle'), 3000);
       }
     };
-
-    const handleDragOver = (e: DragEvent) => {
-      e.preventDefault();
-      e.stopPropagation(); // P0 FIX: Prevent event bubbling to parent containers
-      e.dataTransfer!.dropEffect = 'copy';
-    };
-
-    // CEO FIX: Per-project drop handler with explicit project identity
-    // Each project section has data-project-id, so we read it directly from currentTarget
-    const handleProjectDrop = (e: DragEvent, projectId: string) => {
-      e.preventDefault();
-      e.stopPropagation(); // P0 FIX: Prevent event bubbling to parent containers
-      setIsDragging(false);
-
-      console.log('[OUR_WORK] PROJECT_DROP_RECEIVED', {
-        projectId,
-        hasBridgedData: !!dragBridge.getDragData(),
-        targetTag: (e.target as HTMLElement)?.tagName,
-        currentTargetTag: (e.currentTarget as HTMLElement)?.tagName,
-        timestamp: Date.now(),
-      });
-
-      // P0 FIX: Reject GALLERY_REORDER protocol at project-section boundary
-      // Gallery reorder must terminate at VisualSlot and become SLOT_REORDER
-      const galleryReorderData = e.dataTransfer?.getData('application/x-workbench-gallery-reorder');
-      if (galleryReorderData) {
-        console.log('[OUR_WORK] PROJECT_DROP_REJECTED_GALLERY_REORDER', {
-          reason: 'GALLERY_REORDER must be handled by VisualSlot, not project-section',
-          projectId,
-        });
-        return;
-      }
-
-      const dragData = dragBridge.getDragData();
-      if (!dragData) {
-        console.log('[OUR_WORK] GALLERY_DROP_NO_BRIDGED_DATA');
-        return;
-      }
-
-      // CEO FIX: Project identity comes from explicit section boundary, not DOM inference
-      const targetProject = allProjects.find(p => p.id === projectId) || null;
-
-      console.log('[OUR_WORK] GALLERY_DROP_PROJECT_SECTION_BOUNDARY', {
-        explicitProjectId: projectId,
-        resolvedProjectId: targetProject?.id,
-        targetProjectTitle: targetProject?.title,
-        resolutionSource: 'PROJECT_SECTION_BOUNDARY',
-        dropTargetTag: (e.target as HTMLElement)?.tagName,
-        currentTargetTag: (e.currentTarget as HTMLElement)?.tagName,
-      });
-
-      // Reject if project not found in authoritative project list
-      if (!targetProject) {
-        console.error('[OUR_WORK] GALLERY_DROP_INVALID_PROJECT_ID', {
-          projectId,
-          allProjectsCount: allProjects.length,
-          availableProjectIds: allProjects.map(p => p.id),
-        });
-        return;
-      }
-
-      console.log('[OUR_WORK] GALLERY_DROP_SENDING_ADD', {
-        projectId: targetProject.id,
-        assetId: dragData.assetId || dragData.fileId,
-        source: dragData.source,
-        timestamp: Date.now(),
-      });
-
-      // Send GALLERY_ADD message to parent Workbench
-      if (window.parent !== window) {
-        setGalleryAddStatus('pending');
-        window.parent.postMessage({
-          type: 'GALLERY_ADD',
-          slotId: `gallery:${targetProject.id}`,
-          projectId: targetProject.id,
-          assetId: dragData.assetId || dragData.fileId,
-          applicationData: dragData,
-        }, window.location.origin);
-      }
-
-      dragBridge.clearDragData();
-    };
-
-    // CEO FIX: Attach drop listeners to each project section explicitly
-    // Each project section becomes its own drop boundary with explicit project identity
-    const projectSections = container.querySelectorAll('.project-gallery-section');
-    const sectionHandlers: Array<{section: Element, handleDrop: (e: DragEvent) => void}> = [];
-
-    projectSections.forEach((section) => {
-      const projectId = section.getAttribute('data-project-id');
-      if (!projectId) return;
-
-      const handleDrop = (e: DragEvent) => handleProjectDrop(e, projectId);
-      (section as HTMLElement).addEventListener('dragover', handleDragOver);
-      (section as HTMLElement).addEventListener('drop', handleDrop);
-      sectionHandlers.push({ section, handleDrop });
-    });
-
-    // Outer container drag-over for safety (allows drops anywhere in gallery)
-    (container as HTMLElement).addEventListener('dragover', handleDragOver);
-
-    // P1 FIX: Attach all listeners first, then send BRIDGE_READY
-    // This ensures the iframe is actually ready to receive messages before advertising readiness
-    window.addEventListener('message', handleDragStart);
-
-    // P0 FIX: Don't send BRIDGE_READY immediately - wait for BRIDGE_INIT from parent
-    // The parent will send BRIDGE_INIT with generation, then we re-send BRIDGE_READY with that generation
-    if (window.parent !== window) {
-      console.log('[OUR_WORK] WAITING_FOR_BRIDGE_INIT', {
-        timestamp: Date.now(),
-      });
-    }
-
+    window.addEventListener('message', handleMessage);
+    // Hydration can finish after iframe load. Advertise only after the listener
+    // exists so the parent can resend its current generation if necessary.
+    window.parent.postMessage({ type: 'BRIDGE_READY', slotId: 'our-work-gallery-grid',
+      iframeGeneration: dragBridge.getIframeGeneration() }, window.location.origin);
     return () => {
-      window.removeEventListener('message', handleDragStart);
-      container.removeEventListener('dragover', handleDragOver);
-      sectionHandlers.forEach(({ section, handleDrop }) => {
-        (section as HTMLElement).removeEventListener('dragover', handleDragOver);
-        (section as HTMLElement).removeEventListener('drop', handleDrop);
-      });
+      window.removeEventListener('message', handleMessage);
+      if (statusTimerRef.current) clearTimeout(statusTimerRef.current);
     };
-  }, [allProjects]);
+  }, [isWorkbenchMode, allProjects]);
+
+  // React owns both nested drop boundaries. A VisualSlot stops the synthetic
+  // event first; the project fallback handles only drops on its empty space.
+  const handleProjectDragOver = (event: React.DragEvent) => {
+    if (event.dataTransfer.types.includes('application/x-workbench-gallery-reorder')) return;
+    event.preventDefault();
+    event.dataTransfer.dropEffect = 'copy';
+  };
+
+  const handleProjectDrop = (event: React.DragEvent, projectId: string) => {
+    if (event.dataTransfer.types.includes('application/x-workbench-gallery-reorder')) return;
+    event.preventDefault();
+    event.stopPropagation();
+    setIsDragging(false);
+    let payload = dragBridge.getDragData();
+    if (!payload) {
+      try { payload = JSON.parse(event.dataTransfer.getData('application/x-workbench-asset')); }
+      catch { return; }
+    }
+    if (!validateDragData(payload).valid || !allProjects.some(project => project.id === projectId)) return;
+    if (window.parent !== window) {
+      setGalleryAddStatus('pending');
+      window.parent.postMessage({ type: 'GALLERY_ADD', slotId: `gallery:${projectId}`,
+        projectId, assetId: payload!.assetId || payload!.fileId, applicationData: payload }, window.location.origin);
+    }
+    dragBridge.clearDragData();
+  };
+
+  const movePhoto = (projectId: string, sourceMediaId: string, targetMediaId: string) => {
+    window.parent.postMessage({ type: 'SLOT_REORDER', projectId, sourceMediaId, targetMediaId,
+      sourceSlotId: `our-work-gallery::${projectId}::${sourceMediaId}`,
+      targetSlotId: `our-work-gallery::${projectId}::${targetMediaId}`,
+      iframeGeneration: dragBridge.getIframeGeneration() }, window.location.origin);
+  };
 
   const openLightbox = (images: Array<{src: string; alt: string; blurDataURL?: string}>, index: number) => {
-    // P0 FIX: Prevent lightbox from opening during/after drag operation
-    if (isDragging) {
+    // Workbench clicks select/rearrange images instead of opening the public lightbox.
+    if (isDragging || isWorkbenchMode) {
       console.log('[OUR_WORK] LIGHTBOX_PREVENTED_BY_DRAG', { isDragging });
       return;
     }
@@ -450,6 +295,11 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
             title={<span className="text-text-on-dark">The complete archive</span>}
             description={<span className="text-text-on-dark/90">Every project, every detail. Future projects simply append here.</span>}
           />
+          {isWorkbenchMode && (
+            <p role="status" aria-live="polite" className="mt-4 text-sm text-text-on-dark/90">
+              {galleryNotice || 'Drag a photo onto another photo in the same project to rearrange it. Save your changes before editing another project.'}
+            </p>
+          )}
           {/* P1 FIX: Visual indicator for gallery add status */}
           {galleryAddStatus !== 'idle' && (
             <div className={`mt-4 px-4 py-2 rounded-lg text-sm font-medium ${
@@ -469,7 +319,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
             {allProjects.map((project, projectIndex) => {
               // P0 FIX: Use pre-validated galleryMedia from server-side resolution (passed public media gate)
               // This prevents client-side getMediaById() bypass
-              const galleryPhotos = project.media.galleryMedia || [];
+              const galleryPhotos = orderResolvedGallery(project.media.galleryMedia || [], galleryDraftOrders[project.id]);
 
               // P0 FIX: Per-project drop zone container
               // Each project gets its own drop surface with explicit project ID
@@ -478,6 +328,8 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                   key={`project-drop-zone-${project.id}`}
                   data-project-id={project.id}
                   className="project-gallery-section break-inside-avoid mb-8"
+                  onDragOver={isWorkbenchMode ? handleProjectDragOver : undefined}
+                  onDrop={isWorkbenchMode ? event => handleProjectDrop(event, project.id) : undefined}
                 >
                   {galleryPhotos.map((photo, photoIndex) => {
                 // Use responsive variants if available to select best quality
@@ -497,8 +349,8 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                     data-project-id={project.id}
                     data-media-id={mediaId}
                     data-photo-index={photoIndex}
-                    role="button"
-                    tabIndex={0}
+                    role={isWorkbenchMode ? 'group' : 'button'}
+                    tabIndex={isWorkbenchMode ? undefined : 0}
                     className="group relative block aspect-[4/3] overflow-hidden break-inside-avoid mb-4 cursor-pointer"
                     onClick={() => {
                       console.log('[OUR_WORK] GALLERY_BUTTON_CLICK', {
@@ -571,9 +423,9 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                         openLightbox(allGalleryImages, globalIndex);
                       }
                     }}
-                    aria-label={`View ${photo!.alt} in full screen`}
+                    aria-label={isWorkbenchMode ? `Rearrange ${photo!.alt || project.title}` : `View ${photo!.alt} in full screen`}
                   >
-                    <CraftCard className="overflow-hidden">
+                    <CraftCard className="aspect-[4/3] overflow-hidden">
                       <VisualSlot
                         id={`our-work-gallery::${project.id}::${mediaId}`}
                         route="/our-work"
@@ -582,6 +434,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                         slotName={`${project.title} Gallery Photo ${photoIndex + 1}`}
                         currentMediaId={mediaId || null}
                         component="GalleryPhoto"
+                        className="h-full w-full"
                         isWorkbenchMode={isWorkbenchMode}
                         isGallerySlot={true}
                         projectId={project.id}
@@ -611,6 +464,21 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                         {project.title}
                       </span>
                     </CraftCard>
+                    {isWorkbenchMode && (
+                      <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-deep/90 px-2 text-text-on-dark">
+                        <span className="truncate text-xs">{photoIndex + 1} of {galleryPhotos.length} · {project.title}</span>
+                        <div className="flex shrink-0">
+                          <button type="button" className="min-h-11 min-w-11 rounded hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-honey disabled:opacity-30"
+                            aria-label={`Move ${photo.alt || project.title} earlier`}
+                            disabled={photoIndex === 0}
+                            onClick={event => { event.stopPropagation(); movePhoto(project.id, mediaId, galleryPhotos[photoIndex - 1].id); }}>↑</button>
+                          <button type="button" className="min-h-11 min-w-11 rounded hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-honey disabled:opacity-30"
+                            aria-label={`Move ${photo.alt || project.title} later`}
+                            disabled={photoIndex === galleryPhotos.length - 1}
+                            onClick={event => { event.stopPropagation(); movePhoto(project.id, mediaId, galleryPhotos[photoIndex + 1].id); }}>↓</button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}

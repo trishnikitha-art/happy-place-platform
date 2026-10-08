@@ -53,16 +53,15 @@ export default function NewsletterThankYouPage() {
 
             <h3>Ready to start your project?</h3>
             <p>
-              Get a free estimate in minutes — no obligation, no pressure. We'll scope your project and provide a detailed 
-              proposal tailored to your needs and budget.
+              Tell us what you're planning and where your project is located. We'd love to hear about it.
             </p>
 
             <div className="mt-8">
               <Link
-                href="/estimate"
+                href="/contact"
                 className="inline-flex items-center justify-center rounded-lg bg-honey px-8 py-4 font-semibold text-deep transition-colors hover:bg-honey/90"
               >
-                Get Your Free Estimate
+                Talk About Your Project
               </Link>
             </div>
           </div>

@@ -225,8 +225,8 @@ export default async function HomePage() {
             <p className="measure mt-5 sm:mt-7 max-w-xl text-base sm:text-lg text-text-on-dark/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
               We repair, restore, and improve homes across the Mid-Willamette Valley. The work should look right the day we leave, and still look right years later.</p>
             <div className="mt-6 sm:mt-8 flex flex-wrap gap-3">
-              <Link href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold">
-                Get a Free Estimate
+              <Link href="/contact" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold">
+                Talk About Your Project
               </Link>
               <Link
                 href="/our-work"
@@ -273,7 +273,7 @@ export default async function HomePage() {
             ].map(([stat, label, isNumber]) => (
               <div key={label as string} className="relative">
                 <p className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-primary">
-                  {isNumber ? `${stat}+` : stat}
+                  {stat}
                 </p>
                 <p className="mt-1 text-xs sm:text-sm font-medium uppercase tracking-wide text-primary">{label}</p>
               </div>
@@ -291,7 +291,7 @@ export default async function HomePage() {
             <SectionHeading
               eyebrow={<span className="eyebrow-mark"><ToolMark /> What we do</span>}
               title={<span className="text-primary">A few ways we can help</span>}
-              description="Pick a service to start a free estimate — we'll guide you through the rest."
+              description="Explore our services and see the work behind them."
               descriptionColor="text-primary"
             />
             <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">

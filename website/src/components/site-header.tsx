@@ -41,6 +41,7 @@ function NavShimmer({ children, className }: { children: React.ReactNode; classN
       
       {/* Animated shimmer sweep - warm light traveling left to right */}
       <span
+        aria-hidden="true"
         className={`
           absolute inset-0 z-20 bg-gradient-to-r from-transparent via-white/15 via-white/10 to-transparent
           bg-clip-text text-transparent
@@ -64,6 +65,7 @@ export function SiteHeader() {
   const company = getCompany();
   const menuRef = React.useRef<HTMLDivElement>(null);
   const navRef = React.useRef<HTMLDivElement>(null);
+  const menuButtonRef = React.useRef<HTMLButtonElement>(null);
 
   React.useEffect(() => {
     setOpen(false);
@@ -81,10 +83,18 @@ export function SiteHeader() {
     href === "/" ? pathname === "/" : pathname.startsWith(href);
 
   const primary = navigation.filter((n) => !n.secondary);
-  const estimate = navigation.find((n) => n.secondary);
+  const contact = navigation.find((n) => n.secondary);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-md">
+    <header
+      className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-md"
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && open) {
+          setOpen(false);
+          menuButtonRef.current?.focus();
+        }
+      }}
+    >
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
         <Link href="/" className="group flex shrink-0 items-center gap-2.5" aria-label={`${company.name} home`}>
           {/* Happy Place Carpentry logo */}
@@ -98,7 +108,7 @@ export function SiteHeader() {
           </span>
         </Link>
 
-        <nav className="hidden items-center md:flex relative" aria-label="Primary" ref={navRef}>
+        <nav className="hidden items-center lg:flex relative" aria-label="Primary" ref={navRef}>
           <TapeMeasureNav items={primary} activeHref={pathname} containerRef={navRef} />
           {primary.map((item) => (
             <Link
@@ -115,21 +125,22 @@ export function SiteHeader() {
           ))}
         </nav>
 
-        <div className="hidden shrink-0 md:flex items-center gap-2">
+        <div className="hidden shrink-0 lg:flex items-center gap-2">
           <ThemeToggle />
-          {estimate && (
+          {contact && (
             <Link
-              href={estimate.href}
+              href={contact.href}
               className={cn(buttonVariants({ variant: "primary", size: "sm" }), "bg-honey text-honey-foreground shadow-warm hover:bg-honey-hover")}
             >
-              {estimate.label}
+              {contact.label}
             </Link>
           )}
         </div>
 
         <button
+          ref={menuButtonRef}
           type="button"
-          className="flex h-11 w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-muted md:hidden"
+          className="flex h-11 w-11 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-muted lg:hidden"
           aria-expanded={open}
           aria-controls="mobile-menu"
           aria-label={open ? "Close menu" : "Open menu"}
@@ -140,12 +151,13 @@ export function SiteHeader() {
       </div>
 
       {open && (
-        <div id="mobile-menu" ref={menuRef} onClick={handleMenuClick} className="border-t border-border/60 bg-[#F8F6F3] dark:bg-surface md:hidden">
+        <div id="mobile-menu" ref={menuRef} onClick={handleMenuClick} className="max-h-[calc(100dvh-5rem)] overflow-y-auto border-t border-border/60 bg-[#F8F6F3] dark:bg-surface lg:hidden">
           <nav className="flex flex-col p-3" aria-label="Mobile">
             {navigation.map((item) => (
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={() => setOpen(false)}
                 aria-current={isActive(item.href) ? "page" : undefined}
                 className={cn(
                   "rounded-lg px-3 py-3 text-base font-medium transition-colors duration-200",

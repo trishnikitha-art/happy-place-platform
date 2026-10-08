@@ -75,9 +75,10 @@ export default async function ServicesPage() {
       <Section className="bg-deep">
         <Container>
           <SectionHeading
+            as="h1"
             eyebrow={<span className="text-honey">Services</span>}
             title={<span className="text-text-on-dark">Carpentry for your whole home</span>}
-            description={<span className="text-text-on-dark/90">Every service has its own estimate questions, so your quote is built around exactly what you need.</span>}
+            description={<span className="text-text-on-dark/90">Explore what we do, see our work, and tell us what you're planning.</span>}
             descriptionColor="text-text-on-dark/90"
           />
           <div className="mt-10 space-y-14">
@@ -130,10 +131,10 @@ export default async function ServicesPage() {
           </div>
           <div className="mt-12">
             <Link
-              href="/estimate"
+              href="/contact"
               className="inline-flex items-center gap-1 text-base font-semibold text-text-on-dark hover:text-honey hover:underline"
             >
-              Start a free estimate →
+              Talk about your project →
             </Link>
           </div>
         </Container>

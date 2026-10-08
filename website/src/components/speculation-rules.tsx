@@ -59,7 +59,7 @@ export function SpeculationRules() {
     const rules = {
       prefetch: [
         {
-          source: "/estimate",
+          source: "/contact",
           eagerness: "moderate", // Phase 4: Hover prediction
         },
         {
@@ -77,7 +77,7 @@ export function SpeculationRules() {
       ],
       prerender: [
         {
-          source: "/estimate",
+          source: "/contact",
           eagerness: "conservative", // Phase 3: Conservative prerender
         },
       ],

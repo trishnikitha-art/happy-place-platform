@@ -7,8 +7,6 @@ import type { Media } from "@/types/media";
 import { Icon } from "@/components/icon";
 import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
-import { VisualSlot } from "@/components/visual-slot";
-import { useState } from "react";
 
 /**
  * ServiceCard — photo-led and dense (CEO review): one iconic image, title,
@@ -25,8 +23,7 @@ import { useState } from "react";
  * Card text always uses light register tokens regardless of page background.
  * 
  * NAVIGATION CONTRACT: ServiceCard owns its own navigation to prevent nested Link bugs.
- * When rendered standalone, it links to estimate page with service parameter.
- * When rendered within another Link wrapper, navigation should be handled by the parent.
+ * It links to the service detail page and must not be wrapped in another Link.
  */
 export function ServiceCard({ service, runtimeCardMediaObject, href }: { service: Service; runtimeCardMediaObject?: Media | null; href?: string }) {
   // Use runtime assignment if available, otherwise fall back to featured project media
@@ -52,8 +49,7 @@ export function ServiceCard({ service, runtimeCardMediaObject, href }: { service
   const bodyColor = "text-text-muted";
   const linkColor = "text-text hover:text-honey";
 
-  // Use provided href if available, otherwise default to estimate page
-  const cardHref = href || `/estimate?service=${service.slug}`;
+  const cardHref = href || `/services/${service.slug}`;
 
   return (
     <Link href={cardHref} className="block">
@@ -68,7 +64,7 @@ export function ServiceCard({ service, runtimeCardMediaObject, href }: { service
                 src={imageSrc}
                 alt={featuredMedia.alt || service.name}
                 fill
-                sizes="(max-width: 768px) 50vw, 33vw"
+                sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 33vw"
                 className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
               />
               <div className="absolute inset-0 pointer-events-none rounded-t-xl bg-gradient-to-tr from-black/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
@@ -95,7 +91,7 @@ export function ServiceCard({ service, runtimeCardMediaObject, href }: { service
           <h3 className={`font-display text-lg font-bold @[300px]:text-xl @[400px]:text-2xl ${headingColor}`} style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>{service.name}</h3>
           <p className={`clamp-2 mt-2 flex-1 text-sm @[300px]:text-base ${bodyColor}`} style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>{service.description}</p>
           <div className={`mt-4 inline-flex items-center gap-1 min-h-[44px] text-sm @[300px]:text-base ${linkColor}`}>
-            Start a quote →
+            Explore {service.name.toLowerCase()} →
           </div>
         </div>
       </CraftCard>

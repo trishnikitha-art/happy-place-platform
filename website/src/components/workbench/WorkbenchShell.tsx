@@ -33,11 +33,13 @@ import {
   Settings,
   Menu,
   X,
-  Images
+  Images,
+  ListChecks
 } from 'lucide-react';
 
 const plugins = [
   { id: 'media', name: 'Media', icon: Images, path: '/workbench/media' },
+  { id: 'estimate', name: 'Project scoping', icon: ListChecks, path: '/workbench/estimate' },
   { id: 'explorer', name: 'Explorer', icon: LayoutDashboard, path: '/workbench/explorer' },
   { id: 'timeline', name: 'Timeline', icon: Clock, path: '/workbench/timeline' },
   { id: 'evidence', name: 'Evidence', icon: Search, path: '/workbench/evidence' },
@@ -63,7 +65,6 @@ export function WorkbenchShell({ children }: { children: React.ReactNode }) {
       console.log('[WORKBENCH_SHELL] AUTH_CHECK_START', {
         pathname,
         isLoginPage: pathname === '/workbench/login',
-        documentCookies: document.cookie,
       });
 
       // Skip auth check for login page

@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
+import { permanentRedirect } from "next/navigation";
 
-/** Permanent redirect: Projects merged into "Our Work" (/gallery). */
+/** Keep older project-index links on the canonical work archive. */
 export function GET() {
-  redirect("/gallery");
+  permanentRedirect("/our-work");
 }

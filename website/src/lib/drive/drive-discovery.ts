@@ -11,7 +11,7 @@
 
 import { getDriveClient, isAuthenticated } from './oauth-manager';
 import { google } from 'googleapis';
-import { verifyCorpusAuthorization } from './corpus-authorization';
+import { getAuthorizedCorpora, verifyCorpusAuthorization } from './corpus-authorization';
 import { normalizeCorpusId, isMyDrive, MY_DRIVE_CANONICAL_ID } from './corpus-normalization';
 
 export interface DriveFolder {
@@ -68,132 +68,19 @@ export class DriveDiscovery {
     myDrive: DriveFolder | null;
     sharedDrives: DriveFolder[];
   }> {
-    console.log('=== Drive Discovery Started ===');
-    
-    // Check if authenticated first
-    const authenticated = await isAuthenticated();
-    console.log('Authenticated:', authenticated);
-    
-    if (!authenticated) {
-      console.log('Not authenticated, returning empty structure');
-      return {
-        myDrive: null,
-        sharedDrives: [],
-      };
-    }
-
-    const drive = await getDriveClient();
-    console.log('Drive client obtained');
-
-    // Verify authenticated account (Drive API v3)
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const about = await (drive as any).about.get({
-        fields: 'user(emailAddress,displayName,permissionId)',
-      });
-      console.log('Authenticated account:', {
-        email: about.data.user?.emailAddress,
-        displayName: about.data.user?.displayName,
-        permissionId: about.data.user?.permissionId,
-      });
-    } catch (error) {
-      console.error('Failed to get about info:', error);
-    }
-
-    // Verify Drive API itself
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const filesTest = await (drive as any).files.list({
-        pageSize: 10,
-        fields: 'files(id,name,mimeType)',
-      });
-      console.log('Drive API test - total files:', filesTest.data.files?.length || 0);
-      if (filesTest.data.files?.length > 0) {
-        console.log('Sample files:', filesTest.data.files.slice(0, 3).map((f: { id: string; name: string; mimeType: string }) => ({
-          id: f.id,
-          name: f.name,
-          mimeType: f.mimeType,
-        })));
-      }
-    } catch (error) {
-      console.error('Drive API test failed:', error);
-    }
-
-    // Get My Drive info
-    console.log('Getting My Drive info...');
-    const myDrive = await this.getMyDrive(drive);
-    console.log('My Drive:', myDrive);
-
-    // Get Shared Drives
-    console.log('Getting Shared Drives...');
-    const sharedDrives = await this.getSharedDrives(drive);
-    console.log('Shared Drives count:', sharedDrives.length);
-
-    console.log('=== Drive Discovery Complete ===');
-
+    if (!(await isAuthenticated())) return { myDrive: null, sharedDrives: [] };
+    // HPP's authorization inventory owns corpus access. Avoid broad Google
+    // diagnostic queries before authorization and keep My Drive's logical ID.
+    const corpora = (await getAuthorizedCorpora()).filter(corpus => corpus.authorized);
+    const myDrive = corpora.find(corpus => corpus.type === 'my_drive');
     return {
-      myDrive,
-      sharedDrives,
+      myDrive: myDrive ? { id: MY_DRIVE_CANONICAL_ID, name: myDrive.name || 'My Drive',
+        type: 'my_drive', corpusId: MY_DRIVE_CANONICAL_ID } : null,
+      sharedDrives: corpora.filter(corpus => corpus.type === 'shared_drive').map(corpus => ({
+        id: corpus.id, name: corpus.name, type: 'shared_drive', corpusId: corpus.id,
+      })),
     };
   }
-
-  /**
-   * Get My Drive information (Drive API v3: use files.get with fileId='root')
-   */
-  private async getMyDrive(drive: ReturnType<typeof google.drive>): Promise<DriveFolder | null> {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (drive as any).files.get({
-        fileId: 'root',
-        fields: 'id,name,mimeType',
-      });
-
-      if (response.data) {
-        return {
-          id: response.data.id,
-          name: response.data.name || 'My Drive',
-          type: 'my_drive',
-          corpusId: response.data.id, // My Drive corpus ID is its own ID
-        };
-      }
-    } catch (error) {
-      console.error('Failed to get My Drive info:', error);
-    }
-
-    return null;
-  }
-
-  /**
-   * Get all Shared Drives
-   */
-  private async getSharedDrives(drive: ReturnType<typeof google.drive>): Promise<DriveFolder[]> {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (drive as any).drives.list({
-        pageSize: 100,
-      });
-
-      if (response.data.drives) {
-        const drives = response.data.drives.map((drive: { id: string; name: string }) => ({
-          id: drive.id,
-          name: drive.name,
-          type: 'shared_drive',
-          corpusId: drive.id, // Shared Drive corpus ID is its own ID
-        }));
-        
-        // Log each Shared Drive ID for production configuration
-        console.log('[DRIVE_DISCOVERY] Shared Drives discovered:', drives.map((d: any) => ({ id: d.id, name: d.name })));
-        
-        return drives;
-      }
-    } catch (error) {
-      console.error('Failed to list Shared Drives:', error);
-    }
-
-    return [];
-  }
-
-
 
   /**
    * List immediate children of a folder (folders and files)
@@ -212,7 +99,7 @@ export class DriveDiscovery {
     // My Drive physical root IDs → canonical "root"
     // Shared Drive IDs → passed through unchanged
     const normalizedParentId = normalizeCorpusId(context.parentId, context.driveId);
-    const normalizedDriveId = context.driveId;
+    const normalizedDriveId = context.driveId === MY_DRIVE_CANONICAL_ID ? undefined : context.driveId;
 
     console.log('[DRIVE_DISCOVERY] CORPUS_NORMALIZATION', {
       originalParentId: context.parentId,
@@ -238,16 +125,17 @@ export class DriveDiscovery {
         driveId: normalizedDriveId,
         corpus: corpusAuth.corpus,
       });
-    } else if (isMyDrive(context.parentId)) {
-      // My Drive context - verify My Drive is authorized
-      const corpusAuth = await verifyCorpusAuthorization(MY_DRIVE_CANONICAL_ID, undefined);
+    } else {
+      // Authorize every folder, including non-root IDs without caller-supplied
+      // corpus context. Google access alone does not grant HPP access.
+      const corpusAuth = await verifyCorpusAuthorization(normalizedParentId, undefined);
       if (!corpusAuth.authorized) {
         console.error('[DRIVE_DISCOVERY] MY_DRIVE_NOT_AUTHORIZED', {
           folderId: context.parentId,
           normalizedFolderId: normalizedParentId,
           reason: corpusAuth.reason,
         });
-        throw new Error(`My Drive is not authorized: ${corpusAuth.reason}`);
+        throw new Error(`Folder is not authorized: ${corpusAuth.reason}`);
       }
       console.log('[DRIVE_DISCOVERY] MY_DRIVE_AUTHORIZED', {
         folderId: context.parentId,
@@ -259,7 +147,7 @@ export class DriveDiscovery {
     const drive = await getDriveClient();
 
     const params: Record<string, unknown> = {
-      fields: 'nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,parents)',
+      fields: 'nextPageToken,files(id,name,mimeType,size,createdTime,modifiedTime,thumbnailLink,webViewLink,description,parents,shortcutDetails)',
       pageSize: 100,
       orderBy: 'folder,name_natural',
       supportsAllDrives: true,
@@ -267,10 +155,10 @@ export class DriveDiscovery {
     };
 
     // Add shared drive support
-    if (context.driveId) {
+    if (normalizedDriveId) {
       // Shared Drive query
       params.corpora = 'drive';
-      params.driveId = context.driveId;
+      params.driveId = normalizedDriveId;
       
       // FORENSIC: Log Shared Drive root detection for verification
       console.log('[DRIVE_DISCOVERY_FORENSIC] Shared Drive context', {
@@ -283,16 +171,16 @@ export class DriveDiscovery {
       // For Shared Drive root, use the driveId as the folderId
       // Google documentation: Shared Drive ID is the ID of its top-level folder
       // Root-level items have the Shared Drive ID as their parent
-      if (context.parentId === context.driveId) {
+      if (normalizedParentId === 'root' || normalizedParentId === normalizedDriveId) {
         // Shared Drive root - constrain to immediate root children
-        params.q = `'${context.driveId}' in parents and trashed = false`;
+        params.q = `'${normalizedDriveId}' in parents and trashed = false`;
         console.log('[DRIVE_DISCOVERY_FORENSIC] Using Shared Drive root query', {
           driveId: context.driveId,
           query: params.q,
         });
       } else {
         // Shared Drive folder
-        params.q = `'${context.parentId}' in parents and trashed = false`;
+        params.q = `'${normalizedParentId}' in parents and trashed = false`;
         console.log('[DRIVE_DISCOVERY_FORENSIC] Using Shared Drive folder query', {
           parentId: context.parentId,
           driveId: context.driveId,
@@ -302,7 +190,7 @@ export class DriveDiscovery {
     } else {
       // My Drive query
       params.corpora = 'user';
-      params.q = `'${context.parentId}' in parents and trashed = false`;
+      params.q = `'${normalizedParentId}' in parents and trashed = false`;
       console.log('[DRIVE_DISCOVERY_FORENSIC] Using My Drive query', {
         parentId: context.parentId,
         query: params.q,
@@ -353,7 +241,7 @@ export class DriveDiscovery {
               type: 'folder',
               parent: item.parents?.[0],
               modifiedTime: item.modifiedTime,
-              corpusId: context.driveId, // P0 FIX: Preserve corpus context from navigation
+              corpusId: normalizedDriveId,
             });
           } else {
             items.push({
@@ -367,7 +255,10 @@ export class DriveDiscovery {
               webViewLink: item.webViewLink,
               description: item.description,
               parent: item.parents?.[0],
-              corpusId: context.driveId, // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
+              corpusId: normalizedDriveId,
+              shortcutDetails: item.shortcutDetails || undefined,
+              objectType: item.mimeType === 'application/vnd.google-apps.shortcut' ? 'shortcut' :
+                item.mimeType?.startsWith('application/vnd.google-apps.') ? 'google-native' : 'file',
             });
           }
         }
@@ -584,106 +475,8 @@ export class DriveDiscovery {
    * CRITICAL FIX: Escape user query to prevent Drive query injection
    */
   async searchFiles(query: string, context?: DriveListContext): Promise<DriveFile[]> {
-    if (!(await isAuthenticated())) {
-      return [];
-    }
-
-    // CRITICAL FIX: Validate driveId against authorized corpus before Drive API call
-    if (context?.driveId) {
-      const corpusAuth = await verifyCorpusAuthorization(context.parentId, context.driveId);
-      if (!corpusAuth.authorized) {
-        console.error('[DRIVE_DISCOVERY] DRIVE_ID_NOT_AUTHORIZED_FOR_SEARCH', {
-          folderId: context.parentId,
-          requestedDriveId: context.driveId,
-          reason: corpusAuth.reason,
-        });
-        return []; // Return empty results instead of error
-      }
-      console.log('[DRIVE_DISCOVERY] DRIVE_ID_AUTHORIZED_FOR_SEARCH', {
-        folderId: context.parentId,
-        driveId: context.driveId,
-        corpus: corpusAuth.corpus,
-      });
-    }
-
-    const drive = await getDriveClient();
-
-    try {
-      // CRITICAL FIX: Escape user query to prevent Drive query injection
-      const escapedQuery = query
-        .replace(/\\/g, '\\\\')
-        .replace(/'/g, "\\'");
-
-      // Base query for name search
-      const baseQuery = `name contains '${escapedQuery}' and trashed = false`;
-
-      const params: Record<string, unknown> = {
-        fields: 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,parents)',
-        pageSize: 100,
-        supportsAllDrives: true,
-        includeItemsFromAllDrives: true,
-      };
-
-      // Preserve Drive context for search - scope to the same corpus as browsing
-      if (context?.driveId) {
-        // Search within specific Shared Drive
-        params.corpora = 'drive';
-        params.driveId = context.driveId;
-        params.q = baseQuery;
-      } else {
-        // Search within user corpus (My Drive + files shared directly with user)
-        // Note: corpora=user includes My Drive AND "Shared with me" - not My Drive only
-        // P0 FIX: Request driveId field to distinguish My Drive from Shared Drive files
-        // Drive API does not support 'driveId' as a query term, so we filter application-side
-        params.corpora = 'user';
-        params.fields = 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,parents,driveId)';
-        params.q = baseQuery;
-      }
-
-      console.log('[Drive Discovery] searchFiles params:', {
-        query: escapedQuery,
-        corpora: params.corpora,
-        driveId: params.driveId,
-        q: params.q,
-      });
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (drive as any).files.list(params);
-
-      if (response.data.files) {
-        // P0 FIX: Filter application-side to exclude Shared Drive files from My Drive search
-        // Drive API does not support 'driveId' as a query term
-        // Files with driveId == null are in My Drive; files with driveId != null are in Shared Drives
-        const myDriveFiles = response.data.files.filter((file: any) => {
-          const isMyDrive = file.driveId === null || file.driveId === undefined;
-          if (!isMyDrive) {
-            console.log('[DRIVE_DISCOVERY] SEARCH_FILTERED_SHARED_DRIVE_FILE', {
-              fileId: file.id,
-              fileName: file.name,
-              driveId: file.driveId,
-              reason: 'My Drive search excludes Shared Drive files',
-            });
-          }
-          return isMyDrive;
-        });
-
-        return myDriveFiles.map((file: { id: string; name: string; mimeType: string; size?: string; createdTime?: string; modifiedTime?: string; thumbnailLink?: string; webViewLink?: string; description?: string; parents?: string[] }) => ({
-          id: file.id,
-          name: file.name,
-          mimeType: file.mimeType,
-          size: file.size ? parseInt(file.size, 10) : undefined,
-          modifiedTime: file.modifiedTime,
-          thumbnailLink: file.thumbnailLink,
-          webViewLink: file.webViewLink,
-          parent: file.parents?.[0],
-          corpusId: context?.driveId, // P0 FIX: Preserve corpus context through search to prevent drift
-        }));
-      }
-    } catch (error) {
-      console.error(`Failed to search files for "${query}":`, error);
-    }
-
-    return [];
+    const result = await this.search(query, context?.driveId);
+    return result.items as DriveFile[];
   }
 
   /**
@@ -741,7 +534,7 @@ export class DriveDiscovery {
 
       const params: Record<string, unknown> = {
         q: `name contains '${escapedQuery}' and trashed = false`,
-        fields: 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,parents,driveId),nextPageToken',
+        fields: 'files(id,name,mimeType,size,modifiedTime,thumbnailLink,webViewLink,parents,driveId,shortcutDetails),nextPageToken',
         pageSize: 100,
         supportsAllDrives: true,
         includeItemsFromAllDrives: true,
@@ -808,7 +601,10 @@ export class DriveDiscovery {
               type: 'folder',
               parent: file.parents?.[0],
               modifiedTime: file.modifiedTime,
-              corpusId: corpusId, // P0 FIX: Preserve corpus context to prevent Shared Drive → My Drive drift
+              corpusId: corpusId === 'root' ? undefined : corpusId,
+              shortcutDetails: file.shortcutDetails || undefined,
+              objectType: file.mimeType === 'application/vnd.google-apps.shortcut' ? 'shortcut' :
+                file.mimeType?.startsWith('application/vnd.google-apps.') ? 'google-native' : 'file',
             });
           } else {
             items.push({
@@ -832,7 +628,7 @@ export class DriveDiscovery {
       };
     } catch (error) {
       console.error(`Failed to search for "${query}":`, error);
-      return { items: [] };
+      throw error;
     }
   }
 }

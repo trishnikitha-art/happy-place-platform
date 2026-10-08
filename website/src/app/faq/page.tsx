@@ -5,7 +5,7 @@ import { getAllFaqs } from "@/lib/faq";
 
 export const metadata: Metadata = {
   title: "FAQ",
-  description: "Common questions about estimates, permits, service area, materials, and warranties.",
+  description: "Common questions about getting started, permits, service area, materials, and warranties.",
   alternates: { canonical: "/faq" },
 };
 
@@ -18,11 +18,11 @@ export default function FaqPage() {
     <>
       <Section>
         <Container>
-          <SectionHeading eyebrow="FAQ" title="Questions Homeowners Usually Ask" />
+          <SectionHeading as="h1" eyebrow="FAQ" title="Questions Homeowners Usually Ask" />
           <div className="faq-list mt-8 divide-y divide-border border-y border-border">
             {faqItems.map((it) => (
               <details key={it.id} className="group py-5">
-                <summary className="flex cursor-pointer list-none items-center justify-between font-semibold text-text">
+                <summary className="flex min-h-11 cursor-pointer list-none items-center justify-between gap-4 font-semibold text-text">
                   {it.question}
                   <span className="text-accent transition-transform group-open:rotate-45">+</span>
                 </summary>

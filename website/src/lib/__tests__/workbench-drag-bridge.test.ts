@@ -10,7 +10,9 @@ import { dragBridge } from '../workbench-drag-bridge';
 describe('WorkbenchDragBridge - shared drag-session ownership', () => {
   beforeEach(() => {
     // Reset bridge state before each test
+    dragBridge.initialize(-1);
     dragBridge.initialize(0);
+    dragBridge.clearDragData();
   });
 
   test('initialize sets generation and clears state', () => {
@@ -109,6 +111,18 @@ describe('WorkbenchDragBridge - shared drag-session ownership', () => {
     expect(dragBridge.isBridgeReady()).toBe(false);
     expect(dragBridge.getDragData()).toBeNull();
     expect(dragBridge.getIframeGeneration()).toBe(2);
+  });
+
+  test('repeated init from sibling slots does not erase a live drag', () => {
+    dragBridge.initialize(27);
+    dragBridge.registerSlot('photo-a');
+    dragBridge.setDragData({ source: 'local', assetId: 'photo-a' });
+    dragBridge.initialize(27);
+    dragBridge.registerSlot('photo-b');
+    expect(dragBridge.isBridgeReady()).toBe(true);
+    expect(dragBridge.getDragData()).toEqual({ source: 'local', assetId: 'photo-a' });
+    dragBridge.initialize(Number.NaN);
+    expect(dragBridge.getIframeGeneration()).toBe(27);
   });
 });
 

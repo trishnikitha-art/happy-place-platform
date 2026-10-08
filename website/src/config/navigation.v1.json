@@ -23,8 +23,9 @@
       "href": "/reviews"
     },
     {
-      "label": "Get an Estimate",
-      "href": "/estimate"
+      "label": "Contact",
+      "href": "/contact",
+      "secondary": true
     }
   ]
 }

@@ -5,11 +5,11 @@ const siteUrl = "https://happyplacecarpentry.com";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  const staticRoutes = ["", "/services", "/gallery", "/about", "/reviews", "/faq", "/contact", "/estimate", "/privacy"];
+  const staticRoutes = ["", "/services", "/our-work", "/about", "/reviews", "/faq", "/contact", "/privacy"];
   const staticEntries: MetadataRoute.Sitemap = staticRoutes.map((r) => ({
     url: `${siteUrl}${r}`,
     lastModified: now,
-    changeFrequency: r === "/estimate" || r === "" ? "weekly" : "monthly",
+    changeFrequency: r === "" ? "weekly" : "monthly",
     priority: r === "" ? 1 : 0.7,
   }));
   const projectEntries: MetadataRoute.Sitemap = getAllProjects().map((p) => ({

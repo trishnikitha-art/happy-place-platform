@@ -201,7 +201,7 @@ export async function GET(
           return new NextResponse(Buffer.from(thumbnailBuffer), {
             headers: {
               'Content-Type': 'image/jpeg',
-              'Cache-Control': 'private, max-age=3600',
+              'Cache-Control': 'private, no-store',
             },
           });
         }
@@ -302,7 +302,7 @@ export async function GET(
     return new NextResponse(imageBuffer, {
       headers: {
         'Content-Type': mimeType,
-        'Cache-Control': 'private, max-age=3600', // Cache for 1 hour (private - not publicly cacheable)
+        'Cache-Control': 'private, no-store',
       },
     });
   } catch (error) {

@@ -79,6 +79,8 @@ export function VisualSlot({
   const elementRef = useRef<HTMLDivElement>(null);
   const lastDragOverLogRef = useRef<number>(0);
   const [isDraggingActive, setIsDraggingActive] = useState(false);
+  const [isDropTarget, setIsDropTarget] = useState(false);
+  const suppressClickUntilRef = useRef(0);
 
   // P0 FIX: Use authoritative Workbench-mode from prop (if provided by iframe context)
   // Fall back to synchronous URL check for backward compatibility
@@ -479,7 +481,9 @@ export function VisualSlot({
     };
   }, [id, route, page, section, slotName, currentMediaId, component]);
 
-  const handleClick = () => {
+  const handleClick = (event: React.MouseEvent) => {
+    if (isGallerySlot) event.stopPropagation();
+    if (Date.now() < suppressClickUntilRef.current) return;
     console.log('[FORENSIC] iframe VisualSlot CLICK HANDLER', { id });
 
     // P0 FIX: postMessage is the authoritative iframe → parent transport
@@ -519,8 +523,12 @@ export function VisualSlot({
 
     // PROTOCOL SEMANTICS: dragstart owns effectAllowed, dragover owns dropEffect
     // Do NOT mutate effectAllowed in dragover
-    const dropEffect = isGallerySlot ? 'move' : 'copy';
+    const isReorder = e.dataTransfer.types.includes('application/x-workbench-gallery-reorder');
+    const payload = dragBridge.getDragData();
+    const wrongProject = isReorder && payload?.projectId && payload.projectId !== projectId;
+    const dropEffect = wrongProject ? 'none' : isGallerySlot && isReorder ? 'move' : 'copy';
     e.dataTransfer.dropEffect = dropEffect;
+    setIsDropTarget(!wrongProject);
     
     console.log('[VS_DND] DRAG_OVER', {
       slotId: id,
@@ -556,6 +564,7 @@ export function VisualSlot({
   const handleDragLeave = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setIsDropTarget(false);
 
     console.log('[VS_DND] DRAG_LEAVE', {
       slotId: id,
@@ -627,12 +636,15 @@ export function VisualSlot({
 
     // Set drag data for cross-frame communication
     // P0 FIX: Use explicit MIME types to avoid protocol ambiguity
-    const dragData = JSON.stringify({
+    const reorderPayload = {
       type: 'GALLERY_REORDER',
       sourceSlotId: id,
       sourceMediaId: currentMediaId,
       projectId,
-    });
+      iframeGeneration: dragBridge.getIframeGeneration(),
+    };
+    const dragData = JSON.stringify(reorderPayload);
+    dragBridge.setDragData({ ...reorderPayload, source: 'local', assetId: currentMediaId });
 
     e.dataTransfer.setData('application/x-workbench-gallery-reorder', dragData);
     e.dataTransfer.setData('text/plain', dragData); // Fallback for compatibility
@@ -650,6 +662,9 @@ export function VisualSlot({
 
   const handleDragEnd = (e: React.DragEvent) => {
     setIsDraggingActive(false); // P0 FIX: Restore cursor to grab after drag ends
+    setIsDropTarget(false);
+    suppressClickUntilRef.current = Date.now() + 300;
+    dragBridge.clearDragData();
 
     console.log('[VS_DND] DRAG_END', {
       slotId: id,
@@ -663,6 +678,7 @@ export function VisualSlot({
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation(); // P0 FIX: Prevent event bubbling to parent containers
+    setIsDropTarget(false);
 
     console.log('[VS_FORENSIC] DROP_NATIVE_EVENT', {
       slotId: id,
@@ -768,6 +784,11 @@ export function VisualSlot({
             return;
           }
 
+          if (parsed.projectId !== projectId || typeof parsed.sourceMediaId !== 'string'
+            || parsed.sourceSlotId !== `our-work-gallery::${projectId}::${parsed.sourceMediaId}`
+            || parsed.iframeGeneration !== dragBridge.getIframeGeneration()
+            || parsed.sourceMediaId === currentMediaId) return;
+
           // Send SLOT_REORDER event to parent
           if (window.parent !== window) {
             const targetOrigin = WORKBENCH_ORIGIN;
@@ -778,6 +799,7 @@ export function VisualSlot({
               targetSlotId: id,
               targetMediaId: currentMediaId,
               projectId: parsed.projectId,
+              iframeGeneration: dragBridge.getIframeGeneration(),
             };
 
             console.log('[VS_FORENSIC] SLOT_REORDER_POSTMESSAGE_SENDING', {
@@ -1070,7 +1092,7 @@ export function VisualSlot({
   return (
     <div
       ref={elementRef}
-      className={`visual-slot ${className} ${cursorClass}`}
+      className={`visual-slot ${className} ${cursorClass} ${isDropTarget ? 'ring-4 ring-inset ring-honey' : ''} ${isDraggingActive ? 'opacity-60' : ''}`}
       data-slot-id={id}
       data-slot-route={route}
       data-slot-section={section}
@@ -1086,6 +1108,7 @@ export function VisualSlot({
       onDragEnd={effectiveWorkbenchMode && isGallerySlot ? handleDragEnd : undefined}
     >
       <div
+        className={isGallerySlot ? 'h-full w-full' : undefined}
         style={
           effectiveWorkbenchMode && isGallerySlot
             ? { pointerEvents: 'none' }
