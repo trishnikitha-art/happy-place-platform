@@ -45,6 +45,7 @@ jobs:
           node-version: 24
       - run: npm install --include=optional
       - name: Validate required secrets are present
+        id: ci-config
         run: |
           echo "Validating required GitHub Actions secrets..."
           required_secrets=("KV_REST_API_URL" "KV_REST_API_TOKEN" "GOOGLE_CLIENT_ID" "GOOGLE_CLIENT_SECRET" "GOOGLE_REDIRECT_URI" "ENCRYPTION_KEY")
@@ -242,7 +243,7 @@ jobs:
           WORKBENCH_PASSWORD: ci-workbench-password-not-production
           HPP_WORKBENCH_PRINCIPAL_ID: ci-workbench-principal
       - name: Phase B - Cleanup CI test namespace
-        if: always()
+        if: always() && steps.ci-config.outcome == 'success'
         run: |
           echo "Cleaning up CI test namespace: hpp:ci-test:${{ github.run_id }}:"
           # Scan and delete all keys in the run-scoped namespace
