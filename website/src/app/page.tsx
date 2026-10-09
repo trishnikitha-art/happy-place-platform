@@ -60,7 +60,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
   if (textTransaction) {
     if (!await workbenchSession.isAuthenticated()) throw new Error('Workbench authentication required for text preview');
     const receipt = await readTextTransaction(textTransaction);
-    if (!receipt.mutation || !['prepared', 'failed'].includes(receipt.state)) throw new Error('Text preview is unavailable for this transaction state');
+    if (!receipt.mutation || !receipt.stagingVerified || !['prepared', 'failed'].includes(receipt.state)) throw new Error('Text preview is unavailable for this transaction state');
     text.fields[receipt.mutation.key].value = receipt.mutation.value;
   }
   const company = getCompany();
@@ -198,6 +198,8 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
 
   return (
     <>
+      <meta name="hpp-git-commit" content={process.env.VERCEL_GIT_COMMIT_SHA || ''} />
+      <meta name="hpp-deployment-id" content={process.env.VERCEL_DEPLOYMENT_ID || ''} />
       {/* HERO — full-width photograph with text overlay */}
       <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
         <WorkshopAtmosphere particleCount={20} />

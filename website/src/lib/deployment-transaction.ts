@@ -86,7 +86,7 @@ function normalizeRedisError(error: string): string {
   return error.replace(/^Command failed: /, '');
 }
 
-export type TransactionState = 'prepared' | 'committing' | 'committed' | 'consumed' | 'failed';
+export type TransactionState = 'prepared' | 'committing' | 'committed' | 'consumed' | 'failed' | 'cancelled';
 
 export interface DeploymentTransaction {
   transactionId: string;
@@ -2848,7 +2848,7 @@ export async function isTransactionTerminal(transactionId: string): Promise<bool
   const transaction = await getDeploymentTransaction(transactionId);
   if (!transaction) return false;
   
-  if (transaction.state === 'committed' || transaction.state === 'consumed') {
+  if (transaction.state === 'committed' || transaction.state === 'consumed' || transaction.state === 'cancelled') {
     return true;
   }
   

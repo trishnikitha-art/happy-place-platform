@@ -61,6 +61,10 @@
 
 import { NextResponse } from "next/server";
 import { TEXT_AUTHORITY_PATH, decodeTextCatalog, decodeTextMutation, applyTextMutation, type TextCatalog } from '@/lib/text-contract';
+import { verifiedCommittedFiles } from '@/lib/deployment-file-proof';
+import { textPrincipal } from '@/lib/text-errors';
+import { TextError } from '@/lib/text-errors';
+import { approvedTextMutation } from '@/lib/text-approval';
 import { workbenchSession } from "@/lib/workbench-session";
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -302,6 +306,7 @@ export async function GET(request: Request) {
     
     let vercelStatus = 'unknown';
     let vercelContext = null;
+    let deploymentId: string | null = null;
     
     if (statusResponse.ok) {
       const statusData = await statusResponse.json();
@@ -313,6 +318,10 @@ export async function GET(request: Request) {
       if (vercelCheck) {
         vercelStatus = vercelCheck.state; // 'success', 'pending', 'failure'
         vercelContext = vercelCheck.context;
+        try {
+          const url=new URL(vercelCheck.target_url);
+          if(url.protocol==='https:' && url.hostname==='vercel.com') deploymentId=url.pathname.split('/').filter(Boolean).at(-1) || null;
+        } catch { /* Missing identity leaves live verification pending. */ }
       }
     }
     
@@ -322,6 +331,7 @@ export async function GET(request: Request) {
       status: vercelStatus === 'success' ? 'PUBLISHED' : 'COMMITTED_DEPLOYING',
       vercelStatus,
       vercelContext,
+      deploymentId,
       timestamp: commitData.commit?.committer?.date,
     });
     
@@ -740,7 +750,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { reason = "Workbench media changes accepted", transactionIds } = body;
+    const { reason = "Workbench media changes accepted", transactionIds, textApprovals } = body;
 
     console.log('[DEPLOY API] REQUEST_RECEIVED', { reason, transactionIds });
     
@@ -813,6 +823,16 @@ export async function POST(request: Request) {
       
       // Text receipts with an existing commit must never generate a second Git
       // commit. Preserve incomplete lifecycle records for explicit recovery.
+      if (tx.files.includes('strings.v1.json') && (tx as typeof tx & {principalId?:string}).principalId && (tx as typeof tx & {principalId?:string}).principalId !== textPrincipal()) {
+        return NextResponse.json({error:'TEXT_FORBIDDEN'},{status:403});
+      }
+      if (tx.files.includes('strings.v1.json')) {
+        try { approvedTextMutation(textApprovals, txId, (tx as typeof tx & {textMutation?:unknown}).textMutation); }
+        catch (error) {
+          if (!(error instanceof TextError)) throw error;
+          return NextResponse.json({error:error.code,transactionId:txId},{status:error.status});
+        }
+      }
       if (tx.files.includes('strings.v1.json') && tx.commitSha) {
         return NextResponse.json({
           error: 'TEXT_COMMIT_RECEIPT_EXISTS', commitSha: tx.commitSha,
@@ -1246,6 +1266,8 @@ export async function POST(request: Request) {
 
           if (stagingType === 'text') {
             const mutation = decodeTextMutation(stagingValue);
+            // Recheck the Redis bytes against the immutable approval after claiming.
+            approvedTextMutation(textApprovals, transactionId, mutation);
             if (!stringsData || key !== `${getKvNamespace()}workbench-staging:${transactionId}:text:${mutation.key}`) throw new Error('Invalid text transaction binding');
             applyTextMutation(stringsData, mutation);
             textMutationCount++;
@@ -2778,6 +2800,14 @@ export async function POST(request: Request) {
       const persisted = decodeTextCatalog(JSON.parse(Buffer.from(file.content, 'base64').toString('utf8')));
       if (JSON.stringify(persisted) !== JSON.stringify(stringsData)) throw new Error('Committed text authority differs from staged patch');
     }
+    const fileProofResponse = await fetchWithRetry(
+      `https://api.github.com/repos/${githubOwner}/${githubRepo}/commits/${newCommitSha}`,
+      {headers:{Authorization:`Bearer ${githubToken}`,Accept:'application/vnd.github+json'}},
+      'verify committed file list'
+    );
+    if(!fileProofResponse.ok) throw new Error('Committed file metadata could not be verified');
+    const committedFiles=verifiedCommittedFiles(await fileProofResponse.json(),newCommitSha,
+      [projectsFilePath,servicesFilePath,brandFilePath,mediaFilePath,TEXT_AUTHORITY_PATH],textMutationCount>0?[TEXT_AUTHORITY_PATH]:[]);
     // P0 FIX: Promote ALL staging keys from ALL transactions BEFORE marking transactions committed
     // Use atomic promoteBatchDeployment() to ensure runtime KV promotion is atomic across the entire batch
     // This ensures runtime KV promotion is atomic - either all assignments succeed or none succeed
@@ -3104,10 +3134,10 @@ export async function POST(request: Request) {
       commitSha: newCommitSha,
       commitUrl: newCommitData.html_url,
       message: "Git commit created. Production deployment is pending verification.",
-      authorityFiles: [projectsFilePath, servicesFilePath, brandFilePath, mediaFilePath, ...(textMutationCount > 0 ? [TEXT_AUTHORITY_PATH] : [])],
+      authorityFiles: committedFiles,
       targetBranch: 'main',
       status: "COMMITTED_DEPLOYING",
-      filesCommitted: ['projects.v1.json', 'services.v1.json', 'brand.v1.json', 'media.v1.json'],
+      filesCommitted: committedFiles,
       verificationPassed: true,
       externalCommitPoint: true
     });

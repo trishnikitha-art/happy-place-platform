@@ -2,6 +2,7 @@ import catalog from '@/config/strings.v1.json';
 import { decodeTextCatalog, decodeTextMutation, sameTextMutation, TEXT_AUTHORITY_PATH, type TextMutation } from './text-contract';
 import { getRedisClient, getDeploymentTransaction } from './deployment-transaction';
 import { getKvNamespace } from './environment';
+import { TextError, textPrincipal, validateTextId } from './text-errors';
 
 export function deployedTextCatalog() { return decodeTextCatalog(catalog); }
 export async function readGitTextCatalog() {
@@ -14,18 +15,31 @@ export async function readGitTextCatalog() {
   const file = await response.json();
   return decodeTextCatalog(JSON.parse(Buffer.from(file.content, 'base64').toString('utf8')));
 }
-export async function readTextTransaction(id: string): Promise<{ transactionId: string; state: string; mutation: TextMutation | null; commitSha?: string }> {
-  if (!/^WBDEP-\d+-[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid text transaction ID');
+export async function readTextTransaction(id: string) {
+  validateTextId(id);
   const tx = await getDeploymentTransaction(id);
+  if (!tx) throw new TextError(404,'TEXT_NOT_FOUND');
+  const principalId=(tx as typeof tx & {principalId?:string}).principalId;
+  if(principalId && principalId!==textPrincipal()) throw new TextError(403,'TEXT_FORBIDDEN');
   const savedMutation = (tx as typeof tx & { textMutation?: unknown })?.textMutation;
   const mutation = decodeTextMutation(savedMutation);
   const key = `${getKvNamespace()}workbench-staging:${id}:text:${mutation.key}`;
   if (!tx || tx.stagingKeys.length !== 1 || tx.stagingKeys[0] !== key || !tx.files.includes('strings.v1.json')) throw new Error('Text transaction not found');
   const raw = await getRedisClient().get(key);
-  if (!raw && tx.state !== 'consumed') throw new Error('Text staging record is missing');
   const staged = decodeTextMutation(raw ?? savedMutation);
   if (!sameTextMutation(staged, mutation)) throw new Error('Text staging receipt differs from its transaction');
-  return { transactionId: id, state: tx.state, mutation: staged, commitSha: tx.commitSha };
+  return { transactionId: id, state: tx.state, mutation: staged, commitSha: tx.commitSha,
+    lastTransition: (tx as typeof tx & {cancelledAt?:string;reconciledAt?:string}).reconciledAt ?? (tx as typeof tx & {cancelledAt?:string}).cancelledAt ?? tx.consumedAt ?? tx.committedAt ?? tx.failedAt ?? tx.claimedAt ?? tx.createdAt,
+    error: !raw && !['consumed','cancelled'].includes(tx.state) ? 'TEXT_STAGING_MISSING' : tx.failureReason,
+    stagingVerified: !!raw, recoverable: !['consumed','cancelled'].includes(tx.state) };
+}
+export async function listTextTransactions() {
+  const redis=getRedisClient(); const records=[];
+  for(const key of await redis.keys(`${getKvNamespace()}deployment-transaction:*`)) {
+    const record=await redis.get(key) as {transactionId?:string; files?:string[];principalId?:string;state?:string} | null;
+    if(record?.transactionId && record.files?.includes('strings.v1.json') && (!record.principalId || record.principalId===textPrincipal())) records.push(await readTextTransaction(record.transactionId));
+  }
+  return records.sort((a,b)=>b.lastTransition.localeCompare(a.lastTransition));
 }
 // Transaction and immutable staging receipt are stored together. A lost response
 // can replay the same receipt without producing another transaction.

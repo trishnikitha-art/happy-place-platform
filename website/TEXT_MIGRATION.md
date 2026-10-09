@@ -31,16 +31,42 @@ staging through its existing transaction controls. Text has no runtime KV promot
 
 `/workbench/preview?textTransaction=...` renders the actual homepage and requires
 authentication. The public page reads bundled canonical text. The editor reports
-live success only after the commit's Vercel status succeeds, the deployed canonical
-value matches, and an uncached homepage request contains the reviewed value at the
-corresponding verification anchor.
+live success only when the intended commit SHA and Vercel deployment ID agree
+across the status response, authenticated deployed catalog, and uncached homepage
+HTML. Both bundled and rendered values must equal the reviewed receipt. A newer
+release with identical text cannot falsely verify the intended deployment.
 
 Unknown keys, missing fields, unsupported schemas, invalid plain text, conflicting
-revisions, missing receipts, and receipt mismatches fail visibly. Failed pre-commit
-transactions remain recoverable. A receipt with a commit SHA is reused for status
-verification rather than submitting a duplicate Git commit. Post-Git coordinator
-reconciliation is not fully automatic; inspect the retained transaction if promotion
-or consume fails.
+revisions, missing receipts, and receipt mismatches fail visibly. Explicit approval
+includes the exact immutable mutation; the coordinator compares it before claiming
+and again against staged bytes. The dashboard reads server records for every state,
+including committing, committed, failed, consumed, and cancelled.
+
+Cancellation atomically checks the configured Workbench principal and transaction
+state, retains a cancelled audit receipt, and removes only its staging key. Claimed
+or committed receipts cannot be cancelled. Text-only reconciliation proves commit
+reachability from main, transaction identity, exact text/revision, and absence of
+semantic media changes before atomically consuming the retained receipt. It never
+writes a second Git commit or promotes media. Uncertain claims without positive Git
+proof, unreachable commits, or mixed media changes remain retained for investigation.
+This is conservative recovery, not automatic rollback of every possible failure.
+
+API failures distinguish invalid input (400), authentication/ownership (401/403),
+missing receipts (404), conflicts (409), dependency failures (503), and unexpected
+failures (500). Correlation IDs support diagnosis without exposing dependency secrets.
+Unsaved text remains browser-local; saving creates durable server staging.
+
+## Repeatable acceptance
+
+`scripts/text-publishing.acceptance.mjs` exports an opt-in phased harness for a
+signed-in CUA browser tab. Initialize; stage punctuation; recover from the server
+dashboard after clearing the browser receipt; cancel; return to dashboard; stage;
+approve; poll publication until live; return to dashboard; stage with `restore:true`;
+approve; poll until live; finish. It asserts reload persistence, exact diff, actual
+page preview, terminal server receipts, original wording, and no pending transaction.
+The opt-in requires `allowLive:true`; CI does not modify production copy. CI tests
+immutable approvals, stale/concurrent release rejection, error classification,
+positive/negative recovery proofs, and cancellation/claim races in isolated Redis.
 
 ## Remaining migration
 
