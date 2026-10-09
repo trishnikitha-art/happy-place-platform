@@ -39,6 +39,7 @@ import {
 
 const plugins = [
   { id: 'media', name: 'Media', icon: Images, path: '/workbench/media' },
+  { id: 'content', name: 'Services & projects', icon: ListChecks, path: '/workbench/content' },
   { id: 'text', name: 'Text', icon: ListChecks, path: '/workbench/text' },
   { id: 'estimate', name: 'Project scoping', icon: ListChecks, path: '/workbench/estimate' },
   { id: 'explorer', name: 'Explorer', icon: LayoutDashboard, path: '/workbench/explorer' },
@@ -56,7 +57,7 @@ const plugins = [
 export function WorkbenchShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
 
   // P0 FIX: Enforce Workbench authentication gate
@@ -124,12 +125,12 @@ export function WorkbenchShell({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex min-h-dvh min-w-0 bg-background" data-lenis-prevent>
       {/* Sidebar */}
       <aside 
         className={`${
-          sidebarOpen ? 'w-64' : 'w-16'
-        } bg-muted border-r border-border transition-all duration-300 flex flex-col`}
+          sidebarOpen ? 'absolute z-40 w-64 min-h-dvh md:relative' : 'w-16'
+        } bg-muted border-r border-border transition-all duration-300 flex flex-col shrink-0`}
       >
         {/* Header */}
         <div className="p-4 border-b border-border flex items-center justify-between">
@@ -137,6 +138,8 @@ export function WorkbenchShell({ children }: { children: React.ReactNode }) {
             <h1 className="text-lg font-semibold text-foreground">PING Workbench</h1>
           )}
           <button
+            aria-label={sidebarOpen ? 'Collapse Workbench navigation' : 'Expand Workbench navigation'}
+            aria-expanded={sidebarOpen}
             onClick={() => setSidebarOpen(!sidebarOpen)}
             className="p-2 hover:bg-accent rounded-lg transition-colors"
           >
@@ -154,7 +157,7 @@ export function WorkbenchShell({ children }: { children: React.ReactNode }) {
               return (
                 <li key={plugin.id}>
                   <Link
-                    href={plugin.path}
+                    href={plugin.path} aria-label={plugin.name} onClick={()=>setSidebarOpen(false)}
                     className={`
                       flex items-center gap-3 px-3 py-2 rounded-lg transition-colors
                       ${isActive 
@@ -187,11 +190,11 @@ export function WorkbenchShell({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 overflow-hidden">
-        <div className="h-full overflow-y-auto">
+      <div className="flex-1 min-w-0">
+        <div className="min-h-full">
           {children}
         </div>
-      </main>
+      </div>
     </div>
   );
 }

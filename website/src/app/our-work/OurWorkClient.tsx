@@ -448,6 +448,12 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                       <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-deep/90 px-2 text-text-on-dark">
                         <span className="truncate text-xs">{photoIndex + 1} of {galleryPhotos.length} · {project.title}</span>
                         <div className="flex shrink-0">
+                          <select aria-label={`Move ${photo.alt || project.title} to position`} value={photoIndex}
+                            className="min-h-11 max-w-20 rounded bg-deep px-2 text-text-on-dark"
+                            onPointerDown={event=>event.stopPropagation()} onClick={event=>event.stopPropagation()}
+                            onChange={event=>{event.stopPropagation();const target=Number(event.target.value);if(target!==photoIndex) movePhoto(project.id,mediaId,galleryPhotos[target].id);}}>
+                            {galleryPhotos.map((candidate,index)=><option key={candidate.id} value={index}>{index+1}</option>)}
+                          </select>
                           <button type="button" className="min-h-11 min-w-11 rounded hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-honey disabled:opacity-30"
                             aria-label={`Move ${photo.alt || project.title} earlier`}
                             disabled={photoIndex === 0}

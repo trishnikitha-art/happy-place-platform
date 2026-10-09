@@ -11,7 +11,8 @@
  */
 
 import { notFound } from 'next/navigation';
-import PreviewLayout from '../layout';
+import { workbenchSession } from '@/lib/workbench-session';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -23,6 +24,7 @@ interface PreviewPageProps {
 }
 
 export default async function PreviewPage({ params, searchParams }: PreviewPageProps) {
+  if (!await workbenchSession.isAuthenticated()) redirect('/workbench/login');
   const { path } = await params;
   const route = path && path.length > 0 ? '/' + path.join('/') : '/';
 
@@ -31,34 +33,34 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
   switch (route) {
     case '/':
       const HomePage = (await import('@/app/page')).default;
-      return <PreviewLayout><HomePage searchParams={searchParams} /></PreviewLayout>;
+      return <HomePage searchParams={searchParams} />;
     case '/about':
       const AboutPage = (await import('@/app/about/page')).default;
-      return <PreviewLayout><AboutPage /></PreviewLayout>;
+      return <AboutPage />;
     case '/services':
       const ServicesPage = (await import('@/app/services/page')).default;
-      return <PreviewLayout><ServicesPage /></PreviewLayout>;
+      return <ServicesPage />;
     case '/our-work':
       const OurWorkPage = (await import('@/app/our-work/page')).default;
-      return <PreviewLayout><OurWorkPage /></PreviewLayout>;
+      return <OurWorkPage />;
     case '/reviews':
       const ReviewsPage = (await import('@/app/reviews/page')).default;
-      return <PreviewLayout><ReviewsPage /></PreviewLayout>;
+      return <ReviewsPage />;
     case '/estimate':
       const EstimatePage = (await import('@/app/estimate/page')).default;
-      return <PreviewLayout><EstimatePage /></PreviewLayout>;
+      return <EstimatePage />;
     default:
       // Handle dynamic routes like /services/[slug]
       if (route.startsWith('/services/')) {
         const slug = route.replace('/services/', '');
         const ServicePage = (await import('@/app/services/[slug]/page')).default;
-        return <PreviewLayout><ServicePage params={Promise.resolve({ slug })} /></PreviewLayout>;
+        return <ServicePage params={Promise.resolve({ slug })} />;
       }
       // Handle /projects/[slug]
       if (route.startsWith('/projects/')) {
         const slug = route.replace('/projects/', '');
         const ProjectPage = (await import('@/app/projects/[slug]/page')).default;
-        return <PreviewLayout><ProjectPage params={Promise.resolve({ slug })} /></PreviewLayout>;
+        return <ProjectPage params={Promise.resolve({ slug })} />;
       }
       return notFound();
   }

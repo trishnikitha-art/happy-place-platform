@@ -10,6 +10,8 @@ export interface ServiceCapabilities {
 }
 
 export interface Service {
+  hidden?: boolean;
+  publicationState?: 'draft'|'published';
   id: string;
   name: string;
   slug: string;

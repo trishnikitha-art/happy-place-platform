@@ -8,6 +8,7 @@ import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
 import { getWebsiteStructure, getPageByRoute, type WebsitePage, type WebsiteSection, type VisualSlotRef } from '@/lib/website-structure';
 import type { Media } from '@/types/media';
 import { SlotGallery } from '@/components/workbench/slot-gallery';
+import Link from 'next/link';
 import { ReplacementDialog, type ReplacementPreview } from '@/components/workbench/replacement-dialog';
 import { resolveAssignmentKey, isAssignmentRevision } from '@/lib/workbench-assignment-contract';
 import { selectTarget, selectPublishedSource, selectDriveSource } from '@/lib/workbench-selection';
@@ -2797,7 +2798,7 @@ export default function MediaWorkbench() {
       {/* Main Content - Two Panel Layout */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-2 min-h-0">
           {/* LEFT: Actual Website Preview - Same-Origin Instrumented Production Pages */}
-          <section id="slot-view" role="tabpanel" className="min-h-[420px] lg:min-h-0 min-w-0 overflow-y-auto bg-white h-full relative border-r border-border">
+          <section id="slot-view" role="tabpanel" aria-label="Website preview" data-lenis-prevent className="min-h-[420px] lg:min-h-0 min-w-0 overflow-y-auto overscroll-contain bg-white h-full relative border-r border-border">
             {/* Website Preview Iframe - displays actual production page components with VisualSlot instrumentation */}
             <iframe
               ref={iframeRef}
@@ -2871,9 +2872,11 @@ export default function MediaWorkbench() {
           {/* RIGHT: Media Asset Management */}
         <section
         ref={mediaPanelRef}
-        className="min-h-0 min-w-0 overflow-y-auto bg-background h-full"
+        aria-label="Media library" tabIndex={0} data-lenis-prevent
+        className="min-h-0 min-w-0 overflow-y-auto overscroll-contain bg-background h-full focus-visible:outline-2 focus-visible:outline-primary"
         >
           <div className="p-4">
+            <Link href="/workbench/content" className="mb-4 flex min-h-11 items-center rounded-xl border border-border p-3 text-sm font-semibold underline">Manage services & projects · hide/show and ordering</Link>
             {/* Search */}
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />

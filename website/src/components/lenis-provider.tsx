@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, createContext, useContext, ReactNode, useState } from "react";
+import { useEffect, createContext, useContext, ReactNode, useState, Suspense } from "react";
 import Lenis from "@studio-freight/lenis";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { usesNativeScroll } from '@/lib/scroll-policy';
 
 interface LenisContextValue {
   lenis: Lenis | null;
@@ -10,8 +11,14 @@ interface LenisContextValue {
 
 const LenisContext = createContext<LenisContextValue>({ lenis: null });
 
+function SearchObserver({onChange}:{onChange:(search:string)=>void}) {
+  const search=useSearchParams().toString();
+  useEffect(()=>onChange(search),[search,onChange]);
+  return null;
+}
+
 /**
- * The gallery and Workbench use native wheel/touch scrolling. A touchpad already
+ * Galleries, service/project details and Workbench use native scrolling. A touchpad already
  * supplies momentum; adding another interpolation layer made the long gallery
  * feel delayed and made quick changes of direction fight the scroll target.
  * Other public pages retain Lenis, unless reduced motion is requested.
@@ -19,6 +26,7 @@ const LenisContext = createContext<LenisContextValue>({ lenis: null });
 export function LenisProvider({ children }: { children: ReactNode }) {
   const [lenis, setLenis] = useState<Lenis | null>(null);
   const pathname = usePathname();
+  const [search,setSearch] = useState('');
 
   useEffect(() => {
     const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -39,10 +47,7 @@ export function LenisProvider({ children }: { children: ReactNode }) {
       dispose();
       // popstate fires before React has committed its updated pathname.
       const currentPath = window.location.pathname;
-      const isWorkbench = currentPath === "/workbench" || currentPath.startsWith("/workbench/") ||
-        new URLSearchParams(window.location.search).get("workbench") === "true";
-      const isGallery = currentPath === "/our-work" || currentPath.startsWith("/our-work/");
-      if (isWorkbench || isGallery || motionPreference.matches) return;
+      if (usesNativeScroll(currentPath, window.location.search) || motionPreference.matches) return;
 
       const activeInstance = new Lenis({
         lerp: 0.25,
@@ -70,9 +75,9 @@ export function LenisProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("popstate", synchronize);
       dispose();
     };
-  }, [pathname]);
+  }, [pathname, search]);
 
-  return <LenisContext.Provider value={{ lenis }}>{children}</LenisContext.Provider>;
+  return <LenisContext.Provider value={{ lenis }}><Suspense fallback={null}><SearchObserver onChange={setSearch}/></Suspense>{children}</LenisContext.Provider>;
 }
 
 export function useLenis() {

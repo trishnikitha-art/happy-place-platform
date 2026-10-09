@@ -1,0 +1,5 @@
+import {usesNativeScroll,previewHref} from '../scroll-policy';
+it.each(['/workbench/media','/workbench/content','/workbench/preview/services','/services','/services/painting','/projects/project-1','/our-work'])('owns native scrolling on %s',path=>expect(usesNativeScroll(path)).toBe(true));
+it('updates query-only preview transitions without capturing unrelated paths',()=>{expect(usesNativeScroll('/')).toBe(false);expect(usesNativeScroll('/','?workbench=true')).toBe(true);expect(usesNativeScroll('/services-other')).toBe(false);});
+it.each(['/services/painting','/projects/project-1','/our-work','/about'])('keeps %s inside authenticated preview navigation',path=>expect(previewHref(path,'https://site.example')).toBe(`/workbench/preview${path}?workbench=true`));
+it('preserves anchor navigation and refuses external/admin/API links',()=>{expect(previewHref('/services/painting#story','https://site.example')).toBe('/workbench/preview/services/painting?workbench=true#story');for(const path of ['https://outside.example/services','/api/admin/deploy','/workbench/media','mailto:hello@example.com'])expect(previewHref(path,'https://site.example')).toBeNull();});

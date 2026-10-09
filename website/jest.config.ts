@@ -4,7 +4,7 @@ const config: Config = {
   testEnvironment: "node",
   transform: {
     "^.+\\.tsx?$": ["ts-jest", {
-      tsconfig: "tsconfig.json",
+      tsconfig: { jsx: "react-jsx" },
       diagnostics: false,
     }],
   },

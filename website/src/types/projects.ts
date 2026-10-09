@@ -151,6 +151,9 @@ export interface ProjectRelated {
 }
 
 export interface Project {
+  hidden?: boolean;
+  publicationState?: 'draft'|'published';
+  order?: number;
   // Core identity
   id: string;
   title: string;

@@ -1,0 +1,12 @@
+import {loadProjectsManifest,getAllProjects,getProjectById,getProjectBySlug,getHomepageEligibleProjects} from '../projects';
+import {loadServicesRegistry,getAllServices} from '../registries';
+import {getServiceGallery,createGallery} from '../galleries';
+import {isMediaPlacementVisible} from '../content-publication';
+import media from '@/config/media.v1.json';
+let project:any, service:any, projectBefore:any, serviceBefore:any;
+beforeEach(()=>{project=loadProjectsManifest().projects[0];service=loadServicesRegistry().services.find(x=>x.id===project.service)!;projectBefore=structuredClone(project);serviceBefore=structuredClone(service);});
+afterEach(()=>{for(const key of Object.keys(project))delete project[key];Object.assign(project,projectBefore);for(const key of Object.keys(service))delete service[key];Object.assign(service,serviceBefore);});
+it('hides project listings, ID/slug detail lookup, homepage and gallery readers without deleting source metadata',()=>{project.hidden=true;expect(getAllProjects().some(x=>x.id===project.id)).toBe(false);expect(getProjectById(project.id)).toBeNull();expect(getProjectBySlug(project.slug||project.id)).toBeNull();expect(getHomepageEligibleProjects().some(x=>x.id===project.id)).toBe(false);expect(createGallery({},'all','All','').projects.some(x=>x.id===project.id)).toBe(false);expect(loadProjectsManifest().projects.find(x=>x.id===project.id)?.story).toEqual(projectBefore.story);project.hidden=false;expect(getProjectById(project.id)).toBe(project);});
+it('prevents a hidden or draft service from leaking its gallery through a fallback',()=>{service.hidden=true;expect(getAllServices().some(x=>x.id===service.id)).toBe(false);expect(getServiceGallery(service.id).projects).toEqual([]);service.hidden=false;service.publicationState='draft';expect(getServiceGallery(service.id).count).toBe(0);});
+it('blocks hidden/draft project media even when a record has only project ownership',()=>{project.hidden=true;const exclusive=media.media.find(record=>record.projectId===project.id)!;expect(isMediaPlacementVisible(exclusive.id)).toBe(false);expect(isMediaPlacementVisible('runtime-materialized-id',project.id)).toBe(false);project.hidden=false;project.publicationState='draft';expect(isMediaPlacementVisible(exclusive.id)).toBe(false);});
+it('respects the canonical direct-position order in public project readers',()=>{const other=loadProjectsManifest().projects[1],order=other.order;try {other.order=-1;expect(getAllProjects()[0].id).toBe(other.id);}finally {other.order=order;}});

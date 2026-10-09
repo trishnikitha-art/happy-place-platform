@@ -65,6 +65,7 @@ import { verifiedCommittedFiles } from '@/lib/deployment-file-proof';
 import { textPrincipal } from '@/lib/text-errors';
 import { TextError } from '@/lib/text-errors';
 import { approvedTextMutation } from '@/lib/text-approval';
+import { decodeContentMutation,applyContentMutation, type ContentMutation, type ContentCatalog } from '@/lib/content-contract';
 import { workbenchSession } from "@/lib/workbench-session";
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -417,10 +418,11 @@ async function fetchWithRetry(
  * @param key - Full staging key with namespace
  * @returns Staging record type
  */
-function dispatchStagingRecordType(key: string): 'assignment' | 'gallery' | 'pointer' | 'text' | 'unknown' {
+function dispatchStagingRecordType(key: string): 'assignment' | 'gallery' | 'pointer' | 'text' | 'content' | 'unknown' {
   const relativeKey = key.replace(`${getKvNamespace()}workbench-staging:`, '');
   const parts = relativeKey.split(':');
   if (parts.length === 3 && parts[1] === 'text') return 'text';
+  if (parts.length === 3 && parts[1] === 'content' && ['projects','services'].includes(parts[2])) return 'content';
 
   if (parts.length >= 2 && parts[1] === 'service') {
     return 'assignment';
@@ -750,7 +752,7 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { reason = "Workbench media changes accepted", transactionIds, textApprovals } = body;
+    const { reason = "Workbench media changes accepted", transactionIds, textApprovals, contentApprovals } = body;
 
     console.log('[DEPLOY API] REQUEST_RECEIVED', { reason, transactionIds });
     
@@ -823,6 +825,15 @@ export async function POST(request: Request) {
       
       // Text receipts with an existing commit must never generate a second Git
       // commit. Preserve incomplete lifecycle records for explicit recovery.
+      const contentRecord=tx as typeof tx & {contentMutation?:unknown;principalId?:string};
+      if(contentRecord.contentMutation) {
+        if(contentRecord.principalId!==textPrincipal()) return NextResponse.json({error:'CONTENT_FORBIDDEN'},{status:403});
+        const approved=Array.isArray(contentApprovals)?contentApprovals.filter(a=>a?.transactionId===txId):[];
+        try {
+          if(approved.length!==1 || JSON.stringify(decodeContentMutation(approved[0].mutation))!==JSON.stringify(decodeContentMutation(contentRecord.contentMutation))) return NextResponse.json({error:'CONTENT_APPROVAL_MISMATCH',transactionId:txId},{status:409});
+        } catch {return NextResponse.json({error:'INVALID_CONTENT_APPROVAL',transactionId:txId},{status:400});}
+        if(tx.commitSha || tx.state!=='prepared') return NextResponse.json({error:'CONTENT_RECEIPT_REQUIRES_RECOVERY',transactionId:txId,commitSha:tx.commitSha},{status:409});
+      }
       if (tx.files.includes('strings.v1.json') && (tx as typeof tx & {principalId?:string}).principalId && (tx as typeof tx & {principalId?:string}).principalId !== textPrincipal()) {
         return NextResponse.json({error:'TEXT_FORBIDDEN'},{status:403});
       }
@@ -1058,6 +1069,7 @@ export async function POST(request: Request) {
     let mediaFileContent: string = '';
     let stringsData: TextCatalog | null = null;
     let textMutationCount = 0;
+    const contentMutations:ContentMutation[]=[];
 
     if (isProduction && redis) {
       console.log('[DEPLOY API] PRODUCTION_MODE_MERGING_KV_STAGING');
@@ -1233,6 +1245,9 @@ export async function POST(request: Request) {
               case 'text':
                 stagingValue = decodeTextMutation(value);
                 break;
+              case 'content':
+                stagingValue = decodeContentMutation(value);
+                break;
               case 'gallery':
                 stagingValue = decodeGalleryStaging(value);
                 break;
@@ -1264,6 +1279,14 @@ export async function POST(request: Request) {
             }, { status: 400 });
           }
 
+          if(stagingType==='content') {
+            const mutation=decodeContentMutation(stagingValue);
+            const record=transaction as typeof transaction & {contentMutation?:unknown;principalId?:string};
+            const approved=contentApprovals.find((a:any)=>a.transactionId===transactionId);
+            if(record.principalId!==textPrincipal() || JSON.stringify(mutation)!==JSON.stringify(decodeContentMutation(record.contentMutation)) || JSON.stringify(mutation)!==JSON.stringify(decodeContentMutation(approved?.mutation)) || key!==`${getKvNamespace()}workbench-staging:${transactionId}:content:${mutation.collection}`) throw new Error('CONTENT_RECEIPT_MISMATCH');
+            applyContentMutation((mutation.collection==='projects'?projectsData:servicesData) as ContentCatalog,mutation);
+            contentMutations.push(mutation);appliedCount++;continue;
+          }
           if (stagingType === 'text') {
             const mutation = decodeTextMutation(stagingValue);
             // Recheck the Redis bytes against the immutable approval after claiming.
@@ -1629,6 +1652,9 @@ export async function POST(request: Request) {
             }
             case 'text':
               decodeTextMutation(value);
+              break;
+            case 'content':
+              decodeContentMutation(value);
               break;
             case 'gallery': {
               const galleryStaging = decodeGalleryStaging(value);
@@ -2800,6 +2826,14 @@ export async function POST(request: Request) {
       const persisted = decodeTextCatalog(JSON.parse(Buffer.from(file.content, 'base64').toString('utf8')));
       if (JSON.stringify(persisted) !== JSON.stringify(stringsData)) throw new Error('Committed text authority differs from staged patch');
     }
+    for(const mutation of contentMutations) {
+      const path=`website/src/config/${mutation.collection}.v1.json`;
+      const response=await fetchWithRetry(`https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/${path}?ref=${newCommitSha}`,{headers:{Authorization:`Bearer ${githubToken}`,Accept:'application/vnd.github+json'}},'verify committed collection');
+      if(!response.ok) throw new Error('CONTENT_COMMIT_VERIFICATION_UNAVAILABLE');
+      const file=await response.json();const persisted=JSON.parse(Buffer.from(file.content,'base64').toString('utf8'));
+      const expected=JSON.parse(mutation.collection==='projects'?fileContent:servicesFileContent);
+      if(JSON.stringify(persisted)!==JSON.stringify(expected)) throw new Error('CONTENT_COMMIT_MISMATCH');
+    }
     const fileProofResponse = await fetchWithRetry(
       `https://api.github.com/repos/${githubOwner}/${githubRepo}/commits/${newCommitSha}`,
       {headers:{Authorization:`Bearer ${githubToken}`,Accept:'application/vnd.github+json'}},
@@ -2841,6 +2875,10 @@ export async function POST(request: Request) {
             case 'text':
               decodeTextMutation(value);
               // Text becomes public only through the deployed Git authority.
+              continue;
+            case 'content':
+              decodeContentMutation(value);
+              // Item visibility/order is published only in the deployed Git catalog.
               continue;
             case 'gallery':
               stagingValue = decodeGalleryStaging(value);
@@ -3169,12 +3207,12 @@ export async function POST(request: Request) {
     const stagingKeysCount = batchContext?.allStagingKeys.length || 0;
     return NextResponse.json(
       {
-        error: "Failed to commit to GitHub",
+        error: error instanceof Error && error.message==='CONTENT_REVISION_CONFLICT' ? 'CONTENT_REVISION_CONFLICT' : "Failed to commit to GitHub",
         message: error instanceof Error ? error.message : String(error),
         stagingKeysPreserved: isProduction && stagingKeysCount > 0,
         stagingKeysCount
       },
-      { status: 500 }
+      { status: error instanceof Error && error.message==='CONTENT_REVISION_CONFLICT' ? 409 : 500 }
     );
   }
 }

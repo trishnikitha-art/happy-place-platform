@@ -17,8 +17,8 @@ import type { ServiceProjection } from '@/types/projections';
 /**
  * Load hero projection
  */
-export function loadHeroProjection(): HeroProjection {
-  return heroProjection as HeroProjection;
+export function loadHeroProjection(): HeroProjection | null {
+  return heroProjection as HeroProjection | null;
 }
 
 /**

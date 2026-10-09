@@ -191,6 +191,8 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
  * - Media with source !== 'local'
  */
 export async function resolvePublicMedia(id: string): Promise<Media | null> {
+  const { isMediaPlacementVisible } = await import('./content-publication');
+  if (!isMediaPlacementVisible(id)) return null;
   console.log('[PUBLIC_MEDIA_GATE] Resolving public media:', { id, isStaticBuild: isStaticBuild() });
 
   // REJECT: drive-prefixed IDs (source references)
@@ -249,6 +251,7 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
 
   // RUNTIME: Resolve media via KV authority
   const media = await getMediaByIdAsync(id);
+  if(media && !isMediaPlacementVisible(id,media.projectId)) return null;
   if (!media) {
     console.log('[PUBLIC_MEDIA_GATE] KV media not found', { id });
     return null;

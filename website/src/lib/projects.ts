@@ -12,6 +12,7 @@ import { loadAuthority, clearAuthorityCache, queryProjects, findById, findBySlug
 import { resolvePublicMedia } from "./media";
 import type { Media } from "@/types/media";
 import { getEffectiveProjectGallery } from "./effective-project-gallery";
+import { isPublicContent } from './content-contract';
 
 // Load the canonical projects manifest using shared AuthorityLoader
 export function loadProjectsManifest(): ProjectsManifest {
@@ -31,7 +32,7 @@ export function loadProjectsManifest(): ProjectsManifest {
  */
 export function getAllProjects(): Project[] {
   const manifest = loadProjectsManifest();
-  return manifest.projects;
+  return [...manifest.projects].filter(isPublicContent).sort((a,b)=>(a.order??999)-(b.order??999));
 }
 
 /**

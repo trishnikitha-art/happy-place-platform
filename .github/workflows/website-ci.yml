@@ -83,8 +83,8 @@ jobs:
           NODE_ENV: test
           ENCRYPTION_KEY: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
           # Unit tests DO NOT use real Redis - they use mocks
-      - name: Run isolated text lifecycle race and recovery tests
-        run: npx jest --runInBand --testPathPatterns=text-lifecycle.integration
+      - name: Run isolated content and text lifecycle race and recovery tests
+        run: npx jest --runInBand --testPathPatterns='(text-lifecycle|content-lifecycle).integration'
         env:
           TEXT_REDIS_TESTS_ENABLED: 'true'
           NODE_ENV: test

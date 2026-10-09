@@ -43,6 +43,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const {publicGraph,hiddenServiceNames}=require('./public-projection-policy.cjs');
 
 const GENERATOR_VERSION = '1.0.0';
 const SCHEMA_VERSION = '1.0.0';
@@ -251,7 +252,7 @@ function generateHeroProjection(canonicalGraph, scoring) {
   );
   
   if (featuredImages.length === 0) {
-    throw new Error('No featured candidate images found');
+    return null;
   }
   
   const scoredImages = featuredImages.map(img => {
@@ -313,7 +314,7 @@ function generateHeroProjection(canonicalGraph, scoring) {
   return projection;
 }
 
-function generateServiceProjection(canonicalGraph, scoring) {
+function generateServiceProjection(canonicalGraph, scoring, hiddenServices) {
   const services = {};
   
   for (const node of canonicalGraph.nodes) {
@@ -334,6 +335,7 @@ function generateServiceProjection(canonicalGraph, scoring) {
   const projectionServices = [];
   
   for (const [serviceName, images] of Object.entries(services)) {
+    if(hiddenServices.has(serviceName)) continue;
     const sortedImages = [...images].sort((a, b) => b.score - a.score);
     const representative = sortedImages[0];
     const supporting = sortedImages.slice(1);
@@ -379,7 +381,10 @@ function main() {
   
   // Load inputs
   console.log('Loading canonical graph...');
-  const canonicalGraph = loadCanonicalGraph(GRAPH_PATH);
+  const projects=JSON.parse(fs.readFileSync(path.join(ROOT,'src/config/projects.v1.json'),'utf8')).projects;
+  const services=JSON.parse(fs.readFileSync(path.join(ROOT,'src/config/services.v1.json'),'utf8')).services;
+  const media=JSON.parse(fs.readFileSync(path.join(ROOT,'src/config/media.v1.json'),'utf8')).media;
+  const canonicalGraph = publicGraph(loadCanonicalGraph(GRAPH_PATH),projects,media,services);
   
   console.log('Loading constitutional scoring artifact...');
   const scoring = loadScoringArtifact(SCORING_PATH);
@@ -407,7 +412,7 @@ function main() {
   console.log('  ✓ gallery-projection.json');
   
   console.log('Generating service projection...');
-  const serviceProjection = generateServiceProjection(canonicalGraph, scoring);
+  const serviceProjection = generateServiceProjection(canonicalGraph, scoring, hiddenServiceNames(services));
   fs.writeFileSync(
     path.join(OUTPUT_DIR, 'service-projection.json'),
     JSON.stringify(serviceProjection, null, 2)

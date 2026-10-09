@@ -1,0 +1,27 @@
+import {Redis} from '@upstash/redis';
+import {STAGE_TEXT_SCRIPT} from '../text-authority';
+import {CANCEL_TEXT_SCRIPT} from '../text-lifecycle';
+import {claimBatchDeploymentTransactions} from '../deployment-transaction';
+import {readContentReceipt} from '../content-authority';
+import {contentSnapshot} from '../content-contract';
+const enabled=process.env.TEXT_REDIS_TESTS_ENABLED==='true';
+(enabled?describe:describe.skip)('content transactions on isolated real Redis',()=>{
+  let redis:Redis,prefix:string;
+  const id='WBDEP-1791550000000-12345678-1234-1234-1234-123456789abc';
+  const previous=contentSnapshot({projects:[{id:'project-1'}]},'projects');
+  const mutation={schema:'content.v1',collection:'projects',expectedRevision:0,previous,next:previous.map(x=>({...x,hidden:true}))};
+  const keys=()=>[`${prefix}deployment-transaction:${id}`,`${prefix}workbench-staging:${id}:content:projects`];
+  const tx=()=>({transactionId:id,state:'prepared',principalId:'content-test-principal',stagingKeys:[keys()[1]],files:['projects.v1.json'],contentMutation:mutation,createdAt:'now'});
+  const stage=()=>redis.eval(STAGE_TEXT_SCRIPT,keys(),[JSON.stringify(tx()),JSON.stringify(mutation)]);
+  const oldNamespace=process.env.TEST_NAMESPACE,oldPrincipal=process.env.HPP_WORKBENCH_PRINCIPAL_ID;
+  beforeAll(async()=>{const url=process.env.KV_REST_API_URL!;if(!['127.0.0.1','localhost'].includes(new URL(url).hostname))throw new Error('Isolated loopback Redis required');redis=new Redis({url,token:process.env.KV_REST_API_TOKEN!});expect(await redis.ping()).toBe('PONG');});
+  beforeEach(async()=>{prefix=`hpp:content-isolated:${crypto.randomUUID()}:`;process.env.TEST_NAMESPACE=prefix;process.env.HPP_WORKBENCH_PRINCIPAL_ID='content-test-principal';await stage();});
+  afterEach(async()=>{const owned=await redis.keys(prefix+'*');if(owned.length)await redis.del(...owned);});
+  afterAll(()=>{for(const [key,value]of [['TEST_NAMESPACE',oldNamespace],['HPP_WORKBENCH_PRINCIPAL_ID',oldPrincipal]])if(value===undefined)delete process.env[key!];else process.env[key!]=value;});
+  it('reloads the exact immutable hide receipt and rejects a second mutation under its ID',async()=>{expect(await readContentReceipt(id)).toMatchObject({mutation,stagingVerified:true});await stage();await expect(redis.eval(STAGE_TEXT_SCRIPT,keys(),[JSON.stringify(tx()),JSON.stringify({...mutation,expectedRevision:1})])).rejects.toThrow('TEXT_RECEIPT_CONFLICT');expect((await readContentReceipt(id)).mutation).toEqual(mutation);});
+  it('rejects another principal without returning its staging content',async()=>{process.env.HPP_WORKBENCH_PRINCIPAL_ID='other';await expect(readContentReceipt(id)).rejects.toMatchObject({status:403});expect(await redis.get(keys()[1])).not.toBeNull();});
+  it('cancels prepared changes atomically and retains an audit receipt',async()=>{expect(await redis.eval(CANCEL_TEXT_SCRIPT,keys(),[id,'content-test-principal','now'])).toEqual(['OK']);expect(await readContentReceipt(id)).toMatchObject({state:'cancelled',stagingVerified:false});expect(await redis.get(keys()[1])).toBeNull();});
+  it('has one winner when cancellation races deployment claim',async()=>{const results=await Promise.allSettled([redis.eval(CANCEL_TEXT_SCRIPT,keys(),[id,'content-test-principal','now']),claimBatchDeploymentTransactions([id],'content-owner')]);const record=await redis.get<any>(keys()[0]);if(record.state==='cancelled'){expect(results[1].status).toBe('rejected');expect(await redis.get(keys()[1])).toBeNull();}else {expect(record.state).toBe('committing');expect(results[0]).toMatchObject({status:'fulfilled',value:['ERR','COMMIT_BOUNDARY']});expect(await redis.get(keys()[1])).not.toBeNull();}});
+  it.each(['committing','committed','failed'])('does not discard a retained %s receipt after a Git boundary',async state=>{await redis.set(keys()[0],{...tx(),state,owner:'content-owner',commitSha:'a'.repeat(40)});expect(await redis.eval(CANCEL_TEXT_SCRIPT,keys(),[id,'content-test-principal','now'])).toEqual(['ERR','COMMIT_BOUNDARY']);expect(await redis.get(keys()[1])).not.toBeNull();});
+  it('fails closed when immutable staging bytes disappear or change',async()=>{await redis.del(keys()[1]);await expect(readContentReceipt(id)).rejects.toMatchObject({code:'CONTENT_STAGING_MISSING'});await redis.set(keys()[1],{...mutation,expectedRevision:2});await expect(readContentReceipt(id)).rejects.toMatchObject({code:'CONTENT_RECEIPT_MISMATCH'});});
+});

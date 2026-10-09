@@ -138,12 +138,7 @@ export function createGallery(filter: GalleryFilter, id: string, name: string, d
 export function getServiceGallery(serviceId: string): Gallery {
   const service = getAllServices().find(s => s.id === serviceId);
   if (!service) {
-    return createGallery(
-      { service: serviceId },
-      `service-${serviceId}`,
-      serviceId,
-      `Projects for ${serviceId}`
-    );
+    return {id:`service-${serviceId}`,name:serviceId,description:'',projects:[],count:0,filter:{service:serviceId}};
   }
   
   // Special case: for painting service, also include exterior-painting projects
