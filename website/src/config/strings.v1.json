@@ -3,8 +3,8 @@
   "locale": "en",
   "fields": {
     "homepage.hero.title": {
-      "value": "Your favorite part of coming home should be the home itself!",
-      "revision": 1
+      "value": "Your favorite part of coming home should be the home itself.",
+      "revision": 2
     }
   }
 }
