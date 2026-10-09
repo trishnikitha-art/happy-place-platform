@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-09T12:46:35.756Z",
+  "generatedAt": "2026-10-09T16:27:44.847Z",
   "projects": [
     {
       "id": "fences-001",
@@ -85,9 +85,9 @@
         "hero": "pergolas-001-hero",
         "gallery": [
           "pergolas-001-hero",
-          "pergolas-001-before"
+          "876300ab9d29bdc09b18f2c74dd3672f"
         ],
-        "galleryRevision": 4
+        "galleryRevision": 5
       },
       "story": {
         "challenge": "Customer wanted a custom outdoor living space with privacy",

@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-09-17T17:17:32.215Z",
+  "generatedAt": "2026-10-09T16:27:45.171Z",
   "media": [
     {
       "id": "fences-001-hero",
@@ -1115,6 +1115,72 @@
       "source": "local",
       "contentHash": "f8a835afbe43e1c4787fb5235b24c8fac661905b49c5a00bae7bf22ea2d80b67",
       "storage": "static"
+    },
+    {
+      "id": "876300ab9d29bdc09b18f2c74dd3672f",
+      "contentHash": "876300ab9d29bdc09b18f2c74dd3672f94be646f33e8d8109c7a36e65f21dc65",
+      "provenance": {
+        "driveFileId": "1yHNA_TTQgb0ZT4MHAOkJSoM7aMObYSA8",
+        "sharedDriveId": "0ALeA98MLc-s_Uk9PVA",
+        "preserved_at": "2026-10-08T23:17:59.424Z"
+      },
+      "filename": "HP0020_FenceInstallation_After.jpg",
+      "type": "image",
+      "orientation": "landscape",
+      "dimensions": {
+        "width": 4032,
+        "height": 3024
+      },
+      "variants": {
+        "original": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/876300ab9d29bdc09b18f2c74dd3672f94be646f33e8d8109c7a36e65f21dc65-original.jpg",
+        "web": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/2596a44f6a0f40cb1fab19221e21317172ed4149c8c67f6b77b8583fd1ee3ca3-original.webp",
+        "webp": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/2596a44f6a0f40cb1fab19221e21317172ed4149c8c67f6b77b8583fd1ee3ca3-original.webp",
+        "avif": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/7635251e749670d791528b7bb701e1684f43bc77df823a07c5a15488545dc678-original.avif",
+        "thumbnail": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/91b4db0ef04b759b7f9739f375f1dc41b9093fe60fcb2c866a66ca76a4f53d16-original.webp",
+        "blur": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/ca0ccf26e5262e9a2e8869cfb1c62b5a36fad56b500a7fbf6e14aed70eec697f-original.webp",
+        "responsive": [
+          {
+            "width": 480,
+            "webp": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/8a8ba8593a626723c02893bdd9e60233e733d9eb822d43ddbd09a38331d43389-original.webp",
+            "avif": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/9f4337fb18335c3b30e1f26d0e5164e08c642b5628bdf132d0f23936f2ba6ad4-original.avif"
+          },
+          {
+            "width": 768,
+            "webp": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/e5d50a72f4976b3e19bec50da061226f67d52c224aef2f5748e7fb6fd6d5776c-original.webp",
+            "avif": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/58a509c21a813d12864506f949023eb32b7037a69328ae405e23efbc1a6946f5-original.avif"
+          },
+          {
+            "width": 1080,
+            "webp": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/1bd00968e70d04471ac7085ef2dcc97745507725c8044582c45f43e3631049f5-original.webp",
+            "avif": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/8fc5072a3409a590075ed80e976c1d587e25061ec181dee796f83f410cc03325-original.avif"
+          },
+          {
+            "width": 1600,
+            "webp": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/16456ec0cf7efd712b538accc4e18c04d106296312d0ef662e465513d5022a6a-original.webp",
+            "avif": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/4fe696c0e0b5a298dfa47ee662abf7444fab3e3c5b258ca970c2e2591a19c9cf-original.avif"
+          },
+          {
+            "width": 2000,
+            "webp": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/1c894eba3c9712463cff72a5f935e3c5d251ea10e074d0466cbc364500d0df0c-original.webp",
+            "avif": "https://pub-47a78256d32b46ca99a1d6e4450ce65b.r2.dev/01320bea1de055a0e6d14eb7afdc18c9188735c9cee708da4f3638ac70821207-original.avif"
+          }
+        ]
+      },
+      "alt": "HP0020_FenceInstallation_After.jpg",
+      "description": "Media ingested from Google Drive: HP0020_FenceInstallation_After.jpg",
+      "tags": [],
+      "roles": [
+        "gallery"
+      ],
+      "createdAt": "2026-10-08T23:17:59.424Z",
+      "updatedAt": "2026-10-08T23:17:59.424Z",
+      "uploadedAt": "2026-10-08T23:17:59.424Z",
+      "fileSize": 6560634,
+      "format": "jpeg",
+      "colorSpace": "srgb",
+      "lifecycleState": "published",
+      "source": "local",
+      "storage": "r2"
     }
   ]
 }
