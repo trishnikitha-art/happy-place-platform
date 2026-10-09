@@ -14,6 +14,7 @@ import { WorkbenchModeContext } from './workbench-mode-context';
 import { useRouter } from 'next/navigation';
 import { previewHref } from '@/lib/scroll-policy';
 import { useEffect } from 'react';
+import { PreviewTextBridge } from '@/components/workbench/preview-text-bridge';
 
 // P0 FIX: Read workbench mode once at iframe/page level, not per-slot
 // This provides authoritative context and avoids SSR/hydration issues
@@ -39,6 +40,7 @@ export default function PreviewLayout({
   },[router]);
   return (
     <WorkbenchModeContext.Provider value={true}>
+      <PreviewTextBridge />
       <div data-lenis-prevent>{children}</div>
     </WorkbenchModeContext.Provider>
   );

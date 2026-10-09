@@ -52,8 +52,8 @@ export function ServiceCard({ service, runtimeCardMediaObject, href }: { service
   const cardHref = href || `/services/${service.slug}`;
 
   return (
-    <Link href={cardHref} className="block">
-      <CraftCard className="group flex flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl" style={{ containerType: 'inline-size' }}>
+    <Link href={cardHref} className="block h-full">
+      <CraftCard className="group flex h-full flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl" style={{ containerType: 'inline-size' }}>
         <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
           {hasImage && imageSrc ? (
             <>

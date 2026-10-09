@@ -10,6 +10,7 @@ import { VisualSlot } from "@/components/visual-slot";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
 import { resolvePublicMedia } from "@/lib/media";
 import type { Media } from "@/types/media";
+import { PreviewOnly } from '@/components/workbench/preview-only';
 
 export const metadata: Metadata = {
   title: "About",
@@ -71,7 +72,7 @@ export default async function AboutPage() {
       {/* HERO */}
       <section className="relative overflow-hidden bg-deep text-text-on-dark">
         <div className="absolute inset-0 bg-gradient-to-br from-deep via-deep to-primary/30" />
-        <Container className="relative grid items-center gap-10 py-20 lg:grid-cols-2">
+        <Container className={`relative grid items-center gap-8 py-12 sm:py-16 ${ownerSrc ? 'lg:grid-cols-2' : 'max-w-4xl'}`}>
           <div>
             <div className="mb-6 flex items-center gap-3">
               <span className="relative block h-12 w-auto">
@@ -89,7 +90,7 @@ export default async function AboutPage() {
               Build it right. Explain it clearly. Stand behind the work.
             </p>
           </div>
-          <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
+          {ownerSrc && <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
             {ownerSrc && (
               <VisualSlot
                 id="about-owner-portrait-slot"
@@ -103,15 +104,15 @@ export default async function AboutPage() {
                 <Image src={ownerSrc} alt="Portrait of Taylor and Lanie, the owners of Happy Place Carpentry, standing together in front of a completed carpentry project" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover" />
               </VisualSlot>
             )}
-          </div>
+          </div>}
         </Container>
       </section>
 
       {/* SERVICE AREA */}
-      <Section className="bg-white">
+      <Section className="bg-surface-2 py-10 sm:py-12">
         <Container>
           <SectionHeading eyebrow="Where we work" title="Serving the mid-Willamette Valley" />
-          <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {cities.map((c) => (
               <div key={c.id} className="rounded-2xl border border-border/40 bg-[#F8F6F3] p-5">
                 <h3 className="font-bold text-primary">{c.name}</h3>
@@ -123,7 +124,7 @@ export default async function AboutPage() {
       </Section>
 
       {/* BOTTOM VISUAL — real media-bearing slot before CTA */}
-      <Section className="relative bg-[#F0ECE5]">
+      {bottomVisualMedia?.variants?.web ? <Section className="relative bg-surface-2 py-8 sm:py-12">
         <div className="absolute inset-0 bg-gradient-to-br from-[#F0ECE5] via-[#EDE9E0] to-[#E8E5DC] opacity-100" aria-hidden="true" />
         <Container className="relative z-10">
           <VisualSlot
@@ -152,7 +153,14 @@ export default async function AboutPage() {
             )}
           </VisualSlot>
         </Container>
-      </Section>
+      </Section> : <PreviewOnly><Section className="bg-surface-2 py-6">
+        <Container><VisualSlot id="about-bottom-visual-slot" route="/about" page="About"
+          section="Bottom Visual" slotName="Bottom Visual" currentMediaId={null} component="BottomVisual">
+          <div className="flex h-24 items-center justify-center rounded-card border border-primary/30 text-primary">
+            Choose an About image
+          </div>
+        </VisualSlot></Container>
+      </Section></PreviewOnly>}
 
       <CTASection
         title="Ready to love coming home again?"

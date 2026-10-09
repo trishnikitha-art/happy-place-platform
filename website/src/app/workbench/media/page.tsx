@@ -1,6 +1,10 @@
 "use client";
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
+import { TextEditor } from '@/components/workbench/text-editor';
+import { ContentManager } from '@/components/workbench/content-manager';
+import { isTextKey, type TextPreviewDraft } from '@/lib/text-preview-bridge';
+import type { TextKey } from '@/lib/text-contract';
 import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, ChevronRight, Loader2, List, AlertCircle, LayoutGrid, Plus, X, Info, MoreVertical, Check } from 'lucide-react';
 import { loadVisualAssetRegistry, addDriveAssetToRegistry, type VisualAsset } from '@/lib/visual-asset-registry';
 import { slotRegistry, type RegisteredSlot } from '@/lib/slot-registry';
@@ -112,6 +116,17 @@ const WORKBENCH_ORIGIN = typeof window !== 'undefined' ? window.location.origin 
 
 export default function MediaWorkbench() {
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  const [editorTool,setEditorTool]=useState<'media'|'text'|'collections'>('media');
+  const [previewPath,setPreviewPath]=useState<string|null>(null);
+  const [collectionsOpened,setCollectionsOpened]=useState(false);
+  const [textSelection,setTextSelection]=useState<{key:TextKey;request:number}>();
+  const [textDraft,setTextDraft]=useState<TextPreviewDraft|null>(null);
+  const [textTransaction,setTextTransaction]=useState<string|null>(null);
+  const updateTextPreview=useCallback((draft:TextPreviewDraft|null)=>setTextDraft(draft),[]);
+  const updateTextTransaction=useCallback((id:string|null)=>setTextTransaction(id),[]);
+  useEffect(()=>{
+    if(new URLSearchParams(window.location.search).get('tool')==='text')setEditorTool('text');
+  },[]);
   const mutationBusy = useRef(false);
   const requestInFlight = useRef(false);
   const currentIframeGenerationRef = useRef(0); // P0 FIX: Ref-backed generation to prevent stale closure issues
@@ -246,6 +261,22 @@ export default function MediaWorkbench() {
   useEffect(() => {
     currentIframeGenerationRef.current = state.currentIframeGeneration;
   }, [state.currentIframeGeneration]);
+
+  useEffect(()=>{
+    const sync=()=>iframeRef.current?.contentWindow?.postMessage({
+      type:'TEXT_TOOL_STATE',enabled:editorTool==='text',draft:textDraft,
+      generation:currentIframeGenerationRef.current,
+    },WORKBENCH_ORIGIN);
+    const receive=(event:MessageEvent)=>{
+      if(event.origin!==WORKBENCH_ORIGIN || event.source!==iframeRef.current?.contentWindow)return;
+      if(event.data?.type==='TEXT_READY')sync();
+      if(event.data?.type==='TEXT_SELECT' && event.data.generation===currentIframeGenerationRef.current && isTextKey(event.data.key)) {
+        setEditorTool('text');setTextSelection({key:event.data.key,request:Date.now()});
+      }
+    };
+    window.addEventListener('message',receive);sync();
+    return ()=>window.removeEventListener('message',receive);
+  },[editorTool,textDraft,state.currentIframeGeneration]);
 
   useEffect(() => {
     const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
@@ -2642,6 +2673,7 @@ export default function MediaWorkbench() {
             Page
             <select aria-label="Page" value={state.selectedPage} disabled={state.mutationState !== 'idle'}
               onChange={e => {
+                setPreviewPath(null);
                 slotRegistry.clear();
                 // P0 FIX: Reset bridge state on page change to prevent stale BRIDGE_READY
                 // P0 FIX: Use ref-backed generation to avoid stale closure issues
@@ -2802,7 +2834,7 @@ export default function MediaWorkbench() {
             {/* Website Preview Iframe - displays actual production page components with VisualSlot instrumentation */}
             <iframe
               ref={iframeRef}
-              src={`${WORKBENCH_ORIGIN}/workbench/preview${state.selectedPage === '/' ? '' : state.selectedPage}?workbench=true`}
+              src={`${WORKBENCH_ORIGIN}/workbench/preview${previewPath ?? (state.selectedPage === '/' ? '' : state.selectedPage)}?workbench=true${!previewPath && state.selectedPage==='/' && textTransaction ? '&textTransaction='+encodeURIComponent(textTransaction) : ''}`}
               className="w-full h-full border-0"
               title="Website Preview"
               sandbox="allow-same-origin allow-scripts allow-popups"
@@ -2876,7 +2908,30 @@ export default function MediaWorkbench() {
         className="min-h-0 min-w-0 overflow-y-auto overscroll-contain bg-background h-full focus-visible:outline-2 focus-visible:outline-primary"
         >
           <div className="p-4">
-            <Link href="/workbench/content" className="mb-4 flex min-h-11 items-center rounded-xl border border-border p-3 text-sm font-semibold underline">Manage services & projects · hide/show and ordering</Link>
+            <div role="tablist" aria-label="Website editing tools" className="mb-4 flex flex-wrap gap-2"
+              onKeyDown={event=>{
+                if(!['ArrowLeft','ArrowRight','Home','End'].includes(event.key))return;
+                const tabs=Array.from(event.currentTarget.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+                const index=tabs.indexOf(event.target as HTMLButtonElement);if(index<0)return;
+                const next=event.key==='Home'?0:event.key==='End'?tabs.length-1:(index+(event.key==='ArrowRight'?1:-1)+tabs.length)%tabs.length;
+                event.preventDefault();tabs[next].focus();tabs[next].click();
+              }}>
+              <button type="button" role="tab" aria-selected={editorTool==='media'} aria-controls="media-editor"
+                onClick={()=>setEditorTool('media')} className="min-h-11 flex-1 rounded-xl border border-primary/30 px-4 font-semibold text-primary aria-selected:bg-primary aria-selected:text-white">Photos & slots</button>
+              <button type="button" role="tab" aria-selected={editorTool==='text'} aria-controls="text-editor"
+                onClick={()=>setEditorTool('text')} className="min-h-11 flex-1 rounded-xl border border-primary/30 px-4 font-semibold text-primary aria-selected:bg-primary aria-selected:text-white">Text</button>
+              <button type="button" role="tab" aria-selected={editorTool==='collections'} aria-controls="collections-editor"
+                onClick={()=>{setCollectionsOpened(true);setEditorTool('collections');}} className="min-h-11 rounded-xl border border-primary/30 px-4 font-semibold text-primary aria-selected:bg-primary aria-selected:text-white">Services & projects</button>
+            </div>
+            <div id="collections-editor" role="tabpanel" aria-label="Services and projects" hidden={editorTool!=='collections'}>
+              {collectionsOpened && <ContentManager onPreviewRoute={setPreviewPath} />}
+            </div>
+            <div id="text-editor" role="tabpanel" aria-label="Text editing" hidden={editorTool!=='text'}>
+              {state.selectedPage!=='/' && <p className="mb-3 rounded-lg bg-surface-2 p-3 text-sm text-deep">The current editable text fields are on the Homepage. Choose Homepage above to edit them in context.</p>}
+              <TextEditor embedded active={editorTool==='text'} selection={textSelection}
+                onPreview={updateTextPreview} onTransaction={updateTextTransaction} />
+            </div>
+            <div id="media-editor" role="tabpanel" aria-label="Photos and visual slots" hidden={editorTool!=='media'}>
             {/* Search */}
             <div className="relative mb-3">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" size={14} />
@@ -3703,6 +3758,7 @@ export default function MediaWorkbench() {
                 </div>
               </div>
             )}
+            </div>
           </div>
         </section>
       </div>

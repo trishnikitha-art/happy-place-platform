@@ -3,7 +3,6 @@ import Link from "next/link";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { ServiceCard } from "@/components/service-card";
 import { CTASection } from "@/components/cta-section";
-import { Icon } from "@/components/icon";
 import { getNonArchivedServices } from "@/lib/registries";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
 import { resolvePublicMedia } from "@/lib/media";
@@ -48,28 +47,6 @@ export default async function ServicesPage() {
     }
   }
   
-  // Group services by category using a simple categorization
-  const groupedServices = services.reduce((acc, service) => {
-    let category = 'Other';
-    
-    // Simple categorization based on service name/description
-    if (service.slug === 'fences') {
-      category = 'Outdoor Structures';
-    } else if (service.slug === 'painting') {
-      category = 'Painting';
-    } else if (service.slug === 'restoration') {
-      category = 'Restoration';
-    } else if (service.slug === 'repairs') {
-      category = 'Repairs';
-    } else if (service.slug === 'drywall') {
-      category = 'Interior Services';
-    }
-    
-    if (!acc[category]) acc[category] = [];
-    acc[category].push(service);
-    return acc;
-  }, {} as Record<string, typeof services>);
-
   return (
     <>
       <Section className="bg-deep">
@@ -81,29 +58,10 @@ export default async function ServicesPage() {
             description={<span className="text-text-on-dark/90">Explore what we do, see our work, and tell us what you're planning.</span>}
             descriptionColor="text-text-on-dark/90"
           />
-          <div className="mt-10 space-y-14">
-            {Object.entries(groupedServices).map(([category, categoryServices]) => (
-              <div key={category} id={category.toLowerCase().replace(/\s+/g, '-')} className="scroll-mt-20">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-accent">
-                    <Icon name="hammer" className="h-5 w-5" />
-                  </span>
-                  <h2 className="text-2xl font-bold text-text-on-dark" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>{category}</h2>
-                </div>
-                <p className="mb-6 mt-2 max-w-2xl text-text-on-dark/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
-                  {categoryServices[0]?.description || 'Professional carpentry services'}
-                </p>
-                <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
-                  {categoryServices.map((s) => (
-                    <div key={s.id}>
-                      <ServiceCard 
-                        service={s} 
-                        runtimeCardMediaObject={serviceCardMediaMap.get(s.slug) || null} 
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
+          <div data-service-grid className="mt-10 grid grid-cols-1 gap-5 min-[480px]:grid-cols-2 lg:grid-cols-3">
+            {services.map((service) => (
+              <ServiceCard key={service.id} service={service}
+                runtimeCardMediaObject={serviceCardMediaMap.get(service.slug) || null} />
             ))}
           </div>
           <div className="mt-16 rounded-2xl border border-border-soft bg-linen p-8">

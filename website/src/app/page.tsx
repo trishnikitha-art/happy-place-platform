@@ -307,7 +307,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
               description="Explore our services and see the work behind them."
               descriptionColor="text-primary"
             />
-            <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 lg:grid-cols-3">
+            <div data-service-grid className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 min-[480px]:grid-cols-2 lg:grid-cols-3">
               {homepageServices.map((s, i) => (
                 <ScrollReveal key={s.id} delay={i * 100}>
                   <VisualSlot
