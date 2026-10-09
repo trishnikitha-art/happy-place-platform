@@ -19,9 +19,10 @@ interface PreviewPageProps {
   params: Promise<{
     path?: string[];
   }>;
+  searchParams: Promise<{ textTransaction?: string }>;
 }
 
-export default async function PreviewPage({ params }: PreviewPageProps) {
+export default async function PreviewPage({ params, searchParams }: PreviewPageProps) {
   const { path } = await params;
   const route = path && path.length > 0 ? '/' + path.join('/') : '/';
 
@@ -30,7 +31,7 @@ export default async function PreviewPage({ params }: PreviewPageProps) {
   switch (route) {
     case '/':
       const HomePage = (await import('@/app/page')).default;
-      return <PreviewLayout><HomePage /></PreviewLayout>;
+      return <PreviewLayout><HomePage searchParams={searchParams} /></PreviewLayout>;
     case '/about':
       const AboutPage = (await import('@/app/about/page')).default;
       return <PreviewLayout><AboutPage /></PreviewLayout>;

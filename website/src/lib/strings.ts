@@ -29,6 +29,10 @@
  * - a11y.* - Accessibility strings
  */
 
+import textCatalog from '@/config/strings.v1.json';
+import { decodeTextCatalog } from './text-contract';
+const editableText = decodeTextCatalog(textCatalog);
+
 // Navigation (nav.*)
 export const NAV = {
   home: "Home",
@@ -42,7 +46,7 @@ export const NAV = {
 // Homepage (homepage.*)
 export const HOMEPAGE = {
   hero: {
-    title: "Your favorite part of coming home should be the home itself.",
+    title: editableText.fields['homepage.hero.title'].value,
     description: "We repair, restore, and improve homes across the Mid-Willamette Valley. The work should look right the day we leave, and still look right years later.",
   },
   seeOurWork: "See Our Work",

@@ -60,6 +60,7 @@
  */
 
 import { NextResponse } from "next/server";
+import { TEXT_AUTHORITY_PATH, decodeTextCatalog, decodeTextMutation, applyTextMutation, type TextCatalog } from '@/lib/text-contract';
 import { workbenchSession } from "@/lib/workbench-session";
 import { readFileSync } from "fs";
 import { join } from "path";
@@ -406,9 +407,10 @@ async function fetchWithRetry(
  * @param key - Full staging key with namespace
  * @returns Staging record type
  */
-function dispatchStagingRecordType(key: string): 'assignment' | 'gallery' | 'pointer' | 'unknown' {
+function dispatchStagingRecordType(key: string): 'assignment' | 'gallery' | 'pointer' | 'text' | 'unknown' {
   const relativeKey = key.replace(`${getKvNamespace()}workbench-staging:`, '');
   const parts = relativeKey.split(':');
+  if (parts.length === 3 && parts[1] === 'text') return 'text';
 
   if (parts.length >= 2 && parts[1] === 'service') {
     return 'assignment';
@@ -802,13 +804,24 @@ export async function POST(request: Request) {
     const incompatibleTransactions = [];
     
     for (const txId of transactionIds) {
-      const tx = await getDeploymentTransaction(txId);
+      let tx = await getDeploymentTransaction(txId);
       if (!tx) {
         console.error('[DEPLOY API] BATCH_TRANSACTION_NOT_FOUND', { txId });
         incompatibleTransactions.push({ txId, reason: 'MISSING' });
         continue;
       }
       
+      // Text receipts with an existing commit must never generate a second Git
+      // commit. Preserve incomplete lifecycle records for explicit recovery.
+      if (tx.files.includes('strings.v1.json') && tx.commitSha) {
+        return NextResponse.json({
+          error: 'TEXT_COMMIT_RECEIPT_EXISTS', commitSha: tx.commitSha,
+          message: 'An existing Git receipt was retained. Verify that deployment before retrying; transaction recovery may still be required.',
+        }, { status: 409 });
+      }
+      if (tx.files.includes('strings.v1.json') && tx.state === 'failed') {
+        tx = await retryDeploymentTransaction(txId);
+      }
       // Check state
       if (tx.state !== 'prepared') {
         console.warn('[DEPLOY API] BATCH_TRANSACTION_INVALID_STATE', { txId, state: tx.state });
@@ -1023,6 +1036,8 @@ export async function POST(request: Request) {
     let servicesFileContent: string = '';
     let brandFileContent: string = '';
     let mediaFileContent: string = '';
+    let stringsData: TextCatalog | null = null;
+    let textMutationCount = 0;
 
     if (isProduction && redis) {
       console.log('[DEPLOY API] PRODUCTION_MODE_MERGING_KV_STAGING');
@@ -1129,6 +1144,16 @@ export async function POST(request: Request) {
       // Process ALL claimed transactions as a single batch
       batchContext.lifecycle = 'SEMANTIC_PATCHED';
 
+      if (batchContext.allStagingKeys.some(key => dispatchStagingRecordType(key) === 'text')) {
+        const response = await fetchWithRetry(
+          `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/${TEXT_AUTHORITY_PATH}?ref=${pinnedSha}`,
+          { headers: { Authorization: `Bearer ${githubToken}`, Accept: 'application/vnd.github+json' } },
+          'fetch pinned text authority'
+        );
+        if (!response.ok) throw new Error('Cannot read pinned text authority');
+        const file = await response.json();
+        stringsData = decodeTextCatalog(JSON.parse(Buffer.from(file.content, 'base64').toString('utf8')));
+      }
       const transactionGroups = new Map<string, string[]>();
 
       for (const tx of batchContext.transactions) {
@@ -1185,6 +1210,9 @@ export async function POST(request: Request) {
               case 'assignment':
                 stagingValue = decodeAssignmentStaging(value);
                 break;
+              case 'text':
+                stagingValue = decodeTextMutation(value);
+                break;
               case 'gallery':
                 stagingValue = decodeGalleryStaging(value);
                 break;
@@ -1216,6 +1244,14 @@ export async function POST(request: Request) {
             }, { status: 400 });
           }
 
+          if (stagingType === 'text') {
+            const mutation = decodeTextMutation(stagingValue);
+            if (!stringsData || key !== `${getKvNamespace()}workbench-staging:${transactionId}:text:${mutation.key}`) throw new Error('Invalid text transaction binding');
+            applyTextMutation(stringsData, mutation);
+            textMutationCount++;
+            appliedCount++;
+            continue;
+          }
           // Skip metadata keys (now deprecated - using deployment-transaction instead)
           if (key.endsWith(':meta')) continue;
           
@@ -1569,6 +1605,9 @@ export async function POST(request: Request) {
               mediaIdsToVerify.add(assignmentStaging.mediaId);
               break;
             }
+            case 'text':
+              decodeTextMutation(value);
+              break;
             case 'gallery': {
               const galleryStaging = decodeGalleryStaging(value);
               // Extract all media IDs from gallery staging
@@ -2193,6 +2232,7 @@ export async function POST(request: Request) {
         body: JSON.stringify({
           base_tree: currentTreeSha,
           tree: [
+            ...(stringsData && textMutationCount > 0 ? [{ path: TEXT_AUTHORITY_PATH, mode: '100644', type: 'blob', content: JSON.stringify(stringsData, null, 2) + '\n' }] : []),
             {
               path: projectsFilePath,
               mode: '100644',
@@ -2727,6 +2767,17 @@ export async function POST(request: Request) {
       );
     }
 
+    if (stringsData && textMutationCount > 0) {
+      const response = await fetchWithRetry(
+        `https://api.github.com/repos/${githubOwner}/${githubRepo}/contents/${TEXT_AUTHORITY_PATH}?ref=${newCommitSha}`,
+        { headers: { Authorization: `Bearer ${githubToken}`, Accept: 'application/vnd.github+json' } },
+        'verify committed text authority'
+      );
+      if (!response.ok) throw new Error('Committed text authority could not be verified');
+      const file = await response.json();
+      const persisted = decodeTextCatalog(JSON.parse(Buffer.from(file.content, 'base64').toString('utf8')));
+      if (JSON.stringify(persisted) !== JSON.stringify(stringsData)) throw new Error('Committed text authority differs from staged patch');
+    }
     // P0 FIX: Promote ALL staging keys from ALL transactions BEFORE marking transactions committed
     // Use atomic promoteBatchDeployment() to ensure runtime KV promotion is atomic across the entire batch
     // This ensures runtime KV promotion is atomic - either all assignments succeed or none succeed
@@ -2757,6 +2808,10 @@ export async function POST(request: Request) {
             case 'assignment':
               stagingValue = decodeAssignmentStaging(value);
               break;
+            case 'text':
+              decodeTextMutation(value);
+              // Text becomes public only through the deployed Git authority.
+              continue;
             case 'gallery':
               stagingValue = decodeGalleryStaging(value);
               // Gallery mutations don't promote to assignment KV
@@ -3048,8 +3103,8 @@ export async function POST(request: Request) {
       transactionIds: batchContext.transactionIds,
       commitSha: newCommitSha,
       commitUrl: newCommitData.html_url,
-      message: "Your changes are live and saved. Git commit successful.",
-      authorityFiles: [projectsFilePath, servicesFilePath, brandFilePath, mediaFilePath],
+      message: "Git commit created. Production deployment is pending verification.",
+      authorityFiles: [projectsFilePath, servicesFilePath, brandFilePath, mediaFilePath, ...(textMutationCount > 0 ? [TEXT_AUTHORITY_PATH] : [])],
       targetBranch: 'main',
       status: "COMMITTED_DEPLOYING",
       filesCommitted: ['projects.v1.json', 'services.v1.json', 'brand.v1.json', 'media.v1.json'],

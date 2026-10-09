@@ -27,6 +27,9 @@ import { getFeaturedProjects } from "@/lib/projects";
 import { getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib/projects";
 import { VisualSlot } from "@/components/visual-slot";
 import type { Media } from "@/types/media";
+import { HOMEPAGE } from '@/lib/strings';
+import { workbenchSession } from '@/lib/workbench-session';
+import { readTextTransaction } from '@/lib/text-authority';
 
 // P0 FIX: Use force-dynamic to enable VisualSlot client-side hydration in workbench iframe
 // Homepage already loads runtime data (reviews, owner portrait, hero) so static setting was incorrect
@@ -51,7 +54,15 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default async function HomePage() {
+export default async function HomePage({ searchParams }: { searchParams?: Promise<{ textTransaction?: string }> } = {}) {
+  let headline = HOMEPAGE.hero.title;
+  const textTransaction = (await searchParams)?.textTransaction;
+  if (textTransaction) {
+    if (!await workbenchSession.isAuthenticated()) throw new Error('Workbench authentication required for text preview');
+    const receipt = await readTextTransaction(textTransaction);
+    if (!receipt.mutation || !['prepared', 'failed'].includes(receipt.state)) throw new Error('Text preview is unavailable for this transaction state');
+    headline = receipt.mutation.value;
+  }
   const company = getCompany();
   // P0 FIX: Resolve review media through public media gate to prevent bypass
   const topReviews = (await getFeaturedReviewsWithResolvedMedia()).slice(0, 3);
@@ -220,7 +231,7 @@ export default async function HomePage() {
               <HappyBrandSignature /> Place Carpentry
             </p>
             <h1 className="mt-4 sm:mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-text-on-dark" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>
-              Your favorite part of coming home should be the home itself.
+              {headline}
             </h1>
             <p className="measure mt-5 sm:mt-7 max-w-xl text-base sm:text-lg text-text-on-dark/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
               We repair, restore, and improve homes across the Mid-Willamette Valley. The work should look right the day we leave, and still look right years later.</p>

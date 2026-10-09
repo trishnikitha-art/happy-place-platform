@@ -39,6 +39,7 @@ import {
 
 const plugins = [
   { id: 'media', name: 'Media', icon: Images, path: '/workbench/media' },
+  { id: 'text', name: 'Text', icon: ListChecks, path: '/workbench/text' },
   { id: 'estimate', name: 'Project scoping', icon: ListChecks, path: '/workbench/estimate' },
   { id: 'explorer', name: 'Explorer', icon: LayoutDashboard, path: '/workbench/explorer' },
   { id: 'timeline', name: 'Timeline', icon: Clock, path: '/workbench/timeline' },
