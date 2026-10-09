@@ -47,7 +47,7 @@ export const NAV = {
 export const HOMEPAGE = {
   hero: {
     title: editableText.fields['homepage.hero.title'].value,
-    description: "We repair, restore, and improve homes across the Mid-Willamette Valley. The work should look right the day we leave, and still look right years later.",
+    description: editableText.fields['homepage.hero.description'].value,
   },
   seeOurWork: "See Our Work",
   tellUsPlanning: "Tell us what you're planning.",

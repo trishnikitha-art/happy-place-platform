@@ -27,7 +27,7 @@ import { getFeaturedProjects } from "@/lib/projects";
 import { getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib/projects";
 import { VisualSlot } from "@/components/visual-slot";
 import type { Media } from "@/types/media";
-import { HOMEPAGE } from '@/lib/strings';
+import { deployedTextCatalog } from '@/lib/text-authority';
 import { workbenchSession } from '@/lib/workbench-session';
 import { readTextTransaction } from '@/lib/text-authority';
 
@@ -55,13 +55,13 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export default async function HomePage({ searchParams }: { searchParams?: Promise<{ textTransaction?: string }> } = {}) {
-  let headline = HOMEPAGE.hero.title;
+  const text = structuredClone(deployedTextCatalog());
   const textTransaction = (await searchParams)?.textTransaction;
   if (textTransaction) {
     if (!await workbenchSession.isAuthenticated()) throw new Error('Workbench authentication required for text preview');
     const receipt = await readTextTransaction(textTransaction);
     if (!receipt.mutation || !['prepared', 'failed'].includes(receipt.state)) throw new Error('Text preview is unavailable for this transaction state');
-    headline = receipt.mutation.value;
+    text.fields[receipt.mutation.key].value = receipt.mutation.value;
   }
   const company = getCompany();
   // P0 FIX: Resolve review media through public media gate to prevent bypass
@@ -230,20 +230,20 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
             <p className="font-signature text-xl sm:text-2xl text-text-on-dark tracking-wide">
               <HappyBrandSignature /> Place Carpentry
             </p>
-            <h1 className="mt-4 sm:mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-text-on-dark" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>
-              {headline}
+            <h1 data-text-key="homepage.hero.title" className="mt-4 sm:mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-text-on-dark" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>
+              {text.fields['homepage.hero.title'].value}
             </h1>
-            <p className="measure mt-5 sm:mt-7 max-w-xl text-base sm:text-lg text-text-on-dark/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
-              We repair, restore, and improve homes across the Mid-Willamette Valley. The work should look right the day we leave, and still look right years later.</p>
+            <p data-text-key="homepage.hero.description" className="measure mt-5 sm:mt-7 max-w-xl text-base sm:text-lg text-text-on-dark/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
+              {text.fields['homepage.hero.description'].value}</p>
             <div className="mt-6 sm:mt-8 flex flex-wrap gap-3">
-              <Link href="/contact" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold">
-                Talk About Your Project
+              <Link data-text-key="homepage.hero.primaryAction" href="/contact" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold">
+                {text.fields['homepage.hero.primaryAction'].value}
               </Link>
               <Link
-                href="/our-work"
+                data-text-key="homepage.hero.secondaryAction" href="/our-work"
                 className="inline-flex items-center justify-center gap-2 rounded-full border border-text-on-dark/20 bg-text-on-dark/6 px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold text-text-on-dark transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-text-on-dark/12 hover:border-text-on-dark/30"
               >
-                See Our Work
+                {text.fields['homepage.hero.secondaryAction'].value}
               </Link>
             </div>
             <div className="mt-6 sm:mt-9 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-text-on-dark/90">

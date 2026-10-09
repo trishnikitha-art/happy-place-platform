@@ -1,5 +1,5 @@
 import catalog from '@/config/strings.v1.json';
-import { decodeTextCatalog, decodeTextMutation, TEXT_AUTHORITY_PATH, type TextMutation } from './text-contract';
+import { decodeTextCatalog, decodeTextMutation, sameTextMutation, TEXT_AUTHORITY_PATH, type TextMutation } from './text-contract';
 import { getRedisClient, getDeploymentTransaction } from './deployment-transaction';
 import { getKvNamespace } from './environment';
 
@@ -17,12 +17,15 @@ export async function readGitTextCatalog() {
 export async function readTextTransaction(id: string): Promise<{ transactionId: string; state: string; mutation: TextMutation | null; commitSha?: string }> {
   if (!/^WBDEP-\d+-[a-f0-9-]{36}$/.test(id)) throw new Error('Invalid text transaction ID');
   const tx = await getDeploymentTransaction(id);
-  const key = `${getKvNamespace()}workbench-staging:${id}:text:homepage.hero.title`;
+  const savedMutation = (tx as typeof tx & { textMutation?: unknown })?.textMutation;
+  const mutation = decodeTextMutation(savedMutation);
+  const key = `${getKvNamespace()}workbench-staging:${id}:text:${mutation.key}`;
   if (!tx || tx.stagingKeys.length !== 1 || tx.stagingKeys[0] !== key || !tx.files.includes('strings.v1.json')) throw new Error('Text transaction not found');
   const raw = await getRedisClient().get(key);
   if (!raw && tx.state !== 'consumed') throw new Error('Text staging record is missing');
-  const savedMutation = (tx as typeof tx & { textMutation?: unknown }).textMutation;
-  return { transactionId: id, state: tx.state, mutation: decodeTextMutation(raw ?? savedMutation), commitSha: tx.commitSha };
+  const staged = decodeTextMutation(raw ?? savedMutation);
+  if (!sameTextMutation(staged, mutation)) throw new Error('Text staging receipt differs from its transaction');
+  return { transactionId: id, state: tx.state, mutation: staged, commitSha: tx.commitSha };
 }
 // Transaction and immutable staging receipt are stored together. A lost response
 // can replay the same receipt without producing another transaction.

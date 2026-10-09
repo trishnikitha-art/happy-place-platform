@@ -5,6 +5,18 @@
     "homepage.hero.title": {
       "value": "Your favorite part of coming home should be the home itself.",
       "revision": 2
+    },
+    "homepage.hero.description": {
+      "value": "We repair, restore, and improve homes across the Mid-Willamette Valley. The work should look right the day we leave, and still look right years later.",
+      "revision": 0
+    },
+    "homepage.hero.primaryAction": {
+      "value": "Talk About Your Project",
+      "revision": 0
+    },
+    "homepage.hero.secondaryAction": {
+      "value": "See Our Work",
+      "revision": 0
     }
   }
 }

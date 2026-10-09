@@ -1,8 +1,8 @@
-import { applyTextMutation, decodeTextCatalog, decodeTextMutation, validateText, type TextCatalog } from '../text-contract';
+import { applyTextMutation, decodeTextCatalog, decodeTextMutation, validateText, sameTextMutation, TEXT_FIELDS, type TextKey, type TextCatalog } from '../text-contract';
 import catalog from '@/config/strings.v1.json';
 import { HOMEPAGE } from '../strings';
 const original = 'Your favorite part of coming home should be the home itself.';
-const base = (): TextCatalog => ({version:1,locale:'en',fields:{'homepage.hero.title':{value:original,revision:0}}});
+const base = (): TextCatalog => ({version:1,locale:'en',fields:{...structuredClone(catalog.fields),'homepage.hero.title':{value:original,revision:0}}});
 const mutation = () => ({ schema:'text.v1' as const, key:'homepage.hero.title' as const, previousValue:original, expectedRevision:0, value:'Your favorite part of coming home should be the home itself!' });
 it('reads the headline from the canonical JSON authority',()=> {
   expect(HOMEPAGE.hero.title).toBe(decodeTextCatalog(catalog).fields['homepage.hero.title'].value);
@@ -27,6 +27,18 @@ it('rejects missing keys and unsupported schema versions',()=> {
   expect(()=>decodeTextMutation({...mutation(),schema:'assignment'})).toThrow();
 });
 it('does not accept unchanged text as a queue mutation',()=>expect(()=>decodeTextMutation({...mutation(),value:mutation().previousValue})).toThrow());
+it('checks receipt content independently of Redis JSON property order',()=> {
+  const m=mutation(); const reordered={value:m.value,expectedRevision:m.expectedRevision,previousValue:m.previousValue,key:m.key,schema:m.schema};
+  expect(sameTextMutation(m,reordered)).toBe(true);
+  expect(sameTextMutation(m,{...reordered,value:'Tampered value'})).toBe(false);
+});
+it.each(Object.keys(TEXT_FIELDS) as TextKey[])('updates %s without changing any other registered field',key=> {
+  const c=base(); const before=structuredClone(c);
+  const field=c.fields[key];
+  applyTextMutation(c,{schema:'text.v1',key,previousValue:field.value,expectedRevision:field.revision,value:'Reviewed copy'});
+  expect(c.fields[key]).toEqual({value:'Reviewed copy',revision:field.revision+1});
+  for(const other of Object.keys(TEXT_FIELDS) as TextKey[]) if(other!==key) expect(c.fields[other]).toEqual(before.fields[other]);
+});
 
 jest.mock('@/lib/workbench-session',()=>({workbenchSession:{isAuthenticated:jest.fn()}}));
 jest.mock('@/lib/text-authority',()=>({readGitTextCatalog:jest.fn(),deployedTextCatalog:()=>catalog,readTextTransaction:jest.fn(),STAGE_TEXT_SCRIPT:'stage-script'}));
