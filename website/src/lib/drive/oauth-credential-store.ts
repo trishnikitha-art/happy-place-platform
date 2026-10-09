@@ -16,6 +16,7 @@
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 import { encrypt, decrypt, type EncryptionEnvelope } from './encryption';
+import { replaceAuthorizationForIdentity } from './reauthorization-identity';
 
 // Re-export encryption utilities for oauth-manager
 export { decrypt, type EncryptionEnvelope };
@@ -413,9 +414,13 @@ export async function upsertAuthorization(
           keyVersion
         );
       } else {
-        // Active authorization: update credentials in place
+        // Reauthorization cannot replace another principal's working credentials.
+        const principalId = getCurrentPrincipalId();
+        if (existingAuth.principalId !== principalId || existingAuth.googleSubject !== googleSubject) {
+          throw new Error('Authorization identity mismatch - update rejected');
+        }
         console.log('[AUTH_STORE] Updating existing authorization credentials', {
-          authId: existingAuth.id.substring(0, 8) + '...',
+          authId: safeCorrelationId(existingAuth.id),
           status: existingAuth.status,
         });
         existingAuth.email = email;
@@ -428,42 +433,15 @@ export async function upsertAuthorization(
         existingAuth.updatedAt = new Date().toISOString();
         existingAuth.keyVersion = keyVersion;
 
-        // Redis Lua script for atomic authorization update with status verification
-        const luaScript = `
-          local auth_key = KEYS[1]
-          local updated_auth_data = ARGV[1]
-          local auth_ttl = ARGV[2]
-          
-          -- Get current authorization data
-          local current_auth_data = redis.call('GET', auth_key)
-          if not current_auth_data then
-            return 0  -- Authorization not found
-          end
-          
-          local current_auth = cjson.decode(current_auth_data)
-          
-          -- Verify authorization is still active
-          if current_auth.status ~= 'active' then
-            return 0  -- Authorization not active (revoked), prevent overwriting
-          end
-          
-          -- Authorization still active: update atomically
-          redis.call('SET', auth_key, updated_auth_data)
-          redis.call('EXPIRE', auth_key, auth_ttl)
-          
-          return 1  -- Success
-        `;
-
         const client = getRedisClient();
-        const result = await client.eval(
-          luaScript,
-          [namespacedKey(`${AUTH_PREFIX}${existingAuth.id}`)],
-          [JSON.stringify(existingAuth), AUTH_TTL_SECONDS.toString()]
+        const updated = await replaceAuthorizationForIdentity(
+          client, namespacedKey(`${AUTH_PREFIX}${existingAuth.id}`),
+          principalId, googleSubject, existingAuth, AUTH_TTL_SECONDS
         );
 
-        if (result === 0) {
-          console.warn('[AUTH_STORE] Authorization update rejected: authorization no longer active');
-          throw new Error('Authorization is not active - update rejected');
+        if (!updated) {
+          console.warn('[AUTH_STORE] Authorization update rejected: status or identity changed');
+          throw new Error('Authorization is not active or identity changed - update rejected');
         }
 
         console.log('[AUTH_STORE] Authorization update succeeded');

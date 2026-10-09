@@ -1,236 +1,64 @@
-/**
- * Drive Authentication Status API Route
- *
- * Checks if user is authenticated with Google Drive.
- * Used by workbench to determine if "Connect Google Account" button should show.
- * 
- * FIX: Now actually validates token expiry and attempts refresh before reporting authenticated status.
- * If refresh fails (invalid_grant), returns authenticated: false to trigger re-authentication UI.
- */
-
+/** Drive status is meaningful only for the current authenticated Workbench principal. */
 import { NextResponse } from 'next/server';
-import { driveSession } from '@/lib/drive/drive-session';
+import { workbenchSession } from '@/lib/workbench-session';
+import { driveSession, type DriveCredentials } from '@/lib/drive/drive-session';
 import { getOAuthClient } from '@/lib/drive/oauth-manager';
 import { getAuthorization } from '@/lib/drive/oauth-credential-store';
 import { getSession } from '@/lib/drive/session-store';
 
 export const dynamic = 'force-dynamic';
 
+function statusResponse(authenticated: boolean, credentials?: DriveCredentials | null, requiresReauth = false) {
+  return NextResponse.json({
+    authenticated,
+    has_access_token: !!credentials?.access_token,
+    has_refresh_token: !!credentials?.refresh_token,
+    has_expiry_date: !!credentials?.expiry_date,
+    has_scope: !!credentials?.scope,
+    ...(requiresReauth ? { requiresReauth: true } : {}),
+  }, { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } });
+}
+
+function hasUsableCredentials(credentials: DriveCredentials | null): credentials is DriveCredentials {
+  return !!credentials?.access_token && !!credentials.refresh_token &&
+    Number.isFinite(credentials.expiry_date) && credentials.expiry_date! > Date.now();
+}
+
 export async function GET() {
   try {
+    // Authenticate before inspecting Drive sessions or encrypted credentials.
+    if (!await workbenchSession.isAuthenticated()) return statusResponse(false);
+    const principalId = process.env.HPP_WORKBENCH_PRINCIPAL_ID;
+    if (!principalId?.trim()) return statusResponse(false);
+
     const sessionId = await driveSession.getSessionId();
-    console.log('[DRIVE AUTH STATUS FORENSIC] Session ID check:', {
-      hasSessionId: !!sessionId,
-      sessionIdPrefix: sessionId ? sessionId.substring(0, 8) + '...' : 'none',
-    });
-
-    // Check if session exists first
-    if (!sessionId) {
-      console.log('[DRIVE AUTH STATUS FORENSIC] No session ID - not authenticated');
-      return NextResponse.json({
-        authenticated: false,
-        has_access_token: false,
-        has_refresh_token: false,
-        has_expiry_date: false,
-        has_scope: false,
-      }, {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
-        },
-      });
-    }
-
-    // Deep forensic: check session record directly
+    if (!sessionId) return statusResponse(false);
     const session = await getSession(sessionId);
-    console.log('[DRIVE AUTH STATUS FORENSIC] Session record check:', {
-      hasSession: !!session,
-      sessionAuthorizationId: session?.authorizationId?.substring(0, 8) + '...' || 'none',
-    });
-
-    if (!session) {
-      console.log('[DRIVE AUTH STATUS FORENSIC] Session record not found - not authenticated');
-      return NextResponse.json({
-        authenticated: false,
-        has_access_token: false,
-        has_refresh_token: false,
-        has_expiry_date: false,
-        has_scope: false,
-      }, {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
-        },
-      });
-    }
-
-    // Deep forensic: check authorization record directly
+    if (!session) return statusResponse(false);
     const authorization = await getAuthorization(session.authorizationId);
-    console.log('[DRIVE AUTH STATUS FORENSIC] Authorization record check:', {
-      hasAuthorization: !!authorization,
-      authorizationStatus: authorization?.status || 'none',
-      hasAccessToken: !!authorization?.encryptedAccessToken,
-      hasRefreshToken: !!authorization?.encryptedRefreshToken,
-      accessTokenExpiresAt: authorization?.accessTokenExpiresAt || 'none',
-    });
-
-    if (!authorization) {
-      console.log('[DRIVE AUTH STATUS FORENSIC] Authorization record not found - not authenticated');
-      return NextResponse.json({
-        authenticated: false,
-        has_access_token: false,
-        has_refresh_token: false,
-        has_expiry_date: false,
-        has_scope: false,
-      }, {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
-        },
-      });
+    if (!authorization || authorization.status !== 'active' || authorization.principalId !== principalId) {
+      return statusResponse(false);
     }
 
-    if (authorization.status !== 'active') {
-      console.log('[DRIVE AUTH STATUS FORENSIC] Authorization not active - not authenticated', {
-        status: authorization.status,
-      });
-      return NextResponse.json({
-        authenticated: false,
-        has_access_token: false,
-        has_refresh_token: false,
-        has_expiry_date: false,
-        has_scope: false,
-        authorizationStatus: authorization.status,
-      }, {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
-        },
-      });
-    }
-
-    const credentials = await driveSession.getCredentials();
-    
-    // Check if credentials exist
-    if (!credentials) {
-      console.log('[DRIVE AUTH STATUS FORENSIC] No credentials after decryption - not authenticated');
-      return NextResponse.json({
-        authenticated: false,
-        has_access_token: false,
-        has_refresh_token: false,
-        has_expiry_date: false,
-        has_scope: false,
-      }, {
-        headers: {
-          'Cache-Control': 'no-store, no-cache, must-revalidate',
-        },
-      });
-    }
-
-    // Check if access token is expired
-    const isAccessTokenExpired = !credentials.expiry_date || Date.now() > credentials.expiry_date;
-    
-    console.log('[DRIVE AUTH STATUS FORENSIC] Token status check:', {
-      hasAccessToken: !!credentials?.access_token,
-      hasRefreshToken: !!credentials?.refresh_token,
-      hasExpiry: !!credentials?.expiry_date,
-      hasScope: !!credentials?.scope,
-      expiryDate: credentials?.expiry_date ? new Date(credentials.expiry_date).toISOString() : 'none',
-      isAccessTokenExpired,
-      timeUntilExpiry: credentials?.expiry_date ? Math.floor((credentials.expiry_date - Date.now()) / 1000) : 'none',
-    });
-
-    // If access token is expired, attempt refresh before reporting status
-    if (isAccessTokenExpired) {
-      console.log('[DRIVE AUTH STATUS FORENSIC] Access token expired, attempting refresh...');
-      
+    let credentials = await driveSession.getCredentials();
+    if (!credentials?.access_token || !credentials.refresh_token) return statusResponse(false);
+    if (!hasUsableCredentials(credentials)) {
       try {
-        // Attempt to refresh using getOAuthClient which handles refresh automatically
+        // Use the same principal-bound refresh authority as Drive operations.
         await getOAuthClient();
-        
-        // Refresh succeeded - get fresh credentials
-        const freshCredentials = await driveSession.getCredentials();
-        console.log('[DRIVE AUTH STATUS FORENSIC] Token refresh succeeded');
-        
-        return NextResponse.json({
-          authenticated: true,
-          has_access_token: !!freshCredentials?.access_token,
-          has_refresh_token: !!freshCredentials?.refresh_token,
-          has_expiry_date: !!freshCredentials?.expiry_date,
-          has_scope: !!freshCredentials?.scope,
-        }, {
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate',
-          },
-        });
-      } catch (refreshError) {
-        console.error('[DRIVE AUTH STATUS FORENSIC] Token refresh failed:', refreshError);
-        
-        // Refresh failed - likely invalid_grant (revoked/invalid refresh token)
-        // Return authenticated: false to trigger re-authentication UI
-        const errorMessage = refreshError instanceof Error ? refreshError.message : String(refreshError);
-        const isPermanentFailure = errorMessage.includes('invalid_grant') || 
-                                    errorMessage.includes('revoked') ||
-                                    errorMessage.includes('Token has been revoked') ||
-                                    errorMessage.includes('OAuth authorization failed');
-        
-        console.log('[DRIVE AUTH STATUS FORENSIC] Refresh failure classification:', {
-          isPermanentFailure,
-          errorMessage: errorMessage.substring(0, 100),
-        });
-        
-        if (isPermanentFailure) {
-          // Permanent failure - user must re-authenticate
-          return NextResponse.json({
-            authenticated: false,
-            has_access_token: !!credentials?.access_token,
-            has_refresh_token: !!credentials?.refresh_token,
-            has_expiry_date: !!credentials?.expiry_date,
-            has_scope: !!credentials?.scope,
-            requiresReauth: true,
-          }, {
-            headers: {
-              'Cache-Control': 'no-store, no-cache, must-revalidate',
-            },
-          });
-        }
-        
-        // Transient failure - still report not authenticated
-        return NextResponse.json({
-          authenticated: false,
-          has_access_token: !!credentials?.access_token,
-          has_refresh_token: !!credentials?.refresh_token,
-          has_expiry_date: !!credentials?.expiry_date,
-          has_scope: !!credentials?.scope,
-        }, {
-          headers: {
-            'Cache-Control': 'no-store, no-cache, must-revalidate',
-          },
-        });
+        credentials = await driveSession.getCredentials();
+      } catch (error) {
+        const message = error instanceof Error ? error.message : '';
+        const permanentFailure = /invalid_grant|revoked|OAuth authorization failed/.test(message);
+        console.warn('[DRIVE_AUTH_STATUS] Refresh failed', { permanentFailure });
+        return statusResponse(false, undefined, permanentFailure);
       }
     }
 
-    // Access token is valid - report authenticated
-    console.log('[DRIVE AUTH STATUS FORENSIC] Access token valid - authenticated');
-    return NextResponse.json({
-      authenticated: true,
-      has_access_token: !!credentials?.access_token,
-      has_refresh_token: !!credentials?.refresh_token,
-      has_expiry_date: !!credentials?.expiry_date,
-      has_scope: !!credentials?.scope,
-    }, {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-      },
-    });
-  } catch (error) {
-    console.error('[DRIVE AUTH STATUS FORENSIC] Auth status check error:', error);
-    return NextResponse.json({
-      authenticated: false,
-      has_access_token: false,
-      has_refresh_token: false,
-      has_expiry_date: false,
-      has_scope: false,
-    }, {
-      headers: {
-        'Cache-Control': 'no-store, no-cache, must-revalidate',
-      },
-    });
+    // A successful refresh call alone does not prove usable persisted credentials.
+    return hasUsableCredentials(credentials) ? statusResponse(true, credentials) : statusResponse(false);
+  } catch {
+    console.warn('[DRIVE_AUTH_STATUS] Status unavailable');
+    return statusResponse(false);
   }
 }

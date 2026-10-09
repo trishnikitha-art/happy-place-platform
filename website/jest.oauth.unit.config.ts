@@ -9,6 +9,9 @@ const config: Config = {
     }],
   },
   testMatch: [
+    "**/src/lib/drive/__tests__/oauth-callback-preservation.test.ts",
+    "**/src/lib/drive/__tests__/drive-auth-status.test.ts",
+    "**/src/lib/drive/__tests__/oauth-reauthorization-principal.test.ts",
     "**/src/lib/drive/__tests__/oauth-basic.test.ts",
     "**/src/lib/drive/__tests__/oauth-state-concurrency.test.ts",
   ],
