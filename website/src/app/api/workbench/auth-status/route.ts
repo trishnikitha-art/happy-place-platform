@@ -16,7 +16,6 @@ export async function GET(request: Request) {
   console.log('[WORKBENCH_AUTH_STATUS] REQUEST_RECEIVED', {
     url: request.url,
     hasCookie: request.headers.has('cookie'),
-    cookieHeader: request.headers.get('cookie'),
     userAgent: request.headers.get('user-agent'),
     origin: request.headers.get('origin'),
     referer: request.headers.get('referer'),

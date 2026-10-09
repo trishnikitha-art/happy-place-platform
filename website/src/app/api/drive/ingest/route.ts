@@ -186,7 +186,7 @@ export async function POST(request: Request) {
       projectId: projectId || 'none',
       roles,
       canonicalSourceKey,
-      ownerToken,
+      hasLeaseOwner: !!ownerToken,
       clientProvidedKey: idempotencyKey,
     });
 
@@ -327,7 +327,7 @@ export async function POST(request: Request) {
             console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_HELD', {
               requestId,
               canonicalSourceKey,
-              existingOwner: leaseData.ownerToken,
+              hasExistingOwner: !!leaseData.ownerToken,
               existingStatus: leaseData.status,
               existingStartedAt: leaseData.startedAt,
             });
@@ -357,7 +357,7 @@ export async function POST(request: Request) {
                 message: 'Materialization already in progress for this source',
                 retryable: false,
                 requestId,
-                existingOwner: leaseData.ownerToken,
+                hasExistingOwner: !!leaseData.ownerToken,
                 startedAt: leaseData.startedAt,
               }, { status: 202 }); // 202 Accepted - request is valid but not yet complete
             }
@@ -367,7 +367,7 @@ export async function POST(request: Request) {
               console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_RETRYABLE', {
                 requestId,
                 canonicalSourceKey,
-                existingOwner: leaseData.ownerToken,
+                hasExistingOwner: !!leaseData.ownerToken,
                 failedAt: leaseData.failedAt,
                 errorCode: leaseData.errorCode,
                 errorMessage: leaseData.errorMessage,
@@ -393,8 +393,8 @@ export async function POST(request: Request) {
                 console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_RECLAIMED', {
                   requestId,
                   canonicalSourceKey,
-                  previousOwner: leaseData.ownerToken,
-                  newOwner: ownerToken,
+                  hasPreviousOwner: !!leaseData.ownerToken,
+                  hasNewOwner: !!ownerToken,
                   retryCount: retryLease.retryCount,
                 });
                 // Continue with materialization using reclaimed lease
@@ -433,7 +433,7 @@ export async function POST(request: Request) {
       console.log('[MEDIA_INGEST] IDEMPOTENCY_LEASE_ACQUIRED', {
         requestId,
         canonicalSourceKey,
-        ownerToken,
+        hasLeaseOwner: !!ownerToken,
         leaseExpiry,
       });
     }

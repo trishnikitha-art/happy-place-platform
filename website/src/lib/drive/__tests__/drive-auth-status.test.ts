@@ -4,6 +4,8 @@ import { driveSession } from '../drive-session';
 import { getOAuthClient } from '../oauth-manager';
 import { getAuthorization } from '../oauth-credential-store';
 import { getSession } from '../session-store';
+import { recordDriveActivity } from '../authenticated-activity';
+jest.mock('../authenticated-activity', () => ({ recordDriveActivity: jest.fn() }));
 
 jest.mock('@/lib/workbench-session', () => ({ workbenchSession: { isAuthenticated: jest.fn() } }));
 jest.mock('../drive-session', () => ({ driveSession: { getSessionId: jest.fn(), getCredentials: jest.fn() } }));
@@ -30,6 +32,7 @@ describe('Drive status respects Workbench identity and persisted credentials', (
     jest.mocked(getSession).mockResolvedValue({ authorizationId: 'test-authorization' } as never);
     jest.mocked(getAuthorization).mockResolvedValue({ status: 'active', principalId: 'principal-a' } as never);
     jest.mocked(driveSession.getCredentials).mockResolvedValue(credentials());
+    jest.mocked(recordDriveActivity).mockResolvedValue(true);
     jest.spyOn(console, 'warn').mockImplementation(() => {});
   });
   afterEach(() => jest.restoreAllMocks());
@@ -90,5 +93,11 @@ describe('Drive status respects Workbench identity and persisted credentials', (
     jest.mocked(getSession).mockRejectedValue(new Error('test-storage-error'));
     expect(await status()).toMatchObject({ authenticated: false });
     expect(driveSession.getCredentials).not.toHaveBeenCalled();
+  });
+  it('renews a usable connection and rejects an atomic renewal race', async () => {
+    await status();
+    expect(recordDriveActivity).toHaveBeenCalledWith('test-session', expect.objectContaining({ principalId: 'principal-a' }));
+    jest.mocked(recordDriveActivity).mockResolvedValue(false);
+    expect(await status()).toMatchObject({ authenticated: false });
   });
 });

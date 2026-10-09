@@ -17,6 +17,7 @@ import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 import { encrypt, decrypt, type EncryptionEnvelope } from './encryption';
 import { replaceAuthorizationForIdentity } from './reauthorization-identity';
+import { AUTH_RETENTION_SECONDS } from './session-renewal';
 
 // Re-export encryption utilities for oauth-manager
 export { decrypt, type EncryptionEnvelope };
@@ -130,9 +131,9 @@ function getRedisClient(): Redis {
 const AUTH_PREFIX = 'drive:auth:';
 const AUTH_SUBJECT_PREFIX = 'drive:auth:subject:';
 
-// Authorization TTL: 30 days (browser session lifetime)
-// This is Redis retention, NOT Google refresh token validity
-const AUTH_TTL_SECONDS = 30 * 24 * 60 * 60;
+// Encrypted authorization retention is independent of the 30-day browser idle lifetime.
+// Google may revoke or expire its token earlier; invalid_grant still revokes authority.
+export const AUTH_TTL_SECONDS = AUTH_RETENTION_SECONDS;
 
 /**
  * Google Authorization Record
@@ -372,7 +373,7 @@ export async function upsertAuthorization(
   scopes: string[],
   accessToken: string,
   accessTokenExpiresAt: number,
-  refreshToken: string,
+  refreshToken?: string,
   keyVersion: number = 0
 ): Promise<GoogleAuthorizationRecord> {
   try {
@@ -388,6 +389,16 @@ export async function upsertAuthorization(
 
     // Check if authorization exists for subject
     const existingAuth = await findAuthorizationBySubject(googleSubject);
+    if (!refreshToken) {
+      if (!existingAuth || existingAuth.status !== 'active' ||
+          existingAuth.principalId !== getCurrentPrincipalId() || existingAuth.googleSubject !== googleSubject) {
+        throw new Error('Refresh token required - explicit re-consent needed');
+      }
+      // An envelope alone is insufficient: require locally decryptable nonempty credentials.
+      if (!decrypt(JSON.parse(existingAuth.encryptedRefreshToken) as EncryptionEnvelope).trim()) {
+        throw new Error('Stored refresh token unusable - explicit re-consent needed');
+      }
+    }
 
     console.log('[AUTH_STORE] Existing authorization check', {
       hasExistingAuth: !!existingAuth,
@@ -410,7 +421,7 @@ export async function upsertAuthorization(
           scopes,
           accessToken,
           accessTokenExpiresAt,
-          refreshToken,
+          refreshToken!,
           keyVersion
         );
       } else {
@@ -427,7 +438,7 @@ export async function upsertAuthorization(
         existingAuth.scopes = scopes;
         existingAuth.encryptedAccessToken = JSON.stringify(encrypt(accessToken, keyVersion));
         existingAuth.accessTokenExpiresAt = new Date(accessTokenExpiresAt).toISOString();
-        existingAuth.encryptedRefreshToken = JSON.stringify(encrypt(refreshToken, keyVersion));
+        if (refreshToken) existingAuth.encryptedRefreshToken = JSON.stringify(encrypt(refreshToken, keyVersion));
         existingAuth.lastRefreshAt = new Date().toISOString();
         existingAuth.lastUsedAt = new Date().toISOString();
         existingAuth.updatedAt = new Date().toISOString();
@@ -436,7 +447,8 @@ export async function upsertAuthorization(
         const client = getRedisClient();
         const updated = await replaceAuthorizationForIdentity(
           client, namespacedKey(`${AUTH_PREFIX}${existingAuth.id}`),
-          principalId, googleSubject, existingAuth, AUTH_TTL_SECONDS
+          principalId, googleSubject, existingAuth, AUTH_TTL_SECONDS,
+          !refreshToken, namespacedKey(`${AUTH_SUBJECT_PREFIX}${googleSubject}`)
         );
 
         if (!updated) {
@@ -446,7 +458,7 @@ export async function upsertAuthorization(
 
         console.log('[AUTH_STORE] Authorization update succeeded');
 
-        auth = existingAuth;
+        auth = refreshToken ? existingAuth : await getAuthorization(existingAuth.id) || existingAuth;
       }
     } else {
       // No existing authorization: create new with atomic subject acquisition
@@ -457,7 +469,7 @@ export async function upsertAuthorization(
         scopes,
         accessToken,
         accessTokenExpiresAt,
-        refreshToken,
+        refreshToken!,
         keyVersion
       );
     }
@@ -634,15 +646,10 @@ async function createNewAuthorizationWithAtomicSubject(
     });
     
     // Update existing authorization with new tokens
-    await updateAuthorizationAfterRefresh(
-      existingAuth.id,
-      accessToken,
-      accessTokenExpiresAt,
-      refreshToken
-    );
-    
-    // Return the converged authorization
-    return await getAuthorization(existingAuth.id) || existingAuth;
+    // Re-enter the identity-checked atomic upsert; never use the refresh-only
+    // path to bypass subject/principal checks during callback convergence.
+    return upsertAuthorization(googleSubject, email, scopes, accessToken,
+      accessTokenExpiresAt, refreshToken, keyVersion);
   }
   
   console.log('[AUTH_STORE] Authorization created with atomic subject acquisition');
@@ -697,40 +704,14 @@ export async function updateAuthorizationAfterRefresh(
       updatedAt: now.toISOString(),
     };
     
-    // Redis Lua script for atomic authorization update with status verification
-    const luaScript = `
-      local auth_key = KEYS[1]
-      local updated_auth_data = ARGV[1]
-      local auth_ttl = ARGV[2]
-      
-      -- Get current authorization data
-      local current_auth_data = redis.call('GET', auth_key)
-      if not current_auth_data then
-        return 0  -- Authorization not found
-      end
-      
-      local current_auth = cjson.decode(current_auth_data)
-      
-      -- Verify authorization is still active
-      if current_auth.status ~= 'active' then
-        return 0  -- Authorization not active (revoked), prevent overwriting
-      end
-      
-      -- Authorization still active: update atomically
-      redis.call('SET', auth_key, updated_auth_data)
-      redis.call('EXPIRE', auth_key, auth_ttl)
-      
-      return 1  -- Success
-    `;
-
     const client = getRedisClient();
-    const result = await client.eval(
-      luaScript,
-      [namespacedKey(`${AUTH_PREFIX}${authId}`)],
-      [JSON.stringify(updatedAuth), AUTH_TTL_SECONDS.toString()]
+    const result = await replaceAuthorizationForIdentity(
+      client, namespacedKey(`${AUTH_PREFIX}${authId}`), auth.principalId,
+      auth.googleSubject, updatedAuth, AUTH_TTL_SECONDS, !newRefreshToken,
+      namespacedKey(`${AUTH_SUBJECT_PREFIX}${auth.googleSubject}`)
     );
 
-    if (result === 0) {
+    if (!result) {
       console.warn('[AUTH_STORE] Authorization refresh rejected: authorization no longer active');
       throw new Error('Authorization is not active - refresh rejected');
     }
@@ -794,7 +775,9 @@ export async function revokeAuthorization(id: string): Promise<void> {
       redis.call('EXPIRE', auth_key, auth_ttl)
 
       -- Delete subject index atomically (prevents subject resurrection)
-      redis.call('DEL', subject_index_key)
+      if redis.call('GET', subject_index_key) == auth.id then
+        redis.call('DEL', subject_index_key)
+      end
 
       return 1  -- Success
     `;
@@ -873,7 +856,9 @@ export async function revokeAuthorizationWithSessions(id: string): Promise<void>
       redis.call('EXPIRE', auth_key, auth_ttl)
 
       -- Delete subject index (prevents reauthorization)
-      redis.call('DEL', subject_index_key)
+      if redis.call('GET', subject_index_key) == auth.id then
+        redis.call('DEL', subject_index_key)
+      end
 
       -- Get all session IDs from session index
       local session_ids = redis.call('SMEMBERS', session_index_key)

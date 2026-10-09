@@ -45,7 +45,7 @@ const path = require('path');
 const crypto = require('crypto');
 const {publicGraph,hiddenServiceNames}=require('./public-projection-policy.cjs');
 
-const GENERATOR_VERSION = '1.0.0';
+const GENERATOR_VERSION = '1.0.1';
 const SCHEMA_VERSION = '1.0.0';
 
 function calculateHash(content) {
@@ -216,6 +216,7 @@ function generateGalleryProjection(canonicalGraph, scoring) {
     
     projectionProjects.push({
       projectId,
+      projectName: projectData.projectName,
       galleryRepresentative: representative.filename,
       supportingGalleryEvidence: supporting.map(img => img.filename),
       galleryOrder: order++,

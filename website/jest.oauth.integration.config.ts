@@ -10,6 +10,8 @@ const config: Config = {
     }],
   },
   testMatch: [
+    "**/src/lib/drive/__tests__/session-renewal.integration.test.ts",
+    "**/src/lib/drive/__tests__/oauth-reconnect-retention.integration.test.ts",
     "**/src/lib/drive/__tests__/oauth-reauthorization-identity.integration.test.ts",
     "**/src/lib/drive/__tests__/materialization-lease.integration.test.ts",
     // Phase A: Redis-backed integration tests (HTTP tests excluded)

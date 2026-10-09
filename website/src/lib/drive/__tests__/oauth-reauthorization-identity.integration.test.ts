@@ -41,4 +41,26 @@ const enabled = process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true';
     expect(await replaceAuthorizationForIdentity(redis, key, 'principal-a', 'subject-a', replacement, 1800)).toBe(false);
     expect(await redis.get(key)).toBe('invalid-json');
   });
+  it('preserves the latest stored refresh token across concurrent returning callbacks', async () => {
+    await redis.set(key, { ...replacement, encryptedRefreshToken: 'latest-rotated-token' });
+    const stale = { ...replacement, encryptedRefreshToken: 'stale-snapshot-token' };
+    expect(await Promise.all(Array.from({ length: 8 }, () =>
+      replaceAuthorizationForIdentity(redis, key, 'principal-a', 'subject-a', stale, 1800, true))))
+      .toEqual(Array(8).fill(true));
+    expect(await redis.get(key)).toMatchObject({ encryptedRefreshToken: 'latest-rotated-token' });
+  });
+  it('does not overwrite a newer rotation when a returning callback carries no refresh token', async () => {
+    const first = { ...replacement, encryptedRefreshToken: 'rotation-one' };
+    await redis.set(key, first);
+    const rotated = { ...replacement, encryptedRefreshToken: 'rotation-two' };
+    await replaceAuthorizationForIdentity(redis, key, 'principal-a', 'subject-a', rotated, 1800);
+    expect(await replaceAuthorizationForIdentity(redis, key, 'principal-a', 'subject-a', first, 1800, true)).toBe(true);
+    expect(await redis.get(key)).toMatchObject({ encryptedRefreshToken: 'rotation-two' });
+  });
+  it('rejects preservation when the current token is absent or revoked', async () => {
+    await redis.set(key, replacement);
+    expect(await replaceAuthorizationForIdentity(redis, key, 'principal-a', 'subject-a', replacement, 1800, true)).toBe(false);
+    await redis.set(key, { ...replacement, status: 'revoked', encryptedRefreshToken: 'old-token' });
+    expect(await replaceAuthorizationForIdentity(redis, key, 'principal-a', 'subject-a', replacement, 1800, true)).toBe(false);
+  });
 });

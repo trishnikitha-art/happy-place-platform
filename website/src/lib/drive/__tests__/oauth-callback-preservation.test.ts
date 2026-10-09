@@ -64,6 +64,21 @@ describe('Fresh OAuth callback preserves the working session on failure', () => 
     expect(createSession).not.toHaveBeenCalled();
     expectSessionPreserved();
   });
+  it('resolves Google identity before delegating missing refresh-token preservation to the repository', async () => {
+    fetchMock.mockReset().mockResolvedValueOnce(Response.json({ ...tokenData(), refresh_token: undefined }))
+      .mockResolvedValueOnce(Response.json({ sub: 'verified-google-subject', email: 'test@example.com' }));
+    await callback();
+    expect(upsertAuthorization).toHaveBeenCalledWith('verified-google-subject', 'test@example.com', scopes,
+      'test-new-access', expect.any(Number), undefined);
+    expect(createSession).toHaveBeenCalled();
+  });
+  it('keeps the prior session when durable-token recovery requires explicit consent', async () => {
+    jest.mocked(upsertAuthorization).mockRejectedValue(new Error('Refresh token required - explicit re-consent needed'));
+    const response = await callback();
+    expect(response.headers.get('location')).toContain('driveOAuthError=reconsent_required');
+    expect(createSession).not.toHaveBeenCalled();
+    expectSessionPreserved();
+  });
   it('preserves the existing connection when Google consent is denied', async () => {
     await callback('state=test-state&error=access_denied');
     expect(fetchMock).not.toHaveBeenCalled();

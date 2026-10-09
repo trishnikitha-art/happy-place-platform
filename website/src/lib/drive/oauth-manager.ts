@@ -21,6 +21,7 @@ import { getSession } from './session-store';
 import { workbenchSession } from '../workbench-session';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
+import { recordDriveActivity } from './authenticated-activity';
 
 /**
  * Generate safe correlation identifier for logging
@@ -134,20 +135,15 @@ async function explicitTokenRefresh(
       authorizationId,
       credentials.access_token,
       expiryDate,
-      refreshToken
+      newRefreshToken && newRefreshToken !== existingRefreshToken ? newRefreshToken : undefined
     );
     
     console.log('[OAUTH_MANAGER] Explicit token refresh succeeded');
   } catch (error) {
-    console.error('[OAUTH_MANAGER] Explicit token refresh failed:', error);
-    console.error('[OAUTH_MANAGER] Refresh error details:', {
-      errorMessage: error instanceof Error ? error.message : String(error),
-      errorStack: error instanceof Error ? error.stack : 'none',
-    });
-    
     // P0 FIX: Detect permanent Google authorization failure (invalid_grant)
     // and execute authoritative revocation path
     const errorMessage = error instanceof Error ? error.message : String(error);
+    console.warn('[OAUTH_MANAGER] Token refresh failed', { permanentFailure: errorMessage.includes('invalid_grant') });
     if (errorMessage.includes('invalid_grant')) {
       console.log('[OAUTH_MANAGER] Permanent Google authorization failure detected (invalid_grant), executing authoritative revocation');
       try {
@@ -163,7 +159,8 @@ async function explicitTokenRefresh(
       console.log('[OAUTH_MANAGER] Session cookie cleared');
     }
     
-    throw new Error(`Explicit token refresh failed: ${errorMessage}`);
+    throw new Error(errorMessage.includes('invalid_grant')
+      ? 'Explicit token refresh failed: invalid_grant' : 'Explicit token refresh failed');
   }
 }
 
@@ -267,6 +264,9 @@ export async function getOAuthClient(): Promise<InstanceType<typeof google.auth.
   // If the token was successfully refreshed, it is already persisted by explicitTokenRefresh()
   // If the token is still valid, it can be used directly without validation
 
+  if (!await recordDriveActivity(sessionId, authorization)) {
+    throw new Error('Drive session changed or expired - activity rejected');
+  }
   return oauth2Client;
 }
 

@@ -52,7 +52,7 @@ describe('Reauthorization preserves principal and Google identity', () => {
     expect(decrypt(JSON.parse(updated.encryptedAccessToken))).toBe('new-access');
     expect(decrypt(JSON.parse(updated.encryptedRefreshToken))).toBe('new-refresh');
     const args = redis.eval.mock.calls[0][2];
-    expect(args.slice(2)).toEqual(['principal-a', 'subject-a']);
+    expect(args.slice(2)).toEqual(['principal-a', 'subject-a', '0']);
     // The same Lua is executed by oauth-reauthorization-identity.integration.test.ts.
     expect(redis.eval.mock.calls[0][0]).toContain('current_auth.principalId ~= expected_principal');
     expect(redis.eval.mock.calls[0][0]).toContain('current_auth.googleSubject ~= expected_subject');
@@ -63,5 +63,28 @@ describe('Reauthorization preserves principal and Google identity', () => {
     expect(redis.eval).toHaveBeenCalledTimes(1);
     expect(redis.del).not.toHaveBeenCalled();
     expect(decrypt(JSON.parse(original.encryptedAccessToken))).toBe('old-access');
+  });
+  it('preserves a decryptable token for the same returning identity without a new refresh token', async () => {
+    const updated = await upsertAuthorization('subject-a', 'updated@example.com', ['drive.readonly'],
+      'new-access', Date.now() + 3600000);
+    expect(decrypt(JSON.parse(updated.encryptedRefreshToken))).toBe('old-refresh');
+    expect(redis.eval.mock.calls[0][2][4]).toBe('1');
+  });
+  it.each(['revoked', 'expired'])('requires fresh consent for %s authority without a refresh token', async status => {
+    original.status = status as GoogleAuthorizationRecord['status'];
+    await expect(upsertAuthorization('subject-a', 'updated@example.com', [], 'access', Date.now()))
+      .rejects.toThrow('re-consent');
+    expect(redis.eval).not.toHaveBeenCalled();
+  });
+  it('rejects first authorization without a refresh token before any persistence', async () => {
+    redis.get.mockResolvedValue(null);
+    await expect(upsertAuthorization('subject-a', 'updated@example.com', [], 'access', Date.now()))
+      .rejects.toThrow('re-consent');
+    expect(redis.eval).not.toHaveBeenCalled();
+  });
+  it('rejects an undecryptable stored token without overwriting the working record', async () => {
+    original.encryptedRefreshToken = 'invalid-envelope';
+    await expect(upsertAuthorization('subject-a', 'updated@example.com', [], 'access', Date.now())).rejects.toThrow();
+    expect(redis.eval).not.toHaveBeenCalled();
   });
 });

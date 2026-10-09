@@ -15,6 +15,15 @@
 
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
+import { renewAuthenticatedSession, DRIVE_IDLE_SECONDS, DRIVE_INDEX_SECONDS } from './session-renewal';
+import type { GoogleAuthorizationRecord } from './oauth-credential-store';
+
+export async function renewSessionActivity(id: string, authorization: GoogleAuthorizationRecord): Promise<boolean> {
+  const principal = process.env.HPP_WORKBENCH_PRINCIPAL_ID?.trim();
+  if (!principal || principal !== authorization.principalId || authorization.status !== 'active') return false;
+  return renewAuthenticatedSession(createRedisClient(), getKvNamespace(), id,
+    authorization.id, principal, authorization.googleSubject);
+}
 
 /**
  * P1-9: KV environment isolation
@@ -151,10 +160,10 @@ const SESSION_PREFIX = 'drive:session:';
 const AUTH_SESSIONS_PREFIX = 'drive:auth:sessions:';
 
 // Session TTL: 30 days (browser session lifetime)
-const SESSION_TTL_SECONDS = 30 * 24 * 60 * 60;
+const SESSION_TTL_SECONDS = DRIVE_IDLE_SECONDS;
 
 // Session index safety TTL: 60 days (longer than session TTL to allow renewal)
-const SESSION_INDEX_TTL_SECONDS = 60 * 24 * 60 * 60;
+const SESSION_INDEX_TTL_SECONDS = DRIVE_INDEX_SECONDS;
 
 /**
  * Browser Session Record
@@ -203,6 +212,9 @@ function validateSessionRecord(data: unknown): data is BrowserSessionRecord {
   
   if (typeof record.lastSeenAt !== 'string') {
     return false;
+  }
+  for (const timestamp of [record.createdAt, record.expiresAt, record.lastSeenAt]) {
+    if (!Number.isFinite(Date.parse(timestamp as string))) return false;
   }
   
   if (record.revokedAt !== undefined && typeof record.revokedAt !== 'string') {
@@ -375,7 +387,7 @@ export async function getSession(id: string): Promise<BrowserSessionRecord | nul
     // Check session expiration using ISO timestamp
     const now = new Date();
     const expiresAt = new Date(sessionRecord.expiresAt);
-    if (now > expiresAt) {
+    if (sessionRecord.id !== id || now >= expiresAt) {
       console.warn('[SESSION_STORE] Session expired');
       return null;
     }

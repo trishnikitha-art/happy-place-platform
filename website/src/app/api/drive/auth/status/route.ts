@@ -5,6 +5,7 @@ import { driveSession, type DriveCredentials } from '@/lib/drive/drive-session';
 import { getOAuthClient } from '@/lib/drive/oauth-manager';
 import { getAuthorization } from '@/lib/drive/oauth-credential-store';
 import { getSession } from '@/lib/drive/session-store';
+import { recordDriveActivity } from '@/lib/drive/authenticated-activity';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,7 +57,9 @@ export async function GET() {
     }
 
     // A successful refresh call alone does not prove usable persisted credentials.
-    return hasUsableCredentials(credentials) ? statusResponse(true, credentials) : statusResponse(false);
+    if (!hasUsableCredentials(credentials)) return statusResponse(false);
+    if (!await recordDriveActivity(sessionId, authorization)) return statusResponse(false);
+    return statusResponse(true, credentials);
   } catch {
     console.warn('[DRIVE_AUTH_STATUS] Status unavailable');
     return statusResponse(false);

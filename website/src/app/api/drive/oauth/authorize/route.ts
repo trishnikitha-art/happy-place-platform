@@ -111,12 +111,13 @@ export async function GET(request: Request) {
   authUrl.searchParams.append('scope', scopes.join(' '));
   authUrl.searchParams.append('access_type', 'offline');
   authUrl.searchParams.append('state', state);
-  authUrl.searchParams.append('prompt', 'consent'); // Always prompt consent for offline access
+  const reconsent = new URL(request.url).searchParams.get('reconsent') === '1';
+  if (reconsent) authUrl.searchParams.append('prompt', 'consent');
 
   console.log('[DRIVE OAUTH FORENSIC] Redirecting to Google OAuth:', {
     hasState: !!state,
     accessType: 'offline',
-    prompt: 'consent',
+    reconsent,
   });
 
   // HTTP redirect to Google OAuth - browser follows automatically

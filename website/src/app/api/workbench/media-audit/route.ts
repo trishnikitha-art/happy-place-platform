@@ -17,7 +17,8 @@ import { NextResponse } from 'next/server';
 import { workbenchSession } from '@/lib/workbench-session';
 import { listMediaIds, getMediaRecordRaw } from '@/lib/media-kv-store';
 import { loadMediaManifest } from '@/lib/media';
-import { verifyR2ObjectExists } from '@/lib/r2-storage';
+import { probeR2Object } from '@/lib/r2-storage';
+import { identifyStorageProvider } from '@/lib/media-storage-evidence';
 
 export const dynamic = 'force-dynamic';
 
@@ -45,6 +46,9 @@ async function classifyRecord(media: any, staticMediaMap: Map<string, any>): Pro
   
   if (media.lifecycleState !== 'published') {
     return { classification: 'UNKNOWN', reason: `Unknown lifecycle state: ${media.lifecycleState}` };
+  }
+  if (media.source === 'google-drive') {
+    return { classification: 'REQUIRES_MATERIALIZATION', reason: 'Drive source cannot establish published storage authority' };
   }
   
   // Published record - check constitutional contract independently
@@ -78,20 +82,13 @@ async function classifyRecord(media: any, staticMediaMap: Map<string, any>): Pro
         return { classification: 'AMBIGUOUS', reason: 'Local source without static manifest evidence or contentHash' };
       }
       
-      // Has contentHash - check for R2 evidence
-      try {
-        const originalUrl = media.variants?.original || '';
-        const r2Key = originalUrl.split('/').pop() || '';
-        const objectExists = await verifyR2ObjectExists(r2Key);
-        
-        if (objectExists) {
-          // Full R2 evidence chain → repairable to r2
-          return { classification: 'REPAIRABLE_R2', reason: 'Local source with full R2 evidence chain' };
-        }
-        return { classification: 'AMBIGUOUS', reason: 'R2 object not found' };
-      } catch (error) {
-        return { classification: 'AMBIGUOUS', reason: 'R2 verification error' };
+      const provider = identifyStorageProvider(media);
+      if (provider.provider !== 'r2' || !provider.key) {
+        return { classification: 'AMBIGUOUS', reason: `Storage evidence: ${provider.provider}; ${provider.reason || 'storage undeclared'}` };
       }
+      const probe = await probeR2Object(provider.key);
+      // HEAD alone never authorizes storage promotion or proves persisted bytes.
+      return { classification: 'AMBIGUOUS', reason: `R2 original: ${probe.outcome}; storage authority undeclared; no repair authorized` };
     }
     
     return { classification: 'AMBIGUOUS', reason: 'Unknown source without storage' };
@@ -103,18 +100,13 @@ async function classifyRecord(media: any, staticMediaMap: Map<string, any>): Pro
       return { classification: 'MALFORMED', reason: 'R2 storage requires contentHash' };
     }
     
-    // Verify R2 evidence
-    try {
-      const originalUrl = media.variants?.original || '';
-      const r2Key = originalUrl.split('/').pop() || '';
-      const objectExists = await verifyR2ObjectExists(r2Key);
-      
-      if (!objectExists) {
-        return { classification: 'MALFORMED', reason: 'R2 storage missing R2 object' };
-      }
-    } catch (error) {
-      return { classification: 'MALFORMED', reason: 'R2 verification error' };
+    const provider = identifyStorageProvider(media);
+    if (provider.provider !== 'r2' || !provider.key) {
+      return { classification: 'AMBIGUOUS', reason: `R2 origin unverified: ${provider.reason || provider.provider}` };
     }
+    const probe = await probeR2Object(provider.key);
+    if (probe.outcome === 'NOT_FOUND') return { classification: 'MISSING_STORAGE', reason: 'R2 original: NOT_FOUND' };
+    if (probe.outcome !== 'EXISTS') return { classification: 'AMBIGUOUS', reason: `R2 original: ${probe.outcome}` };
   }
   
   if (media.storage === 'static') {
@@ -132,8 +124,8 @@ async function classifyRecord(media: any, staticMediaMap: Map<string, any>): Pro
     return { classification: 'MALFORMED', reason: 'Published asset has legacy drive field' };
   }
   
-  // All checks passed
-  return { classification: 'VALID_PUBLISHED', reason: 'Satisfies complete PublishedMediaAsset contract' };
+  if (!hasDimensions || !hasVariants) return { classification: 'MALFORMED', reason: 'Published dimensions or original missing' };
+  return { classification: 'VALID_PUBLISHED', reason: 'Declared published structure; persisted bytes and complete renditions not audited' };
 }
 
 export async function POST(request: Request) {
@@ -160,11 +152,15 @@ export async function POST(request: Request) {
       const manifest = loadMediaManifest();
       const staticMediaMap = new Map(manifest.media.map(m => [m.id, m]));
       
-      const mediaIds = await listMediaIds();
+      const mediaIds = [...new Set(await listMediaIds())].sort();
       
       // P0 FIX: Pagination support to handle large datasets
-      const pageSize = limit || 100; // Default 100 records per batch
-      const startIndex = offset || 0;
+      if ((limit !== undefined && (!Number.isInteger(limit) || limit < 1 || limit > 100)) ||
+          (offset !== undefined && (!Number.isInteger(offset) || offset < 0))) {
+        return NextResponse.json({ error: 'Invalid pagination; limit 1–100 and nonnegative offset required' }, { status: 400 });
+      }
+      const pageSize = limit ?? 100;
+      const startIndex = offset ?? 0;
       const endIndex = Math.min(startIndex + pageSize, mediaIds.length);
       const pageIds = mediaIds.slice(startIndex, endIndex);
       
@@ -200,17 +196,23 @@ export async function POST(request: Request) {
         ambiguous: 0,
         ambiguousIds: [] as string[],
         unknown: 0,
+        missingRecords: 0,
+        nextOffset: endIndex < mediaIds.length ? endIndex : null,
+        verificationScope: 'classification and original-object HEAD only; no materialization proof',
+        records: [] as any[],
         sampleRecords: [] as any[],
       };
       
       for (const mediaId of pageIds) {
         const media = await getMediaRecordRaw(mediaId);
         if (!media) {
+          results.missingRecords++;
           continue;
         }
         
         // P0 FIX: Use independent forensic classification instead of calling public gate
         const classification = await classifyRecord(media, staticMediaMap);
+        results.records.push({ id: mediaId, ...identifyStorageProvider(media), ...classification });
         
         // Map classification to result buckets
         switch (classification.classification) {

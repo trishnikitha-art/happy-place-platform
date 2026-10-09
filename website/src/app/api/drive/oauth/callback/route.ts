@@ -216,10 +216,10 @@ export async function GET(request: Request) {
       return NextResponse.redirect(url);
     }
 
-    // FAIL CLOSED: refresh_token is required for durable Drive authority
-    // authorize route explicitly requests access_type=offline and prompt=consent
-    // Google must provide refresh_token or the authorization should be rejected
-    if (!tokenData.refresh_token || typeof tokenData.refresh_token !== 'string') {
+    // Google may omit refresh_token on returning authorization. The repository
+    // permits this only for the same active identity with a decryptable stored token.
+    if (tokenData.refresh_token !== undefined &&
+        (typeof tokenData.refresh_token !== 'string' || !tokenData.refresh_token.trim())) {
       console.error('[DRIVE OAUTH FORENSIC] Token response missing or invalid refresh_token - cannot establish durable Drive authority');
       const url = new URL('/workbench/media', request.url);
       return NextResponse.redirect(url);
@@ -392,6 +392,8 @@ export async function GET(request: Request) {
       errorCode = 'malformed_auth_code';
     } else if (errorMessage.includes('Token has been revoked')) {
       errorCode = 'token_revoked';
+    } else if (/re-consent|refresh token|Refresh token/.test(errorMessage)) {
+      errorCode = 'reconsent_required';
     }
     
     const url = new URL('/workbench/media', request.url);

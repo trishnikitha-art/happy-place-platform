@@ -17,6 +17,7 @@ import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 import { RESPONSIVE_WIDTHS } from './media-constants';
 import { getR2PublicOrigin } from './r2-public-origin';
+import { classifyR2ProbeError, type R2ObjectProbe } from './media-storage-evidence';
 
 /**
  * Verification result with distinct error types
@@ -287,12 +288,13 @@ export async function deleteFromR2(key: string): Promise<void> {
  * @param key - The object key to verify
  * @returns true if the object exists and is accessible
  */
-export async function verifyR2ObjectExists(key: string): Promise<boolean> {
+export async function probeR2Object(key: string): Promise<R2ObjectProbe> {
+  if (!key || key.startsWith('/') || key.includes('..')) return { outcome: 'INVALID_KEY' };
   const client = getR2Client();
   const bucket = getR2Bucket();
   
   if (!client || !bucket) {
-    return false;
+    return { outcome: 'NOT_CONFIGURED' };
   }
   
   try {
@@ -301,12 +303,16 @@ export async function verifyR2ObjectExists(key: string): Promise<boolean> {
       Key: key,
     });
     
-    await client.send(command);
-    return true;
+    await client.send(command, { abortSignal: AbortSignal.timeout(5000) });
+    return { outcome: 'EXISTS' };
   } catch (error) {
-    console.error('[R2_STORAGE] Error verifying R2 object existence', { key, error });
-    return false;
+    return classifyR2ProbeError(error);
   }
+}
+
+/** Existing public gates remain fail closed; diagnostics retain the distinct outcome. */
+export async function verifyR2ObjectExists(key: string): Promise<boolean> {
+  return (await probeR2Object(key)).outcome === 'EXISTS';
 }
 
 /**

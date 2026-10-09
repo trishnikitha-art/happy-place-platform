@@ -1494,6 +1494,8 @@ export default function MediaWorkbench() {
         errorMessage = 'Google Drive authorization failed: Malformed authorization code. Please try connecting again.';
       } else if (driveOAuthError === 'token_revoked') {
         errorMessage = 'Google Drive authorization failed: Token was revoked. Please try connecting again.';
+      } else if (driveOAuthError === 'reconsent_required') {
+        errorMessage = 'Google did not provide durable Drive access. Use “Restore Drive access with Google consent” to reconnect.';
       }
       
       alert(errorMessage);
@@ -3210,6 +3212,10 @@ export default function MediaWorkbench() {
                     <p className="text-xs text-muted-foreground text-center">
                       Authorize Google Drive to browse and select images
                     </p>
+                    <a href="/api/drive/oauth/authorize?reconsent=1"
+                      className="flex min-h-11 items-center justify-center rounded px-3 py-3 text-sm text-foreground underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary">
+                      Restore Drive access with Google consent
+                    </a>
                   </div>
                 )}
 

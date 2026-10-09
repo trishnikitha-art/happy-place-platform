@@ -1,4 +1,6 @@
 import { defineConfig } from "eslint/config";
+import tsParser from "@typescript-eslint/parser";
+import tsPlugin from "@typescript-eslint/eslint-plugin";
 
 const eslintConfig = defineConfig([
   {
@@ -8,7 +10,9 @@ const eslintConfig = defineConfig([
       "build/**",
       "next-env.d.ts",
       "package/**",
-      "scripts/**",
+      "scripts/**/*.{js,cjs,mjs,ts}",
+      "!scripts/public-projection-policy.cjs",
+      "!scripts/audit-production-media.ts",
       "src/shared/connectors/**",
       "src/shared/explorer/**",
       "src/shared/intelligence/**",
@@ -24,10 +28,16 @@ const eslintConfig = defineConfig([
       "src/app/api/admin/**",
       "src/app/api/diagnostics/**",
       "src/app/api/auth/google/**",
-      "src/app/api/drive/**",
+      "src/app/api/drive/**/*.{ts,tsx}",
+      "!src/app/api/drive/**/route.ts",
       "src/services/**",
       "src/types/**",
-      "src/lib/**",
+      "src/lib/**/*.{ts,tsx,js,cjs,mjs}",
+      "!src/lib/drive/*.ts",
+      "!src/lib/r2-storage.ts",
+      "!src/lib/r2-public-origin.ts",
+      "!src/lib/media-storage-evidence.ts",
+      "!src/lib/media-inventory.ts",
       "src/app/api/drive-sync/**",
       "src/app/api/estimate/**",
       "src/app/api/kit/**",
@@ -48,6 +58,35 @@ const eslintConfig = defineConfig([
       "src/compiler/**",
       "src/config/**",
     ],
+  },
+  {
+    files: ["src/lib/drive/*.ts", "src/lib/r2-*.ts", "src/lib/media-storage-evidence.ts",
+      "src/lib/media-inventory.ts", "src/app/api/drive/**/route.ts", "scripts/public-projection-policy.cjs", "scripts/audit-production-media.ts",
+      "src/app/api/workbench/media-audit/route.ts", "src/app/api/workbench/auth-status/route.ts"],
+    languageOptions: { parser: tsParser },
+    plugins: { "@typescript-eslint": tsPlugin },
+    // Existing typed API suppressions remain scoped while their rules are introduced progressively.
+    linterOptions: { reportUnusedDisableDirectives: false },
+    rules: {
+      "no-unreachable": "error",
+      "no-dupe-keys": "error",
+      "no-dupe-args": "error",
+      "no-unsafe-finally": "error",
+      "no-constant-condition": "error",
+      "no-fallthrough": "error",
+      "constructor-super": "error",
+      "valid-typeof": "error",
+      "no-eval": "error",
+      "no-implied-eval": "error",
+      "no-new-func": "error",
+      "eqeqeq": "error",
+    },
+  },
+  {
+    files: ["src/lib/drive/session-renewal.ts", "src/lib/drive/authenticated-activity.ts",
+      "src/lib/drive/reauthorization-identity.ts", "src/lib/media-storage-evidence.ts", "src/lib/media-inventory.ts",
+      "scripts/audit-production-media.ts"],
+    rules: { "@typescript-eslint/no-explicit-any": "error", "@typescript-eslint/no-unused-vars": "error" },
   },
   {
     languageOptions: {
