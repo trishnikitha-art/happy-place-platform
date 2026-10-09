@@ -16,6 +16,7 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 import { RESPONSIVE_WIDTHS } from './media-constants';
+import { getR2PublicOrigin } from './r2-public-origin';
 
 /**
  * Verification result with distinct error types
@@ -201,7 +202,7 @@ export async function uploadToR2(
 ): Promise<R2UploadResult> {
   const client = getR2Client();
   const bucket = getR2Bucket();
-  const publicBaseUrl = process.env.R2_PUBLIC_BASE_URL;
+  const publicBaseUrl = getR2PublicOrigin()?.origin;
   
   if (!client || !bucket) {
     throw new Error('R2 client or bucket not configured');

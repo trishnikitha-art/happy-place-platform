@@ -14,7 +14,7 @@
  * - Source of truth for Workbench visual inventory
  */
 
-import { loadMediaManifest } from './media';
+import { loadMediaManifest, resolvePublicMedia } from './media';
 import type { Media, MediaManifest } from '@/types/media';
 import { getMedia as getMediaFromKV } from './media-kv-store';
 
@@ -423,7 +423,12 @@ export async function getPublishedMediaAssets(): Promise<PublishedMediaAssetsRes
     const mediaBatch = await getMediaBatch(mediaIds);
 
     for (const mediaId of mediaIds) {
-      const media = mediaBatch.get(mediaId) ?? null;
+      const storedMedia = mediaBatch.get(mediaId) ?? null;
+      // R2 previews use the same physically verified canonical projection as the site.
+      // Keep the batched static path and stored records unchanged.
+      const media = storedMedia?.storage === 'r2'
+        ? await resolvePublicMedia(mediaId)
+        : storedMedia;
       
       if (media && media.source === 'local' && media.lifecycleState === 'published') {
         // This is a PublishedMediaAsset (materialized from Drive or other sources)

@@ -20,6 +20,7 @@ import { getPublishedMediaAssets } from '@/lib/visual-asset-registry';
 import { workbenchSession } from '@/lib/workbench-session';
 import { getMediaRecordRaw, listMediaIds } from '@/lib/media-kv-store';
 import { getServiceCardAssignment } from '@/lib/assignment-store';
+import { resolvePublicMedia } from '@/lib/media';
 
 import { resolveAssignmentKey } from '@/lib/workbench-assignment-contract';
 
@@ -85,6 +86,11 @@ export async function POST(request: Request) {
         }
       }
 
+      if (foundMedia?.storage === 'r2' && foundMedia.lifecycleState === 'published') {
+        // Return canonical presentation for valid assets; keep raw deduplication
+        // evidence when materialization is incomplete so ingest can recover it.
+        foundMedia = await resolvePublicMedia(foundMedia.id) ?? foundMedia;
+      }
       return NextResponse.json({
         media: foundMedia,
         found: !!foundMedia,

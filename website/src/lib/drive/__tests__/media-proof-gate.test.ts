@@ -135,6 +135,9 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
     it('should allow R2 storage assets with complete physical renditions', async () => {
       const { getMedia } = require('@/lib/media-kv-store');
       const { verifyR2ObjectExists } = require('@/lib/r2-storage');
+      const previousOrigin = process.env.R2_PUBLIC_BASE_URL;
+      process.env.R2_PUBLIC_BASE_URL = 'https://r2.example.com';
+      const url = (hash: string, ext: string) => `https://r2.example.com/${hash.repeat(64)}-original.${ext}`;
       
       // R2 storage assets with valid R2 object should pass
       getMedia.mockResolvedValue({
@@ -142,14 +145,14 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
         lifecycleState: 'published',
         source: 'local',
         storage: 'r2',
-        contentHash: 'real-hash',
+        contentHash: 'a'.repeat(64),
         dimensions: { width: 1200, height: 800 },
         variants: {
-          original: 'https://r2.example.com/test.jpg', web: 'https://r2.example.com/test.webp',
-          webp: 'https://r2.example.com/test.webp', avif: 'https://r2.example.com/test.avif',
-          thumbnail: 'https://r2.example.com/thumb.webp', blur: 'https://r2.example.com/blur.webp',
+          original: url('a', 'jpg'), web: url('b', 'webp'),
+          webp: url('b', 'webp'), avif: url('c', 'avif'),
+          thumbnail: url('d', 'webp'), blur: url('e', 'webp'),
           responsive: [480, 768, 1080].map(width => ({ width,
-            webp: 'https://r2.example.com/' + width + '.webp', avif: 'https://r2.example.com/' + width + '.avif',
+            webp: url('b', 'webp'), avif: url('c', 'avif'),
           })),
         }
       });
@@ -161,6 +164,8 @@ describe('Media Proof Gate - Constitutional Boundary', () => {
       
       expect(result).not.toBeNull();
       expect(result?.id).toBe('test-r2-media');
+      if (previousOrigin === undefined) delete process.env.R2_PUBLIC_BASE_URL;
+      else process.env.R2_PUBLIC_BASE_URL = previousOrigin;
     });
 
     it('should reject local published assets without storage field', async () => {

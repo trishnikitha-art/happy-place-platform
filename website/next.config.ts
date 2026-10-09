@@ -1,9 +1,10 @@
 import type { NextConfig } from "next";
+import { getR2PublicOrigin } from './src/lib/r2-public-origin';
 
-// Match only the configured bucket origin, including any custom-domain prefix.
-const r2PublicBaseUrl = process.env.R2_PUBLIC_BASE_URL;
-const r2ImagePatterns = r2PublicBaseUrl
-  ? [new URL(`${r2PublicBaseUrl.replace(/\/$/, '')}/**`)]
+// The same canonical HTTPS origin drives presentation and image optimization.
+const r2PublicOrigin = getR2PublicOrigin();
+const r2ImagePatterns = r2PublicOrigin
+  ? [new URL('/**', r2PublicOrigin)]
   : [];
 
 const nextConfig: NextConfig = {
@@ -40,15 +41,7 @@ const nextConfig: NextConfig = {
       },
     ],
     // Keep image delivery aligned with the configured R2 materialization origin.
-    remotePatterns: [
-      ...r2ImagePatterns,
-      {
-        protocol: 'https',
-        hostname: '*.public.blob.vercel-storage.com',
-        port: '',
-        pathname: '/**',
-      },
-    ],
+    remotePatterns: r2ImagePatterns,
   },
   // Allow browser preview for development
   allowedDevOrigins: ['127.0.0.1'],

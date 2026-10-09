@@ -660,7 +660,9 @@ export async function POST(request: Request) {
           return NextResponse.json({
             success: true,
             action: 'existing',
-            media: existingMedia,
+            media: existingMedia.storage === 'r2'
+              ? (await import('@/lib/r2-public-origin')).projectVerifiedR2Media(existingMedia)
+              : existingMedia,
             mediaId: existingMedia.id,
             message: 'Media already exists with matching content hash (assignment handled by caller)',
             deduplicated: true,

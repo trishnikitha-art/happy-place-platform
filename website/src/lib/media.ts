@@ -351,6 +351,15 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
   }
 
   console.log('[PUBLIC_MEDIA_GATE] APPROVED: published public media', { id });
+  if (media.storage === 'r2') {
+    try {
+      const { projectVerifiedR2Media } = await import('./r2-public-origin');
+      return projectVerifiedR2Media(media);
+    } catch {
+      console.error('[PUBLIC_MEDIA_GATE] REJECTED: Invalid R2 presentation origin or keys', { id });
+      return null;
+    }
+  }
   return media;
 }
 
