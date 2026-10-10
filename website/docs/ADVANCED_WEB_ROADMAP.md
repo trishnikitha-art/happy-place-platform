@@ -1,5 +1,11 @@
 # Advanced web-development roadmap — October 10, 2026
 
+## Recurring evidence collection — October 10, 2026
+
+The bounded UI collector now has repository-owned operations in `docs/research/ui/OPERATIONS.md`, a dated inventory/baseline, and the reusable `.agents/skills/hpp-ui-research` skill. GitHub issue 4 retains append-only source observations and versioned review candidates. GitHub Actions owns the conservative weekly/manual invocation. No harvested code/assets/dependencies or application mutations are adopted automatically. Timer configuration and an observed Actions run are distinct evidence claims; the execution report records both.
+
+This roadmap remains the implementation-priority owner. The strongest measured candidate is still the archive lightbox click; source discovery does not certify faster INP. Selection scope, batch save receipts and evidence confidence follow, mapped to current HPP modules. A changed module defers its existing research comparison until revalidation. Public composition changes need their separate approval and visual checks.
+
 Research is ordered by problems observed in this application. No recommendation establishes faster Core Web Vitals without browser measurements. This is a bounded research pass, not a claim that every design trend has been exhaustively investigated.
 
 ## Implementation sequence

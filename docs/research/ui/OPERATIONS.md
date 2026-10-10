@@ -1,0 +1,46 @@
+# HPP UI research operations
+
+The existing GitHub Actions scheduler runs the Node 24 collector. No application worker, database, event bus, browser runtime or Codex heartbeat is added. The research history is [GitHub issue 4](https://github.com/trishnikitha-art/happy-place-platform/issues/4). Repository research instructions/configuration live here and in `scripts/ui-research`; public media/content remain owned by the existing application authorities. `website/docs/ADVANCED_WEB_ROADMAP.md` owns implementation priorities.
+
+## Operation and review
+
+The workflow `.github/workflows/ui-research.yml` defines Tuesdays at 09:17 UTC, avoiding the busy top of the hour. This is configured infrastructure; an actual timer run must be reported separately. `workflow_dispatch` supports manual invocation and an interrupted run UUID. Change cadence through the same reviewed workflow file, not another scheduler. Disable the workflow in Actions, set repository variable `HPP_UI_RESEARCH_DISABLED=true`, set catalog `enabled=false`, or close the research issue to stop collection.
+
+Use the existing token manager: Actions supplies `github.token` only to the harvesting step. Job permissions are `contents: read, issues: write`; no production secrets, Drive/R2 access or deployment capabilities are injected. PR validation has no issue-write permission and does not harvest. Serialize history jobs with workflow concurrency. Do not run two manual writers to the same sink concurrently.
+
+```powershell
+node --test scripts/ui-research/research.test.mjs
+node scripts/ui-research/run.mjs --store C:\explicit\research-checkpoint-directory
+node scripts/ui-research/run.mjs --store C:\explicit\research-checkpoint-directory --resume <interrupted-run-UUID>
+node scripts/ui-research/run.mjs --backend github --store C:\explicit\digest-directory
+node scripts/ui-research/review.mjs files C:\explicit\research-checkpoint-directory C:\explicit\decision.json
+node scripts/ui-research/review.mjs github issue C:\explicit\decision.json
+```
+
+The GitHub invocation needs `GITHUB_TOKEN` from an existing authorized credential provider; never put it in files/commands/logs. Files are a local checkpoint/validation transport; scheduled history belongs to the issue. The GitHub adapter validates the open marked issue, trusted writer, unedited comments, event schema/hash and persisted readback. It paginates up to 5,000 comments and stops visibly at the limit rather than dropping history. Duplicate semantic findings reference previous versions; raw response hashes remain on each observation. First/last seen are derived from immutable observations; a source failure cannot replace a successful record.
+
+Append human review with a new `decision` event using `review.mjs`; supply `findingId`, `versionId`, `decision`, `reviewer` and `reason` in the input JSON. GitHub decisions bind the reviewer to the authenticated actor and comment author; local decisions are explicitly self-asserted. A decision addresses that version, not future revisions. Never edit a finding to erase a rejected/deferred result. Review records do not invoke implementation or publish anything. Ordinary issue discussion is not parsed as an event.
+
+Machine records use canonical JSON hashes and a sequenced previous-event chain. Legacy bootstrap records retain their original bytes and are accepted with their recorded hashes; subsequent chained records expose missing earlier records and require a continuous chain. GitHub issue permissions can still allow authorized maintainers to delete history, and an independent checkpoint is needed to detect deletion of the final unanchored tail: this is append-only writer behavior, not WORM storage. Export/archive the issue through existing repository governance if stronger retention is required. The 5,000-comment read cap spans roughly nine years at the initial cadence. Before that cap, perform an explicitly reviewed archival/checkpoint migration; collection stops visibly rather than silently truncating prior evidence.
+
+## Limits and evidence
+
+Catalog `sources.json` owns allowed origins, exact reviewed pages, target anchors, scoring and budgets. Maximum eight sources in the initial catalog; hard ceilings allow twelve per run, 48 requests, 1 MiB per response, 12 MiB total, 20-second request timeout, five-minute run budget, two retries and two explicitly listed pages per source. The initial run uses one retry, 15-second timeout, four-minute budget and sequential fetching. Each origin has a minimum one-second spacing, respects crawl-delay up to ten seconds and observes bounded 429/5xx Retry-After. Redirects, credentials, query strings, IP literals, private/mapped IPs, non-text content and inaccessible robots files fail closed. Only public IPv4 addresses are allowed and DNS selection is pinned to the validated address. No scripts/assets are fetched or executed.
+
+Robots 404 means no directives; 401/403/5xx or a disallow stop that source. This is not a license/terms override: reviewed catalog additions must be permitted by the source's access policy. The collector retains only a 25-word text excerpt, evidence terms and SHA-256 of retrieved response bytes, not full copyrighted page copies. The response hash is provenance; it is not a reconstructable archive of the discarded body. No screenshot, animation, filter interaction, touch behavior or mobile layout is certified by text retrieval. Dynamic page boilerplate can change a response hash without changing the supported pattern; finding versions use the retained observation and inspected HPP analysis hash.
+
+Incremental selection rotates catalog sources when the per-run cap is lower than the inventory, rotates explicitly listed pages, and revalidates ETags. There is no unbounded link crawler. Failures preserve references to the last success. Each source is a durable checkpoint; resume reuses the exact catalog hash and skips recorded sources, including already recorded failures. Completed resumes do no work. Failed sources are retried in a new run so attempts remain distinct and bounded. Unknown resume IDs are rejected. A changed catalog cannot silently alter an interrupted run. Network/budget failures and partial runs are non-green exits with retained digests/history. GitHub GETs retry one bounded 429/rate-limited 403/5xx; permission denials do not retry. POSTs are not blindly retried after an ambiguous result: rerun/resume first reads durable history to avoid duplicate writes.
+
+## Mapping and digest
+
+The catalog records the reviewed HPP target's baseline SHA-256. Each capture checks the actual file and anchor. A changed target produces `mapping-revalidation-needed`, lowers recommendation confidence and defers that candidate until an architecture mapper reviews the current implementation. It does not blindly repeat a once-correct comparison after HPP changes.
+
+Normalization v2 hashes the complete normalized document text after removing scripts/styles/markup, while retaining only the bounded excerpt. This detects text changes outside that excerpt. Raw response hashes still distinguish discarded script/markup changes. Initial bootstrap records used excerpt-based normalization and noncanonical JSON hashes; those bytes remain intact. The hardening migration creates new analysis/evidence versions rather than pretending all sources changed visually. Scores are curated triage estimates, not measurements. The digest includes existing review candidates even when the run finds no new versions; Actions displays it in its job summary and retains the file as a convenience artifact.
+
+## PING — BLOCKED
+
+Read-only inspection of `C:\Users\nolan\PING` found `gateway/routes/events.js:72–89`, mounted behind `ExteriorAuthMiddleware` in `gateway/bootstrap/gateway_runtime.js`, and `ping-runtime/events/unified_event_runtime.js:73–153`. `/events` accepts event type, aggregate ID/type and event data, binds source to the authenticated agent, hashes semantic event identity, and inserts `ping_events` with duplicate suppression. It does not forward namespace/logical ID and defaults to `core::system`. Oracle reports prove an older deployed snapshot accepted events and deduplicated reposts; this is not current runtime certification.
+
+The current checkout imports absent authentication/canonicalization implementations, has malformed code in other event-route branches, and provides no field-level research reference contract. The registry's generic `OBSERVATION_CREATED` is insufficient evidence of permission for HPP research. `design-research/src/ingest.js` packages local captures; it is not an authenticated edge delivery seam.
+
+Missing dependencies: a verified reachable gateway deployment/TLS route, an authorized HPP agent principal with permitted event type/namespace, the research reference payload/identity schema, retained-evidence links, and the delivery/retry contract. No credential was inspected, no PING file changed, no speculative adapter or endpoint was added. The collector rejects unknown event types and unknown mutation fields. Those tests establish the HPP research boundary; they do not claim to exercise nonexistent PING authentication. Exactly one logical stream may be added after this contract is established, using the same history sink, without execution/content/media/configuration authority.
