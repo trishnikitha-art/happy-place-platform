@@ -72,6 +72,7 @@ import { join } from "path";
 import { Redis } from '@upstash/redis';
 import { getEnvironment, getKvNamespace } from '@/lib/environment';
 import {
+  buildDeploymentCommitMessage,
   createDeploymentTransaction,
   claimDeploymentTransaction,
   claimBatchDeploymentTransactions,
@@ -2362,7 +2363,7 @@ export async function POST(request: Request) {
           'Content-Type': 'application/vnd.github.v3+json',
         },
         body: JSON.stringify({
-          message: `Workbench: accept media changes\n\n${reason}\n\nTransaction ID: ${deploymentTransactionId}`,
+          message: buildDeploymentCommitMessage(reason, batchContext.transactionIds),
           tree: newTreeSha,
           parents: [currentCommitSha],
         }),

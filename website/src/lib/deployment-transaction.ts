@@ -42,6 +42,11 @@
 import { Redis } from '@upstash/redis';
 import { getEnvironment, getKvNamespace } from '@/lib/environment';
 
+/** Give every claimed receipt a discoverable marker in the shared Git commit. */
+export function buildDeploymentCommitMessage(reason: string, transactionIds: readonly string[]): string {
+  return `Workbench: accept media changes\n\n${reason}\n\n${transactionIds.map(id => `Transaction ID: ${id}`).join('\n')}`;
+}
+
 /**
  * P0 FIX: Eliminate process-global mutable state
  * Create fresh Redis client on each call to prevent identity leaks
