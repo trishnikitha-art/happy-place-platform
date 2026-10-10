@@ -179,6 +179,7 @@ export function ProjectSpotlight({
             alt={heroAlt}
             fill
             priority
+            sizes="100vw"
             placeholder={heroMedia?.variants?.blur ? "blur" : "empty"}
             blurDataURL={heroMedia?.variants?.blur}
             className="absolute inset-0 h-full w-full object-cover opacity-30"

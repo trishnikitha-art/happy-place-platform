@@ -1,34 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { getAllReviews, getReviewsByService, type ReviewService } from "@/lib/reviews";
+import { useState } from "react";
+import type { ReviewService } from "@/types/reviews";
 import { ReviewsFilter } from "@/components/reviews-filter";
 import { StarRating } from "@/components/star-rating";
 import type { Review } from "@/types/reviews";
 
-export function ReviewsFilterClient() {
+export function ReviewsFilterClient({ allReviews }: { allReviews: Review[] }) {
   const [selectedService, setSelectedService] = useState<ReviewService | "all">("all");
-  const [allReviews, setAllReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    getAllReviews().then(reviews => {
-      setAllReviews(reviews);
-      setLoading(false);
-    });
-  }, []);
 
   const filteredReviews = selectedService === "all" 
     ? allReviews 
     : allReviews.filter(r => r.service === selectedService);
-
-  if (loading) {
-    return (
-      <div className="mt-10 text-center">
-        <p className="text-text-muted">Loading reviews...</p>
-      </div>
-    );
-  }
 
   return (
     <>

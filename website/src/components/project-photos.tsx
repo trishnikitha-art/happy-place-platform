@@ -70,6 +70,7 @@ export function ProjectPhotos({ photos, limit }: ProjectPhotosProps) {
                   src={src}
                   alt={photo.alt}
                   fill
+                  sizes="(min-width: 1280px) 600px, (min-width: 640px) calc((100vw - 64px) / 2), calc((100vw - 48px) / 2)"
                   className="object-cover transition-transform duration-300 group-hover:scale-105"
                   loading="lazy"
                   placeholder={photo.variants?.blur ? "blur" : "empty"}

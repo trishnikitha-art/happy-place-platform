@@ -4,7 +4,7 @@ import Image from "next/image";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { StarRating } from "@/components/star-rating";
 import { CTASection } from "@/components/cta-section";
-import { getReviewStats, type ReviewService } from "@/lib/reviews";
+import { getAllReviews, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
 import { ReviewsFilterClient } from "@/components/reviews-filter-client";
 
@@ -18,7 +18,7 @@ export const dynamic = 'force-dynamic';
 
 export default async function ReviewsPage() {
   const company = getCompany();
-  const stats = await getReviewStats();
+  const [stats, reviews] = await Promise.all([getReviewStats(), getAllReviews()]);
   const hasReviews = stats.count > 0;
 
   return (
@@ -58,7 +58,7 @@ export default async function ReviewsPage() {
             <span className="text-text-on-dark">Serving Benton, Linn, Marion &amp; Polk since 2024</span>
           </div>
 
-          {hasReviews && <ReviewsFilterClient />}
+          {hasReviews && <ReviewsFilterClient allReviews={reviews} />}
 
           {!hasReviews && (
             <div className="mt-10 rounded-lg bg-surface-muted p-8 text-center">

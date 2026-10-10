@@ -4,6 +4,8 @@ import { contentSnapshot, type ContentCatalog, type ContentMutation } from '@/li
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { TextEditor } from '@/components/workbench/text-editor';
+import { MediaWorkbenchLoading, PhotoGridLoading } from '@/components/loading-ui';
+import { MediaThumbnail } from '@/components/workbench/media-thumbnail';
 import { ContentManager,type ContentCopySelection } from '@/components/workbench/content-manager';
 import { parseContentCopyDraft,type ContentCopyDraft } from '@/lib/content-contract';
 import { isTextKey, parseTextPreviewDraft, type TextPreviewDraft } from '@/lib/text-preview-bridge';
@@ -2492,14 +2494,7 @@ export default function MediaWorkbench() {
   }
 
   if (state.loading && state.assets.length === 0) {
-    return (
-      <div className="h-dvh flex items-center justify-center bg-background">
-        <div className="text-center">
-          <Layers className="mx-auto h-12 w-12 animate-spin text-muted-foreground" />
-          <p className="mt-4 text-muted-foreground">Loading workbench...</p>
-        </div>
-      </div>
-    );
+    return <MediaWorkbenchLoading />;
   }
 
   // KV Authority Unavailable - Show blocking error
@@ -2555,11 +2550,14 @@ export default function MediaWorkbench() {
             )}
             <button
               onClick={loadCanonicalData}
-              className="p-1.5 bg-surface text-foreground rounded hover:bg-surface/80 transition-colors"
+              disabled={state.loading}
+              aria-label={state.loading ? 'Refreshing media' : 'Refresh media'}
+              className="min-h-11 min-w-11 p-1.5 bg-surface text-foreground rounded hover:bg-surface/80 transition-colors disabled:opacity-50"
               title="Refresh media"
             >
               <RefreshCw size={14} />
             </button>
+            <p role="status" className="text-xs text-muted-foreground">{state.loading ? 'Refreshing media…' : ''}</p>
           </div>
         </div>
       </div>
@@ -3272,10 +3270,12 @@ export default function MediaWorkbench() {
 
                 </details>
                 {state.driveError && (
-                  <div className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded">
+                  <div role="alert" className="mb-4 p-3 bg-destructive/10 text-destructive text-sm rounded">
                     {state.driveError}
                   </div>
                 )}
+
+                {state.driveLoading && <PhotoGridLoading label="Loading Drive folders and photos" list={state.driveViewMode === 'list'} columns="grid-cols-3" fileCards />}
 
                 {!state.driveStructure && !state.driveLoading && (
                   <div className="space-y-2">
@@ -3416,6 +3416,7 @@ export default function MediaWorkbench() {
                     )}
 
                     {/* Folders */}
+                    {!state.driveLoading && <>
                     {(state.driveFiles || []).filter((item: any) => item.type === 'folder').length > 0 && (
                       <div>
                         <h3 className="text-xs font-semibold text-muted-foreground mb-2">Folders</h3>
@@ -3650,7 +3651,7 @@ export default function MediaWorkbench() {
                             disabled={state.driveLoadingMore}
                             className="w-full mt-2 py-2 bg-surface text-foreground rounded hover:bg-surface/80 transition-colors text-sm disabled:opacity-50"
                           >
-                            {state.driveLoadingMore ? 'Loading...' : 'Load More'}
+                            <span role="status">{state.driveLoadingMore ? 'Loading more photos…' : 'Load More'}</span>
                           </button>
                         )}
                       </div>
@@ -3661,6 +3662,7 @@ export default function MediaWorkbench() {
                         No files in this folder
                       </p>
                     )}
+                    </>}
                   </div>
                 )}
               </div>
@@ -3689,24 +3691,10 @@ export default function MediaWorkbench() {
                         : 'hover:ring-2 hover:ring-primary/50 hover:ring-offset-2'
                     }`}
                   >
-                    {asset.variants?.thumbnail ? (
-                      <img
-                        src={asset.variants.thumbnail}
-                        alt={asset.filename}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : asset.variants?.web ? (
-                      <img
-                        src={asset.variants.web}
-                        alt={asset.filename}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : asset.variants?.webp || asset.variants?.original ? (
-                      <img
-                        src={asset.variants.webp || asset.variants.original}
-                        alt={asset.filename}
-                        className="w-full h-full object-cover"
-                      />
+                    {asset.variants?.thumbnail || asset.variants?.web || asset.variants?.webp || asset.variants?.original ? (
+                      <MediaThumbnail key={asset.variants.thumbnail || asset.variants.web || asset.variants.webp || asset.variants.original}
+                        src={(asset.variants.thumbnail || asset.variants.web || asset.variants.webp || asset.variants.original)!}
+                        alt={asset.filename} className="w-full h-full" />
                     ) : (
                       <div className="w-full h-full bg-muted flex items-center justify-center">
                         <FileImage size={24} className="text-muted-foreground" />

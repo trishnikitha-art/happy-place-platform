@@ -18,6 +18,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { MediaWorkbenchLoading } from '@/components/loading-ui';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
@@ -111,9 +112,10 @@ export function WorkbenchShell({ children }: { children: React.ReactNode }) {
 
   // Show loading state while checking authentication
   if (isAuthenticated === null) {
+    if (pathname === '/workbench/media') return <MediaWorkbenchLoading label="Checking website editor access" navigation />;
     return (
       <div className="flex h-screen items-center justify-center bg-background">
-        <div className="text-muted-foreground">Loading Workbench...</div>
+        <div role="status" className="text-muted-foreground">Checking Workbench access…</div>
       </div>
     );
   }

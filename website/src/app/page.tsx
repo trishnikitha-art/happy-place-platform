@@ -220,6 +220,8 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
               fill
               priority
               sizes="100vw"
+              placeholder={heroMedia.variants?.blur ? 'blur' : 'empty'}
+              blurDataURL={heroMedia.variants?.blur}
               className="object-cover"
               style={{ filter: "brightness(0.7)" }}
             />
@@ -373,7 +375,9 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
                         alt={heroMedia?.alt || project.title}
                         fill
                         className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        priority={i === 0}
+                        sizes={isFeatured ? '(min-width: 1280px) 600px, (min-width: 1024px) calc((100vw - 80px) / 2), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)' : '(min-width: 1280px) 288px, (min-width: 1024px) calc((100vw - 112px) / 4), (min-width: 640px) calc((100vw - 64px) / 2), calc(100vw - 32px)'}
+                        placeholder={heroMedia?.variants?.blur ? 'blur' : 'empty'}
+                        blurDataURL={heroMedia?.variants?.blur}
                       />
                     </VisualSlot>
                     <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />

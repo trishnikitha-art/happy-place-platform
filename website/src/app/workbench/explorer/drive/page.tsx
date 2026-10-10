@@ -9,7 +9,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ChevronRight, Folder, FileImage, Search, Grid, List, ExternalLink, Loader2 } from 'lucide-react';
+import { PhotoGridLoading } from '@/components/loading-ui';
+import { ChevronRight, Folder, FileImage, Search, Grid, List, ExternalLink } from 'lucide-react';
 import { getExplorerNextPageToken } from '@/lib/drive/explorer-pagination';
 import type { DriveFolder, DriveFile } from '@/lib/drive/drive-discovery';
 
@@ -513,13 +514,20 @@ export default function DriveExplorerPage() {
 
       {/* Content */}
       {state.loading ? (
-        <div className="flex-1 flex items-center justify-center text-muted-foreground">
-          Loading Drive...
+        <div className="flex-1">
+          <PhotoGridLoading label="Loading Drive folders and photos" list={state.viewMode === 'list'} columns="grid-cols-2 md:grid-cols-4 lg:grid-cols-6" fileCards compact={false} />
         </div>
       ) : state.error ? (
         <div className="flex-1 flex items-center justify-center text-destructive">
           <div className="text-center">
-            <p className="mb-4">{state.error}</p>
+            <p role="alert" className="mb-4">{state.error}</p>
+            {!state.requiresReauth && <button className="min-h-11 rounded-lg bg-primary px-4 py-2 text-primary-foreground"
+              onClick={() => {
+                if (state.activeSearchQuery) { void handleSearch(undefined, state.activeSearchQuery); return; }
+                if (state.breadcrumb.length === 1) { void loadDriveStructure(); return; }
+                setState(previous => ({ ...previous, loading: true, error: null }));
+                void loadChildren(state.currentFolderId, undefined, state.activeDriveId);
+              }}>Try again</button>}
             {state.requiresReauth && (
               <button
                 onClick={handleAuthorize}
@@ -637,7 +645,7 @@ export default function DriveExplorerPage() {
                   disabled={state.loadingMore}
                   className="mt-4 w-full py-2 bg-muted rounded-lg hover:bg-muted/90 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {state.loadingMore ? <Loader2 size={16} className="animate-spin" /> : 'Load more'}
+                  <span role="status">{state.loadingMore ? 'Loading more photos…' : 'Load more'}</span>
                 </button>
               )}
             </div>
@@ -652,7 +660,7 @@ export default function DriveExplorerPage() {
       )}
 
       {/* Selected file actions */}
-      {state.selectedFile && (
+      {state.selectedFile && !state.loading && !state.error && (
         <div className="mt-6 p-4 bg-card border border-border rounded-lg flex items-center justify-between">
           <div>
             <div className="text-sm font-medium text-foreground">{state.selectedFile.name}</div>

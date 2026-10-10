@@ -560,6 +560,15 @@ a {
   }
 }
 
+/* Quiet, bounded loading feedback. Static placeholders are the default. */
+@media (prefers-reduced-motion: no-preference) {
+  .loading-skeleton { animation: loading-breathe 1.8s ease-in-out 3; }
+  @keyframes loading-breathe { 50% { opacity: 0.55; } }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading-skeleton { animation: none !important; }
+}
+
 /* Mobile typography scaling — 80% of desktop values for readability */
 @media (max-width: 768px) {
   :root {
