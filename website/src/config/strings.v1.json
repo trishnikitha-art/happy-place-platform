@@ -131,8 +131,8 @@
       "revision": 0
     },
     "contact.details.description": {
-      "value": "A few details help us understand your project: the kind of work you need, your location, and anything you'd like us to take a closer look at. You can include photos in your email.",
-      "revision": 0
+      "value": "A few details help us understand your project: the kind of work you need, your location, and anything you would like us to take a closer look at. You can include photos in your email.",
+      "revision": 1
     },
     "contact.details.action": {
       "value": "Email Happy Place Carpentry",
