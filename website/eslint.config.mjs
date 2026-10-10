@@ -42,6 +42,7 @@ const eslintConfig = defineConfig([
       "!src/lib/r2-public-origin.ts",
       "!src/lib/media-storage-evidence.ts",
       "!src/lib/media-inventory.ts",
+      "!src/lib/homepage-service-media.ts",
       "src/app/api/drive-sync/**",
       "src/app/api/estimate/**",
       "src/app/api/kit/**",
@@ -71,6 +72,7 @@ const eslintConfig = defineConfig([
       "src/config/**",
       "!src/components/loading-ui.tsx",
       "!src/components/workbench/media-thumbnail.tsx",
+      "!src/components/workbench/drive-connection-status.tsx",
       "!src/components/workbench/workbench-dialog.tsx",
       "!src/components/workbench/replacement-dialog.tsx",
       "!src/components/workbench/WorkbenchShell.tsx",
@@ -86,7 +88,7 @@ const eslintConfig = defineConfig([
     ],
   },
   {
-    files: ["src/components/loading-ui.tsx", "src/components/workbench/media-thumbnail.tsx",
+    files: ["src/components/loading-ui.tsx", "src/components/workbench/media-thumbnail.tsx", "src/components/workbench/drive-connection-status.tsx",
       "src/components/workbench/workbench-dialog.tsx", "src/components/workbench/replacement-dialog.tsx",
       "src/components/workbench/WorkbenchShell.tsx", "src/components/project-photos.tsx", "src/components/project-spotlight.tsx",
       "src/components/project-lightbox.tsx",
@@ -97,7 +99,7 @@ const eslintConfig = defineConfig([
     rules: { "no-unreachable": "error", "no-dupe-keys": "error", "no-unsafe-finally": "error", "no-constant-condition": "error", "no-fallthrough": "error", "valid-typeof": "error", "eqeqeq": "error" },
   },
   {
-    files: ["src/lib/text-*.ts", "src/lib/content-contract.ts", "src/lib/editable-*-fields.ts", "src/lib/blog-copy.ts",
+    files: ["src/lib/text-*.ts", "src/lib/content-contract.ts", "src/lib/editable-*-fields.ts", "src/lib/blog-copy.ts", "src/lib/homepage-service-media.ts",
       "src/components/text-copy.tsx", "src/components/content-copy.tsx", "src/components/workbench/preview-text-bridge.tsx",
       "src/components/workbench/text-editor.tsx", "src/components/workbench/content-manager.tsx",
       "src/lib/drive/*.ts", "src/lib/r2-*.ts", "src/lib/media-storage-evidence.ts",

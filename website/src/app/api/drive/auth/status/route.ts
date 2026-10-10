@@ -9,7 +9,8 @@ import { recordDriveActivity } from '@/lib/drive/authenticated-activity';
 
 export const dynamic = 'force-dynamic';
 
-function statusResponse(authenticated: boolean, credentials?: DriveCredentials | null, requiresReauth = false) {
+function statusResponse(authenticated: boolean, credentials?: DriveCredentials | null, requiresReauth = false,
+  connection?: { email: string; authorizationUpdatedAt: string; sessionCreatedAt: string }) {
   return NextResponse.json({
     authenticated,
     has_access_token: !!credentials?.access_token,
@@ -17,6 +18,7 @@ function statusResponse(authenticated: boolean, credentials?: DriveCredentials |
     has_expiry_date: !!credentials?.expiry_date,
     has_scope: !!credentials?.scope,
     ...(requiresReauth ? { requiresReauth: true } : {}),
+    ...(authenticated && connection ? { connection } : {}),
   }, { headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' } });
 }
 
@@ -59,7 +61,11 @@ export async function GET() {
     // A successful refresh call alone does not prove usable persisted credentials.
     if (!hasUsableCredentials(credentials)) return statusResponse(false);
     if (!await recordDriveActivity(sessionId, authorization)) return statusResponse(false);
-    return statusResponse(true, credentials);
+    return statusResponse(true, credentials, false, {
+      email: authorization.email,
+      authorizationUpdatedAt: authorization.updatedAt,
+      sessionCreatedAt: session.createdAt,
+    });
   } catch {
     console.warn('[DRIVE_AUTH_STATUS] Status unavailable');
     return statusResponse(false);

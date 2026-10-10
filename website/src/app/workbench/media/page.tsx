@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { TextEditor } from '@/components/workbench/text-editor';
 import { MediaWorkbenchLoading, PhotoGridLoading } from '@/components/loading-ui';
 import { MediaThumbnail } from '@/components/workbench/media-thumbnail';
+import { DriveConnectionStatus } from '@/components/workbench/drive-connection-status';
 import { WorkbenchDialog } from '@/components/workbench/workbench-dialog';
 import { ContentManager,type ContentCopySelection } from '@/components/workbench/content-manager';
 import { parseContentCopyDraft,type ContentCopyDraft } from '@/lib/content-contract';
@@ -3057,6 +3058,7 @@ export default function MediaWorkbench() {
             {/* Drive Browser */}
             {state.driveBrowsing && (
               <div className="mb-4 p-4 bg-surface rounded-lg">
+                {state.driveStructure && !state.driveLoading && <DriveConnectionStatus />}
                 {/* P0 FIX: Authorization Configuration Diagnostics */}
                 <details className="mb-3 text-sm">
                   <summary className="min-h-11 cursor-pointer py-3 font-medium">Connection and media diagnostics</summary>

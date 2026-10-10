@@ -17,18 +17,16 @@ import { PencilLine } from "@/components/pencil-line";
 import { BlueprintGrid } from "@/components/blueprint-grid";
 import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
 import { getNonArchivedServices } from "@/lib/registries";
-import { getServiceCardAssignment } from "@/lib/assignment-store";
+import { getHomepageServiceMedia } from "@/lib/homepage-service-media";
 import { getFeaturedReviews, getFeaturedReviewsWithResolvedMedia, getReviewsWithResolvedMedia, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
 import { getHomepageHero } from "@/lib/brand";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { NewsletterSignup } from "@/components/newsletter-signup";
 import { getOwnerPortrait } from "@/lib/brand";
-import { resolvePublicMedia } from "@/lib/media";
 import { getFeaturedProjects } from "@/lib/projects";
 import { getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib/projects";
 import { VisualSlot } from "@/components/visual-slot";
-import type { Media } from "@/types/media";
 import { deployedTextCatalog } from '@/lib/text-authority';
 import { workbenchSession } from '@/lib/workbench-session';
 import { readTextTransaction } from '@/lib/text-authority';
@@ -66,12 +64,21 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
     text.fields[receipt.mutation.key].value = receipt.mutation.value;
   }
   const company = getCompany();
-  // P0 FIX: Resolve review media through public media gate to prevent bypass
-  const topReviews = (await getFeaturedReviewsWithResolvedMedia()).slice(0, 3);
-  const stats = await getReviewStats();
+  const allServices = getNonArchivedServices();
+  const homepageServices = allServices.filter(service => service.homepageEligible);
+  const featuredProjects = getFeaturedProjects();
+  // Keep each authority resolver intact, but do not make unrelated reads wait for one another.
+  const [reviews, stats, ownerBrand, featuredProjectsWithMedia, homepageHero, serviceCardAssignments] = await Promise.all([
+    getFeaturedReviewsWithResolvedMedia(),
+    getReviewStats(),
+    getOwnerPortrait(),
+    getProjectsWithResolvedMedia(featuredProjects),
+    getHomepageHero(),
+    getHomepageServiceMedia(homepageServices),
+  ]);
+  const topReviews = reviews.slice(0, 3);
   const hasReviews = stats.count > 0;
   const [taylor, lanie] = company.owners;
-  const ownerBrand = await getOwnerPortrait();    // owner portrait from Brand Authority (now async for runtime assignment)
   // P1 FIX: Use pre-validated resolvedMedia from brand function (passed public media gate)
   // This prevents bypassing the public media gate by calling getMediaById directly
   const ownerMedia = ownerBrand?.resolvedMedia || null;
@@ -84,13 +91,6 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
         ? ownerResponsiveVariants[ownerResponsiveVariants.length - 1].webp 
         : (ownerMedia.variants?.web || ownerMedia.variants?.original || undefined))
     : undefined;
-  const allServices = getNonArchivedServices();      // data-driven services from registry
-  const featuredProjects = getFeaturedProjects(); // featured projects from Projects Authority
-  // P0 FIX: Resolve project media through public media gate to prevent bypass
-  const featuredProjectsWithMedia = await getProjectsWithResolvedMedia(featuredProjects);
-  
-  // Get hero from Brand Authority with runtime assignment
-  const homepageHero = await getHomepageHero();
   // P1 FIX: Use pre-validated resolvedMedia from brand function (passed public media gate)
   // This prevents bypassing the public media gate by calling getMediaById directly
   const heroMedia = homepageHero?.resolvedMedia || null;
@@ -106,98 +106,6 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
   
   // Get exterior painting project for featured transformation (has before/after media)
   const paintingProject = featuredProjectsWithMedia.find(p => p.id === 'exterior-painting-001');
-  
-  // Group services for homepage display (show homepageEligible services first)
-  const homepageServices = allServices.filter(s => s.homepageEligible);
-  
-  // P0 FIX: Load service card media from runtime assignment authority
-  // This is the same path used successfully by /services page
-  // The path is: assignment → mediaId → resolvePublicMedia → ServiceCard
-  const serviceCardAssignments = new Map<string, { mediaId: string | null; mediaObject: Media | null }>();
-  for (const service of homepageServices) {
-    try {
-      const assignment = await getServiceCardAssignment(service.slug, 'homepage');
-      if (assignment?.mediaId) {
-        console.log('[ASSIGNMENT_AUTHORITY] SERVICE_CARD_MEDIA_ID', {
-          serviceSlug: service.slug,
-          assignedMediaId: assignment.mediaId,
-          staticCardMediaId: service.cardMediaId,
-          revision: assignment.revision,
-        });
-        
-        // Resolve media object through public media gate (rejects Drive references, synthetic content, missing Blob metadata)
-        const mediaObject = await resolvePublicMedia(assignment.mediaId);
-        
-        console.log('[PUBLIC_MEDIA_GATE] SERVICE_CARD_RESOLUTION', {
-          serviceSlug: service.slug,
-          assignedMediaId: assignment.mediaId,
-          resolved: Boolean(mediaObject),
-          resolvedMediaId: mediaObject?.id ?? null,
-        });
-        
-        if (mediaObject) {
-          serviceCardAssignments.set(service.slug, {
-            mediaId: assignment.mediaId,
-            mediaObject,
-          });
-        } else {
-          console.log('[PUBLIC_MEDIA_GATE] ASSIGNED_MEDIA_ID_REJECTED', {
-            serviceSlug: service.slug,
-            rejectedMediaId: assignment.mediaId,
-          });
-          serviceCardAssignments.set(service.slug, {
-            mediaId: null,
-            mediaObject: null,
-          });
-        }
-      } else {
-        // Fallback to static configuration if no assignment exists
-        if (service.cardMediaId) {
-          console.log('[ASSIGNMENT_AUTHORITY] NO_ASSIGNMENT_USING_STATIC', {
-            serviceSlug: service.slug,
-            staticCardMediaId: service.cardMediaId,
-          });
-          
-          const mediaObject = await resolvePublicMedia(service.cardMediaId);
-          if (mediaObject) {
-            serviceCardAssignments.set(service.slug, {
-              mediaId: service.cardMediaId,
-              mediaObject,
-            });
-          } else {
-            serviceCardAssignments.set(service.slug, {
-              mediaId: null,
-              mediaObject: null,
-            });
-          }
-        } else {
-          serviceCardAssignments.set(service.slug, {
-            mediaId: null,
-            mediaObject: null,
-          });
-        }
-      }
-    } catch (error) {
-      console.error('[ASSIGNMENT_AUTHORITY] SERVICE_CARD_ASSIGNMENT_ERROR', {
-        serviceSlug: service.slug,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      // Fallback to static configuration on error
-      if (service.cardMediaId) {
-        const mediaObject = await resolvePublicMedia(service.cardMediaId);
-        serviceCardAssignments.set(service.slug, {
-          mediaId: service.cardMediaId,
-          mediaObject,
-        });
-      } else {
-        serviceCardAssignments.set(service.slug, {
-          mediaId: null,
-          mediaObject: null,
-        });
-      }
-    }
-  }
-
   return (
     <>
       {/* HERO — full-width photograph with text overlay */}

@@ -22,15 +22,19 @@ describe('Drive status respects Workbench identity and persisted credentials', (
   const status = async () => {
     const response = await GET();
     expect(response.headers.get('Cache-Control')).toContain('no-store');
-    return response.json();
+    const body = await response.json();
+    if (!body.authenticated) expect(body).not.toHaveProperty('connection');
+    return body;
   };
   beforeEach(() => {
     jest.resetAllMocks();
     process.env.HPP_WORKBENCH_PRINCIPAL_ID = 'principal-a';
     jest.mocked(workbenchSession.isAuthenticated).mockResolvedValue(true);
     jest.mocked(driveSession.getSessionId).mockResolvedValue('test-session');
-    jest.mocked(getSession).mockResolvedValue({ authorizationId: 'test-authorization' } as never);
-    jest.mocked(getAuthorization).mockResolvedValue({ status: 'active', principalId: 'principal-a' } as never);
+    jest.mocked(getSession).mockResolvedValue({ id: 'private-session-id', authorizationId: 'test-authorization', createdAt: '2026-10-10T19:59:00.000Z' } as never);
+    jest.mocked(getAuthorization).mockResolvedValue({ id: 'private-authorization-id', status: 'active', principalId: 'principal-a',
+      googleSubject: 'private-subject', email: 'authorized@example.com', updatedAt: '2026-10-10T19:58:59.000Z',
+      encryptedAccessToken: 'private-encrypted-access', encryptedRefreshToken: 'private-encrypted-refresh' } as never);
     jest.mocked(driveSession.getCredentials).mockResolvedValue(credentials());
     jest.mocked(recordDriveActivity).mockResolvedValue(true);
     jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -64,9 +68,10 @@ describe('Drive status respects Workbench identity and persisted credentials', (
     expect(await status()).toMatchObject({ authenticated: false });
     expect(driveSession.getCredentials).not.toHaveBeenCalled();
   });
-  it('keeps the working connection and reports only presence flags', async () => {
+  it('keeps the working connection and returns only whitelisted account metadata and presence flags', async () => {
     expect(await status()).toEqual({ authenticated: true, has_access_token: true,
-      has_refresh_token: true, has_expiry_date: true, has_scope: true });
+      has_refresh_token: true, has_expiry_date: true, has_scope: true,
+      connection: { email: 'authorized@example.com', authorizationUpdatedAt: '2026-10-10T19:58:59.000Z', sessionCreatedAt: '2026-10-10T19:59:00.000Z' } });
     expect(getOAuthClient).not.toHaveBeenCalled();
   });
   it('reports connected after refresh only with usable persisted credentials', async () => {
