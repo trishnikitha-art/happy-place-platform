@@ -1,0 +1,349 @@
+{
+  "schema": 1,
+  "enabled": true,
+  "repository": "trishnikitha-art/happy-place-platform",
+  "historyIssue": 4,
+  "trustedAuthors": [
+    "trishnikitha-art",
+    "github-actions[bot]"
+  ],
+  "maxSources": 8,
+  "maxRequests": 40,
+  "maxBytes": 1048576,
+  "maxTotalBytes": 12582912,
+  "timeoutMs": 15000,
+  "maxRunMs": 240000,
+  "retries": 1,
+  "hosts": [
+    "github.com",
+    "agentsandhumans.ai",
+    "www.agentsandhumans.ai",
+    "agentpatternscatalog.github.io",
+    "www.w3.org",
+    "web.dev",
+    "hammerandhand.com"
+  ],
+  "sources": [
+    {
+      "id": "material-workbench",
+      "pages": [
+        "https://github.com/hoklims/material-workbench"
+      ],
+      "category": "visual-asset-workbenches",
+      "terms": [
+        "preview",
+        "cache"
+      ],
+      "opportunity": {
+        "id": "material-workbench",
+        "description": "Reusable previews without source promotion",
+        "benefit": "Reusable previews without source promotion. Treat the expected benefit as a hypothesis until HPP validation.",
+        "targets": [
+          {
+            "path": "website/src/components/workbench/media-thumbnail.tsx",
+            "anchor": "export",
+            "baselineHash": "0c666b3843f545bd7a0916d02c8939d5e177174eb9e3915989d8e293a530910e"
+          }
+        ],
+        "comparison": "HPP already separates private Drive thumbnails from published media. This procedural game material tool is not evidence of a photo DAM.",
+        "recommendation": "defer",
+        "rationale": "HPP already separates private Drive thumbnails from published media. This procedural game material tool is not evidence of a photo DAM.",
+        "validation": "Profile thumbnail reads; unauthorized corpus thumbnails remain inaccessible.",
+        "accessibility": "Preserve named controls, visible focus, keyboard operation and native dialogs.",
+        "responsive": "Validate 390, 768, 1280 and 1440 CSS pixels before adoption.",
+        "performance": "Measure the affected operation before/after; no source component dependencies.",
+        "security": "Preserve Workbench authentication, corpus authorization, materialization proof and CAS; research has no mutation authority.",
+        "scores": {
+          "usability": 2,
+          "business": 2,
+          "accessibility": 2,
+          "performance": 2,
+          "fit": 2,
+          "visual": 2,
+          "effort": 4
+        }
+      }
+    },
+    {
+      "id": "approval-pattern",
+      "pages": [
+        "https://agentsandhumans.ai/patterns/approval"
+      ],
+      "category": "review-and-provenance",
+      "terms": [
+        "preview",
+        "receipt"
+      ],
+      "opportunity": {
+        "id": "approval-pattern",
+        "description": "Clear per-project batch receipts and retained retry state",
+        "benefit": "Clear per-project batch receipts and retained retry state. Treat the expected benefit as a hypothesis until HPP validation.",
+        "targets": [
+          {
+            "path": "website/src/lib/workbench-gallery-batch.ts",
+            "anchor": "async stage",
+            "baselineHash": "5f3b1465535e1d4919456c9a4d3e56e2369a77b90d894de5d28d478d3cb075aa"
+          }
+        ],
+        "comparison": "HPP already retains transaction receipts before readback. Improve the batch presentation rather than adding another approval authority.",
+        "recommendation": "adapt",
+        "rationale": "HPP already retains transaction receipts before readback. Improve the batch presentation rather than adding another approval authority.",
+        "validation": "Fail readback after one save succeeds; retry retains the receipt and does not write or deploy twice.",
+        "accessibility": "Preserve named controls, visible focus, keyboard operation and native dialogs.",
+        "responsive": "Validate 390, 768, 1280 and 1440 CSS pixels before adoption.",
+        "performance": "Measure the affected operation before/after; no source component dependencies.",
+        "security": "Preserve Workbench authentication, corpus authorization, materialization proof and CAS; research has no mutation authority.",
+        "scores": {
+          "usability": 5,
+          "business": 5,
+          "accessibility": 4,
+          "performance": 3,
+          "fit": 5,
+          "visual": 3,
+          "effort": 2
+        }
+      }
+    },
+    {
+      "id": "evidence-methodology",
+      "pages": [
+        "https://www.agentsandhumans.ai/methodology"
+      ],
+      "category": "research-review",
+      "terms": [
+        "evidence",
+        "approval"
+      ],
+      "opportunity": {
+        "id": "evidence-methodology",
+        "description": "Evidence confidence separate from recommendation confidence",
+        "benefit": "Evidence confidence separate from recommendation confidence. Treat the expected benefit as a hypothesis until HPP validation.",
+        "targets": [
+          {
+            "path": "website/src/app/workbench/evidence/page.tsx",
+            "anchor": "export default",
+            "baselineHash": "768ed4f873bd9d5b131d2316d4991d328642ba8d8311a601730cf33295373753"
+          }
+        ],
+        "comparison": "Existing Workbench evidence and recommendation surfaces are candidates for a later authenticated research view. Current sink is GitHub.",
+        "recommendation": "adapt",
+        "rationale": "Existing Workbench evidence and recommendation surfaces are candidates for a later authenticated research view. Current sink is GitHub.",
+        "validation": "Unavailable screenshot stays unverified; rejected/deferred decisions preserve their evidence.",
+        "accessibility": "Preserve named controls, visible focus, keyboard operation and native dialogs.",
+        "responsive": "Validate 390, 768, 1280 and 1440 CSS pixels before adoption.",
+        "performance": "Measure the affected operation before/after; no source component dependencies.",
+        "security": "Preserve Workbench authentication, corpus authorization, materialization proof and CAS; research has no mutation authority.",
+        "scores": {
+          "usability": 4,
+          "business": 4,
+          "accessibility": 4,
+          "performance": 3,
+          "fit": 3,
+          "visual": 3,
+          "effort": 3
+        }
+      }
+    },
+    {
+      "id": "scheduled-pattern",
+      "pages": [
+        "https://agentpatternscatalog.github.io/patterns/patterns/scheduled-agent.html"
+      ],
+      "category": "recurring-research",
+      "terms": [
+        "schedule",
+        "workflow"
+      ],
+      "opportunity": {
+        "id": "scheduled-pattern",
+        "description": "Checkpointed recurring research with existing Actions",
+        "benefit": "Checkpointed recurring research with existing Actions. Treat the expected benefit as a hypothesis until HPP validation.",
+        "targets": [
+          {
+            "path": "website/src/automation/init.ts",
+            "anchor": "initAutomation",
+            "baselineHash": "e251126205e23556f7c906e5fef99c658ae697c04274c37b02cf0ccb0e543977"
+          }
+        ],
+        "comparison": "Application task workflows are not a verified recurring research service. GitHub Actions owns this collection job; importing another scheduler duplicates ownership.",
+        "recommendation": "reject",
+        "rationale": "Application task workflows are not a verified recurring research service. GitHub Actions owns this collection job; importing another scheduler duplicates ownership.",
+        "validation": "Inspect an actual Actions invocation and durable completion; no public mutation or deployment credentials.",
+        "accessibility": "Preserve named controls, visible focus, keyboard operation and native dialogs.",
+        "responsive": "Validate 390, 768, 1280 and 1440 CSS pixels before adoption.",
+        "performance": "Measure the affected operation before/after; no source component dependencies.",
+        "security": "Preserve Workbench authentication, corpus authorization, materialization proof and CAS; research has no mutation authority.",
+        "scores": {
+          "usability": 2,
+          "business": 2,
+          "accessibility": 2,
+          "performance": 2,
+          "fit": 2,
+          "visual": 2,
+          "effort": 4
+        }
+      }
+    },
+    {
+      "id": "listbox-selection",
+      "pages": [
+        "https://www.w3.org/WAI/ARIA/apg/patterns/listbox/"
+      ],
+      "category": "selection-and-admin",
+      "terms": [
+        "selection",
+        "multiple"
+      ],
+      "opportunity": {
+        "id": "listbox-selection",
+        "description": "Visible selection count and scope before batch actions",
+        "benefit": "Visible selection count and scope before batch actions. Treat the expected benefit as a hypothesis until HPP validation.",
+        "targets": [
+          {
+            "path": "website/src/lib/workbench-selection.ts",
+            "anchor": "export",
+            "baselineHash": "4170eccc1597308d687324753c9654c7e465a83cc53c7238c93d6a88010e2ca4"
+          }
+        ],
+        "comparison": "Existing selection logic owns asset IDs. W3C defines single/multiple selection and keyboard behavior. Adobe's rendered page exceeded the capture limit in two recorded runs; this smaller primary source supports the keyboard analysis without changing HPP drag contracts.",
+        "recommendation": "adapt",
+        "rationale": "Clear selection scope matters before batch operations. Preserve existing asset IDs and transaction authority; do not adopt an incomplete ARIA role.",
+        "validation": "Select through a folder/filter change using keyboard; count and action scope agree, cancel preserves saved transactions.",
+        "accessibility": "Preserve named controls, visible focus, keyboard operation and native dialogs.",
+        "responsive": "Validate 390, 768, 1280 and 1440 CSS pixels before adoption.",
+        "performance": "Measure the affected operation before/after; no source component dependencies.",
+        "security": "Preserve Workbench authentication, corpus authorization, materialization proof and CAS; research has no mutation authority.",
+        "scores": {
+          "usability": 5,
+          "business": 5,
+          "accessibility": 4,
+          "performance": 3,
+          "fit": 5,
+          "visual": 3,
+          "effort": 2
+        }
+      }
+    },
+    {
+      "id": "w3c-grid",
+      "pages": [
+        "https://www.w3.org/WAI/ARIA/apg/patterns/grid/"
+      ],
+      "category": "accessible-navigation",
+      "terms": [
+        "keyboard",
+        "focus"
+      ],
+      "opportunity": {
+        "id": "w3c-grid",
+        "description": "Evaluate fewer tab stops with a complete gallery keyboard model",
+        "benefit": "Evaluate fewer tab stops with a complete gallery keyboard model. Treat the expected benefit as a hypothesis until HPP validation.",
+        "targets": [
+          {
+            "path": "website/src/components/workbench/slot-gallery.tsx",
+            "anchor": "export",
+            "baselineHash": "833d26c06a1779acda8e31db26c7fe3435f785b1b6f92325e1c632b189ee5989"
+          }
+        ],
+        "comparison": "HPP has button/dialog behavior. ARIA grid requires focus and arrow-key implementation; adding only a role is incomplete.",
+        "recommendation": "adapt",
+        "rationale": "HPP has button/dialog behavior. ARIA grid requires focus and arrow-key implementation; adding only a role is incomplete.",
+        "validation": "Test arrows, Home/End, selection, Escape and restoration with screen reader review.",
+        "accessibility": "Preserve named controls, visible focus, keyboard operation and native dialogs.",
+        "responsive": "Validate 390, 768, 1280 and 1440 CSS pixels before adoption.",
+        "performance": "Measure the affected operation before/after; no source component dependencies.",
+        "security": "Preserve Workbench authentication, corpus authorization, materialization proof and CAS; research has no mutation authority.",
+        "scores": {
+          "usability": 4,
+          "business": 4,
+          "accessibility": 4,
+          "performance": 3,
+          "fit": 3,
+          "visual": 3,
+          "effort": 3
+        }
+      }
+    },
+    {
+      "id": "inp-guidance",
+      "pages": [
+        "https://web.dev/articles/optimize-inp"
+      ],
+      "category": "interaction-performance",
+      "terms": [
+        "interaction",
+        "processing"
+      ],
+      "opportunity": {
+        "id": "inp-guidance",
+        "description": "Precompute lightbox descriptors and profile gallery click rerender",
+        "benefit": "Precompute lightbox descriptors and profile gallery click rerender. Treat the expected benefit as a hypothesis until HPP validation.",
+        "targets": [
+          {
+            "path": "website/src/app/our-work/OurWorkClient.tsx",
+            "anchor": "const viewGalleryPhoto",
+            "baselineHash": "cce59cafe6628fc0adbf0dbdb19aa39bd5181282b0d7a851642c6f43a05606a3"
+          }
+        ],
+        "comparison": "Current click creates two full-gallery arrays and a linear search. Prior mobile lab INP was 320–376 ms; the dominant rerender still needs profiling.",
+        "recommendation": "adapt",
+        "rationale": "Current click creates two full-gallery arrays and a linear search. Prior mobile lab INP was 320–376 ms; the dominant rerender still needs profiling.",
+        "validation": "Repeat throttled interaction traces; compare processing and INP while proving identical order, selected image and Escape/focus behavior.",
+        "accessibility": "Preserve named controls, visible focus, keyboard operation and native dialogs.",
+        "responsive": "Validate 390, 768, 1280 and 1440 CSS pixels before adoption.",
+        "performance": "Measure the affected operation before/after; no source component dependencies.",
+        "security": "Preserve Workbench authentication, corpus authorization, materialization proof and CAS; research has no mutation authority.",
+        "scores": {
+          "usability": 5,
+          "business": 5,
+          "accessibility": 4,
+          "performance": 5,
+          "fit": 5,
+          "visual": 3,
+          "effort": 2
+        }
+      }
+    },
+    {
+      "id": "contractor-portfolio",
+      "pages": [
+        "https://hammerandhand.com/portfolio/"
+      ],
+      "category": "residential-portfolio-storytelling",
+      "terms": [
+        "filter",
+        "residential"
+      ],
+      "opportunity": {
+        "id": "contractor-portfolio",
+        "description": "Project category discovery without replacing HPP photography",
+        "benefit": "Project category discovery without replacing HPP photography. Treat the expected benefit as a hypothesis until HPP validation.",
+        "targets": [
+          {
+            "path": "website/src/app/our-work/OurWorkClient.tsx",
+            "anchor": "const galleryPhotos",
+            "baselineHash": "cce59cafe6628fc0adbf0dbdb19aa39bd5181282b0d7a851642c6f43a05606a3"
+          }
+        ],
+        "comparison": "Source text names remodeling projects and categories. Text does not verify responsive layout or filter interaction. HPP already has featured transformations and a full archive.",
+        "recommendation": "defer",
+        "rationale": "Source text names remodeling projects and categories. Text does not verify responsive layout or filter interaction. HPP already has featured transformations and a full archive.",
+        "validation": "Legitimately inspect source interactions and HPP discovery at four widths; measure image cost before a separately approved redesign.",
+        "accessibility": "Preserve named controls, visible focus, keyboard operation and native dialogs.",
+        "responsive": "Validate 390, 768, 1280 and 1440 CSS pixels before adoption.",
+        "performance": "Measure the affected operation before/after; no source component dependencies.",
+        "security": "Preserve Workbench authentication, corpus authorization, materialization proof and CAS; research has no mutation authority.",
+        "scores": {
+          "usability": 4,
+          "business": 4,
+          "accessibility": 4,
+          "performance": 3,
+          "fit": 3,
+          "visual": 3,
+          "effort": 3
+        }
+      }
+    }
+  ],
+  "baselineCommit": "8e63442e3f88c1d21e260cc72fdfe0df3be2cc98"
+}

@@ -1,0 +1,72 @@
+name: HPP UI research
+
+on:
+  schedule:
+    - cron: '17 9 * * 2'
+  workflow_dispatch:
+    inputs:
+      resume_run:
+        description: 'Optional interrupted research run UUID; completed runs are idempotent'
+        required: false
+        type: string
+  pull_request:
+    paths:
+      - 'scripts/ui-research/**'
+      - '.github/workflows/ui-research.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hpp-ui-research-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'history' }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node --test scripts/ui-research/research.test.mjs
+
+  harvest:
+    if: github.event_name != 'pull_request' && vars.HPP_UI_RESEARCH_DISABLED != 'true'
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Bounded collection and append-only durable research history
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RESUME_RUN: ${{ inputs.resume_run }}
+        shell: bash
+        run: |
+          args=(--backend github --store "$RUNNER_TEMP/hpp-ui-research")
+          if [ -n "$RESUME_RUN" ]; then args+=(--resume "$RESUME_RUN"); fi
+          node scripts/ui-research/run.mjs "${args[@]}"
+      - name: Research digest
+        if: always()
+        shell: bash
+        run: |
+          shopt -s nullglob
+          for digest in "$RUNNER_TEMP"/hpp-ui-research/*-digest.md; do
+            cat "$digest" >> "$GITHUB_STEP_SUMMARY"
+          done
+      - name: Retain run digest for convenience; issue comments own durable history
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hpp-ui-research-${{ github.run_id }}
+          path: ${{ runner.temp }}/hpp-ui-research/*-digest.md
+          retention-days: 30
+          if-no-files-found: ignore
