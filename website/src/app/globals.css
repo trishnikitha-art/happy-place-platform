@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "lenis/dist/lenis.css";
 
 /*
  * SEMANTIC DESIGN TOKENS — Pacific Northwest craftsmanship meets modern luxury.
@@ -567,6 +568,12 @@ a {
 }
 @media (prefers-reduced-motion: reduce) {
   .loading-skeleton { animation: none !important; }
+}
+
+/* Optional native dialog entrance; older browsers show it immediately. */
+@media (prefers-reduced-motion: no-preference) {
+  .workbench-dialog[open] { opacity: 1; transition: opacity 160ms ease-out; }
+  @starting-style { .workbench-dialog[open] { opacity: 0; } }
 }
 
 /* Mobile typography scaling — 80% of desktop values for readability */

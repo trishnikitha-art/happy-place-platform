@@ -93,7 +93,7 @@ export function ProjectLightbox({ images, initialIndex = 0, isOpen, onClose }: P
         </div>
         <div className="relative min-h-0 flex-1">
           <div
-            className="h-full overflow-auto"
+            className="h-full overflow-auto overscroll-contain"
             onTouchStart={(event) => {
               touchStart.current = !isZoomed && event.touches.length === 1 ? event.touches[0].clientX : null;
               touchEnd.current = null;

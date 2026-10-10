@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, createContext, useContext, ReactNode, useState, Suspense } from "react";
-import Lenis from "@studio-freight/lenis";
+import Lenis from "lenis";
 import { usePathname, useSearchParams } from "next/navigation";
 import { usesNativeScroll } from '@/lib/scroll-policy';
 
@@ -36,6 +36,9 @@ export function LenisProvider({ children }: { children: ReactNode }) {
     const dispose = () => {
       if (frameId !== null) cancelAnimationFrame(frameId);
       frameId = null;
+      // Reset native-scroll state before destruction so a delayed velocity
+      // callback cannot restore Lenis classes on the next native route.
+      instance?.stop();
       instance?.destroy();
       instance = null;
       // Consumers must immediately fall back to native scroll, rather than
@@ -50,6 +53,8 @@ export function LenisProvider({ children }: { children: ReactNode }) {
       if (usesNativeScroll(currentPath, window.location.search) || motionPreference.matches) return;
 
       const activeInstance = new Lenis({
+        // The provider owns the only animation clock, including disposal.
+        autoRaf: false,
         lerp: 0.25,
         wheelMultiplier: 1,
         touchMultiplier: 1,

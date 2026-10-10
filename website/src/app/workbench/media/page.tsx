@@ -6,6 +6,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { TextEditor } from '@/components/workbench/text-editor';
 import { MediaWorkbenchLoading, PhotoGridLoading } from '@/components/loading-ui';
 import { MediaThumbnail } from '@/components/workbench/media-thumbnail';
+import { WorkbenchDialog } from '@/components/workbench/workbench-dialog';
 import { ContentManager,type ContentCopySelection } from '@/components/workbench/content-manager';
 import { parseContentCopyDraft,type ContentCopyDraft } from '@/lib/content-contract';
 import { isTextKey, parseTextPreviewDraft, type TextPreviewDraft } from '@/lib/text-preview-bridge';
@@ -2560,42 +2561,50 @@ export default function MediaWorkbench() {
             <p role="status" className="text-xs text-muted-foreground">{state.loading ? 'Refreshing media…' : ''}</p>
           </div>
         </div>
+        <p id="media-operation-status" tabIndex={-1} role="status" className="text-xs text-muted-foreground focus-visible:outline-2 focus-visible:outline-primary">
+          {state.mutationState === 'verifying' ? 'Checking selected slot revisions…'
+            : state.mutationState === 'materializing' ? 'Preparing the Drive photo and verifying stored renditions…'
+            : state.mutationState === 'assigning' ? 'Saving and verifying selected assignments…'
+            : state.mutationState === 'confirming' ? 'Review the selected replacement.' : ''}
+        </p>
       </div>
 
       {/* Add Slot Dialog */}
       {state.showAddSlotDialog && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-background border border-border rounded-lg p-6 w-full max-w-md">
-            <h3 className="text-lg font-semibold mb-4">Add Visual Slot</h3>
+        <WorkbenchDialog labelledBy="add-visual-slot-title" onCancel={closeAddSlotDialog} fallbackFocusSelector='select[aria-label="Page"]' className="max-w-md bg-background p-6">
+            <h3 id="add-visual-slot-title" className="text-lg font-semibold mb-4">Add Visual Slot</h3>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-1">Slot ID</label>
+                <label htmlFor="new-visual-slot-id" className="block text-sm font-medium mb-1">Slot ID</label>
                 <input
+                  id="new-visual-slot-id"
                   type="text"
                   value={state.newSlotId}
                   onChange={(e) => setState(prev => ({ ...prev, newSlotId: e.target.value }))}
-                  className="w-full px-3 py-2 border border-border rounded bg-background text-foreground text-sm"
+                  className="w-full min-h-11 px-3 py-2 border border-border rounded bg-background text-foreground text-sm"
                   placeholder="e.g., custom-hero-banner"
                 />
                 <p className="text-xs text-muted-foreground mt-1">Unique identifier for this slot</p>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Slot Name</label>
+                <label htmlFor="new-visual-slot-name" className="block text-sm font-medium mb-1">Slot Name</label>
                 <input
+                  id="new-visual-slot-name"
                   type="text"
                   value={state.newSlotName}
                   onChange={(e) => setState(prev => ({ ...prev, newSlotName: e.target.value }))}
-                  className="w-full px-3 py-2 border border-border rounded bg-background text-foreground text-sm"
+                  className="w-full min-h-11 px-3 py-2 border border-border rounded bg-background text-foreground text-sm"
                   placeholder="e.g., Hero Banner"
                 />
                 <p className="text-xs text-muted-foreground mt-1">Human-readable name for this slot</p>
               </div>
               <div>
-                <label className="block text-sm font-medium mb-1">Section</label>
+                <label htmlFor="new-visual-slot-section" className="block text-sm font-medium mb-1">Section</label>
                 <select
+                  id="new-visual-slot-section"
                   value={state.newSlotSection}
                   onChange={(e) => setState(prev => ({ ...prev, newSlotSection: e.target.value }))}
-                  className="w-full px-3 py-2 border border-border rounded bg-background text-foreground text-sm"
+                  className="w-full min-h-11 px-3 py-2 border border-border rounded bg-background text-foreground text-sm"
                 >
                   <option value="Hero">Hero</option>
                   <option value="Gallery">Gallery</option>
@@ -2615,19 +2624,19 @@ export default function MediaWorkbench() {
             <div className="flex justify-end gap-2 mt-6">
               <button
                 onClick={closeAddSlotDialog}
-                className="px-4 py-2 bg-surface text-foreground rounded hover:bg-surface/80 transition-colors text-sm"
+                data-dialog-initial-focus
+                className="min-h-11 px-4 py-2 bg-surface text-foreground rounded hover:bg-surface/80 transition-colors text-sm"
               >
                 Cancel
               </button>
               <button
                 onClick={addNewSlot}
-                className="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors text-sm"
+                className="min-h-11 px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors text-sm"
               >
                 Add Slot
               </button>
             </div>
-          </div>
-        </div>
+        </WorkbenchDialog>
       )}
 
       {/* Slot Context Menu */}
