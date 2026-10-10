@@ -169,3 +169,16 @@ describe('Workbench explicit gallery batch', () => {
     expect(batch.staged.size).toBe(1);
   });
 });
+
+it('publishes archive ordering alone or alongside project changes in the same retained deployment',async()=>{
+  const {batch,transport,draft}=harness();
+  batch.setDraft({...draft('fence'),gallery:['f','d','e']});
+  expect(await batch.stage(transport,()=>{})).toEqual([]);
+  const deployment=await batch.requestDeployment(transport,()=>{},['archive-receipt']);
+  expect(transport.deploy).toHaveBeenCalledWith(['tx-fence-3','archive-receipt']);
+  expect(await batch.requestDeployment(transport,()=>{},['archive-receipt'])).toBe(deployment);
+  expect(transport.deploy).toHaveBeenCalledTimes(1);
+  const isolated=harness();
+  await isolated.batch.requestDeployment(isolated.transport,()=>{},['archive-only']);
+  expect(isolated.transport.deploy).toHaveBeenCalledWith(['archive-only']);
+});

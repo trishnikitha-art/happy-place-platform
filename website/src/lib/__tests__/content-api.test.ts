@@ -36,3 +36,15 @@ it('refuses stale canonical copy without changing or staging source records',asy
   const rows=contentSnapshot(data,'projects');const copy={schema:'content.v1',collection:'projects',expectedRevision:0,previous:rows,next:rows,copy:[{id:'project-1',field:'title',previousValue:'Missing source',value:'New title'}]};
   expect((await POST(request({transactionId:id,mutation:copy}))).status).toBe(409);expect(mockEval).not.toHaveBeenCalled();
 });
+
+it('stages archive interleaving only as an exact membership-preserving project receipt',async()=>{
+  const catalog={projects:[{id:'project-1',media:{gallery:['a']}},{id:'project-2',media:{gallery:['b']}}]};
+  jest.mocked(readGitContent).mockResolvedValue(catalog);
+  const rows=contentSnapshot(catalog,'projects');
+  const archiveMutation:ContentMutation={schema:'content.v1',collection:'projects',expectedRevision:0,previous:rows,next:rows,archive:{previous:['our-work-gallery::project-1::a','our-work-gallery::project-2::b'],next:['our-work-gallery::project-2::b','our-work-gallery::project-1::a']}};
+  jest.mocked(readContentReceipt).mockResolvedValue({transactionId:id,state:'prepared',mutation:archiveMutation,stagingVerified:true} as never);
+  const response=await POST(request({transactionId:id,mutation:archiveMutation}));expect(response.status).toBe(200);
+  expect(JSON.parse(mockEval.mock.calls[0][2][1])).toEqual(archiveMutation);
+  mockEval.mockClear();archiveMutation.archive!.previous[0]='our-work-gallery::project-1::unpublished';archiveMutation.archive!.next[1]='our-work-gallery::project-1::unpublished';
+  expect((await POST(request({transactionId:id,mutation:archiveMutation}))).status).toBe(409);expect(mockEval).not.toHaveBeenCalled();
+});

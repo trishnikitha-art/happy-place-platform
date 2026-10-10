@@ -1,4 +1,5 @@
 "use client";
+import { archiveKey, isArchiveOrder } from '@/lib/archive-order';
 import { TextCopy } from '@/components/text-copy';
 import { ContentCopy } from '@/components/content-copy';
 
@@ -17,7 +18,6 @@ import { VisualSlot } from "@/components/visual-slot";
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useGalleryPointerSort } from "@/components/use-gallery-pointer-sort";
-import { mergeVisibleGalleryOrder } from "@/lib/gallery-pointer-sort";
 import type { Project } from "@/types/projects";
 import { dragBridge } from "@/lib/workbench-drag-bridge";
 import { isGalleryOrder, orderResolvedGallery } from "@/lib/workbench-gallery-order";
@@ -29,11 +29,12 @@ interface OurWorkClientProps {
     };
     ccbNumber: string;
   };
+  archiveOrder: string[];
   allProjects: Project[];
   featuredProjects: Project[];
 }
 
-export default function OurWorkClient({ company, allProjects, featuredProjects }: OurWorkClientProps) {
+export default function OurWorkClient({ company, allProjects, featuredProjects, archiveOrder }: OurWorkClientProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxImages, setLightboxImages] = useState<Array<{src: string; alt: string; blurDataURL?: string}>>([]);
@@ -51,20 +52,13 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     setIsWorkbenchMode(new URLSearchParams(window.location.search).get('workbench') === 'true');
   }, []);
 
+  const [archiveDraft,setArchiveDraft] = useState<string[] | null>(null);
+  const archivePending = useRef(false);
   const pointerSort = useGalleryPointerSort(({ projectId, sourceId, targetId, visibleOrder }) => {
-    const project = allProjects.find(project => project.id === projectId);
-    if (!project || window.parent === window) return;
-    const acceptedOrder = galleryDraftOrders[projectId];
-    const nextOrder = mergeVisibleGalleryOrder(acceptedOrder || project.media.gallery || visibleOrder, visibleOrder);
-    pendingPointerProjects.current.add(projectId);
-    setGalleryDraftOrders(previous => ({ ...previous, [projectId]: nextOrder }));
-    window.parent.postMessage({ type: 'SLOT_REORDER', projectId, sourceMediaId: sourceId, targetMediaId: targetId,
-      sourceSlotId: `our-work-gallery::${projectId}::${sourceId}`,
-      targetSlotId: `our-work-gallery::${projectId}::${targetId}`,
-      // The first gesture uses source/target until the parent supplies its full
-      // order, including IDs the public media gate does not render.
-      ...(acceptedOrder ? { orderedMediaIds: nextOrder, baseOrderedMediaIds: acceptedOrder } : {}),
-      iframeGeneration: dragBridge.getIframeGeneration() }, window.location.origin);
+    if(window.parent===window || archivePending.current) return;
+    window.parent.postMessage({type:'ARCHIVE_REORDER',sourceSlotId:sourceId,targetSlotId:targetId,
+      iframeGeneration:dragBridge.getIframeGeneration()},window.location.origin);
+    archivePending.current=true;
   });
 
   // P0 FIX: Runtime drag-data schema validation
@@ -113,6 +107,10 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
         dragBridge.registerSlot('our-work-gallery-grid');
         window.parent.postMessage({ type: 'BRIDGE_READY', slotId: 'our-work-gallery-grid',
           iframeGeneration: dragBridge.getIframeGeneration() }, window.location.origin);
+      } else if ((data.type==='ARCHIVE_ORDER_PREVIEW' || data.type==='ARCHIVE_REORDER_NACK') && data.iframeGeneration===dragBridge.getIframeGeneration()) {
+        archivePending.current=false;
+        if(isArchiveOrder(data.order)) setArchiveDraft(data.order);
+        setGalleryNotice(data.reason || 'Archive order updated in preview. Keep rearranging, then save all gallery changes once.');
       } else if (data.type === 'DRAG_START') {
         const payload = { ...data.dragData };
         if (!payload.fileName && payload.name) payload.fileName = payload.name;
@@ -134,6 +132,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
         && data.iframeGeneration === dragBridge.getIframeGeneration()) {
         pointerSort.cancel();
         pendingPointerProjects.current.clear();
+        setArchiveDraft(null);archivePending.current=false;
         setGalleryDraftOrders({});
         setGalleryHiddenIds({});
         setGalleryNotice(null);
@@ -192,12 +191,15 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
     dragBridge.clearDragData();
   };
 
-  const movePhoto = (projectId: string, sourceMediaId: string, targetMediaId: string) => {
-    window.parent.postMessage({ type: 'SLOT_REORDER', projectId, sourceMediaId, targetMediaId,
-      sourceSlotId: `our-work-gallery::${projectId}::${sourceMediaId}`,
-      targetSlotId: `our-work-gallery::${projectId}::${targetMediaId}`,
-      iframeGeneration: dragBridge.getIframeGeneration() }, window.location.origin);
+  const movePhoto = (sourceSlotId: string, targetSlotId: string) => {
+    if(window.parent===window || archivePending.current) return;
+    archivePending.current=true;
+    window.parent.postMessage({type:'ARCHIVE_REORDER',sourceSlotId,targetSlotId,
+      iframeGeneration:dragBridge.getIframeGeneration()},window.location.origin);
   };
+  const entries=allProjects.flatMap(project=>orderResolvedGallery(project.media.galleryMedia || [],galleryDraftOrders[project.id])
+    .filter(photo=>!(galleryHiddenIds[project.id] || []).includes(photo.id)).map(photo=>({project,photo,id:archiveKey(project.id,photo.id)})));
+  const galleryPhotos=orderResolvedGallery(entries,archiveDraft ?? archiveOrder);
 
   const openLightbox = (images: Array<{src: string; alt: string; blurDataURL?: string}>, index: number) => {
     if (isDragging || pointerSort.drag) return;
@@ -207,10 +209,8 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
   };
 
   const viewGalleryPhoto = (projectId: string, mediaId: string) => {
-    if (pointerSort.suppressClick(mediaId)) return;
-    const photos = allProjects.flatMap(project => orderResolvedGallery(project.media.galleryMedia || [], galleryDraftOrders[project.id])
-      .filter(photo => !(galleryHiddenIds[project.id] || []).includes(photo.id))
-      .map(photo => ({ projectId: project.id, photo })));
+    if (pointerSort.suppressClick(archiveKey(projectId,mediaId))) return;
+    const photos = galleryPhotos.map(({project,photo})=>({projectId:project.id,photo}));
     const images = photos.map(({ photo }) => ({
       src: photo.variants.responsive?.at(-1)?.webp || photo.variants.web || photo.variants.original || photo.variants.thumbnail!,
       alt: photo.alt, blurDataURL: photo.variants.blur,
@@ -330,7 +330,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
         </Container>
       </Section>
 
-      {/* BROWSE ALL WORK — project gallery grid (masonry layout) */}
+      {/* BROWSE ALL WORK — continuous gallery grid */}
       <Section className="bg-deep">
         <Container>
           <SectionHeading
@@ -340,7 +340,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
           />
           {isWorkbenchMode && (
             <p role="status" aria-live="polite" className="mt-4 text-sm text-text-on-dark/90">
-              {galleryNotice || 'Drag photos to rearrange each project. Make as many changes as you like, then save them together.'}
+              {galleryNotice || 'Drag any photo anywhere in this gallery, or choose its position. Photos keep their project association. Save all moves together.'}
             </p>
           )}
           {/* P1 FIX: Visual indicator for gallery add status */}
@@ -356,26 +356,10 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
             </div>
           )}
           <div
-            className={`gallery-grid mt-10 columns-2 gap-4 space-y-4 md:columns-3 lg:columns-4 ${isDragging ? 'ring-2 ring-dashed ring-primary/50 ring-offset-2' : ''}`}
+            data-archive-grid className={`gallery-grid mt-10 grid grid-cols-2 gap-4 md:grid-cols-3 ${isDragging ? 'ring-2 ring-dashed ring-primary/50 ring-offset-2' : ''}`}
             ref={galleryGridRef}
           >
-            {allProjects.map((project, projectIndex) => {
-              // P0 FIX: Use pre-validated galleryMedia from server-side resolution (passed public media gate)
-              // This prevents client-side getMediaById() bypass
-              const galleryPhotos = orderResolvedGallery(project.media.galleryMedia || [], galleryDraftOrders[project.id])
-                .filter(photo => !(galleryHiddenIds[project.id] || []).includes(photo.id));
-
-              // P0 FIX: Per-project drop zone container
-              // Each project gets its own drop surface with explicit project ID
-              return (
-                <div
-                  key={`project-drop-zone-${project.id}`}
-                  data-project-id={project.id}
-                  className="project-gallery-section break-inside-avoid mb-8"
-                  onDragOver={isWorkbenchMode ? handleProjectDragOver : undefined}
-                  onDrop={isWorkbenchMode ? event => handleProjectDrop(event, project.id) : undefined}
-                >
-                  {galleryPhotos.map((photo, photoIndex) => {
+            {galleryPhotos.map(({project,photo,id:slotId}, photoIndex) => {
                 // Request the rendition matching this masonry column and DPR.
                 // The lightbox separately retains its full-size source.
                 const responsiveVariants = [...(photo.variants.responsive || [])]
@@ -387,7 +371,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                 const webpSrcSet = responsiveVariants.map(variant => variant.webp + ' ' + variant.width + 'w').join(', ');
                 const avifSrcSet = responsiveVariants.filter(variant => variant.avif)
                   .map(variant => variant.avif + ' ' + variant.width + 'w').join(', ');
-                const gallerySizes = '(min-width: 1280px) 292px, (min-width: 1024px) calc((100vw - 112px) / 4), (min-width: 768px) calc((100vw - 80px) / 3), (min-width: 640px) calc((100vw - 64px) / 2), calc((100vw - 48px) / 2)';
+                const gallerySizes = '(min-width: 1280px) 400px, (min-width: 768px) calc((100vw - 80px) / 3), (min-width: 640px) calc((100vw - 64px) / 2), calc((100vw - 48px) / 2)';
                 if (!src) return null;
                 const mediaId = photo.id;
                 
@@ -396,11 +380,14 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                     key={`${project.id}-${mediaId}`}
                     data-project-id={project.id}
                     data-media-id={mediaId}
+                    data-archive-key={slotId}
                     data-photo-index={photoIndex}
                     role="button"
                     tabIndex={0}
-                    className="group relative block aspect-[4/3] overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 mb-4"
-                    style={pointerSort.cardStyle(project.id, mediaId)}
+                    className="group relative block aspect-[4/3] overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                    style={pointerSort.cardStyle('archive', slotId)}
+                    onDragOver={isWorkbenchMode ? handleProjectDragOver : undefined}
+                    onDrop={isWorkbenchMode ? event=>handleProjectDrop(event,project.id) : undefined}
                     onClick={() => viewGalleryPhoto(project.id, mediaId)}
                     onKeyDown={event => {
                       if (event.target !== event.currentTarget) return;
@@ -421,11 +408,11 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                         isWorkbenchMode={isWorkbenchMode}
                         isGallerySlot={true}
                         projectId={project.id}
-                        galleryDragging={pointerSort.drag?.sourceId === mediaId && pointerSort.drag.projectId === project.id}
+                        galleryDragging={pointerSort.drag?.sourceId === slotId}
                         onGalleryClick={() => viewGalleryPhoto(project.id, mediaId)}
                         galleryPointerHandlers={{
                           onPointerDown: event => {
-                            if (!pendingPointerProjects.current.has(project.id)) pointerSort.onPointerDown(event, project.id, mediaId);
+                            if (!archivePending.current) pointerSort.onPointerDown(event, 'archive', slotId);
                           },
                           onPointerMove: pointerSort.onPointerMove,
                           onPointerUp: pointerSort.onPointerUp,
@@ -460,25 +447,22 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                           <select aria-label={`Move ${photo.alt || project.title} to position`} value={photoIndex}
                             className="min-h-11 max-w-20 rounded bg-deep px-2 text-text-on-dark"
                             onPointerDown={event=>event.stopPropagation()} onClick={event=>event.stopPropagation()}
-                            onChange={event=>{event.stopPropagation();const target=Number(event.target.value);if(target!==photoIndex) movePhoto(project.id,mediaId,galleryPhotos[target].id);}}>
+                            onChange={event=>{event.stopPropagation();const target=Number(event.target.value);if(target!==photoIndex) movePhoto(slotId,galleryPhotos[target].id);}}>
                             {galleryPhotos.map((candidate,index)=><option key={candidate.id} value={index}>{index+1}</option>)}
                           </select>
                           <button type="button" className="min-h-11 min-w-11 rounded hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-honey disabled:opacity-30"
                             aria-label={`Move ${photo.alt || project.title} earlier`}
                             disabled={photoIndex === 0}
-                            onClick={event => { event.stopPropagation(); movePhoto(project.id, mediaId, galleryPhotos[photoIndex - 1].id); }}>↑</button>
+                            onClick={event => { event.stopPropagation(); movePhoto(slotId, galleryPhotos[photoIndex - 1].id); }}>↑</button>
                           <button type="button" className="min-h-11 min-w-11 rounded hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-honey disabled:opacity-30"
                             aria-label={`Move ${photo.alt || project.title} later`}
                             disabled={photoIndex === galleryPhotos.length - 1}
-                            onClick={event => { event.stopPropagation(); movePhoto(project.id, mediaId, galleryPhotos[photoIndex + 1].id); }}>↓</button>
+                            onClick={event => { event.stopPropagation(); movePhoto(slotId, galleryPhotos[photoIndex + 1].id); }}>↓</button>
                         </div>
                       </div>
                     )}
                   </div>
                 );
-              })}
-                </div>
-              );
             })}
           </div>
         </Container>

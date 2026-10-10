@@ -83,11 +83,11 @@ export function useGalleryPointerSort(onCommit: (commit: GalleryPointerCommit) =
   const onPointerDown = (event: ReactPointerEvent<HTMLElement>, projectId: string, sourceId: string) => {
     if (event.button !== 0 || !event.isPrimary || session.current) return;
     suppressed.current = null;
-    const section = event.currentTarget.closest(".project-gallery-section");
+    const section = event.currentTarget.closest("[data-archive-grid], .project-gallery-section");
     if (!section) return;
     const rects = Array.from(section.querySelectorAll<HTMLElement>("[data-media-id]")).map(element => {
       const rect = element.getBoundingClientRect();
-      return { id: element.dataset.mediaId!, left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      return { id: element.dataset.archiveKey || element.dataset.mediaId!, left: rect.left, top: rect.top, width: rect.width, height: rect.height };
     });
     const sourceIndex = rects.findIndex(rect => rect.id === sourceId);
     if (sourceIndex < 0) return;

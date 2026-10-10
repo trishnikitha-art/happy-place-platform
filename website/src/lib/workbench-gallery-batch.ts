@@ -137,13 +137,13 @@ export class WorkbenchGalleryBatch {
     return failures;
   }
 
-  async requestDeployment(transport: GalleryBatchTransport, changed: () => void): Promise<GalleryDeployment | null> {
+  async requestDeployment(transport: GalleryBatchTransport, changed: () => void, additionalTransactionIds: string[] = []): Promise<GalleryDeployment | null> {
     if (this.drafts.size || [...this.staged.values()].some(value => !value.verified)) {
       throw new Error('Finish saving and verifying every project before publishing the batch.');
     }
     if (this.deployment) return this.deployment;
     const transactionIds = [...new Set([...this.staged.values()]
-      .filter(value => value.requiresDeployment && value.transactionId).map(value => value.transactionId!))];
+      .filter(value => value.requiresDeployment && value.transactionId).map(value => value.transactionId!).concat(additionalTransactionIds))];
     if (!transactionIds.length) return null;
     // Record the attempt before sending. If the connection is lost after the
     // server commits, another click cannot create a second deployment.

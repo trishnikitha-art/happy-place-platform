@@ -1,3 +1,4 @@
+import { archiveSnapshot, isArchiveOrder } from './archive-order';
 export type ContentCollection = 'projects' | 'services';
 export interface PublicationFields { hidden?: boolean; publicationState?: 'draft'|'published'; archived?: boolean; status?: string }
 export function isPublicContent(item: PublicationFields): boolean {
@@ -8,7 +9,7 @@ export interface ContentCatalog { editorialRevision?:number; projects?:ContentIt
 export interface ContentSnapshot { id:string;hidden:boolean;publicationState:'draft'|'published';order:number }
 export interface ContentCopyChange { id:string;field:string;previousValue:string;value:string }
 export interface ContentCopyDraft { collection:ContentCollection;id:string;field:string;value:string;editable?:boolean }
-export interface ContentMutation { schema:'content.v1';collection:ContentCollection;expectedRevision:number;previous:ContentSnapshot[];next:ContentSnapshot[];copy?:ContentCopyChange[] }
+export interface ContentMutation { schema:'content.v1';collection:ContentCollection;expectedRevision:number;previous:ContentSnapshot[];next:ContentSnapshot[];copy?:ContentCopyChange[];archive?:{previous:string[];next:string[]} }
 export function contentCopyLimit(collection:ContentCollection,field:string):number|null {
   if(collection==='services') return field==='name'?180:field==='description'?3000:null;
   if(collection!=='projects') return null;
@@ -49,9 +50,10 @@ export function decodeContentMutation(raw:unknown):ContentMutation {
     const limit=contentCopyLimit(m.collection,change?.field);
     if(!limit || !m.previous.some(row=>row.id===change.id) || typeof change.previousValue!=='string' || typeof change.value!=='string' || !change.value.trim() || change.value.length>limit || change.previousValue.length>limit || /[\x00-\x1f\x7f<>]/.test(change.value) || change.value===change.previousValue)throw new Error('INVALID_CONTENT_COPY');
   });
+  if(m.archive && (m.collection!=='projects' || !isArchiveOrder(m.archive.previous) || !isArchiveOrder(m.archive.next) || m.archive.previous.length!==m.archive.next.length || m.archive.next.some(key=>!m.archive!.previous.includes(key)) || JSON.stringify(m.archive.previous)===JSON.stringify(m.archive.next))) throw new Error('INVALID_ARCHIVE_ORDER');
   const normalize=(rows:ContentSnapshot[])=>rows.map(({id,hidden,publicationState,order})=>({id,hidden,publicationState,order}));
-  const result:ContentMutation={schema:m.schema,collection:m.collection,expectedRevision:m.expectedRevision,previous:normalize(m.previous),next:normalize(m.next),...(copy?{copy:copy.map(({id,field,previousValue,value})=>({id,field,previousValue,value}))}:{})};
-  if(JSON.stringify(result.previous)===JSON.stringify(result.next) && !copy?.length) throw new Error('CONTENT_UNCHANGED');
+  const result:ContentMutation={schema:m.schema,collection:m.collection,expectedRevision:m.expectedRevision,previous:normalize(m.previous),next:normalize(m.next),...(copy?{copy:copy.map(({id,field,previousValue,value})=>({id,field,previousValue,value}))}:{}),...(m.archive?{archive:{previous:[...m.archive.previous],next:[...m.archive.next]}}:{})};
+  if(JSON.stringify(result.previous)===JSON.stringify(result.next) && !copy?.length && !m.archive) throw new Error('CONTENT_UNCHANGED');
   return result;
 }
 export function applyContentMutation(catalog:ContentCatalog, raw:unknown):void {
@@ -61,6 +63,7 @@ export function applyContentMutation(catalog:ContentCatalog, raw:unknown):void {
     const item=catalog[m.collection]!.find(item=>item.id===change.id)!;
     if(readContentCopy(item,change.field)!==change.previousValue)throw new Error('CONTENT_COPY_REVISION_CONFLICT');
   }
+  if(m.archive && JSON.stringify(archiveSnapshot(catalog))!==JSON.stringify(m.archive.previous)) throw new Error('ARCHIVE_REVISION_CONFLICT');
   // Stable identities, media, provenance, archival and publication authority stay intact.
   catalog[m.collection]=m.next.map(row=>({...catalog[m.collection]!.find(item=>item.id===row.id)!,hidden:row.hidden,order:row.order}));
   for(const change of m.copy??[]) {
@@ -70,6 +73,7 @@ export function applyContentMutation(catalog:ContentCatalog, raw:unknown):void {
     path.slice(0,-1).forEach(key=>{const source=target[key];target[key]=Array.isArray(source)?[...source]:{...(source as Record<string,unknown>)};target=target[key] as Record<string,unknown>;});
     target[path[path.length-1]]=change.value;
   }
+  if(m.archive) catalog.archiveOrder=[...m.archive.next];
   catalog.editorialRevision=m.expectedRevision+1;
 }
 export function moveContent(rows:ContentSnapshot[],id:string,position:number):ContentSnapshot[] {

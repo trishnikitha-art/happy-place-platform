@@ -1,4 +1,6 @@
 "use client";
+import { archiveSnapshot, isArchiveOrder, moveArchive } from '@/lib/archive-order';
+import { contentSnapshot, type ContentCatalog, type ContentMutation } from '@/lib/content-contract';
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { TextEditor } from '@/components/workbench/text-editor';
@@ -151,6 +153,9 @@ export default function MediaWorkbench() {
   const assetsRef = useRef<VisualAsset[]>([]);
   const registeredSlotsRef = useRef<RegisteredSlot[]>([]);
 
+  const archiveBatchRef = useRef<{catalog:ContentCatalog;order:string[];transactionId?:string;mutation?:ContentMutation}|null>(null);
+  const [archiveChanged,setArchiveChanged]=useState(false);
+  const archiveMessage=(type:string,reason?:string)=>iframeRef.current?.contentWindow?.postMessage({type,order:archiveBatchRef.current?.order,reason,iframeGeneration:currentIframeGenerationRef.current},WORKBENCH_ORIGIN);
   const galleryBatchRef = useRef(new WorkbenchGalleryBatch());
   const galleryQueueRef = useRef<Promise<void>>(Promise.resolve());
   const galleryQueueCountRef = useRef(0);
@@ -167,6 +172,7 @@ export default function MediaWorkbench() {
   };
 
   const sendGalleryPreview = () => {
+    if(archiveBatchRef.current) archiveMessage('ARCHIVE_ORDER_PREVIEW');
     const batch = galleryBatchRef.current;
     for (const draft of [...batch.staged.values(), ...batch.drafts.values()]) {
       iframeRef.current?.contentWindow?.postMessage({ type: 'GALLERY_ORDER_PREVIEW',
@@ -761,7 +767,7 @@ export default function MediaWorkbench() {
   const handleSaveGalleryChanges = async () => {
     if (gallerySaveBusyRef.current || galleryQueueCountRef.current || mutationBusy.current) return;
     const batch = galleryBatchRef.current;
-    if (!batch.drafts.size && !batch.staged.size) return;
+    if (!batch.drafts.size && !batch.staged.size && !archiveChanged) return;
     gallerySaveBusyRef.current = true;
     const transport: GalleryBatchTransport = {
       read: readGallery,
@@ -788,7 +794,7 @@ export default function MediaWorkbench() {
       deploy: async transactionIds => {
         const response = await fetch('/api/admin/deploy', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ transactionIds, reason: `Workbench gallery batch: ${[...batch.staged.keys()].join(', ')}` }),
+          body: JSON.stringify({ transactionIds, contentApprovals: archiveBatchRef.current?.mutation ? [{transactionId:archiveBatchRef.current.transactionId,mutation:archiveBatchRef.current.mutation}] : [], reason: `Workbench gallery batch: ${[...batch.staged.keys()].join(', ')}` }),
         });
         const result = await response.json();
         if (!response.ok) throw new Error(result.error || 'Deployment confirmation failed. Use deployment recovery to check the saved transactions.');
@@ -804,6 +810,20 @@ export default function MediaWorkbench() {
         }
         syncGalleryBatch();
       }
+      const archive=archiveBatchRef.current;
+      if(archive && JSON.stringify(archive.order)!==JSON.stringify(archiveSnapshot(archive.catalog))) {
+        if(!archive.mutation) {
+          archive.mutation={schema:'content.v1',collection:'projects',expectedRevision:archive.catalog.editorialRevision??0,
+            previous:contentSnapshot(archive.catalog,'projects'),next:contentSnapshot(archive.catalog,'projects'),
+            archive:{previous:archiveSnapshot(archive.catalog),next:[...archive.order]}};
+          archive.transactionId=`WBDEP-${Date.now()}-${crypto.randomUUID()}`;
+        }
+        if(!batch.deployment) {
+          const response=await fetch('/api/workbench/content',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({transactionId:archive.transactionId,mutation:archive.mutation})});
+          const receipt=await response.json();
+          if(!response.ok || !receipt.stagingVerified || JSON.stringify(receipt.mutation)!==JSON.stringify(archive.mutation)) throw new Error(receipt.error || 'The archive save receipt could not be verified. Your order and original receipt were retained.');
+        }
+      }
       setState(previous => ({ ...previous, gallerySaveStatus: 'staging' }));
       setMutationNotice('Saving all project drafts. One deployment will publish the complete batch.');
       const failures = await batch.stage(transport, syncGalleryBatch);
@@ -814,7 +834,7 @@ export default function MediaWorkbench() {
         return;
       }
       setState(previous => ({ ...previous, gallerySaveStatus: 'deploying' }));
-      const deployment = await batch.requestDeployment(transport, syncGalleryBatch);
+      const deployment = await batch.requestDeployment(transport, syncGalleryBatch, archiveBatchRef.current?.transactionId ? [archiveBatchRef.current.transactionId] : []);
       if (deployment) {
         if (!deployment.commitSha) throw new Error('Deployment was requested but its commit is unconfirmed. Check deployment recovery before requesting another deployment.');
         let published = deployment.confirmed;
@@ -836,6 +856,15 @@ export default function MediaWorkbench() {
       }
       setState(previous => ({ ...previous, gallerySaveStatus: 'verifying' }));
       await batch.verifyStored(transport);
+      if(archiveBatchRef.current?.mutation) {
+        const response=await fetch('/api/workbench/content?collection=projects',{cache:'no-store'}),data=await response.json();
+        if(!response.ok || data.served?.commitSha!==deployment?.commitSha || JSON.stringify(archiveSnapshot(data.deployed))!==JSON.stringify(archiveBatchRef.current.order)) throw new Error('The exact Production archive order has not yet been verified. Saved receipts were retained.');
+        const page=await fetch('/our-work',{cache:'no-store'}),doc=new DOMParser().parseFromString(await page.text(),'text/html');
+        const rendered=Array.from(doc.querySelectorAll('[data-archive-key]')).map(node=>node.getAttribute('data-archive-key')!);
+        const expected=archiveBatchRef.current.order.filter(key=>rendered.includes(key));
+        if(!page.ok || doc.querySelector('meta[name="hpp-git-commit"]')?.getAttribute('content')!==deployment?.commitSha || !rendered.length || JSON.stringify(rendered)!==JSON.stringify(expected)) throw new Error('The public gallery has not rendered the approved order. Saved receipts were retained.');
+      }
+      archiveBatchRef.current=null;setArchiveChanged(false);
       batch.complete();
       syncGalleryBatch();
       iframeRef.current?.contentWindow?.postMessage({ type: 'GALLERY_ORDER_RESET',
@@ -857,6 +886,8 @@ export default function MediaWorkbench() {
 
   const handleCancelGalleryChanges = () => {
     if (galleryQueueCountRef.current || gallerySaveBusyRef.current) return;
+    if(archiveBatchRef.current?.mutation) {setMutationNotice('The archive has already been staged. Finish publishing or cancel its retained receipt in Services & projects before editing again.');return;}
+    archiveBatchRef.current=null;setArchiveChanged(false);
     galleryBatchRef.current.cancelDrafts();
     syncGalleryBatch();
     iframeRef.current?.contentWindow?.postMessage({ type: 'GALLERY_ORDER_RESET',
@@ -1819,7 +1850,7 @@ export default function MediaWorkbench() {
 
       // Validate source is the expected iframe for mutation messages
       const messageType = event.data?.type;
-      const mutationMessageTypes = ['SLOT_REGISTER', 'SLOT_CLICK', 'SLOT_DROP', 'SLOT_REORDER', 'GALLERY_ADD', 'GALLERY_HIDE', 'BRIDGE_READY'];
+      const mutationMessageTypes = ['SLOT_REGISTER', 'SLOT_CLICK', 'SLOT_DROP', 'SLOT_REORDER', 'ARCHIVE_REORDER', 'GALLERY_ADD', 'GALLERY_HIDE', 'BRIDGE_READY'];
       
       if (mutationMessageTypes.includes(messageType)) {
         if (event.source !== iframeRef.current?.contentWindow) {
@@ -1846,7 +1877,7 @@ export default function MediaWorkbench() {
       });
 
       // Filter to only process application's known message types
-      const knownMessageTypes = ['SLOT_REGISTER', 'SLOT_DROP', 'SLOT_CLICK', 'SLOT_REORDER', 'GALLERY_ADD', 'GALLERY_HIDE', 'REFRESH_SLOTS', 'BRIDGE_READY'];
+      const knownMessageTypes = ['SLOT_REGISTER', 'SLOT_DROP', 'SLOT_CLICK', 'SLOT_REORDER', 'ARCHIVE_REORDER', 'GALLERY_ADD', 'GALLERY_HIDE', 'REFRESH_SLOTS', 'BRIDGE_READY'];
       if (!knownMessageTypes.includes(messageType)) {
         console.log('[WB_FORENSIC] MESSAGE_REJECTED', {
           reason: 'UNKNOWN_MESSAGE_TYPE',
@@ -2223,6 +2254,28 @@ export default function MediaWorkbench() {
         } else {
           console.error('[DND] NO_ASSET_ID', { requestId });
         }
+      } else if(messageType==='ARCHIVE_REORDER') {
+        const {sourceSlotId,targetSlotId,iframeGeneration}=event.data;
+        if(iframeGeneration!==currentIframeGenerationRef.current) return;
+        const slots=registeredSlotsRef.current;
+        if(typeof sourceSlotId!=='string' || typeof targetSlotId!=='string' || !isArchiveOrder([sourceSlotId,targetSlotId])
+          || ![sourceSlotId,targetSlotId].every(id=>slots.some(slot=>slot.id===id && slot.section==='Gallery' && slot.route==='/our-work'))) {
+          archiveMessage('ARCHIVE_REORDER_NACK','Only registered gallery photos can be rearranged.');return;
+        }
+        queueGalleryChange(async()=>{
+          if(galleryBatchRef.current.deployment || archiveBatchRef.current?.mutation) throw new Error('Finish publishing the saved batch before making more changes.');
+          if(!archiveBatchRef.current) {
+            const response=await fetch('/api/workbench/content?collection=projects',{cache:'no-store'}),data=await response.json();
+            if(!response.ok)throw new Error(data.error || 'Could not load the canonical archive.');
+            if(!Array.isArray(data.transactions) || data.transactions.some((tx:{state:string})=>!['consumed','cancelled'].includes(tx.state)))throw new Error('Review the retained project publication before rearranging the archive.');
+            archiveBatchRef.current={catalog:data.current,order:archiveSnapshot(data.current)};
+          }
+          const archive=archiveBatchRef.current;
+          archive.order=moveArchive(archive.order,sourceSlotId,targetSlotId);
+          setArchiveChanged(JSON.stringify(archive.order)!==JSON.stringify(archiveSnapshot(archive.catalog)));
+          archiveMessage('ARCHIVE_ORDER_PREVIEW');setMutationNotice('Archive order updated. Move any photo anywhere, then save all gallery changes once.');
+        },reason=>archiveMessage('ARCHIVE_REORDER_NACK',reason),iframeGeneration);
+        return;
       } else if (messageType === 'SLOT_REORDER') {
         const reorder = parseGalleryReorder(event.data);
         let acceptedGallery: string[] | undefined;
@@ -2787,12 +2840,12 @@ export default function MediaWorkbench() {
       )}
 
       {/* One explicit save publishes every project draft as a single batch. */}
-      {(state.galleryDrafts.length > 0 || state.galleryStaged.length > 0) && (
+      {(archiveChanged || state.galleryDrafts.length > 0 || state.galleryStaged.length > 0) && (
         <div className="shrink-0 border-b border-border bg-amber-50 dark:bg-amber-950/20 px-4 py-3">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <p className="text-sm font-semibold text-amber-900 dark:text-amber-100">
-                {state.galleryDrafts.length} project drafts · {state.galleryStaged.length} saved projects
+                {archiveChanged ? 'Archive order + ' : ''}{state.galleryDrafts.length} project drafts · {state.galleryStaged.length} saved projects
               </p>
               <p className="mt-1 text-xs text-amber-800 dark:text-amber-200">
                 Keep rearranging across projects. One save publishes the entire batch.
@@ -2800,7 +2853,7 @@ export default function MediaWorkbench() {
             </div>
             <div className="flex flex-wrap items-center gap-2">
               <button onClick={handleCancelGalleryChanges}
-                disabled={galleryQueueBusy || gallerySaveBusyRef.current || !state.galleryDrafts.length}
+                disabled={galleryQueueBusy || gallerySaveBusyRef.current || (!state.galleryDrafts.length && !archiveChanged)}
                 className="min-h-11 rounded px-3 text-sm text-amber-800 underline underline-offset-4 disabled:opacity-50 dark:text-amber-200">
                 Cancel unsaved changes
               </button>
@@ -2832,7 +2885,7 @@ export default function MediaWorkbench() {
             </span>
             <div className="flex items-center gap-2">
               <span className="text-xs text-blue-700 dark:text-blue-300">
-                Drag photos within a project to reorder. Edit as many projects as you like, then Save all gallery changes once. Drag library photos to add them.
+                Drag any photo anywhere in the gallery, or choose its position. Save all moves together. Drop library photos onto a project photo to add them to that project.
               </span>
               {state.selectedAsset && (
                 <button

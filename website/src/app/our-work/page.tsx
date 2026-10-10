@@ -1,3 +1,6 @@
+import { archiveSnapshot } from '@/lib/archive-order';
+import { loadProjectsManifest } from '@/lib/projects';
+import type { ContentCatalog } from '@/lib/content-contract';
 import type { Metadata } from "next";
 import { getAllProjects, getProjectsWithResolvedMedia } from "@/lib/projects";
 import { getCompany } from "@/lib/company";
@@ -18,6 +21,6 @@ export default async function OurWorkPage() {
   // Featured cards reuse the exact resolved objects from this request.
   const allProjectsWithMedia = await getProjectsWithResolvedMedia(allProjects);
   const featuredProjectsWithMedia = allProjectsWithMedia.filter(project => project.featured);
-  return <OurWorkClient company={company} allProjects={allProjectsWithMedia} featuredProjects={featuredProjectsWithMedia} />;
+  return <OurWorkClient archiveOrder={archiveSnapshot(loadProjectsManifest() as unknown as ContentCatalog)} company={company} allProjects={allProjectsWithMedia} featuredProjects={featuredProjectsWithMedia} />;
 }
 
