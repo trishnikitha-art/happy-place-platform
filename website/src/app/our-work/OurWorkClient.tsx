@@ -433,7 +433,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                           onLostPointerCapture: pointerSort.onPointerCancel,
                         }}
                       >
-                        <picture className="block h-full w-full">
+                        {webpSrcSet ? <picture className="block h-full w-full">
                           {avifSrcSet && <source type="image/avif" srcSet={avifSrcSet} sizes={gallerySizes} />}
                         <img
                           src={src}
@@ -446,7 +446,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                           draggable={false}
 
                         />
-                        </picture>
+                        </picture> : <Image src={photo.variants.web || photo.variants.original || src} alt={photo.alt || `${project.title} photo ${photoIndex + 1}`} width={photo.dimensions.width} height={photo.dimensions.height} sizes={gallerySizes} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" decoding="async" draggable={false} />}
                       </VisualSlot>
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none" />
                       <span className="absolute bottom-2 left-2 text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none">

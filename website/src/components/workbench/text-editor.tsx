@@ -161,7 +161,7 @@ export function TextEditor({ embedded = false, active = true, selection, onPrevi
     if(!reviewed.length || reviewed.some(tx=>!tx)) {setError('A selected receipt is unavailable. Reload and review the entire batch.');return;}
     void deploy(reviewed as Receipt[]);
   }
-  function nextEdit() { localStorage.removeItem(receiptStorage); setReceipt(null); setReceiptId(null); setLive(false); void reload(); }
+  function nextEdit() { localStorage.removeItem(receiptStorage); setReceipt(null); setReceiptId(null); setDraft(current?.fields[key].value ?? '');setEditVersion(0);setResetVersion(v=>v+1);setError('');setStatus('Choose another field; saved changes remain in the queue'); }
   async function lifecycle(action:'cancel'|'reconcile') {
     if(!receipt) return;setBusy(true);setError('');
     try {const saved=await api('/api/workbench/text/lifecycle',{method:'POST',body:JSON.stringify({transactionId:receipt.transactionId,action})});setReceipt(saved);setTransactions(items=>[saved,...items.filter(tx=>tx.transactionId!==saved.transactionId)]);if(action==='cancel'){setSelectedIds(ids=>ids.filter(id=>id!==saved.transactionId));localStorage.removeItem(receiptStorage);setReceiptId(null);setReceipt(null);setDraft(current?.fields[key].value ?? saved.mutation?.previousValue ?? '');setEditVersion(0);setResetVersion(v=>v+1);}setStatus(action==='cancel'?'Staged transaction cancelled on the server':'Git receipt reconciled; checking served release');}

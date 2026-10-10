@@ -509,7 +509,7 @@ export async function getMediaRecordRaw(id: string): Promise<Media | null> {
     
     // NO constitutional proof verification - return raw authoritative record
     // This allows reconciliation to inspect DriveReference records and poisoned PublishedMediaAsset records
-    if (process.env.NODE_ENV === 'development') console.log('[MEDIA_KV] RAW_MEDIA_RECORD_RETRIEVED', { 
+    if (process.env.NODE_ENV === 'development') console.log('[MEDIA_KV] RAW_MEDIA_RECORD_RETRIEVED', {
       id, 
       lifecycleState: media.lifecycleState, 
       source: media.source,
