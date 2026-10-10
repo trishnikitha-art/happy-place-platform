@@ -48,7 +48,7 @@ export function SiteFooter() {
 
         <div>
           <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark"><TextCopy textKey="footer.areaTitle" /></h3>
-          <p className="mt-3 text-sm text-text-on-dark">{company.serviceArea}</p>
+          <p className="mt-3 text-sm text-text-on-dark"><TextCopy textKey="company.serviceArea" /></p>
           <Link href="/services" className="mt-3 inline-flex min-h-11 items-center text-sm text-honey hover:text-honey/80"><TextCopy textKey="footer.servicesAction" /></Link>
         </div>
 
@@ -69,7 +69,7 @@ export function SiteFooter() {
                 <Mail className="h-4 w-4 shrink-0 text-honey" aria-hidden="true" /> <span className="break-all">{company.email}</span>
               </EmailLink>
             </li>
-            <li className="text-text-on-dark">{company.businessHours}</li>
+            <li className="text-text-on-dark"><TextCopy textKey="company.businessHours" /></li>
           </ul>
         </div>
       </div>

@@ -44,20 +44,20 @@ export default function ContactPage() {
               </div>
               <div>
                 <dt className="text-sm font-semibold uppercase text-honey"><TextCopy textKey="contact.copy.4" /></dt>
-                <dd className="text-lg text-text-on-dark">{company.serviceArea}</dd>
+                <dd className="text-lg text-text-on-dark"><TextCopy textKey="company.serviceArea" /></dd>
               </div>
               <div>
                 <dt className="text-sm font-semibold uppercase text-honey"><TextCopy textKey="contact.copy.5" /></dt>
-                <dd className="text-lg text-text-on-dark">{company.businessHours}</dd>
+                <dd className="text-lg text-text-on-dark"><TextCopy textKey="company.businessHours" /></dd>
               </div>
             </dl>
           </div>
-          <div className="self-start rounded-2xl bg-linen p-6 text-deep shadow-warm sm:p-8">
-            <h2 className="font-display text-2xl font-bold" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}><TextCopy textKey="contact.details.title" /></h2>
-            <p className="measure mt-3" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
+          <div className="self-start rounded-2xl bg-[#EDEAE0] p-6 text-[#352423] shadow-warm sm:p-8">
+            <h2 className="font-display text-2xl font-bold text-[#352423]" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}><TextCopy textKey="contact.details.title" /></h2>
+            <p className="measure mt-3 text-[#352423]" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
               <TextCopy textKey="contact.details.description" />
             </p>
-            <EmailLink email={company.email} className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-honey px-6 py-3 font-semibold text-deep transition-colors hover:bg-honey-hover"><TextCopy textKey="contact.details.action" /></EmailLink>
+            <EmailLink email={company.email} className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-honey px-6 py-3 font-semibold text-[#352423] transition-colors hover:bg-honey-hover"><TextCopy textKey="contact.details.action" /></EmailLink>
           </div>
         </Container>
       </Section>

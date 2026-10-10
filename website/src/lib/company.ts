@@ -9,6 +9,8 @@
 
 import type { CompanyManifest, Company } from "@/types/company";
 import { loadAuthority, clearAuthorityCache } from "./authority-loader";
+import catalog from '@/config/strings.v1.json';
+import { decodeTextCatalog } from './text-contract';
 
 export function loadCompanyManifest(): CompanyManifest {
   return loadAuthority<CompanyManifest>({
@@ -53,7 +55,12 @@ export function loadCompanyManifest(): CompanyManifest {
  */
 export function getCompany(): Company {
   const manifest = loadCompanyManifest();
-  return manifest.company;
+  const text = decodeTextCatalog(catalog);
+  return {
+    ...manifest.company,
+    serviceArea: text.fields['company.serviceArea'].value,
+    businessHours: text.fields['company.businessHours'].value,
+  };
 }
 
 /**

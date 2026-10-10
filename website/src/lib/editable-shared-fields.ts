@@ -1,5 +1,21 @@
 // Static shared copy only. Identity, destinations and submitted form values retain their original authorities.
 export const EDITABLE_SHARED_FIELDS = {
+  "company.serviceArea": {
+    "label": "Service area",
+    "route": "*",
+    "maxLength": 300,
+    "source": "components/site-footer.tsx",
+    "classification": "editable copy",
+    "context": "Service area in footer, contact details and company metadata"
+  },
+  "company.businessHours": {
+    "label": "Business hours",
+    "route": "*",
+    "maxLength": 300,
+    "source": "components/site-footer.tsx",
+    "classification": "editable copy",
+    "context": "Business hours in footer and contact details"
+  },
   "navigation.home": {
     "label": "Navigation Home",
     "route": "*",

@@ -8,10 +8,13 @@ import { getNavigation } from '@/lib/navigation';
 import { decodeTextCatalog, type TextKey } from '@/lib/text-contract';
 import catalog from '@/config/strings.v1.json';
 import navigation from '@/config/navigation.v1.json';
+import { SiteFooter } from '@/components/site-footer';
+import ContactPage from '@/app/contact/page';
+import { getCompany } from '@/lib/company';
 
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 
-function render(Component: typeof ReviewPage | typeof NewsletterSignup, key?: TextKey, value = 'Updated homeowner copy') {
+function render(Component: typeof ReviewPage | typeof NewsletterSignup | typeof SiteFooter | typeof ContactPage, key?: TextKey, value = 'Updated homeowner copy') {
   return renderToStaticMarkup(createElement(TextPreviewProvider, {
     draft: key ? { key, value } : null,
     children: createElement(Component),
@@ -21,10 +24,20 @@ function render(Component: typeof ReviewPage | typeof NewsletterSignup, key?: Te
 describe('Shared public copy preserves content contracts and design', () => {
   it('resolves every shared field through the same validated text authority', () => {
     const text = decodeTextCatalog(catalog);
-    expect(Object.keys(EDITABLE_SHARED_FIELDS)).toHaveLength(52);
+    expect(Object.keys(EDITABLE_SHARED_FIELDS)).toHaveLength(54);
     for (const key of Object.keys(EDITABLE_SHARED_FIELDS) as TextKey[]) {
       expect(text.fields[key]).toEqual({ value: expect.any(String), revision: expect.any(Number) });
     }
+  });
+
+  it.each(['company.serviceArea', 'company.businessHours'] as const)('edits %s in the existing footer field while retaining all styles and contact links', key => {
+    for (const Component of [SiteFooter, ContactPage]) {
+      const baseline = render(Component);
+      const changed = render(Component, key, 'Updated operating information');
+      expect(changed).toBe(baseline.replace(catalog.fields[key].value, 'Updated operating information'));
+    }
+    const company = getCompany();
+    expect(company[key === 'company.serviceArea' ? 'serviceArea' : 'businessHours']).toBe(catalog.fields[key].value);
   });
 
   it('keeps all navigation destinations, ordering and secondary flags while deriving copy from text authority', () => {
