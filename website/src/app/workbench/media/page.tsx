@@ -277,7 +277,7 @@ export default function MediaWorkbench() {
 
   useEffect(()=>{
     const sync=()=>iframeRef.current?.contentWindow?.postMessage({
-      type:'TEXT_TOOL_STATE',enabled:editorTool!=='media',draft:editorTool==='text'?textDraft:null,contentDraft:editorTool==='collections'?contentDraft:null,
+      type:'TEXT_TOOL_STATE',selectable:true,enabled:editorTool!=='media',draft:editorTool==='text'?textDraft:null,contentDraft:editorTool==='collections'?contentDraft:null,
       generation:currentIframeGenerationRef.current,
     },WORKBENCH_ORIGIN);
     const receive=(event:MessageEvent)=>{
@@ -290,7 +290,7 @@ export default function MediaWorkbench() {
         const incoming=parseTextPreviewDraft(event.data.draft);
         if(incoming && textDraft?.editable && incoming.key===textDraft.key && event.data.draft.resetVersion===textDraft.resetVersion && Number.isSafeInteger(event.data.draft.editVersion) && event.data.draft.editVersion>0) setTextSelection({...incoming,editVersion:event.data.draft.editVersion,request:Date.now()});
       }
-      if(event.data?.type==='CONTENT_SELECT' && editorTool!=='media' && event.data.generation===currentIframeGenerationRef.current) {
+      if(event.data?.type==='CONTENT_SELECT' && event.data.generation===currentIframeGenerationRef.current) {
         const incoming=parseContentCopyDraft(event.data);
         if(incoming){setCollectionsOpened(true);setEditorTool('collections');setContentSelection({collection:incoming.collection,id:incoming.id,field:incoming.field,request:Date.now()});}
       }

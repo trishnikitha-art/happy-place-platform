@@ -301,7 +301,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                                 alt={heroMedia?.alt || project.title}
                                 fill
                                 className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                                sizes="(max-width: 768px) 100vw, 50vw"
+                                sizes="(min-width: 1280px) 592px, (min-width: 768px) calc((100vw - 80px) / 2), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)"
                               />
                             </VisualSlot>
                           </div>
@@ -376,14 +376,18 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                   onDrop={isWorkbenchMode ? event => handleProjectDrop(event, project.id) : undefined}
                 >
                   {galleryPhotos.map((photo, photoIndex) => {
-                // Use responsive variants if available to select best quality
-                const responsiveVariants = photo.variants?.responsive;
-                const hasResponsiveVariants = responsiveVariants && responsiveVariants.length > 0;
-                const src = photo 
-                  ? (hasResponsiveVariants 
-                      ? responsiveVariants[responsiveVariants.length - 1].webp 
-                      : (photo.variants.web || photo.variants.original || photo.variants.thumbnail))
-                  : null;
+                // Request the rendition matching this masonry column and DPR.
+                // The lightbox separately retains its full-size source.
+                const responsiveVariants = [...(photo.variants.responsive || [])]
+                  .filter(variant => Number.isFinite(variant.width) && variant.width > 0 && variant.webp)
+                  .sort((a,b) => a.width - b.width);
+                const src = responsiveVariants.find(variant => variant.width === 768)?.webp
+                  || photo.variants.thumbnail || responsiveVariants[0]?.webp
+                  || photo.variants.web || photo.variants.original;
+                const webpSrcSet = responsiveVariants.map(variant => variant.webp + ' ' + variant.width + 'w').join(', ');
+                const avifSrcSet = responsiveVariants.filter(variant => variant.avif)
+                  .map(variant => variant.avif + ' ' + variant.width + 'w').join(', ');
+                const gallerySizes = '(min-width: 1280px) 292px, (min-width: 1024px) calc((100vw - 112px) / 4), (min-width: 768px) calc((100vw - 80px) / 3), (min-width: 640px) calc((100vw - 64px) / 2), calc((100vw - 48px) / 2)';
                 if (!src) return null;
                 const mediaId = photo.id;
                 
@@ -429,14 +433,20 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                           onLostPointerCapture: pointerSort.onPointerCancel,
                         }}
                       >
+                        <picture className="block h-full w-full">
+                          {avifSrcSet && <source type="image/avif" srcSet={avifSrcSet} sizes={gallerySizes} />}
                         <img
                           src={src}
+                          srcSet={webpSrcSet || undefined}
+                          sizes={webpSrcSet ? gallerySizes : undefined}
                           alt={photo!.alt || `${project.title} photo ${photoIndex + 1}`}
                           className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                           loading="lazy"
+                          decoding="async"
                           draggable={false}
 
                         />
+                        </picture>
                       </VisualSlot>
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none" />
                       <span className="absolute bottom-2 left-2 text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none">

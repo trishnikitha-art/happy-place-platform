@@ -10,7 +10,7 @@ export function PreviewTextBridge() {
   const pathname = usePathname();
   useEffect(() => {
     if (window.parent === window) return;
-    let enabled = false, generation = -1;
+    let enabled = false, selectable = false, generation = -1;
     let pendingFocus: HTMLElement | null = null, editable: HTMLElement | null = null;
     let editVersion=0,resetVersion=-1,selectedKey='';
     let composing=false;
@@ -25,9 +25,9 @@ export function PreviewTextBridge() {
     const placeholder=(node:HTMLElement):node is HTMLInputElement=>node.dataset.textAttribute==='placeholder' && (node.tagName==='INPUT' || node.tagName==='TEXTAREA');
     const read=(node:HTMLElement)=>placeholder(node) ? node.getAttribute('placeholder') ?? '' : node.textContent ?? '';
     const write=(node:HTMLElement,value:string)=>{if(placeholder(node))node.setAttribute('placeholder',value);else node.textContent=value;};
-    function restoreText(except?: HTMLElement | null) {
+    function restoreText(except?: Set<HTMLElement>) {
       originals.forEach((text, node) => {
-        if (node === except) return;
+        if (except?.has(node)) return;
         if (node.isConnected) write(node,text);
         originals.delete(node);
       });
@@ -36,6 +36,7 @@ export function PreviewTextBridge() {
       editable = null;
       attributes.forEach((saved, node) => {
         node.removeAttribute('data-text-editable');
+        node.removeAttribute('data-text-selectable');
         names.forEach(name => saved[name] === null ? node.removeAttribute(name) : node.setAttribute(name, saved[name]));
       });
       attributes.clear();
@@ -55,6 +56,7 @@ export function PreviewTextBridge() {
       if (event.origin !== window.location.origin || event.source !== window.parent || event.data?.type !== 'TEXT_TOOL_STATE' ||
         !Number.isSafeInteger(event.data.generation) || event.data.generation < 0 || event.data.generation < generation) return;
       generation = event.data.generation; enabled = event.data.enabled === true;
+      selectable = event.data.selectable === true || enabled;
       const textDraft=enabled ? parseTextPreviewDraft(event.data.draft) : null;
       const contentDraft=enabled ? parseContentCopyDraft(event.data.contentDraft) : null;
       const draft=textDraft ?? contentDraft;
@@ -63,17 +65,28 @@ export function PreviewTextBridge() {
       const selected = matching.find(node=>node===pendingFocus) ?? matching.find(node=>node===editable) ?? matching.find(node=>!node.closest('[aria-hidden="true"]')) ?? matching[0] ?? null;
       const reset=selectedKey!==identity(draft) || resetVersion!==rawDraft?.resetVersion;
       if(reset) {editVersion=0;selectedKey=identity(draft);resetVersion=rawDraft?.resetVersion;}
-      restoreText(selected);
-      if (!enabled) { pendingFocus = null; restoreControls(); return; }
+      const queuedNodes = textDraft?.queued?.flatMap(item =>
+        Array.from(document.querySelectorAll<HTMLElement>(selector))
+          .filter(node => node.dataset.textKey === item.key && item.key !== textDraft.key)
+          .map(node => ({node,value:item.value}))) ?? [];
+      restoreText(new Set([...matching,...queuedNodes.map(({node})=>node)]));
+      queuedNodes.forEach(({node,value})=>{
+        if(!originals.has(node))originals.set(node,read(node));
+        if(read(node)!==value)write(node,value);
+      });
+      if (!enabled) restoreControls();
+      if (!selectable) { pendingFocus = null; return; }
       editable = rawDraft?.editable === true ? selected : null;
       inputValues.forEach((value,node)=>{if(node!==editable){node.value=value;inputValues.delete(node);}});
       document.querySelectorAll<HTMLElement>(selector).forEach(node => {
         if (!binding(node) || node.tagName==='OPTION' || node.closest('[aria-hidden="true"]')) return;
         if (!attributes.has(node)) attributes.set(node, Object.fromEntries(names.map(name => [name, node.getAttribute(name)])));
-        node.setAttribute('data-text-editable', 'true'); node.setAttribute('tabindex', '0');
-        node.setAttribute('aria-label', `Edit ${isTextKey(node.dataset.textKey) ? TEXT_FIELDS[node.dataset.textKey].label : node.dataset.contentField}`);
-        if(!placeholder(node))node.setAttribute('contenteditable', node === editable ? 'plaintext-only' : 'false');
-        node.setAttribute('spellcheck', 'true');
+        node.setAttribute('data-text-selectable', 'true');
+        if(enabled)node.setAttribute('data-text-editable', 'true');
+        node.setAttribute('tabindex', '0');
+        node.setAttribute('aria-label', `Select ${isTextKey(node.dataset.textKey) ? TEXT_FIELDS[node.dataset.textKey].label : node.dataset.contentField}`);
+        if(enabled && !placeholder(node))node.setAttribute('contenteditable', node === editable ? 'plaintext-only' : 'false');
+        if(enabled)node.setAttribute('spellcheck', 'true');
       });
       if (draft && selected) {
         matching.forEach(node=>{if(!originals.has(node))originals.set(node,read(node));});
@@ -87,12 +100,14 @@ export function PreviewTextBridge() {
         if (pendingFocus === selected && editable === selected) { pendingFocus = null; focus(selected); }
       }
     };
+    // Selection opens the right editor even in Photos; mutation still requires enabled + editable.
+    // Window capture precedes preview navigation and VisualSlot bubbling.
     const select = (event: MouseEvent | KeyboardEvent) => {
-      if (!enabled || generation < 0 || event.defaultPrevented) return;
+      if (!selectable || generation < 0 || event.defaultPrevented) return;
       if (event instanceof KeyboardEvent && !['Enter', ' '].includes(event.key)) return;
       if (event instanceof MouseEvent && (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey)) return;
       const node = event.target instanceof Element ? event.target.closest<HTMLElement>(selector) : null;
-      if (!node || !binding(node)) return;
+      if (!node || !binding(node) || node.tagName==='OPTION' || node.closest('[aria-hidden="true"]')) return;
       if (node === editable) {
         // Prevent link navigation while leaving the native caret position intact.
         if (event instanceof MouseEvent) {
@@ -156,5 +171,5 @@ export function PreviewTextBridge() {
       restoreText(); restoreControls();
     };
   }, [pathname]);
-  return <style>{`[data-text-editable="true"] { cursor: text; outline: 1px dashed #d99a4e; outline-offset: 4px; } [data-text-editable="true"]:focus-visible, [contenteditable="plaintext-only"]:focus { outline: 2px solid #d99a4e; outline-offset: 4px; }`}</style>;
+  return <style>{`[data-text-editable="true"] { cursor: text; outline: 1px dashed #d99a4e; outline-offset: 4px; } [data-text-selectable="true"]:focus-visible, [contenteditable="plaintext-only"]:focus { outline: 2px solid #d99a4e; outline-offset: 4px; }`}</style>;
 }

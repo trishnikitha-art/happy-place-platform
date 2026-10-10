@@ -26,6 +26,15 @@ it('rejects a changed previous value even with the same revision',()=> {
   const c=base(); c.fields['homepage.hero.title'].value='Another edit';
   expect(()=>applyTextMutation(c,mutation())).toThrow('TEXT_REVISION_CONFLICT');
 });
+it('applies distinct approved text fields to one catalog while retaining independent revisions',()=> {
+  const c=base();const before=structuredClone(c);
+  const description=c.fields['homepage.hero.description'];
+  const second={schema:'text.v1' as const,key:'homepage.hero.description' as const,previousValue:description.value,expectedRevision:description.revision,value:'A reviewed introduction.'};
+  applyTextMutation(c,mutation());applyTextMutation(c,second);
+  expect(c.fields['homepage.hero.title']).toEqual({value:mutation().value,revision:1});
+  expect(c.fields['homepage.hero.description']).toEqual({value:second.value,revision:description.revision+1});
+  for(const key of Object.keys(TEXT_FIELDS) as TextKey[]) if(key!==mutation().key && key!==second.key) expect(c.fields[key]).toEqual(before.fields[key]);
+});
 it.each(['nav.href','__proto__','homepage.hero.unknown'])('does not edit locked/unknown key %s',key=>expect(()=>validateText(key,'New text')).toThrow());
 it.each(['','  ','<script>alert(1)</script>','hello\nworld','x'.repeat(181),'Hello {name}'])('rejects invalid values %j',value=>expect(()=>decodeTextMutation({...mutation(),value})).toThrow());
 it('rejects missing keys and unsupported schema versions',()=> {

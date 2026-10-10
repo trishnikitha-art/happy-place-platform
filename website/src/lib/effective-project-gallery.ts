@@ -88,7 +88,7 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
   const baselineGallery = project.media?.gallery || [];
   const baselineRevision = project.media?.galleryRevision || 0;
 
-  console.log('[EFFECTIVE_GALLERY] BASELINE_LOADED', {
+  if (process.env.NODE_ENV === 'development') console.log('[EFFECTIVE_GALLERY] BASELINE_LOADED', {
     projectId,
     baselineGalleryLength: baselineGallery.length,
     baselineGalleryIds: baselineGallery,
@@ -102,7 +102,7 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
   let effectiveGallery: string[];
 
   if (!isProduction) {
-    console.log('[EFFECTIVE_GALLERY] DEV_MODE - Returning baseline', {
+    if (process.env.NODE_ENV === 'development') console.log('[EFFECTIVE_GALLERY] DEV_MODE - Returning baseline', {
       projectId,
       environment,
       galleryLength: baselineGallery.length,
@@ -144,7 +144,7 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
           const runtimeRevision = parsed.currentRevision;
           const runtimeTransactionId = parsed.lastTransactionId;
 
-          console.log('[EFFECTIVE_GALLERY] RUNTIME_AUTHORITY_APPLIED', {
+          if (process.env.NODE_ENV === 'development') console.log('[EFFECTIVE_GALLERY] RUNTIME_AUTHORITY_APPLIED', {
             projectId,
             baselineGalleryLength: baselineGallery.length,
             runtimeGalleryLength: runtimeGallery.length,
@@ -196,7 +196,7 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
         } else {
           // CEO FIX: Runtime authority not initialized - fall back to baseline
           // This is expected for projects that haven't been edited via Workbench yet
-          console.log('[EFFECTIVE_GALLERY] RUNTIME_AUTHORITY_MISSING - Returning baseline', {
+          if (process.env.NODE_ENV === 'development') console.log('[EFFECTIVE_GALLERY] RUNTIME_AUTHORITY_MISSING - Returning baseline', {
             projectId,
             runtimeKey,
             reason: 'Runtime authority not yet initialized (project not edited via Workbench)',
@@ -307,7 +307,7 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
           // Valid authority - apply visibility filter
           const visibleGallery = effectiveGallery.filter((id: string) => !hiddenGallery.includes(id));
           
-          console.log('[EFFECTIVE_GALLERY] VISIBILITY_FILTER_APPLIED', {
+          if (process.env.NODE_ENV === 'development') console.log('[EFFECTIVE_GALLERY] VISIBILITY_FILTER_APPLIED', {
             projectId,
             totalGallery: effectiveGallery.length,
             hiddenCount: hiddenGallery.length,
@@ -332,7 +332,7 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
         // Missing authority - self-heal in production by initializing empty visibility authority
         const environment = getEnvironment();
         if (environment === 'production') {
-          console.log('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MISSING - SELF_HEALING', {
+          if (process.env.NODE_ENV === 'development') console.log('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MISSING - SELF_HEALING', {
             projectId,
             visibilityKey,
             decision: 'Initializing empty visibility authority to restore gallery',
@@ -363,7 +363,7 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
               }
 
               if (vParsed && vParsed.schemaVersion === 1 && vParsed.projectId === projectId) {
-                console.log('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_RELOADED', {
+                if (process.env.NODE_ENV === 'development') console.log('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_RELOADED', {
                   projectId,
                   visibilityRevision: vParsed.visibilityRevision,
                 });
@@ -377,7 +377,7 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
             return [];
           }
 
-          console.log('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_INITIALIZED', {
+          if (process.env.NODE_ENV === 'development') console.log('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_INITIALIZED', {
             projectId,
             visibilityRevision: 0,
             decision: 'Gallery restored with empty visibility authority',
@@ -385,7 +385,7 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
           return effectiveGallery; // Empty hiddenGallery = all visible
         } else {
           // Development: allow missing authority (not yet initialized)
-          console.log('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MISSING - DEV_MODE', {
+          if (process.env.NODE_ENV === 'development') console.log('[EFFECTIVE_GALLERY] VISIBILITY_AUTHORITY_MISSING - DEV_MODE', {
             projectId,
             decision: 'Returning unfiltered gallery (visibility not yet initialized)',
           });
@@ -411,7 +411,7 @@ export async function getEffectiveProjectGallery(projectId: string): Promise<str
       });
       return [];
     } else {
-      console.log('[EFFECTIVE_GALLERY] REDIS_UNAVAILABLE - DEV_MODE', {
+      if (process.env.NODE_ENV === 'development') console.log('[EFFECTIVE_GALLERY] REDIS_UNAVAILABLE - DEV_MODE', {
         projectId,
         decision: 'Returning unfiltered gallery (Redis not available in dev)',
       });
@@ -447,7 +447,7 @@ function getRedisClient(): Redis | null {
     
     if (!url || !token) return null;
     
-    console.log('[EFFECTIVE_GALLERY] KV_CREDENTIALS', {
+    if (process.env.NODE_ENV === 'development') console.log('[EFFECTIVE_GALLERY] KV_CREDENTIALS', {
       hasUrl: !!url,
       hasToken: !!token,
       usingIntegration: !!integrationUrl || !!integrationToken,

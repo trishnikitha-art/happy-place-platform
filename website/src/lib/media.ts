@@ -128,7 +128,7 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
     // KV infrastructure error - distinguish between static build and runtime
     if (isStaticBuild()) {
       // During static build, return null to allow build to succeed
-      console.log('[MEDIA] KV_UNAVAILABLE_DURING_STATIC_BUILD - returning null', {
+      if (process.env.NODE_ENV === 'development') console.log('[MEDIA] KV_UNAVAILABLE_DURING_STATIC_BUILD - returning null', {
         mediaId: id,
       });
       return null;
@@ -136,7 +136,7 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
     
     // DEV_MODE_SKIP_KV: Fall back to static media authority for development testing
     if (error instanceof Error && (error.message.includes('DEV_MODE_SKIP_KV') || error.name === 'KvUnavailableError')) {
-      console.log('[MEDIA] DEV_MODE_SKIP_KV - falling back to static media authority', {
+      if (process.env.NODE_ENV === 'development') console.log('[MEDIA] DEV_MODE_SKIP_KV - falling back to static media authority', {
         mediaId: id,
       });
       
@@ -144,11 +144,11 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
       const staticMedia = getStaticMediaForBootstrap(id);
       
       if (staticMedia) {
-        console.log('[MEDIA] DEV_MODE_SKIP_KV - using static media', { mediaId: id });
+        if (process.env.NODE_ENV === 'development') console.log('[MEDIA] DEV_MODE_SKIP_KV - using static media', { mediaId: id });
         return staticMedia;
       }
       
-      console.log('[MEDIA] DEV_MODE_SKIP_KV - static media not found', { mediaId: id });
+      if (process.env.NODE_ENV === 'development') console.log('[MEDIA] DEV_MODE_SKIP_KV - static media not found', { mediaId: id });
       return null;
     }
     
@@ -193,7 +193,7 @@ export async function getMediaByIdAsync(id: string): Promise<Media | null> {
 export async function resolvePublicMedia(id: string): Promise<Media | null> {
   const { isMediaPlacementVisible } = await import('./content-publication');
   if (!isMediaPlacementVisible(id)) return null;
-  console.log('[PUBLIC_MEDIA_GATE] Resolving public media:', { id, isStaticBuild: isStaticBuild() });
+  if (process.env.NODE_ENV === 'development') console.log('[PUBLIC_MEDIA_GATE] Resolving public media:', { id, isStaticBuild: isStaticBuild() });
 
   // REJECT: drive-prefixed IDs (source references)
   // drive- and drive-ref- prefixes are reserved for DriveReference only
@@ -205,10 +205,10 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
   // BUILD SAFETY: During static build, use static authority directly
   // This prevents KV lookup failures during static generation
   if (isStaticBuild()) {
-    console.log('[PUBLIC_MEDIA_GATE] Using static authority during static build', { id });
+    if (process.env.NODE_ENV === 'development') console.log('[PUBLIC_MEDIA_GATE] Using static authority during static build', { id });
     const staticMedia = getStaticMediaForBootstrap(id);
     if (!staticMedia) {
-      console.log('[PUBLIC_MEDIA_GATE] Static media not found', { id });
+      if (process.env.NODE_ENV === 'development') console.log('[PUBLIC_MEDIA_GATE] Static media not found', { id });
       return null;
     }
 
@@ -222,16 +222,16 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
       return null;
     }
 
-    console.log('[PUBLIC_MEDIA_GATE] APPROVED: static published media', { id });
+    if (process.env.NODE_ENV === 'development') console.log('[PUBLIC_MEDIA_GATE] APPROVED: static published media', { id });
     return staticMedia;
   }
 
   // DEV_MODE_SKIP_KV: Use static authority during development without KV
   if (process.env.DEV_MODE_SKIP_KV === 'true') {
-    console.log('[PUBLIC_MEDIA_GATE] DEV_MODE_SKIP_KV - using static authority', { id });
+    if (process.env.NODE_ENV === 'development') console.log('[PUBLIC_MEDIA_GATE] DEV_MODE_SKIP_KV - using static authority', { id });
     const staticMedia = getStaticMediaForBootstrap(id);
     if (!staticMedia) {
-      console.log('[PUBLIC_MEDIA_GATE] DEV_MODE_SKIP_KV - static media not found', { id });
+      if (process.env.NODE_ENV === 'development') console.log('[PUBLIC_MEDIA_GATE] DEV_MODE_SKIP_KV - static media not found', { id });
       return null;
     }
 
@@ -245,7 +245,7 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
       return null;
     }
 
-    console.log('[PUBLIC_MEDIA_GATE] DEV_MODE_SKIP_KV - APPROVED: static published media', { id });
+    if (process.env.NODE_ENV === 'development') console.log('[PUBLIC_MEDIA_GATE] DEV_MODE_SKIP_KV - APPROVED: static published media', { id });
     return staticMedia;
   }
 
@@ -353,7 +353,7 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
     return null;
   }
 
-  console.log('[PUBLIC_MEDIA_GATE] APPROVED: published public media', { id });
+  if (process.env.NODE_ENV === 'development') console.log('[PUBLIC_MEDIA_GATE] APPROVED: published public media', { id });
   if (media.storage === 'r2') {
     try {
       const { projectVerifiedR2Media } = await import('./r2-public-origin');

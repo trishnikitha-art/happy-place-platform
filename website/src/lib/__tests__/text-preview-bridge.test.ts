@@ -3,10 +3,11 @@ jest.mock('react',()=>({...jest.requireActual('react'),useEffect:(effect:()=>voi
 jest.mock('next/navigation',()=>({usePathname:()=>'/workbench/preview'}));
 import {PreviewTextBridge} from '@/components/workbench/preview-text-bridge';
 import {parseTextPreviewDraft,isTextKey} from '@/lib/text-preview-bridge';
+import {TEXT_FIELDS} from '@/lib/text-contract';
 class Node {
   textContent='Original headline';
   isConnected=true;
-  dataset={textKey:'homepage.hero.title'};
+  dataset:Record<string,string>={textKey:'homepage.hero.title'};
   attrs=new Map<string,string>();
   getAttribute(key:string){return this.attrs.get(key)??null;}
   setAttribute(key:string,value:string){this.attrs.set(key,value);}
@@ -77,4 +78,77 @@ it('does not overwrite an in-progress composition with a parent update',()=>{
   receive(editable);expect(node.textContent).toBe('Composing');
   listeners.get('compositionend')!({target:node});
   expect(parent.postMessage).toHaveBeenLastCalledWith({type:'TEXT_EDIT',draft:{key:'homepage.hero.title',value:'Composing',editVersion:1,resetVersion:1},generation:4},'https://site.test');
+});
+
+it('activates registered text from Photos without accepting edits until the parent enables the editor',()=>{
+  receive({...state,enabled:false,selectable:true,draft:null});
+  expect(node.attrs.get('tabindex')).toBe('0');
+  expect(node.attrs.has('contenteditable')).toBe(false);
+  const click=new Mouse(node);listeners.get('click')!(click);
+  expect(click.stopImmediatePropagation).toHaveBeenCalled();
+  expect(parent.postMessage).toHaveBeenLastCalledWith({type:'TEXT_SELECT',key:'homepage.hero.title',generation:4},'https://site.test');
+  parent.postMessage.mockClear();listeners.get('input')!({target:node});
+  expect(parent.postMessage).not.toHaveBeenCalled();
+  receive({...state,selectable:true,draft:{...state.draft,editable:true,editVersion:0,resetVersion:1}});
+  expect(node.attrs.get('contenteditable')).toBe('plaintext-only');
+  expect(node.focus).toHaveBeenCalled();
+});
+it.each(['services','projects'])('activates a registered %s copy field from Photos',collection=>{
+  const field=collection==='services'?'name':'title';
+  node.dataset={contentCollection:collection,contentId:'decks',contentField:field,contentRoute:'/services'};
+  receive({...state,enabled:false,selectable:true,draft:null});
+  const key=new Key(node);listeners.get('keydown')!(key);
+  expect(key.preventDefault).toHaveBeenCalled();
+  expect(parent.postMessage).toHaveBeenLastCalledWith({type:'CONTENT_SELECT',collection,id:'decks',field,value:'',route:'/services',generation:4},'https://site.test');
+  expect(node.attrs.has('contenteditable')).toBe(false);
+});
+it('does not consume visual media clicks, unregistered copy, or modified navigation in Photos',()=>{
+  receive({...state,enabled:false,selectable:true,draft:null});
+  const modified=new Mouse(node);modified.ctrlKey=true;listeners.get('click')!(modified);
+  expect(modified.preventDefault).not.toHaveBeenCalled();
+  for(const dataset of [{slotId:'homepage-hero'}, {textKey:'unknown'}, {contentCollection:'services',contentId:'decks',contentField:'mediaId'}]) {
+    node.dataset=dataset;const click=new Mouse(node);listeners.get('click')!(click);
+    expect(click.preventDefault).not.toHaveBeenCalled();expect(click.stopImmediatePropagation).not.toHaveBeenCalled();
+  }
+});
+it('requires a valid parent handshake before selection and ignores stale or forged activation state',()=>{
+  const click=new Mouse(node);listeners.get('click')!(click);expect(click.preventDefault).not.toHaveBeenCalled();
+  receive({...state,enabled:false,selectable:true,draft:null},'https://attacker.test');
+  listeners.get('click')!(click);expect(click.preventDefault).not.toHaveBeenCalled();
+  receive({...state,enabled:false,selectable:true,draft:null});
+  receive({...state,enabled:false,selectable:false,generation:3,draft:null});
+  const accepted=new Mouse(node);listeners.get('click')!(accepted);
+  expect(parent.postMessage).toHaveBeenLastCalledWith({type:'TEXT_SELECT',key:'homepage.hero.title',generation:4},'https://site.test');
+  receive({...state,enabled:false,selectable:false,draft:null});
+  expect(node.attrs.size).toBe(0);
+  const disabled=new Mouse(node);listeners.get('click')!(disabled);expect(disabled.preventDefault).not.toHaveBeenCalled();
+});
+
+it('keeps staged text for two fields visible across selection and restores removed queued copy',()=>{
+  const description=new Node();description.dataset={textKey:'homepage.hero.description'};description.textContent='Original introduction';
+  global.document.querySelectorAll=(()=>[node,description]) as never;
+  const queued=[{key:'homepage.hero.title',value:'Staged headline'},{key:'homepage.hero.description',value:'Staged introduction'}];
+  receive({...state,draft:{...state.draft,value:'Staged headline',queued}});
+  expect(node.textContent).toBe('Staged headline');expect(description.textContent).toBe('Staged introduction');
+  receive({...state,draft:{key:'homepage.hero.description',value:'Staged introduction',queued}});
+  expect(node.textContent).toBe('Staged headline');expect(description.textContent).toBe('Staged introduction');
+  receive({...state,draft:{key:'homepage.hero.description',value:'Staged introduction',queued:[]}});
+  expect(node.textContent).toBe('Original headline');expect(description.textContent).toBe('Staged introduction');
+  receive({...state,enabled:false,selectable:true,draft:null});
+  expect(node.textContent).toBe('Original headline');expect(description.textContent).toBe('Original introduction');
+});
+it('never uses a queued echo to overwrite active typing or focus another field',()=>{
+  const description=new Node();description.dataset={textKey:'homepage.hero.description'};description.textContent='Original introduction';
+  global.document.querySelectorAll=(()=>[node,description]) as never;
+  const editable={...state,draft:{...state.draft,editable:true,editVersion:0,resetVersion:1,queued:[{key:'homepage.hero.title',value:'Older queued headline'},{key:'homepage.hero.description',value:'Staged introduction'}]}};
+  receive(editable);node.textContent='Newest typing';listeners.get('input')!({target:node});
+  receive(editable);
+  expect(node.textContent).toBe('Newest typing');expect(description.textContent).toBe('Staged introduction');
+  expect(description.focus).not.toHaveBeenCalled();
+});
+it('rejects nonregistered, duplicate, excessive and overlength queued draft entries',()=>{
+  for(const queued of [null,{},[{key:'unknown',value:'x'}],[{key:'homepage.hero.title',value:'x'},{key:'homepage.hero.title',value:'y'}],[{key:'homepage.hero.title',value:'x'.repeat(181)}],Array(Object.keys(TEXT_FIELDS).length+1).fill({key:'homepage.hero.title',value:'x'})]) {
+    expect(parseTextPreviewDraft({...state.draft,queued})).toBeNull();
+  }
+  expect(parseTextPreviewDraft({...state.draft,queued:[{key:'homepage.hero.description',value:'Safe copy',selector:'body'}]})).toEqual({...state.draft,queued:[{key:'homepage.hero.description',value:'Safe copy'}]});
 });

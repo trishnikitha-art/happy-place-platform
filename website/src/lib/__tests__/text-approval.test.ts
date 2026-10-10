@@ -14,3 +14,11 @@ it.each([undefined,[],[{transactionId:'other',mutation}],[{transactionId:id,muta
 it('rejects staging substitution after claim',()=> {
   expect(()=>approvedTextMutation([{transactionId:id,mutation}],id,{...mutation,value:'Substituted'})).toThrow('TEXT_APPROVAL_MISMATCH');
 });
+it('requires an exact approval for every distinct receipt in a batch',()=> {
+  const secondId=id.replace('1791550000000','1791550000001');
+  const secondMutation={...mutation,key:'homepage.hero.description'};
+  const approvals=[{transactionId:id,mutation},{transactionId:secondId,mutation:secondMutation}];
+  expect(approvedTextMutation(approvals,id,mutation)).toEqual(mutation);
+  expect(approvedTextMutation(approvals,secondId,secondMutation)).toEqual(secondMutation);
+  expect(()=>approvedTextMutation(approvals.slice(0,1),secondId,secondMutation)).toThrow('TEXT_APPROVAL_REQUIRED');
+});

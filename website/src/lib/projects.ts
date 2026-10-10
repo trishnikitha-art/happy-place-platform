@@ -44,87 +44,59 @@ export function getAllProjects(): Project[] {
  * P0 FIX: Use effective project gallery authority (deployed + staged mutations)
  * This ensures the projection always sees the current editorial state
  */
-export async function getProjectWithResolvedMedia(project: Project): Promise<Project> {
-  const resolveMedia = async (mediaId: string | undefined): Promise<Media | undefined> => {
-    if (!mediaId) return undefined;
-    
-    // Use KV public authority only - no static fallback
-    const kvMedia = await resolvePublicMedia(mediaId);
-    if (kvMedia) return kvMedia;
-    
-    // P0 FIX: Fail honestly when KV authority is not available
-    // Static fallback masks the actual failure of the constitutional authority
-    console.error('[PROJECTS] MEDIA_RESOLUTION_FAILED', { 
-      mediaId, 
-      reason: 'KV authority returned null' 
-    });
-    return undefined;
-  };
+type PublicMediaResolver = (mediaId: string | undefined) => Promise<Media | undefined>;
 
-  const resolveMediaArray = async (mediaIds: string[]): Promise<Media[]> => {
-    console.log('[PROJECTS] RESOLVE_MEDIA_ARRAY_START', {
-      projectId: project.id,
-      inputIds: mediaIds,
-      inputCount: mediaIds.length
-    });
-    
-    const resolved = await Promise.all(mediaIds.map(async (mediaId, index) => {
-      const media = await resolveMedia(mediaId);
-      console.log('[PROJECTS] RESOLVE_MEDIA_ITEM', {
-        projectId: project.id,
-        index,
-        mediaId,
-        resolved: !!media
+// Each resolution call owns this promise map. Nothing survives into another
+// request, so changed publication authority is checked again on the next call.
+function createPublicMediaResolver(): PublicMediaResolver {
+  const pending = new Map<string, Promise<Media | undefined>>();
+  return mediaId => {
+    if (!mediaId) return Promise.resolve(undefined);
+    let result = pending.get(mediaId);
+    if (!result) {
+      result = resolvePublicMedia(mediaId).then(media => {
+        if (media) return media;
+        console.error('[PROJECTS] MEDIA_RESOLUTION_FAILED', {mediaId, reason:'KV authority returned null'});
+        return undefined;
       });
-      return media;
-    }));
-    
-    const filtered = resolved.filter((m): m is Media => m !== undefined);
-    console.log('[PROJECTS] RESOLVE_MEDIA_ARRAY_END', {
-      projectId: project.id,
-      inputCount: mediaIds.length,
-      resolvedCount: resolved.length,
-      filteredCount: filtered.length,
-      outputIds: filtered.map(m => m.id)
-    });
-    
-    return filtered;
-  };
-
-  // P0 FIX: Use effective project gallery authority (deployed + staged mutations)
-  // This ensures the projection always sees the current editorial state
-  const effectiveGallery = await getEffectiveProjectGallery(project.id);
-
-  console.log('[PROJECTS] EFFECTIVE_GALLERY_USED', {
-    projectId: project.id,
-    effectiveGalleryLength: effectiveGallery.length,
-    baselineGalleryLength: project.media.gallery.length,
-  });
-
-  return {
-    ...project,
-    media: {
-      ...project.media,
-      // P0 FIX: Use effective gallery instead of baseline gallery
-      gallery: effectiveGallery,
-      galleryMedia: await resolveMediaArray(effectiveGallery),
-      heroMedia: await resolveMedia(project.media.hero),
-      beforeMedia: await resolveMedia(project.media.before),
-      afterMedia: await resolveMedia(project.media.after),
-      detailsMedia: project.media.details ? await resolveMediaArray(project.media.details) : undefined,
-      progressMedia: project.media.progress ? await resolveMediaArray(project.media.progress) : undefined,
-    },
+      pending.set(mediaId, result);
+    }
+    return result;
   };
 }
 
-/**
- * P1 FIX: Resolve media for multiple projects
- * This prevents callers from bypassing the public media gate by calling getMediaById directly
- */
+async function resolveProjectMedia(project: Project, resolveMedia: PublicMediaResolver): Promise<Project> {
+  const resolveMediaArray = async (ids: string[]): Promise<Media[]> =>
+    (await Promise.all(ids.map(resolveMedia))).filter((media): media is Media => media !== undefined);
+
+  // Gallery order and visibility still come from the live gallery authority.
+  // Independent media roles can resolve while that authority is being read.
+  const gallery = getEffectiveProjectGallery(project.id).then(async ids => ({
+    ids, media: await resolveMediaArray(ids),
+  }));
+  const [effectiveGallery, heroMedia, beforeMedia, afterMedia, detailsMedia, progressMedia] = await Promise.all([
+    gallery,
+    resolveMedia(project.media.hero),
+    resolveMedia(project.media.before),
+    resolveMedia(project.media.after),
+    project.media.details ? resolveMediaArray(project.media.details) : Promise.resolve(undefined),
+    project.media.progress ? resolveMediaArray(project.media.progress) : Promise.resolve(undefined),
+  ]);
+  return {...project, media: {...project.media,
+    gallery: effectiveGallery.ids, galleryMedia: effectiveGallery.media,
+    heroMedia, beforeMedia, afterMedia, detailsMedia, progressMedia,
+  }};
+}
+
+export async function getProjectWithResolvedMedia(project: Project): Promise<Project> {
+  return resolveProjectMedia(project, createPublicMediaResolver());
+}
+
+/** Resolve shared media once per batch, through the unchanged public gate. */
 export async function getProjectsWithResolvedMedia(projects: Project[]): Promise<Project[]> {
-  return await Promise.all(projects.map(getProjectWithResolvedMedia));
+  const resolveMedia = createPublicMediaResolver();
+  return Promise.all(projects.map(project => resolveProjectMedia(project, resolveMedia)));
 }
-
 /**
  * Get project by ID
  */
