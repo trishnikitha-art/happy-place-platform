@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { TextEditor } from '@/components/workbench/text-editor';
-import { ContentManager } from '@/components/workbench/content-manager';
-import { isTextKey, type TextPreviewDraft } from '@/lib/text-preview-bridge';
+import { ContentManager,type ContentCopySelection } from '@/components/workbench/content-manager';
+import { parseContentCopyDraft,type ContentCopyDraft } from '@/lib/content-contract';
+import { isTextKey, parseTextPreviewDraft, type TextPreviewDraft } from '@/lib/text-preview-bridge';
 import type { TextKey } from '@/lib/text-contract';
 import { RefreshCw, Search, Layers, Database, FolderOpen, Folder, FileImage, ChevronRight, Loader2, List, AlertCircle, LayoutGrid, Plus, X, Info, MoreVertical, Check } from 'lucide-react';
 import { loadVisualAssetRegistry, addDriveAssetToRegistry, type VisualAsset } from '@/lib/visual-asset-registry';
@@ -26,7 +27,7 @@ interface PendingReplacement {
 }
 
 
-type PageRoute = '/' | '/services' | '/our-work' | '/about' | '/reviews' | '/estimate';
+type PageRoute = '/' | '/services' | '/our-work' | '/about' | '/reviews' | '/estimate' | '/contact' | '/faq' | '/privacy' | '/review' | '/newsletter' | '/newsletter/thank-you' | '/blog';
 
 interface MediaWorkbenchState {
   loading: boolean;
@@ -107,6 +108,13 @@ const PAGE_LABELS: Record<PageRoute, string> = {
   '/about': 'About',
   '/reviews': 'Reviews',
   '/estimate': 'Estimate',
+  '/contact': 'Contact',
+  '/faq': 'FAQ',
+  '/privacy': 'Privacy',
+  '/review': 'Review form',
+  '/newsletter': 'Newsletter',
+  '/newsletter/thank-you': 'Newsletter thank-you',
+  '/blog': 'Blog',
 };
 
 // P0 FIX: Explicit Workbench origin constant for postMessage validation
@@ -119,9 +127,14 @@ export default function MediaWorkbench() {
   const [editorTool,setEditorTool]=useState<'media'|'text'|'collections'>('media');
   const [previewPath,setPreviewPath]=useState<string|null>(null);
   const [collectionsOpened,setCollectionsOpened]=useState(false);
-  const [textSelection,setTextSelection]=useState<{key:TextKey;request:number}>();
+  const [textSelection,setTextSelection]=useState<{key:TextKey;request:number;value?:string;editVersion?:number}>();
   const [textDraft,setTextDraft]=useState<TextPreviewDraft|null>(null);
   const [textTransaction,setTextTransaction]=useState<string|null>(null);
+  const [contentSelection,setContentSelection]=useState<ContentCopySelection>();
+  const [contentDraft,setContentDraft]=useState<(ContentCopyDraft & {editVersion:number;resetVersion:number})|null>(null);
+  const [contentTransaction,setContentTransaction]=useState<string|null>(null);
+  const updateContentPreview=useCallback((draft:(ContentCopyDraft & {editVersion:number;resetVersion:number})|null)=>setContentDraft(draft),[]);
+  const updateContentTransaction=useCallback((id:string|null)=>setContentTransaction(id),[]);
   const updateTextPreview=useCallback((draft:TextPreviewDraft|null)=>setTextDraft(draft),[]);
   const updateTextTransaction=useCallback((id:string|null)=>setTextTransaction(id),[]);
   useEffect(()=>{
@@ -264,7 +277,7 @@ export default function MediaWorkbench() {
 
   useEffect(()=>{
     const sync=()=>iframeRef.current?.contentWindow?.postMessage({
-      type:'TEXT_TOOL_STATE',enabled:editorTool==='text',draft:textDraft,
+      type:'TEXT_TOOL_STATE',enabled:editorTool!=='media',draft:editorTool==='text'?textDraft:null,contentDraft:editorTool==='collections'?contentDraft:null,
       generation:currentIframeGenerationRef.current,
     },WORKBENCH_ORIGIN);
     const receive=(event:MessageEvent)=>{
@@ -273,10 +286,22 @@ export default function MediaWorkbench() {
       if(event.data?.type==='TEXT_SELECT' && event.data.generation===currentIframeGenerationRef.current && isTextKey(event.data.key)) {
         setEditorTool('text');setTextSelection({key:event.data.key,request:Date.now()});
       }
+      if(event.data?.type==='TEXT_EDIT' && editorTool==='text' && event.data.generation===currentIframeGenerationRef.current) {
+        const incoming=parseTextPreviewDraft(event.data.draft);
+        if(incoming && textDraft?.editable && incoming.key===textDraft.key && event.data.draft.resetVersion===textDraft.resetVersion && Number.isSafeInteger(event.data.draft.editVersion) && event.data.draft.editVersion>0) setTextSelection({...incoming,editVersion:event.data.draft.editVersion,request:Date.now()});
+      }
+      if(event.data?.type==='CONTENT_SELECT' && editorTool!=='media' && event.data.generation===currentIframeGenerationRef.current) {
+        const incoming=parseContentCopyDraft(event.data);
+        if(incoming){setCollectionsOpened(true);setEditorTool('collections');setContentSelection({collection:incoming.collection,id:incoming.id,field:incoming.field,request:Date.now()});}
+      }
+      if(event.data?.type==='CONTENT_EDIT' && editorTool==='collections' && event.data.generation===currentIframeGenerationRef.current) {
+        const incoming=parseContentCopyDraft(event.data.draft);
+        if(incoming && contentDraft?.editable && incoming.collection===contentDraft.collection && incoming.id===contentDraft.id && incoming.field===contentDraft.field && event.data.draft.resetVersion===contentDraft.resetVersion && Number.isSafeInteger(event.data.draft.editVersion) && event.data.draft.editVersion>0) setContentSelection({...incoming,editVersion:event.data.draft.editVersion,resetVersion:event.data.draft.resetVersion,request:Date.now()});
+      }
     };
     window.addEventListener('message',receive);sync();
     return ()=>window.removeEventListener('message',receive);
-  },[editorTool,textDraft,state.currentIframeGeneration]);
+  },[editorTool,textDraft,contentDraft,state.currentIframeGeneration]);
 
   useEffect(() => {
     const warnBeforeLeaving = (event: BeforeUnloadEvent) => {
@@ -2836,7 +2861,7 @@ export default function MediaWorkbench() {
             {/* Website Preview Iframe - displays actual production page components with VisualSlot instrumentation */}
             <iframe
               ref={iframeRef}
-              src={`${WORKBENCH_ORIGIN}/workbench/preview${previewPath ?? (state.selectedPage === '/' ? '' : state.selectedPage)}?workbench=true${!previewPath && state.selectedPage==='/' && textTransaction ? '&textTransaction='+encodeURIComponent(textTransaction) : ''}`}
+              src={`${WORKBENCH_ORIGIN}/workbench/preview${previewPath ?? (state.selectedPage === '/' ? '' : state.selectedPage)}?workbench=true${textTransaction ? '&textTransaction='+encodeURIComponent(textTransaction) : ''}${contentTransaction ? '&contentTransaction='+encodeURIComponent(contentTransaction) : ''}`}
               className="w-full h-full border-0"
               title="Website Preview"
               sandbox="allow-same-origin allow-scripts allow-popups"
@@ -2926,12 +2951,12 @@ export default function MediaWorkbench() {
                 onClick={()=>{setCollectionsOpened(true);setEditorTool('collections');}} className="min-h-11 rounded-xl border border-primary/30 px-4 font-semibold text-primary aria-selected:bg-primary aria-selected:text-white">Services & projects</button>
             </div>
             <div id="collections-editor" role="tabpanel" aria-label="Services and projects" hidden={editorTool!=='collections'}>
-              {collectionsOpened && <ContentManager onPreviewRoute={setPreviewPath} />}
+              {collectionsOpened && <ContentManager onPreviewRoute={setPreviewPath} active={editorTool==='collections'} selection={contentSelection} onCopyPreview={updateContentPreview} onTransaction={updateContentTransaction} />}
             </div>
             <div id="text-editor" role="tabpanel" aria-label="Text editing" hidden={editorTool!=='text'}>
-              {state.selectedPage!=='/' && <p className="mb-3 rounded-lg bg-surface-2 p-3 text-sm text-deep">The current editable text fields are on the Homepage. Choose Homepage above to edit them in context.</p>}
               <TextEditor embedded active={editorTool==='text'} selection={textSelection}
-                onPreview={updateTextPreview} onTransaction={updateTextTransaction} />
+                onPreview={updateTextPreview} onTransaction={updateTextTransaction}
+                onTargetRoute={route=>{if(route==='*')return;if(Object.hasOwn(PAGE_LABELS,route)){setPreviewPath(null);setState(previous=>({...previous,selectedPage:route as PageRoute}));}else setPreviewPath(route);}} />
             </div>
             <div id="media-editor" role="tabpanel" aria-label="Photos and visual slots" hidden={editorTool!=='media'}>
             {/* Search */}

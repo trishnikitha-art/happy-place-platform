@@ -1,4 +1,5 @@
 "use client";
+import { TextCopy, useTextCopy } from '@/components/text-copy';
 
 import { useState } from "react";
 import Link from "next/link";
@@ -16,6 +17,25 @@ interface ReviewFormData {
 }
 
 export default function ReviewPage() {
+  const failureCopy = useTextCopy("review.failure");
+  const unknownFailureCopy = useTextCopy("review.unknownFailure");
+
+  const optionCopy = {
+    choose: useTextCopy("review.serviceOption.choose"),
+    deck: useTextCopy("review.serviceOption.deck"),
+    pergola: useTextCopy("review.serviceOption.pergola"),
+    fence: useTextCopy("review.serviceOption.fence"),
+    painting: useTextCopy("review.serviceOption.painting"),
+    bathroom: useTextCopy("review.serviceOption.bathroom"),
+    kitchen: useTextCopy("review.serviceOption.kitchen"),
+    carpentry: useTextCopy("review.serviceOption.carpentry"),
+    other: useTextCopy("review.serviceOption.other"),
+  };
+  const copy = {
+    namePlaceholder: useTextCopy("review.namePlaceholder"),
+    cityPlaceholder: useTextCopy("review.cityPlaceholder"),
+    bodyPlaceholder: useTextCopy("review.bodyPlaceholder"),
+  };
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -73,14 +93,14 @@ export default function ReviewPage() {
 
       if (!response.ok) {
         console.error('Review submission failed:', result);
-        throw new Error(result.error || result.details || 'Failed to submit review');
+        throw new Error(result.error || result.details || failureCopy);
       }
 
       setIsSubmitted(true);
     } catch (err) {
       console.error("=== FORM SUBMISSION ERROR ===");
       console.error("Error:", err);
-      setError(err instanceof Error ? err.message : 'Something went wrong');
+      setError(err instanceof Error ? err.message : unknownFailureCopy);
     } finally {
       setIsSubmitting(false);
     }
@@ -100,19 +120,19 @@ export default function ReviewPage() {
             </div>
             
             <h1 className="font-display text-4xl font-bold text-text-on-dark md:text-5xl">
-              Thank you
+              <TextCopy textKey="review.success.title" />
             </h1>
             
             <p className="mt-4 text-lg text-text-on-dark/90">
-              Thank you for trusting Taylor and Lanie with your project.
+              <TextCopy textKey="review.success.thanks" />
             </p>
             
             <p className="mt-2 text-lg text-text-on-dark/80">
-              We read every review personally.
+              <TextCopy textKey="review.success.personal" />
             </p>
             
             <p className="mt-2 text-lg text-text-on-dark/70">
-              Your feedback helps future homeowners know what it&apos;s like to work with us.
+              <TextCopy textKey="review.success.feedback" />
             </p>
 
             <div className="mt-8 mb-6 flex justify-center">
@@ -121,7 +141,7 @@ export default function ReviewPage() {
 
             <div className="mt-8 rounded-2xl bg-white/10 p-6 backdrop-blur-sm">
               <p className="text-text-on-dark/90 mb-4">
-                If you&apos;d also like to support our small business, we&apos;d truly appreciate a Google review.
+                <TextCopy textKey="review.success.googleDescription" />
               </p>
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <a
@@ -133,7 +153,7 @@ export default function ReviewPage() {
                   <svg className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor">
                     <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/>
                   </svg>
-                  Leave a Google Review
+                  <TextCopy textKey="review.success.googleAction" />
                 </a>
               </div>
             </div>
@@ -143,7 +163,7 @@ export default function ReviewPage() {
                 href="/"
                 className="text-text-on-dark/70 hover:text-text-on-dark transition-colors"
               >
-                Return to homepage →
+                <TextCopy textKey="review.success.homeAction" />
               </Link>
             </div>
           </div>
@@ -161,15 +181,15 @@ export default function ReviewPage() {
           </div>
           
           <h1 className="font-display text-4xl font-bold text-text-on-dark md:text-5xl">
-            Tell us about your project
+            <TextCopy textKey="review.title" />
           </h1>
           
           <p className="mt-4 text-lg text-text-on-dark/90">
-            We&apos;d love to hear how it turned out.
+            <TextCopy textKey="review.introduction" />
           </p>
           
           <p className="mt-2 text-lg text-text-on-dark/80">
-            What was it like working with us?
+            <TextCopy textKey="review.question" />
           </p>
         </div>
 
@@ -184,7 +204,7 @@ export default function ReviewPage() {
 
               <div>
                 <label htmlFor="name" className="block text-sm font-medium text-gray-900 mb-2">
-                  Your name
+                  <TextCopy textKey="review.nameLabel" />
                 </label>
                 <input
                   type="text"
@@ -193,13 +213,13 @@ export default function ReviewPage() {
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  placeholder="Jane Smith"
+                  placeholder={copy.namePlaceholder} data-text-key="review.namePlaceholder" data-text-attribute="placeholder"
                 />
               </div>
 
               <div>
                 <label htmlFor="city" className="block text-sm font-medium text-gray-900 mb-2">
-                  City (optional)
+                  <TextCopy textKey="review.cityLabel" />
                 </label>
                 <input
                   type="text"
@@ -207,13 +227,13 @@ export default function ReviewPage() {
                   value={formData.city}
                   onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-                  placeholder="Corvallis"
+                  placeholder={copy.cityPlaceholder} data-text-key="review.cityPlaceholder" data-text-attribute="placeholder"
                 />
               </div>
 
               <div>
                 <label htmlFor="service" className="block text-sm font-medium text-gray-900 mb-2">
-                  What did we work on?
+                  <TextCopy textKey="review.serviceLabel" />
                 </label>
                 <select
                   id="service"
@@ -222,21 +242,21 @@ export default function ReviewPage() {
                   onChange={(e) => setFormData({ ...formData, service: e.target.value })}
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
                 >
-                  <option value="">Select a service</option>
-                  <option value="deck">Deck</option>
-                  <option value="pergola">Pergola</option>
-                  <option value="fence">Fence</option>
-                  <option value="painting">Painting</option>
-                  <option value="bathroom">Bathroom</option>
-                  <option value="kitchen">Kitchen</option>
-                  <option value="carpentry">Custom Carpentry</option>
-                  <option value="other">Other</option>
+                  <option data-text-key="review.serviceOption.choose" value="">{optionCopy.choose}</option>
+                  <option data-text-key="review.serviceOption.deck" value="deck">{optionCopy.deck}</option>
+                  <option data-text-key="review.serviceOption.pergola" value="pergola">{optionCopy.pergola}</option>
+                  <option data-text-key="review.serviceOption.fence" value="fence">{optionCopy.fence}</option>
+                  <option data-text-key="review.serviceOption.painting" value="painting">{optionCopy.painting}</option>
+                  <option data-text-key="review.serviceOption.bathroom" value="bathroom">{optionCopy.bathroom}</option>
+                  <option data-text-key="review.serviceOption.kitchen" value="kitchen">{optionCopy.kitchen}</option>
+                  <option data-text-key="review.serviceOption.carpentry" value="carpentry">{optionCopy.carpentry}</option>
+                  <option data-text-key="review.serviceOption.other" value="other">{optionCopy.other}</option>
                 </select>
               </div>
 
               <div>
                 <label className="block text-sm font-medium text-gray-900 mb-2">
-                  How would you rate your experience?
+                  <TextCopy textKey="review.ratingLabel" />
                 </label>
                 <div className="flex gap-2">
                   {[1, 2, 3, 4, 5].map((star) => (
@@ -256,7 +276,7 @@ export default function ReviewPage() {
 
               <div>
                 <label htmlFor="body" className="block text-sm font-medium text-gray-900 mb-2">
-                  Tell us about your experience
+                  <TextCopy textKey="review.bodyLabel" />
                 </label>
                 <textarea
                   id="body"
@@ -265,7 +285,7 @@ export default function ReviewPage() {
                   value={formData.body}
                   onChange={(e) => setFormData({ ...formData, body: e.target.value })}
                   className="w-full rounded-lg border border-gray-300 px-4 py-3 text-gray-900 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20 resize-none"
-                  placeholder="Share what you loved about working with us..."
+                  placeholder={copy.bodyPlaceholder} data-text-key="review.bodyPlaceholder" data-text-attribute="placeholder"
                 />
               </div>
 
@@ -278,7 +298,7 @@ export default function ReviewPage() {
                     className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:border-primary focus:ring-primary"
                   />
                   <span className="text-sm text-gray-700">
-                    I&apos;m okay with you publishing my first name with this review
+                    <TextCopy textKey="review.nameConsent" />
                   </span>
                 </label>
 
@@ -290,7 +310,7 @@ export default function ReviewPage() {
                     className="mt-1 h-4 w-4 rounded border-gray-300 text-primary focus:border-primary focus:ring-primary"
                   />
                   <span className="text-sm text-gray-700">
-                    You can reach out if you need clarification about anything I mentioned
+                    <TextCopy textKey="review.contactConsent" />
                   </span>
                 </label>
               </div>
@@ -300,7 +320,7 @@ export default function ReviewPage() {
                 disabled={isSubmitting}
                 className="w-full rounded-lg bg-primary px-6 py-3 font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {isSubmitting ? 'Sending...' : 'Share your experience'}
+                {isSubmitting ? <TextCopy textKey="review.submitting" /> : <TextCopy textKey="review.submit" />}
               </button>
             </form>
           </div>

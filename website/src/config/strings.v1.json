@@ -17,6 +17,1106 @@
     "homepage.hero.secondaryAction": {
       "value": "See Our Work",
       "revision": 0
+    },
+    "homepage.services.title": {
+      "value": "A few ways we can help",
+      "revision": 0
+    },
+    "homepage.services.description": {
+      "value": "Explore our services and see the work behind them.",
+      "revision": 0
+    },
+    "homepage.projects.title": {
+      "value": "Recent Work",
+      "revision": 0
+    },
+    "homepage.projects.description": {
+      "value": "A selection of our latest work across the Mid-Willamette Valley.",
+      "revision": 0
+    },
+    "homepage.family.eyebrow": {
+      "value": "Built by one family. Trusted by many more.",
+      "revision": 0
+    },
+    "homepage.family.title": {
+      "value": "A family business built on doing things the right way.",
+      "revision": 0
+    },
+    "homepage.family.introduction": {
+      "value": "Good projects don't start with lumber. They start with good communication and realistic expectations.",
+      "revision": 0
+    },
+    "homepage.family.taylor": {
+      "value": " — Taylor cares about the work you'll notice five years from now, not just on the day it passes inspection.",
+      "revision": 0
+    },
+    "homepage.family.lanie": {
+      "value": " — Lanie keeps every project organized so you always know what's happening, what's next, and who to call.",
+      "revision": 0
+    },
+    "homepage.reviews.title": {
+      "value": "What people say once the work's done",
+      "revision": 0
+    },
+    "homepage.reviews.empty": {
+      "value": "We are building our review portfolio. In the meantime, ask us for references in your neighborhood.",
+      "revision": 0
+    },
+    "about.hero.prefix": {
+      "value": "Every family deserves a ",
+      "revision": 0
+    },
+    "about.hero.suffix": {
+      "value": " place.",
+      "revision": 0
+    },
+    "about.hero.description": {
+      "value": " isn't built around sales teams, project managers, or handoffs. It's built around one family that believes your home should become your happy place. From your first conversation to the final walkthrough, you'll work directly with the people doing the work—people who care about every detail as much as you do.",
+      "revision": 0
+    },
+    "about.hero.promise": {
+      "value": "Build it right. Explain it clearly. Stand behind the work.",
+      "revision": 0
+    },
+    "about.area.eyebrow": {
+      "value": "Where we work",
+      "revision": 0
+    },
+    "about.area.title": {
+      "value": "Serving the mid-Willamette Valley",
+      "revision": 0
+    },
+    "about.cta.title": {
+      "value": "Ready to love coming home again?",
+      "revision": 0
+    },
+    "about.cta.description": {
+      "value": "Let's start building your happy place.",
+      "revision": 0
+    },
+    "services.hero.title": {
+      "value": "Carpentry for your whole home",
+      "revision": 0
+    },
+    "services.hero.description": {
+      "value": "Explore what we do, see our work, and tell us what you're planning.",
+      "revision": 0
+    },
+    "services.other.title": {
+      "value": "Not seeing what you're looking for?",
+      "revision": 0
+    },
+    "services.other.description": {
+      "value": "We handle many other residential repair and improvement projects. If it isn't listed above, reach out — we'll let you know if it's a good fit or recommend someone who is.",
+      "revision": 0
+    },
+    "contact.hero.title": {
+      "value": "Let's talk about your project",
+      "revision": 0
+    },
+    "contact.hero.description": {
+      "value": "Give us a call or email us—whatever's easiest. Tell us what you're planning and where your project is located.",
+      "revision": 0
+    },
+    "contact.details.title": {
+      "value": "Tell us what you have in mind",
+      "revision": 0
+    },
+    "contact.details.description": {
+      "value": "A few details help us understand your project: the kind of work you need, your location, and anything you'd like us to take a closer look at. You can include photos in your email.",
+      "revision": 0
+    },
+    "contact.details.action": {
+      "value": "Email Happy Place Carpentry",
+      "revision": 0
+    },
+    "reviews.hero.title": {
+      "value": "Helping neighbors find their happy place",
+      "revision": 0
+    },
+    "reviews.empty": {
+      "value": "We are building our review portfolio. In the meantime, ask us for references in your neighborhood.",
+      "revision": 0
+    },
+    "work.transformations.title": {
+      "value": "Start to finish",
+      "revision": 0
+    },
+    "work.transformations.description": {
+      "value": "Real projects, real craftsmanship — the moments that turn a house into a happy place.",
+      "revision": 0
+    },
+    "work.stories.title": {
+      "value": "Why We Built It This Way",
+      "revision": 0
+    },
+    "work.stories.description": {
+      "value": "Real challenges, real solutions. Tap a project for the full story.",
+      "revision": 0
+    },
+    "work.archive.title": {
+      "value": "The complete archive",
+      "revision": 0
+    },
+    "work.archive.description": {
+      "value": "Every project, every detail. Future projects simply append here.",
+      "revision": 0
+    },
+    "newsletter.title": {
+      "value": "Stay Ahead of Home Maintenance",
+      "revision": 0
+    },
+    "newsletter.description": {
+      "value": "Get practical homeowner tips, seasonal maintenance reminders, remodeling ideas, project showcases, and exclusive offers delivered to your inbox.",
+      "revision": 0
+    },
+    "newsletter.privacy": {
+      "value": "No spam, ever. Unsubscribe anytime.",
+      "revision": 0
+    },
+    "cta.title": {
+      "value": "Tell us what you're planning.",
+      "revision": 0
+    },
+    "cta.description": {
+      "value": "Whether you're fixing something that's worn out or building something completely new, we'd love to hear about it.",
+      "revision": 0
+    },
+    "cta.primaryAction": {
+      "value": "Talk About Your Project",
+      "revision": 0
+    },
+    "cta.secondaryAction": {
+      "value": "See Our Work",
+      "revision": 0
+    },
+    "navigation.home": {
+      "value": "Home",
+      "revision": 0
+    },
+    "navigation.services": {
+      "value": "Services",
+      "revision": 0
+    },
+    "navigation.work": {
+      "value": "Our Work",
+      "revision": 0
+    },
+    "navigation.about": {
+      "value": "About",
+      "revision": 0
+    },
+    "navigation.reviews": {
+      "value": "Reviews",
+      "revision": 0
+    },
+    "navigation.contact": {
+      "value": "Contact",
+      "revision": 0
+    },
+    "footer.tagline": {
+      "value": "Helping homeowners throughout the Mid-Willamette Valley repair, improve, and enjoy the homes they love.",
+      "revision": 0
+    },
+    "footer.servicesAction": {
+      "value": "Explore our services →",
+      "revision": 0
+    },
+    "footer.reviewAction": {
+      "value": "Leave a Review",
+      "revision": 0
+    },
+    "footer.areaTitle": {
+      "value": "Service area",
+      "revision": 0
+    },
+    "footer.explore": {
+      "value": "Explore",
+      "revision": 0
+    },
+    "footer.contactTitle": {
+      "value": "Contact",
+      "revision": 0
+    },
+    "navigation.themeLabel": {
+      "value": "Theme",
+      "revision": 0
+    },
+    "newsletter.submit": {
+      "value": "Subscribe",
+      "revision": 0
+    },
+    "newsletter.submitting": {
+      "value": "Subscribing...",
+      "revision": 0
+    },
+    "newsletter.emailPlaceholder": {
+      "value": "Email address",
+      "revision": 0
+    },
+    "newsletter.namePlaceholder": {
+      "value": "First name (optional)",
+      "revision": 0
+    },
+    "review.success.googleDescription": {
+      "value": "If you'd also like to support our small business, we'd truly appreciate a Google review.",
+      "revision": 0
+    },
+    "review.success.feedback": {
+      "value": "Your feedback helps future homeowners know what it's like to work with us.",
+      "revision": 0
+    },
+    "review.contactConsent": {
+      "value": "You can reach out if you need clarification about anything I mentioned",
+      "revision": 0
+    },
+    "review.nameConsent": {
+      "value": "I'm okay with you publishing my first name with this review",
+      "revision": 0
+    },
+    "review.success.thanks": {
+      "value": "Thank you for trusting Taylor and Lanie with your project.",
+      "revision": 0
+    },
+    "review.introduction": {
+      "value": "We'd love to hear how it turned out.",
+      "revision": 0
+    },
+    "review.ratingLabel": {
+      "value": "How would you rate your experience?",
+      "revision": 0
+    },
+    "review.question": {
+      "value": "What was it like working with us?",
+      "revision": 0
+    },
+    "review.success.personal": {
+      "value": "We read every review personally.",
+      "revision": 0
+    },
+    "review.bodyLabel": {
+      "value": "Tell us about your experience",
+      "revision": 0
+    },
+    "review.title": {
+      "value": "Tell us about your project",
+      "revision": 0
+    },
+    "review.success.googleAction": {
+      "value": "Leave a Google Review",
+      "revision": 0
+    },
+    "review.success.homeAction": {
+      "value": "Return to homepage →",
+      "revision": 0
+    },
+    "review.serviceLabel": {
+      "value": "What did we work on?",
+      "revision": 0
+    },
+    "review.cityLabel": {
+      "value": "City (optional)",
+      "revision": 0
+    },
+    "review.success.title": {
+      "value": "Thank you",
+      "revision": 0
+    },
+    "review.nameLabel": {
+      "value": "Your name",
+      "revision": 0
+    },
+    "review.namePlaceholder": {
+      "value": "Jane Smith",
+      "revision": 0
+    },
+    "review.cityPlaceholder": {
+      "value": "Corvallis",
+      "revision": 0
+    },
+    "review.bodyPlaceholder": {
+      "value": "Share what you loved about working with us...",
+      "revision": 0
+    },
+    "review.submitting": {
+      "value": "Sending...",
+      "revision": 0
+    },
+    "review.submit": {
+      "value": "Share your experience",
+      "revision": 0
+    },
+    "review.serviceOption.choose": {
+      "value": "Select a service",
+      "revision": 0
+    },
+    "review.serviceOption.deck": {
+      "value": "Deck",
+      "revision": 0
+    },
+    "review.serviceOption.pergola": {
+      "value": "Pergola",
+      "revision": 0
+    },
+    "review.serviceOption.fence": {
+      "value": "Fence",
+      "revision": 0
+    },
+    "review.serviceOption.painting": {
+      "value": "Painting",
+      "revision": 0
+    },
+    "review.serviceOption.bathroom": {
+      "value": "Bathroom",
+      "revision": 0
+    },
+    "review.serviceOption.kitchen": {
+      "value": "Kitchen",
+      "revision": 0
+    },
+    "review.serviceOption.carpentry": {
+      "value": "Custom Carpentry",
+      "revision": 0
+    },
+    "review.serviceOption.other": {
+      "value": "Other",
+      "revision": 0
+    },
+    "newsletter.failure": {
+      "value": "Failed to subscribe. Please try again.",
+      "revision": 0
+    },
+    "newsletter.networkFailure": {
+      "value": "Network error. Please try again.",
+      "revision": 0
+    },
+    "review.failure": {
+      "value": "Failed to submit review",
+      "revision": 0
+    },
+    "review.unknownFailure": {
+      "value": "Something went wrong",
+      "revision": 0
+    },
+    "home.copy.2": {
+      "value": "Tell us what you're planning.",
+      "revision": 0
+    },
+    "home.copy.3": {
+      "value": "What we do",
+      "revision": 0
+    },
+    "home.copy.4": {
+      "value": "See all projects",
+      "revision": 0
+    },
+    "home.copy.5": {
+      "value": "Read all reviews",
+      "revision": 0
+    },
+    "services.copy.1": {
+      "value": "Services",
+      "revision": 0
+    },
+    "services.copy.2": {
+      "value": "Trim & finish carpentry",
+      "revision": 0
+    },
+    "services.copy.3": {
+      "value": "Deck repairs",
+      "revision": 0
+    },
+    "services.copy.4": {
+      "value": "Doors",
+      "revision": 0
+    },
+    "services.copy.5": {
+      "value": "Windows",
+      "revision": 0
+    },
+    "services.copy.6": {
+      "value": "Siding repairs",
+      "revision": 0
+    },
+    "services.copy.7": {
+      "value": "Small remodels",
+      "revision": 0
+    },
+    "services.copy.8": {
+      "value": "Hardware installation",
+      "revision": 0
+    },
+    "services.copy.9": {
+      "value": "General maintenance",
+      "revision": 0
+    },
+    "services.copy.10": {
+      "value": "Talk about your project →",
+      "revision": 0
+    },
+    "contact.copy.1": {
+      "value": "Contact",
+      "revision": 0
+    },
+    "contact.copy.2": {
+      "value": "Phone",
+      "revision": 0
+    },
+    "contact.copy.3": {
+      "value": "Email",
+      "revision": 0
+    },
+    "contact.copy.4": {
+      "value": "Service area",
+      "revision": 0
+    },
+    "contact.copy.5": {
+      "value": "Hours",
+      "revision": 0
+    },
+    "reviews.copy.2": {
+      "value": "Reviews",
+      "revision": 0
+    },
+    "reviews.copy.3": {
+      "value": "Leave a Review →",
+      "revision": 0
+    },
+    "work.copy.1": {
+      "value": "Our Work",
+      "revision": 0
+    },
+    "work.copy.2": {
+      "value": "Every project solves a different problem. Here are a few of the homes we've worked on and the decisions behind them.",
+      "revision": 0
+    },
+    "work.copy.3": {
+      "value": "Featured transformations",
+      "revision": 0
+    },
+    "work.copy.4": {
+      "value": "Recent projects",
+      "revision": 0
+    },
+    "work.copy.5": {
+      "value": "Browse all work",
+      "revision": 0
+    },
+    "privacy.copy.1": {
+      "value": "Privacy Policy",
+      "revision": 0
+    },
+    "privacy.copy.2": {
+      "value": "Information we collect",
+      "revision": 0
+    },
+    "privacy.copy.3": {
+      "value": "When you submit an estimate request or contact form, we collect the information you provide — your name, contact details, property information, and the details of your project. Photos you upload are included only in the email you choose to send.",
+      "revision": 0
+    },
+    "privacy.copy.4": {
+      "value": "How we use it",
+      "revision": 0
+    },
+    "privacy.copy.5": {
+      "value": "We use your information solely to respond to your request, prepare an estimate, and communicate about your project. We do not sell your information.",
+      "revision": 0
+    },
+    "privacy.copy.6": {
+      "value": "Contact",
+      "revision": 0
+    },
+    "newsletterArchive.copy.1": {
+      "value": "Newsletter",
+      "revision": 0
+    },
+    "newsletterArchive.copy.2": {
+      "value": "Homeowner Tips & Project Inspiration",
+      "revision": 0
+    },
+    "newsletterArchive.copy.3": {
+      "value": "Browse our archive of practical homeowner advice, maintenance reminders, and project showcases.",
+      "revision": 0
+    },
+    "newsletterArchive.copy.4": {
+      "value": "Read full newsletter →",
+      "revision": 0
+    },
+    "newsletterArchive.copy.5": {
+      "value": "Don't miss future newsletters",
+      "revision": 0
+    },
+    "newsletterArchive.copy.6": {
+      "value": "Subscribe to receive homeowner tips, maintenance reminders, and project inspiration directly in your inbox.",
+      "revision": 0
+    },
+    "newsletterArchive.copy.7": {
+      "value": "Subscribe to Newsletter",
+      "revision": 0
+    },
+    "newsletterThanks.copy.1": {
+      "value": "You're in!",
+      "revision": 0
+    },
+    "newsletterThanks.copy.2": {
+      "value": "Welcome to the Happy Place community",
+      "revision": 0
+    },
+    "newsletterThanks.copy.3": {
+      "value": "Check your inbox for a confirmation email. You'll start receiving practical homeowner tips, seasonal maintenance reminders, and project inspiration soon.",
+      "revision": 0
+    },
+    "newsletterThanks.copy.4": {
+      "value": "What you'll receive:",
+      "revision": 0
+    },
+    "newsletterThanks.copy.5": {
+      "value": "Seasonal maintenance reminders",
+      "revision": 0
+    },
+    "newsletterThanks.copy.6": {
+      "value": " — Keep your home in top shape year-round",
+      "revision": 0
+    },
+    "newsletterThanks.copy.7": {
+      "value": "Remodeling ideas & inspiration",
+      "revision": 0
+    },
+    "newsletterThanks.copy.8": {
+      "value": " — Before-and-after project showcases",
+      "revision": 0
+    },
+    "newsletterThanks.copy.9": {
+      "value": "Practical homeowner tips",
+      "revision": 0
+    },
+    "newsletterThanks.copy.10": {
+      "value": " — DIY guidance from professional carpenters",
+      "revision": 0
+    },
+    "newsletterThanks.copy.11": {
+      "value": "Exclusive offers",
+      "revision": 0
+    },
+    "newsletterThanks.copy.12": {
+      "value": " — First access to special promotions for subscribers",
+      "revision": 0
+    },
+    "newsletterThanks.copy.13": {
+      "value": "Explore more:",
+      "revision": 0
+    },
+    "newsletterThanks.copy.14": {
+      "value": "Browse our ",
+      "revision": 0
+    },
+    "newsletterThanks.copy.15": {
+      "value": "completed projects",
+      "revision": 0
+    },
+    "newsletterThanks.copy.16": {
+      "value": " for inspiration, or download our free ",
+      "revision": 0
+    },
+    "newsletterThanks.copy.17": {
+      "value": "homeowner guides",
+      "revision": 0
+    },
+    "newsletterThanks.copy.18": {
+      "value": " with maintenance checklists and budget planners.",
+      "revision": 0
+    },
+    "newsletterThanks.copy.19": {
+      "value": "Ready to start your project?",
+      "revision": 0
+    },
+    "newsletterThanks.copy.20": {
+      "value": "Tell us what you're planning and where your project is located. We'd love to hear about it.",
+      "revision": 0
+    },
+    "newsletterThanks.copy.21": {
+      "value": "Talk About Your Project",
+      "revision": 0
+    },
+    "blog.copy.1": {
+      "value": "Blog",
+      "revision": 0
+    },
+    "blog.copy.2": {
+      "value": "Homeowner Tips & Project Inspiration",
+      "revision": 0
+    },
+    "blog.copy.3": {
+      "value": "Practical advice from professional carpenters to help you maintain and improve your home.",
+      "revision": 0
+    },
+    "blog.copy.4": {
+      "value": "Read article →",
+      "revision": 0
+    },
+    "blogPost.copy.1": {
+      "value": "Ready to start your project?",
+      "revision": 0
+    },
+    "blogPost.copy.2": {
+      "value": "Tell Happy Place Carpentry what you're planning and where your project is located.",
+      "revision": 0
+    },
+    "blogPost.copy.3": {
+      "value": "Talk About Your Project",
+      "revision": 0
+    },
+    "home.projects.eyebrow": {
+      "value": "Featured projects",
+      "revision": 0
+    },
+    "home.reviews.eyebrow": {
+      "value": "Reviews",
+      "revision": 0
+    },
+    "faq.eyebrow": {
+      "value": "FAQ",
+      "revision": 0
+    },
+    "faq.title": {
+      "value": "Questions Homeowners Usually Ask",
+      "revision": 0
+    },
+    "about.familyLabel": {
+      "value": "Family-owned · ",
+      "revision": 0
+    },
+    "privacy.updatedLabel": {
+      "value": "Last updated: ",
+      "revision": 0
+    },
+    "privacy.contact.prefix": {
+      "value": "Questions about your data? Email ",
+      "revision": 0
+    },
+    "privacy.contact.middle": {
+      "value": " or call ",
+      "revision": 0
+    },
+    "home.reviews.descriptionWithReviews": {
+      "value": "Real experiences from families throughout the Mid-Willamette Valley.",
+      "revision": 0
+    },
+    "home.reviews.descriptionWithoutReviews": {
+      "value": "We're building our public review portfolio. In the meantime, we're happy to provide references from homeowners throughout the Mid-Willamette Valley.",
+      "revision": 0
+    },
+    "reviews.descriptionWithoutReviews": {
+      "value": "Google reviews coming soon. Ask us for references in your neighborhood.",
+      "revision": 0
+    },
+    "reviews.footerWithReviews": {
+      "value": "Reviews shown are a sample of our recent work. Ask us for references in your neighborhood.",
+      "revision": 0
+    },
+    "reviews.footerWithoutReviews": {
+      "value": "We take pride in our work and would be happy to connect you with past clients.",
+      "revision": 0
+    },
+    "faq.f1.question": {
+      "value": "Are you licensed and insured?",
+      "revision": 0
+    },
+    "faq.f1.answer": {
+      "value": "Yes. Happy Place Carpentry is an Oregon-licensed contractor (CCB# 254240) and fully insured. We're happy to provide credentials before any work begins.",
+      "revision": 0
+    },
+    "faq.f2.question": {
+      "value": "What areas do you serve?",
+      "revision": 0
+    },
+    "faq.f2.answer": {
+      "value": "We work across Benton, Linn, and Polk Counties — including Philomath, Albany, Monmouth, Independence, and surrounding communities.",
+      "revision": 0
+    },
+    "faq.f3.question": {
+      "value": "How do I get started?",
+      "revision": 0
+    },
+    "faq.f3.answer": {
+      "value": "Call or email Happy Place Carpentry and tell us what you're planning. Include the kind of work you need and where your project is located. If you have photos, you can share them by email.",
+      "revision": 0
+    },
+    "faq.f4.question": {
+      "value": "Do you handle permits?",
+      "revision": 0
+    },
+    "faq.f4.answer": {
+      "value": "Yes. For decks, fences, and structural work we handle the permit process and inspections so you don't have to.",
+      "revision": 0
+    },
+    "faq.f5.question": {
+      "value": "What materials do you work with?",
+      "revision": 0
+    },
+    "faq.f5.answer": {
+      "value": "Cedar, pressure-treated, and composite decking; wood, vinyl, and metal fencing; and standard cabinetry and trim materials. We'll recommend what fits your budget and the Oregon climate.",
+      "revision": 0
+    },
+    "faq.f6.question": {
+      "value": "How long does a typical project take?",
+      "revision": 0
+    },
+    "faq.f6.answer": {
+      "value": "It depends on scope — a fence might be a few days, a deck one to two weeks, a full kitchen remodel several weeks. We give you a realistic timeline in the written estimate.",
+      "revision": 0
+    },
+    "faq.f7.question": {
+      "value": "Do you offer a warranty?",
+      "revision": 0
+    },
+    "faq.f7.answer": {
+      "value": "Yes. We stand behind our work with a workmanship warranty and honor manufacturer warranties on materials.",
+      "revision": 0
+    },
+    "faq.f8.question": {
+      "value": "Can I supply my own materials?",
+      "revision": 0
+    },
+    "faq.f8.answer": {
+      "value": "In most cases yes — we're glad to work with materials you've chosen, as long as they're suitable for the project and climate.",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.title": {
+      "value": "Spring Maintenance Checklist for Oregon Homeowners",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.excerpt": {
+      "value": "Essential tasks to prepare your home for spring weather and prevent costly repairs.",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.category": {
+      "value": "Maintenance",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.1": {
+      "value": "# Spring Maintenance Checklist for Oregon Homeowners",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.3": {
+      "value": "Spring is the perfect time to assess your home's condition after winter weather and prepare for the warmer months ahead. Here's our professional checklist for Oregon homeowners.",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.5": {
+      "value": "## Exterior Inspection",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.7": {
+      "value": "- **Roof**: Check for missing or damaged shingles, especially after winter storms",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.8": {
+      "value": "- **Gutters**: Clean out debris and ensure proper drainage away from foundation",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.9": {
+      "value": "- **Siding**: Look for cracks, peeling paint, or water damage",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.10": {
+      "value": "- **Foundation**: Inspect for cracks or signs of water intrusion",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.12": {
+      "value": "## Deck and Outdoor Structures",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.14": {
+      "value": "- **Deck boards**: Check for rot, loose nails, or warped boards",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.15": {
+      "value": "- **Railings**: Ensure all railings are secure and meet code requirements",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.16": {
+      "value": "- **Stairs**: Check for loose treads or risers",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.17": {
+      "value": "- **Sealing**: Consider re-staining or sealing if the previous coat is worn",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.19": {
+      "value": "## Windows and Doors",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.21": {
+      "value": "- **Weatherstripping**: Replace worn weatherstripping to improve energy efficiency",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.22": {
+      "value": "- **Screens**: Repair or replace damaged screens",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.23": {
+      "value": "- **Caulking**: Inspect and replace cracked caulk around windows and doors",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.25": {
+      "value": "## Professional Help",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.27": {
+      "value": "Some tasks are best left to professionals:",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.28": {
+      "value": "- Roof repairs on steep or high roofs",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.29": {
+      "value": "- Structural foundation issues",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.30": {
+      "value": "- Major deck repairs or replacements",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.31": {
+      "value": "- Electrical or plumbing inspections",
+      "revision": 0
+    },
+    "blog.article.spring-maintenance-checklist.line.33": {
+      "value": "Contact Happy Place Carpentry for a professional assessment of your home's maintenance needs.",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.title": {
+      "value": "Professional Deck Maintenance Guide",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.excerpt": {
+      "value": "Keep your deck safe and beautiful with our professional maintenance tips.",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.category": {
+      "value": "Outdoor",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.1": {
+      "value": "# Professional Deck Maintenance Guide",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.3": {
+      "value": "A well-maintained deck can last decades with proper care. Here's our professional guide to keeping your deck safe and beautiful.",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.5": {
+      "value": "## Annual Inspection",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.7": {
+      "value": "Every spring, inspect your deck for:",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.9": {
+      "value": "- **Rot**: Use a screwdriver to probe soft spots in the wood",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.10": {
+      "value": "- **Loose fasteners**: Tighten or replace loose nails and screws",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.11": {
+      "value": "- **Split wood**: Replace boards with significant splits or cracks",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.12": {
+      "value": "- **Railings**: Ensure all railings are secure and wobble-free",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.14": {
+      "value": "## Cleaning",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.16": {
+      "value": "- **Sweep regularly**: Remove leaves and debris that can trap moisture",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.17": {
+      "value": "- **Annual deep clean**: Use a deck cleaner and stiff brush",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.18": {
+      "value": "- **Pressure washing**: Use low pressure to avoid damaging wood fibers",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.19": {
+      "value": "- **Mold treatment**: Apply mold remover if you see black or green spots",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.21": {
+      "value": "## Sealing and Staining",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.23": {
+      "value": "- **Water test**: Sprinkle water on the deck - if it beads, the seal is still good",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.24": {
+      "value": "- **Restaining**: Every 2-3 years, depending on sun exposure",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.25": {
+      "value": "- **Clear vs. stain**: Clear sealers show wood grain; stains add color",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.26": {
+      "value": "- **Professional help**: Consider hiring professionals for large decks",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.28": {
+      "value": "## Safety First",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.30": {
+      "value": "- **Load capacity**: Don't exceed the deck's rated capacity",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.31": {
+      "value": "- **Fire safety**: Keep grills away from railings and siding",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.32": {
+      "value": "- **Lighting**: Ensure adequate lighting for evening use",
+      "revision": 0
+    },
+    "blog.article.deck-maintenance-guide.line.34": {
+      "value": "Need professional deck maintenance or repair? Contact Happy Place Carpentry to talk about your project.",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.title": {
+      "value": "Kitchen Remodeling Trends for 2024",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.excerpt": {
+      "value": "Popular design trends and practical considerations for your kitchen renovation.",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.category": {
+      "value": "Remodeling",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.1": {
+      "value": "# Kitchen Remodeling Trends for 2024",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.3": {
+      "value": "Kitchen design continues to evolve, balancing functionality with aesthetics. Here are the trends we're seeing in Oregon homes.",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.5": {
+      "value": "## Design Trends",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.7": {
+      "value": "- **Natural materials**: Wood cabinets, stone countertops, and natural finishes",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.8": {
+      "value": "- **Two-tone cabinets**: Mixing light and dark colors for visual interest",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.9": {
+      "value": "- **Statement islands**: Larger islands with seating and storage",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.10": {
+      "value": "- **Smart storage**: Pull-out pantries, corner drawers, and custom organizers",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.12": {
+      "value": "## Functional Improvements",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.14": {
+      "value": "- **Workflow optimization**: Better work triangles and appliance placement",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.15": {
+      "value": "- **Lighting layers**: Ambient, task, and accent lighting",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.16": {
+      "value": "- **Ventilation**: Powerful range hoods for serious cooks",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.17": {
+      "value": "- **Accessibility**: Universal design features for all ages",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.19": {
+      "value": "## Budget Considerations",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.21": {
+      "value": "- **Cabinets**: 30-40% of budget",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.22": {
+      "value": "- **Countertops**: 10-15% of budget",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.23": {
+      "value": "- **Appliances**: 15-20% of budget",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.24": {
+      "value": "- **Labor**: 20-35% of budget",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.26": {
+      "value": "## Planning Your Remodel",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.28": {
+      "value": "1. **Set budget**: Determine what you can afford",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.29": {
+      "value": "2. **Prioritize needs**: Must-haves vs. nice-to-haves",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.30": {
+      "value": "3. **Get estimates**: Work with licensed professionals",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.31": {
+      "value": "4. **Plan timeline**: Kitchen remodels typically take 6-12 weeks",
+      "revision": 0
+    },
+    "blog.article.kitchen-remodeling-trends.line.33": {
+      "value": "Considering a kitchen remodel? Happy Place Carpentry can help with custom cabinetry, structural changes, and complete kitchen renovations.",
+      "revision": 0
+    },
+    "newsletterArchive.article.1.title": {
+      "value": "Spring Maintenance Checklist",
+      "revision": 0
+    },
+    "newsletterArchive.article.1.excerpt": {
+      "value": "Essential tasks to prepare your home for spring weather and prevent costly repairs.",
+      "revision": 0
+    },
+    "newsletterArchive.article.2.title": {
+      "value": "Deck Maintenance Guide",
+      "revision": 0
+    },
+    "newsletterArchive.article.2.excerpt": {
+      "value": "Keep your deck safe and beautiful with our professional maintenance tips.",
+      "revision": 0
+    },
+    "newsletterArchive.article.3.title": {
+      "value": "Kitchen Remodeling Trends",
+      "revision": 0
+    },
+    "newsletterArchive.article.3.excerpt": {
+      "value": "Popular design trends and practical considerations for your kitchen renovation.",
+      "revision": 0
     }
   }
 }

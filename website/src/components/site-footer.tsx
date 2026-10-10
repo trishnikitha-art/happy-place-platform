@@ -1,3 +1,5 @@
+import { TextCopy } from '@/components/text-copy';
+import { navigationTextKey } from '@/lib/editable-shared-fields';
 import Link from "next/link";
 import Image from "next/image";
 import { MapPin, Phone, Mail } from "lucide-react";
@@ -31,27 +33,27 @@ export function SiteFooter() {
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark">Explore</h3>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark"><TextCopy textKey="footer.explore" /></h3>
           <ul className="mt-3 space-y-2 text-sm">
             {navigation.filter((n) => !n.secondary).map((n) => (
               <li key={n.href}>
-                <Link href={n.href} className="text-text-on-dark hover:text-honey">{n.label}</Link>
+                <Link href={n.href} className="text-text-on-dark hover:text-honey">{navigationTextKey(n.href) ? <TextCopy textKey={navigationTextKey(n.href)!} /> : n.label}</Link>
               </li>
             ))}
             <li>
-              <Link href="/review" className="text-honey hover:text-honey/80 font-semibold">Leave a Review</Link>
+              <Link href="/review" className="text-honey hover:text-honey/80 font-semibold"><TextCopy textKey="footer.reviewAction" /></Link>
             </li>
           </ul>
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark">Service area</h3>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark"><TextCopy textKey="footer.areaTitle" /></h3>
           <p className="mt-3 text-sm text-text-on-dark">{company.serviceArea}</p>
-          <Link href="/services" className="mt-3 inline-flex min-h-11 items-center text-sm text-honey hover:text-honey/80">Explore our services →</Link>
+          <Link href="/services" className="mt-3 inline-flex min-h-11 items-center text-sm text-honey hover:text-honey/80"><TextCopy textKey="footer.servicesAction" /></Link>
         </div>
 
         <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark">Contact</h3>
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark"><TextCopy textKey="footer.contactTitle" /></h3>
           <ul className="mt-3 space-y-3 text-sm">
             <li className="flex items-center gap-2">
               <MapPin className="h-4 w-4 text-honey" aria-hidden="true" />
@@ -73,7 +75,7 @@ export function SiteFooter() {
       </div>
 
       <div className="border-t border-text-on-dark/8 py-6 text-center text-xs text-text-on-dark">
-        © {new Date().getFullYear()} {company.legalName}. Helping homeowners throughout the Mid-Willamette Valley repair, improve, and enjoy the homes they love.
+        © {new Date().getFullYear()} {company.legalName}. <TextCopy textKey="footer.tagline" />
       </div>
     </footer>
   );

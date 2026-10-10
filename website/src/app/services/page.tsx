@@ -1,3 +1,4 @@
+import { TextCopy } from '@/components/text-copy';
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Container, Section, SectionHeading } from "@/components/section";
@@ -53,9 +54,9 @@ export default async function ServicesPage() {
         <Container>
           <SectionHeading
             as="h1"
-            eyebrow={<span className="text-honey">Services</span>}
-            title={<span className="text-text-on-dark">Carpentry for your whole home</span>}
-            description={<span className="text-text-on-dark/90">Explore what we do, see our work, and tell us what you're planning.</span>}
+            eyebrow={<span className="text-honey"><TextCopy textKey="services.copy.1" /></span>}
+            title={<span className="text-text-on-dark"><TextCopy textKey="services.hero.title" /></span>}
+            description={<span className="text-text-on-dark/90"><TextCopy textKey="services.hero.description" /></span>}
             descriptionColor="text-text-on-dark/90"
           />
           <div data-service-grid className="mt-10 grid grid-cols-1 gap-5 min-[480px]:grid-cols-2 lg:grid-cols-3">
@@ -65,35 +66,33 @@ export default async function ServicesPage() {
             ))}
           </div>
           <div className="mt-16 rounded-2xl border border-border-soft bg-linen p-8">
-            <h3 className="text-xl font-bold text-deep" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>Not seeing what you're looking for?</h3>
+            <h3 className="text-xl font-bold text-deep" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}><TextCopy textKey="services.other.title" /></h3>
             <p className="mt-3 text-base text-deep/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
-              We handle many other residential repair and improvement projects. If it isn't listed above, reach out — we'll let you know if it's a good fit or recommend someone who is.
+              <TextCopy textKey="services.other.description" />
             </p>
             <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm text-deep/90">
-              <span>Trim & finish carpentry</span>
+              <span><TextCopy textKey="services.copy.2" /></span>
               <span className="text-deep/60">·</span>
-              <span>Deck repairs</span>
+              <span><TextCopy textKey="services.copy.3" /></span>
               <span className="text-deep/60">·</span>
-              <span>Doors</span>
+              <span><TextCopy textKey="services.copy.4" /></span>
               <span className="text-deep/60">·</span>
-              <span>Windows</span>
+              <span><TextCopy textKey="services.copy.5" /></span>
               <span className="text-deep/60">·</span>
-              <span>Siding repairs</span>
+              <span><TextCopy textKey="services.copy.6" /></span>
               <span className="text-deep/60">·</span>
-              <span>Small remodels</span>
+              <span><TextCopy textKey="services.copy.7" /></span>
               <span className="text-deep/60">·</span>
-              <span>Hardware installation</span>
+              <span><TextCopy textKey="services.copy.8" /></span>
               <span className="text-deep/60">·</span>
-              <span>General maintenance</span>
+              <span><TextCopy textKey="services.copy.9" /></span>
             </div>
           </div>
           <div className="mt-12">
             <Link
               href="/contact"
               className="inline-flex items-center gap-1 text-base font-semibold text-text-on-dark hover:text-honey hover:underline"
-            >
-              Talk about your project →
-            </Link>
+            ><TextCopy textKey="services.copy.10" /></Link>
           </div>
         </Container>
       </Section>

@@ -7,11 +7,13 @@
  * All authority loading flows through AuthorityLoader (CEO 051 constitutional requirement).
  */
 
+import textCatalog from '@/config/strings.v1.json';
+import { decodeTextCatalog, type TextKey } from './text-contract';
 import type { FaqManifest, FaqItem } from "@/types/faq";
 import { loadAuthority, clearAuthorityCache, findById } from "./authority-loader";
 
 export function loadFaqManifest(): FaqManifest {
-  return loadAuthority<FaqManifest>({
+  const manifest = loadAuthority<FaqManifest>({
     path: "@/config/faq.v1.json",
     fallback: {
       version: "1.0.0",
@@ -20,6 +22,8 @@ export function loadFaqManifest(): FaqManifest {
     },
     name: "FAQ",
   });
+  const copy=decodeTextCatalog(textCatalog);
+  return {...manifest,faqs:manifest.faqs.map(item=>({...item,question:copy.fields[item.question as TextKey].value,answer:copy.fields[item.answer as TextKey].value}))};
 }
 
 /**

@@ -9,6 +9,9 @@
 
 import type { NavigationManifest, NavItem } from "@/types/navigation";
 import { loadAuthority, clearAuthorityCache } from "./authority-loader";
+import textCatalog from "@/config/strings.v1.json";
+import { decodeTextCatalog } from "./text-contract";
+import { navigationTextKey } from "./editable-shared-fields";
 
 export function loadNavigationManifest(): NavigationManifest {
   return loadAuthority<NavigationManifest>({
@@ -27,7 +30,11 @@ export function loadNavigationManifest(): NavigationManifest {
  */
 export function getNavigation(): NavItem[] {
   const manifest = loadNavigationManifest();
-  return manifest.navigation;
+  const text = decodeTextCatalog(textCatalog);
+  return manifest.navigation.map((item) => {
+    const key = navigationTextKey(item.href);
+    return key ? { ...item, label: text.fields[key].value } : item;
+  });
 }
 
 /**

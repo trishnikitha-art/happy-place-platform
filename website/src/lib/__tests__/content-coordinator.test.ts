@@ -11,12 +11,19 @@ const mutation:ContentMutation={schema:'content.v1',collection:'projects',expect
 const tx={transactionId:id,state:'prepared',files:['projects.v1.json'],stagingKeys:[`hpp:test:workbench-staging:${id}:content:projects`],contentMutation:mutation,principalId:'test-principal'};
 const originalFetch=global.fetch,oldToken=process.env.GITHUB_TOKEN,oldPrincipal=process.env.HPP_WORKBENCH_PRINCIPAL_ID;
 const oldVercelEnv=process.env.VERCEL_ENV;const oldNodeEnv=process.env.NODE_ENV,oldKvUrl=process.env.KV_REST_API_URL,oldKvToken=process.env.KV_REST_API_TOKEN;
-beforeEach(()=>{jest.clearAllMocks();process.env.GITHUB_TOKEN='isolated-test';process.env.HPP_WORKBENCH_PRINCIPAL_ID='test-principal';global.fetch=jest.fn().mockResolvedValue(new Response(JSON.stringify({object:{sha:'a'.repeat(40)}})));jest.mocked(getDeploymentTransaction).mockResolvedValue(tx as never);});
+beforeEach(()=>{jest.clearAllMocks();process.env.GITHUB_TOKEN='isolated-test';process.env.HPP_WORKBENCH_PRINCIPAL_ID='test-principal';global.fetch=jest.fn().mockImplementation(async()=>new Response(JSON.stringify({object:{sha:'a'.repeat(40)}})));jest.mocked(getDeploymentTransaction).mockResolvedValue(tx as never);});
 afterEach(()=>{for(const [key,value]of [['VERCEL_ENV',oldVercelEnv],['NODE_ENV',oldNodeEnv],['KV_REST_API_URL',oldKvUrl],['KV_REST_API_TOKEN',oldKvToken]])if(value===undefined)delete process.env[key!];else process.env[key!]=value;});
 afterAll(()=>{global.fetch=originalFetch;if(oldToken===undefined)delete process.env.GITHUB_TOKEN;else process.env.GITHUB_TOKEN=oldToken;if(oldPrincipal===undefined)delete process.env.HPP_WORKBENCH_PRINCIPAL_ID;else process.env.HPP_WORKBENCH_PRINCIPAL_ID=oldPrincipal;});
 const request=(contentApprovals:unknown=[{transactionId:id,mutation}])=>new Request('https://site/api/admin/deploy',{method:'POST',body:JSON.stringify({transactionIds:[id],contentApprovals})});
 it.each([undefined,[],[{transactionId:id,mutation:{...mutation,next:mutation.previous}}],[{transactionId:id,mutation:null}]])('rejects absent, changed or malformed exact approval before claim',async approvals=>{const response=await POST(request(approvals===undefined?null:approvals));expect([400,409]).toContain(response.status);expect(claimBatchDeploymentTransactions).not.toHaveBeenCalled();expect(jest.mocked(global.fetch).mock.calls.every(([,options])=>!options?.method||options.method==='GET')).toBe(true);});
 it('requires the same Workbench principal before claiming',async()=>{jest.mocked(getDeploymentTransaction).mockResolvedValue({...tx,principalId:'other-principal'} as never);expect((await POST(request())).status).toBe(403);expect(claimBatchDeploymentTransactions).not.toHaveBeenCalled();});
+it('binds approval to exact canonical copy, rejecting a different or omitted proposed value before claim',async()=>{
+  const copy={...mutation,copy:[{id:'project-1',field:'title',previousValue:'Original',value:'Reviewed copy'}]};
+  jest.mocked(getDeploymentTransaction).mockResolvedValue({...tx,contentMutation:copy} as never);
+  expect((await POST(request([{transactionId:id,mutation}]))).status).toBe(409);
+  expect((await POST(request([{transactionId:id,mutation:{...copy,copy:[{...copy.copy[0],value:'Unreviewed replacement'}]}}]))).status).toBe(409);
+  expect(claimBatchDeploymentTransactions).not.toHaveBeenCalled();
+});
 it.each(['committing','committed','failed','consumed'])('does not blindly retry retained %s content transactions',async state=>{jest.mocked(getDeploymentTransaction).mockResolvedValue({...tx,state,commitSha:'b'.repeat(40)} as never);expect((await POST(request())).status).toBe(409);expect(claimBatchDeploymentTransactions).not.toHaveBeenCalled();});
 it('rechecks the collection revision against pinned Git after claiming and never writes a stale hide',async()=>{
   process.env.NODE_ENV='production';process.env.VERCEL_ENV='test';process.env.KV_REST_API_URL='http://127.0.0.1:1';process.env.KV_REST_API_TOKEN='fixture';

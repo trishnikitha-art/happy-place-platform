@@ -49,8 +49,8 @@ export const HOMEPAGE = {
     title: editableText.fields['homepage.hero.title'].value,
     description: editableText.fields['homepage.hero.description'].value,
   },
-  seeOurWork: "See Our Work",
-  tellUsPlanning: "Tell us what you're planning.",
+  seeOurWork: editableText.fields['homepage.hero.secondaryAction'].value,
+  tellUsPlanning: editableText.fields['home.copy.2'].value,
 } as const;
 
 // Trust Signals (trust.*)
@@ -63,28 +63,28 @@ export const TRUST = {
 
 // Services (services.*)
 export const SERVICES = {
-  title: "A few ways we can help",
-  description: "Pick a service to start a free estimate — we'll guide you through the rest.",
+  title: editableText.fields['homepage.services.title'].value,
+  description: editableText.fields['homepage.services.description'].value,
 } as const;
 
 // Featured Projects (featuredProjects.*)
 export const FEATURED_PROJECTS = {
-  title: "Recent Work",
-  description: "A selection of our latest work across the Mid-Willamette Valley.",
-  seeAll: "See all projects",
+  title: editableText.fields['homepage.projects.title'].value,
+  description: editableText.fields['homepage.projects.description'].value,
+  seeAll: editableText.fields['home.copy.4'].value,
 } as const;
 
 // Family Section (family.*)
 export const FAMILY = {
-  tagline: "Built by one family. Trusted by many more.",
-  title: "A family business built on doing things the right way.",
+  tagline: editableText.fields['homepage.family.eyebrow'].value,
+  title: editableText.fields['homepage.family.title'].value,
 } as const;
 
 // Reviews (reviews.*)
 export const REVIEWS = {
-  title: "What people say once the work's done",
-  empty: "We are building our review portfolio. In the meantime, ask us for references in your neighborhood.",
-  readAll: "Read all reviews",
+  title: editableText.fields['homepage.reviews.title'].value,
+  empty: editableText.fields['homepage.reviews.empty'].value,
+  readAll: editableText.fields['home.copy.5'].value,
   helpingNeighbors: "Helping neighbors find their happy place",
   leaveReview: "Leave a Review",
 } as const;
@@ -92,20 +92,20 @@ export const REVIEWS = {
 // About Page (about.*)
 export const ABOUT = {
   serviceArea: {
-    title: "Serving the mid-Willamette Valley",
+    title: editableText.fields['about.area.title'].value,
   },
   cta: {
-    title: "Ready to love coming home again?",
+    title: editableText.fields['about.cta.title'].value,
   },
 } as const;
 
 // Contact Page (contact.*)
 export const CONTACT = {
-  title: "Let's talk about your project",
-  phone: "Phone",
-  email: "Email",
-  serviceArea: "Service area",
-  hours: "Hours",
+  title: editableText.fields['contact.hero.title'].value,
+  phone: editableText.fields['contact.copy.2'].value,
+  email: editableText.fields['contact.copy.3'].value,
+  serviceArea: editableText.fields['contact.copy.4'].value,
+  hours: editableText.fields['contact.copy.5'].value,
 } as const;
 
 // Estimate Page (estimate.*)
@@ -137,12 +137,12 @@ export const WORKBENCH = {
 
 // Newsletter (newsletter.*)
 export const NEWSLETTER = {
-  title: "Stay Ahead of Home Maintenance",
-  description: "Get practical homeowner tips, seasonal maintenance reminders, remodeling ideas, project showcases, and exclusive offers delivered to your inbox.",
+  title: editableText.fields['newsletter.title'].value,
+  description: editableText.fields['newsletter.description'].value,
   emailPlaceholder: "Email address",
   firstNamePlaceholder: "First name (optional)",
   subscribe: "Subscribe",
-  noSpam: "No spam, ever. Unsubscribe anytime.",
+  noSpam: editableText.fields['newsletter.privacy'].value,
 } as const;
 
 // CTA Components (cta.*)

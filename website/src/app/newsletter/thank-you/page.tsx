@@ -1,3 +1,4 @@
+import { TextCopy } from '@/components/text-copy';
 import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -26,9 +27,9 @@ export default function NewsletterThankYouPage() {
             </span>
           </div>
           <SectionHeading
-            eyebrow={<span className="text-honey">You're in!</span>}
-            title={<span className="text-text-on-dark">Welcome to the Happy Place community</span>}
-            description={<span className="text-text-on-dark/90">Check your inbox for a confirmation email. You'll start receiving practical homeowner tips, seasonal maintenance reminders, and project inspiration soon.</span>}
+            eyebrow={<span className="text-honey"><TextCopy textKey="newsletterThanks.copy.1" /></span>}
+            title={<span className="text-text-on-dark"><TextCopy textKey="newsletterThanks.copy.2" /></span>}
+            description={<span className="text-text-on-dark/90"><TextCopy textKey="newsletterThanks.copy.3" /></span>}
           />
         </Container>
       </Section>
@@ -36,33 +37,25 @@ export default function NewsletterThankYouPage() {
       <Section>
         <Container className="max-w-3xl">
           <div className="prose prose-lg mx-auto">
-            <h3>What you'll receive:</h3>
+            <h3><TextCopy textKey="newsletterThanks.copy.4" /></h3>
             <ul>
-              <li><strong>Seasonal maintenance reminders</strong> — Keep your home in top shape year-round</li>
-              <li><strong>Remodeling ideas & inspiration</strong> — Before-and-after project showcases</li>
-              <li><strong>Practical homeowner tips</strong> — DIY guidance from professional carpenters</li>
-              <li><strong>Exclusive offers</strong> — First access to special promotions for subscribers</li>
+              <li><strong><TextCopy textKey="newsletterThanks.copy.5" /></strong><TextCopy textKey="newsletterThanks.copy.6" /></li>
+              <li><strong><TextCopy textKey="newsletterThanks.copy.7" /></strong><TextCopy textKey="newsletterThanks.copy.8" /></li>
+              <li><strong><TextCopy textKey="newsletterThanks.copy.9" /></strong><TextCopy textKey="newsletterThanks.copy.10" /></li>
+              <li><strong><TextCopy textKey="newsletterThanks.copy.11" /></strong><TextCopy textKey="newsletterThanks.copy.12" /></li>
             </ul>
 
-            <h3>Explore more:</h3>
-            <p>
-              Browse our <Link href="/our-work" className="text-honey hover:underline">completed projects</Link> for inspiration, 
-              or download our free <Link href="/resources" className="text-honey hover:underline">homeowner guides</Link> with 
-              maintenance checklists and budget planners.
-            </p>
+            <h3><TextCopy textKey="newsletterThanks.copy.13" /></h3>
+            <p><TextCopy textKey="newsletterThanks.copy.14" /><Link href="/our-work" className="text-honey hover:underline"><TextCopy textKey="newsletterThanks.copy.15" /></Link><TextCopy textKey="newsletterThanks.copy.16" /><Link href="/resources" className="text-honey hover:underline"><TextCopy textKey="newsletterThanks.copy.17" /></Link><TextCopy textKey="newsletterThanks.copy.18" /></p>
 
-            <h3>Ready to start your project?</h3>
-            <p>
-              Tell us what you're planning and where your project is located. We'd love to hear about it.
-            </p>
+            <h3><TextCopy textKey="newsletterThanks.copy.19" /></h3>
+            <p><TextCopy textKey="newsletterThanks.copy.20" /></p>
 
             <div className="mt-8">
               <Link
                 href="/contact"
                 className="inline-flex items-center justify-center rounded-lg bg-honey px-8 py-4 font-semibold text-deep transition-colors hover:bg-honey/90"
-              >
-                Talk About Your Project
-              </Link>
+              ><TextCopy textKey="newsletterThanks.copy.21" /></Link>
             </div>
           </div>
         </Container>

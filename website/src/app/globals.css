@@ -833,6 +833,9 @@ a {
   contain-intrinsic-size: auto 500px;
 }
 
+/* Edited copy keeps its original typography; long words wrap within the field. */
+[data-text-key] { overflow-wrap: anywhere; }
+
 /* Apply to specific component types that are typically below the fold */
 .CraftCard-grid,
 .faq-list,

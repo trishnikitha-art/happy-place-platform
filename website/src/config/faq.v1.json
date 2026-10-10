@@ -4,50 +4,50 @@
   "faqs": [
     {
       "id": "f1",
-      "question": "Are you licensed and insured?",
-      "answer": "Yes. Happy Place Carpentry is an Oregon-licensed contractor (CCB# 254240) and fully insured. We're happy to provide credentials before any work begins.",
+      "question": "faq.f1.question",
+      "answer": "faq.f1.answer",
       "category": "Credentials"
     },
     {
       "id": "f2",
-      "question": "What areas do you serve?",
-      "answer": "We work across Benton, Linn, and Polk Counties — including Philomath, Albany, Monmouth, Independence, and surrounding communities.",
+      "question": "faq.f2.question",
+      "answer": "faq.f2.answer",
       "category": "Service Area"
     },
     {
       "id": "f3",
-      "question": "How do I get started?",
-      "answer": "Call or email Happy Place Carpentry and tell us what you're planning. Include the kind of work you need and where your project is located. If you have photos, you can share them by email.",
+      "question": "faq.f3.question",
+      "answer": "faq.f3.answer",
       "category": "Getting Started"
     },
     {
       "id": "f4",
-      "question": "Do you handle permits?",
-      "answer": "Yes. For decks, fences, and structural work we handle the permit process and inspections so you don't have to.",
+      "question": "faq.f4.question",
+      "answer": "faq.f4.answer",
       "category": "Process"
     },
     {
       "id": "f5",
-      "question": "What materials do you work with?",
-      "answer": "Cedar, pressure-treated, and composite decking; wood, vinyl, and metal fencing; and standard cabinetry and trim materials. We'll recommend what fits your budget and the Oregon climate.",
+      "question": "faq.f5.question",
+      "answer": "faq.f5.answer",
       "category": "Materials"
     },
     {
       "id": "f6",
-      "question": "How long does a typical project take?",
-      "answer": "It depends on scope — a fence might be a few days, a deck one to two weeks, a full kitchen remodel several weeks. We give you a realistic timeline in the written estimate.",
+      "question": "faq.f6.question",
+      "answer": "faq.f6.answer",
       "category": "Process"
     },
     {
       "id": "f7",
-      "question": "Do you offer a warranty?",
-      "answer": "Yes. We stand behind our work with a workmanship warranty and honor manufacturer warranties on materials.",
+      "question": "faq.f7.question",
+      "answer": "faq.f7.answer",
       "category": "Warranty"
     },
     {
       "id": "f8",
-      "question": "Can I supply my own materials?",
-      "answer": "In most cases yes — we're glad to work with materials you've chosen, as long as they're suitable for the project and climate.",
+      "question": "faq.f8.question",
+      "answer": "faq.f8.answer",
       "category": "Materials"
     }
   ]

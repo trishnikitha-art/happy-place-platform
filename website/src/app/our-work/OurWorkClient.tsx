@@ -1,4 +1,7 @@
 "use client";
+import { TextCopy } from '@/components/text-copy';
+import { ContentCopy } from '@/components/content-copy';
+
 
 import Link from "next/link";
 import Image from "next/image";
@@ -225,12 +228,8 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
           <p className="text-sm font-semibold uppercase tracking-wide text-honey">
             {company.proof.projectsCompleted} projects · {company.ccbNumber}
           </p>
-          <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-tight text-text-on-dark sm:text-6xl">
-            Our Work
-          </h1>
-          <p className="mt-5 max-w-xl text-lg text-text-on-dark">
-            Every project solves a different problem. Here are a few of the homes we've worked on and the decisions behind them.
-          </p>
+          <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-tight text-text-on-dark sm:text-6xl"><TextCopy textKey="work.copy.1" /></h1>
+          <p className="mt-5 max-w-xl text-lg text-text-on-dark"><TextCopy textKey="work.copy.2" /></p>
         </Container>
       </section>
 
@@ -239,9 +238,9 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
         <BlueprintGrid gridSize={24} lineColor="rgba(217, 154, 78, 0.06)" />
         <Container>
           <SectionHeading
-            eyebrow={<span className="text-honey">Featured transformations</span>}
-            title={<span className="text-text-on-dark">Start to finish</span>}
-            description={<span className="text-text-on-dark/90">Real projects, real craftsmanship — the moments that turn a house into a happy place.</span>}
+            eyebrow={<span className="text-honey"><TextCopy textKey="work.copy.3" /></span>}
+            title={<span className="text-text-on-dark"><TextCopy textKey="work.transformations.title" /></span>}
+            description={<span className="text-text-on-dark/90"><TextCopy textKey="work.transformations.description" /></span>}
           />
           <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
             {featuredProjects.slice(0, 4).map((project, i) => (
@@ -258,9 +257,9 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
         <BlueprintGrid gridSize={20} lineColor="rgba(217, 154, 78, 0.04)" />
         <Container>
           <SectionHeading
-            eyebrow={<span className="text-honey">Recent projects</span>}
-            title={<span className="text-text-on-dark">Why We Built It This Way</span>}
-            description={<span className="text-text-on-dark/90">Real challenges, real solutions. Tap a project for the full story.</span>}
+            eyebrow={<span className="text-honey"><TextCopy textKey="work.copy.4" /></span>}
+            title={<span className="text-text-on-dark"><TextCopy textKey="work.stories.title" /></span>}
+            description={<span className="text-text-on-dark/90"><TextCopy textKey="work.stories.description" /></span>}
           />
           <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
             {allProjects.map((project, i) => {
@@ -317,8 +316,8 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
                               <span className="text-primary/30">·</span>
                               <span className="text-xs text-text-muted">{project.location.city}</span>
                             </div>
-                            <h2 className="text-xl font-bold text-text">{project.title}</h2>
-                            <p className="mt-2 line-clamp-2 text-sm text-text-muted">{project.story?.outcome || project.story?.solution || project.title}</p>
+                            <h2 className="text-xl font-bold text-text"><ContentCopy collection="projects" id={project.id} field="title" value={project.title} route={`/projects/${project.slug}`} /></h2>
+                            <p className="mt-2 line-clamp-2 text-sm text-text-muted"><ContentCopy collection="projects" id={project.id} field={project.story?.outcome?'story.outcome':project.story?.solution?'story.solution':'title'} value={project.story?.outcome || project.story?.solution || project.title} route={`/projects/${project.slug}`} /></p>
                           </div>
                         </CraftCard>
                       </div>
@@ -335,9 +334,9 @@ export default function OurWorkClient({ company, allProjects, featuredProjects }
       <Section className="bg-deep">
         <Container>
           <SectionHeading
-            eyebrow={<span className="text-honey">Browse all work</span>}
-            title={<span className="text-text-on-dark">The complete archive</span>}
-            description={<span className="text-text-on-dark/90">Every project, every detail. Future projects simply append here.</span>}
+            eyebrow={<span className="text-honey"><TextCopy textKey="work.copy.5" /></span>}
+            title={<span className="text-text-on-dark"><TextCopy textKey="work.archive.title" /></span>}
+            description={<span className="text-text-on-dark/90"><TextCopy textKey="work.archive.description" /></span>}
           />
           {isWorkbenchMode && (
             <p role="status" aria-live="polite" className="mt-4 text-sm text-text-on-dark/90">

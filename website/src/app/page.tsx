@@ -1,3 +1,5 @@
+import { TextCopy } from '@/components/text-copy';
+import { ContentCopy } from '@/components/content-copy';
 ﻿import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
@@ -230,8 +232,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
         <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20 pointer-events-none">
           <div className="max-w-3xl pointer-events-auto">
             <p className="font-signature text-xl sm:text-2xl text-text-on-dark tracking-wide">
-              <HappyBrandSignature /> Place Carpentry
-            </p>
+              <HappyBrandSignature /> Place Carpentry</p>
             <h1 data-text-key="homepage.hero.title" className="mt-4 sm:mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-text-on-dark" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>
               {text.fields['homepage.hero.title'].value}
             </h1>
@@ -267,7 +268,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
               <span className="hidden sm:inline">{company.proof.serviceCounties.join(" · ")}</span>
               <span className="sm:hidden">{company.proof.serviceCounties[0]}</span>
             </div>
-            <span className="mt-5 sm:mt-7 block font-signature text-2xl sm:text-3xl text-honey">Tell us what you&apos;re planning.</span>
+            <span className="mt-5 sm:mt-7 block font-signature text-2xl sm:text-3xl text-honey"><TextCopy textKey="home.copy.2" /></span>
           </div>
         </Container>
       </section>
@@ -302,9 +303,9 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
           <div className="absolute inset-0 bg-gradient-to-b from-[#F6F4F0] via-[#F3F0E9] to-[#F0ECE4] opacity-100" aria-hidden="true" />
           <Container className="relative z-10">
             <SectionHeading
-              eyebrow={<span className="eyebrow-mark"><ToolMark /> What we do</span>}
-              title={<span className="text-primary">A few ways we can help</span>}
-              description="Explore our services and see the work behind them."
+              eyebrow={<span className="eyebrow-mark"><ToolMark /><TextCopy textKey="home.copy.3" /></span>}
+              title={<span className="text-primary"><TextCopy textKey="homepage.services.title" /></span>}
+              description={<TextCopy textKey="homepage.services.description" />}
               descriptionColor="text-primary"
             />
             <div data-service-grid className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 min-[480px]:grid-cols-2 lg:grid-cols-3">
@@ -339,9 +340,9 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_100%,rgba(217,154,78,0.06),transparent_60%)]" aria-hidden="true" />
           <Container className="relative z-10">
             <SectionHeading
-              eyebrow="Featured projects"
-              title={<span className="text-primary">Recent Work</span>}
-              description="A selection of our latest work across the Mid-Willamette Valley."
+              eyebrow={<TextCopy textKey="home.projects.eyebrow" />}
+              title={<span className="text-primary"><TextCopy textKey="homepage.projects.title" /></span>}
+              description={<TextCopy textKey="homepage.projects.description" />}
               descriptionColor="text-primary"
             />
             <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 auto-rows-[200px]">
@@ -382,15 +383,15 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
                       <span className="inline-block px-2 py-1 mb-2 text-xs font-semibold bg-honey/90 text-white rounded">
                         {project.location.county || 'Willamette Valley'}
                       </span>
-                      <h3 className="text-white font-bold text-lg sm:text-xl">{project.title}</h3>
-                      <p className="text-white/80 text-sm mt-1 line-clamp-2">{project.story?.outcome || project.story?.solution}</p>
+                      <h3 className="text-white font-bold text-lg sm:text-xl"><ContentCopy collection="projects" id={project.id} field="title" value={project.title} route={`/projects/${project.slug}`} /></h3>
+                      <p className="text-white/80 text-sm mt-1 line-clamp-2">{(project.story?.outcome || project.story?.solution) && <ContentCopy collection="projects" id={project.id} field={project.story?.outcome?'story.outcome':'story.solution'} value={(project.story?.outcome || project.story?.solution)!} route={`/projects/${project.slug}`} />}</p>
                     </div>
                   </Link>
                 );
               })}
             </div>
             <div className="mt-8">
-              <RouterLink href="/our-work">See all projects</RouterLink>
+              <RouterLink href="/our-work"><TextCopy textKey="home.copy.4" /></RouterLink>
             </div>
           </Container>
         </Section>
@@ -402,18 +403,18 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
           <div className="absolute inset-0 bg-gradient-to-br from-[#F3EFE8] via-[#F0ECE5] to-[#ECE8E0] opacity-100" aria-hidden="true" />
           <Container className="relative z-10 grid items-center gap-12 lg:grid-cols-2">
             <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-accent">Built by one family. Trusted by many more.</p>
+              <p className="text-sm font-semibold uppercase tracking-wide text-accent"><TextCopy textKey="homepage.family.eyebrow" /></p>
               <h2 className="mt-3 font-display text-4xl font-bold leading-tight text-primary sm:text-5xl">
-                A family business built on doing things the right way.
+                <TextCopy textKey="homepage.family.title" />
               </h2>
               <div className="measure mt-7 space-y-5 text-primary">
                 <p className="text-lg leading-relaxed">
-                  Good projects don&apos;t start with lumber. They start with good communication and realistic expectations.</p>
+                  <TextCopy textKey="homepage.family.introduction" /></p>
                 <p>
-                  <span className="font-semibold text-primary">{taylor.name}</span> — Taylor cares about the work you&apos;ll notice five years from now, not just on the day it passes inspection.
+                  <span className="font-semibold text-primary">{taylor.name}</span><TextCopy textKey="homepage.family.taylor" />
                 </p>
                 <p>
-                  <span className="font-semibold text-primary">{lanie.name}</span> — Lanie keeps every project organized so you always know what&apos;s happening, what&apos;s next, and who to call.
+                  <span className="font-semibold text-primary">{lanie.name}</span><TextCopy textKey="homepage.family.lanie" />
                 </p>
               </div>
             </div>
@@ -449,7 +450,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
         <Section className="relative bg-[#F2EFE8]">
           <div className="absolute inset-0 bg-gradient-to-b from-[#F2EFE8] via-[#EFECE5] to-[#ECE9E2] opacity-100" aria-hidden="true" />
           <Container className="relative z-10">
-            <SectionHeading eyebrow="Reviews" title={<span className="text-primary">What people say once the work&apos;s done</span>} align="center" description={hasReviews ? "Real experiences from families throughout the Mid-Willamette Valley." : "We&apos;re building our public review portfolio. In the meantime, we&apos;re happy to provide references from homeowners throughout the Mid-Willamette Valley."} descriptionColor="text-primary" />
+            <SectionHeading eyebrow={<TextCopy textKey="home.reviews.eyebrow" />} title={<span className="text-primary"><TextCopy textKey="homepage.reviews.title" /></span>} align="center" description={hasReviews ? <TextCopy textKey="home.reviews.descriptionWithReviews" /> : <TextCopy textKey="home.reviews.descriptionWithoutReviews" />} descriptionColor="text-primary" />
             {hasReviews ? (
               <>
                 <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
@@ -465,13 +466,13 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
                   ))}
                 </div>
                 <div className="mt-6 sm:mt-8 text-center">
-                  <RouterLink href="/reviews">Read all reviews</RouterLink>
+                  <RouterLink href="/reviews"><TextCopy textKey="home.copy.5" /></RouterLink>
                 </div>
               </>
             ) : (
               <div className="mt-8 sm:mt-10 rounded-lg bg-surface-muted p-6 sm:p-8 text-center">
                 <p className="text-sm sm:text-base text-text-muted">
-                  We are building our review portfolio. In the meantime, ask us for references in your neighborhood.
+                  <TextCopy textKey="homepage.reviews.empty" />
                 </p>
               </div>
             )}

@@ -1,5 +1,11 @@
+import { EDITABLE_COPY_FIELDS } from './editable-copy-fields';
+import { EDITABLE_SHARED_FIELDS } from './editable-shared-fields';
+import { EDITABLE_PAGE_FIELDS } from './editable-page-fields';
 export const TEXT_AUTHORITY_PATH = 'website/src/config/strings.v1.json';
 export const TEXT_FIELDS = {
+  ...EDITABLE_COPY_FIELDS,
+  ...EDITABLE_SHARED_FIELDS,
+  ...EDITABLE_PAGE_FIELDS,
   'homepage.hero.title': { label: 'Homepage headline', route: '/', maxLength: 180, source: 'src/app/page.tsx', classification: 'editable copy' },
   'homepage.hero.description': { label: 'Homepage introduction', route: '/', maxLength: 500, source: 'src/app/page.tsx', classification: 'editable copy' },
   'homepage.hero.primaryAction': { label: 'Homepage project button', route: '/', maxLength: 80, source: 'src/app/page.tsx', classification: 'editable copy' },

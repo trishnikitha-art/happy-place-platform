@@ -1,3 +1,4 @@
+import { TextCopy } from '@/components/text-copy';
 import type { Metadata } from "next";
 import Image from "next/image";
 import { Container, Section, SectionHeading } from "@/components/section";
@@ -30,10 +31,10 @@ export default async function ReviewsPage() {
             </span>
           </div>
           <SectionHeading
-            eyebrow={<span className="text-honey">Reviews</span>}
-            title={<span className="text-text-on-dark">Helping neighbors find their happy place</span>}
+            eyebrow={<span className="text-honey"><TextCopy textKey="reviews.copy.2" /></span>}
+            title={<span className="text-text-on-dark"><TextCopy textKey="reviews.hero.title" /></span>}
             align="center"
-            description={<span className="text-text-on-dark/90">{hasReviews ? `${stats.average} / 5 across ${stats.count} featured reviews from homeowners across the Willamette Valley.` : "Google reviews coming soon. Ask us for references in your neighborhood."}</span>}
+            description={<span className="text-text-on-dark/90">{hasReviews ? `${stats.average} / 5 across ${stats.count} featured reviews from homeowners across the Willamette Valley.` : <TextCopy textKey="reviews.descriptionWithoutReviews" />}</span>}
             descriptionColor="text-text-on-dark/90"
           />
 
@@ -43,9 +44,7 @@ export default async function ReviewsPage() {
               href="/review"
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
             >
-              <StarRating rating={5} />
-              Leave a Review →
-            </a>
+              <StarRating rating={5} /><TextCopy textKey="reviews.copy.3" /></a>
           </div>
 
           {/* trust emphasis — license + rating, not just stars */}
@@ -64,13 +63,13 @@ export default async function ReviewsPage() {
           {!hasReviews && (
             <div className="mt-10 rounded-lg bg-surface-muted p-8 text-center">
               <p className="text-text">
-                We are building our review portfolio. In the meantime, ask us for references in your neighborhood.
+                <TextCopy textKey="reviews.empty" />
               </p>
             </div>
           )}
 
           <p className="mt-10 text-center text-sm text-text-on-dark">
-            {hasReviews ? "Reviews shown are a sample of our recent work. Ask us for references in your neighborhood." : "We take pride in our work and would be happy to connect you with past clients."}
+            {hasReviews ? <TextCopy textKey="reviews.footerWithReviews" /> : <TextCopy textKey="reviews.footerWithoutReviews" />}
           </p>
         </Container>
       </Section>

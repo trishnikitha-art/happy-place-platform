@@ -1,3 +1,4 @@
+import { TextCopy } from '@/components/text-copy';
 import type { Metadata } from "next";
 import Image from "next/image";
 import { Container, Section, SectionHeading } from "@/components/section";
@@ -79,15 +80,15 @@ export default async function AboutPage() {
                 <Image src="/brand/logo.png" alt="Happy Place Carpentry logo" width={144} height={48} className="h-full w-auto" />
               </span>
             </div>
-            <p className="text-sm font-semibold uppercase text-honey" style={{ letterSpacing: '0.12em' }}>Family-owned · {company.ccbNumber}</p>
+            <p className="text-sm font-semibold uppercase text-honey" style={{ letterSpacing: '0.12em' }}><TextCopy textKey="about.familyLabel" />{company.ccbNumber}</p>
             <h1 className="mt-3 font-display text-4xl font-bold sm:text-5xl text-text-on-dark" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>
-              Every family deserves a <HappyBrandSignature /> place.
+              <TextCopy textKey="about.hero.prefix" /><HappyBrandSignature /><TextCopy textKey="about.hero.suffix" />
             </h1>
             <p className="measure mt-5 text-lg text-text-on-dark/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
-              {company.name} isn&apos;t built around sales teams, project managers, or handoffs. It&apos;s built around one family that believes your home should become your happy place. From your first conversation to the final walkthrough, you&apos;ll work directly with the people doing the work—people who care about every detail as much as you do.
+              {company.name}<TextCopy textKey="about.hero.description" />
             </p>
             <p className="mt-6 font-display text-xl text-text-on-dark/90" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>
-              Build it right. Explain it clearly. Stand behind the work.
+              <TextCopy textKey="about.hero.promise" />
             </p>
           </div>
           {ownerSrc && <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
@@ -111,7 +112,7 @@ export default async function AboutPage() {
       {/* SERVICE AREA */}
       <Section className="bg-surface-2 py-10 sm:py-12">
         <Container>
-          <SectionHeading eyebrow="Where we work" title="Serving the mid-Willamette Valley" />
+          <SectionHeading eyebrow={<TextCopy textKey="about.area.eyebrow" />} title={<TextCopy textKey="about.area.title" />} />
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {cities.map((c) => (
               <div key={c.id} className="rounded-2xl border border-border/40 bg-[#F8F6F3] p-5">
@@ -163,8 +164,8 @@ export default async function AboutPage() {
       </Section></PreviewOnly>}
 
       <CTASection
-        title="Ready to love coming home again?"
-        subtitle="Let's start building your happy place."
+        title={<TextCopy textKey="about.cta.title" />}
+        subtitle={<TextCopy textKey="about.cta.description" />}
       />
     </>
   );

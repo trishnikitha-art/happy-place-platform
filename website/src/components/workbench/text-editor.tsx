@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { TEXT_FIELDS, sameTextMutation, type TextCatalog, type TextMutation, type TextKey } from '@/lib/text-contract';
 import { textDiff } from '@/lib/text-lifecycle';
 import { publicationMatches } from '@/lib/text-publication';
@@ -11,15 +11,18 @@ async function api(path: string, init?: RequestInit) {
   if (!r.ok) throw new Error(`${body.error || body.message || `Request failed (${r.status})`}${body.correlationId ? ` · Reference ${body.correlationId}` : ''}`);
   return body;
 }
-export function TextEditor({ embedded = false, active = true, selection, onPreview, onTransaction }: {
+export function TextEditor({ embedded = false, active = true, selection, onPreview, onTransaction,onTargetRoute }: {
   embedded?: boolean; active?: boolean;
-  selection?: { key: TextKey; request: number };
-  onPreview?: (draft: { key: TextKey; value: string } | null) => void;
+  selection?: { key: TextKey; request: number; value?: string; editVersion?: number };
+  onPreview?: (draft: { key: TextKey; value: string; editable?: boolean;editVersion?:number;resetVersion?:number } | null) => void;
   onTransaction?: (transactionId: string | null) => void;
+  onTargetRoute?: (route:string)=>void;
 } = {}) {
   const [key, setKey] = useState<TextKey>('homepage.hero.title');
   const [current, setCurrent] = useState<TextCatalog | null>(null);
   const [draft, setDraft] = useState('');
+  const [editVersion,setEditVersion]=useState(0);
+  const [resetVersion,setResetVersion]=useState(0);
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [receiptId, setReceiptId] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -28,19 +31,24 @@ export function TextEditor({ embedded = false, active = true, selection, onPrevi
   const [live, setLive] = useState(false);
   const [transactions, setTransactions] = useState<Receipt[]>([]);
   const [servedSha,setServedSha] = useState<string|null>(null);
+  const consumedSelection=useRef<typeof selection>();
   useEffect(() => {
-    if (!selection || !current) return;
+    if (!selection || !current || consumedSelection.current===selection) return;
+    consumedSelection.current=selection;
     if (busy || receipt) {
       if (selection.key !== key) setError('Finish or cancel the current change before editing another field.');
       return;
     }
-    if (selection.key === key) return;
+    if (selection.key === key) {
+      if (typeof selection.value === 'string' && selection.value.length <= TEXT_FIELDS[key].maxLength && selection.editVersion && selection.editVersion>editVersion) {setDraft(selection.value);setEditVersion(selection.editVersion);}
+      return;
+    }
     if (draft !== current.fields[key].value) { setError('Save or cancel your current draft before selecting another field.'); return; }
-    setKey(selection.key); setDraft(current.fields[selection.key].value); setError('');
+    setKey(selection.key); setDraft(current.fields[selection.key].value);setEditVersion(0);setResetVersion(v=>v+1); setError('');
   }, [selection, current]);
   useEffect(() => {
-    onPreview?.(active && current ? { key, value: draft } : null);
-  }, [active, key, draft, current, onPreview]);
+    onPreview?.(active && current ? { key, value: draft, editable: !busy && !receipt,editVersion,resetVersion } : null);
+  }, [active, key, draft, current, busy, receipt, editVersion,resetVersion,selection,onPreview]);
   useEffect(() => {
     onTransaction?.(receipt && !receipt.commitSha && receipt.stagingVerified && ['prepared','failed'].includes(receipt.state) ? receipt.transactionId : null);
   }, [receipt, onTransaction]);
@@ -49,13 +57,14 @@ export function TextEditor({ embedded = false, active = true, selection, onPrevi
     try {
       const data = await api('/api/workbench/text');
       setCurrent(data.current); setDraft(data.current.fields[key].value);
+      setEditVersion(0);setResetVersion(v=>v+1);
       setTransactions(data.transactions);setServedSha(data.served.commitSha);
       const stored = localStorage.getItem(receiptStorage);
       if (stored) {
         setReceiptId(stored);
         const recovered = await api(`/api/workbench/text?transactionId=${encodeURIComponent(stored)}`);
         setReceipt(recovered);
-        if (recovered.mutation) { setKey(recovered.mutation.key); setDraft(recovered.mutation.value); }
+        if (recovered.mutation) { setKey(recovered.mutation.key); setDraft(recovered.mutation.value);onTargetRoute?.(TEXT_FIELDS[recovered.mutation.key as TextKey].route); }
         setStatus(recovered.commitSha ? 'Committed; checking Production' : `Transaction state: ${recovered.state}`);
       } else setStatus('Current text loaded');
     } catch (e) { setError(e instanceof Error ? e.message : 'Could not load text'); }
@@ -71,14 +80,21 @@ export function TextEditor({ embedded = false, active = true, selection, onPrevi
         if (['failure','error'].includes(deployment.vercelStatus)) { setStatus('Production deployment failed; commit retained'); return; }
         if (deployment.vercelStatus !== 'success') { setStatus('Committed; Production deployment pending'); return; }
         const state = await api('/api/workbench/text');
-        const actual = await fetch('/', {cache:'no-store'});
+        const route=TEXT_FIELDS[receipt!.mutation!.key].route;
+        const actual = await fetch(route==='*' ? '/' : route, {cache:'no-store'});
         const document = new DOMParser().parseFromString(await actual.text(),'text/html');
-        const headline = document.querySelector(`[data-text-key="${receipt!.mutation!.key}"]`)?.textContent;
         const fieldKey = receipt!.mutation!.key;
+        const descriptor=TEXT_FIELDS[fieldKey] as {attribute?:string;conditional?:boolean;context?:string};
+        const anchor=document.querySelector(`[data-text-key="${fieldKey}"]`);
+        const headline=descriptor.attribute==='placeholder' ? anchor?.getAttribute('placeholder') : anchor?.textContent;
         const target = receipt!.mutation!.value;
+        if(!anchor && (descriptor.conditional || descriptor.context?.includes('Conditional'))) {
+          const exactRelease=actual.ok && publicationMatches({expectedSha:receipt!.commitSha!,statusSha:deployment.commitSha,vercelStatus:deployment.vercelStatus,statusDeploymentId:deployment.deploymentId,servedSha:document.querySelector('meta[name="hpp-git-commit"]')?.getAttribute('content'),servedDeploymentId:document.querySelector('meta[name="hpp-deployment-id"]')?.getAttribute('content'),apiSha:state.served.commitSha,apiDeploymentId:state.served.deploymentId,actualValue:state.deployed.fields[fieldKey].value,bundledValue:state.deployed.fields[fieldKey].value,expectedValue:target});
+          if(exactRelease){setStatus('Published in the exact Production release; this field is hidden by the current page state.');return;}
+        }
         if (!actual.ok || !publicationMatches({expectedSha:receipt!.commitSha!,statusSha:deployment.commitSha,vercelStatus:deployment.vercelStatus,statusDeploymentId:deployment.deploymentId,servedSha:document.querySelector('meta[name="hpp-git-commit"]')?.getAttribute('content'),servedDeploymentId:document.querySelector('meta[name="hpp-deployment-id"]')?.getAttribute('content'),apiSha:state.served.commitSha,apiDeploymentId:state.served.deploymentId,actualValue:headline,bundledValue:state.deployed.fields[fieldKey].value,expectedValue:target})) { setStatus('Deployment ready; served release identity or text does not match this receipt'); return; }
         if(receipt!.state!=='consumed') {setStatus('Matching release rendered; transaction requires reconciliation');return;}
-        if (!canceled) { setLive(true); setStatus('Live homepage verified'); setCurrent(state.current); setDraft(target); }
+        if (!canceled) { setLive(true); setStatus('Live website text verified'); setCurrent(state.current); setDraft(target); }
       } catch (e) { if (!canceled) setError(e instanceof Error ? e.message : 'Verification unavailable'); }
     }
     void check(); const timer = setInterval(() => { void check(); }, 10000);
@@ -113,7 +129,7 @@ export function TextEditor({ embedded = false, active = true, selection, onPrevi
   function nextEdit() { localStorage.removeItem(receiptStorage); setReceipt(null); setReceiptId(null); setLive(false); void reload(); }
   async function lifecycle(action:'cancel'|'reconcile') {
     if(!receipt) return;setBusy(true);setError('');
-    try {const saved=await api('/api/workbench/text/lifecycle',{method:'POST',body:JSON.stringify({transactionId:receipt.transactionId,action})});setReceipt(saved);if(action==='cancel')setDraft(current?.fields[key].value ?? saved.mutation?.previousValue ?? '');setStatus(action==='cancel'?'Staged transaction cancelled on the server':'Git receipt reconciled; checking served release');}
+    try {const saved=await api('/api/workbench/text/lifecycle',{method:'POST',body:JSON.stringify({transactionId:receipt.transactionId,action})});setReceipt(saved);if(action==='cancel'){setDraft(current?.fields[key].value ?? saved.mutation?.previousValue ?? '');setEditVersion(0);setResetVersion(v=>v+1);}setStatus(action==='cancel'?'Staged transaction cancelled on the server':'Git receipt reconciled; checking served release');}
     catch(e) {setError(e instanceof Error?e.message:'Lifecycle operation failed; receipt retained');}
     finally {setBusy(false);}
   }
@@ -124,16 +140,16 @@ export function TextEditor({ embedded = false, active = true, selection, onPrevi
     return ()=>window.removeEventListener('beforeunload',warn);
   },[dirty,receipt]);
   return <div className={embedded ? "space-y-5 p-4 text-deep" : "mx-auto max-w-5xl space-y-7 px-4 py-8 sm:px-8"}>
-    <div><h2 className="font-display text-2xl">Edit website text</h2><p className="mt-2 text-deep/80">Select highlighted copy in the website preview, or choose a field below. Your draft appears beside you while you type.</p></div>
+    <div><h2 className="font-display text-2xl">Edit text in place</h2><p className="mt-2 text-deep/80">Click highlighted text on the website and type directly in that field. Its font, responsive size and formatting stay the same.</p></div>
     <p role="status" className="rounded-xl bg-primary/10 p-4">{status}</p>
     {error && <p role="alert" className="rounded-xl border border-red-500 p-4">{error}</p>}
     <p className="text-sm text-deep/80">Draft preview only. Save, review, then publish to change the public site. Live release: {servedSha?.slice(0,7) || 'unavailable'}.</p>
     {!receipt && transactions.length > 0 && <details open={transactions.some(tx=>!['consumed','cancelled'].includes(tx.state))} className="space-y-3"><summary className="min-h-11 cursor-pointer py-3 font-semibold">Saved changes ({transactions.length})</summary>{transactions.map(tx=><div key={tx.transactionId} className="rounded-lg border border-border p-4"><button className="min-h-11 text-left text-sm underline" onClick={()=>{localStorage.setItem(receiptStorage,tx.transactionId);void reload();}}>Review transaction {tx.transactionId}</button><p className="text-sm">State: {tx.state} · Last transition: {tx.lastTransition}</p>{tx.commitSha && <p className="break-all text-xs">Git receipt: {tx.commitSha}</p>}{tx.error && <p className="text-sm text-red-700">{tx.error}</p>}</div>)}</details>}
-    {!receipt && current && <div className="space-y-2"><label htmlFor="text-field" className="block font-semibold">Choose text field</label><select id="text-field" className="min-h-11 w-full rounded-lg border border-border bg-background p-3" value={key} disabled={busy} onChange={e=>{if(dirty){setError('Save or cancel your current draft before selecting another field.');return;}const selected=e.target.value as TextKey;setKey(selected);setDraft(current.fields[selected].value);setReceiptId(null);localStorage.removeItem(receiptStorage);setStatus('Current text loaded');}}>{(Object.keys(TEXT_FIELDS) as TextKey[]).map(field=><option key={field} value={field}>{TEXT_FIELDS[field].label}</option>)}</select></div>}
+    {!receipt && current && <div className="space-y-2"><label htmlFor="text-field" className="block font-semibold">Choose text field</label><select id="text-field" className="min-h-11 w-full rounded-lg border border-border bg-background p-3" value={key} disabled={busy} onChange={e=>{if(dirty){setError('Save or cancel your current draft before selecting another field.');return;}const selected=e.target.value as TextKey;setKey(selected);setDraft(current.fields[selected].value);setEditVersion(0);setResetVersion(v=>v+1);onTargetRoute?.(TEXT_FIELDS[selected].route);setReceiptId(null);localStorage.removeItem(receiptStorage);setStatus('Current text loaded');}}>{(Object.keys(TEXT_FIELDS) as TextKey[]).map(field=><option key={field} value={field}>{TEXT_FIELDS[field].label}</option>)}</select></div>}
     <section className="rounded-2xl border border-border bg-surface p-5 sm:p-7 space-y-4">
       <label htmlFor={`text-${key}`} className="block font-semibold">{TEXT_FIELDS[key].label}</label>
-      <p className="text-sm text-deep/75">Home → {TEXT_FIELDS[key].label} · revision {current?.fields[key].revision ?? '…'}</p>
-      <textarea id={`text-${key}`} className="min-h-32 w-full rounded-lg border border-border bg-background p-3 focus:outline-2 focus:outline-primary" maxLength={TEXT_FIELDS[key].maxLength} value={draft} disabled={!current || busy || !!receipt} onChange={e=>setDraft(e.target.value)} />
+      <p className="text-sm text-deep/75">{TEXT_FIELDS[key].route === '*' ? 'Shared across pages' : TEXT_FIELDS[key].route} → {TEXT_FIELDS[key].label} · revision {current?.fields[key].revision ?? '…'}</p>
+      <details><summary className="min-h-11 cursor-pointer py-3 text-sm">Edit as plain text</summary><textarea id={`text-${key}`} className="min-h-32 w-full rounded-lg border border-border bg-background p-3 focus:outline-2 focus:outline-primary" maxLength={TEXT_FIELDS[key].maxLength} value={draft} disabled={!current || busy || !!receipt} onChange={e=>{setDraft(e.target.value);setEditVersion(0);setResetVersion(v=>v+1);}} /></details>
       <div className="flex flex-wrap gap-3">
         <button className="min-h-11 rounded-full bg-primary px-6 text-white disabled:opacity-50" disabled={!dirty || busy || !!receipt} onClick={()=>void stage()}>Save to text queue</button>
         <button className="min-h-11 rounded-full border border-border px-6 disabled:opacity-50" disabled={busy || !!receipt} onClick={()=>{setReceiptId(null);localStorage.removeItem(receiptStorage);void reload();}}>Cancel draft / reload</button>

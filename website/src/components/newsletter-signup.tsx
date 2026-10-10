@@ -1,4 +1,6 @@
 "use client";
+import { TextCopy, useTextCopy } from '@/components/text-copy';
+
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
@@ -6,6 +8,11 @@ import { Mail, Loader2 } from "lucide-react";
 
 export function NewsletterSignup() {
   const router = useRouter();
+  const failureCopy = useTextCopy("newsletter.failure");
+  const networkFailureCopy = useTextCopy("newsletter.networkFailure");
+
+  const emailPlaceholder = useTextCopy("newsletter.emailPlaceholder");
+  const namePlaceholder = useTextCopy("newsletter.namePlaceholder");
   const [email, setEmail] = React.useState("");
   const [firstName, setFirstName] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -33,7 +40,7 @@ export function NewsletterSignup() {
       const data = await response.json();
 
       if (!response.ok || !data.success) {
-        setError(data.error || "Failed to subscribe. Please try again.");
+        setError(data.error || failureCopy);
         setIsSubmitting(false);
         return;
       }
@@ -44,7 +51,7 @@ export function NewsletterSignup() {
         router.push("/newsletter/thank-you");
       }, 500);
     } catch (err) {
-      setError("Network error. Please try again.");
+      setError(networkFailureCopy);
       setIsSubmitting(false);
     }
   };
@@ -52,7 +59,7 @@ export function NewsletterSignup() {
   if (isSuccess) {
     return (
       <div className="rounded-lg bg-honey/10 border border-honey/20 p-6 text-center">
-        <p className="text-honey font-semibold">Subscribing...</p>
+        <p className="text-honey font-semibold"><TextCopy textKey="newsletter.submitting" /></p>
       </div>
     );
   }
@@ -60,10 +67,10 @@ export function NewsletterSignup() {
   return (
     <div className="rounded-lg bg-deep border border-honey/20 p-6">
       <h3 className="mb-2 text-2xl font-bold text-text-on-dark">
-        Stay Ahead of Home Maintenance
+        <TextCopy textKey="newsletter.title" />
       </h3>
       <p className="mb-6 text-text-on-dark/80">
-        Get practical homeowner tips, seasonal maintenance reminders, remodeling ideas, project showcases, and exclusive offers delivered to your inbox.
+        <TextCopy textKey="newsletter.description" />
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -72,7 +79,7 @@ export function NewsletterSignup() {
             type="email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Email address"
+            placeholder={emailPlaceholder} data-text-key="newsletter.emailPlaceholder" data-text-attribute="placeholder"
             required
             disabled={isSubmitting}
             className="w-full rounded-lg border border-text-on-dark/20 bg-deep px-4 py-3 text-text-on-dark placeholder:text-text-on-dark/50 focus:border-honey focus:outline-none focus:ring-1 focus:ring-honey disabled:opacity-50"
@@ -84,7 +91,7 @@ export function NewsletterSignup() {
             type="text"
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
-            placeholder="First name (optional)"
+            placeholder={namePlaceholder} data-text-key="newsletter.namePlaceholder" data-text-attribute="placeholder"
             disabled={isSubmitting}
             className="w-full rounded-lg border border-text-on-dark/20 bg-deep px-4 py-3 text-text-on-dark placeholder:text-text-on-dark/50 focus:border-honey focus:outline-none focus:ring-1 focus:ring-honey disabled:opacity-50"
           />
@@ -102,18 +109,18 @@ export function NewsletterSignup() {
           {isSubmitting ? (
             <>
               <Loader2 className="h-5 w-5 animate-spin" />
-              Subscribing...
+              <TextCopy textKey="newsletter.submitting" />
             </>
           ) : (
             <>
               <Mail className="h-5 w-5" />
-              Subscribe
+              <TextCopy textKey="newsletter.submit" />
             </>
           )}
         </button>
 
         <p className="text-xs text-text-on-dark/60">
-          No spam, ever. Unsubscribe anytime.
+          <TextCopy textKey="newsletter.privacy" />
         </p>
       </form>
     </div>

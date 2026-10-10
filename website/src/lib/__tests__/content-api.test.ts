@@ -26,3 +26,13 @@ it('reports immutable receipt collisions as conflicts',async()=>{mockEval.mockRe
 it.each([403,404,409])('preserves authority error %i when cancelling',async status=>{jest.mocked(readContentReceipt).mockRejectedValue(new TextError(status,'CONTENT_REJECTED'));expect((await cancel(request({transactionId:id}))).status).toBe(status);expect(mockEval).not.toHaveBeenCalled();});
 it('refuses cancellation once the transaction crosses the claim boundary',async()=>{mockEval.mockResolvedValue(['ERR','COMMIT_BOUNDARY']);expect((await cancel(request({transactionId:id}))).status).toBe(409);});
 it('serves canonical administrative catalogs without a cacheable response',async()=>{jest.mocked(deployedContent).mockReturnValue(data);jest.mocked(listContentReceipts).mockResolvedValue([]);const response=await GET(new Request('https://site/api/workbench/content?collection=projects'));expect(response.status).toBe(200);expect(response.headers.get('cache-control')).toBe('no-store');expect((await response.json()).current).toEqual(data);});
+it('stages exact canonical copy in the same authenticated immutable content receipt',async()=>{
+  const catalog={projects:[{...data.projects[0],title:'Original project'}]};jest.mocked(readGitContent).mockResolvedValue(catalog);
+  const rows=contentSnapshot(catalog,'projects'),copy={schema:'content.v1',collection:'projects',expectedRevision:0,previous:rows,next:rows,copy:[{id:'project-1',field:'title',previousValue:'Original project',value:'Revised project'}]};
+  jest.mocked(readContentReceipt).mockResolvedValue({transactionId:id,state:'prepared',mutation:copy,stagingVerified:true} as never);
+  expect((await POST(request({transactionId:id,mutation:copy}))).status).toBe(200);expect(JSON.parse(mockEval.mock.calls[0][2][1])).toEqual(copy);expect(catalog.projects[0].title).toBe('Original project');
+});
+it('refuses stale canonical copy without changing or staging source records',async()=>{
+  const rows=contentSnapshot(data,'projects');const copy={schema:'content.v1',collection:'projects',expectedRevision:0,previous:rows,next:rows,copy:[{id:'project-1',field:'title',previousValue:'Missing source',value:'New title'}]};
+  expect((await POST(request({transactionId:id,mutation:copy}))).status).toBe(409);expect(mockEval).not.toHaveBeenCalled();
+});

@@ -1,4 +1,6 @@
 "use client";
+import { TextCopy } from '@/components/text-copy';
+import { navigationTextKey } from '@/lib/editable-shared-fields';
 
 import * as React from "react";
 import Image from "next/image";
@@ -105,7 +107,7 @@ export function SiteHeader() {
                 isActive(item.href) ? "text-primary" : "text-text hover:text-text hover:bg-surface/50 rounded-md"
               )}
             >
-              {isActive(item.href) ? <NavShimmer>{item.label}</NavShimmer> : item.label}
+              {isActive(item.href) ? <NavShimmer>{navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : item.label}</NavShimmer> : navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : item.label}
             </Link>
           ))}
         </nav>
@@ -117,7 +119,7 @@ export function SiteHeader() {
               href={contact.href}
               className={cn(buttonVariants({ variant: "primary", size: "sm" }), "min-h-11 bg-honey px-3 text-honey-foreground shadow-warm hover:bg-honey-hover lg:px-4")}
             >
-              {contact.label}
+              {navigationTextKey(contact.href) ? <TextCopy textKey={navigationTextKey(contact.href)!} /> : contact.label}
             </Link>
           )}
         </div>

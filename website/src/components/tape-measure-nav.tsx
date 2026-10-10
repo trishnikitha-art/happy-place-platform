@@ -62,10 +62,17 @@ export function TapeMeasureNav({ items, activeHref, containerRef }: TapeMeasureN
     // Small delay to ensure DOM is fully rendered
     const timeoutId = setTimeout(updatePositions, 100);
     updatePositions();
+    // Inline copy changes can resize a link without a window resize.
+    const observer = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(updatePositions);
+    if (containerRef.current && observer) {
+      observer.observe(containerRef.current);
+      containerRef.current.querySelectorAll('a').forEach((item) => observer.observe(item));
+    }
     
     window.addEventListener('resize', updatePositions);
     return () => {
       clearTimeout(timeoutId);
+      observer?.disconnect();
       window.removeEventListener('resize', updatePositions);
     };
   }, [items, activeHref, containerRef, tapeX, tapeWidth]);

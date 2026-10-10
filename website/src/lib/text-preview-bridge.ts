@@ -1,5 +1,5 @@
 import { TEXT_FIELDS, type TextKey } from './text-contract';
-export type TextPreviewDraft = {key:TextKey;value:string};
+export type TextPreviewDraft = {key:TextKey;value:string;editable?:boolean;editVersion?:number;resetVersion?:number};
 export function isTextKey(value:unknown): value is TextKey {
   return typeof value === 'string' && Object.hasOwn(TEXT_FIELDS,value);
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { ContentCopy } from "@/components/content-copy";
 import Link from "next/link";
 import { Wrench, Lightbulb, Package, CheckCircle2 } from "lucide-react";
 import type { Project } from "@/types/projects";
@@ -32,6 +33,7 @@ export function ProjectSpotlight({
   variant?: "feature" | "full";
   tone?: "light" | "dark";
 }) {
+  const copy = (field:string,value:string) => <ContentCopy collection="projects" id={project.id} field={field} value={value} route={`/projects/${project.slug || project.id}`} />;
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
 
@@ -91,8 +93,8 @@ export function ProjectSpotlight({
           </CraftCard>
           <div>
             <p className={`text-sm font-semibold uppercase tracking-wide ${labelColor}`}>Featured project</p>
-            <h2 className={`mt-2 text-3xl font-bold tracking-tight sm:text-4xl ${headingColor}`}>{project.title}</h2>
-            <p className={`mt-4 text-lg ${bodyColor}`}>{project.story?.outcome || project.title}</p>
+            <h2 className={`mt-2 text-3xl font-bold tracking-tight sm:text-4xl ${headingColor}`}>{copy("title",project.title)}</h2>
+            <p className={`mt-4 text-lg ${bodyColor}`}>{project.story?.outcome ? copy("story.outcome",project.story.outcome) : copy("title",project.title)}</p>
             <dl className="mt-6 space-y-3 text-sm">
               <div className="flex gap-2">
                 <dt className={`font-semibold ${dtColor}`}>Challenge:</dt>
@@ -121,16 +123,16 @@ export function ProjectSpotlight({
         <div className="relative bg-secondary text-secondary-foreground">
           <Container className="relative py-20">
             <Badge>{project.location.county ? `${project.location.county} county` : "Project"}</Badge>
-            <h1 className="mt-3 max-w-3xl text-4xl font-bold sm:text-5xl">{project.title}</h1>
-            <p className="mt-4 max-w-2xl text-lg text-secondary-foreground">{project.story?.outcome || project.title}</p>
+            <h1 className="mt-3 max-w-3xl text-4xl font-bold sm:text-5xl">{copy("title",project.title)}</h1>
+            <p className="mt-4 max-w-2xl text-lg text-secondary-foreground">{project.story?.outcome ? copy("story.outcome",project.story.outcome) : copy("title",project.title)}</p>
           </Container>
         </div>
         <Section>
           <Container className="grid gap-10 lg:grid-cols-3">
             <div className="space-y-8 lg:col-span-2">
-              {project.story?.challenge && <StoryBlock icon={<Wrench className="h-5 w-5" />} title="The challenge" body={project.story.challenge} />}
-              {project.story?.solution && <StoryBlock icon={<Lightbulb className="h-5 w-5" />} title="Our solution" body={project.story.solution} />}
-              {project.story?.outcome && <StoryBlock icon={<CheckCircle2 className="h-5 w-5" />} title="The outcome" body={project.story.outcome} />}
+              {project.story?.challenge && <StoryBlock icon={<Wrench className="h-5 w-5" />} title="The challenge" body={copy("story.challenge",project.story.challenge)} />}
+              {project.story?.solution && <StoryBlock icon={<Lightbulb className="h-5 w-5" />} title="Our solution" body={copy("story.solution",project.story.solution)} />}
+              {project.story?.outcome && <StoryBlock icon={<CheckCircle2 className="h-5 w-5" />} title="The outcome" body={copy("story.outcome",project.story.outcome)} />}
             </div>
             <aside>
               <CraftCard className="p-6">
@@ -184,16 +186,16 @@ export function ProjectSpotlight({
         </VisualSlot>
         <Container className="relative py-20">
           <Badge>{project.location.county ? `${project.location.county} county` : "Project"}</Badge>
-          <h1 className="mt-3 max-w-3xl text-4xl font-bold sm:text-5xl">{project.title}</h1>
-          <p className="mt-4 max-w-2xl text-lg text-secondary-foreground">{project.story?.outcome || project.title}</p>
+          <h1 className="mt-3 max-w-3xl text-4xl font-bold sm:text-5xl">{copy("title",project.title)}</h1>
+          <p className="mt-4 max-w-2xl text-lg text-secondary-foreground">{project.story?.outcome ? copy("story.outcome",project.story.outcome) : copy("title",project.title)}</p>
         </Container>
       </div>
 
       <Section className="bg-deep">
         <Container className="grid gap-10 lg:grid-cols-3">
           <div className="space-y-8 lg:col-span-2">
-            {project.story?.challenge && <StoryBlock icon={<Wrench className="h-5 w-5" />} title="The challenge" body={project.story.challenge} tone="dark" />}
-            {project.story?.solution && <StoryBlock icon={<Lightbulb className="h-5 w-5" />} title="The plan" body={project.story.solution} tone="dark" />}
+            {project.story?.challenge && <StoryBlock icon={<Wrench className="h-5 w-5" />} title="The challenge" body={copy("story.challenge",project.story.challenge)} tone="dark" />}
+            {project.story?.solution && <StoryBlock icon={<Lightbulb className="h-5 w-5" />} title="The plan" body={copy("story.solution",project.story.solution)} tone="dark" />}
           </div>
           <aside>
             <CraftCard className="p-6">
@@ -274,7 +276,7 @@ export function ProjectSpotlight({
   );
 }
 
-function StoryBlock({ icon, title, body, tone = "light" }: { icon: React.ReactNode; title: string; body: string; tone?: "light" | "dark" }) {
+function StoryBlock({ icon, title, body, tone = "light" }: { icon: React.ReactNode; title: string; body: React.ReactNode; tone?: "light" | "dark" }) {
   const headingColor = tone === "dark" ? "text-text-on-dark" : "text-text";
   const bodyColor = tone === "dark" ? "text-text-on-dark/90" : "text-text";
   

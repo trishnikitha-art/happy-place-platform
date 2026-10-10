@@ -1,3 +1,4 @@
+import { TextCopy } from '@/components/text-copy';
 import type { Metadata } from "next";
 import { Container, Section, SectionHeading } from "@/components/section";
 
@@ -13,23 +14,23 @@ export const dynamic = 'force-dynamic';
 const newsletters = [
   {
     id: 1,
-    title: "Spring Maintenance Checklist",
+    titleKey: "newsletterArchive.article.1.title",
     date: "2024-03-15",
-    excerpt: "Essential tasks to prepare your home for spring weather and prevent costly repairs.",
+    excerptKey: "newsletterArchive.article.1.excerpt",
   },
   {
     id: 2,
-    title: "Deck Maintenance Guide",
+    titleKey: "newsletterArchive.article.2.title",
     date: "2024-02-20",
-    excerpt: "Keep your deck safe and beautiful with our professional maintenance tips.",
+    excerptKey: "newsletterArchive.article.2.excerpt",
   },
   {
     id: 3,
-    title: "Kitchen Remodeling Trends",
+    titleKey: "newsletterArchive.article.3.title",
     date: "2024-01-10",
-    excerpt: "Popular design trends and practical considerations for your kitchen renovation.",
+    excerptKey: "newsletterArchive.article.3.excerpt",
   },
-];
+] as const;
 
 export default function NewsletterArchivePage() {
   return (
@@ -37,9 +38,9 @@ export default function NewsletterArchivePage() {
       <Section className="bg-deep">
         <Container className="max-w-4xl">
           <SectionHeading
-            eyebrow={<span className="text-honey">Newsletter</span>}
-            title={<span className="text-text-on-dark">Homeowner Tips & Project Inspiration</span>}
-            description={<span className="text-text-on-dark/90">Browse our archive of practical homeowner advice, maintenance reminders, and project showcases.</span>}
+            eyebrow={<span className="text-honey"><TextCopy textKey="newsletterArchive.copy.1" /></span>}
+            title={<span className="text-text-on-dark"><TextCopy textKey="newsletterArchive.copy.2" /></span>}
+            description={<span className="text-text-on-dark/90"><TextCopy textKey="newsletterArchive.copy.3" /></span>}
           />
         </Container>
       </Section>
@@ -59,28 +60,22 @@ export default function NewsletterArchivePage() {
                     day: "numeric",
                   })}
                 </div>
-                <h3 className="mb-2 text-xl font-bold text-text">{newsletter.title}</h3>
-                <p className="text-text-muted">{newsletter.excerpt}</p>
+                <h3 className="mb-2 text-xl font-bold text-text"><TextCopy textKey={newsletter.titleKey} /></h3>
+                <p className="text-text-muted"><TextCopy textKey={newsletter.excerptKey} /></p>
                 <div className="mt-4">
-                  <button className="text-honey hover:underline font-medium">
-                    Read full newsletter →
-                  </button>
+                  <button className="text-honey hover:underline font-medium"><TextCopy textKey="newsletterArchive.copy.4" /></button>
                 </div>
               </article>
             ))}
           </div>
 
           <div className="mt-12 rounded-lg bg-surface-muted p-8 text-center">
-            <h3 className="text-xl font-bold text-text mb-2">Don't miss future newsletters</h3>
-            <p className="text-text-muted mb-4">
-              Subscribe to receive homeowner tips, maintenance reminders, and project inspiration directly in your inbox.
-            </p>
+            <h3 className="text-xl font-bold text-text mb-2"><TextCopy textKey="newsletterArchive.copy.5" /></h3>
+            <p className="text-text-muted mb-4"><TextCopy textKey="newsletterArchive.copy.6" /></p>
             <a
               href="/#newsletter"
               className="inline-flex items-center justify-center rounded-lg bg-honey px-6 py-3 font-semibold text-deep transition-colors hover:bg-honey/90"
-            >
-              Subscribe to Newsletter
-            </a>
+            ><TextCopy textKey="newsletterArchive.copy.7" /></a>
           </div>
         </Container>
       </Section>

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { ContentCopy } from '@/components/content-copy';
 import Link from "next/link";
 import Image from "next/image";
 import { notFound } from "next/navigation";
@@ -105,8 +106,8 @@ export default async function ServicePage({ params }: ServicePageProps) {
           <SectionHeading
             as="h1"
             eyebrow={<span className="text-honey">{service.name}</span>}
-            title={<span className="text-text-on-dark">{service.name}</span>}
-            description={<span className="text-text-on-dark/90">{service.description}</span>}
+            title={<span className="text-text-on-dark"><ContentCopy collection="services" id={service.id} field="name" value={service.name} route={`/services/${service.slug}`} /></span>}
+            description={<span className="text-text-on-dark/90"><ContentCopy collection="services" id={service.id} field="description" value={service.description} route={`/services/${service.slug}`} /></span>}
           />
           <div className="mt-8">
             <Link

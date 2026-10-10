@@ -1,4 +1,6 @@
 "use client";
+import { TextCopy } from '@/components/text-copy';
+import { navigationTextKey } from '@/lib/editable-shared-fields';
 
 import * as React from "react";
 import { createPortal } from "react-dom";
@@ -103,13 +105,13 @@ export function MobileSiteNavigation({ open, navigation, pathname, openerRef, on
                   item.secondary && "mt-3 justify-center bg-honey text-honey-foreground shadow-warm hover:bg-honey-hover",
                 )}
               >
-                {item.label}
+                {navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : item.label}
               </Link>
             );
           })}
         </nav>
         <div className="mt-auto flex shrink-0 items-center justify-between border-t border-border/60 pt-4">
-          <span className="text-sm text-text-muted">Theme</span>
+          <span className="text-sm text-text-muted"><TextCopy textKey="navigation.themeLabel" /></span>
           <div className="[&>button]:h-11 [&>button]:w-11"><ThemeToggle /></div>
         </div>
       </div>

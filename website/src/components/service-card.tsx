@@ -7,6 +7,7 @@ import type { Media } from "@/types/media";
 import { Icon } from "@/components/icon";
 import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
+import { ContentCopy } from '@/components/content-copy';
 
 /**
  * ServiceCard — photo-led and dense (CEO review): one iconic image, title,
@@ -88,8 +89,8 @@ export function ServiceCard({ service, runtimeCardMediaObject, href }: { service
           )}
         </PhotoMount>
         <div className="flex flex-1 flex-col p-4 @[300px]:p-5 @[400px]:p-6">
-          <h3 className={`font-display text-lg font-bold @[300px]:text-xl @[400px]:text-2xl ${headingColor}`} style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>{service.name}</h3>
-          <p className={`clamp-2 mt-2 flex-1 text-sm @[300px]:text-base ${bodyColor}`} style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>{service.description}</p>
+          <h3 className={`font-display text-lg font-bold @[300px]:text-xl @[400px]:text-2xl ${headingColor}`} style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}><ContentCopy collection="services" id={service.id} field="name" value={service.name} route={cardHref} /></h3>
+          <p className={`clamp-2 mt-2 flex-1 text-sm @[300px]:text-base ${bodyColor}`} style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}><ContentCopy collection="services" id={service.id} field="description" value={service.description} route={cardHref} /></p>
           <div className={`mt-4 inline-flex items-center gap-1 min-h-[44px] text-sm @[300px]:text-base ${linkColor}`}>
             Explore {service.name.toLowerCase()} →
           </div>

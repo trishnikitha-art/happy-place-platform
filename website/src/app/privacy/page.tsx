@@ -1,3 +1,4 @@
+import { TextCopy } from '@/components/text-copy';
 import type { Metadata } from "next";
 import { Container, Section } from "@/components/section";
 import { getCompany } from "@/lib/company";
@@ -16,28 +17,21 @@ export default function PrivacyPage() {
   return (
     <Section>
       <Container className="max-w-3xl">
-        <h1 className="text-3xl font-bold text-text">Privacy Policy</h1>
-        <p className="mt-4 text-sm text-text-subtle">Last updated: {new Date().getFullYear()}</p>
+        <h1 className="text-3xl font-bold text-text"><TextCopy textKey="privacy.copy.1" /></h1>
+        <p className="mt-4 text-sm text-text-subtle"><TextCopy textKey="privacy.updatedLabel" />{new Date().getFullYear()}</p>
         <div className="mt-8 space-y-6 text-text-muted">
           <section>
-            <h2 className="text-xl font-bold text-text">Information we collect</h2>
-            <p className="mt-2">
-              When you submit an estimate request or contact form, we collect the information you
-              provide — your name, contact details, property information, and the details of your
-              project. Photos you upload are included only in the email you choose to send.
-            </p>
+            <h2 className="text-xl font-bold text-text"><TextCopy textKey="privacy.copy.2" /></h2>
+            <p className="mt-2"><TextCopy textKey="privacy.copy.3" /></p>
           </section>
           <section>
-            <h2 className="text-xl font-bold text-text">How we use it</h2>
-            <p className="mt-2">
-              We use your information solely to respond to your request, prepare an estimate, and
-              communicate about your project. We do not sell your information.
-            </p>
+            <h2 className="text-xl font-bold text-text"><TextCopy textKey="privacy.copy.4" /></h2>
+            <p className="mt-2"><TextCopy textKey="privacy.copy.5" /></p>
           </section>
           <section>
-            <h2 className="text-xl font-bold text-text">Contact</h2>
+            <h2 className="text-xl font-bold text-text"><TextCopy textKey="privacy.copy.6" /></h2>
             <p className="mt-2">
-              Questions about your data? Email {company.email} or call {company.phoneDisplay}.
+              <TextCopy textKey="privacy.contact.prefix" />{company.email}<TextCopy textKey="privacy.contact.middle" />{company.phoneDisplay}.
             </p>
           </section>
         </div>
