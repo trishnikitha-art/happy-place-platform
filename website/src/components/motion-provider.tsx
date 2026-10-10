@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useEffect, ReactNode } from "react";
+import { createContext, useContext, useEffect, useSyncExternalStore, ReactNode } from "react";
 import { prefersReducedMotion } from "@/motion/motionTokens";
 
 /**
@@ -19,6 +19,15 @@ const MotionContext = createContext<MotionContextType>({
   isMotionEnabled: true,
 });
 
+function subscribeToMotionPreference(onChange: () => void) {
+  const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
+  preference.addEventListener('change', onChange);
+  return () => preference.removeEventListener('change', onChange);
+}
+
+// Hydration starts with the same snapshot as the server, then reads the browser preference.
+function serverMotionPreference() { return false; }
+
 /**
  * MotionProvider - Global animation configuration provider
  * 
@@ -28,7 +37,7 @@ const MotionContext = createContext<MotionContextType>({
  * - Consistent animation behavior across the app
  */
 export function MotionProvider({ children }: { children: ReactNode }) {
-  const reducedMotion = prefersReducedMotion();
+  const reducedMotion = useSyncExternalStore(subscribeToMotionPreference, prefersReducedMotion, serverMotionPreference);
 
   useEffect(() => {
     // Add reduced-motion class to document for CSS fallbacks
