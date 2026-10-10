@@ -3,12 +3,12 @@
   "locale": "en",
   "fields": {
     "company.serviceArea": {
-      "value": "Benton, Linn, Marion, and Polk Counties, Oregon.",
-      "revision": 1
+      "value": "Benton, Linn, Marion, and Polk Counties, Oregon",
+      "revision": 2
     },
     "company.businessHours": {
-      "value": "Mon–Fri 8am–5pm · Sat by appointment.",
-      "revision": 1
+      "value": "Mon–Fri 8am–5pm · Sat by appointment",
+      "revision": 2
     },
     "homepage.hero.title": {
       "value": "Your favorite part of coming home should be the home itself.",
