@@ -76,6 +76,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${playfair.variable} ${playball.variable} h-full antialiased`} style={{ colorScheme: 'dark light' }}>
       <head>
+        <meta name="hpp-git-commit" content={process.env.VERCEL_GIT_COMMIT_SHA || ''} />
+        <meta name="hpp-deployment-id" content={process.env.VERCEL_DEPLOYMENT_ID || ''} />
         <script
           dangerouslySetInnerHTML={{
             __html: `

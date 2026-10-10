@@ -200,8 +200,6 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
 
   return (
     <>
-      <meta name="hpp-git-commit" content={process.env.VERCEL_GIT_COMMIT_SHA || ''} />
-      <meta name="hpp-deployment-id" content={process.env.VERCEL_DEPLOYMENT_ID || ''} />
       {/* HERO — full-width photograph with text overlay */}
       <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
         <WorkshopAtmosphere particleCount={20} />
