@@ -7,7 +7,7 @@ export async function middleware(request: NextRequest) {
 
   // Protect Workbench routes except login page and preview routes
   // Preview routes are internal rendering surface for authenticated Workbench iframe
-  if (pathname.startsWith('/workbench') && pathname !== '/workbench/login' && !pathname.startsWith('/workbench/preview')) {
+  if ((pathname.startsWith('/workbench') && pathname !== '/workbench/login' && !pathname.startsWith('/workbench/preview')) || pathname.startsWith('/admin')) {
     // CRITICAL: Development bypass requires explicit DRIVE_AUTH_BYPASS=true
     // Prevents accidental development authentication bypass
     const authBypassEnabled = process.env.NODE_ENV === 'development' && process.env.DRIVE_AUTH_BYPASS === 'true';
@@ -31,5 +31,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: '/workbench/:path*',
+  matcher: ['/workbench/:path*', '/admin/:path*'],
 };

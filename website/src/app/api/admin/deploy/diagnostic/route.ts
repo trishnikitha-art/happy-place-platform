@@ -8,10 +8,14 @@
  */
 
 import { NextResponse } from "next/server";
+import { requireAdminDiagnosticSession } from "@/lib/admin-diagnostic-auth";
 
 export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
+  const denied = await requireAdminDiagnosticSession();
+  if (denied) return denied;
+
   // This endpoint is for diagnostic purposes only
   // It never exposes secrets or tokens
   
@@ -51,5 +55,5 @@ export async function GET(request: Request) {
     }
   };
   
-  return NextResponse.json(diagnostic);
+  return NextResponse.json(diagnostic, { headers: { 'Cache-Control': 'no-store' } });
 }
