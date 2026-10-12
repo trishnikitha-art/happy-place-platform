@@ -40,7 +40,7 @@ function answersToText(req: EstimateRequest): string {
 
 function photoText(req: EstimateRequest): string {
   if (!req.photos.length) return "(no photos attached)";
-  return req.photos.map((p) => `  • ${p.name} (${p.size} bytes)`).join("\n");
+  return ["Attach these photos in your email app before sending:", ...req.photos.map((p) => `  • ${p.name} (${p.size} bytes)`)].join("\n");
 }
 
 /** Default mock implementation: composes a mailto: link to the business inbox. */
@@ -104,13 +104,13 @@ export const mockEstimateService: EstimateService = {
         if (mailto.kind === "mailto" && typeof window !== "undefined") {
           window.location.href = mailto.href;
         }
-        return { ok: true, transport: "mailto", message: "Request sent via email." };
+        return { ok: true, transport: "mailto", message: "Email draft prepared. Send it from your email app to complete your request." };
       }
     }
     if (typeof window !== "undefined") {
       window.location.href = prepared.href;
     }
-    return { ok: true, transport: "mailto", message: "Opened email client with your request." };
+    return { ok: true, transport: "mailto", message: "Email draft prepared. Send it from your email app to complete your request." };
   },
 };
 

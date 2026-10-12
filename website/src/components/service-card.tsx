@@ -26,6 +26,11 @@ import { ContentCopy } from '@/components/content-copy';
  * NAVIGATION CONTRACT: ServiceCard owns its own navigation to prevent nested Link bugs.
  * It links to the service detail page and must not be wrapped in another Link.
  */
+export function resolveServiceCardAlt(service: Pick<Service, 'slug' | 'name'>, media: Pick<Media, 'alt' | 'service' | 'tags'> | null): string {
+  const matches = media?.service === service.slug || media?.tags?.includes(service.slug);
+  return matches && media?.alt ? media.alt : `${service.name} project by Happy Place Carpentry`;
+}
+
 export function ServiceCard({ service, runtimeCardMediaObject, href }: { service: Service; runtimeCardMediaObject?: Media | null; href?: string }) {
   // Use runtime assignment if available, otherwise fall back to featured project media
   const cardMedia = runtimeCardMediaObject || null;
@@ -63,7 +68,7 @@ export function ServiceCard({ service, runtimeCardMediaObject, href }: { service
                   Remove VisualSlot to prevent zero-height element from intercepting drag events. */}
               <Image
                 src={imageSrc}
-                alt={featuredMedia.alt || service.name}
+                alt={resolveServiceCardAlt(service, featuredMedia)}
                 fill
                 sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 33vw"
                 className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"

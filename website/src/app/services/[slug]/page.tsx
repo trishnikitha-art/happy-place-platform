@@ -111,7 +111,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
           />
           <div className="mt-8">
             <Link
-              href="/contact"
+              href={`/estimate?service=${service.slug}`}
               className="cta-signature inline-flex min-h-11 items-center gap-2 rounded-full px-6 py-3 font-semibold"
             >
               Talk About Your Project

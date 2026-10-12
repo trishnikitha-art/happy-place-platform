@@ -11,6 +11,18 @@ import textCatalog from '@/config/strings.v1.json';
 import { decodeTextCatalog, type TextKey } from './text-contract';
 import type { FaqManifest, FaqItem } from "@/types/faq";
 import { loadAuthority, clearAuthorityCache, findById } from "./authority-loader";
+import { getCompany } from './company';
+
+export function formatServiceCounties(counties: string[]): string {
+  if (!counties.length) return '';
+  if (counties.length === 1) return `${counties[0]} County`;
+  if (counties.length === 2) return `${counties[0]} and ${counties[1]} Counties`;
+  return `${counties.slice(0, -1).join(', ')}, and ${counties[counties.length - 1]} Counties`;
+}
+
+export function resolveServiceAreaCopy(value: string): string {
+  return value.replaceAll('{{serviceCounties}}', formatServiceCounties(getCompany().proof.serviceCounties));
+}
 
 export function loadFaqManifest(): FaqManifest {
   const manifest = loadAuthority<FaqManifest>({
@@ -23,7 +35,18 @@ export function loadFaqManifest(): FaqManifest {
     name: "FAQ",
   });
   const copy=decodeTextCatalog(textCatalog);
-  return {...manifest,faqs:manifest.faqs.map(item=>({...item,question:copy.fields[item.question as TextKey].value,answer:copy.fields[item.answer as TextKey].value}))};
+  return {
+    ...manifest,
+    faqs: manifest.faqs.map((item) => {
+      const answerKey = item.answer as TextKey;
+      const answer = copy.fields[answerKey].value;
+      return {
+        ...item,
+        question: copy.fields[item.question as TextKey].value,
+        answer: answerKey === 'faq.f2.answer' ? resolveServiceAreaCopy(answer) : answer,
+      };
+    }),
+  };
 }
 
 /**

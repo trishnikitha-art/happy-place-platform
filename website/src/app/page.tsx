@@ -147,7 +147,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
             <p data-text-key="homepage.hero.description" className="measure mt-5 sm:mt-7 max-w-xl text-base sm:text-lg text-text-on-dark/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
               {text.fields['homepage.hero.description'].value}</p>
             <div className="mt-6 sm:mt-8 flex flex-wrap gap-3">
-              <Link data-text-key="homepage.hero.primaryAction" href="/contact" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold">
+              <Link data-text-key="homepage.hero.primaryAction" href="/estimate" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold">
                 {text.fields['homepage.hero.primaryAction'].value}
               </Link>
               <Link
@@ -382,7 +382,7 @@ export default async function HomePage({ searchParams }: { searchParams?: Promis
             ) : (
               <div className="mt-8 sm:mt-10 rounded-lg bg-surface-muted p-6 sm:p-8 text-center">
                 <p className="text-sm sm:text-base text-text-muted">
-                  <TextCopy textKey="homepage.reviews.empty" />
+                  <Link href="/contact"><TextCopy textKey="homepage.reviews.empty" /></Link>
                 </p>
               </div>
             )}
