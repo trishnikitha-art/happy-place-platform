@@ -8,10 +8,14 @@
  */
 
 import { NextResponse } from "next/server";
+import { requireAdminDiagnosticSession } from "@/lib/admin-diagnostic-auth";
 
 export const runtime = 'nodejs';
 
 export async function GET(request: Request) {
+  const denied = await requireAdminDiagnosticSession();
+  if (denied) return denied;
+
   const diagnostic = {
     timestamp: new Date().toISOString(),
     runtime: process.env.NODE_ENV,
@@ -87,5 +91,5 @@ export async function GET(request: Request) {
 
   const status = diagnostic.sharp.loaded && diagnostic.test.canResize && diagnostic.test.canConvert ? 200 : 503;
 
-  return NextResponse.json(diagnostic, { status });
+  return NextResponse.json(diagnostic, { status, headers: { 'Cache-Control': 'no-store' } });
 }

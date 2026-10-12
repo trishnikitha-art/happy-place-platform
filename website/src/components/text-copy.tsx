@@ -3,6 +3,7 @@ import { createContext, useContext, type ReactNode } from 'react';
 import catalog from '@/config/strings.v1.json';
 import { decodeTextCatalog, type TextKey } from '@/lib/text-contract';
 import type { TextPreviewDraft } from '@/lib/text-preview-bridge';
+import { resolveServiceAreaCopy } from '@/lib/faq';
 
 const text = decodeTextCatalog(catalog);
 const PreviewCopy = createContext<TextPreviewDraft | null>(null);
@@ -20,5 +21,6 @@ export function TextCopy({ textKey }: { textKey: TextKey }) {
 
 export function useTextCopy(textKey: TextKey): string {
   const preview = useContext(PreviewCopy);
-  return preview?.key === textKey ? preview.value : text.fields[textKey].value;
+  const value = preview?.key === textKey ? preview.value : text.fields[textKey].value;
+  return textKey === 'faq.f2.answer' ? resolveServiceAreaCopy(value) : value;
 }

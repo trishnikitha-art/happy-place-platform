@@ -21,7 +21,13 @@ export function sameTextMutation(a: TextMutation, b: TextMutation): boolean {
 export function validateText(key: string, value: unknown): asserts value is string {
   if (!Object.hasOwn(TEXT_FIELDS, key)) throw new Error('Unknown or locked text field');
   const field = TEXT_FIELDS[key as TextKey];
-  if (typeof value !== 'string' || !value.trim() || value.length > field.maxLength || /[\x00-\x1f\x7f<>]/.test(value) || /\{[^}]*\}/.test(value)) {
+  const textWithoutServiceCountiesToken =
+    key === 'faq.f2.answer' && typeof value === 'string'
+      ? value.replace('{{serviceCounties}}', '')
+      : value;
+  const containsUnsupportedBraces =
+    typeof textWithoutServiceCountiesToken === 'string' && /[{}]/.test(textWithoutServiceCountiesToken);
+  if (typeof value !== 'string' || !value.trim() || value.length > field.maxLength || /[\x00-\x1f\x7f<>]/.test(value) || containsUnsupportedBraces) {
     throw new Error(`Invalid text for ${field.label}: use plain text, 1–${field.maxLength} characters`);
   }
 }

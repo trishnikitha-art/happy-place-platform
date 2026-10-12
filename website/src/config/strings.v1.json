@@ -67,7 +67,7 @@
       "revision": 0
     },
     "homepage.reviews.empty": {
-      "value": "We are building our review portfolio. In the meantime, ask us for references in your neighborhood.",
+      "value": "Ask us for references in your neighborhood",
       "revision": 0
     },
     "about.hero.prefix": {
@@ -739,7 +739,7 @@
       "revision": 0
     },
     "faq.f2.answer": {
-      "value": "We work across Benton, Linn, and Polk Counties — including Philomath, Albany, Monmouth, Independence, and surrounding communities.",
+      "value": "We work across {{serviceCounties}} — including Philomath, Albany, Monmouth, Independence, and surrounding communities.",
       "revision": 0
     },
     "faq.f3.question": {

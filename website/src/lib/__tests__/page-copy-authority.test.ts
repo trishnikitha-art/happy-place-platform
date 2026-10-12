@@ -1,6 +1,6 @@
 import catalog from '@/config/strings.v1.json';
 import faqRecords from '@/config/faq.v1.json';
-import { getAllFaqs, loadFaqManifest } from '@/lib/faq';
+import { getAllFaqs, loadFaqManifest, resolveServiceAreaCopy } from '@/lib/faq';
 import { BLOG_COPY_RECORDS, getBlogCopy } from '@/lib/blog-copy';
 import { decodeTextCatalog, type TextKey } from '@/lib/text-contract';
 
@@ -14,7 +14,9 @@ it('keeps FAQ record IDs/categories while resolving question and answer referenc
     expect(record.answer).toMatch(/^faq\.[^.]+\.answer$/);
     expect(manifest.faqs[index]).toEqual({ ...record,
       question: copy.fields[record.question as TextKey].value,
-      answer: copy.fields[record.answer as TextKey].value,
+      answer: record.answer === 'faq.f2.answer'
+        ? resolveServiceAreaCopy(copy.fields[record.answer as TextKey].value)
+        : copy.fields[record.answer as TextKey].value,
     });
   }
 });

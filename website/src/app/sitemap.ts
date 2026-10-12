@@ -1,19 +1,19 @@
 import type { MetadataRoute } from "next";
-import { getAllProjects } from "@/lib/projects";
+import { getNonArchivedProjects } from "@/lib/projects";
 
 const siteUrl = "https://happyplacecarpentry.com";
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const now = new Date();
-  const staticRoutes = ["", "/services", "/our-work", "/about", "/reviews", "/faq", "/contact", "/privacy"];
+  const staticRoutes = ["", "/services", "/our-work", "/about", "/reviews", "/faq", "/contact", "/estimate", "/privacy"];
   const staticEntries: MetadataRoute.Sitemap = staticRoutes.map((r) => ({
     url: `${siteUrl}${r}`,
     lastModified: now,
     changeFrequency: r === "" ? "weekly" : "monthly",
     priority: r === "" ? 1 : 0.7,
   }));
-  const projectEntries: MetadataRoute.Sitemap = getAllProjects().map((p) => ({
-    url: `${siteUrl}/projects/${p.seo?.slug || p.id}`,
+  const projectEntries: MetadataRoute.Sitemap = getNonArchivedProjects().map((p) => ({
+    url: `${siteUrl}/projects/${p.slug || p.id}`,
     lastModified: p.updatedAt ? new Date(p.updatedAt) : now,
     changeFrequency: "yearly",
     priority: 0.6,

@@ -4,9 +4,9 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Upload, Send } from "lucide-react";
 import type { EstimateRequest, Service, EstimateQuestion, ProjectIntakeRecord } from "@/types";
-import { getNonArchivedServices, getAllCities } from "@/lib/registries";
+import { getNonArchivedServices } from "@/lib/registries";
 import { getCompany } from "@/lib/company";
-import { estimateService } from "@/services/estimate";
+import { estimateService, type EstimateSubmitResult } from "@/services/estimate";
 import { analytics } from "@/services/analytics";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -47,24 +47,12 @@ export function EstimateWizard() {
   const prefillService = searchParams.get("service") ?? "";
   const stepParam = searchParams.get("step");
 
-  // Load services and cities from adapters
+  // The company authority defines coverage; the city catalog is incomplete.
   const services = getNonArchivedServices();
-  const cities = getAllCities();
-  // Derive counties from cities (group by county)
-  const counties = React.useMemo(() => {
-    const countyMap = new Map<string, Set<string>>();
-    cities.forEach(city => {
-      if (!countyMap.has(city.county)) {
-        countyMap.set(city.county, new Set());
-      }
-      countyMap.get(city.county)!.add(city.name);
-    });
-    return Array.from(countyMap.entries()).map(([name, cities]) => ({
-      slug: name.toLowerCase().replace(/\s+/g, '-'),
-      name,
-      cities: Array.from(cities)
-    }));
-  }, [cities]);
+  const counties = getCompany().proof.serviceCounties.map(county => ({
+    slug: `${county.toLowerCase().replace(/\s+/g, '-')}-county`,
+    name: `${county} County`,
+  }));
 
   // Check for existing draft immediately during initialization
   // This ensures state is initialized with draft data if available
@@ -126,6 +114,8 @@ export function EstimateWizard() {
   const [customer, setCustomer] = React.useState(() => initialDraft?.customer ?? { name: "", email: "", phone: "" });
   const [submitted, setSubmitted] = React.useState(() => initialDraft?.submitted ?? false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [submissionResult, setSubmissionResult] = React.useState<EstimateSubmitResult | null>(null);
+  const [submissionError, setSubmissionError] = React.useState('');
   const [showSuccessPulse, setShowSuccessPulse] = React.useState(false);
   const [showProgressShimmer, setShowProgressShimmer] = React.useState(false);
   const [intakeRecord, setIntakeRecord] = React.useState<ProjectIntakeRecord | null>(null);
@@ -299,17 +289,18 @@ export function EstimateWizard() {
     }
   };
 
+  const countyEligible = counties.some(county => county.slug === property.county);
   const canNext = React.useMemo(() => {
     if (STEPS[step] === "Service") return selected.length > 0 || otherNeed.trim().length > 0;
     if (STEPS[step] === "Tell us about your project") return projectType.trim().length > 0;
     if (STEPS[step] === "Tell us what you're looking for") return otherNeed.trim().length > 0;
-    // Skip all interview steps if "Something Else" is selected
-    if (selected.includes(SOMETHING_ELSE_SLUG)) return true;
     if (STEPS[step] === "Contact")
-      return customer.name.trim() && customer.email.trim() && customer.phone.trim();
-    if (STEPS[step] === "Property") return property.city.trim() && property.county;
+      return property.city.trim() && countyEligible && customer.name.trim() && customer.email.trim() && customer.phone.trim();
+    if (STEPS[step] === "Property") return property.city.trim() && countyEligible;
+    // Other projects skip the service interview, but still need contact/property details.
+    if (selected.includes(SOMETHING_ELSE_SLUG)) return true;
     return true;
-  }, [step, selected, otherNeed, projectType, customer, property]);
+  }, [step, selected, otherNeed, projectType, customer, property, countyEligible]);
 
   function buildRequest(): EstimateRequest {
     return {
@@ -360,8 +351,12 @@ export function EstimateWizard() {
   }
 
   async function handleSubmit() {
+    if (!canNext || !countyEligible) return;
     setIsSubmitting(true);
+    setSubmissionError('');
     const currentState = getCurrentState();
+    // Flush the current fields before checking a draft that may still be debounced.
+    saveWizardState(currentState);
     const persistedState = loadWizardState();
     
     // Validate submission integrity
@@ -373,19 +368,28 @@ export function EstimateWizard() {
       return;
     }
 
-    const req = buildRequest();
-    const result = await estimateService.submit(req);
-    analytics.trackEstimateSubmitted(req.services.join(",") || "other", result.transport);
-    
-    // Clear draft after successful submission
-    clearWizardState();
-    
-    // Show success pulse animation
-    setShowSuccessPulse(true);
-    setTimeout(() => setShowSuccessPulse(false), 1000);
-    
-    setIsSubmitting(false);
-    setStep(STEPS.length - 1); // Advance to Thank You step
+    try {
+      const req = buildRequest();
+      const result = await estimateService.submit(req);
+      if (!result.ok) {
+        setSubmissionError(result.message || 'Your request could not be prepared. Please try again.');
+        return;
+      }
+      setSubmissionResult(result);
+      // An email draft still needs the visitor to send it; retain their draft.
+      if (result.transport === 'api') {
+        analytics.trackEstimateSubmitted(req.services.join(','), result.transport);
+        setSubmitted(true);
+        clearWizardState();
+      }
+      setShowSuccessPulse(true);
+      setTimeout(() => setShowSuccessPulse(false), 1000);
+      setStep(STEPS.length - 1);
+    } catch {
+      setSubmissionError('Your request could not be prepared. Please try again.');
+    } finally {
+      setIsSubmitting(false);
+    }
   }
 
   return (
@@ -651,7 +655,7 @@ export function EstimateWizard() {
             {/* Desktop file upload */}
             <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-text hover:border-primary">
               <Upload className="h-8 w-8" />
-              <span className="text-sm font-medium">Upload photos</span>
+              <span className="text-sm font-medium">Choose photos</span>
               <input
                 type="file"
                 accept="image/*"
@@ -683,6 +687,7 @@ export function EstimateWizard() {
                 }}
               />
             </label>
+            <p className="mt-2 text-sm text-text-muted">When sending by email, attach these photos in your email app. Choosing them here does not attach them automatically.</p>
             
             {/* Mobile camera capture */}
             <label className="mt-4 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border p-8 text-text hover:border-primary">
@@ -936,10 +941,11 @@ export function EstimateWizard() {
             <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
               <Check className="h-8 w-8 text-primary" />
             </div>
-            <h2 className="text-2xl font-bold text-primary">Here's what we heard</h2>
+            <h2 className="text-2xl font-bold text-primary">{submissionResult?.transport === 'api' ? 'Request sent' : submissionResult?.transport === 'mailto' ? 'Email draft ready' : 'Review your estimate request'}</h2>
             <p className="mt-3 text-text">
-              If anything looks off, now's the perfect time to fix it.
+              {submissionResult?.transport === 'api' ? "We'll be in touch about your project." : submissionResult?.transport === 'mailto' ? 'Send the draft from your email app to complete your request. Your details remain on this page while you finish.' : 'Your request has not been sent.'}
             </p>
+            {submissionResult?.transport === 'mailto' && photos.length > 0 && <p className="mt-3 text-sm text-text">Attach your selected photos in your email app before sending.</p>}
 
             {/* Preliminary Planning Range */}
             {(() => {
@@ -983,12 +989,14 @@ export function EstimateWizard() {
             })()}
 
             <div className="mt-8 rounded-lg bg-surface-muted p-6 text-left">
-              <h3 className="font-semibold text-primary">Everything looks good. We'll package everything up for Taylor—you just hit Send.</h3>
+              <h3 className="font-semibold text-primary">{submissionResult?.transport === 'api' ? 'Your estimate request was submitted.' : 'Review your details before sending your email.'}</h3>
+              {submissionResult?.transport !== 'api' && <button type="button" className="mt-4 underline" onClick={() => setStep(STEPS.indexOf('Contact'))}>Edit contact details</button>}
             </div>
           </div>
         )}
 
         {/* Nav */}
+        {submissionError && <p role="alert" className="mt-4 text-red-700">{submissionError}</p>}
         {STEPS[step] !== "Thank You" && (
           <div className="mt-8 flex items-center justify-between">
             <button
@@ -1000,7 +1008,7 @@ export function EstimateWizard() {
               <ChevronLeft className="h-4 w-4" /> Back
             </button>
 
-            {step < STEPS.length - 1 ? (
+            {step < STEPS.length - 2 ? (
               <button
                 type="button"
                 onClick={() => setStep((s) => s + 1)}
@@ -1013,9 +1021,11 @@ export function EstimateWizard() {
               <button
                 type="button"
                 onClick={handleSubmit}
+                disabled={!canNext || isSubmitting}
+                aria-busy={isSubmitting}
                 className={cn(buttonVariants({ variant: "primary" }))}
               >
-                <Send className="h-4 w-4" /> Send My Estimate Request
+                <Send className="h-4 w-4" /> {isSubmitting ? 'Preparing request…' : 'Send My Estimate Request'}
               </button>
             )}
           </div>
