@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Check, ChevronLeft, ChevronRight, Upload, Send } from "lucide-react";
 import type { EstimateRequest, Service, EstimateQuestion, ProjectIntakeRecord } from "@/types";
-import { getNonArchivedServices, getAllCities } from "@/lib/registries";
+import { getNonArchivedServices } from "@/lib/registries";
 import { getCompany } from "@/lib/company";
 import { estimateService, type EstimateSubmitResult } from "@/services/estimate";
 import { analytics } from "@/services/analytics";
@@ -47,24 +47,12 @@ export function EstimateWizard() {
   const prefillService = searchParams.get("service") ?? "";
   const stepParam = searchParams.get("step");
 
-  // Load services and cities from adapters
+  // The company authority defines coverage; the city catalog is incomplete.
   const services = getNonArchivedServices();
-  const cities = getAllCities();
-  // Derive counties from cities (group by county)
-  const counties = React.useMemo(() => {
-    const countyMap = new Map<string, Set<string>>();
-    cities.forEach(city => {
-      if (!countyMap.has(city.county)) {
-        countyMap.set(city.county, new Set());
-      }
-      countyMap.get(city.county)!.add(city.name);
-    });
-    return Array.from(countyMap.entries()).map(([name, cities]) => ({
-      slug: name.toLowerCase().replace(/\s+/g, '-'),
-      name,
-      cities: Array.from(cities)
-    }));
-  }, [cities]);
+  const counties = getCompany().proof.serviceCounties.map(county => ({
+    slug: `${county.toLowerCase().replace(/\s+/g, '-')}-county`,
+    name: `${county} County`,
+  }));
 
   // Check for existing draft immediately during initialization
   // This ensures state is initialized with draft data if available

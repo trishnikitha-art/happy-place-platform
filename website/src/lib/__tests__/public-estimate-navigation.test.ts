@@ -2,6 +2,7 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { EstimateWizard } from "@/components/estimate-wizard";
 import type { WizardState } from "../wizard-persistence";
+import { getCompany } from "../company";
 
 jest.mock("next/navigation", () => ({
   useRouter: () => ({ replace: jest.fn() }),
@@ -80,5 +81,16 @@ describe('Something Else required-field navigation', () => {
   it('allows navigation when the required fields are populated', () => {
     expect(action(renderDraft(4, { name: 'Visitor', email: 'visitor@example.test', phone: '5550100' }), 'Send My Estimate Request')).not.toMatch(/\sdisabled=""/);
     expect(action(renderDraft(3, undefined, 'Corvallis', 'benton'), 'Next')).not.toMatch(/\sdisabled=""/);
+  });
+
+  it('offers every published service county even when its city catalog is incomplete', () => {
+    const markup = renderDraft(3);
+    const select = markup.match(/<select\b[^>]*>[\s\S]*?<\/select>/)?.[0];
+    expect(select).toBeDefined();
+    const options = Array.from(select!.matchAll(/<option value="([^"]+)">([^<]+)<\/option>/g))
+      .filter(match => match[1]).map(match => ({ value: match[1], label: match[2] }));
+    expect(options).toEqual(getCompany().proof.serviceCounties.map(county => ({
+      value: `${county.toLowerCase().replace(/\s+/g, '-')}-county`, label: `${county} County`,
+    })));
   });
 });
