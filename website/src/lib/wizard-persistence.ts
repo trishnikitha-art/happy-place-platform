@@ -154,6 +154,10 @@ export function validateSubmissionIntegrity(
   if (uiState.property.city !== persistedState.property.city) {
     issues.push("Property city mismatch");
   }
+
+  if (uiState.property.county !== persistedState.property.county) {
+    issues.push("Property county mismatch");
+  }
   
   // Check customer email
   if (uiState.customer.email !== persistedState.customer.email) {

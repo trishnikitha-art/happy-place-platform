@@ -289,17 +289,18 @@ export function EstimateWizard() {
     }
   };
 
+  const countyEligible = counties.some(county => county.slug === property.county);
   const canNext = React.useMemo(() => {
     if (STEPS[step] === "Service") return selected.length > 0 || otherNeed.trim().length > 0;
     if (STEPS[step] === "Tell us about your project") return projectType.trim().length > 0;
     if (STEPS[step] === "Tell us what you're looking for") return otherNeed.trim().length > 0;
     if (STEPS[step] === "Contact")
-      return customer.name.trim() && customer.email.trim() && customer.phone.trim();
-    if (STEPS[step] === "Property") return property.city.trim() && property.county;
+      return property.city.trim() && countyEligible && customer.name.trim() && customer.email.trim() && customer.phone.trim();
+    if (STEPS[step] === "Property") return property.city.trim() && countyEligible;
     // Other projects skip the service interview, but still need contact/property details.
     if (selected.includes(SOMETHING_ELSE_SLUG)) return true;
     return true;
-  }, [step, selected, otherNeed, projectType, customer, property]);
+  }, [step, selected, otherNeed, projectType, customer, property, countyEligible]);
 
   function buildRequest(): EstimateRequest {
     return {
@@ -350,6 +351,7 @@ export function EstimateWizard() {
   }
 
   async function handleSubmit() {
+    if (!canNext || !countyEligible) return;
     setIsSubmitting(true);
     setSubmissionError('');
     const currentState = getCurrentState();

@@ -79,8 +79,8 @@ describe('Something Else required-field navigation', () => {
   });
 
   it('allows navigation when the required fields are populated', () => {
-    expect(action(renderDraft(4, { name: 'Visitor', email: 'visitor@example.test', phone: '5550100' }), 'Send My Estimate Request')).not.toMatch(/\sdisabled=""/);
-    expect(action(renderDraft(3, undefined, 'Corvallis', 'benton'), 'Next')).not.toMatch(/\sdisabled=""/);
+    expect(action(renderDraft(4, { name: 'Visitor', email: 'visitor@example.test', phone: '5550100' }, 'Corvallis', 'benton-county'), 'Send My Estimate Request')).not.toMatch(/\sdisabled=""/);
+    expect(action(renderDraft(3, undefined, 'Corvallis', 'benton-county'), 'Next')).not.toMatch(/\sdisabled=""/);
   });
 
   it('offers every published service county even when its city catalog is incomplete', () => {
@@ -92,5 +92,20 @@ describe('Something Else required-field navigation', () => {
     expect(options).toEqual(getCompany().proof.serviceCounties.map(county => ({
       value: `${county.toLowerCase().replace(/\s+/g, '-')}-county`, label: `${county} County`,
     })));
+  });
+
+  it.each([
+    ['Corvallis', 'benton-county'], ['Albany', 'linn-county'],
+    ['Dallas', 'polk-county'], ['Salem', 'marion-county'],
+  ])('restores the saved selection for %s / %s', (city, county) => {
+    const markup = renderDraft(3, undefined, city, county);
+    expect(markup).toContain(`<option value="${county}" selected="">`);
+    expect(action(markup, 'Next')).not.toMatch(/\sdisabled=""/);
+  });
+
+  it.each(['unsupported-county', ''])('refuses unsupported saved county %s at Property and Contact', county => {
+    const customer = { name: 'Visitor', email: 'visitor@example.test', phone: '5550100' };
+    expect(action(renderDraft(3, customer, 'Test city', county), 'Next')).toMatch(/\sdisabled=""/);
+    expect(action(renderDraft(4, customer, 'Test city', county), 'Send My Estimate Request')).toMatch(/\sdisabled=""/);
   });
 });
