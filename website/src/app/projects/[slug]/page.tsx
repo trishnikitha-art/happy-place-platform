@@ -9,13 +9,13 @@ import { BlueprintGrid } from "@/components/blueprint-grid";
 import { StarRating } from "@/components/star-rating";
 import { CraftCard } from "@/components/ui/card";
 import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
-import { getAllProjects, getProjectBySlug, getProjectWithResolvedMedia } from "@/lib/projects";
+import { getNonArchivedProjects, getProjectBySlug, getProjectWithResolvedMedia } from "@/lib/projects";
 import { getReviewById } from "@/lib/reviews";
 import { Container, Section, SectionHeading } from "@/components/section";
 import type { Media } from "@/types/media";
 
 export function generateStaticParams() {
-  const projects = getAllProjects();
+  const projects = getNonArchivedProjects();
   return projects.map((p) => ({ slug: p.slug || p.id }));
 }
 
@@ -28,19 +28,22 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const project = getProjectBySlug(slug);
-  if (!project) return {};
+  if (!project || project.archived) return {};
   // P1 FIX: Use pre-validated heroMedia from getProjectWithResolvedMedia (passed public media gate)
   const projectWithMedia = await getProjectWithResolvedMedia(project);
   const heroMedia = projectWithMedia.media.heroMedia;
   const ogImagePath = heroMedia?.variants?.web || heroMedia?.variants?.original;
+  const canonical = new URL(`/projects/${project.slug || project.id}`, 'https://happyplacecarpentry.com').toString();
+  const ogImageUrl = new URL(ogImagePath || '/brand/logo.png', 'https://happyplacecarpentry.com').toString();
   return {
     title: project.title,
     description: project.story?.outcome || project.title,
-    alternates: { canonical: `/projects/${project.slug || project.id}` },
+    alternates: { canonical },
     openGraph: {
       title: project.title,
       description: project.story?.outcome || project.title,
-      images: ogImagePath ? [{ url: ogImagePath }] : [],
+      url: canonical,
+      images: [{ url: ogImageUrl }],
     },
   };
 }
@@ -48,7 +51,7 @@ export async function generateMetadata({
 export default async function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const project = getProjectBySlug(slug);
-  if (!project) notFound();
+  if (!project || project.archived) notFound();
   
   // P1 FIX: Resolve project media through public media gate to prevent bypass
   const projectWithMedia = await getProjectWithResolvedMedia(project);

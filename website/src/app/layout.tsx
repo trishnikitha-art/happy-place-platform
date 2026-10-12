@@ -11,6 +11,8 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { LenisProvider } from "@/components/lenis-provider";
 import { MotionProvider } from "@/components/motion-provider";
 import { SpeculationRules } from "@/components/speculation-rules";
+import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -113,6 +115,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
             <SiteHeader />
             <main id="main-content" className="flex-1">{children}</main>
             <SiteFooter />
+            <Analytics />
+            <SpeedInsights />
             </LenisProvider>
           </MotionProvider>
         </ThemeProvider>
