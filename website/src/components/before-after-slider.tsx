@@ -1,22 +1,10 @@
-/**
- * Before/After Authority - Project-Owned
- * 
- * Before/After should not be hardcoded.
- * Projects own before/after media IDs from media.v1.json.
- * The slider automatically appears if both exist.
- * Otherwise hide gracefully.
- * 
- * Architecture: Project.media.before + Project.media.after → Media Authority → Slider
- */
-
 "use client";
 
-import * as React from "react";
-import Image from "next/image";
-import { cn } from "@/lib/utils";
-import type { Project } from "@/types/projects";
-import { CraftCard } from "@/components/ui/card";
-import { VisualSlot } from "@/components/visual-slot";
+import { useId, useState } from 'react';
+import Image from 'next/image';
+import type { Project } from '@/types/projects';
+import { VisualSlot } from '@/components/visual-slot';
+import { cn } from '@/lib/utils';
 
 export interface BeforeAfterPair {
   id: string;
@@ -27,149 +15,49 @@ export interface BeforeAfterPair {
   service?: string;
 }
 
-/**
- * BeforeAfterSlider — draggable before/after reveal.
- * 
- * Uses media.v1.json for image sources (project-owned).
- * Automatically hides if before or after media is missing.
- * Keyboard + reduced-motion accessible.
- * 
- * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
- * Card text always uses light register tokens regardless of page background.
- */
-export function BeforeAfterSlider({
-  project,
-  className,
-}: {
+/** Only explicit, resolved project pairs appear. Native controls work without dragging. */
+export function BeforeAfterSlider({ project, className, route = '/' }: {
   project: Project;
   className?: string;
+  route?: string;
 }) {
-  // P1 FIX: Use pre-validated media objects from project.media (passed public media gate)
-  // This prevents bypassing the public media gate by calling getMediaById directly
-  const beforeMedia = project.media.beforeMedia;
-  const afterMedia = project.media.afterMedia;
+  const [position, setPosition] = useState(50);
+  const inputId = useId();
+  const before = project.media.beforeMedia;
+  const after = project.media.afterMedia;
+  if (!before || !after || before.id === after.id || before.contentHash === after.contentHash) return null;
+  const beforeSrc = before.variants.web || before.variants.original || before.variants.webp;
+  const afterSrc = after.variants.web || after.variants.original || after.variants.webp;
+  if (!beforeSrc || !afterSrc) return null;
+  const page = route.startsWith('/projects/') ? 'ProjectDetail' : route === '/our-work' ? 'OurWork' : 'Homepage';
 
-  // Hide if media not found or not validated
-  if (!beforeMedia || !afterMedia) {
-    return null;
-  }
-
-  const [pos, setPos] = React.useState(50);
-  const containerRef = React.useRef<HTMLDivElement>(null);
-  const dragging = React.useRef(false);
-
-  const setFromClientX = React.useCallback((clientX: number) => {
-    const el = containerRef.current;
-    if (!el) return;
-    const rect = el.getBoundingClientRect();
-    const pct = ((clientX - rect.left) / rect.width) * 100;
-    setPos(Math.min(100, Math.max(0, pct)));
-  }, []);
-
-  React.useEffect(() => {
-    const onMove = (e: MouseEvent) => dragging.current && setFromClientX(e.clientX);
-    const onUp = () => (dragging.current = false);
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [setFromClientX]);
-
-  const onKey = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowLeft") setPos((p) => Math.max(0, p - 5));
-    if (e.key === "ArrowRight") setPos((p) => Math.min(100, p + 5));
-  };
-
-  const beforeSrc = beforeMedia.variants.original || beforeMedia.variants.webp || beforeMedia.variants.avif;
-  const afterSrc = afterMedia.variants.original || afterMedia.variants.webp || afterMedia.variants.avif;
-
-  // Card text colors - always light register (cards are always light surfaces)
-  const titleColor = "text-text";
-  const subtitleColor = "text-text-subtle";
-
-  return (
-    <CraftCard className={cn("group relative select-none overflow-hidden", className)}>
-      <div
-        ref={containerRef}
-        className="relative aspect-[4/3] w-full"
-        onMouseDown={(e) => {
-          dragging.current = true;
-          setFromClientX(e.clientX);
-        }}
-        onTouchStart={(e) => setFromClientX(e.touches[0].clientX)}
-        onTouchMove={(e) => setFromClientX(e.touches[0].clientX)}
-      >
-        <div className="absolute inset-0 pointer-events-none rounded-xl bg-gradient-to-tr from-black/3 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
-        {/* AFTER (base) */}
-        {afterSrc && (
-          <VisualSlot
-            id={`slider-right-${project.id}`}
-            route="/"
-            page="Homepage"
-            section="Featured Transformations"
-            slotName={`${project.title} Slider Right`}
-            currentMediaId={project.media.after || null}
-            component="BeforeAfterSlider"
-          >
-            <Image 
-              src={afterSrc} 
-              alt={afterMedia.alt || project.title} 
-              fill 
-              sizes="(max-width: 768px) 100vw, 50vw" 
-              className="absolute inset-0 h-full w-full object-cover" 
-              draggable={false} 
-            />
-          </VisualSlot>
-        )}
-        {/* BEFORE (clipped) */}
-        {beforeSrc && (
-          <div className="absolute inset-0 overflow-hidden" style={{ width: `${pos}%` }}>
-            <VisualSlot
-              id={`slider-left-${project.id}`}
-              route="/"
-              page="Homepage"
-              section="Featured Transformations"
-              slotName={`${project.title} Slider Left`}
-              currentMediaId={project.media.before || null}
-              component="BeforeAfterSlider"
-            >
-              <Image 
-                src={beforeSrc} 
-                alt={beforeMedia.alt || `${project.title} - Before`} 
-                fill 
-                sizes="(max-width: 768px) 100vw, 50vw" 
-                className="absolute inset-0 h-full object-cover [filter:grayscale(0.6)_brightness(0.85)_sepia(0.15)]" 
-                draggable={false} 
-              />
-            </VisualSlot>
-          </div>
-        )}
-        {/* Handle */}
-        <div
-          className="absolute top-0 bottom-0 z-10 w-1 bg-honey shadow-[0_0_12px_rgba(217,154,78,0.7)]"
-          style={{ left: `${pos}%`, transform: "translateX(-50%)" }}
-          role="slider"
-          tabIndex={0}
-          aria-label={`Before/after slider for ${project.title}`}
-          aria-valuemin={0}
-          aria-valuemax={100}
-          aria-valuenow={Math.round(pos)}
-          onKeyDown={onKey}
-        >
-          <span className="absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-honey text-honey-foreground shadow-md">
-            <span className="text-xs font-bold">↔</span>
-          </span>
-        </div>
-        {/* Labels */}
-        <span className="absolute left-3 top-3 rounded-full bg-deep/80 px-3 py-1 text-xs font-semibold text-text-on-dark">Before</span>
-        <span className="absolute right-3 top-3 rounded-full bg-honey px-3 py-1 text-xs font-semibold text-honey-foreground">After</span>
+  return <figure className={cn('overflow-hidden bg-[#EDEAE0] text-[#1F3F3C]', className)}>
+    <div className="relative aspect-[4/3] overflow-hidden">
+      <VisualSlot id={`slider-right-${project.id}`} route={route} page={page} section="Featured Transformations"
+        slotName={`${project.title} Slider Right`} currentMediaId={project.media.after || null} component="BeforeAfterSlider" className="absolute inset-0">
+        <Image src={afterSrc} alt={after.alt || `${project.title} — after`} fill sizes="(max-width: 768px) 100vw, 60vw" className="object-cover" draggable={false} />
+      </VisualSlot>
+      <div className="absolute inset-0" style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}>
+        <VisualSlot id={`slider-left-${project.id}`} route={route} page={page} section="Featured Transformations"
+          slotName={`${project.title} Slider Left`} currentMediaId={project.media.before || null} component="BeforeAfterSlider" className="absolute inset-0">
+          <Image src={beforeSrc} alt={before.alt || `${project.title} — before`} fill sizes="(max-width: 768px) 100vw, 60vw" className="object-cover" draggable={false} />
+        </VisualSlot>
       </div>
-      <figcaption className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
-        <span className={`font-semibold ${titleColor}`}>{project.title}</span>
-        {project.location.county && <span className={subtitleColor}>{project.location.county}</span>}
-      </figcaption>
-    </CraftCard>
-  );
+      <span className="pointer-events-none absolute inset-y-0 w-0.5 bg-[#EDEAE0]" style={{ left: `${position}%` }} aria-hidden="true" />
+      <span className="pointer-events-none absolute left-3 top-3 rounded-full bg-[#162B29]/90 px-3 py-2 text-xs text-[#EDEAE0]">Before</span>
+      <span className="pointer-events-none absolute right-3 top-3 rounded-full bg-[#162B29]/90 px-3 py-2 text-xs text-[#EDEAE0]">After</span>
+    </div>
+    <div className="px-4 pb-4 pt-3 sm:px-6">
+      <label htmlFor={inputId} className="text-sm font-medium">Compare the photographs</label>
+      <input id={inputId} type="range" min={0} max={100} value={position} onChange={event => setPosition(Number(event.target.value))}
+        aria-label={`Before and after comparison for ${project.title}`} aria-valuetext={`${position}% before, ${100 - position}% after`}
+        className="mt-1 block h-11 w-full cursor-pointer accent-[#1F3F3C] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1F3F3C]" />
+      <div role="group" aria-label="Choose comparison view" className="flex gap-2">
+        {[{ label: 'Before', value: 100 }, { label: 'Both', value: 50 }, { label: 'After', value: 0 }].map(option =>
+          <button key={option.label} type="button" onClick={() => setPosition(option.value)} aria-pressed={position === option.value}
+            className={cn('min-h-11 flex-1 rounded border px-3 text-sm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1F3F3C]', position === option.value ? 'border-[#1F3F3C] bg-[#1F3F3C] text-[#EDEAE0]' : 'border-[#1F3F3C]/25 hover:bg-[#1F3F3C]/5')}>{option.label}</button>)}
+      </div>
+    </div>
+    <figcaption className="border-t border-[#1F3F3C]/15 px-4 py-4 text-sm sm:px-6"><span className="font-medium">{project.title}</span>{project.location.city && <span className="mt-1 block text-[#1F3F3C]/65">{project.location.city}</span>}</figcaption>
+  </figure>;
 }

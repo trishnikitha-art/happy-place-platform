@@ -1,47 +1,32 @@
-import type { Metadata } from "next";
-import { notFound } from "next/navigation";
-import { ProjectSpotlight } from "@/components/project-spotlight";
-import { CTASection } from "@/components/cta-section";
-import { ProjectPhotos } from "@/components/project-photos";
-import { BeforeAfterSlider } from "@/components/before-after-slider";
-import { ScrollReveal } from "@/components/scroll-reveal";
-import { BlueprintGrid } from "@/components/blueprint-grid";
-import { StarRating } from "@/components/star-rating";
-import { CraftCard } from "@/components/ui/card";
-import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
-import { getAllProjects, getProjectBySlug, getProjectWithResolvedMedia } from "@/lib/projects";
-import { getReviewById } from "@/lib/reviews";
-import { Container, Section, SectionHeading } from "@/components/section";
-import type { Media } from "@/types/media";
+import type { Metadata } from 'next';
+import Image from 'next/image';
+import Link from 'next/link';
+import { notFound } from 'next/navigation';
+import { ArrowLeft, ArrowUpRight, ArrowRight } from 'lucide-react';
+import { ProjectSpotlight } from '@/components/project-spotlight';
+import { ProjectPhotos } from '@/components/project-photos';
+import { BeforeAfterSlider } from '@/components/before-after-slider';
+import { getAllProjects, getProjectBySlug, getProjectWithResolvedMedia, getProjectsWithResolvedMedia, getRelatedProjects } from '@/lib/projects';
+import { getReviewById } from '@/lib/reviews';
+import { getServiceBySlug } from '@/lib/registries';
 
 export function generateStaticParams() {
-  const projects = getAllProjects();
-  return projects.map((p) => ({ slug: p.slug || p.id }));
+  return getAllProjects().map(project => ({ slug: project.slug || project.id }));
 }
 
 export const dynamic = 'force-dynamic';
 
-export async function generateMetadata({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}): Promise<Metadata> {
+export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const project = getProjectBySlug(slug);
   if (!project) return {};
-  // P1 FIX: Use pre-validated heroMedia from getProjectWithResolvedMedia (passed public media gate)
-  const projectWithMedia = await getProjectWithResolvedMedia(project);
-  const heroMedia = projectWithMedia.media.heroMedia;
-  const ogImagePath = heroMedia?.variants?.web || heroMedia?.variants?.original;
+  const resolved = await getProjectWithResolvedMedia(project);
+  const image = resolved.media.heroMedia?.variants.web || resolved.media.heroMedia?.variants.original;
   return {
     title: project.title,
     description: project.story?.outcome || project.title,
     alternates: { canonical: `/projects/${project.slug || project.id}` },
-    openGraph: {
-      title: project.title,
-      description: project.story?.outcome || project.title,
-      images: ogImagePath ? [{ url: ogImagePath }] : [],
-    },
+    openGraph: { title: project.title, description: project.story?.outcome || project.title, images: image ? [{ url: image }] : [] },
   };
 }
 
@@ -49,174 +34,71 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
   const { slug } = await params;
   const project = getProjectBySlug(slug);
   if (!project) notFound();
-  
-  // P1 FIX: Resolve project media through public media gate to prevent bypass
-  const projectWithMedia = await getProjectWithResolvedMedia(project);
-  
-  // P1 FIX: Use pre-validated galleryMedia from getProjectWithResolvedMedia (passed public media gate)
-  const photos = projectWithMedia.media.galleryMedia || [];
-  
-  // Load customer review if available
-  const reviewId = project.reviews?.[0];
-  const review = reviewId ? await getReviewById(reviewId) : null;
-  
-  return (
-    <>
-      <ProjectSpotlight project={projectWithMedia} variant="full" />
-      
-      {/* PROJECT OVERVIEW — owned concerns hang off Project (object-first, no new systems) */}
-      <Section className="bg-linen">
-        <Container>
-          <SectionHeading
-            eyebrow={<span className="text-honey">Project Overview</span>}
-            title={<span className="text-evergreen">At a glance</span>}
-            description={<span className="text-evergreen/80">Everything attached to this project, in one place.</span>}
-          />
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {/* Services — owned by Project */}
-            <CraftCard className="p-5 bg-surface border-evergreen/10">
-              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Services</p>
-              <div className="mt-2 space-y-1 text-sm text-evergreen">
-                {project.services?.primary && <p className="font-semibold capitalize">{project.services?.primary}</p>}
-                {project.services?.secondary?.map((service, i) => (
-                  <p key={i} className="text-evergreen/60 capitalize">{service}</p>
-                ))}
-                {project.services?.customServices?.map((service, i) => (
-                  <p key={i} className="text-evergreen/60 capitalize">{service}</p>
-                ))}
-              </div>
-            </CraftCard>
 
-            {/* Completion Date — owned by Project */}
-            <CraftCard className="p-5 bg-surface border-evergreen/10">
-              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Completed</p>
-              <div className="mt-2 space-y-1 text-sm text-evergreen">
-                {project.completionDate && (
-                  <p className="font-semibold">
-                    {new Date(project.completionDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-                  </p>
-                )}
-                {!project.completionDate && <p className="text-evergreen/50">—</p>}
-              </div>
-            </CraftCard>
+  // All presentation media, including related work, passes the existing canonical public gate.
+  const [resolved, related, reviewCandidate] = await Promise.all([
+    getProjectWithResolvedMedia(project),
+    getProjectsWithResolvedMedia(getRelatedProjects(project.id, 3).filter(item => !item.archived)),
+    project.reviews?.[0] ? getReviewById(project.reviews[0]) : Promise.resolve(null),
+  ]);
+  const review = reviewCandidate && ['published', 'featured'].includes(reviewCandidate.status) ? reviewCandidate : null;
+  const service = getServiceBySlug(project.service);
+  const photos = resolved.media.galleryMedia || [];
+  const materials = [project.materials?.primary, ...(project.materials?.secondary || []), ...(project.materials?.customMaterials || [])].filter((value): value is string => !!value);
+  const before = resolved.media.beforeMedia;
+  const after = resolved.media.afterMedia;
+  const hasComparison = before && after && before.id !== after.id && before.contentHash !== after.contentHash;
+  const completion = project.completionDate ? new Date(project.completionDate) : null;
+  const completedLabel = completion && !Number.isNaN(completion.getTime()) ? completion.toLocaleDateString('en-US', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : null;
+  const requestHref = `/estimate?project=${encodeURIComponent(project.slug || project.id)}`;
 
-            {/* Location — owned by Project */}
-            <CraftCard className="p-5 bg-surface border-evergreen/10">
-              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Location</p>
-              <div className="mt-2 space-y-1 text-sm text-evergreen">
-                {project.location?.city && <p className="font-semibold">{project.location.city}</p>}
-                {project.location?.county && <p className="text-evergreen/60">{project.location.county} County</p>}
-                {!project.location?.city && <p className="text-evergreen/50">—</p>}
-              </div>
-            </CraftCard>
+  return <div className="bg-[#EDEAE0] text-[#1F3F3C]">
+    <ProjectSpotlight project={resolved} variant="full" />
 
-            {/* Duration — owned by Project */}
-            <CraftCard className="p-5 bg-surface border-evergreen/10">
-              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Duration</p>
-              <div className="mt-2 space-y-1 text-sm text-evergreen">
-                {project.startDate && project.completionDate && (
-                  <p className="font-semibold">
-                    {Math.ceil((new Date(project.completionDate).getTime() - new Date(project.startDate).getTime()) / (1000 * 60 * 60 * 24))} days
-                  </p>
-                )}
-                {(!project.startDate || !project.completionDate) && <p className="text-evergreen/50">—</p>}
-              </div>
-            </CraftCard>
-          </div>
-        </Container>
-      </Section>
-      
-      {/* MATERIALS USED SECTION */}
-      {project.materials && (
-        <ScrollReveal>
-          <Section className="relative bg-deep text-text-on-dark">
-            <BlueprintGrid gridSize={20} lineColor="rgba(217, 154, 78, 0.04)" />
-            <WorkshopAtmosphere particleCount={18} className="opacity-35" />
-            <Container className="relative z-10">
-              <SectionHeading
-                eyebrow={<span className="text-honey">Materials Used</span>}
-                title={<span className="text-text-on-dark">Quality materials for lasting results</span>}
-                description={<span className="text-text-on-dark/90">The premium materials we used to bring this project to life.</span>}
-              />
-              <div className="mt-8 flex flex-wrap gap-3">
-                {project.materials.primary && (
-                  <span className="inline-flex items-center px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-text-on-dark text-sm font-medium">
-                    {project.materials.primary}
-                  </span>
-                )}
-                {project.materials.secondary?.map((material, i) => (
-                  <span
-                    key={`secondary-${i}`}
-                    className="inline-flex items-center px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-text-on-dark text-sm font-medium"
-                  >
-                    {material}
-                  </span>
-                ))}
-                {project.materials.customMaterials?.map((material, i) => (
-                  <span
-                    key={`custom-${i}`}
-                    className="inline-flex items-center px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-text-on-dark text-sm font-medium"
-                  >
-                    {material}
-                  </span>
-                ))}
-              </div>
-            </Container>
-          </Section>
-        </ScrollReveal>
-      )}
-      
-      {/* CUSTOMER REVIEW SECTION */}
-      {review && (
-        <ScrollReveal>
-          <Section className="relative bg-deep text-text-on-dark">
-            <BlueprintGrid gridSize={20} lineColor="rgba(217, 154, 78, 0.04)" />
-            <Container className="relative z-10">
-              <SectionHeading
-                eyebrow={<span className="text-honey">Customer Review</span>}
-                title={<span className="text-text-on-dark">What the homeowner says</span>}
-                description={<span className="text-text-on-dark/90">Real feedback from the homeowner after project completion.</span>}
-              />
-              <div className="mt-8">
-                <CraftCard className="p-6 sm:p-8 bg-primary/5 border-primary/10">
-                  <div className="relative z-10">
-                    <div className="flex items-start gap-4">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-4">
-                          <StarRating rating={review.rating} />
-                          {review.title && <h3 className="text-lg font-bold text-text-on-dark">{review.title}</h3>}
-                        </div>
-                        <blockquote className="measure text-base sm:text-lg text-text-on-dark/90 leading-relaxed">
-                          &ldquo;{review.body}&rdquo;
-                        </blockquote>
-                        <figcaption className="mt-4 text-sm text-text-on-dark/70">
-                          <span className="font-semibold text-text-on-dark">{review.reviewer.name}</span>
-                          {review.location && <span> · {review.location.city}, {review.location.county}</span>}
-                        </figcaption>
-                      </div>
-                    </div>
-                  </div>
-                </CraftCard>
-              </div>
-            </Container>
-          </Section>
-        </ScrollReveal>
-      )}
-      
-      <Section className="bg-deep text-text-on-dark">
-        <Container>
-          <SectionHeading
-            eyebrow={<span className="text-honey">Project Photos</span>}
-            title={<span className="text-text-on-dark">Project Gallery</span>}
-            description={<span className="text-text-on-dark/90">Photos from this project</span>}
-          />
-          <div className="mt-8">
-            <ProjectPhotos photos={photos} />
-          </div>
-        </Container>
-      </Section>
-      
-      <CTASection title="Want results like this?" subtitle="Tell us about the work you have in mind." />
-    </>
-  );
+    <section aria-label="Project facts" className="pb-14 sm:pb-20">
+      <div className="craft-shell">
+        <dl className="grid gap-x-10 gap-y-7 border-y border-[#1F3F3C]/20 py-8 sm:grid-cols-3">
+          <div><dt className="craft-eyebrow text-[#1F3F3C]/60">The work</dt><dd className="mt-3 text-lg">{service ? <Link href={`/services/${service.slug}`} className="underline decoration-[#1F3F3C]/30 underline-offset-4 hover:decoration-current">{service.name}</Link> : project.service.replaceAll('-', ' ')}</dd></div>
+          {project.location.city && <div><dt className="craft-eyebrow text-[#1F3F3C]/60">The place</dt><dd className="mt-3 text-lg">{project.location.city}{project.location.county && <span className="mt-1 block text-sm text-[#1F3F3C]/65">{project.location.county} County</span>}</dd></div>}
+          {completedLabel && <div><dt className="craft-eyebrow text-[#1F3F3C]/60">Completed</dt><dd className="mt-3 text-lg">{completedLabel}</dd></div>}
+        </dl>
+        {materials.length > 0 && <div className="grid gap-5 border-b border-[#1F3F3C]/20 py-8 sm:grid-cols-[1fr_2fr]"><h2 className="craft-eyebrow">Materials in the work</h2><ul className="flex flex-wrap gap-x-6 gap-y-3 text-base">{materials.map((material, index) => <li key={index}>{material}</li>)}</ul></div>}
+      </div>
+    </section>
+
+    {hasComparison && <section className="craft-section bg-[#E9DBC9]"><div className="craft-shell"><p className="craft-eyebrow">The transformation</p><h2 className="craft-title mt-4">Before & after</h2><div className="mt-8 max-w-4xl"><BeforeAfterSlider project={resolved} route={`/projects/${project.slug || project.id}`} /></div></div></section>}
+
+    {photos.length > 0 && <section className="craft-section bg-[#162B29] text-[#EDEAE0]" aria-labelledby="project-gallery-title">
+      <div className="craft-shell">
+        <div className="mb-9 flex flex-wrap items-end justify-between gap-6 sm:mb-12"><div><p className="craft-eyebrow text-[#D99A4E]">Take a closer look</p><h2 id="project-gallery-title" className="craft-title mt-4">The project, in photographs.</h2></div><p className="max-w-xs text-sm leading-relaxed text-[#EDEAE0]/70">Open a photograph for the full view. Use the arrows or swipe to explore.</p></div>
+        <ProjectPhotos photos={photos} project={{ id: project.id, title: project.title, slug: project.slug }} />
+      </div>
+    </section>}
+
+    {review && <section className="craft-section bg-[#E9DBC9]" aria-label="Customer review"><div className="craft-shell grid gap-8 lg:grid-cols-[0.5fr_1fr]"><p className="craft-eyebrow">In the homeowner's words</p><figure className="max-w-3xl"><p className="text-sm tracking-wide">{review.rating} / 5</p>{review.title && <h2 className="mt-3 font-display text-2xl">{review.title}</h2>}<blockquote className="mt-5 font-display text-2xl leading-relaxed sm:text-3xl">&ldquo;{review.body}&rdquo;</blockquote><figcaption className="mt-6 text-sm">{review.reviewer.name}{review.location?.city ? ` / ${review.location.city}` : ''}</figcaption></figure></div></section>}
+
+    {related.length > 0 && <section className="craft-section" aria-labelledby="related-work-title">
+      <div className="craft-shell">
+        <div className="flex flex-wrap items-end justify-between gap-5"><div><p className="craft-eyebrow">Keep exploring</p><h2 id="related-work-title" className="craft-title mt-4">More from our work.</h2></div><Link href="/our-work" className="craft-link inline-flex min-h-11 items-center gap-3">All projects <ArrowRight size={16} aria-hidden="true" /></Link></div>
+        <div className="mt-9 grid gap-x-7 gap-y-10 md:grid-cols-3">
+          {related.map(item => {
+            const hero = item.media.heroMedia;
+            const src = hero?.variants.web || hero?.variants.original;
+            return <article key={item.id}><Link href={`/projects/${item.slug || item.id}`} className="group block focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1F3F3C]">
+              {src && <div className="relative aspect-[4/3] overflow-hidden" data-media-id={hero?.id}><Image src={src} alt={hero?.alt || item.title} fill sizes="(min-width: 1440px) 420px, (min-width: 768px) 33vw, 100vw" className="object-cover transition-transform duration-300 motion-safe:group-hover:scale-[1.025] motion-reduce:transition-none" loading="lazy" /></div>}
+              <p className="craft-eyebrow mt-5 text-[#1F3F3C]/60">{getServiceBySlug(item.service)?.name || item.service.replaceAll('-', ' ')} / {item.location.city}</p>
+              <h3 className="mt-3 flex items-start justify-between gap-4 font-display text-2xl leading-tight"><span>{item.title}</span><ArrowUpRight size={20} className="mt-1 shrink-0" aria-hidden="true" /></h3>
+            </Link></article>;
+          })}
+        </div>
+      </div>
+    </section>}
+
+    <section className="craft-section bg-[#1F3F3C] text-[#EDEAE0]">
+      <div className="craft-shell grid gap-10 lg:grid-cols-[1.4fr_1fr] lg:items-end">
+        <div><p className="craft-eyebrow text-[#D99A4E]">Your project starts with a conversation</p><h2 className="craft-title mt-4 max-w-3xl">Planning something similar?</h2><p className="mt-5 max-w-xl text-lg leading-relaxed text-[#EDEAE0]/80">Tell us what you have in mind. This project will come along as a reference.</p><Link href={requestHref} className="craft-button craft-button--gold mt-7 inline-flex items-center gap-3">Tell us about your project <ArrowUpRight size={18} aria-hidden="true" /></Link></div>
+        <div className="border-t border-[#EDEAE0]/25 pt-6 lg:border-l lg:border-t-0 lg:pl-10"><Link href="/our-work" className="craft-link inline-flex min-h-11 items-center gap-3"><ArrowLeft size={16} aria-hidden="true" /> Back to our work</Link><p className="mt-5 font-display text-2xl">More ideas for home.</p><Link href="/newsletter" className="craft-link mt-2 inline-flex min-h-11 items-center gap-3">Explore the newsletter <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
+      </div>
+    </section>
+  </div>;
 }

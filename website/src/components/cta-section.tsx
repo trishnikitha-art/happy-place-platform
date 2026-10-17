@@ -21,7 +21,7 @@ export function CTASection({
         </h2>
         <p className="mt-4 max-w-2xl text-lg text-[#000000]" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>{typeof subtitle === 'string' ? subtitle : subtitle}</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link href="/contact" className={cn(buttonVariants({ variant: "primary", size: "lg" }), "transition-transform duration-150 active:scale-[0.98]")}>
+          <Link href="/estimate" className={cn(buttonVariants({ variant: "primary", size: "lg" }), "transition-transform duration-150 active:scale-[0.98]")}>
             <TextCopy textKey="cta.primaryAction" />
           </Link>
           <Link href="/our-work" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "transition-transform duration-150 active:scale-[0.98]")}>

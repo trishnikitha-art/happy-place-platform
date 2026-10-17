@@ -1,172 +1,90 @@
+import type { Metadata } from 'next';
+import Image from 'next/image';
+import Link from 'next/link';
 import { TextCopy } from '@/components/text-copy';
-import type { Metadata } from "next";
-import Image from "next/image";
-import { Container, Section, SectionHeading } from "@/components/section";
-import { CTASection } from "@/components/cta-section";
-import { HappyBrandSignature } from "@/components/happy-brand-signature";
-import { getCompany } from "@/lib/company";
-import { getOwnerPortrait } from "@/lib/brand";
-import { getAllCities } from "@/lib/registries";
-import { VisualSlot } from "@/components/visual-slot";
-import { getServiceCardAssignment } from "@/lib/assignment-store";
-import { resolvePublicMedia } from "@/lib/media";
-import type { Media } from "@/types/media";
+import { HappyBrandSignature } from '@/components/happy-brand-signature';
+import { CedarCorner } from '@/components/cedar-corner';
+import { VisualSlot } from '@/components/visual-slot';
 import { PreviewOnly } from '@/components/workbench/preview-only';
+import { getCompany } from '@/lib/company';
+import { getOwnerPortrait } from '@/lib/brand';
+import { getAllCities } from '@/lib/registries';
+import { getServiceCardAssignment } from '@/lib/assignment-store';
+import { resolvePublicMedia } from '@/lib/media';
+import type { Media } from '@/types/media';
 
 export const metadata: Metadata = {
-  title: "About",
-  description: `About Happy Place Carpentry — the family behind Happy Place Carpentry, helping homeowners across the mid-Willamette Valley find their happy place.`,
-  alternates: { canonical: "/about" },
+  title: 'About',
+  description: 'About Happy Place Carpentry — the family behind Happy Place Carpentry, helping homeowners across the mid-Willamette Valley find their happy place.',
+  alternates: { canonical: '/about' },
 };
-
 export const dynamic = 'force-dynamic';
 
 export default async function AboutPage() {
   const company = getCompany();
   const cities = getAllCities();
   const ownerBrand = await getOwnerPortrait();
-  
-  // Diagnostic: Log the actual assignment state for brand-portrait
-  console.log('[ABOUT_PAGE] OWNER_PORTRAIT_DIAGNOSTIC', {
-    hasOwnerBrand: !!ownerBrand,
-    mediaId: ownerBrand?.mediaId,
-    hasResolvedMedia: !!ownerBrand?.resolvedMedia,
-    resolvedMediaId: ownerBrand?.resolvedMedia?.id,
-  });
-  
-  // P1 FIX: Use pre-validated resolvedMedia from brand function (passed public media gate)
-  // This prevents bypassing the public media gate by calling getMediaById directly
   const ownerMedia = ownerBrand?.resolvedMedia || null;
   const ownerSrc = ownerMedia?.variants?.web || ownerMedia?.variants?.original;
-
-  // P0 FIX: Resolve bottom visual slot through authoritative assignment path
   let bottomVisualMediaId: string | null = null;
   let bottomVisualMedia: Media | null = null;
   try {
-    const bottomVisualAssignment = await getServiceCardAssignment('about-bottom-visual', 'about');
-    if (bottomVisualAssignment?.mediaId && bottomVisualAssignment.mediaId !== '') {
-      const resolvedMedia = await resolvePublicMedia(bottomVisualAssignment.mediaId);
-      if (resolvedMedia) {
-        bottomVisualMediaId = bottomVisualAssignment.mediaId;
-        bottomVisualMedia = resolvedMedia;
-        console.log('[PUBLIC_MEDIA_GATE] BOTTOM_VISUAL_RESOLUTION', {
-          slotId: 'about-bottom-visual-slot',
-          mediaId: bottomVisualMediaId,
-          resolved: true,
-        });
-      } else {
-        console.log('[PUBLIC_MEDIA_GATE] BOTTOM_VISUAL_REJECTED', {
-          slotId: 'about-bottom-visual-slot',
-          rejectedMediaId: bottomVisualAssignment.mediaId,
-        });
-      }
+    const assignment = await getServiceCardAssignment('about-bottom-visual', 'about');
+    if (assignment?.mediaId) {
+      const media = await resolvePublicMedia(assignment.mediaId);
+      if (media) { bottomVisualMediaId = assignment.mediaId; bottomVisualMedia = media; }
     }
   } catch (error) {
-    console.error('[BOTTOM_VISUAL_ASSIGNMENT] ERROR', {
-      slotId: 'about-bottom-visual-slot',
-      error: error instanceof Error ? error.message : 'Unknown error',
-    });
+    console.error('[BOTTOM_VISUAL_ASSIGNMENT] ERROR', error);
   }
-  
+
   return (
-    <>
-      {/* HERO */}
-      <section className="relative overflow-hidden bg-deep text-text-on-dark">
-        <div className="absolute inset-0 bg-gradient-to-br from-deep via-deep to-primary/30" />
-        <Container className={`relative grid items-center gap-8 py-12 sm:py-16 ${ownerSrc ? 'lg:grid-cols-2' : 'max-w-4xl'}`}>
-          <div>
-            <div className="mb-6 flex items-center gap-3">
-              <span className="relative block h-12 w-auto">
-                <Image src="/brand/logo.png" alt="Happy Place Carpentry logo" width={144} height={48} className="h-full w-auto" />
-              </span>
-            </div>
-            <p className="text-sm font-semibold uppercase text-honey" style={{ letterSpacing: '0.12em' }}><TextCopy textKey="about.familyLabel" />{company.ccbNumber}</p>
-            <h1 className="mt-3 font-display text-4xl font-bold sm:text-5xl text-text-on-dark" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>
-              <TextCopy textKey="about.hero.prefix" /><HappyBrandSignature /><TextCopy textKey="about.hero.suffix" />
-            </h1>
-            <p className="measure mt-5 text-lg text-text-on-dark/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
-              {company.name}<TextCopy textKey="about.hero.description" />
-            </p>
-            <p className="mt-6 font-display text-xl text-text-on-dark/90" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>
-              <TextCopy textKey="about.hero.promise" />
-            </p>
+    <div className="craft-page bg-[#EDEAE0] text-[#1F3F3C]">
+      <section className="craft-shell pb-16 pt-12 sm:pb-24 sm:pt-20">
+        <p className="craft-eyebrow"><TextCopy textKey="about.familyLabel" /> <span className="ml-2">{company.ccbNumber}</span></p>
+        <h1 className="craft-display mt-6 max-w-5xl"><TextCopy textKey="about.hero.prefix" /><HappyBrandSignature /><TextCopy textKey="about.hero.suffix" /></h1>
+        <div className={`mt-12 grid items-center gap-10 lg:gap-20 ${ownerSrc ? 'lg:grid-cols-[1.1fr_0.9fr]' : ''}`}>
+          {ownerSrc && ownerMedia ? <figure className="relative">
+            <CedarCorner className="absolute -left-3 -top-3 z-10 h-12 w-12 text-[#9A6829] sm:-left-5 sm:-top-5 sm:h-16 sm:w-16" />
+            <VisualSlot id="about-owner-portrait-slot" route="/about" page="About" section="Hero" slotName="Owner Portrait" currentMediaId={ownerBrand?.mediaId || null} component="AboutSection">
+              <Image src={ownerSrc} alt={ownerMedia.alt || 'Taylor and Lanie, owners of Happy Place Carpentry'} width={ownerMedia.dimensions?.width || 1200} height={ownerMedia.dimensions?.height || 900} sizes="(min-width: 1024px) 55vw, 100vw" priority placeholder={ownerMedia.variants?.blur ? 'blur' : 'empty'} blurDataURL={ownerMedia.variants?.blur} className="h-auto max-h-[740px] w-full object-contain" />
+            </VisualSlot>
+            <figcaption className="mt-4 text-sm text-[#1F3F3C]/75">{company.owners.map(owner => owner.name).join(' & ')} <span className="mx-2" aria-hidden="true">/</span> Happy Place Carpentry</figcaption>
+          </figure> : null}
+          <div className="max-w-2xl">
+            <p className="craft-copy text-lg leading-relaxed">{company.name}<TextCopy textKey="about.hero.description" /></p>
+            <blockquote className="mt-8 border-l-2 border-[#D99A4E] pl-6 font-display text-3xl leading-tight sm:text-4xl"><TextCopy textKey="about.hero.promise" /></blockquote>
+            <Link href="/our-work" className="craft-link mt-8 inline-flex min-h-11 items-center">See the work <span aria-hidden="true">↗</span></Link>
           </div>
-          {ownerSrc && <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
-            {ownerSrc && (
-              <VisualSlot
-                id="about-owner-portrait-slot"
-                route="/about"
-                page="About"
-                section="Hero"
-                slotName="Owner Portrait"
-                currentMediaId={ownerBrand?.mediaId || null}
-                component="AboutSection"
-              >
-                <Image src={ownerSrc} alt="Portrait of Taylor and Lanie, the owners of Happy Place Carpentry, standing together in front of a completed carpentry project" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover" />
-              </VisualSlot>
-            )}
-          </div>}
-        </Container>
+        </div>
       </section>
 
-      {/* SERVICE AREA */}
-      <Section className="bg-surface-2 py-10 sm:py-12">
-        <Container>
-          <SectionHeading eyebrow={<TextCopy textKey="about.area.eyebrow" />} title={<TextCopy textKey="about.area.title" />} />
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {cities.map((c) => (
-              <div key={c.id} className="rounded-2xl border border-border/40 bg-[#F8F6F3] p-5">
-                <h3 className="font-bold text-primary">{c.name}</h3>
-                <p className="mt-2 text-sm text-[#000000]">{c.county}, Oregon</p>
-              </div>
-            ))}
+      <section className="craft-section bg-[#162B29] text-[#EDEAE0]">
+        <div className="craft-shell grid gap-10 lg:grid-cols-[1fr_1.1fr] lg:gap-24">
+          <div>
+            <p className="craft-eyebrow text-[#D99A4E]"><TextCopy textKey="about.area.eyebrow" /></p>
+            <h2 className="mt-6 font-display text-4xl leading-tight sm:text-5xl"><TextCopy textKey="about.area.title" /></h2>
+            <p className="mt-6 max-w-md text-lg leading-relaxed text-[#EDEAE0]/80"><TextCopy textKey="company.serviceArea" /></p>
+            <Link href="/estimate" className="craft-button craft-button--gold mt-8">Tell us where your project is <span aria-hidden="true">↗</span></Link>
           </div>
-        </Container>
-      </Section>
-
-      {/* BOTTOM VISUAL — real media-bearing slot before CTA */}
-      {bottomVisualMedia?.variants?.web ? <Section className="relative bg-surface-2 py-8 sm:py-12">
-        <div className="absolute inset-0 bg-gradient-to-br from-[#F0ECE5] via-[#EDE9E0] to-[#E8E5DC] opacity-100" aria-hidden="true" />
-        <Container className="relative z-10">
-          <VisualSlot
-            id="about-bottom-visual-slot"
-            route="/about"
-            page="About"
-            section="Bottom Visual"
-            slotName="Bottom Visual"
-            currentMediaId={bottomVisualMediaId}
-            component="BottomVisual"
-          >
-            {bottomVisualMedia && bottomVisualMedia.variants?.web ? (
-              <div className="relative aspect-[16/9] overflow-hidden rounded-card photo-mounted">
-                <Image
-                  src={bottomVisualMedia.variants.web}
-                  alt={bottomVisualMedia.alt || "Happy Place Carpentry - Bottom visual"}
-                  fill
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
-                  className="object-cover"
-                />
-              </div>
-            ) : (
-              <div className="relative aspect-[16/9] overflow-hidden rounded-card photo-muted">
-                {/* No media assigned or media failed public gate */}
-              </div>
-            )}
-          </VisualSlot>
-        </Container>
-      </Section> : <PreviewOnly><Section className="bg-surface-2 py-6">
-        <Container><VisualSlot id="about-bottom-visual-slot" route="/about" page="About"
-          section="Bottom Visual" slotName="Bottom Visual" currentMediaId={null} component="BottomVisual">
-          <div className="flex h-24 items-center justify-center rounded-card border border-primary/30 text-primary">
-            Choose an About image
+          <div className="grid grid-cols-1 gap-x-8 sm:grid-cols-2">
+            {cities.map(city => <div key={city.id} className="border-t border-[#EDEAE0]/20 py-6 sm:py-8"><h3 className="font-display text-3xl">{city.name}</h3><p className="mt-3 text-sm text-[#EDEAE0]/70">{city.county}, Oregon</p></div>)}
           </div>
-        </VisualSlot></Container>
-      </Section></PreviewOnly>}
+        </div>
+      </section>
 
-      <CTASection
-        title={<TextCopy textKey="about.cta.title" />}
-        subtitle={<TextCopy textKey="about.cta.description" />}
-      />
-    </>
+      {bottomVisualMedia?.variants?.web ? <section className="craft-shell pt-16 sm:pt-24">
+        <VisualSlot id="about-bottom-visual-slot" route="/about" page="About" section="Bottom Visual" slotName="Bottom Visual" currentMediaId={bottomVisualMediaId} component="BottomVisual">
+          <Image src={bottomVisualMedia.variants.web} alt={bottomVisualMedia.alt || 'Happy Place Carpentry project'} width={bottomVisualMedia.dimensions?.width || 1400} height={bottomVisualMedia.dimensions?.height || 900} sizes="(min-width: 1440px) 1280px, 100vw" className="max-h-[720px] w-full object-contain" />
+        </VisualSlot>
+      </section> : <PreviewOnly><section className="craft-shell pt-10"><VisualSlot id="about-bottom-visual-slot" route="/about" page="About" section="Bottom Visual" slotName="Bottom Visual" currentMediaId={null} component="BottomVisual"><div className="flex h-24 items-center justify-center border border-dashed border-[#1F3F3C]/30 text-sm">Choose an About image</div></VisualSlot></section></PreviewOnly>}
+
+      <section className="craft-section">
+        <div className="craft-shell grid gap-8 lg:grid-cols-[1.4fr_0.6fr] lg:items-end lg:gap-20">
+          <div><p className="craft-eyebrow">Your happy place</p><h2 className="craft-title mt-5 max-w-3xl"><TextCopy textKey="about.cta.title" /></h2><p className="craft-copy mt-5"><TextCopy textKey="about.cta.description" /></p></div>
+          <div className="flex flex-col items-start gap-5"><Link href="/estimate" className="craft-button">Talk about your project <span aria-hidden="true">↗</span></Link><Link href="/services" className="craft-link inline-flex min-h-11 items-center">Explore our services <span aria-hidden="true">↗</span></Link><Link href="/newsletter?source=about" className="inline-flex min-h-11 items-center text-sm underline underline-offset-4">Homeowner notes by email</Link></div>
+        </div>
+      </section>
+    </div>
   );
 }

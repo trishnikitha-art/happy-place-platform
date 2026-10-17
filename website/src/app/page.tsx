@@ -1,416 +1,128 @@
+import type { Metadata } from 'next';
+import Image from 'next/image';
+import Link from 'next/link';
+import { ArrowDown, ArrowUpRight } from 'lucide-react';
 import { TextCopy } from '@/components/text-copy';
 import { ContentCopy } from '@/components/content-copy';
-﻿import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
-import { Container, Section, SectionHeading } from "@/components/section";
-import { ServiceCard } from "@/components/service-card";
-import { CTASection } from "@/components/cta-section";
-import { StarRating } from "@/components/star-rating";
-import { ScrollReveal } from "@/components/scroll-reveal";
-import { CedarCorner } from "@/components/cedar-corner";
-import { ToolMark } from "@/components/tool-mark";
-import { HappyBrandSignature } from "@/components/happy-brand-signature";
-import { Card } from "@/components/ui/card";
-import { RouterLink } from "@/components/router-link";
-import { PencilLine } from "@/components/pencil-line";
-import { BlueprintGrid } from "@/components/blueprint-grid";
-import { WorkshopAtmosphere } from "@/components/workshop-atmosphere";
-import { getNonArchivedServices } from "@/lib/registries";
-import { getHomepageServiceMedia } from "@/lib/homepage-service-media";
-import { getFeaturedReviews, getFeaturedReviewsWithResolvedMedia, getReviewsWithResolvedMedia, getReviewStats } from "@/lib/reviews";
-import { getCompany } from "@/lib/company";
-import { getHomepageHero } from "@/lib/brand";
-import { BeforeAfterSlider } from "@/components/before-after-slider";
-import { NewsletterSignup } from "@/components/newsletter-signup";
-import { getOwnerPortrait } from "@/lib/brand";
-import { getFeaturedProjects } from "@/lib/projects";
-import { getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib/projects";
-import { VisualSlot } from "@/components/visual-slot";
-// Public media still resolves against runtime publication authority. Keep this
-// dynamic until withdrawal, outage and deployment-version caching are proven.
+import { ScrollReveal } from '@/components/scroll-reveal';
+import { VisualSlot } from '@/components/visual-slot';
+import { NewsletterSignup } from '@/components/newsletter-signup';
+import { StarRating } from '@/components/star-rating';
+import { getNonArchivedServices } from '@/lib/registries';
+import { getHomepageServiceMedia } from '@/lib/homepage-service-media';
+import { getFeaturedReviewsWithResolvedMedia } from '@/lib/reviews';
+import { getCompany } from '@/lib/company';
+import { getHomepageHero, getOwnerPortrait } from '@/lib/brand';
+import { getFeaturedProjects, getProjectsWithResolvedMedia } from '@/lib/projects';
+
 export const dynamic = 'force-dynamic';
-
-const siteUrl = "https://happyplacecarpentry.com";
-
 export async function generateMetadata(): Promise<Metadata> {
-  const heroBrand = await getHomepageHero();
-  // P1 FIX: Use pre-validated resolvedMedia from brand function (passed public media gate)
-  // This prevents bypassing the public media gate by calling getMediaById directly
-  const heroMedia = heroBrand?.resolvedMedia || null;
-  const ogImageUrl = heroMedia?.variants?.web || `${siteUrl}/brand/logo.png`;
-
-  return {
-    openGraph: {
-      images: [{ url: ogImageUrl.startsWith("http") ? ogImageUrl : `${siteUrl}${ogImageUrl}` }],
-    },
-    twitter: {
-      images: [ogImageUrl.startsWith("http") ? ogImageUrl : `${siteUrl}${ogImageUrl}`],
-    },
-  };
+  const hero = (await getHomepageHero())?.resolvedMedia;
+  const image = hero?.variants?.web || 'https://happyplacecarpentry.com/brand/logo.png';
+  return { openGraph: { images: [image] }, twitter: { images: [image] } };
 }
 
 export default async function HomePage() {
   const company = getCompany();
-  const allServices = getNonArchivedServices();
-  const homepageServices = allServices.filter(service => service.homepageEligible);
-  const featuredProjects = getFeaturedProjects();
-  // Keep each authority resolver intact, but do not make unrelated reads wait for one another.
-  const [reviews, stats, ownerBrand, featuredProjectsWithMedia, homepageHero, serviceCardAssignments] = await Promise.all([
-    getFeaturedReviewsWithResolvedMedia(),
-    getReviewStats(),
-    getOwnerPortrait(),
-    getProjectsWithResolvedMedia(featuredProjects),
-    getHomepageHero(),
-    getHomepageServiceMedia(homepageServices),
+  const services = getNonArchivedServices().filter(service => service.homepageEligible);
+  const [hero, owner, projects, serviceMedia, reviews] = await Promise.all([
+    getHomepageHero(), getOwnerPortrait(), getProjectsWithResolvedMedia(getFeaturedProjects()),
+    getHomepageServiceMedia(services), getFeaturedReviewsWithResolvedMedia(),
   ]);
-  const topReviews = reviews.slice(0, 3);
-  const hasReviews = stats.count > 0;
-  const [taylor, lanie] = company.owners;
-  // P1 FIX: Use pre-validated resolvedMedia from brand function (passed public media gate)
-  // This prevents bypassing the public media gate by calling getMediaById directly
-  const ownerMedia = ownerBrand?.resolvedMedia || null;
-  
-  // Use responsive variants if available to select best quality
-  const ownerResponsiveVariants = ownerMedia?.variants?.responsive;
-  const hasOwnerResponsiveVariants = ownerResponsiveVariants && ownerResponsiveVariants.length > 0;
-  const ownerSrc = ownerMedia 
-    ? (hasOwnerResponsiveVariants 
-        ? ownerResponsiveVariants[ownerResponsiveVariants.length - 1].webp 
-        : (ownerMedia.variants?.web || ownerMedia.variants?.original || undefined))
-    : undefined;
-  // P1 FIX: Use pre-validated resolvedMedia from brand function (passed public media gate)
-  // This prevents bypassing the public media gate by calling getMediaById directly
-  const heroMedia = homepageHero?.resolvedMedia || null;
-  
-  // Use responsive variants if available to select best quality
-  const heroResponsiveVariants = heroMedia?.variants?.responsive;
-  const hasHeroResponsiveVariants = heroResponsiveVariants && heroResponsiveVariants.length > 0;
-  const heroSrc = heroMedia 
-    ? (hasHeroResponsiveVariants 
-        ? heroResponsiveVariants[heroResponsiveVariants.length - 1].webp 
-        : (heroMedia.variants?.web || heroMedia.variants?.original))
-    : null; // P1 FIX: No legacy /images/ fallback - fail closed
-  
-  // Get exterior painting project for featured transformation (has before/after media)
-  const paintingProject = featuredProjectsWithMedia.find(p => p.id === 'exterior-painting-001');
-  return (
-    <>
-      {/* HERO — full-width photograph with text overlay */}
-      <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
-        <WorkshopAtmosphere particleCount={20} />
-        <VisualSlot
-          id="hero-background"
-          route="/"
-          page="Homepage"
-          section="Hero"
-          slotName="Hero Background"
-          currentMediaId={homepageHero?.mediaId || null}
-          component="HomepageHero"
-          className="absolute inset-0 z-0"
-        >
-          {heroMedia && heroSrc ? (
-            <Image
-              src={heroSrc}
-              alt={heroMedia.alt || "Happy Place Carpentry - Professional carpentry services"}
-              fill
-              priority
-              sizes="100vw"
-              placeholder={heroMedia.variants?.blur ? 'blur' : 'empty'}
-              blurDataURL={heroMedia.variants?.blur}
-              className="object-cover"
-              style={{ filter: "brightness(0.7)" }}
-            />
-          ) : null}
-        </VisualSlot>
-        <div className="absolute inset-0 z-[1] bg-gradient-to-b from-black/40 via-black/20 to-black/60 pointer-events-none" aria-hidden="true" />
-
-        <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20 pointer-events-none">
-          <div className="max-w-3xl pointer-events-auto">
-            <p className="font-signature text-xl sm:text-2xl text-text-on-dark tracking-wide">
-              <HappyBrandSignature /> Place Carpentry</p>
-            <h1 className="mt-4 sm:mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-text-on-dark" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>
-              <TextCopy textKey="homepage.hero.title" />
-            </h1>
-            <p className="measure mt-5 sm:mt-7 max-w-xl text-base sm:text-lg text-text-on-dark/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
-              <TextCopy textKey="homepage.hero.description" /></p>
-            <div className="mt-6 sm:mt-8 flex flex-wrap gap-3">
-              <Link href="/contact" className="cta-signature inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold">
-                <TextCopy textKey="homepage.hero.primaryAction" />
-              </Link>
-              <Link
-                href="/our-work"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-text-on-dark/20 bg-text-on-dark/6 px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold text-text-on-dark transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-text-on-dark/12 hover:border-text-on-dark/30"
-              >
-                <TextCopy textKey="homepage.hero.secondaryAction" />
-              </Link>
-            </div>
-            <div className="mt-6 sm:mt-9 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-text-on-dark/90">
-              {hasReviews && (
-                <span className="inline-flex items-center gap-2">
-                  <StarRating rating={5} />
-                  {stats.average} / 5 · {company.proof.projectsCompleted} projects
-                </span>
-              )}
-              {!hasReviews && (
-                <span className="inline-flex items-center gap-2">
-                  {company.proof.projectsCompleted} projects completed
-                </span>
-              )}
-              <span className="text-text-on-dark/35">·</span>
-              <span className="hidden sm:inline">{company.ccbNumber} · Licensed · Insured</span>
-              <span className="sm:hidden">{company.ccbNumber}</span>
-              <span className="text-text-on-dark/35">·</span>
-              <span className="hidden sm:inline">{company.proof.serviceCounties.join(" · ")}</span>
-              <span className="sm:hidden">{company.proof.serviceCounties[0]}</span>
-            </div>
-            <span className="mt-5 sm:mt-7 block font-signature text-2xl sm:text-3xl text-honey"><TextCopy textKey="home.copy.2" /></span>
-          </div>
-        </Container>
-      </section>
-
-      <div className="h-2 bg-gradient-to-r from-deep via-primary to-deep/60" aria-hidden="true" />
-
-      {/* TRUST STRIP — quiet, confident proof (woven, not a banner) */}
-      <ScrollReveal>
-        <section className="relative border-y border-border-soft" style={{ backgroundColor: 'var(--color-happy-light)' }}>
-          <Container className="relative z-10 grid grid-cols-2 gap-x-4 gap-y-5 py-8 sm:gap-x-6 sm:gap-y-6 sm:py-10 text-center sm:grid-cols-4">
-            {[
-              ["Oregon CCB #254240", "Licensed, Bonded & Insured", false],
-              ["Family-Owned", "Local Craftsmanship", false],
-              ["Mid-Willamette Valley", "Service Area", false],
-              [company.proof.projectsCompleted, "Projects Completed", true],
-            ].map(([stat, label, isNumber]) => (
-              <div key={label as string} className="relative">
-                <p className="font-display text-xl sm:text-2xl lg:text-3xl font-bold text-primary">
-                  {stat}
-                </p>
-                <p className="mt-1 text-xs sm:text-sm font-medium uppercase tracking-wide text-primary">{label}</p>
-              </div>
-            ))}
-          </Container>
-        </section>
-      </ScrollReveal>
-
-      {/* SERVICES — image-dominant cards, less chrome (Directive 034) */}
-      <ScrollReveal>
-        <Section className="relative bg-[#F6F4F0] pt-8 sm:pt-10 pb-8 sm:pb-10 section-diagonal-top">
-          <BlueprintGrid gridSize={20} lineColor="rgba(22, 43, 41, 0.04)" />
-          <div className="absolute inset-0 bg-gradient-to-b from-[#F6F4F0] via-[#F3F0E9] to-[#F0ECE4] opacity-100" aria-hidden="true" />
-          <Container className="relative z-10">
-            <SectionHeading
-              eyebrow={<span className="eyebrow-mark"><ToolMark /><TextCopy textKey="home.copy.3" /></span>}
-              title={<span className="text-primary"><TextCopy textKey="homepage.services.title" /></span>}
-              description={<TextCopy textKey="homepage.services.description" />}
-              descriptionColor="text-primary"
-            />
-            <div data-service-grid className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 min-[480px]:grid-cols-2 lg:grid-cols-3">
-              {homepageServices.map((s, i) => (
-                <ScrollReveal key={s.id} delay={i * 100}>
-                  <VisualSlot
-                    id={`homepage-service-card-slot-${s.slug}`}
-                    route="/"
-                    page="Homepage"
-                    section="Services"
-                    slotName={`${s.name} Service Card`}
-                    currentMediaId={serviceCardAssignments.get(s.slug)?.mediaId || null}
-                    component="ServiceCard"
-                  >
-                    <ServiceCard service={s} runtimeCardMediaObject={serviceCardAssignments.get(s.slug)?.mediaObject || null} />
-                  </VisualSlot>
-                </ScrollReveal>
-              ))}
-            </div>
-          </Container>
-        </Section>
-      </ScrollReveal>
-
-      <PencilLine className="py-8" />
-
-      {/* FEATURED PROJECTS — bento grid layout */}
-      <ScrollReveal>
-        <Section className="relative bg-[#F5F2ED] py-24 sm:py-32 section-curved-bottom">
-          <BlueprintGrid gridSize={24} lineColor="rgba(217, 154, 78, 0.05)" />
-          <div className="absolute inset-0 bg-gradient-to-br from-[#F5F2ED] via-[#F1EDE6] to-[#EDE9E0] opacity-100" aria-hidden="true" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(255,255,255,0.4),transparent_70%)]" aria-hidden="true" />
-          <div className="absolute inset-0 bg-[radial-gradient(ellipse_60%_40%_at_50%_100%,rgba(217,154,78,0.06),transparent_60%)]" aria-hidden="true" />
-          <Container className="relative z-10">
-            <SectionHeading
-              eyebrow={<TextCopy textKey="home.projects.eyebrow" />}
-              title={<span className="text-primary"><TextCopy textKey="homepage.projects.title" /></span>}
-              description={<TextCopy textKey="homepage.projects.description" />}
-              descriptionColor="text-primary"
-            />
-            <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 auto-rows-[200px]">
-              {featuredProjectsWithMedia.slice(0, 4).map((project, i) => {
-                // P0 FIX: Use pre-validated heroMedia from getProjectWithResolvedMedia (passed public media gate)
-                const heroMedia = project.media.heroMedia;
-                const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original;
-                if (!heroSrc) return null;
-                
-                // Bento grid spans: first item spans 2 cols, 2 rows on desktop
-                const isFeatured = i === 0;
-                
-                return (
-                  <Link 
-                    key={project.id} 
-                    href={`/projects/${project.slug || project.id}`}
-                    className={`group relative overflow-hidden rounded-lg ${isFeatured ? 'sm:col-span-2 sm:row-span-2' : ''}`}
-                  >
-                    <VisualSlot
-                      id={`homepage-featured-project-${project.id}`}
-                      route="/"
-                      page="Homepage"
-                      section="Featured Projects"
-                      slotName={`${project.title} Featured Project`}
-                      currentMediaId={heroMedia?.id || null}
-                      component="ProjectCard"
-                    >
-                      <Image
-                        src={heroSrc}
-                        alt={heroMedia?.alt || project.title}
-                        fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
-                        sizes={isFeatured ? '(min-width: 1280px) 600px, (min-width: 1024px) calc((100vw - 80px) / 2), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)' : '(min-width: 1280px) 288px, (min-width: 1024px) calc((100vw - 112px) / 4), (min-width: 640px) calc((100vw - 64px) / 2), calc(100vw - 32px)'}
-                        placeholder={heroMedia?.variants?.blur ? 'blur' : 'empty'}
-                        blurDataURL={heroMedia?.variants?.blur}
-                      />
-                    </VisualSlot>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
-                      <span className="inline-block px-2 py-1 mb-2 text-xs font-semibold bg-honey/90 text-white rounded">
-                        {project.location.county || 'Willamette Valley'}
-                      </span>
-                      <h3 className="text-white font-bold text-lg sm:text-xl"><ContentCopy collection="projects" id={project.id} field="title" value={project.title} route={`/projects/${project.slug}`} /></h3>
-                      <p className="text-white/80 text-sm mt-1 line-clamp-2">{(project.story?.outcome || project.story?.solution) && <ContentCopy collection="projects" id={project.id} field={project.story?.outcome?'story.outcome':'story.solution'} value={(project.story?.outcome || project.story?.solution)!} route={`/projects/${project.slug}`} />}</p>
-                    </div>
-                  </Link>
-                );
-              })}
-            </div>
-            <div className="mt-8">
-              <RouterLink href="/our-work"><TextCopy textKey="home.copy.4" /></RouterLink>
-            </div>
-          </Container>
-        </Section>
-      </ScrollReveal>
-
-      {/* THE FAMILY — philosophy first, then people, then portrait (Act II) */}
-      <ScrollReveal>
-        <Section className="relative bg-[#F3EFE8]">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#F3EFE8] via-[#F0ECE5] to-[#ECE8E0] opacity-100" aria-hidden="true" />
-          <Container className="relative z-10 grid items-center gap-12 lg:grid-cols-2">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-wide text-accent"><TextCopy textKey="homepage.family.eyebrow" /></p>
-              <h2 className="mt-3 font-display text-4xl font-bold leading-tight text-primary sm:text-5xl">
-                <TextCopy textKey="homepage.family.title" />
-              </h2>
-              <div className="measure mt-7 space-y-5 text-primary">
-                <p className="text-lg leading-relaxed">
-                  <TextCopy textKey="homepage.family.introduction" /></p>
-                <p>
-                  <span className="font-semibold text-primary">{taylor.name}</span><TextCopy textKey="homepage.family.taylor" />
-                </p>
-                <p>
-                  <span className="font-semibold text-primary">{lanie.name}</span><TextCopy textKey="homepage.family.lanie" />
-                </p>
-              </div>
-            </div>
-            <div className="relative aspect-[4/3] overflow-hidden rounded-card photo-mounted">
-              {ownerSrc && (
-                <VisualSlot
-                  id="homepage-owner-portrait-slot"
-                  route="/"
-                  page="Homepage"
-                  section="The Family"
-                  slotName="Owner Portrait"
-                  currentMediaId={ownerBrand?.mediaId || null}
-                  component="HeroSection"
-                >
-                  <Image src={ownerSrc} alt="Portrait of Taylor and Lanie, the owners of Happy Place Carpentry, standing together in front of a completed carpentry project" fill sizes="(max-width: 1024px) 100vw, 50vw" className="h-full w-full object-cover photo-breathe" />
-                </VisualSlot>
-              )}
-              <CedarCorner className="absolute -left-2 -top-2 h-8 w-8 text-honey" />
-            </div>
-          </Container>
-        </Section>
-      </ScrollReveal>
-
-      <PencilLine className="py-8" />
-
-      {/* CRAFT RULE separator before reviews */}
-      <div className="py-4 sm:py-6">
-        <div className="craft-rule"><span /></div>
+  const heroMedia = hero?.resolvedMedia;
+  const heroSrc = heroMedia?.variants.web || heroMedia?.variants.original;
+  const ownerMedia = owner?.resolvedMedia;
+  const ownerSrc = ownerMedia?.variants.web || ownerMedia?.variants.original;
+  const stories = projects.filter(project => project.media.heroMedia).slice(0, 3);
+  return <div className="craft-page">
+    <section className="craft-home-hero bg-[#EDEAE0] text-[#1F3F3C]" aria-labelledby="home-title">
+      <div className="craft-home-hero__copy">
+        <span className="craft-eyebrow mb-7">Happy Place Carpentry · Oregon</span>
+        <h1 id="home-title" className="craft-display max-w-[12ch]"><TextCopy textKey="homepage.hero.title" /></h1>
+        <p className="mt-7 max-w-md text-sm leading-[1.85] text-[#344d47] sm:text-base"><TextCopy textKey="homepage.hero.description" /></p>
+        <div className="mt-9 flex flex-wrap gap-3">
+          <Link href="/estimate" className="craft-button"><TextCopy textKey="homepage.hero.primaryAction" /><ArrowUpRight size={17} aria-hidden="true" /></Link>
+          <Link href="/our-work" className="craft-button craft-button--outline"><TextCopy textKey="homepage.hero.secondaryAction" /></Link>
+        </div>
+        <a href="#selected-work" className="craft-link mt-10 self-start text-xs"><ArrowDown size={14} aria-hidden="true" /> A closer look at the work</a>
       </div>
-
-      {/* REVIEWS */}
-      <ScrollReveal>
-        <Section className="relative bg-[#F2EFE8]">
-          <div className="absolute inset-0 bg-gradient-to-b from-[#F2EFE8] via-[#EFECE5] to-[#ECE9E2] opacity-100" aria-hidden="true" />
-          <Container className="relative z-10">
-            <SectionHeading eyebrow={<TextCopy textKey="home.reviews.eyebrow" />} title={<span className="text-primary"><TextCopy textKey="homepage.reviews.title" /></span>} align="center" description={hasReviews ? <TextCopy textKey="home.reviews.descriptionWithReviews" /> : <TextCopy textKey="home.reviews.descriptionWithoutReviews" />} descriptionColor="text-primary" />
-            {hasReviews ? (
-              <>
-                <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
-                  {topReviews.map((r, i) => (
-                    <ScrollReveal key={r.id} delay={i * 100}>
-                      <Card className="p-5 sm:p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
-                        <StarRating rating={r.rating} />
-                        {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
-                        <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>
-                        <figcaption className="mt-3 sm:mt-4 text-xs sm:text-sm text-text-muted">{r.reviewer.name} · {r.location ? `${r.location.city}, ${r.location.county}` : 'Willamette Valley'}</figcaption>
-                      </Card>
-                    </ScrollReveal>
-                  ))}
-                </div>
-                <div className="mt-6 sm:mt-8 text-center">
-                  <RouterLink href="/reviews"><TextCopy textKey="home.copy.5" /></RouterLink>
-                </div>
-              </>
-            ) : (
-              <div className="mt-8 sm:mt-10 rounded-lg bg-surface-muted p-6 sm:p-8 text-center">
-                <p className="text-sm sm:text-base text-text-muted">
-                  <TextCopy textKey="homepage.reviews.empty" />
-                </p>
-              </div>
-            )}
-          </Container>
-        </Section>
-      </ScrollReveal>
-
-      {/* NEWSLETTER SIGNUP — positioned 2/3 down after visitors see who we are, projects, testimonials, services */}
-      <ScrollReveal>
-        <Section className="relative bg-[#F1EDE6]">
-          <div className="absolute inset-0 bg-gradient-to-br from-[#F1EDE6] via-[#EDE9E0] to-[#E9E5DC] opacity-100" aria-hidden="true" />
-          <Container className="relative z-10 max-w-2xl">
-            <VisualSlot
-              id="homepage-newsletter-slot"
-              route="/"
-              page="Homepage"
-              section="Newsletter"
-              slotName="Newsletter Section"
-              currentMediaId={null}
-              component="NewsletterSection"
-            >
-              <NewsletterSignup />
-            </VisualSlot>
-          </Container>
-        </Section>
-      </ScrollReveal>
-
-      <ScrollReveal>
-        <VisualSlot
-          id="homepage-cta-slot"
-          route="/"
-          page="Homepage"
-          section="CTA"
-          slotName="CTA Section"
-          currentMediaId={null}
-          component="CTASection"
-        >
-          <CTASection />
+      <div className="craft-home-hero__image">
+        <VisualSlot id="hero-background" route="/" page="Homepage" section="Hero" slotName="Hero Background" currentMediaId={hero?.mediaId || null} component="HomepageHero">
+          {heroMedia && heroSrc && <Image src={heroSrc} alt={heroSrc === '/images/hero-background-enhanced.jpg' ? 'Measuring a timber board on work supports beside a fence' : heroMedia.alt || 'Happy Place Carpentry at work'} fill priority sizes="(min-width: 901px) 56vw, 100vw" className="object-cover object-center" placeholder={heroMedia.variants.blur ? 'blur' : 'empty'} blurDataURL={heroMedia.variants.blur} />}
         </VisualSlot>
-      </ScrollReveal>
-    </>
-  );
+        <span className="absolute bottom-5 left-5 right-5 flex justify-between border-t border-white/50 pt-3 text-[10px] font-semibold uppercase tracking-[.16em] text-white drop-shadow-md"><span>The work, up close</span><span>Happy Place Carpentry</span></span>
+      </div>
+    </section>
+
+    <div className="border-b border-border-soft">
+      <div className="craft-shell flex flex-wrap items-center justify-between gap-4 py-5 text-[10px] font-semibold uppercase tracking-[.14em] text-primary sm:text-xs">
+        <span>Repair · Restore · Improve</span><span>{company.serviceArea}</span><Link href="/newsletter" className="inline-flex min-h-11 items-center gap-2">Ideas for your happy place <ArrowUpRight size={14} aria-hidden="true" /></Link>
+      </div>
+    </div>
+
+    <section id="selected-work" className="craft-section scroll-mt-24">
+      <div className="craft-shell">
+        <ScrollReveal><div className="mb-10 flex flex-wrap items-end justify-between gap-6"><div><span className="craft-eyebrow text-primary"><TextCopy textKey="home.projects.eyebrow" /></span><h2 className="craft-title mt-4 text-primary"><TextCopy textKey="homepage.projects.title" /></h2></div><Link href="/our-work" className="craft-link">Explore the portfolio <ArrowUpRight size={16} aria-hidden="true" /></Link></div></ScrollReveal>
+        <div className="grid gap-x-8 gap-y-12 lg:grid-cols-12">
+          {stories.map((project, index) => {
+            const media = project.media.heroMedia!;
+            const src = media.variants.web || media.variants.original;
+            if (!src) return null;
+            const href = '/projects/' + (project.slug || project.id);
+            return <ScrollReveal key={project.id} className={index === 0 ? 'lg:col-span-7' : index === 1 ? 'lg:col-span-5 lg:pt-24' : 'lg:col-span-7 lg:col-start-3'}>
+              <Link href={href} className="group block">
+                <div className={'craft-photo ' + (index === 1 ? 'aspect-[4/5]' : 'aspect-[4/3]')}>
+                  <VisualSlot id={'homepage-featured-project-' + project.id} route="/" page="Homepage" section="Featured Projects" slotName={project.title + ' Featured Project'} currentMediaId={media.id} component="ProjectCard" className="absolute inset-0">
+                    <Image src={src} alt={media.alt || project.title} fill sizes="(min-width: 1024px) 58vw, 100vw" className="object-cover" placeholder={media.variants.blur ? 'blur' : 'empty'} blurDataURL={media.variants.blur} />
+                  </VisualSlot>
+                </div>
+                <div className="mt-5 flex items-start justify-between gap-5"><div><p className="craft-eyebrow text-text-subtle">{project.location.city || project.location.county}</p><h3 className="mt-2 font-display text-2xl leading-tight text-primary sm:text-3xl"><ContentCopy collection="projects" id={project.id} field="title" value={project.title} route={href} /></h3></div><ArrowUpRight size={24} className="mt-3 shrink-0 text-primary transition-transform group-hover:-translate-y-1 group-hover:translate-x-1" aria-hidden="true" /></div>
+                {project.story?.outcome && <p className="craft-copy mt-3 text-sm"><ContentCopy collection="projects" id={project.id} field="story.outcome" value={project.story.outcome} route={href} /></p>}
+              </Link>
+            </ScrollReveal>;
+          })}
+        </div>
+      </div>
+    </section>
+
+    <section className="craft-section bg-[#EDEAE0] text-[#1F3F3C]">
+      <div className="craft-shell grid gap-12 lg:grid-cols-[.85fr_1.15fr] lg:gap-20">
+        <ScrollReveal><span className="craft-eyebrow"><TextCopy textKey="home.copy.3" /></span><h2 className="craft-title mt-5"><TextCopy textKey="homepage.services.title" /></h2><p className="mt-6 max-w-sm leading-relaxed"><TextCopy textKey="homepage.services.description" /></p><Link href="/services" className="craft-link mt-7">All services <ArrowUpRight size={16} aria-hidden="true" /></Link></ScrollReveal>
+        <div data-service-grid>
+          {services.map((service, index) => {
+            const assignment = serviceMedia.get(service.slug);
+            const media = assignment?.mediaObject;
+            const src = media?.variants.web || media?.variants.original;
+            return <div key={service.id} className="craft-service-row">
+              <span className="self-start pt-2 font-mono text-[11px] opacity-60">{String(index + 1).padStart(2, '0')}</span>
+              <div><Link href={'/services/' + service.slug} className="craft-service-name"><ContentCopy collection="services" id={service.id} field="name" value={service.name} route={'/services/' + service.slug} /></Link><div className="mt-2 max-w-sm text-sm leading-relaxed opacity-80"><ContentCopy collection="services" id={service.id} field="description" value={service.description} route={'/services/' + service.slug} /></div></div>
+              <VisualSlot id={'homepage-service-card-slot-' + service.slug} route="/" page="Homepage" section="Services" slotName={service.name + ' Service Card'} currentMediaId={assignment?.mediaId || null} component="ServiceCard" className="relative hidden h-20 w-24 sm:block">
+                {media && src && <Image src={src} alt={media.alt || service.name} fill sizes="96px" className="object-cover" />}
+              </VisualSlot>
+            </div>;
+          })}
+        </div>
+      </div>
+    </section>
+
+    <section className="craft-section">
+      <div className="craft-shell grid items-center gap-10 lg:grid-cols-2 lg:gap-24">
+        <div className="craft-photo aspect-[4/5] max-h-[660px]">
+          <VisualSlot id="homepage-owner-portrait-slot" route="/" page="Homepage" section="The Family" slotName="Owner Portrait" currentMediaId={owner?.mediaId || null} component="HeroSection" className="absolute inset-0">
+            {ownerMedia && ownerSrc && <Image src={ownerSrc} alt={ownerMedia.alt || 'Taylor and Lanie of Happy Place Carpentry'} fill sizes="(min-width: 1024px) 50vw, 100vw" className="object-cover" />}
+          </VisualSlot>
+        </div>
+        <ScrollReveal><span className="craft-eyebrow text-primary">Meet Taylor &amp; Lanie</span><h2 className="craft-title mt-5 text-primary"><TextCopy textKey="homepage.family.title" /></h2><p className="craft-copy mt-7"><TextCopy textKey="homepage.family.introduction" /></p><p className="craft-copy mt-5">{company.owners[0]?.name}<TextCopy textKey="homepage.family.taylor" /></p><p className="craft-copy mt-5">{company.owners[1]?.name}<TextCopy textKey="homepage.family.lanie" /></p><Link href="/about" className="craft-link mt-7 text-primary">The people behind the work <ArrowUpRight size={16} aria-hidden="true" /></Link></ScrollReveal>
+      </div>
+    </section>
+
+    {reviews.length > 0 && <section className="craft-section border-y border-border-soft"><div className="craft-shell"><span className="craft-eyebrow text-primary">From our customers</span><h2 className="craft-title mt-4 max-w-3xl text-primary"><TextCopy textKey="homepage.reviews.title" /></h2><div className="mt-12 grid gap-10 md:grid-cols-3">{reviews.slice(0, 3).map(review => <figure key={review.id}><StarRating rating={review.rating} /><blockquote className="mt-5 font-display text-2xl leading-relaxed">“{review.body}”</blockquote><figcaption className="mt-6 text-xs">{review.reviewer.name}{review.location?.city ? ' · ' + review.location.city : ''}</figcaption></figure>)}</div></div></section>}
+
+    <section className="craft-section bg-[#1F3F3C] text-[#FFF8EC]">
+      <div className="craft-shell grid gap-12 lg:grid-cols-2 lg:gap-24">
+        <div><span className="craft-eyebrow text-[#E3B77C]">A project in mind?</span><h2 className="craft-title mt-5">Let’s make room for your next idea.</h2><p className="mt-6 max-w-md text-sm leading-relaxed text-[#FFF8EC]/80">Tell us what you have in mind. Prepare an email with your project details, or get in touch directly.</p><VisualSlot id="homepage-cta-slot" route="/" page="Homepage" section="CTA" slotName="CTA Section" currentMediaId={null} component="CTASection"><Link href="/estimate" className="craft-button craft-button--gold mt-8">Start your project <ArrowUpRight size={16} aria-hidden="true" /></Link></VisualSlot><Link href="/contact" className="craft-link ml-5 mt-4">Call or email</Link></div>
+        <div className="border-t border-[#FFF8EC]/25 pt-10 lg:border-l lg:border-t-0 lg:pl-12 lg:pt-0"><VisualSlot id="homepage-newsletter-slot" route="/" page="Homepage" section="Newsletter" slotName="Newsletter Section" currentMediaId={null} component="NewsletterSection"><NewsletterSignup source="homepage" variant="inline" /></VisualSlot></div>
+      </div>
+    </section>
+  </div>;
 }

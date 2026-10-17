@@ -1,82 +1,25 @@
+import Link from 'next/link';
+import Image from 'next/image';
+import { ArrowUpRight, Mail, Phone } from 'lucide-react';
 import { TextCopy } from '@/components/text-copy';
 import { navigationTextKey } from '@/lib/editable-shared-fields';
-import Link from "next/link";
-import Image from "next/image";
-import { MapPin, Phone, Mail } from "lucide-react";
-import { getCompany } from "@/lib/company";
-import { getNavigation } from "@/lib/navigation";
-import { getAllServices } from "@/lib/registries";
-import { PhoneLink, EmailLink } from "@/components/tracked-contact";
-import { HappyBrandSignature } from "@/components/happy-brand-signature";
-import { ScrollReveal } from "@/components/scroll-reveal";
+import { getCompany } from '@/lib/company';
+import { getNavigation } from '@/lib/navigation';
+import { getNonArchivedServices } from '@/lib/registries';
+import { PhoneLink, EmailLink } from '@/components/tracked-contact';
 
 export function SiteFooter() {
   const company = getCompany();
-  const navigation = getNavigation();
-  return (
-    <footer className="border-t border-border/60 bg-deep text-text-on-dark">
-      <div className="mx-auto grid max-w-6xl gap-10 px-4 py-12 sm:px-6 lg:grid-cols-4 lg:px-8">
-        <div>
-          <Link href="/" className="flex items-center gap-2.5 font-bold text-text-on-dark">
-            <span className="relative block h-8 w-auto">
-              <Image src="/brand/logo.png" alt="Happy Place Carpentry logo" width={96} height={32} className="h-full w-auto" />
-            </span>
-            <span className="text-lg"><HappyBrandSignature /> Place</span>
-          </Link>
-          <p className="mt-3 text-sm text-text-on-dark">{company.description}</p>
-          <ScrollReveal>
-            <p className="mt-3 text-sm font-semibold text-honey ccb-shimmer">{company.ccbNumber}</p>
-          </ScrollReveal>
-          <p className="mt-1 text-xs text-text-on-dark">
-            {company.proof.insured ? "Licensed · Insured" : "Licensed"} · {company.proof.yearsInBusiness} · {company.proof.projectsCompleted} projects
-          </p>
-        </div>
-
-        <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark"><TextCopy textKey="footer.explore" /></h3>
-          <ul className="mt-3 space-y-2 text-sm">
-            {navigation.filter((n) => !n.secondary).map((n) => (
-              <li key={n.href}>
-                <Link href={n.href} className="text-text-on-dark hover:text-honey">{navigationTextKey(n.href) ? <TextCopy textKey={navigationTextKey(n.href)!} /> : n.label}</Link>
-              </li>
-            ))}
-            <li>
-              <Link href="/review" className="text-honey hover:text-honey/80 font-semibold"><TextCopy textKey="footer.reviewAction" /></Link>
-            </li>
-          </ul>
-        </div>
-
-        <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark"><TextCopy textKey="footer.areaTitle" /></h3>
-          <p className="mt-3 text-sm text-text-on-dark"><TextCopy textKey="company.serviceArea" /></p>
-          <Link href="/services" className="mt-3 inline-flex min-h-11 items-center text-sm text-honey hover:text-honey/80"><TextCopy textKey="footer.servicesAction" /></Link>
-        </div>
-
-        <div>
-          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-on-dark"><TextCopy textKey="footer.contactTitle" /></h3>
-          <ul className="mt-3 space-y-3 text-sm">
-            <li className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-honey" aria-hidden="true" />
-              {company.address.city}, {company.address.region}
-            </li>
-            <li>
-              <PhoneLink phone={company.phone} className="flex min-h-11 items-center gap-2 text-text-on-dark hover:text-honey">
-                <Phone className="h-4 w-4 text-honey" aria-hidden="true" /> {company.phoneDisplay}
-              </PhoneLink>
-            </li>
-            <li>
-              <EmailLink email={company.email} className="flex min-h-11 items-center gap-2 text-text-on-dark hover:text-honey">
-                <Mail className="h-4 w-4 shrink-0 text-honey" aria-hidden="true" /> <span className="break-all">{company.email}</span>
-              </EmailLink>
-            </li>
-            <li className="text-text-on-dark"><TextCopy textKey="company.businessHours" /></li>
-          </ul>
-        </div>
-      </div>
-
-      <div className="border-t border-text-on-dark/8 py-6 text-center text-xs text-text-on-dark">
-        © {new Date().getFullYear()} {company.legalName}. <TextCopy textKey="footer.tagline" />
-      </div>
-    </footer>
-  );
+  return <footer className="bg-[#162B29] text-[#FFF8EC]">
+    <div className="craft-shell border-b border-white/20 py-12 sm:py-16">
+      <div className="flex flex-wrap items-end justify-between gap-8"><div><span className="craft-eyebrow text-[#E3B77C]">Happy Place Carpentry</span><p className="mt-4 font-display text-4xl tracking-[-.03em] sm:text-6xl">Make yourself at home.</p></div><Link href="/estimate" className="craft-link text-[#FFF8EC]">Let’s talk about your project <ArrowUpRight size={19} aria-hidden="true" /></Link></div>
+    </div>
+    <div className="craft-shell grid gap-10 py-12 sm:grid-cols-2 lg:grid-cols-4">
+      <div><Link href="/" aria-label={company.name + ' home'}><Image src="/brand/logo.png" alt={company.name} width={110} height={45} className="h-auto w-24" /></Link><p className="mt-5 max-w-60 text-sm leading-relaxed text-white/75"><TextCopy textKey="company.serviceArea" /></p><p className="mt-5 text-xs text-[#E3B77C]">{company.ccbNumber}</p></div>
+      <div><h2 className="craft-eyebrow"><TextCopy textKey="footer.explore" /></h2><ul className="mt-4 space-y-1 text-sm">{getNavigation().filter(item => !item.secondary).map(item => <li key={item.href}><Link className="inline-flex min-h-11 items-center hover:text-[#E3B77C]" href={item.href}>{navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : item.label}</Link></li>)}<li><Link href="/resources" className="inline-flex min-h-11 items-center hover:text-[#E3B77C]">Ideas &amp; advice</Link></li></ul></div>
+      <div><h2 className="craft-eyebrow">Find your kind of work</h2><ul className="mt-4 space-y-1 text-sm">{getNonArchivedServices().map(service => <li key={service.id}><Link href={'/services/' + service.slug} className="inline-flex min-h-11 items-center hover:text-[#E3B77C]">{service.name}</Link></li>)}</ul></div>
+      <div><h2 className="craft-eyebrow"><TextCopy textKey="footer.contactTitle" /></h2><PhoneLink phone={company.phone} className="mt-4 flex min-h-11 items-center gap-2 text-sm hover:text-[#E3B77C]"><Phone size={14} aria-hidden="true" />{company.phoneDisplay}</PhoneLink><EmailLink email={company.email} className="flex min-h-11 items-center gap-2 text-sm hover:text-[#E3B77C]"><Mail size={14} className="shrink-0" aria-hidden="true" /><span className="break-all">{company.email}</span></EmailLink><p className="mt-3 text-xs leading-relaxed text-white/75"><TextCopy textKey="company.businessHours" /></p><Link href="/newsletter?source=footer" className="craft-link mt-5 text-[#E3B77C]">Join the email list <ArrowUpRight size={14} aria-hidden="true" /></Link></div>
+    </div>
+    <div className="border-t border-white/20"><div className="craft-shell flex flex-wrap items-center justify-between gap-4 py-6 text-[11px] text-white/65"><span>© {new Date().getFullYear()} {company.legalName}</span><div className="flex gap-6"><Link className="inline-flex min-h-11 items-center hover:text-white" href="/privacy">Privacy</Link><Link className="inline-flex min-h-11 items-center hover:text-white" href="/contact">Contact</Link></div></div></div>
+  </footer>;
 }

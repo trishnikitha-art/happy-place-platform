@@ -1,95 +1,61 @@
 "use client";
 
-import type { Media } from "@/types/media";
-import { useState } from "react";
-import { ProjectLightbox } from "@/components/project-lightbox";
-import Image from "next/image";
-
-/**
- * ProjectPhotos - Reusable component for displaying project photos with lightbox
- * 
- * This component receives pre-loaded photo data to ensure server-side rendering.
- * The parent component is responsible for loading the data from the authority.
- * 
- * Vertical slice validation:
- * projects.v1.json ΓåÆ gallery array ΓåÆ getMediaById() ΓåÆ ProjectPhotos ΓåÆ img
- * 
- * Now includes premium lightbox for full-screen image viewing.
- */
+import type { Media } from '@/types/media';
+import { useState } from 'react';
+import { Expand } from 'lucide-react';
+import Image from 'next/image';
+import { ProjectLightbox } from '@/components/project-lightbox';
+import { VisualSlot } from '@/components/visual-slot';
 
 type ProjectPhotosProps = {
   photos: Media[];
   limit?: number;
+  project?: { id: string; title: string; slug?: string };
 };
 
-export function ProjectPhotos({ photos, limit }: ProjectPhotosProps) {
+/** The server supplies gated media in canonical gallery order. No client lookup or fallback. */
+export function ProjectPhotos({ photos, limit, project }: ProjectPhotosProps) {
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(0);
-
-  const displayPhotos = limit ? photos.slice(0, limit) : photos;
-
-  // Filter photos with valid src and prepare lightbox images
-  const validPhotos = displayPhotos.filter(photo => 
-    photo.variants.web || photo.variants.original || photo.variants.thumbnail
-  );
-  
-  const lightboxImages = validPhotos.map(m => ({
-    src: m.variants.web || m.variants.original || m.variants.thumbnail!,
-    alt: m.alt,
-    blurDataURL: m.variants?.blur
+  const validPhotos = (limit ? photos.slice(0, limit) : photos)
+    .map((photo, sourceIndex) => ({ photo, sourceIndex }))
+    .filter(({ photo }) => photo.variants.web || photo.variants.original || photo.variants.thumbnail);
+  const lightboxImages = validPhotos.map(({ photo }) => ({
+    src: photo.variants.responsive?.at(-1)?.webp || photo.variants.web || photo.variants.original || photo.variants.thumbnail!,
+    alt: photo.alt,
+    blurDataURL: photo.variants.blur,
   }));
 
-  if (validPhotos.length === 0) {
-    return (
-      <div className="rounded-lg bg-surface-muted p-8 text-center">
-        <p className="text-text-on-dark">Project photos coming soon</p>
-      </div>
-    );
-  }
+  if (!validPhotos.length) return null;
 
-  return (
-    <>
-      <div className="grid grid-cols-2 gap-4">
-        {validPhotos.map((photo, index) => {
-          const src = photo.variants.web || photo.variants.original || photo.variants.thumbnail;
-          if (!src) return null;
-
-          return (
-            <button
-              key={photo.id}
-              className="relative w-full group cursor-pointer"
-              style={{ aspectRatio: '4/3' }}
-              onClick={() => {
-                setLightboxIndex(index);
-                setLightboxOpen(true);
-              }}
-              aria-label={`View ${photo.alt} in full screen`}
-            >
-              <div className="relative h-full w-full overflow-hidden rounded-lg">
-                <Image
-                  src={src}
-                  alt={photo.alt}
-                  fill
-                  sizes="(min-width: 1280px) 600px, (min-width: 640px) calc((100vw - 64px) / 2), calc((100vw - 48px) / 2)"
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  loading="lazy"
-                  placeholder={photo.variants?.blur ? "blur" : "empty"}
-                  blurDataURL={photo.variants?.blur}
-                />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-200" />
-              </div>
+  return <>
+    <div className="grid items-start gap-x-6 gap-y-8 md:grid-cols-2 lg:gap-x-9 lg:gap-y-12">
+      {validPhotos.map(({ photo, sourceIndex }, index) => {
+        const src = photo.variants.web || photo.variants.original || photo.variants.thumbnail!;
+        const wideOpening = index === 0 && photo.dimensions.width > photo.dimensions.height;
+        const image = <Image
+          src={src} alt={photo.alt} width={photo.dimensions.width} height={photo.dimensions.height}
+          sizes={wideOpening ? '(min-width: 1440px) 1320px, 100vw' : '(min-width: 1440px) 645px, (min-width: 768px) 50vw, 100vw'}
+          className="h-auto w-full transition-opacity duration-200 group-hover:opacity-95 motion-reduce:transition-none"
+          loading="lazy" placeholder={photo.variants.blur ? 'blur' : 'empty'} blurDataURL={photo.variants.blur} />;
+        return <figure key={photo.id} className={wideOpening ? 'md:col-span-2' : ''} data-project-id={project?.id} data-media-id={photo.id}>
+          <div className="group relative">
+            {project ? <VisualSlot
+              id={`project-gallery::${project.id}::${sourceIndex}`}
+              route={`/projects/${project.slug || project.id}`} page="ProjectDetail" section="Gallery"
+              slotName={`${project.title} Gallery ${sourceIndex + 1}`} currentMediaId={photo.id} component="ProjectSpotlight"
+            >{image}</VisualSlot> : image}
+            <button type="button"
+              onClick={() => { setLightboxIndex(index); setLightboxOpen(true); }}
+              className="absolute bottom-3 right-3 inline-flex h-11 w-11 items-center justify-center rounded-full bg-[#EDEAE0] text-[#1F3F3C] transition-colors group-hover:bg-[#D99A4E] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#D99A4E]"
+              aria-label={`View photo ${index + 1}: ${photo.alt}`}>
+              <Expand size={17} aria-hidden="true" />
             </button>
-          );
-        })}
-      </div>
-
-      {/* Lightbox */}
-      <ProjectLightbox
-        images={lightboxImages}
-        initialIndex={lightboxIndex}
-        isOpen={lightboxOpen}
-        onClose={() => setLightboxOpen(false)}
-      />
-    </>
-  );
+          </div>
+          <figcaption className="mt-3 flex items-baseline gap-4 text-sm text-current/75"><span className="shrink-0 text-xs tabular-nums opacity-60">{String(index + 1).padStart(2, '0')}</span><span>{photo.alt}</span></figcaption>
+        </figure>;
+      })}
+    </div>
+    <ProjectLightbox images={lightboxImages} initialIndex={lightboxIndex} isOpen={lightboxOpen} onClose={() => setLightboxOpen(false)} />
+  </>;
 }

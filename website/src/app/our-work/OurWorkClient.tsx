@@ -6,14 +6,11 @@ import { ContentCopy } from '@/components/content-copy';
 
 import Link from "next/link";
 import Image from "next/image";
-import { Container, Section, SectionHeading } from "@/components/section";
-import { CTASection } from "@/components/cta-section";
-import { ScrollReveal } from "@/components/scroll-reveal";
+import { Section } from "@/components/section";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
-import { CraftCard } from "@/components/ui/card";
 import { getServiceBySlug } from "@/lib/registries";
 import { ProjectLightbox } from "@/components/project-lightbox";
-import { BlueprintGrid } from "@/components/blueprint-grid";
+import { ArrowDown, ArrowUpRight, SlidersHorizontal } from "lucide-react";
 import { VisualSlot } from "@/components/visual-slot";
 import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -21,6 +18,7 @@ import { useGalleryPointerSort } from "@/components/use-gallery-pointer-sort";
 import type { Project } from "@/types/projects";
 import { dragBridge } from "@/lib/workbench-drag-bridge";
 import { isGalleryOrder, orderResolvedGallery } from "@/lib/workbench-gallery-order";
+import { allPortfolioFilters, filterPortfolio, readPortfolioFilters, type PortfolioFilters } from './portfolio-filters';
 
 interface OurWorkClientProps {
   company: {
@@ -47,10 +45,29 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
   const [galleryNotice, setGalleryNotice] = useState<string | null>(null);
   const statusTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [isWorkbenchMode, setIsWorkbenchMode] = useState(false);
+  const [filters, setFilters] = useState<PortfolioFilters>(allPortfolioFilters);
 
   useEffect(() => {
-    setIsWorkbenchMode(new URLSearchParams(window.location.search).get('workbench') === 'true');
-  }, []);
+    const syncFilters = () => {
+      const editor = new URLSearchParams(window.location.search).get('workbench') === 'true';
+      setIsWorkbenchMode(editor);
+      setFilters(editor ? allPortfolioFilters : readPortfolioFilters(window.location.search, allProjects));
+    };
+    syncFilters();
+    window.addEventListener('popstate', syncFilters);
+    return () => window.removeEventListener('popstate', syncFilters);
+  }, [allProjects]);
+
+  const updateFilters = (next: PortfolioFilters) => {
+    if (isWorkbenchMode) return;
+    setFilters(next);
+    const url = new URL(window.location.href);
+    for (const key of ['service', 'city'] as const) {
+      if (next[key] === 'all') url.searchParams.delete(key);
+      else url.searchParams.set(key, next[key]);
+    }
+    window.history.pushState(window.history.state, '', url);
+  };
 
   const [archiveDraft,setArchiveDraft] = useState<string[] | null>(null);
   const archivePending = useRef(false);
@@ -200,6 +217,18 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
   const entries=allProjects.flatMap(project=>orderResolvedGallery(project.media.galleryMedia || [],galleryDraftOrders[project.id])
     .filter(photo=>!(galleryHiddenIds[project.id] || []).includes(photo.id)).map(photo=>({project,photo,id:archiveKey(project.id,photo.id)})));
   const galleryPhotos=orderResolvedGallery(entries,archiveDraft ?? archiveOrder);
+  const visibleProjects = filterPortfolio(allProjects, isWorkbenchMode ? allPortfolioFilters : filters);
+  const visibleProjectIds = new Set(visibleProjects.map(project => project.id));
+  const visibleGalleryPhotos = galleryPhotos.filter(entry => visibleProjectIds.has(entry.project.id));
+  const serviceOptions = [...new Set(allProjects.map(project => project.service))];
+  const cities = [...new Set(allProjects.map(project => project.location.city).filter(Boolean))];
+  const hasFilters = filters.service !== 'all' || filters.city !== 'all';
+  const comparisonProjects = featuredProjects.filter(project => {
+    const before = project.media.beforeMedia;
+    const after = project.media.afterMedia;
+    return visibleProjectIds.has(project.id) && before && after && before.id !== after.id
+      && before.contentHash !== after.contentHash;
+  });
 
   const openLightbox = (images: Array<{src: string; alt: string; blurDataURL?: string}>, index: number) => {
     if (isDragging || pointerSort.drag) return;
@@ -210,7 +239,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
 
   const viewGalleryPhoto = (projectId: string, mediaId: string) => {
     if (pointerSort.suppressClick(archiveKey(projectId,mediaId))) return;
-    const photos = galleryPhotos.map(({project,photo})=>({projectId:project.id,photo}));
+    const photos = visibleGalleryPhotos.map(({project,photo})=>({projectId:project.id,photo}));
     const images = photos.map(({ photo }) => ({
       src: photo.variants.responsive?.at(-1)?.webp || photo.variants.web || photo.variants.original || photo.variants.thumbnail!,
       alt: photo.alt, blurDataURL: photo.variants.blur,
@@ -221,123 +250,77 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
 
   return (
     <>
-      {/* HERO */}
-      <section className="relative overflow-hidden bg-deep text-text-on-dark">
-        <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(217,154,78,0.18),transparent_55%),radial-gradient(90%_90%_at_10%_110%,rgba(31,63,60,0.6),transparent_60%)]" aria-hidden="true" />
-        <Container className="relative py-24">
-          <p className="text-sm font-semibold uppercase tracking-wide text-honey">
-            {company.proof.projectsCompleted} projects · {company.ccbNumber}
-          </p>
-          <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-tight text-text-on-dark sm:text-6xl"><TextCopy textKey="work.copy.1" /></h1>
-          <p className="mt-5 max-w-xl text-lg text-text-on-dark"><TextCopy textKey="work.copy.2" /></p>
-        </Container>
-      </section>
-
-      {/* FEATURED TRANSFORMATIONS — the emotional open */}
-      <Section className="relative bg-deep">
-        <BlueprintGrid gridSize={24} lineColor="rgba(217, 154, 78, 0.06)" />
-        <Container>
-          <SectionHeading
-            eyebrow={<span className="text-honey"><TextCopy textKey="work.copy.3" /></span>}
-            title={<span className="text-text-on-dark"><TextCopy textKey="work.transformations.title" /></span>}
-            description={<span className="text-text-on-dark/90"><TextCopy textKey="work.transformations.description" /></span>}
-          />
-          <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
-            {featuredProjects.slice(0, 4).map((project, i) => (
-              <ScrollReveal key={project.id} delay={i * 60}>
-                <BeforeAfterSlider project={project} />
-              </ScrollReveal>
-            ))}
+      <header className="bg-[#EDEAE0] text-[#1F3F3C]">
+        <div className="craft-shell pb-8 pt-8 sm:pb-10 sm:pt-12">
+          <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#1F3F3C]/20 pb-5">
+            <p className="craft-eyebrow">Happy Place Carpentry / Willamette Valley</p>
+            <p className="hidden text-xs tracking-wide sm:block">{company.ccbNumber}</p>
           </div>
-        </Container>
-      </Section>
+          <div className="mt-7 grid gap-5 lg:grid-cols-[1.1fr_1fr] lg:items-end lg:gap-20">
+            <h1 className="craft-display"><TextCopy textKey="work.copy.1" /></h1>
+            <div className="max-w-xl">
+              <p className="text-base leading-relaxed text-[#1F3F3C]/80 sm:text-xl"><TextCopy textKey="work.copy.2" /></p>
+              <div className="hidden lg:block"><a href="#project-stories" className="craft-link mt-3 inline-flex min-h-11 items-center gap-3">Explore the projects <ArrowDown size={17} aria-hidden="true" /></a></div>
+            </div>
+          </div>
+        </div>
+      </header>
 
-      {/* RECENT PROJECTS — photo-led project stories */}
-      <Section className="relative bg-deep">
-        <BlueprintGrid gridSize={20} lineColor="rgba(217, 154, 78, 0.04)" />
-        <Container>
-          <SectionHeading
-            eyebrow={<span className="text-honey"><TextCopy textKey="work.copy.4" /></span>}
-            title={<span className="text-text-on-dark"><TextCopy textKey="work.stories.title" /></span>}
-            description={<span className="text-text-on-dark/90"><TextCopy textKey="work.stories.description" /></span>}
-          />
-          <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
-            {allProjects.map((project, i) => {
-              // P0 FIX: Use pre-validated heroMedia from server-side resolution (passed public media gate)
-              // This prevents client-side getMediaById() bypass
-              const heroMedia = project.media.heroMedia;
-              
-              // Use responsive variants if available to select best quality
-              const responsiveVariants = heroMedia?.variants?.responsive;
-              const hasResponsiveVariants = responsiveVariants && responsiveVariants.length > 0;
-              const heroSrc = heroMedia 
-                ? (hasResponsiveVariants 
-                    ? responsiveVariants[responsiveVariants.length - 1].webp 
-                    : (heroMedia.variants?.web || heroMedia.variants?.original))
-                : null;
-              
-              if (!heroSrc) return null;
-              return (
-                <ScrollReveal key={project.id} delay={i * 80}>
-                  <Link
-                    href={`/projects/${project.slug || project.id}`}
-                    className="group block"
-                  >
-                    <div className="relative">
-                      <div className="relative z-10">
-                        <CraftCard className="overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
-                          <div className="relative aspect-[16/9] overflow-hidden">
-                            <VisualSlot
-                              id={`our-work-project-card-${project.id}`}
-                              route="/our-work"
-                              page="OurWork"
-                              section="Recent Projects"
-                              slotName={`${project.title} Project Card`}
-                              currentMediaId={heroMedia?.id || null}
-                              component="ProjectCard"
-                            >
-                              <Image
-                                src={heroSrc}
-                                alt={heroMedia?.alt || project.title}
-                                fill
-                                className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
-                                sizes="(min-width: 1280px) 592px, (min-width: 768px) calc((100vw - 80px) / 2), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)"
-                              />
-                            </VisualSlot>
-                          </div>
-                          <div className="p-6 transition-transform duration-300 group-hover:translate-y-[-4px]">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-xs font-semibold uppercase tracking-wide text-primary">
-                                {(() => {
-                                  const service = getServiceBySlug(project.service);
-                                  return service?.name || project.service;
-                                })()}
-                              </span>
-                              <span className="text-primary/30">·</span>
-                              <span className="text-xs text-text-muted">{project.location.city}</span>
-                            </div>
-                            <h2 className="text-xl font-bold text-text"><ContentCopy collection="projects" id={project.id} field="title" value={project.title} route={`/projects/${project.slug}`} /></h2>
-                            <p className="mt-2 line-clamp-2 text-sm text-text-muted"><ContentCopy collection="projects" id={project.id} field={project.story?.outcome?'story.outcome':project.story?.solution?'story.solution':'title'} value={project.story?.outcome || project.story?.solution || project.title} route={`/projects/${project.slug}`} /></p>
-                          </div>
-                        </CraftCard>
-                      </div>
+      <section id="project-stories" aria-labelledby="project-stories-title" className="scroll-mt-28 bg-[#EDEAE0] pb-16 text-[#1F3F3C] sm:pb-24">
+        <div className="craft-shell">
+          <div className="mb-6 grid items-end gap-3 lg:grid-cols-[1.1fr_1fr] lg:gap-20"><div><p className="craft-eyebrow"><TextCopy textKey="work.copy.4" /></p><h2 id="project-stories-title" className="mt-3 font-display text-2xl leading-tight sm:text-3xl"><TextCopy textKey="work.stories.title" /></h2></div><p className="max-w-xl text-sm leading-relaxed text-[#1F3F3C]/75"><TextCopy textKey="work.stories.description" /></p></div>
+          <div className="border-y border-[#1F3F3C]/20 py-4">
+            <div className="flex flex-wrap items-center justify-between gap-4">
+              <p className="flex items-center gap-3 text-[11px] font-semibold uppercase tracking-[0.15em]"><SlidersHorizontal size={15} aria-hidden="true" /> Explore the work</p>
+              <p role="status" aria-live="polite" aria-atomic="true" className="text-sm">{visibleProjects.length} {visibleProjects.length === 1 ? 'project' : 'projects'}{hasFilters && !isWorkbenchMode ? ' match your selection' : ' in the collection'}</p>
+            </div>
+            <div role="group" aria-label="Filter projects by service" className="mt-3 flex flex-wrap gap-2">
+              <button type="button" disabled={isWorkbenchMode} onClick={() => updateFilters({ ...filters, service: 'all' })} aria-pressed={filters.service === 'all'} className={`min-h-11 rounded-full border px-5 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1F3F3C] disabled:cursor-not-allowed ${filters.service === 'all' ? 'border-[#1F3F3C] bg-[#1F3F3C] text-[#EDEAE0]' : 'border-[#1F3F3C]/25 hover:bg-[#1F3F3C]/5'}`}>All work</button>
+              {serviceOptions.map(service => <button key={service} type="button" disabled={isWorkbenchMode} onClick={() => updateFilters({ ...filters, service })} aria-pressed={filters.service === service} className={`min-h-11 rounded-full border px-5 py-2 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1F3F3C] disabled:cursor-not-allowed ${filters.service === service ? 'border-[#1F3F3C] bg-[#1F3F3C] text-[#EDEAE0]' : 'border-[#1F3F3C]/25 hover:bg-[#1F3F3C]/5'}`}>{getServiceBySlug(service)?.name || service.replaceAll('-', ' ')}</button>)}
+            </div>
+            <div className="mt-3 flex flex-wrap items-center gap-4">
+              {cities.length > 1 && <label className="flex min-h-11 items-center gap-3 text-sm">Location<select aria-label="Filter projects by location" disabled={isWorkbenchMode} value={filters.city} onChange={event => updateFilters({ ...filters, city: event.target.value })} className="min-h-11 rounded border border-[#1F3F3C]/25 bg-transparent px-3"><option value="all">All locations</option>{cities.map(city => <option key={city} value={city}>{city}</option>)}</select></label>}
+              {hasFilters && !isWorkbenchMode && <button type="button" onClick={() => updateFilters(allPortfolioFilters)} className="min-h-11 text-sm underline underline-offset-4">Clear filters</button>}
+              {isWorkbenchMode && <p className="text-xs text-[#1F3F3C]/70">All projects stay visible while editing their photos and order.</p>}
+            </div>
+          </div>
+
+          <div className="divide-y divide-[#1F3F3C]/20">
+            {visibleProjects.map((project, index) => {
+              const hero = project.media.heroMedia;
+              const source = hero?.variants.responsive?.at(-1)?.webp || hero?.variants.web || hero?.variants.original;
+              const route = `/projects/${project.slug || project.id}`;
+              return <article key={project.id} className="grid items-center gap-7 py-7 sm:gap-10 sm:py-12 lg:grid-cols-[1.35fr_1fr] lg:gap-16">
+                <div className={index % 2 === 1 ? 'lg:order-2' : ''}>
+                  {source && <Link href={route} className="group relative block overflow-hidden bg-[#1F3F3C]/5 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#1F3F3C]" aria-label={`Read the story: ${project.title}`}>
+                    <div className="relative aspect-[4/3] sm:aspect-[16/11]">
+                      <VisualSlot id={`our-work-project-card-${project.id}`} route="/our-work" page="OurWork" section="Recent Projects" slotName={`${project.title} Project Card`} currentMediaId={hero?.id || null} component="ProjectCard">
+                        <Image src={source} alt={hero?.alt || project.title} fill sizes="(min-width: 1440px) 740px, (min-width: 1024px) 56vw, 100vw" priority={index === 0} placeholder={hero?.variants.blur ? 'blur' : 'empty'} blurDataURL={hero?.variants.blur} className="object-cover transition-transform duration-500 motion-safe:group-hover:scale-[1.025] motion-reduce:transition-none" />
+                      </VisualSlot>
                     </div>
-                  </Link>
-                </ScrollReveal>
-              );
+                    <span className="absolute bottom-4 right-4 inline-flex h-12 w-12 items-center justify-center rounded-full bg-[#EDEAE0] text-[#1F3F3C] transition-colors group-hover:bg-[#D99A4E]" aria-hidden="true"><ArrowUpRight size={22} /></span>
+                  </Link>}
+                </div>
+                <div className={source ? 'max-w-xl' : 'max-w-xl lg:col-span-2'}>
+                  <p className="flex flex-wrap gap-x-3 gap-y-1 text-[11px] font-semibold uppercase tracking-[0.15em]"><span className="text-[#1F3F3C]/50">{String(allProjects.indexOf(project) + 1).padStart(2, '0')}</span><span>{getServiceBySlug(project.service)?.name || project.service.replaceAll('-', ' ')}</span>{project.location.city && <><span aria-hidden="true">/</span><span>{project.location.city}</span></>}</p>
+                  <h3 className="mt-5 font-display text-3xl leading-[1.13] tracking-tight sm:text-4xl lg:text-[2.65rem]"><Link href={route} className="decoration-[#D99A4E] underline-offset-8 hover:underline"><ContentCopy collection="projects" id={project.id} field="title" value={project.title} route={route} /></Link></h3>
+                  {(project.story?.outcome || project.story?.solution) && <p className="mt-5 text-base leading-relaxed text-[#1F3F3C]/80 sm:text-lg"><ContentCopy collection="projects" id={project.id} field={project.story.outcome ? 'story.outcome' : 'story.solution'} value={project.story.outcome || project.story.solution} route={route} /></p>}
+                  <Link href={route} className="craft-link mt-6 inline-flex min-h-11 items-center gap-3">Read the project story <ArrowUpRight size={17} aria-hidden="true" /></Link>
+                </div>
+              </article>;
             })}
           </div>
-        </Container>
-      </Section>
+          {visibleProjects.length === 0 && <div className="py-16 text-center"><p className="font-display text-3xl">No projects in this selection.</p><p className="mt-3 text-sm">Choose another service or location to explore the collection.</p><button type="button" onClick={() => updateFilters(allPortfolioFilters)} className="craft-button mt-6">Show all work</button></div>}
+        </div>
+      </section>
 
+      {comparisonProjects.length > 0 && <Section className="bg-[#E9DBC9] text-[#1F3F3C]"><div className="craft-shell"><p className="craft-eyebrow"><TextCopy textKey="work.copy.3" /></p><h2 className="craft-title mt-4"><TextCopy textKey="work.transformations.title" /></h2><div className="mt-10 grid gap-8 md:grid-cols-2">{comparisonProjects.map(project => <BeforeAfterSlider key={project.id} project={project} route="/our-work" />)}</div></div></Section>}
       {/* BROWSE ALL WORK — continuous gallery grid */}
-      <Section className="bg-deep">
-        <Container>
-          <SectionHeading
-            eyebrow={<span className="text-honey"><TextCopy textKey="work.copy.5" /></span>}
-            title={<span className="text-text-on-dark"><TextCopy textKey="work.archive.title" /></span>}
-            description={<span className="text-text-on-dark/90"><TextCopy textKey="work.archive.description" /></span>}
-          />
+      <section className="craft-section bg-[#162B29] text-[#EDEAE0]">
+        <div className="craft-shell">
+          <p className="craft-eyebrow text-[#D99A4E]"><TextCopy textKey="work.copy.5" /></p>
+          <h2 className="craft-title mt-4"><TextCopy textKey="work.archive.title" /></h2>
+          <p className="mt-5 max-w-xl text-base leading-relaxed text-[#EDEAE0]/75"><TextCopy textKey="work.archive.description" /></p>
           {isWorkbenchMode && (
             <p role="status" aria-live="polite" className="mt-4 text-sm text-text-on-dark/90">
               {galleryNotice || 'Drag any photo anywhere in this gallery, or choose its position. Photos keep their project association. Save all moves together.'}
@@ -356,10 +339,10 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
             </div>
           )}
           <div
-            data-archive-grid className={`gallery-grid mt-10 grid grid-cols-2 gap-4 md:grid-cols-3 ${isDragging ? 'ring-2 ring-dashed ring-primary/50 ring-offset-2' : ''}`}
+            data-archive-grid className={`gallery-grid mt-10 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 ${isDragging ? 'ring-2 ring-dashed ring-primary/50 ring-offset-2' : ''}`}
             ref={galleryGridRef}
           >
-            {galleryPhotos.map(({project,photo,id:slotId}, photoIndex) => {
+            {visibleGalleryPhotos.map(({project,photo,id:slotId}, photoIndex) => {
                 // Request the rendition matching this masonry column and DPR.
                 // The lightbox separately retains its full-size source.
                 const responsiveVariants = [...(photo.variants.responsive || [])]
@@ -371,7 +354,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
                 const webpSrcSet = responsiveVariants.map(variant => variant.webp + ' ' + variant.width + 'w').join(', ');
                 const avifSrcSet = responsiveVariants.filter(variant => variant.avif)
                   .map(variant => variant.avif + ' ' + variant.width + 'w').join(', ');
-                const gallerySizes = '(min-width: 1280px) 400px, (min-width: 768px) calc((100vw - 80px) / 3), (min-width: 640px) calc((100vw - 64px) / 2), calc((100vw - 48px) / 2)';
+                const gallerySizes = '(min-width: 1440px) 430px, (min-width: 1024px) calc((100vw - 128px) / 3), (min-width: 640px) calc((100vw - 80px) / 2), calc(100vw - 48px)';
                 if (!src) return null;
                 const mediaId = photo.id;
                 
@@ -384,7 +367,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
                     data-photo-index={photoIndex}
                     role="button"
                     tabIndex={0}
-                    className="group relative block aspect-[4/3] overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                    className="group relative block aspect-[4/3] overflow-hidden focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-honey"
                     style={pointerSort.cardStyle('archive', slotId)}
                     onDragOver={isWorkbenchMode ? handleProjectDragOver : undefined}
                     onDrop={isWorkbenchMode ? event=>handleProjectDrop(event,project.id) : undefined}
@@ -395,7 +378,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
                     }}
                     aria-label={`View ${photo.alt || project.title} in full screen`}
                   >
-                    <CraftCard className="aspect-[4/3] overflow-hidden">
+                    <div className="relative aspect-[4/3] overflow-hidden">
                       <VisualSlot
                         id={`our-work-gallery::${project.id}::${mediaId}`}
                         route="/our-work"
@@ -427,19 +410,19 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
                           srcSet={webpSrcSet || undefined}
                           sizes={webpSrcSet ? gallerySizes : undefined}
                           alt={photo!.alt || `${project.title} photo ${photoIndex + 1}`}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          className="h-full w-full object-cover transition-transform duration-300 motion-safe:group-hover:scale-[1.025] motion-reduce:transition-none"
                           loading="lazy"
                           decoding="async"
                           draggable={false}
 
                         />
-                        </picture> : <Image src={photo.variants.web || photo.variants.original || src} alt={photo.alt || `${project.title} photo ${photoIndex + 1}`} width={photo.dimensions.width} height={photo.dimensions.height} sizes={gallerySizes} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" decoding="async" draggable={false} />}
+                        </picture> : <Image src={photo.variants.web || photo.variants.original || src} alt={photo.alt || `${project.title} photo ${photoIndex + 1}`} width={photo.dimensions.width} height={photo.dimensions.height} sizes={gallerySizes} className="h-full w-full object-cover transition-transform duration-300 motion-safe:group-hover:scale-[1.025] motion-reduce:transition-none" loading="lazy" decoding="async" draggable={false} />}
                       </VisualSlot>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none" />
-                      <span className="absolute bottom-2 left-2 text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none">
+                      <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent" />
+                      <span className="pointer-events-none absolute bottom-4 left-4 right-4 text-sm font-medium text-white">
                         {project.title}
                       </span>
-                    </CraftCard>
+                    </div>
                     {isWorkbenchMode && (
                       <div className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 bg-deep/90 px-2 text-text-on-dark">
                         <span className="truncate text-xs">{photoIndex + 1} of {galleryPhotos.length} · {project.title}</span>
@@ -465,8 +448,8 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
                 );
             })}
           </div>
-        </Container>
-      </Section>
+        </div>
+      </section>
 
       {pointerSort.drag && createPortal(
         <div ref={pointerSort.ghostRef} aria-hidden="true" data-gallery-drag-ghost
@@ -488,10 +471,12 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
         onClose={() => setLightboxOpen(false)}
       />
 
-      <CTASection
-        title="Ready to love coming home again?"
-        subtitle="Let's start building your happy place."
-      />
+      <section className="craft-section bg-[#E9DBC9] text-[#1F3F3C]">
+        <div className="craft-shell grid gap-10 lg:grid-cols-[1.4fr_1fr] lg:items-end">
+          <div><p className="craft-eyebrow">Your home, next</p><h2 className="craft-title mt-4 max-w-3xl">Have something in mind?</h2><p className="mt-5 max-w-xl text-lg leading-relaxed text-[#1F3F3C]/80">Tell us about the work you have in mind.</p><Link href="/estimate" className="craft-button craft-button--gold mt-7 inline-flex items-center gap-3">Start your project <ArrowUpRight size={18} aria-hidden="true" /></Link></div>
+          <div className="border-t border-[#1F3F3C]/25 pt-6 lg:border-l lg:border-t-0 lg:pl-10"><p className="font-display text-2xl">A little more from the workshop.</p><Link href="/newsletter" className="craft-link mt-3 inline-flex min-h-11 items-center gap-3">Explore the newsletter <ArrowUpRight size={16} aria-hidden="true" /></Link></div>
+        </div>
+      </section>
     </>
   );
 }

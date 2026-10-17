@@ -77,7 +77,7 @@ export function MobileSiteNavigation({ open, navigation, pathname, openerRef, on
         }
       }}
     >
-      <div data-lenis-prevent className="ml-auto flex h-full w-[calc(100%_-_3rem)] max-w-[22rem] flex-col overflow-y-auto overscroll-contain border-l border-border/60 bg-background p-5 shadow-2xl">
+      <div data-lenis-prevent className="craft-mobile-panel ml-auto flex h-full w-[calc(100%_-_2rem)] max-w-[26rem] flex-col overflow-y-auto overscroll-contain border-l border-border/60 bg-background p-6 shadow-2xl">
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 pb-4">
           <h2 id={headingId} className="font-display text-xl font-semibold">Happy Place</h2>
           <button
@@ -100,7 +100,7 @@ export function MobileSiteNavigation({ open, navigation, pathname, openerRef, on
                 onClick={onClose}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-11 items-center rounded-lg px-3 py-3 text-base font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                  "flex min-h-12 items-center rounded-sm px-3 py-3 font-display text-2xl font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                   active ? "bg-primary/10 text-text" : "text-text hover:bg-surface-muted",
                   item.secondary && "mt-3 justify-center bg-honey text-honey-foreground shadow-warm hover:bg-honey-hover",
                 )}

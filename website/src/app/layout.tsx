@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Playfair_Display, Playball } from "next/font/google";
 import "./globals.css";
+import "@/components/craft.css";
 import { getCompany } from "@/lib/company";
 import { seo } from "@/config/seo";
 import { SiteHeader } from "@/components/site-header";

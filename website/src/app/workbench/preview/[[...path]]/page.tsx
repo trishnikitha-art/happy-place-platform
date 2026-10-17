@@ -76,7 +76,7 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
       return <ReviewPage />;
     case '/newsletter':
       const NewsletterPage=(await import('@/app/newsletter/page')).default;
-      return <NewsletterPage />;
+      return <NewsletterPage searchParams={Promise.resolve({})} />;
     case '/newsletter/thank-you':
       const ThankYouPage=(await import('@/app/newsletter/thank-you/page')).default;
       return <ThankYouPage />;
@@ -85,7 +85,7 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
       return <BlogPage />;
     case '/estimate':
       const EstimatePage = (await import('@/app/estimate/page')).default;
-      return <EstimatePage />;
+      return <EstimatePage searchParams={Promise.resolve({})} />;
     default:
       // Handle dynamic routes like /services/[slug]
       if (route.startsWith('/services/')) {

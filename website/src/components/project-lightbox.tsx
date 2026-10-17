@@ -21,8 +21,8 @@ export function ProjectLightbox({ images, initialIndex = 0, isOpen, onClose }: P
   const [isZoomed, setIsZoomed] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
-  const touchStart = useRef<number | null>(null);
-  const touchEnd = useRef<number | null>(null);
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const touchEnd = useRef<{ x: number; y: number } | null>(null);
   const captionId = useId();
   const hasImages = images.length > 0;
   const safeIndex = Math.max(0, Math.min(currentIndex, images.length - 1));
@@ -73,7 +73,7 @@ export function ProjectLightbox({ images, initialIndex = 0, isOpen, onClose }: P
       aria-label="Project photo viewer"
       aria-describedby={captionId}
       aria-modal="true"
-      className="fixed inset-0 m-0 h-full max-h-none w-full max-w-none overflow-hidden border-0 bg-black/95 p-0 text-white backdrop:bg-black/80"
+      className="fixed inset-0 m-0 h-full max-h-none w-full max-w-none overflow-hidden border-0 bg-[#162B29] p-0 text-[#EDEAE0] backdrop:bg-black/80"
       onCancel={(event) => { event.preventDefault(); onClose(); }}
       onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
       onKeyDown={(event) => {
@@ -95,18 +95,23 @@ export function ProjectLightbox({ images, initialIndex = 0, isOpen, onClose }: P
           <div
             className="h-full overflow-auto overscroll-contain"
             onTouchStart={(event) => {
-              touchStart.current = !isZoomed && event.touches.length === 1 ? event.touches[0].clientX : null;
+              touchStart.current = !isZoomed && event.touches.length === 1
+                ? { x: event.touches[0].clientX, y: event.touches[0].clientY } : null;
               touchEnd.current = null;
             }}
             onTouchMove={(event) => {
               if (event.touches.length !== 1) { touchStart.current = null; return; }
-              touchEnd.current = event.touches[0].clientX;
+              touchEnd.current = { x: event.touches[0].clientX, y: event.touches[0].clientY };
             }}
             onTouchEnd={() => {
               if (touchStart.current !== null && touchEnd.current !== null) {
-                const distance = touchStart.current - touchEnd.current;
-                if (distance > 50) goToNext();
-                if (distance < -50) goToPrevious();
+                const distance = touchStart.current.x - touchEnd.current.x;
+                const vertical = Math.abs(touchStart.current.y - touchEnd.current.y);
+                // Vertical scrolling and diagonal gestures must not advance a photograph.
+                if (Math.abs(distance) > 50 && Math.abs(distance) > vertical * 1.3) {
+                  if (distance > 0) goToNext();
+                  else goToPrevious();
+                }
               }
               touchStart.current = null;
               touchEnd.current = null;

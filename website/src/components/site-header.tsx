@@ -1,143 +1,58 @@
-"use client";
+'use client';
+
+import * as React from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
+import { ArrowUpRight, Menu } from 'lucide-react';
+import { getNavigation } from '@/lib/navigation';
+import { getCompany } from '@/lib/company';
 import { TextCopy } from '@/components/text-copy';
 import { navigationTextKey } from '@/lib/editable-shared-fields';
-
-import * as React from "react";
-import Image from "next/image";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Menu } from "lucide-react";
-import { getNavigation } from "@/lib/navigation";
-import { getCompany } from "@/lib/company";
-import { cn } from "@/lib/utils";
-import { buttonVariants } from "@/components/ui/button";
-import { CedarCorner } from "@/components/cedar-corner";
-import { ThemeToggle } from "@/components/theme-toggle";
-import { HappyBrandSignature } from "@/components/happy-brand-signature";
-import { TapeMeasureNav } from "@/components/tape-measure-nav";
-import { MobileSiteNavigation } from "@/components/mobile-site-navigation";
-
-function NavShimmer({ children, className }: { children: React.ReactNode; className?: string }) {
-  const [isHovered, setIsHovered] = React.useState(false);
-
-  return (
-    <span
-      className={cn("relative inline-block", className)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* Base gold text with layered gradients */}
-      <span
-        className={`
-          relative z-10
-          bg-gradient-to-br from-[#A67C00] via-[#D99A4E] via-[#E7AD63] to-[#F0C070]
-          bg-clip-text text-transparent
-          transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]
-          ${isHovered ? 'scale-[1.01]' : 'scale-100'}
-        `}
-        style={{
-          filter: isHovered ? 'brightness(1.08) saturate(1.1)' : 'brightness(1) saturate(1)',
-        }}
-      >
-        {children}
-      </span>
-      
-      {/* Animated shimmer sweep - warm light traveling left to right */}
-      <span
-        aria-hidden="true"
-        className={`
-          absolute inset-0 z-20 bg-gradient-to-r from-transparent via-white/15 via-white/10 to-transparent
-          bg-clip-text text-transparent
-          pointer-events-none
-          ${isHovered ? 'animate-shimmer-fast' : 'animate-shimmer-slow'}
-        `}
-        style={{
-          backgroundSize: '200% 100%',
-        }}
-      >
-        {children}
-      </span>
-    </span>
-  );
-}
+import { MobileSiteNavigation } from '@/components/mobile-site-navigation';
+import { ThemeToggle } from '@/components/theme-toggle';
 
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
-  const navigation = getNavigation();
+  const [progress, setProgress] = React.useState(0);
+  const opener = React.useRef<HTMLButtonElement>(null);
+  const close = React.useCallback(() => setOpen(false), []);
   const company = getCompany();
-  const navRef = React.useRef<HTMLDivElement>(null);
-  const menuButtonRef = React.useRef<HTMLButtonElement>(null);
-  const closeMenu = React.useCallback(() => setOpen(false), []);
-
+  const primary = getNavigation().filter(item => !item.secondary && !['/', '/reviews'].includes(item.href));
+  const links = [...primary, { label: 'Ideas & advice', href: '/resources' }];
+  const mobile = [...links, { label: 'Newsletter', href: '/newsletter' }, { label: 'Contact', href: '/contact' }, { label: 'Start a project', href: '/estimate', secondary: true }];
+  React.useEffect(() => { setOpen(false); }, [pathname]);
   React.useEffect(() => {
-    setOpen(false);
+    let frame = 0;
+    const update = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(() => {
+        const height = document.documentElement.scrollHeight - window.innerHeight;
+        setProgress(height > 0 ? Math.min(1, Math.max(0, window.scrollY / height)) : 0);
+        frame = 0;
+      });
+    };
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => { window.removeEventListener('scroll', update); window.removeEventListener('resize', update); cancelAnimationFrame(frame); };
   }, [pathname]);
-
-  const isActive = (href: string) =>
-    href === "/" ? pathname === "/" : pathname === href || pathname.startsWith(`${href}/`);
-
-  const primary = React.useMemo(() => navigation.filter((n) => !n.secondary), [navigation]);
-  const contact = navigation.find((n) => n.secondary);
-
-  return (
-    <header className="sticky top-0 z-50 border-b border-border/60 bg-background/90 backdrop-blur-md">
-      <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-2 px-4 sm:px-6 md:px-4 lg:gap-3 lg:px-8">
-        <Link href="/" className="group flex shrink-0 items-center gap-2 lg:gap-2.5" aria-label={`${company.name} home`}>
-          {/* Happy Place Carpentry logo */}
-          <span className="relative block h-9 w-auto transition-transform duration-300 group-hover:-rotate-3 lg:h-10">
-            <Image src="/brand/logo.png" alt="Happy Place Carpentry logo" width={120} height={40} priority className="h-full w-auto" />
-            <CedarCorner className="absolute -left-1 -top-1 h-3 w-3 text-honey" />
-          </span>
-          <span className="flex flex-col leading-none">
-            <span className="font-display text-lg font-bold tracking-tight text-text lg:text-xl"><HappyBrandSignature /> Place</span>
-            <span className="text-[10px] font-semibold uppercase tracking-[0.22em] text-text-subtle">Carpentry</span>
-          </span>
-        </Link>
-
-        <nav className="relative hidden shrink-0 items-center md:flex" aria-label="Primary" ref={navRef}>
-          <TapeMeasureNav items={primary} activeHref={pathname} containerRef={navRef} />
-          {primary.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              aria-current={isActive(item.href) ? "page" : undefined}
-              className={cn(
-                "relative z-10 inline-flex min-h-11 min-w-11 items-center justify-center whitespace-nowrap px-2 py-2.5 text-xs font-medium tracking-wide transition-all duration-200 lg:px-3.5 lg:text-[13px]",
-                isActive(item.href) ? "text-primary" : "text-text hover:text-text hover:bg-surface/50 rounded-md"
-              )}
-            >
-              {isActive(item.href) ? <NavShimmer>{navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : item.label}</NavShimmer> : navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : item.label}
-            </Link>
-          ))}
-        </nav>
-
-        <div className="hidden shrink-0 items-center gap-2 md:flex">
-          <div className="[&>button]:h-11 [&>button]:w-11"><ThemeToggle /></div>
-          {contact && (
-            <Link
-              href={contact.href}
-              className={cn(buttonVariants({ variant: "primary", size: "sm" }), "min-h-11 bg-honey px-3 text-honey-foreground shadow-warm hover:bg-honey-hover lg:px-4")}
-            >
-              {navigationTextKey(contact.href) ? <TextCopy textKey={navigationTextKey(contact.href)!} /> : contact.label}
-            </Link>
-          )}
-        </div>
-
-        <button
-          ref={menuButtonRef}
-          type="button"
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-text-muted transition-colors hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary md:hidden"
-          aria-expanded={open}
-          aria-controls="mobile-menu"
-          aria-label={open ? "Close menu" : "Open menu"}
-          onClick={() => setOpen(true)}
-        >
-          <Menu className="h-6 w-6" aria-hidden="true" />
-        </button>
-      </div>
-
-      <MobileSiteNavigation open={open} navigation={navigation} pathname={pathname} openerRef={menuButtonRef} onClose={closeMenu} />
-    </header>
-  );
+  const active = (href: string) => pathname === href || pathname.startsWith(href + '/');
+  return <header className="craft-site-header sticky top-0 z-50">
+    <div className="craft-shell flex h-[78px] items-center justify-between gap-3 lg:h-[88px]">
+      <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label={company.name + ' home'}>
+        <Image src="/brand/logo.png" alt="" width={66} height={34} priority className="h-auto w-14 object-contain" />
+        <span className="leading-none"><span className="block font-display text-lg font-semibold tracking-[-.04em] text-text lg:text-xl">Happy Place</span><span className="mt-1.5 block text-[9px] font-semibold uppercase tracking-[.26em] text-text-subtle">Carpentry · Oregon</span></span>
+      </Link>
+      <nav aria-label="Primary" className="hidden items-center gap-0.5 md:flex lg:gap-2">
+        {links.map(item => <Link key={item.href} href={item.href} aria-current={active(item.href) ? 'page' : undefined} className="relative inline-flex min-h-11 items-center px-2.5 text-[11px] font-medium text-text transition-colors hover:text-primary lg:px-3 lg:text-xs">{navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : item.label}</Link>)}
+        <Link href="/newsletter" aria-current={active('/newsletter') ? 'page' : undefined} className="relative hidden min-h-11 items-center px-3 text-xs font-medium text-text xl:inline-flex">Newsletter</Link>
+      </nav>
+      <div className="hidden items-center gap-2 md:flex"><ThemeToggle /><Link href="/estimate" className="craft-button min-h-11 px-4 text-xs">Start a project <ArrowUpRight size={15} aria-hidden="true" /></Link></div>
+      <button ref={opener} type="button" onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open} aria-controls="mobile-menu" className="inline-flex h-11 w-11 items-center justify-center text-primary md:hidden"><Menu size={23} aria-hidden="true" /></button>
+    </div>
+    <span className="craft-reading-progress" style={{ transform: 'scaleX(' + progress + ')' }} aria-hidden="true" />
+    <MobileSiteNavigation open={open} navigation={mobile} pathname={pathname} openerRef={opener} onClose={close} />
+  </header>;
 }

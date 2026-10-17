@@ -1,84 +1,58 @@
-import { TextCopy } from '@/components/text-copy';
 import type { Metadata } from "next";
-import { Container, Section, SectionHeading } from "@/components/section";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
+import { NewsletterSignup } from "@/components/newsletter-signup";
+import { TextCopy } from "@/components/text-copy";
 
 export const metadata: Metadata = {
-  title: "Newsletter Archive",
-  description: "Archive of Happy Place Carpentry's homeowner tips, maintenance reminders, and project inspiration.",
+  title: "Notes from Happy Place",
+  description: "Sign up for practical homeowner tips and updates from Happy Place Carpentry, or get in touch about your next project.",
   alternates: { canonical: "/newsletter" },
 };
 
-export const dynamic = 'force-dynamic';
-
-// Placeholder newsletter data - will be replaced with actual content system
-const newsletters = [
-  {
-    id: 1,
-    titleKey: "newsletterArchive.article.1.title",
-    date: "2024-03-15",
-    excerptKey: "newsletterArchive.article.1.excerpt",
-  },
-  {
-    id: 2,
-    titleKey: "newsletterArchive.article.2.title",
-    date: "2024-02-20",
-    excerptKey: "newsletterArchive.article.2.excerpt",
-  },
-  {
-    id: 3,
-    titleKey: "newsletterArchive.article.3.title",
-    date: "2024-01-10",
-    excerptKey: "newsletterArchive.article.3.excerpt",
-  },
-] as const;
-
-export default function NewsletterArchivePage() {
+export default async function NewsletterPage({ searchParams }: { searchParams: Promise<{ source?: string }> }) {
+  const query = await searchParams;
+  const source = typeof query.source === 'string' && /^[a-z0-9-]{1,80}$/.test(query.source) ? query.source : 'newsletter';
   return (
-    <>
-      <Section className="bg-deep">
-        <Container className="max-w-4xl">
-          <SectionHeading
-            eyebrow={<span className="text-honey"><TextCopy textKey="newsletterArchive.copy.1" /></span>}
-            title={<span className="text-text-on-dark"><TextCopy textKey="newsletterArchive.copy.2" /></span>}
-            description={<span className="text-text-on-dark/90"><TextCopy textKey="newsletterArchive.copy.3" /></span>}
-          />
-        </Container>
-      </Section>
-
-      <Section>
-        <Container className="max-w-4xl">
-          <div className="space-y-6">
-            {newsletters.map((newsletter) => (
-              <article
-                key={newsletter.id}
-                className="rounded-lg border border-border-soft bg-surface p-6 transition-shadow hover:shadow-md"
-              >
-                <div className="mb-3 text-sm text-muted-foreground">
-                  {new Date(newsletter.date).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </div>
-                <h3 className="mb-2 text-xl font-bold text-text"><TextCopy textKey={newsletter.titleKey} /></h3>
-                <p className="text-text-muted"><TextCopy textKey={newsletter.excerptKey} /></p>
-                <div className="mt-4">
-                  <button className="text-honey hover:underline font-medium"><TextCopy textKey="newsletterArchive.copy.4" /></button>
-                </div>
-              </article>
-            ))}
+    <div className="craft-page">
+      <section className="craft-section overflow-hidden">
+        <div className="craft-shell">
+          <div className="grid items-start gap-10 lg:grid-cols-[1.05fr_0.95fr] lg:gap-20">
+            <div className="max-w-2xl pt-2 lg:pt-8">
+              <p className="craft-eyebrow">Notes from Happy Place</p>
+              <h1 className="craft-display mt-5"><TextCopy textKey="newsletter.title" /></h1>
+              <p className="craft-copy mt-7 max-w-lg text-lg sm:text-xl">
+                For the home you have, and the projects you’re planning. A place for practical ideas and a closer look at the work.
+              </p>
+              <div className="mt-10 border-t border-border-soft pt-6">
+                <p className="text-sm font-semibold text-primary">Looking for help with a project?</p>
+                <p className="craft-copy mt-2 max-w-md">You don’t need to subscribe to ask a question or talk about your home.</p>
+                <Link href="/contact" className="craft-link mt-4 inline-flex min-h-11 items-center gap-2">
+                  Talk to Happy Place <ArrowUpRight aria-hidden="true" className="h-4 w-4" />
+                </Link>
+              </div>
+            </div>
+            <NewsletterSignup source={source} title="A little Happy Place in your inbox." />
           </div>
+        </div>
+      </section>
 
-          <div className="mt-12 rounded-lg bg-surface-muted p-8 text-center">
-            <h3 className="text-xl font-bold text-text mb-2"><TextCopy textKey="newsletterArchive.copy.5" /></h3>
-            <p className="text-text-muted mb-4"><TextCopy textKey="newsletterArchive.copy.6" /></p>
-            <a
-              href="/#newsletter"
-              className="inline-flex items-center justify-center rounded-lg bg-honey px-6 py-3 font-semibold text-deep transition-colors hover:bg-honey/90"
-            ><TextCopy textKey="newsletterArchive.copy.7" /></a>
+      <section className="border-t border-border-soft bg-cream/40 py-12 sm:py-16">
+        <div className="craft-shell grid gap-8 md:grid-cols-2 md:gap-16">
+          <div>
+            <p className="craft-eyebrow">See the craftsmanship</p>
+            <h2 className="mt-3 font-display text-3xl text-primary sm:text-4xl">Good ideas start with real work.</h2>
+            <p className="craft-copy mt-4 max-w-md">Explore the details, materials and finished spaces in our project collection.</p>
+            <Link href="/our-work" className="craft-link mt-4 inline-flex min-h-11 items-center gap-2">See our work <ArrowUpRight aria-hidden="true" className="h-4 w-4" /></Link>
           </div>
-        </Container>
-      </Section>
-    </>
+          <div className="border-t border-border-soft pt-8 md:border-l md:border-t-0 md:pl-12 md:pt-0">
+            <p className="craft-eyebrow">Find your next step</p>
+            <h2 className="mt-3 font-display text-3xl text-primary sm:text-4xl">What does home need?</h2>
+            <p className="craft-copy mt-4 max-w-md">Find the kind of help you’re looking for, from a useful repair to a more considered transformation.</p>
+            <Link href="/services" className="craft-link mt-4 inline-flex min-h-11 items-center gap-2">Explore our services <ArrowUpRight aria-hidden="true" className="h-4 w-4" /></Link>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }

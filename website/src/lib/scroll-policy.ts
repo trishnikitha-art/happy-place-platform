@@ -1,5 +1,5 @@
 export function usesNativeScroll(pathname: string, search = ''): boolean {
-  return ['/workbench','/our-work','/services','/projects'].some(root => pathname === root || pathname.startsWith(root+'/')) || new URLSearchParams(search).get('workbench') === 'true';
+  return ['/workbench','/our-work','/services','/projects','/estimate','/contact','/newsletter','/resources','/blog'].some(root => pathname === root || pathname.startsWith(root+'/')) || new URLSearchParams(search).get('workbench') === 'true';
 }
 export function previewHref(href: string, origin: string): string | null {
   let url:URL;try {url=new URL(href,origin);} catch {return null;}

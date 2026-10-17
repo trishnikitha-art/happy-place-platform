@@ -175,8 +175,8 @@
       "revision": 0
     },
     "newsletter.description": {
-      "value": "Get practical homeowner tips, seasonal maintenance reminders, remodeling ideas, project showcases, and exclusive offers delivered to your inbox.",
-      "revision": 0
+      "value": "Practical homeowner tips and updates from Happy Place Carpentry. Sign up if you'd like to stay in touch.",
+      "revision": 1
     },
     "newsletter.privacy": {
       "value": "No spam, ever. Unsubscribe anytime.",
@@ -519,16 +519,16 @@
       "revision": 0
     },
     "privacy.copy.3": {
-      "value": "When you submit an estimate request or contact form, we collect the information you provide — your name, contact details, property information, and the details of your project. Photos you upload are included only in the email you choose to send.",
-      "revision": 0
+      "value": "When you send us a project inquiry, we receive the contact details and project information you choose to share. Newsletter signup is separate: the email address and optional first name you enter are submitted to Kit, our email subscription service.",
+      "revision": 1
     },
     "privacy.copy.4": {
       "value": "How we use it",
       "revision": 0
     },
     "privacy.copy.5": {
-      "value": "We use your information solely to respond to your request, prepare an estimate, and communicate about your project. We do not sell your information.",
-      "revision": 0
+      "value": "We use project inquiry details to respond to your request, prepare an estimate, and communicate about your project. If you choose to subscribe, we use your newsletter signup details to manage that subscription and send the emails you requested. Newsletter signup is optional and is not required to contact us. We do not sell your information.",
+      "revision": 1
     },
     "privacy.copy.6": {
       "value": "Contact",
