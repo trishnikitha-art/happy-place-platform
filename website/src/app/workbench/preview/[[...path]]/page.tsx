@@ -31,11 +31,12 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
   if (!await workbenchSession.isAuthenticated()) redirect('/workbench/login');
   const { path } = await params;
   const route = path && path.length > 0 ? '/' + path.join('/') : '/';
-  const transactionId=(await searchParams).textTransaction;
+  const query = await searchParams;
+  const transactionId=query.textTransaction;
   const receipt=transactionId ? await readTextTransaction(transactionId) : null;
   if(receipt && (!receipt.mutation || !receipt.stagingVerified || !['prepared','failed'].includes(receipt.state))) throw new Error('Text preview is unavailable for this transaction state');
   const draft=receipt?.mutation ? {key:receipt.mutation.key,value:receipt.mutation.value} : null;
-  const contentId=(await searchParams).contentTransaction;
+  const contentId=query.contentTransaction;
   const contentReceipt=contentId ? await readContentReceipt(contentId) : null;
   if(contentReceipt && (!contentReceipt.stagingVerified || !['prepared','failed'].includes(contentReceipt.state)))throw new Error('Content preview is unavailable for this transaction state');
   const page=await renderRoute();
@@ -48,7 +49,7 @@ export default async function PreviewPage({ params, searchParams }: PreviewPageP
   switch (route) {
     case '/':
       const HomePage = (await import('@/app/page')).default;
-      return <HomePage searchParams={searchParams} />;
+      return <HomePage />;
     case '/about':
       const AboutPage = (await import('@/app/about/page')).default;
       return <AboutPage />;
