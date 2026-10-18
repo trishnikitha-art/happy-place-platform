@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-10T02:28:25.617Z",
+  "generatedAt": "2026-10-18T12:13:34.960Z",
   "projects": [
     {
       "id": "fences-001",
@@ -68,7 +68,9 @@
       "slug": "fence-installation-willamette-valley",
       "metaDescription": "Professional fence installation and staining in Willamette Valley, Oregon.",
       "createdAt": "2026-07-20T00:00:00.000Z",
-      "updatedAt": "2026-07-20T00:00:00.000Z"
+      "updatedAt": "2026-07-20T00:00:00.000Z",
+      "hidden": false,
+      "order": 0
     },
     {
       "id": "pergolas-001",
@@ -137,7 +139,9 @@
       "slug": "custom-pergola-corvallis",
       "metaDescription": "Steel-framed covered privacy courtyard construction in Corvallis, Oregon. Custom outdoor living spaces.",
       "createdAt": "2026-07-22T00:00:00.000Z",
-      "updatedAt": "2026-07-22T00:00:00.000Z"
+      "updatedAt": "2026-07-22T00:00:00.000Z",
+      "hidden": false,
+      "order": 1
     },
     {
       "id": "builtins-001",
@@ -206,7 +210,9 @@
       "slug": "custom-builtins-corvallis",
       "metaDescription": "Custom built-in shelving and storage solutions in Corvallis, Oregon.",
       "createdAt": "2026-07-19T00:00:00.000Z",
-      "updatedAt": "2026-07-19T00:00:00.000Z"
+      "updatedAt": "2026-07-19T00:00:00.000Z",
+      "hidden": false,
+      "order": 2
     },
     {
       "id": "repairs-001",
@@ -280,7 +286,9 @@
       "slug": "home-repairs-willamette-valley",
       "metaDescription": "Professional home repair and maintenance services in Willamette Valley, Oregon.",
       "createdAt": "2026-07-18T00:00:00.000Z",
-      "updatedAt": "2026-07-18T00:00:00.000Z"
+      "updatedAt": "2026-07-18T00:00:00.000Z",
+      "hidden": false,
+      "order": 3
     },
     {
       "id": "exterior-painting-001",
@@ -359,7 +367,9 @@
       "slug": "exterior-painting-corvallis",
       "metaDescription": "Professional exterior painting and surface restoration in Corvallis, Oregon.",
       "createdAt": "2026-07-22T00:00:00.000Z",
-      "updatedAt": "2026-07-22T00:00:00.000Z"
+      "updatedAt": "2026-07-22T00:00:00.000Z",
+      "hidden": false,
+      "order": 4
     },
     {
       "id": "bathroom-remodeling-001",
@@ -426,7 +436,9 @@
       "slug": "bathroom-remodeling-corvallis",
       "metaDescription": "Bathroom remodeling services in Corvallis, Oregon with custom features.",
       "createdAt": "2026-07-16T00:00:00.000Z",
-      "updatedAt": "2026-07-16T00:00:00.000Z"
+      "updatedAt": "2026-07-16T00:00:00.000Z",
+      "hidden": false,
+      "order": 5
     },
     {
       "id": "davis-bathroom-remodel-001",
@@ -493,7 +505,9 @@
       "slug": "bathroom-remodeling-davis",
       "metaDescription": "Bathroom remodeling for Davis residence in Corvallis, Oregon.",
       "createdAt": "2026-07-16T00:00:00.000Z",
-      "updatedAt": "2026-07-16T00:00:00.000Z"
+      "updatedAt": "2026-07-16T00:00:00.000Z",
+      "hidden": false,
+      "order": 6
     },
     {
       "id": "johnson-cedar-fence-001",
@@ -561,7 +575,9 @@
       "slug": "cedar-fence-johnson",
       "metaDescription": "Cedar fence installation for Johnson residence in Corvallis, Oregon.",
       "createdAt": "2026-07-20T00:00:00.000Z",
-      "updatedAt": "2026-07-20T00:00:00.000Z"
+      "updatedAt": "2026-07-20T00:00:00.000Z",
+      "hidden": false,
+      "order": 7
     },
     {
       "id": "martinez-pergola-001",
@@ -630,7 +646,9 @@
       "slug": "custom-pergola-martinez",
       "metaDescription": "Custom pergola construction for Martinez residence in Corvallis, Oregon.",
       "createdAt": "2026-07-22T00:00:00.000Z",
-      "updatedAt": "2026-07-22T00:00:00.000Z"
+      "updatedAt": "2026-07-22T00:00:00.000Z",
+      "hidden": false,
+      "order": 8
     },
     {
       "id": "smith-built-ins-001",
@@ -697,7 +715,9 @@
       "slug": "custom-built-ins-smith",
       "metaDescription": "Custom built-in shelving for Smith residence in Corvallis, Oregon.",
       "createdAt": "2026-07-19T00:00:00.000Z",
-      "updatedAt": "2026-07-19T00:00:00.000Z"
+      "updatedAt": "2026-07-19T00:00:00.000Z",
+      "hidden": false,
+      "order": 9
     },
     {
       "id": "wilson-home-repairs-001",
@@ -769,7 +789,45 @@
       "slug": "home-repairs-wilson",
       "metaDescription": "Comprehensive home repairs for Wilson residence in Corvallis, Oregon.",
       "createdAt": "2026-07-18T00:00:00.000Z",
-      "updatedAt": "2026-07-18T00:00:00.000Z"
+      "updatedAt": "2026-07-18T00:00:00.000Z",
+      "hidden": false,
+      "order": 10
     }
-  ]
+  ],
+  "archiveOrder": [
+    "our-work-gallery::fences-001::fences-001-hero",
+    "our-work-gallery::fences-001::fences-001-after",
+    "our-work-gallery::pergolas-001::pergolas-001-hero",
+    "our-work-gallery::pergolas-001::876300ab9d29bdc09b18f2c74dd3672f",
+    "our-work-gallery::builtins-001::builtins-001-hero",
+    "our-work-gallery::builtins-001::builtins-001-secondary",
+    "our-work-gallery::repairs-001::repairs-001-drywall",
+    "our-work-gallery::repairs-001::repairs-001-hero",
+    "our-work-gallery::repairs-001::repairs-001-floor",
+    "our-work-gallery::repairs-001::repairs-001-floor0",
+    "our-work-gallery::repairs-001::repairs-001-gutter",
+    "our-work-gallery::repairs-001::repairs-001-img0544",
+    "our-work-gallery::repairs-001::repairs-001-img0546",
+    "our-work-gallery::exterior-painting-001::outdoor-living-001-hero",
+    "our-work-gallery::exterior-painting-001::outdoor-living-001-6",
+    "our-work-gallery::exterior-painting-001::outdoor-living-001-5",
+    "our-work-gallery::exterior-painting-001::outdoor-living-001-2",
+    "our-work-gallery::exterior-painting-001::outdoor-living-001-4",
+    "our-work-gallery::exterior-painting-001::outdoor-living-001-3",
+    "our-work-gallery::exterior-painting-001::builtins-001-hero",
+    "our-work-gallery::bathroom-remodeling-001::bathroom-remodeling-001-hero",
+    "our-work-gallery::davis-bathroom-remodel-001::bathroom-remodeling-001-hero",
+    "our-work-gallery::johnson-cedar-fence-001::fences-001-hero",
+    "our-work-gallery::johnson-cedar-fence-001::fences-001-after",
+    "our-work-gallery::martinez-pergola-001::pergolas-001-hero",
+    "our-work-gallery::martinez-pergola-001::pergolas-001-before",
+    "our-work-gallery::smith-built-ins-001::builtins-001-hero",
+    "our-work-gallery::smith-built-ins-001::builtins-001-secondary",
+    "our-work-gallery::wilson-home-repairs-001::repairs-001-drywall",
+    "our-work-gallery::wilson-home-repairs-001::repairs-001-floor",
+    "our-work-gallery::wilson-home-repairs-001::repairs-001-gutter",
+    "our-work-gallery::wilson-home-repairs-001::repairs-001-floor0",
+    "our-work-gallery::wilson-home-repairs-001::repairs-001-hero"
+  ],
+  "editorialRevision": 1
 }
