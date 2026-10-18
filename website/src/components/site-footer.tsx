@@ -25,7 +25,7 @@ export function SiteFooter() {
           </Link>
           <p className="mt-3 text-sm text-text-on-dark">{company.description}</p>
           <ScrollReveal>
-            <p className="mt-3 text-sm font-semibold text-honey ccb-shimmer">{company.ccbNumber}</p>
+            <p className="mt-3 text-sm font-semibold text-honey">{company.ccbNumber}</p>
           </ScrollReveal>
           <p className="mt-1 text-xs text-text-on-dark">
             {company.proof.insured ? "Licensed · Insured" : "Licensed"} · {company.proof.yearsInBusiness} · {company.proof.projectsCompleted} projects

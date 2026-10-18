@@ -115,6 +115,7 @@ export default async function HomePage() {
               alt={heroMedia.alt || "Happy Place Carpentry - Professional carpentry services"}
               fill
               priority
+              fetchPriority="high"
               sizes="100vw"
               placeholder={heroMedia.variants?.blur ? 'blur' : 'empty'}
               blurDataURL={heroMedia.variants?.blur}

@@ -22,7 +22,7 @@ function NavShimmer({ children, className }: { children: React.ReactNode; classN
 
   return (
     <span
-      className={cn("relative inline-block", className)}
+      className={cn("nav-shimmer relative inline-block", className)}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -45,12 +45,7 @@ function NavShimmer({ children, className }: { children: React.ReactNode; classN
       {/* Animated shimmer sweep - warm light traveling left to right */}
       <span
         aria-hidden="true"
-        className={`
-          absolute inset-0 z-20 bg-gradient-to-r from-transparent via-white/15 via-white/10 to-transparent
-          bg-clip-text text-transparent
-          pointer-events-none
-          ${isHovered ? 'animate-shimmer-fast' : 'animate-shimmer-slow'}
-        `}
+        className="nav-shimmer-sweep absolute inset-0 z-20 bg-gradient-to-r from-transparent via-white/15 via-white/10 to-transparent bg-clip-text text-transparent pointer-events-none"
         style={{
           backgroundSize: '200% 100%',
         }}
@@ -104,7 +99,7 @@ export function SiteHeader() {
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
                 "relative z-10 inline-flex min-h-11 min-w-11 items-center justify-center whitespace-nowrap px-2 py-2.5 text-xs font-medium tracking-wide transition-all duration-200 lg:px-3.5 lg:text-sm",
-                isActive(item.href) ? "text-primary" : "text-text hover:text-text hover:bg-surface/50 rounded-md"
+                isActive(item.href) ? "text-primary nav-shimmer-active" : "text-text hover:text-text hover:bg-surface/50 rounded-md"
               )}
             >
               {isActive(item.href) ? <NavShimmer>{navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : item.label}</NavShimmer> : navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : item.label}
