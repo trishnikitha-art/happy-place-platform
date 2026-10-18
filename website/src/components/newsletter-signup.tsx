@@ -59,17 +59,17 @@ export function NewsletterSignup() {
   if (isSuccess) {
     return (
       <div className="rounded-lg bg-honey/10 border border-honey/20 p-6 text-center">
-        <p className="text-honey font-semibold"><TextCopy textKey="newsletter.submitting" /></p>
+        <p className="text-base text-honey font-semibold"><TextCopy textKey="newsletter.submitting" /></p>
       </div>
     );
   }
 
   return (
-    <div className="rounded-lg bg-deep border border-honey/20 p-6">
+    <div className="rounded-lg bg-deep border border-honey/30 border-t-2 border-t-honey/60 p-6 shadow-card">
       <h3 className="mb-2 text-2xl font-bold text-text-on-dark">
         <TextCopy textKey="newsletter.title" />
       </h3>
-      <p className="mb-6 text-text-on-dark/80">
+      <p className="mb-6 text-base text-text-on-dark/80">
         <TextCopy textKey="newsletter.description" />
       </p>
 
@@ -82,7 +82,7 @@ export function NewsletterSignup() {
             placeholder={emailPlaceholder} data-text-key="newsletter.emailPlaceholder" data-text-attribute="placeholder"
             required
             disabled={isSubmitting}
-            className="w-full rounded-lg border border-text-on-dark/20 bg-deep px-4 py-3 text-text-on-dark placeholder:text-text-on-dark/50 focus:border-honey focus:outline-none focus:ring-1 focus:ring-honey disabled:opacity-50"
+            className="w-full rounded-lg border border-text-on-dark/30 bg-black/10 px-4 py-3 text-base text-text-on-dark placeholder:text-text-on-dark/50 focus:border-honey focus:outline-none focus:ring-1 focus:ring-honey disabled:opacity-50"
           />
         </div>
 
@@ -93,7 +93,7 @@ export function NewsletterSignup() {
             onChange={(e) => setFirstName(e.target.value)}
             placeholder={namePlaceholder} data-text-key="newsletter.namePlaceholder" data-text-attribute="placeholder"
             disabled={isSubmitting}
-            className="w-full rounded-lg border border-text-on-dark/20 bg-deep px-4 py-3 text-text-on-dark placeholder:text-text-on-dark/50 focus:border-honey focus:outline-none focus:ring-1 focus:ring-honey disabled:opacity-50"
+            className="w-full rounded-lg border border-text-on-dark/30 bg-black/10 px-4 py-3 text-base text-text-on-dark placeholder:text-text-on-dark/50 focus:border-honey focus:outline-none focus:ring-1 focus:ring-honey disabled:opacity-50"
           />
         </div>
 
@@ -104,7 +104,7 @@ export function NewsletterSignup() {
         <button
           type="submit"
           disabled={isSubmitting || !email}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-honey px-6 py-3 font-semibold text-deep transition-colors hover:bg-honey/90 disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex w-full items-center justify-center gap-2 rounded-lg bg-honey px-6 py-3 text-base font-semibold text-deep shadow-sm transition-[background-color,box-shadow,transform] duration-200 hover:bg-honey/90 hover:shadow-md motion-safe:hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isSubmitting ? (
             <>

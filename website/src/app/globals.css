@@ -28,6 +28,21 @@
 }
 
 @theme {
+  /* Slightly larger type across the existing site; spacing and layout stay unchanged. */
+  --text-xs: 0.825rem;
+  --text-sm: 0.9625rem;
+  --text-base: 1.1rem;
+  --text-lg: 1.2375rem;
+  --text-xl: 1.375rem;
+  --text-2xl: 1.65rem;
+  --text-3xl: 2.0625rem;
+  --text-4xl: 2.475rem;
+  --text-5xl: 3.3rem;
+  --text-6xl: 4.125rem;
+  --text-7xl: 4.95rem;
+  --text-8xl: 6.6rem;
+  --text-9xl: 8.8rem;
+
   /* Brand — Deep Navy (primary brand color) */
   --color-primary: #44483D;
   --color-primary-hover: #352423;
@@ -576,19 +591,19 @@ a {
   @starting-style { .workbench-dialog[open] { opacity: 0; } }
 }
 
-/* Mobile typography scaling — 80% of desktop values for readability */
+/* Mobile headings keep their fluid sizing while following the site-wide type increase. */
 @media (max-width: 768px) {
   :root {
     --font-display-scale: 0.8;
   }
   h1 {
-    font-size: clamp(2rem, 5vw, 2.5rem);
+    font-size: clamp(2.2rem, 5.5vw, 2.75rem);
   }
   h2 {
-    font-size: clamp(1.5rem, 4vw, 1.75rem);
+    font-size: clamp(1.65rem, 4.4vw, 1.925rem);
   }
   h3 {
-    font-size: clamp(1.25rem, 3vw, 1.4rem);
+    font-size: clamp(1.375rem, 3.3vw, 1.54rem);
   }
 }
 
