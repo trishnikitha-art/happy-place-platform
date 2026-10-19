@@ -73,13 +73,13 @@ describe('Reauthorization preserves principal and Google identity', () => {
   it.each(['revoked', 'expired'])('requires fresh consent for %s authority without a refresh token', async status => {
     original.status = status as GoogleAuthorizationRecord['status'];
     await expect(upsertAuthorization('subject-a', 'updated@example.com', [], 'access', Date.now()))
-      .rejects.toThrow('re-consent');
+      .rejects.toThrow('RECONSENT_REQUIRED');
     expect(redis.eval).not.toHaveBeenCalled();
   });
   it('rejects first authorization without a refresh token before any persistence', async () => {
     redis.get.mockResolvedValue(null);
     await expect(upsertAuthorization('subject-a', 'updated@example.com', [], 'access', Date.now()))
-      .rejects.toThrow('re-consent');
+      .rejects.toThrow('RECONSENT_REQUIRED');
     expect(redis.eval).not.toHaveBeenCalled();
   });
   it('rejects an undecryptable stored token without overwriting the working record', async () => {

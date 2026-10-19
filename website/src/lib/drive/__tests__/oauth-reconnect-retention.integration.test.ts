@@ -44,7 +44,7 @@ const enabled = process.env.REDIS_INTEGRATION_TESTS_ENABLED === 'true';
       expect(await findAuthorizationBySubject(subject)).toMatchObject({ id: current.id, status: 'active' });
     });
   it('does not establish a new authorization without durable refresh credentials', async () => {
-    await expect(reconnect()).rejects.toThrow('re-consent');
+    await expect(reconnect()).rejects.toThrow('RECONSENT_REQUIRED');
     expect(await redis.exists(namespace + 'drive:auth:subject:' + subject)).toBe(0);
   });
 });
