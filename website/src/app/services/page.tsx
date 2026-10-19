@@ -58,26 +58,26 @@ export default async function ServicesPage() {
                 runtimeCardMediaObject={serviceCardMediaMap.get(service.slug) || null} />
             ))}
           </div>
-          <div className="mt-16 rounded-2xl border border-border-soft bg-linen p-8">
-            <h3 className="text-xl font-bold text-deep" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}><TextCopy textKey="services.other.title" /></h3>
-            <p className="mt-3 text-base text-deep/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
+          <div className="mt-16 rounded-2xl border border-border-soft bg-deep p-8">
+            <h3 className="text-xl font-bold text-text-on-dark" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}><TextCopy textKey="services.other.title" /></h3>
+            <p className="mt-3 text-base text-text-on-dark/90" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
               <TextCopy textKey="services.other.description" />
             </p>
-            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm text-deep/90">
+            <div className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-sm text-text-on-dark/90">
               <span><TextCopy textKey="services.copy.2" /></span>
-              <span className="text-deep/60">·</span>
+              <span className="text-text-on-dark/60">·</span>
               <span><TextCopy textKey="services.copy.3" /></span>
-              <span className="text-deep/60">·</span>
+              <span className="text-text-on-dark/60">·</span>
               <span><TextCopy textKey="services.copy.4" /></span>
-              <span className="text-deep/60">·</span>
+              <span className="text-text-on-dark/60">·</span>
               <span><TextCopy textKey="services.copy.5" /></span>
-              <span className="text-deep/60">·</span>
+              <span className="text-text-on-dark/60">·</span>
               <span><TextCopy textKey="services.copy.6" /></span>
-              <span className="text-deep/60">·</span>
+              <span className="text-text-on-dark/60">·</span>
               <span><TextCopy textKey="services.copy.7" /></span>
-              <span className="text-deep/60">·</span>
+              <span className="text-text-on-dark/60">·</span>
               <span><TextCopy textKey="services.copy.8" /></span>
-              <span className="text-deep/60">·</span>
+              <span className="text-text-on-dark/60">·</span>
               <span><TextCopy textKey="services.copy.9" /></span>
             </div>
           </div>

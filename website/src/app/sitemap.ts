@@ -20,9 +20,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
   // P1 FIX: Add service pages to sitemap from the same registry used by public listing
+  // Service type does not have updatedAt field, so omit lastModified
   const serviceEntries: MetadataRoute.Sitemap = getNonArchivedServices().map((s) => ({
     url: `${siteUrl}/services/${s.slug}`,
-    lastModified: s.updatedAt ? new Date(s.updatedAt) : now,
     changeFrequency: "monthly",
     priority: 0.7,
   }));

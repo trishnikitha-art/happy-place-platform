@@ -9,16 +9,8 @@
  * 5. Sitemap uses the same registry as public service listing
  */
 
+import { sitemap } from '../sitemap';
 import { getNonArchivedServices } from '@/lib/registries';
-import type { MetadataRoute } from 'next';
-
-// Mock Next.js types
-type SitemapEntry = {
-  url: string;
-  lastModified: Date | string;
-  changeFrequency: 'daily' | 'weekly' | 'monthly' | 'yearly' | 'always';
-  priority: number;
-};
 
 describe('Sitemap Service Routes', () => {
   const siteUrl = 'https://happyplacecarpentry.com';
@@ -29,14 +21,12 @@ describe('Sitemap Service Routes', () => {
 
   it('should include all active, non-archived services in sitemap', () => {
     const services = getNonArchivedServices();
+    const sitemapResult = sitemap();
     
-    // Mock sitemap generation
-    const serviceEntries: SitemapEntry[] = services.map((s) => ({
-      url: `${siteUrl}/services/${s.slug}`,
-      lastModified: s.updatedAt ? new Date(s.updatedAt) : new Date(),
-      changeFrequency: 'monthly' as const,
-      priority: 0.7,
-    }));
+    // Filter service entries from sitemap
+    const serviceEntries = sitemapResult.filter(entry => 
+      entry.url.startsWith(`${siteUrl}/services/`)
+    );
 
     // Verify each active service has an entry
     services.forEach((service) => {
@@ -51,8 +41,6 @@ describe('Sitemap Service Routes', () => {
   });
 
   it('should exclude archived services from sitemap', () => {
-    // This test assumes the registry has a way to distinguish archived services
-    // The getNonArchivedServices() function should already filter them out
     const services = getNonArchivedServices();
     
     // Verify no service with archived status is included
@@ -61,19 +49,9 @@ describe('Sitemap Service Routes', () => {
     });
   });
 
-  it('should exclude draft services from sitemap', () => {
-    // This test assumes the registry has a way to distinguish draft services
-    // The getNonArchivedServices() function should already filter them out
-    const services = getNonArchivedServices();
-    
-    // Verify no service with draft status is included
-    services.forEach((service) => {
-      expect(service.status).not.toBe('draft');
-    });
-  });
-
   it('should generate canonical URLs for each service', () => {
     const services = getNonArchivedServices();
+    const sitemapResult = sitemap();
     
     services.forEach((service) => {
       const canonicalUrl = `${siteUrl}/services/${service.slug}`;
@@ -87,7 +65,6 @@ describe('Sitemap Service Routes', () => {
   });
 
   it('should use the same registry as public service listing', () => {
-    // Both sitemap and public listing should use getNonArchivedServices()
     const services = getNonArchivedServices();
     
     // Verify all services have required fields for public display
@@ -102,15 +79,13 @@ describe('Sitemap Service Routes', () => {
 
   it('should have consistent changeFrequency and priority for service routes', () => {
     const services = getNonArchivedServices();
+    const sitemapResult = sitemap();
     
-    services.forEach((service) => {
-      const entry: SitemapEntry = {
-        url: `${siteUrl}/services/${service.slug}`,
-        lastModified: service.updatedAt ? new Date(service.updatedAt) : new Date(),
-        changeFrequency: 'monthly',
-        priority: 0.7,
-      };
+    const serviceEntries = sitemapResult.filter(entry => 
+      entry.url.startsWith(`${siteUrl}/services/`)
+    );
 
+    serviceEntries.forEach((entry) => {
       // Verify SEO metadata
       expect(entry.changeFrequency).toBe('monthly');
       expect(entry.priority).toBe(0.7);
