@@ -17,6 +17,9 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
+    // Preserve Next defaults while matching common card and hero widths.
+    deviceSizes: [640, 750, 828, 1080, 1200, 1440, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384, 400, 512],
     // next/image will serve AVIF/WebP automatically for raster images.
     formats: ["image/avif", "image/webp"],
     // SAFETY: All SVGs are committed trusted assets in public/brand/ and public/images/

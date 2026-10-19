@@ -9,6 +9,8 @@ import { CraftCard } from "@/components/ui/card";
 import { PhotoMount } from "@/components/photo-mount";
 import { ContentCopy } from '@/components/content-copy';
 
+const DEFAULT_IMAGE_SIZES = "(max-width: 479px) calc(100vw - 2rem), (max-width: 639px) calc((100vw - 3.25rem) / 2), (max-width: 1023px) calc((100vw - 4.25rem) / 2), (max-width: 1279px) calc((100vw - 6.5rem) / 3), 24.5rem";
+
 /**
  * ServiceCard — photo-led and dense (CEO review): one iconic image, title,
  * a one-line micro-proof stat, and a clear next step. No large empty areas.
@@ -26,7 +28,7 @@ import { ContentCopy } from '@/components/content-copy';
  * NAVIGATION CONTRACT: ServiceCard owns its own navigation to prevent nested Link bugs.
  * It links to the service detail page and must not be wrapped in another Link.
  */
-export function ServiceCard({ service, runtimeCardMediaObject, href }: { service: Service; runtimeCardMediaObject?: Media | null; href?: string }) {
+export function ServiceCard({ service, runtimeCardMediaObject, href, imageSizes = DEFAULT_IMAGE_SIZES }: { service: Service; runtimeCardMediaObject?: Media | null; href?: string; imageSizes?: string }) {
   // Use runtime assignment if available, otherwise fall back to featured project media
   const cardMedia = runtimeCardMediaObject || null;
 
@@ -65,7 +67,7 @@ export function ServiceCard({ service, runtimeCardMediaObject, href }: { service
                 src={imageSrc}
                 alt={featuredMedia.alt || service.name}
                 fill
-                sizes="(max-width: 639px) 100vw, (max-width: 1023px) 50vw, 33vw"
+                sizes={imageSizes}
                 className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
               />
               <div className="absolute inset-0 pointer-events-none rounded-t-xl bg-gradient-to-tr from-black/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />

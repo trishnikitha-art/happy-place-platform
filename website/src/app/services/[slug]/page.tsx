@@ -254,7 +254,11 @@ export default async function ServicePage({ params }: ServicePageProps) {
                     currentMediaId={serviceCardAssignments.get(s.slug)?.mediaId || null}
                     component="ServiceCard"
                   >
-                    <ServiceCard service={s} runtimeCardMediaObject={serviceCardAssignments.get(s.slug)?.mediaObject || null} />
+                    <ServiceCard
+                      service={s}
+                      runtimeCardMediaObject={serviceCardAssignments.get(s.slug)?.mediaObject || null}
+                      imageSizes="(max-width: 639px) calc(100vw - 2rem), (max-width: 1023px) calc((100vw - 4.5rem) / 2), (max-width: 1279px) calc((100vw - 7rem) / 3), 24.34rem"
+                    />
                   </VisualSlot>
                 </div>
               ))}
