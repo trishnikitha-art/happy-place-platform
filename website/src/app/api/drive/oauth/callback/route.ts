@@ -327,17 +327,32 @@ export async function GET(request: Request) {
       return NextResponse.redirect(url);
     }
     
-    // Persist authorization through oauth-credential-store
-    // refresh_token is guaranteed non-empty due to fail-closed validation above
-    // Persist actual granted scopes from Google, not requested scopes
-    const authorization = await upsertAuthorization(
-      googleSubject,
-      email,
-      grantedScopes,
-      tokenData.access_token,
-      expiryDate,
-      tokenData.refresh_token
-    );
+    // P1 FIX: Handle missing refresh_token with explicit re-consent invariant
+    // Google may omit refresh_token on returning authorization
+    // The repository enforces: new authorization must have refresh_token
+    // Existing active authorization may preserve its stored token
+    let authorization;
+    try {
+      authorization = await upsertAuthorization(
+        googleSubject,
+        email,
+        grantedScopes,
+        tokenData.access_token,
+        expiryDate,
+        tokenData.refresh_token
+      );
+    } catch (error) {
+      // P1 FIX: Check for explicit RECONSENT_REQUIRED error code
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      if (errorMessage.includes('RECONSENT_REQUIRED') || (error as any).code === 'RECONSENT_REQUIRED') {
+        console.error('[DRIVE OAUTH CALLBACK] Refresh token required for new authorization - re-consent needed');
+        const url = new URL('/workbench/media', request.url);
+        url.searchParams.set('driveOAuthError', 'reconsent_required');
+        return NextResponse.redirect(url);
+      }
+      // Other errors fall through to general error handler
+      throw error;
+    }
 
     console.log('[DRIVE OAUTH FORENSIC] Authorization persisted', {
       authorizationId: `${authorization.id.substring(0, 8)}...`,

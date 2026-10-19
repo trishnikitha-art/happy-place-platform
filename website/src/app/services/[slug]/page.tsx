@@ -90,13 +90,28 @@ export default async function ServicePage({ params }: ServicePageProps) {
     }
   }
 
-  // Get featured project for this service
-  const featuredProject = serviceGallery.projects[0] || null;
-  // P1 FIX: Resolve project media through public media gate to prevent bypass
-  const featuredProjectWithMedia = featuredProject ? await getProjectWithResolvedMedia(featuredProject) : null;
+  // P1 FIX: Choose displayed project set first, then resolve only those projects
+  // Select up to 6 projects for gallery, avoiding duplicate resolution
+  const projectsToRender = serviceGallery.projects.slice(0, 6);
   
-  // P1 FIX: Resolve all project gallery media through public media gate to prevent bypass
-  const projectsWithResolvedMedia = await getProjectsWithResolvedMedia(serviceGallery.projects);
+  // P1 FIX: Resolve only the projects that will be rendered
+  const projectsWithResolvedMedia = await getProjectsWithResolvedMedia(projectsToRender);
+  
+  // P1 FIX: Select featured project by actual featured status, with explicit fallback
+  // Choose the first project with featured: true, otherwise use the first project in gallery
+  const featuredProject = serviceGallery.projects.find(p => p.featured) || projectsToRender[0] || null;
+  
+  // P1 FIX: Reuse already-resolved media if featured project is in the rendered set
+  // Otherwise resolve it separately
+  let featuredProjectWithMedia = null;
+  if (featuredProject) {
+    const alreadyResolved = projectsWithResolvedMedia.find(p => p.id === featuredProject.id);
+    if (alreadyResolved) {
+      featuredProjectWithMedia = alreadyResolved;
+    } else {
+      featuredProjectWithMedia = await getProjectWithResolvedMedia(featuredProject);
+    }
+  }
 
   return (
     <>
@@ -120,12 +135,12 @@ export default async function ServicePage({ params }: ServicePageProps) {
         </Container>
       </Section>
 
-      {/* FEATURED PROJECT */}
+      {/* PROJECT SPOTLIGHT */}
       {featuredProject && (
         <Section className="bg-deep text-text-on-dark">
           <Container>
             <SectionHeading
-              eyebrow={<span className="text-honey">Featured Project</span>}
+              eyebrow={<span className="text-honey">{featuredProject.featured ? "Featured Project" : "Project Spotlight"}</span>}
               title={<span className="text-text-on-dark">{featuredProjectWithMedia?.title || featuredProject?.title}</span>}
               description={<span className="measure text-text-on-dark/90">{featuredProjectWithMedia?.story?.outcome || featuredProject?.story?.outcome || "See our latest work in this service area."}</span>}
             />

@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { getAllProjects } from "@/lib/projects";
+import { getNonArchivedServices } from "@/lib/registries";
 
 const siteUrl = "https://happyplacecarpentry.com";
 
@@ -18,5 +19,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "yearly",
     priority: 0.6,
   }));
-  return [...staticEntries, ...projectEntries];
+  // P1 FIX: Add service pages to sitemap from the same registry used by public listing
+  const serviceEntries: MetadataRoute.Sitemap = getNonArchivedServices().map((s) => ({
+    url: `${siteUrl}/services/${s.slug}`,
+    lastModified: s.updatedAt ? new Date(s.updatedAt) : now,
+    changeFrequency: "monthly",
+    priority: 0.7,
+  }));
+  return [...staticEntries, ...projectEntries, ...serviceEntries];
 }

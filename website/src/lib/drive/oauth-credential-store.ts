@@ -390,13 +390,19 @@ export async function upsertAuthorization(
     // Check if authorization exists for subject
     const existingAuth = await findAuthorizationBySubject(googleSubject);
     if (!refreshToken) {
+      // P1 FIX: Explicit invariant - new authorization must not be created without valid refresh token
+      // Existing active authorization may preserve its stored token
       if (!existingAuth || existingAuth.status !== 'active' ||
           existingAuth.principalId !== getCurrentPrincipalId() || existingAuth.googleSubject !== googleSubject) {
-        throw new Error('Refresh token required - explicit re-consent needed');
+        const error = new Error('RECONSENT_REQUIRED: New authorization cannot be created without refresh token');
+        (error as any).code = 'RECONSENT_REQUIRED';
+        throw error;
       }
       // An envelope alone is insufficient: require locally decryptable nonempty credentials.
       if (!decrypt(JSON.parse(existingAuth.encryptedRefreshToken) as EncryptionEnvelope).trim()) {
-        throw new Error('Stored refresh token unusable - explicit re-consent needed');
+        const error = new Error('RECONSENT_REQUIRED: Stored refresh token unusable - explicit re-consent needed');
+        (error as any).code = 'RECONSENT_REQUIRED';
+        throw error;
       }
     }
 

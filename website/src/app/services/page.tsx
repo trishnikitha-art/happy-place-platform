@@ -33,16 +33,9 @@ export default async function ServicesPage() {
           serviceCardMediaMap.set(service.slug, resolvedMedia);
         }
       }
-
-      // Defensive fallback: if no runtime assignment or resolution failed, try canonical static cardMediaId
-      // This preserves runtime assignment as authoritative while providing fallback for missing assignments
-      if (!serviceCardMediaMap.has(service.slug) && service.cardMediaId) {
-        const staticMedia = await resolvePublicMedia(service.cardMediaId);
-        if (staticMedia) {
-          serviceCardMediaMap.set(service.slug, staticMedia);
-          console.log('[SERVICES_PAGE] Using static fallback for service:', service.slug);
-        }
-      }
+      // P1 FIX: Removed static fallback to service.cardMediaId
+      // Runtime assignments are the only authority per getAllServicesWithAssignments() contract
+      // Missing assignment produces empty state in ServiceCard, not implicit static fallback
     } catch (error) {
       console.error('[SERVICES_PAGE] Failed to resolve media for service:', service.slug, error);
     }

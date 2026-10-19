@@ -148,34 +148,10 @@ export async function isPubliclyComplete(media: Media): Promise<boolean> {
     return false;
   }
 
-  // For R2 storage, verify R2 object exists (no need to download bytes - use structural proof)
-  // P0 FIX: Normal public reads must NOT perform GetObject (Class B operation)
-  // We trust the materialization proof from upload time + structural invariants
-  if (media.storage === 'r2' && media.variants?.original) {
-    try {
-      const { verifyR2ObjectExists } = await import('@/lib/r2-storage');
-      const originalKey = media.variants.original.split('/').pop() || '';
-      const originalExists = await verifyR2ObjectExists(originalKey);
-      if (!originalExists) {
-        console.warn('[PUBLIC_COMPLETE] R2_OBJECT_MISSING', {
-          mediaId: media.id,
-          key: originalKey,
-        });
-        return false;
-      }
-    } catch (error) {
-      // Fail closed if R2 verification fails
-      console.error('[PUBLIC_COMPLETE] R2_VERIFICATION_ERROR', {
-        mediaId: media.id,
-        error: error instanceof Error ? error.message : 'Unknown error',
-      });
-      return false;
-    }
-  }
-
   // Check rendition-level physical completeness
   // This upgrades the contract from "primary hash exists" to "every required rendition exists"
-  // P0 FIX: For R2, verify keys exist without downloading bytes
+  // P1 FIX: Eliminate duplicate R2 check - verifyR2RenditionCompleteness now handles original check
+  // The complete R2 gate must remain intact with no duplicate network requests
   if (media.storage === 'r2') {
     try {
       const { verifyR2RenditionCompleteness } = await import('@/lib/r2-storage');
