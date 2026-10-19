@@ -28,6 +28,15 @@ describe('media-contracts - R2 Deduplication Regression', () => {
     jest.clearAllMocks();
   });
 
+  // Fixture shape note: hasMaterializationShape requires responsive
+  // WebP+AVIF entries at every RESPONSIVE_WIDTHS entry <= dimensions.width
+  // (RESPONSIVE_WIDTHS = [480, 768, 1080, 1600, 2000]). A width-768 fixture
+  // therefore needs responsive entries at 480 and 768, webp+avif each.
+  // The previous fixtures used width 1920 with only 768/1024 entries (and
+  // responsive: [] for the throws case), so they failed the shape gate
+  // before any R2 check ran and verifyR2RenditionCompleteness was never
+  // called.
+
   it('should not call verifyR2ObjectExists when storage is not R2', async () => {
     const media: Media = {
       id: 'test-media',
@@ -42,11 +51,11 @@ describe('media-contracts - R2 Deduplication Regression', () => {
         webp: '/static/test.webp',
         avif: '/static/test.avif',
         responsive: [
+          { width: 480, webp: '/static/test-480.webp', avif: '/static/test-480.avif' },
           { width: 768, webp: '/static/test-768.webp', avif: '/static/test-768.avif' },
-          { width: 1024, webp: '/static/test-1024.webp', avif: '/static/test-1024.avif' },
         ],
       },
-      dimensions: { width: 1920, height: 1080 },
+      dimensions: { width: 768, height: 432 },
     };
 
     const result = await isPubliclyComplete(media);
@@ -70,11 +79,11 @@ describe('media-contracts - R2 Deduplication Regression', () => {
         webp: 'https://r2.dev/bucket/jkl012.webp',
         avif: 'https://r2.dev/bucket/mno345.avif',
         responsive: [
+          { width: 480, webp: 'https://r2.dev/bucket/pqr678-480.webp', avif: 'https://r2.dev/bucket/stu901-480.avif' },
           { width: 768, webp: 'https://r2.dev/bucket/pqr678-768.webp', avif: 'https://r2.dev/bucket/stu901-768.avif' },
-          { width: 1024, webp: 'https://r2.dev/bucket/vwx234-1024.webp', avif: 'https://r2.dev/bucket/yzd567-1024.avif' },
         ],
       },
-      dimensions: { width: 1920, height: 1080 },
+      dimensions: { width: 768, height: 432 },
     };
 
     verifyR2RenditionCompleteness.mockResolvedValue({
@@ -86,8 +95,8 @@ describe('media-contracts - R2 Deduplication Regression', () => {
         webp: true,
         avif: true,
         responsive: [
+          { width: 480, webp: true, avif: true },
           { width: 768, webp: true, avif: true },
-          { width: 1024, webp: true, avif: true },
         ],
       },
     });
@@ -118,10 +127,11 @@ describe('media-contracts - R2 Deduplication Regression', () => {
         webp: 'https://r2.dev/bucket/jkl012.webp',
         avif: 'https://r2.dev/bucket/mno345.avif',
         responsive: [
+          { width: 480, webp: 'https://r2.dev/bucket/pqr678-480.webp', avif: 'https://r2.dev/bucket/stu901-480.avif' },
           { width: 768, webp: 'https://r2.dev/bucket/pqr678-768.webp', avif: 'https://r2.dev/bucket/stu901-768.avif' },
         ],
       },
-      dimensions: { width: 1920, height: 1080 },
+      dimensions: { width: 768, height: 432 },
     };
 
     verifyR2RenditionCompleteness.mockResolvedValue({
@@ -133,6 +143,7 @@ describe('media-contracts - R2 Deduplication Regression', () => {
         webp: true,
         avif: true,
         responsive: [
+          { width: 480, webp: true, avif: true },
           { width: 768, webp: true, avif: true },
         ],
       },
@@ -158,9 +169,12 @@ describe('media-contracts - R2 Deduplication Regression', () => {
         blur: 'https://r2.dev/bucket/ghi789-blur.jpg',
         webp: 'https://r2.dev/bucket/jkl012.webp',
         avif: 'https://r2.dev/bucket/mno345.avif',
-        responsive: [],
+        responsive: [
+          { width: 480, webp: 'https://r2.dev/bucket/pqr678-480.webp', avif: 'https://r2.dev/bucket/stu901-480.avif' },
+          { width: 768, webp: 'https://r2.dev/bucket/pqr678-768.webp', avif: 'https://r2.dev/bucket/stu901-768.avif' },
+        ],
       },
-      dimensions: { width: 1920, height: 1080 },
+      dimensions: { width: 768, height: 432 },
     };
 
     verifyR2RenditionCompleteness.mockRejectedValue(new Error('R2 connection failed'));

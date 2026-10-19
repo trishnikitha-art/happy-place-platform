@@ -61,7 +61,12 @@ it('serves every rendition through the canonical origin without rewriting stored
   });
   expect(stored).toEqual(published);
   expect(result?.provenance).toEqual(published.provenance);
-  expect(verifyR2ObjectExists).toHaveBeenCalledWith(`${sourceHash}-original.jpg`);
+  // Deduplicated contract: resolvePublicMedia gates R2 media through
+  // isPubliclyComplete, which checks rendition completeness exactly once
+  // and never performs the old standalone original-object existence check.
+  expect(verifyR2ObjectExists).not.toHaveBeenCalled();
+  expect(verifyR2RenditionCompleteness).toHaveBeenCalledTimes(1);
+  expect(verifyR2RenditionCompleteness).toHaveBeenCalledWith(stored);
 });
 
 it('supports switching back to the prior public origin without record mutation', async () => {
