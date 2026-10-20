@@ -134,7 +134,7 @@ describe('Workbench Session - Server-Side Authentication Boundary', () => {
       const workbenchSessionCode = fs.readFileSync(workbenchSessionPath, 'utf8');
       
       // Verify expiration check uses server-side expiresAt
-      expect(workbenchSessionCode).toMatch(/Date\.now\(\)\s*>=\s*parsedSession\.expiresAt/);
+      expect(workbenchSessionCode).toMatch(/Date\.now\(\)\s*>=\s*session\.expiresAt/);
       
       // Verify expired sessions are cleared from Redis
       expect(workbenchSessionCode).toMatch(/clearSession/);

@@ -17,12 +17,39 @@ export async function middleware(request: NextRequest) {
       return NextResponse.next();
     }
 
-    const isAuthenticated = await workbenchSession.isAuthenticated();
-    
-    if (!isAuthenticated) {
-      // Redirect to login page
-      const loginUrl = new URL('/workbench/login', request.url);
-      return NextResponse.redirect(loginUrl);
+    const sessionId = request.cookies.get('workbench_session_id')?.value ?? null;
+
+    try {
+      const validation = await workbenchSession.validateSessionId(sessionId);
+
+      if (validation.status === 'unavailable') {
+        return new NextResponse('Workbench authentication is temporarily unavailable. Please try again.', {
+          status: 503,
+          headers: {
+            'Cache-Control': 'no-store',
+            'Retry-After': '30',
+          },
+        });
+      }
+
+      if (validation.status !== 'authenticated') {
+        const loginUrl = new URL('/workbench/login', request.url);
+        const response = NextResponse.redirect(loginUrl);
+        response.headers.set('Cache-Control', 'no-store');
+        if (sessionId) response.cookies.delete('workbench_session_id');
+        return response;
+      }
+    } catch (error) {
+      console.error('[MIDDLEWARE] WORKBENCH_SESSION_VALIDATION_FAILED', {
+        errorName: error instanceof Error ? error.name : 'UnknownError',
+      });
+      return new NextResponse('Workbench authentication is temporarily unavailable. Please try again.', {
+        status: 503,
+        headers: {
+          'Cache-Control': 'no-store',
+          'Retry-After': '30',
+        },
+      });
     }
   }
 
@@ -32,4 +59,6 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: '/workbench/:path*',
+  // Workbench auth uses Node crypto and @upstash/redis.
+  runtime: 'nodejs',
 };

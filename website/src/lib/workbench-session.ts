@@ -105,6 +105,11 @@ export interface WorkbenchCredentials {
   expiresAt: number;
 }
 
+export type WorkbenchSessionValidation =
+  | { status: 'authenticated' }
+  | { status: 'missing' | 'not_found' | 'expired' | 'revoked' | 'invalid' }
+  | { status: 'unavailable' };
+
 const SESSION_DURATION = 24 * 60 * 60 * 1000; // 24 hours
 
 // Fail closed: require explicit WORKBENCH_PASSWORD in production
@@ -220,67 +225,86 @@ export class WorkbenchSession {
    */
   async isAuthenticated(): Promise<boolean> {
     const sessionId = await this.getCookie('workbench_session_id');
-    
+
     console.log('[WORKBENCH_SESSION] AUTH_CHECK_START', {
       hasSessionId: !!sessionId,
       sessionId: sessionId ? `${sessionId.substring(0, 8)}...` : null,
       environment: getEnvironment(),
       namespace: getKvNamespace(),
     });
-    
-    if (!sessionId) {
-      console.log('[WORKBENCH_SESSION] AUTH_CHECK_FAILED - No session cookie');
+
+    const result = await this.validateSessionId(sessionId);
+    if (result.status === 'expired' && sessionId) {
+      // Preserve the existing server-component/API cleanup behavior. Middleware
+      // calls validateSessionId directly and clears cookies through its response.
+      try {
+        await this.clearSession(sessionId);
+      } catch (error) {
+        console.error('[WORKBENCH_SESSION] EXPIRED_SESSION_CLEANUP_FAILED', {
+          errorName: error instanceof Error ? error.name : 'UnknownError',
+        });
+      }
+    }
+
+    if (result.status === 'unavailable') {
+      console.error('[WORKBENCH_SESSION] AUTH_CHECK_UNAVAILABLE', { dependency: 'kv' });
       return false;
     }
-    
+
+    console.log('[WORKBENCH_SESSION] AUTH_CHECK_RESULT', { status: result.status });
+    return result.status === 'authenticated';
+  }
+
+  /**
+   * Validate an opaque session ID using server-side KV data without reading
+   * request cookies. Middleware passes request.cookies explicitly so this
+   * method never depends on next/headers request context.
+   */
+  async validateSessionId(sessionId: string | null | undefined): Promise<WorkbenchSessionValidation> {
+    if (!sessionId) return { status: 'missing' };
+    // Session IDs are generated with crypto.randomUUID(). Reject malformed
+    // cookie values before using them in a server-side key lookup.
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(sessionId)) {
+      return { status: 'invalid' };
+    }
+
+    let sessionData: unknown;
     try {
       const client = createRedisClient();
       const sessionKey = namespacedKey(`workbench_session:${sessionId}`);
-      const sessionData = await client.get(sessionKey);
-      
-      console.log('[WORKBENCH_SESSION] AUTH_CHECK_REDIS_LOOKUP', {
-        sessionKey: `${sessionKey.substring(0, 8)}...${sessionKey.length > 50 ? '...' : ''}`,
-        hasSessionData: !!sessionData,
-        sessionDataType: typeof sessionData,
-      });
-      
-      if (!sessionData) {
-        // Session not found in Redis (expired or invalid)
-        console.log('[WORKBENCH_SESSION] AUTH_CHECK_FAILED - Session not found in Redis');
-        return false;
-      }
-      
-      // Parse session data
-      const parsedSession = typeof sessionData === 'string' 
-        ? JSON.parse(sessionData) 
-        : sessionData;
-      
-      console.log('[WORKBENCH_SESSION] AUTH_CHECK_SESSION_DATA', {
-        authenticated: parsedSession.authenticated,
-        expiresAt: parsedSession.expiresAt,
-        isExpired: Date.now() >= parsedSession.expiresAt,
-        createdAt: parsedSession.createdAt,
-      });
-      
-      // Check if session is expired
-      if (Date.now() >= parsedSession.expiresAt) {
-        console.log('[WORKBENCH_SESSION] AUTH_CHECK_FAILED - Session expired');
-        await this.clearSession(sessionId);
-        return false;
-      }
-      
-      // Verify authenticated flag is true (server-side, not client-controlled)
-      const isAuth = parsedSession.authenticated === true;
-      console.log('[WORKBENCH_SESSION] AUTH_CHECK_RESULT', { authenticated: isAuth });
-      return isAuth;
+      sessionData = await client.get(sessionKey);
     } catch (error) {
-      console.error('[WORKBENCH_SESSION] AUTH_CHECK_ERROR', {
-        error: error instanceof Error ? error.message : String(error),
-        stack: error instanceof Error ? error.stack : undefined,
+      console.error('[WORKBENCH_SESSION] SESSION_VALIDATION_UNAVAILABLE', {
+        dependency: 'kv',
+        errorName: error instanceof Error ? error.name : 'UnknownError',
       });
-      // Fail closed if Redis is unavailable
-      return false;
+      return { status: 'unavailable' };
     }
+
+    if (sessionData === null || sessionData === undefined) return { status: 'not_found' };
+
+    let parsedSession: unknown;
+    try {
+      parsedSession = typeof sessionData === 'string' ? JSON.parse(sessionData) : sessionData;
+    } catch {
+      return { status: 'invalid' };
+    }
+
+    if (!parsedSession || typeof parsedSession !== 'object' || Array.isArray(parsedSession)) {
+      return { status: 'invalid' };
+    }
+
+    const session = parsedSession as Record<string, unknown>;
+    if (session.revoked === true || (typeof session.revokedAt === 'string' && session.revokedAt.length > 0)) {
+      return { status: 'revoked' };
+    }
+    if (typeof session.expiresAt !== 'number' || !Number.isFinite(session.expiresAt)) {
+      return { status: 'invalid' };
+    }
+    if (Date.now() >= session.expiresAt) return { status: 'expired' };
+    if (session.authenticated !== true) return { status: 'invalid' };
+
+    return { status: 'authenticated' };
   }
 
   /**

@@ -5,7 +5,7 @@
   "packageManager": "npm@10.9.2",
   "scripts": {
     "dev": "next dev",
-    "build": "node scripts/graph-edge-generator.js && node scripts/constitutional-projection-generator.js && next build",
+    "build": "node scripts/graph-edge-generator.js && node scripts/constitutional-projection-generator.js && next build && node scripts/verify-workbench-middleware-build.mjs",
     "start": "next start",
     "lint": "eslint",
     "test": "jest",
