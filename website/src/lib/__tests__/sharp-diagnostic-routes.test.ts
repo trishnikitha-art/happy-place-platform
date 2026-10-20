@@ -15,6 +15,10 @@ const success: SharpDiagnosticResult = {
 };
 
 describe('protected Sharp diagnostic routes', () => {
+  const expectNoStore = (response: Response) => {
+    expect(response.headers.get('cache-control')).toBe('no-store');
+  };
+
   const previousSecret = process.env.DIAGNOSTIC_SECRET;
   beforeEach(() => {
     jest.resetAllMocks();
@@ -27,11 +31,14 @@ describe('protected Sharp diagnostic routes', () => {
     else process.env.DIAGNOSTIC_SECRET = previousSecret;
   });
 
-  it('fails closed with a sanitized 503 when DIAGNOSTIC_SECRET is missing', async () => {
+  it('fails closed with a sanitized, non-cacheable 503 when no secret is configured, even for the old default', async () => {
     delete process.env.DIAGNOSTIC_SECRET;
-    const response = await getDiagnostic(new Request('https://test.invalid/api/diagnostics/sharp'));
+    const response = await getDiagnostic(new Request('https://test.invalid/api/diagnostics/sharp', {
+      headers: { authorization: 'Bearer dev-diagnostic-secret' },
+    }));
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ success: false, error: 'DIAGNOSTIC_NOT_CONFIGURED' });
+    expectNoStore(response);
     expect(runSharpDiagnostics).not.toHaveBeenCalled();
   });
 
@@ -41,6 +48,7 @@ describe('protected Sharp diagnostic routes', () => {
     }));
     expect(response.status).toBe(401);
     expect(await response.json()).toMatchObject({ success: false, error: 'UNAUTHORIZED' });
+    expectNoStore(response);
     expect(runSharpDiagnostics).not.toHaveBeenCalled();
   });
 
@@ -50,6 +58,7 @@ describe('protected Sharp diagnostic routes', () => {
     }));
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ success: true, diagnostics: success });
+    expectNoStore(response);
   });
 
   it('returns 503 and success=false when any required capability fails', async () => {
@@ -62,6 +71,7 @@ describe('protected Sharp diagnostic routes', () => {
     }));
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ success: false, diagnostics: { stages: { avif: { status: 'failed' } } } });
+    expectNoStore(response);
   });
 
   it('requires Workbench authentication for the admin health endpoint', async () => {
@@ -69,6 +79,18 @@ describe('protected Sharp diagnostic routes', () => {
     const response = await getAdminHealth();
     expect(response.status).toBe(401);
     expect(await response.json()).toMatchObject({ success: false, error: 'UNAUTHORIZED' });
+    expectNoStore(response);
+    expect(runSharpDiagnostics).not.toHaveBeenCalled();
+  });
+
+  it('returns a sanitized, non-cacheable 503 when Workbench auth cannot be checked', async () => {
+    jest.mocked(workbenchSession.isAuthenticated).mockRejectedValue(new Error('C:\\private\\auth-secret'));
+    const response = await getAdminHealth();
+    expect(response.status).toBe(503);
+    const body = await response.text();
+    expect(body).toContain('AUTHORIZATION_UNAVAILABLE');
+    expect(body).not.toContain('private');
+    expectNoStore(response);
     expect(runSharpDiagnostics).not.toHaveBeenCalled();
   });
 
@@ -78,5 +100,16 @@ describe('protected Sharp diagnostic routes', () => {
     const response = await getAdminHealth();
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ success: false, diagnostics: failed });
+    expectNoStore(response);
+  });
+
+  it('returns a sanitized, non-cacheable 503 when the admin capability probe throws', async () => {
+    jest.mocked(runSharpDiagnostics).mockRejectedValue(new Error('C:\\private\\sharp.node'));
+    const response = await getAdminHealth();
+    expect(response.status).toBe(503);
+    const body = await response.text();
+    expect(body).toContain('DIAGNOSTIC_ERROR');
+    expect(body).not.toContain('private');
+    expectNoStore(response);
   });
 });

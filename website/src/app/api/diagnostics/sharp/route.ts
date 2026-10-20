@@ -5,6 +5,8 @@ import { runSharpDiagnostics } from '@/lib/sharp-diagnostics';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+const NO_STORE = { 'Cache-Control': 'no-store' };
+
 function hasValidBearer(request: Request, secret: string): boolean {
   const header = request.headers.get('authorization') || '';
   if (!header.startsWith('Bearer ')) return false;
@@ -23,13 +25,13 @@ export async function GET(request: Request) {
   if (typeof secret !== 'string' || secret.trim().length === 0) {
     return NextResponse.json(
       { success: false, error: 'DIAGNOSTIC_NOT_CONFIGURED', requestId },
-      { status: 503, headers: { 'Cache-Control': 'no-store' } },
+      { status: 503, headers: NO_STORE },
     );
   }
 
   if (!hasValidBearer(request, secret)) {
     return NextResponse.json({ success: false, error: 'UNAUTHORIZED', requestId }, {
-      status: 401, headers: { 'Cache-Control': 'no-store' },
+      status: 401, headers: NO_STORE,
     });
   }
 
@@ -39,11 +41,11 @@ export async function GET(request: Request) {
       success: diagnostics.success,
       diagnostics,
       requestId,
-    }, { status: diagnostics.success ? 200 : 503, headers: { 'Cache-Control': 'no-store' } });
+    }, { status: diagnostics.success ? 200 : 503, headers: NO_STORE });
   } catch {
     return NextResponse.json(
       { success: false, error: 'DIAGNOSTIC_ERROR', requestId },
-      { status: 503, headers: { 'Cache-Control': 'no-store' } },
+      { status: 503, headers: NO_STORE },
     );
   }
 }
