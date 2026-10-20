@@ -3,12 +3,16 @@ import { getMedia, getMediaBatch, listMediaIds } from '../media-kv-store';
 import { getR2PublicOrigin } from '../r2-public-origin';
 import { getPublishedMediaAssets } from '../visual-asset-registry';
 import { verifyR2ObjectExists, verifyR2RenditionCompleteness } from '../r2-storage';
+import { getBlobMetadataByContentHash, verifyRenditionCompleteness } from '@/lib/blob-storage';
 import type { Media } from '@/types/media';
 
 jest.mock('../media-kv-store', () => ({ getMedia: jest.fn(), getMediaBatch: jest.fn(), listMediaIds: jest.fn() }));
 jest.mock('../assignment-store', () => ({ getAllServiceCardAssignments: jest.fn(async () => []) }));
 jest.mock('../r2-storage', () => ({
   verifyR2ObjectExists: jest.fn(), verifyR2RenditionCompleteness: jest.fn(),
+}));
+jest.mock('@/lib/blob-storage', () => ({
+  getBlobMetadataByContentHash: jest.fn(), verifyRenditionCompleteness: jest.fn(),
 }));
 
 const oldOrigin = 'https://historical-bucket.r2.dev';
@@ -25,6 +29,24 @@ const published = {
     responsive: [{ width: 480, webp: url('b'), avif: url('c', 'avif') }],
   },
 } as Media;
+const blobHash = 'b'.repeat(64);
+const blobOrigin = 'https://8zci9xnviilmi6qj.public.blob.vercel-storage.com';
+const blobUrl = (key: string) => `${blobOrigin}/${key}`;
+const publishedBlob = {
+  ...published,
+  id: 'published-legacy-blob',
+  storage: 'blob',
+  contentHash: blobHash,
+  variants: {
+    original: blobUrl(`fence-original-${blobHash.slice(0, 12)}.jpg`),
+    web: blobUrl('fence-web.webp'),
+    webp: blobUrl('fence.webp'),
+    avif: blobUrl('fence.avif'),
+    thumbnail: blobUrl('fence-thumb.webp'),
+    blur: 'data:image/webp;base64,AA==',
+    responsive: [{ width: 480, webp: blobUrl('fence-480.webp'), avif: blobUrl('fence-480.avif') }],
+  },
+} as Media;
 const savedOrigin = process.env.R2_PUBLIC_BASE_URL;
 
 beforeEach(() => {
@@ -36,6 +58,11 @@ beforeEach(() => {
   jest.mocked(getMediaBatch).mockResolvedValue(new Map([[published.id, structuredClone(published)]]));
   jest.mocked(verifyR2ObjectExists).mockResolvedValue(true);
   jest.mocked(verifyR2RenditionCompleteness).mockResolvedValue({ complete: true } as never);
+  jest.mocked(getBlobMetadataByContentHash).mockImplementation(async contentHash => ({
+    url: publishedBlob.variants.original!, contentHash, filename: 'fence-original.jpg',
+    contentType: 'image/jpeg', uploadedAt: new Date(0).toISOString(), byteSize: 100,
+  }));
+  jest.mocked(verifyRenditionCompleteness).mockResolvedValue({ complete: true } as never);
   jest.spyOn(console, 'log').mockImplementation(() => {});
   jest.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -83,6 +110,27 @@ it('uses the canonical public projection for existing Workbench media previews',
 
 it('omits incomplete R2 assets from the published Workbench preview list', async () => {
   jest.mocked(verifyR2RenditionCompleteness).mockResolvedValue({ complete: false } as never);
+  expect((await getPublishedMediaAssets()).assets).toEqual([]);
+});
+
+it('uses the physical public gate before listing legacy Blob assets in Workbench', async () => {
+  jest.mocked(getMedia).mockResolvedValue(structuredClone(publishedBlob));
+  jest.mocked(listMediaIds).mockResolvedValue([publishedBlob.id]);
+  jest.mocked(getMediaBatch).mockResolvedValue(new Map([[publishedBlob.id, structuredClone(publishedBlob)]]));
+
+  const result = await getPublishedMediaAssets();
+
+  expect(verifyRenditionCompleteness).toHaveBeenCalledWith(expect.objectContaining({ id: publishedBlob.id }));
+  expect(result.assets.map(asset => asset.id)).toEqual([publishedBlob.id]);
+  expect(result.assets[0].variants.original).toBe(publishedBlob.variants.original);
+});
+
+it('omits legacy Blob assets from Workbench when any physical rendition is missing', async () => {
+  jest.mocked(getMedia).mockResolvedValue(structuredClone(publishedBlob));
+  jest.mocked(listMediaIds).mockResolvedValue([publishedBlob.id]);
+  jest.mocked(getMediaBatch).mockResolvedValue(new Map([[publishedBlob.id, structuredClone(publishedBlob)]]));
+  jest.mocked(verifyRenditionCompleteness).mockResolvedValue({ complete: false } as never);
+
   expect((await getPublishedMediaAssets()).assets).toEqual([]);
 });
 

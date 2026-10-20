@@ -424,9 +424,9 @@ export async function getPublishedMediaAssets(): Promise<PublishedMediaAssetsRes
 
     for (const mediaId of mediaIds) {
       const storedMedia = mediaBatch.get(mediaId) ?? null;
-      // R2 previews use the same physically verified canonical projection as the site.
+      // Remote previews use the same physically verified public gate as the site.
       // Keep the batched static path and stored records unchanged.
-      const media = storedMedia?.storage === 'r2'
+      const media = storedMedia?.storage === 'r2' || storedMedia?.storage === 'blob'
         ? await resolvePublicMedia(mediaId)
         : storedMedia;
       

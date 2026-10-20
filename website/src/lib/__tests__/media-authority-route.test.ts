@@ -3,11 +3,13 @@ import { workbenchSession } from '@/lib/workbench-session';
 import { getServiceCardAssignment } from '@/lib/assignment-store';
 import { getPublishedMediaAssets } from '@/lib/visual-asset-registry';
 import { listMediaIds, getMediaRecordRaw } from '@/lib/media-kv-store';
+import { resolvePublicMedia } from '@/lib/media';
 
 jest.mock('@/lib/workbench-session', () => ({ workbenchSession: { isAuthenticated: jest.fn() } }));
 jest.mock('@/lib/assignment-store', () => ({ getServiceCardAssignment: jest.fn() }));
 jest.mock('@/lib/visual-asset-registry', () => ({ getPublishedMediaAssets: jest.fn() }));
 jest.mock('@/lib/media-kv-store', () => ({ listMediaIds: jest.fn(), getMediaRecordRaw: jest.fn() }));
+jest.mock('@/lib/media', () => ({ resolvePublicMedia: jest.fn() }));
 
 async function request(body: unknown) {
   const response = await POST(new Request('http://localhost/api/workbench/media-authority', {
@@ -19,6 +21,7 @@ beforeEach(() => {
   jest.resetAllMocks();
   jest.mocked(workbenchSession.isAuthenticated).mockResolvedValue(true);
   jest.mocked(getServiceCardAssignment).mockResolvedValue(null);
+  jest.mocked(resolvePublicMedia).mockResolvedValue(null);
 });
 describe('Media authority route behavior', () => {
   it('authenticates before reading authority', async () => {
@@ -55,5 +58,17 @@ describe('Media authority route behavior', () => {
       .mockResolvedValueOnce({ id: 'correct', provenance: { driveFileId: 'file', sharedDriveId: 'shared' } } as any);
     const result = await request({ action: 'getByDriveFileId', driveFileId: 'file', sharedDriveId: 'shared' });
     expect(result.body).toMatchObject({ found: true, media: { id: 'correct' } });
+  });
+  it.each(['r2', 'blob'])('resolves %s Drive matches through the public media gate', async storage => {
+    const raw = { id: 'published', storage, lifecycleState: 'published', provenance: { driveFileId: 'file' } };
+    const resolved = { ...raw, variants: { original: 'https://verified.example/image.jpg' } };
+    jest.mocked(listMediaIds).mockResolvedValue(['published']);
+    jest.mocked(getMediaRecordRaw).mockResolvedValue(raw as any);
+    jest.mocked(resolvePublicMedia).mockResolvedValue(resolved as any);
+
+    const result = await request({ action: 'getByDriveFileId', driveFileId: 'file' });
+
+    expect(resolvePublicMedia).toHaveBeenCalledWith('published');
+    expect(result.body).toMatchObject({ found: true, media: { id: 'published', variants: resolved.variants } });
   });
 });

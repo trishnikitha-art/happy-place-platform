@@ -78,7 +78,7 @@ interface BaseMedia {
   fileSize?: number;
   format?: string;
   colorSpace?: string;
-  storage?: 'static' | 'r2'; // Storage authority: static files vs R2 materialization
+  storage?: 'static' | 'blob' | 'r2'; // Storage authority: local files, legacy Vercel Blob, or R2 materialization
 }
 
 /**
@@ -271,7 +271,7 @@ export function isPublishedMediaAsset(media: Media): boolean {
   // CRITICAL: Constitutional validation for PublishedMediaAsset
   // Only PublishedMediaAsset can cross the public boundary
   // Static storage assets don't require Blob metadata
-  // Blob storage assets require Blob metadata (enforced in verifyPublicMediaAuthority)
+  // Blob storage assets require a canonical Vercel Blob URL and rendition proof (enforced by media authority)
   return media.lifecycleState === 'published' && 
          media.source === 'local' && 
          typeof media.contentHash === 'string' &&

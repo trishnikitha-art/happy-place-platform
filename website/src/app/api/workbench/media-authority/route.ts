@@ -86,7 +86,7 @@ export async function POST(request: Request) {
         }
       }
 
-      if (foundMedia?.storage === 'r2' && foundMedia.lifecycleState === 'published') {
+      if ((foundMedia?.storage === 'r2' || foundMedia?.storage === 'blob') && foundMedia.lifecycleState === 'published') {
         // Return canonical presentation for valid assets; keep raw deduplication
         // evidence when materialization is incomplete so ingest can recover it.
         foundMedia = await resolvePublicMedia(foundMedia.id) ?? foundMedia;

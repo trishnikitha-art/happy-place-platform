@@ -15,6 +15,8 @@ import { put, head, del, get } from '@vercel/blob';
 import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 import { getEnvironment, getKvNamespace } from '@/lib/environment';
+import { getLegacyBlobRenditionUrls, isAllowedVercelBlobUrl } from '@/lib/media-storage-evidence';
+import type { Media } from '@/types/media';
 
 /**
  * Verification result with distinct error types
@@ -70,6 +72,10 @@ function getRedisClient(): Redis | null {
  * - UNKNOWN_ERROR: Unclassified error
  */
 export async function verifyBlobHash(blobUrl: string, expectedContentHash: string): Promise<BlobHashVerificationResult> {
+  if (!isAllowedVercelBlobUrl(blobUrl) || !/^[a-f0-9]{64}$/.test(expectedContentHash)) {
+    return { success: false, errorType: 'INVALID_URL' };
+  }
+
   try {
     // P0 FIX: Use Vercel Blob SDK's authenticated get() for proper Blob access
     // This uses the authoritative Blob access mechanism instead of raw fetch()
@@ -160,8 +166,12 @@ interface BlobMetadata {
  * @returns true if the Blob exists and is accessible
  */
 export async function verifyBlobExists(blobUrl: string): Promise<boolean> {
+  if (!isAllowedVercelBlobUrl(blobUrl)) return false;
+
   try {
-    const response = await fetch(blobUrl, { method: 'HEAD' });
+    // Do not follow redirects: a record must never redirect a verification
+    // request from the verified Vercel Blob host to an arbitrary destination.
+    const response = await fetch(blobUrl, { method: 'HEAD', redirect: 'manual' });
     return response.ok;
   } catch (error) {
     console.error('[BLOB_STORAGE] Error verifying Blob existence', { blobUrl, error });
@@ -176,7 +186,7 @@ export async function verifyBlobExists(blobUrl: string): Promise<boolean> {
  * @param media - The media record to verify
  * @returns object with verification results for each rendition type
  */
-export async function verifyRenditionCompleteness(media: any): Promise<{
+export async function verifyRenditionCompleteness(media: Media): Promise<{
   complete: boolean;
   details: {
     original: boolean;
@@ -194,47 +204,30 @@ export async function verifyRenditionCompleteness(media: any): Promise<{
     responsive: [] as Array<{ width: number; webp: boolean; avif: boolean }>,
   };
 
-  if (!media.variants) {
+  if (!media.variants || !media.contentHash) {
     return { complete: false, details };
   }
 
-  // Verify original
-  if (media.variants.original) {
-    details.original = await verifyBlobExists(media.variants.original);
+  const { original, thumbnail, webp, avif, web, responsive } = media.variants;
+  const urls = getLegacyBlobRenditionUrls(media.variants);
+  if (!original || !thumbnail || !webp || !responsive || !urls ||
+      !/^[a-f0-9]{64}$/.test(media.contentHash)) {
+    return { complete: false, details };
   }
 
-  // Verify thumbnail
-  if (media.variants.thumbnail) {
-    details.thumbnail = await verifyBlobExists(media.variants.thumbnail);
-  }
+  const exists = new Map(await Promise.all(urls.map(async url => [url, await verifyBlobExists(url)] as const)));
+  details.original = exists.get(original) === true;
+  details.thumbnail = exists.get(thumbnail) === true;
+  details.webp = exists.get(webp) === true;
+  details.avif = avif ? exists.get(avif) === true : true;
+  details.responsive = responsive.map(variant => ({
+    width: variant.width,
+    webp: exists.get(variant.webp) === true,
+    avif: exists.get(variant.avif) === true,
+  }));
 
-  // Verify webp (largest responsive or fallback)
-  if (media.variants.webp) {
-    details.webp = await verifyBlobExists(media.variants.webp);
-  }
-
-  // Verify avif (largest responsive or fallback)
-  if (media.variants.avif) {
-    details.avif = await verifyBlobExists(media.variants.avif);
-  }
-
-  // Verify responsive variants
-  if (media.variants.responsive && Array.isArray(media.variants.responsive)) {
-    for (const variant of media.variants.responsive) {
-      const webpExists = variant.webp ? await verifyBlobExists(variant.webp) : false;
-      const avifExists = variant.avif ? await verifyBlobExists(variant.avif) : false;
-      details.responsive.push({
-        width: variant.width,
-        webp: webpExists,
-        avif: avifExists,
-      });
-    }
-  }
-
-  // Determine overall completeness
-  const complete = details.original && details.thumbnail && details.webp;
-  // AVIF is optional (not all browsers support it)
-  // Responsive variants should be complete if present
+  const complete = details.original && details.thumbnail && details.webp && details.avif &&
+    details.responsive.every(variant => variant.webp && variant.avif);
 
   return { complete, details };
 }

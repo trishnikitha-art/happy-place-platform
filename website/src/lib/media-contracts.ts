@@ -12,6 +12,7 @@
 
 import type { Media } from '@/types/media';
 import { RESPONSIVE_WIDTHS } from './media-constants';
+import { getLegacyBlobRenditionUrls, legacyBlobOriginalMatchesHash } from './media-storage-evidence';
 
 /**
  * Materialization Shape Contract
@@ -119,10 +120,14 @@ export function hasRealContentHash(media: Media): boolean {
  * 3. Physical storage proof (bytes exist at materialization time with hash verification, structural invariants maintained thereafter)
  * 4. All required renditions exist physically (original, thumbnail, webp, responsive)
  *
- * R2-SPECIFIC INVARIANT:
+ * R2 AND LEGACY BLOB INVARIANTS:
  * - Materialization time: byte-level SHA-256 hash verification via verifyR2Hash()
- * - Public time: structural proof via HeadObject (object existence + rendition completeness)
- * - Rationale: Materialization already proved byte integrity; public reads avoid Class B GetObject cost
+ *   or verifyBlobHash() for legacy Blob records
+ * - Public time: backend-specific rendition existence proof (R2 HeadObject or Blob HEAD)
+ * - Legacy Blob reads require the Blob metadata receipt to bind the KV content hash to
+ *   the exact original URL, then verify that original and every required rendition exist
+ * - Public reads do not download original objects; the metadata receipt records the
+ *   byte-hash verification performed at materialization time
  * - Content-addressed keys ensure immutability; re-PUT of same content is idempotent
  *
  * This is the NON-NEGOTIABLE contract for public presentation.
@@ -139,8 +144,9 @@ export async function isPubliclyComplete(media: Media): Promise<boolean> {
     return false;
   }
 
-  // Check storage authority - only 'static' or 'r2' are valid for public media
-  if (media.storage !== 'static' && media.storage !== 'r2') {
+  // Check storage authority. Legacy Blob remains valid only through its own
+  // content-addressed URL and physical-rendition verification contract.
+  if (media.storage !== 'static' && media.storage !== 'r2' && media.storage !== 'blob') {
     console.warn('[PUBLIC_COMPLETE] INVALID_STORAGE_TYPE', {
       mediaId: media.id,
       storage: media.storage,
@@ -166,6 +172,24 @@ export async function isPubliclyComplete(media: Media): Promise<boolean> {
     } catch (error) {
       // Fail closed if rendition verification fails
       console.error('[PUBLIC_COMPLETE] R2_RENDITION_VERIFICATION_ERROR', {
+        mediaId: media.id,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      });
+      return false;
+    }
+  } else if (media.storage === 'blob') {
+    if (!legacyBlobOriginalMatchesHash(media.variants.original!, media.contentHash!) ||
+        !getLegacyBlobRenditionUrls(media.variants)) {
+      return false;
+    }
+    try {
+      const { getBlobMetadataByContentHash, verifyRenditionCompleteness } = await import('@/lib/blob-storage');
+      const metadata = await getBlobMetadataByContentHash(media.contentHash!);
+      if (!metadata || metadata.contentHash !== media.contentHash || metadata.url !== media.variants.original) return false;
+      const renditionCheck = await verifyRenditionCompleteness(media);
+      if (!renditionCheck.complete) return false;
+    } catch (error) {
+      console.error('[PUBLIC_COMPLETE] BLOB_RENDITION_VERIFICATION_ERROR', {
         mediaId: media.id,
         error: error instanceof Error ? error.message : 'Unknown error',
       });

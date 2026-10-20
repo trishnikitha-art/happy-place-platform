@@ -10,6 +10,8 @@ import { Redis } from '@upstash/redis';
 import crypto from 'crypto';
 import type { Media } from '@/types/media';
 import { verifyR2ObjectExists } from '@/lib/r2-storage';
+import { getLegacyBlobRenditionUrls, legacyBlobOriginalMatchesHash } from '@/lib/media-storage-evidence';
+import { verifyBlobHash } from '@/lib/blob-storage';
 import { getEnvironment, getKvNamespace } from '@/lib/environment';
 
 /**
@@ -177,6 +179,9 @@ async function verifyMaterializationState(media: Media): Promise<boolean> {
         });
         return false;
       }
+    } else if (media.storage === 'blob') {
+      if (!legacyBlobOriginalMatchesHash(media.variants?.original || '', media.contentHash) ||
+          !getLegacyBlobRenditionUrls(media.variants)) return false;
     } else if (media.storage === 'static') {
       // Static storage: no R2 verification required
       // Just verify the storage field is properly set
@@ -190,7 +195,7 @@ async function verifyMaterializationState(media: Media): Promise<boolean> {
       console.error('[MEDIA_KV] REJECTED: Missing or invalid storage field', {
         mediaId: media.id,
         storage: media.storage,
-        reason: 'Published local media must have storage field (static or r2)'
+        reason: 'Published local media must have storage field (static, blob, or r2)'
       });
       return false;
     }
@@ -237,11 +242,9 @@ export interface PublicMediaAuthorityOptions {
    * R2 HEAD plus a complete image download plus a SHA256 per record, per
    * request.
    *
-   * Default false. The structural gate below is ALWAYS enforced and is
-   * unchanged: published+local only, contentHash required, synthetic
-   * contentHash rejected, storage field must be 'static' or 'r2', r2-backed
-   * records must have valid R2 object URLs. Nothing that previously failed
-   * the structural gate can now pass it.
+   * Default false. The structural gate is ALWAYS enforced: published+local
+   * only, contentHash required, synthetic contentHash rejected, and each
+   * storage backend must use its own canonical URL contract.
    *
    * Set true for mutation/reconciliation paths and integrity audits.
    */
@@ -319,6 +322,19 @@ export async function verifyPublicMediaAuthority(
       });
       return false;
     }
+  } else if (media.storage === 'blob') {
+    if (!legacyBlobOriginalMatchesHash(media.variants?.original || '', media.contentHash) ||
+        !getLegacyBlobRenditionUrls(media.variants)) {
+      console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Invalid legacy Blob contract', {
+        mediaId: media.id,
+        reason: 'Legacy Blob media must have a content-addressed original and canonical Vercel Blob renditions',
+      });
+      return false;
+    }
+    if (verifyPhysicalBytes) {
+      const hashCheck = await verifyBlobHash(media.variants.original!, media.contentHash);
+      if (!hashCheck.success) return false;
+    }
   } else if (media.storage === 'static') {
     // Static storage: served from /public/images/, no R2 verification required
     // Verify that static files have proper local paths instead of R2 URLs
@@ -346,7 +362,7 @@ export async function verifyPublicMediaAuthority(
     console.error('[MEDIA_KV] PUBLIC_GATE_REJECTED: Missing or invalid storage field', {
       mediaId: media.id,
       storage: media.storage,
-      reason: 'Published local media must have storage field (static or r2)'
+      reason: 'Published local media must have storage field (static, blob, or r2)'
     });
     return false;
   }
@@ -565,12 +581,12 @@ export async function saveMedia(media: Media): Promise<void> {
     if (media.lifecycleState === 'published' && media.source === 'local') {
       // Storage field MUST be present for published local records
       if (!media.storage) {
-        throw new Error(`Cannot save media ${media.id}: Published local media requires storage field (static or blob)`);
+        throw new Error(`Cannot save media ${media.id}: Published local media requires a storage field`);
       }
       
-      // Storage must be either static or blob
-      if (media.storage !== 'static' && media.storage !== 'r2') {
-        throw new Error(`Cannot save media ${media.id}: Published local media storage must be 'static' or 'r2', got '${media.storage}'`);
+      // Storage must name an explicitly verified backend.
+      if (media.storage !== 'static' && media.storage !== 'r2' && media.storage !== 'blob') {
+        throw new Error(`Cannot save media ${media.id}: unsupported published media storage '${media.storage}'`);
       }
 
       // Static storage must have valid static path
@@ -587,6 +603,13 @@ export async function saveMedia(media: Media): Promise<void> {
       if (media.storage === 'r2') {
         if (!media.contentHash) {
           throw new Error(`Cannot save media ${media.id}: R2 storage requires content hash`);
+        }
+      }
+
+      if (media.storage === 'blob') {
+        const { isPubliclyComplete } = await import('@/lib/media-contracts');
+        if (!await isPubliclyComplete(media)) {
+          throw new Error(`Cannot save media ${media.id}: legacy Blob media is not physically complete`);
         }
       }
       

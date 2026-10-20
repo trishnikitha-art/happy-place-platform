@@ -276,12 +276,12 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
   }
 
   // REJECT: Missing or invalid storage field
-  // PublishedMediaAsset must have storage: 'static' or 'r2'
-  if (media.storage !== 'static' && media.storage !== 'r2') {
+  // PublishedMediaAsset must use a recognized and independently verified backend.
+  if (media.storage !== 'static' && media.storage !== 'r2' && media.storage !== 'blob') {
     console.error('[PUBLIC_MEDIA_GATE] REJECTED: Missing or invalid storage field', {
       mediaId: id,
       storage: media.storage,
-      reason: 'PublishedMediaAsset must have storage field (static or r2)'
+      reason: 'PublishedMediaAsset must have storage field (static, blob, or r2)'
     });
     return null;
   }
@@ -312,10 +312,10 @@ export async function resolvePublicMedia(id: string): Promise<Media | null> {
   }
 
   // Use the same shape, content identity, and physical rendition contract as ingest.
-  if (media.storage === 'r2') {
+  if (media.storage === 'r2' || media.storage === 'blob') {
     const { isPubliclyComplete } = await import('@/lib/media-contracts');
     if (!await isPubliclyComplete(media)) {
-      console.error('[PUBLIC_MEDIA_GATE] REJECTED: Incomplete R2 materialization', { mediaId: id });
+      console.error('[PUBLIC_MEDIA_GATE] REJECTED: Incomplete stored materialization', { mediaId: id, storage: media.storage });
       return null;
     }
   }
