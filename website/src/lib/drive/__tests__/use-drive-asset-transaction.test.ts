@@ -39,7 +39,10 @@ beforeEach(() => {
   jest.mocked(verifyCorpusAuthorization).mockResolvedValue({ authorized: true });
   mockSet.mockResolvedValue('OK');
   mockEval.mockResolvedValue(1);
-  jest.mocked(ingest).mockImplementation(async () => Response.json({ mediaId: 'published-id', media: { id: 'published-id' } }) as any);
+  jest.mocked(ingest).mockImplementation(async () => Response.json({ success: true, mediaId: 'published-id', media: {
+    id: 'published-id', source: 'local', lifecycleState: 'published', storage: 'r2', contentHash: 'a'.repeat(64),
+    dimensions: { width: 100, height: 100 }, variants: { original: 'https://media.example.com/a' }, roles: [],
+  } }) as any);
   jest.mocked(assignMediaBatch).mockResolvedValue({ success: true, committed: true, verified: true,
     operationId: 'batch-id', canonicalMediaId: 'published-id', replayed: false, slotResults: [], verificationResults: [] });
 });
@@ -119,6 +122,26 @@ describe('Drive handoff behavior', () => {
     expect((await request()).status).toBe(400);
     expect(assignMediaBatch).not.toHaveBeenCalled();
     expect(mockEval).toHaveBeenCalledTimes(1);
+  });
+  it('returns a structured retryable result for a 202 materialization lease and never assigns', async () => {
+    jest.mocked(ingest).mockImplementation(async () => Response.json({
+      success: false, error: 'MATERIALIZATION_IN_PROGRESS', retryable: false, requestId: 'ingest-id',
+    }, { status: 202 }) as any);
+
+    const response = await request();
+    expect(response.status).toBe(202);
+    expect(response.body).toMatchObject({
+      success: false, error: 'MATERIALIZATION_IN_PROGRESS', retryable: true,
+      retrySameRequest: true, retryAfterMs: 1000, committed: false,
+    });
+    expect(assignMediaBatch).not.toHaveBeenCalled();
+  });
+  it('does not assign a response without the completed-materialization contract', async () => {
+    jest.mocked(ingest).mockImplementation(async () => Response.json({
+      success: false, mediaId: 'published-id', media: { id: 'published-id' },
+    }) as any);
+    expect((await request()).status).toBe(502);
+    expect(assignMediaBatch).not.toHaveBeenCalled();
   });
   it('rejects a mismatched ingest identity', async () => {
     jest.mocked(ingest).mockImplementation(async () => Response.json({ mediaId: 'a', media: { id: 'b' } }) as any);

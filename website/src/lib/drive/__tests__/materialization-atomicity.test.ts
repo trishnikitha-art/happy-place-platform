@@ -1,380 +1,156 @@
-/**
- * Materialization Atomicity Test
- *
- * P1-7: Map and fix all transitions in the materialization path:
- * DriveReference → materialize → Blob → PublishedMediaAsset → assignment
- *
- * Requirements:
- * - Identify every crash/failure window
- * - Define recovery semantics
- * - Implement idempotent retry/reconciliation
- * - Never leave public projection pointing to an incompletely materialized asset
- * - Preserve authoritative data on failure
- * - Add the smallest appropriate regression tests
- *
- * Test cases:
- * 1. Drive download failure recovery
- * 2. Content hash computation failure recovery
- * 3. Sharp processing failure recovery
- * 4. Blob upload failure recovery
- * 5. KV store failure recovery
- * 6. Assignment reconciliation failure recovery
- * 7. Partial state detection and repair
- * 8. Idempotent retry behavior
- * 9. Cross-state consistency verification
- */
+import { POST } from '@/app/api/drive/ingest/route';
+import { driveDiscovery } from '../drive-discovery';
+import { storeMedia, findMediaByContentHash, createRedisClient } from '@/lib/media-kv-store';
+import { verifyR2Hash, verifyR2RenditionCompleteness, uploadToR2 } from '@/lib/r2-storage';
+import { Redis } from '@upstash/redis';
+import crypto from 'crypto';
+import sharp from 'sharp';
+import type { Media } from '@/types/media';
 
-describe('Materialization Atomicity', () => {
-  describe('Failure window identification', () => {
-    it('should identify Drive download failure window', () => {
-      // Failure window: between Drive download start and completion
-      // Impact: No bytes to process, operation fails early
-      // Recovery: Retry the entire ingest operation
-      // State: No partial state created
-      
-      const stage = 'DRIVE_DOWNLOAD';
-      const crashWindow = 'driveDiscovery.downloadFile()';
-      const partialState = 'none';
-      const recoveryAction = 'retry entire ingest';
-      
-      expect(stage).toBe('DRIVE_DOWNLOAD');
-      expect(partialState).toBe('none');
-      expect(recoveryAction).toBe('retry entire ingest');
-    });
+jest.mock('../drive-discovery', () => ({ driveDiscovery: { getFile: jest.fn(), downloadFile: jest.fn() } }));
+jest.mock('../drive-session', () => ({ driveSession: { isAuthenticated: async () => true } }));
+jest.mock('@/lib/workbench-session', () => ({ workbenchSession: {
+  isAuthenticated: async () => true, getSessionIdentity: async () => ({ email: 'test@example.com' }),
+} }));
+jest.mock('../corpus-authorization', () => ({ verifyCorpusAuthorization: async () => ({ authorized: true }) }));
+jest.mock('@/lib/media-kv-store', () => ({
+  createRedisClient: jest.fn(), namespacedKey: (key: string) => `test:${key}`,
+  storeMedia: jest.fn(), findMediaByContentHash: jest.fn(), getMedia: jest.fn(),
+}));
+jest.mock('@/lib/r2-storage', () => ({
+  uploadToR2: jest.fn(), verifyR2Hash: jest.fn(),
+  verifyR2ObjectExists: async () => true, verifyR2RenditionCompleteness: jest.fn(),
+}));
 
-    it('should identify content hash computation failure window', () => {
-      // Failure window: between content hash computation start and completion
-      // Impact: Cannot determine stable identity, cannot deduplicate
-      // Recovery: Retry the entire ingest operation
-      // State: File buffer in memory (transient, lost on crash)
-      
-      const stage = 'CONTENT_HASH';
-      const crashWindow = 'crypto.createHash().digest()';
-      const partialState = 'transient file buffer in memory';
-      const recoveryAction = 'retry entire ingest';
-      
-      expect(stage).toBe('CONTENT_HASH');
-      expect(partialState).toBe('transient file buffer in memory');
-      expect(recoveryAction).toBe('retry entire ingest');
-    });
+describe('materialization atomicity behavior', () => {
+  let bytes: Buffer;
+  let lease: any;
+  const redis = {
+    set: jest.fn(async (_key: string, value: string) => {
+      if (lease) return null;
+      lease = JSON.parse(value); return 'OK';
+    }),
+    get: jest.fn(async () => lease),
+    eval: jest.fn(async (_script: string, _keys: string[], args: any[]) => {
+      if (!lease || lease.status !== args[0] || lease.ownerToken !== args[1]) return 0;
+      lease = JSON.parse(args[2]); return 1;
+    }),
+  };
+  const ingest = () => POST(new Request('https://test/api/drive/ingest', {
+    method: 'POST', body: JSON.stringify({ fileId: 'authorized-file', sharedDriveId: 'corpus' }),
+  }));
 
-    it('should identify Sharp processing failure window', () => {
-      // Failure window: during variant generation with Sharp
-      // Impact: Cannot generate renditions, asset not publishable
-      // Recovery: Entire ingest fails, no partial state written
-      // State: File buffer in memory (transient, lost on crash)
-      
-      const stage = 'VARIANT_GENERATION';
-      const crashWindow = 'sharp().resize().toBuffer()';
-      const partialState = 'transient file buffer in memory';
-      const recoveryAction = 'retry entire ingest';
-      
-      expect(stage).toBe('VARIANT_GENERATION');
-      expect(partialState).toBe('transient file buffer in memory');
-      expect(recoveryAction).toBe('retry entire ingest');
+  beforeAll(async () => {
+    bytes = await sharp({ create: { width: 32, height: 32, channels: 3, background: 'red' } }).jpeg().toBuffer();
+  });
+  beforeEach(() => {
+    jest.clearAllMocks(); lease = null;
+    process.env.R2_ACCOUNT_ID = 'test'; process.env.R2_BUCKET_NAME = 'test';
+    process.env.R2_ACCESS_KEY_ID = 'test'; process.env.R2_SECRET_ACCESS_KEY = 'test';
+    jest.spyOn(console, 'error').mockImplementation(() => {});
+    jest.spyOn(console, 'log').mockImplementation(() => {});
+    jest.mocked(createRedisClient).mockReturnValue(redis as never);
+    jest.mocked(driveDiscovery.getFile).mockResolvedValue({ name: 'photo.jpg', mimeType: 'image/jpeg' } as never);
+    jest.mocked(driveDiscovery.downloadFile).mockResolvedValue(bytes);
+    jest.mocked(findMediaByContentHash).mockResolvedValue(null);
+    jest.mocked(uploadToR2).mockImplementation(async (buffer, _mime, ext) => {
+      const hash = crypto.createHash('sha256').update(buffer).digest('hex');
+      return { url: `https://bucket.r2.dev/${hash}-original.${ext}`, contentHash: hash, uploadedAt: new Date().toISOString() };
     });
+    jest.mocked(verifyR2Hash).mockResolvedValue({ success: true });
+    jest.mocked(verifyR2RenditionCompleteness).mockResolvedValue({ complete: true } as never);
+  });
+  afterEach(() => jest.restoreAllMocks());
 
-    it('should identify R2 upload failure window', () => {
-      // Failure window: during R2 upload of variants
-      // Impact: Incomplete R2 storage, asset not usable
-      // Recovery: Retry upload (R2 idempotency allows safe retry)
-      // State: Some variants may be in R2, KV not yet written
-      
-      const stage = 'R2_UPLOAD';
-      const crashWindow = 'uploadToR2()';
-      const partialState = 'partial R2 variants, no KV record';
-      const recoveryAction = 'retry upload (idempotent)';
-      
-      expect(stage).toBe('R2_UPLOAD');
-      expect(partialState).toBe('partial R2 variants, no KV record');
-      expect(recoveryAction).toBe('retry upload (idempotent)');
-    });
-
-    it('should identify KV store failure window', () => {
-      // Failure window: during KV write of PublishedMediaAsset
-      // Impact: R2 variants exist but no KV record (orphaned R2)
-      // Recovery: Must detect orphaned R2 and recreate KV record
-      // State: Complete R2 storage, no KV record
-      
-      const stage = 'KV_STORE';
-      const crashWindow = 'storeMedia()';
-      const partialState = 'complete R2 storage, no KV record';
-      const recoveryAction = 'detect orphaned R2, recreate KV record';
-      
-      expect(stage).toBe('KV_STORE');
-      expect(partialState).toBe('complete R2 storage, no KV record');
-      expect(recoveryAction).toBe('detect orphaned R2, recreate KV record');
-    });
-
-    it('should identify assignment reconciliation failure window', () => {
-      // Failure window: during assignment reconciliation
-      // Impact: PublishedMediaAsset exists but assignments not updated
-      // Recovery: Re-run reconciliation (idempotent)
-      // State: Complete PublishedMediaAsset, stale assignments
-      
-      const stage = 'ASSIGNMENT_RECONCILIATION';
-      const crashWindow = 'reconcileDriveAssignments()';
-      const partialState = 'complete PublishedMediaAsset, stale assignments';
-      const recoveryAction = 're-run reconciliation (idempotent)';
-      
-      expect(stage).toBe('ASSIGNMENT_RECONCILIATION');
-      expect(partialState).toBe('complete PublishedMediaAsset, stale assignments');
-      expect(recoveryAction).toBe('re-run reconciliation (idempotent)');
-    });
+  it('keeps the public record absent when Drive download fails', async () => {
+    jest.mocked(driveDiscovery.downloadFile).mockRejectedValue(new Error('Drive unavailable'));
+    expect((await ingest()).status).toBe(500);
+    expect(uploadToR2).not.toHaveBeenCalled();
+    expect(storeMedia).not.toHaveBeenCalled();
+    expect(lease.status).toBe('FAILED_RETRYABLE');
   });
 
-  describe('Recovery semantics', () => {
-    it('should preserve authoritative data on KV failure', () => {
-      // If KV write fails after Blob upload succeeds:
-      // - Blob data is preserved (orphaned but recoverable)
-      // - Content hash is preserved (can reconstruct KV record)
-      // - Drive provenance is preserved (from request context)
-      // Recovery: Reconstruct KV record from Blob + content hash
-      
-      const blobState = 'complete';
-      const kvState = 'missing';
-      const authorityPreserved = true;
-      const recoveryStrategy = 'reconstruct KV from Blob + content hash';
-      
-      expect(blobState).toBe('complete');
-      expect(kvState).toBe('missing');
-      expect(authorityPreserved).toBe(true);
-      expect(recoveryStrategy).toBe('reconstruct KV from Blob + content hash');
-    });
-
-    it('should preserve authoritative data on Blob failure', () => {
-      // If Blob upload fails before KV write:
-      // - KV is not written (fail closed)
-      // - Drive source is preserved (can retry)
-      // - Content hash is preserved (can retry)
-      // Recovery: Retry Blob upload (idempotent)
-      
-      const blobState = 'partial or missing';
-      const kvState = 'not written';
-      const authorityPreserved = true;
-      const recoveryStrategy = 'retry Blob upload (idempotent)';
-      
-      expect(blobState).toBe('partial or missing');
-      expect(kvState).toBe('not written');
-      expect(authorityPreserved).toBe(true);
-      expect(recoveryStrategy).toBe('retry Blob upload (idempotent)');
-    });
-
-    it('should preserve authoritative data on assignment reconciliation failure', () => {
-      // If assignment reconciliation fails after KV write succeeds:
-      // - PublishedMediaAsset is preserved in KV
-      // - Assignments are stale but recoverable
-      // - Drive provenance is preserved in KV
-      // Recovery: Re-run reconciliation (idempotent)
-      
-      const kvState = 'complete';
-      const assignmentState = 'stale';
-      const authorityPreserved = true;
-      const recoveryStrategy = 're-run reconciliation (idempotent)';
-      
-      expect(kvState).toBe('complete');
-      expect(assignmentState).toBe('stale');
-      expect(authorityPreserved).toBe(true);
-      expect(recoveryStrategy).toBe('re-run reconciliation (idempotent)');
-    });
+  it('keeps the public record absent when image metadata/decode fails', async () => {
+    jest.mocked(driveDiscovery.downloadFile).mockResolvedValue(Buffer.from('not an image'));
+    expect((await ingest()).status).toBe(400);
+    expect(uploadToR2).not.toHaveBeenCalled();
+    expect(storeMedia).not.toHaveBeenCalled();
+    expect(lease.status).toBe('FAILED_RETRYABLE');
   });
 
-  describe('Idempotent retry behavior', () => {
-    it('should support idempotent Blob upload retry', () => {
-      // Blob upload must be idempotent:
-      // - Same content hash → same Blob URL
-      // - alreadyExisted flag indicates deduplication
-      // - Safe to retry on failure
-      
-      const blobIdempotency = {
-        contentHashBased: true,
-        alreadyExistedFlag: true,
-        safeRetry: true,
-      };
-      
-      expect(blobIdempotency.contentHashBased).toBe(true);
-      expect(blobIdempotency.alreadyExistedFlag).toBe(true);
-      expect(blobIdempotency.safeRetry).toBe(true);
-    });
-
-    it('should support idempotent KV write retry', () => {
-      // KV write must be idempotent:
-      // - Same media ID → same KV record
-      // - Content hash deduplication prevents duplicates
-      // - Safe to retry on failure
-      
-      const kvIdempotency = {
-        mediaIdBased: true,
-        contentHashDeduplication: true,
-        safeRetry: true,
-      };
-      
-      expect(kvIdempotency.mediaIdBased).toBe(true);
-      expect(kvIdempotency.contentHashDeduplication).toBe(true);
-      expect(kvIdempotency.safeRetry).toBe(true);
-    });
-
-    it('should support idempotent assignment reconciliation retry', () => {
-      // Assignment reconciliation must be idempotent:
-      // - Same target media ID → same assignment state
-      // - Reconciliation is a function of current state
-      // - Safe to retry on failure
-      
-      const reconciliationIdempotency = {
-        stateBased: true,
-        deterministic: true,
-        safeRetry: true,
-      };
-      
-      expect(reconciliationIdempotency.stateBased).toBe(true);
-      expect(reconciliationIdempotency.deterministic).toBe(true);
-      expect(reconciliationIdempotency.safeRetry).toBe(true);
-    });
+  it('does not publish after WebP encoding fails, even if the original upload already exists', async () => {
+    jest.spyOn(sharp.prototype, 'webp').mockImplementation(() => { throw new Error('native encoder failure'); });
+    expect((await ingest()).status).toBe(500);
+    expect(uploadToR2).toHaveBeenCalledTimes(1);
+    expect(storeMedia).not.toHaveBeenCalled();
+    expect(lease.status).toBe('FAILED_RETRYABLE');
   });
 
-  describe('Public projection protection', () => {
-    it('should never point public projection to incompletely materialized asset', () => {
-      // Public projection must only point to:
-      // - PublishedMediaAsset with lifecycleState: 'published'
-      // - source: 'local' (no Drive dependency)
-      // - Complete variants (validated by needsMaterialization)
-      // Rejected states:
-      // - lifecycleState: 'materializing'
-      // - lifecycleState: 'source_reference'
-      // - source: 'google-drive'
-      // - Incomplete variants
-      
-      const publicProjectionRequirements = {
-        lifecycleState: 'published',
-        source: 'local',
-        completeVariants: true,
-      };
-      
-      const rejectedStates = [
-        { lifecycleState: 'materializing', reason: 'not fully materialized' },
-        { lifecycleState: 'source_reference', reason: 'Drive dependency' },
-        { source: 'google-drive', reason: 'Drive dependency' },
-        { completeVariants: false, reason: 'incomplete renditions' },
-      ];
-      
-      expect(publicProjectionRequirements.lifecycleState).toBe('published');
-      expect(publicProjectionRequirements.source).toBe('local');
-      expect(publicProjectionRequirements.completeVariants).toBe(true);
-      expect(rejectedStates).toHaveLength(4);
-    });
-
-    it('should fail closed on incomplete asset', () => {
-      // If asset is incomplete, public gate must reject:
-      // - resolvePublicMedia returns null
-      // - UI renders nothing (no fallback)
-      // - No static resurrection
-      
-      const incompleteAsset = {
-        lifecycleState: 'materializing',
-        source: 'local',
-        completeVariants: false,
-      };
-      
-      const publicGateBehavior = {
-        resolvePublicMedia: 'null',
-        uiBehavior: 'render nothing',
-        staticFallback: 'disabled',
-      };
-      
-      expect(publicGateBehavior.resolvePublicMedia).toBe('null');
-      expect(publicGateBehavior.uiBehavior).toBe('render nothing');
-      expect(publicGateBehavior.staticFallback).toBe('disabled');
-    });
+  it('does not publish after AVIF encoding fails, even if earlier renditions were uploaded', async () => {
+    jest.spyOn(sharp.prototype, 'avif').mockImplementation(() => { throw new Error('native encoder failure'); });
+    expect((await ingest()).status).toBe(500);
+    expect(uploadToR2).toHaveBeenCalledTimes(2);
+    expect(storeMedia).not.toHaveBeenCalled();
+    expect(lease.status).toBe('FAILED_RETRYABLE');
   });
 
-  describe('Cross-state consistency verification', () => {
-    it('should verify KV-Blob consistency', () => {
-      // KV record must reference Blob URLs that exist
-      // Blob content must match KV contentHash
-      // Inconsistency detection is required
-      
-      const consistencyCheck = {
-        kvReferencesBlob: true,
-        blobMatchesContentHash: true,
-        inconsistencyDetection: true,
-      };
-      
-      expect(consistencyCheck.kvReferencesBlob).toBe(true);
-      expect(consistencyCheck.blobMatchesContentHash).toBe(true);
-      expect(consistencyCheck.inconsistencyDetection).toBe(true);
-    });
-
-    it('should verify KV-assignment consistency', () => {
-      // Assignments must reference valid media IDs in KV
-      // Media IDs must have lifecycleState: 'published'
-      // Inconsistency detection is required
-      
-      const consistencyCheck = {
-        assignmentsReferenceValidMedia: true,
-        mediaIsPublished: true,
-        inconsistencyDetection: true,
-      };
-      
-      expect(consistencyCheck.assignmentsReferenceValidMedia).toBe(true);
-      expect(consistencyCheck.mediaIsPublished).toBe(true);
-      expect(consistencyCheck.inconsistencyDetection).toBe(true);
-    });
-
-    it('should verify Drive-provenance consistency', () => {
-      // Drive file ID in provenance must match actual Drive file
-      // Shared Drive ID must match corpus
-      // Reconciliation must use authoritative Drive file ID
-      
-      const consistencyCheck = {
-        driveFileIdMatches: true,
-        sharedDriveIdMatches: true,
-        reconciliationUsesAuthoritativeId: true,
-      };
-      
-      expect(consistencyCheck.driveFileIdMatches).toBe(true);
-      expect(consistencyCheck.sharedDriveIdMatches).toBe(true);
-      expect(consistencyCheck.reconciliationUsesAuthoritativeId).toBe(true);
-    });
+  it('does not persist a media record after an R2 upload failure', async () => {
+    jest.mocked(uploadToR2).mockRejectedValue(new Error('R2 unavailable'));
+    expect((await ingest()).status).toBe(500);
+    expect(storeMedia).not.toHaveBeenCalled();
+    expect(lease.status).toBe('FAILED_RETRYABLE');
   });
 
-  describe('Materialization state machine', () => {
-    it('should define valid state transitions', () => {
-      // Valid transitions:
-      // DriveReference → PublishedMediaAsset (materialization)
-      // PublishedMediaAsset → PublishedMediaAsset (upgrade)
-      // Invalid transitions:
-      // PublishedMediaAsset → DriveReference (downgrade)
-      // DriveReference → DriveReference (in-place upgrade)
-      
-      const validTransitions = [
-        { from: 'source_reference', to: 'published', operation: 'materialize' },
-        { from: 'published', to: 'published', operation: 'upgrade' },
-      ];
-      
-      const invalidTransitions = [
-        { from: 'published', to: 'source_reference', reason: 'downgrade' },
-        { from: 'source_reference', to: 'source_reference', reason: 'in-place upgrade' },
-      ];
-      
-      expect(validTransitions).toHaveLength(2);
-      expect(invalidTransitions).toHaveLength(2);
-    });
+  it('does not complete the lease when KV persistence fails after uploads', async () => {
+    jest.mocked(storeMedia).mockRejectedValue(new Error('KV unavailable'));
+    expect((await ingest()).status).toBe(500);
+    expect(uploadToR2).toHaveBeenCalled();
+    expect(storeMedia).toHaveBeenCalledTimes(1);
+    expect(lease.status).toBe('FAILED_RETRYABLE');
+  });
 
-    it('should enforce atomic state transitions', () => {
-      // State transitions must be atomic:
-      // - Either complete fully or roll back
-      // - No intermediate states visible to public
-      // - Recovery always leads to a valid state
-      
-      const atomicityRequirements = {
-        completeOrRollback: true,
-        noIntermediatePublicStates: true,
-        recoveryLeadsToValidState: true,
-      };
-      
-      expect(atomicityRequirements.completeOrRollback).toBe(true);
-      expect(atomicityRequirements.noIntermediatePublicStates).toBe(true);
-      expect(atomicityRequirements.recoveryLeadsToValidState).toBe(true);
-    });
+  it('refuses to persist a record when physical rendition verification fails', async () => {
+    jest.mocked(verifyR2RenditionCompleteness).mockResolvedValue({ complete: false } as never);
+    expect((await ingest()).status).toBe(500);
+    expect(storeMedia).not.toHaveBeenCalled();
+    expect(lease.status).toBe('FAILED_RETRYABLE');
+  });
+
+  it('retries the same source after a KV failure and completes the owned lease', async () => {
+    jest.mocked(storeMedia).mockRejectedValueOnce(new Error('transient KV failure'));
+    expect((await ingest()).status).toBe(500);
+    expect(lease.status).toBe('FAILED_RETRYABLE');
+
+    jest.mocked(storeMedia).mockResolvedValue(undefined);
+    const retry = await ingest();
+    expect(retry.status).toBe(200);
+    expect(await retry.json()).toMatchObject({ success: true, action: 'created' });
+    expect(lease.status).toBe('SUCCEEDED');
+    expect(storeMedia).toHaveBeenCalledTimes(2);
+  });
+
+  it('reuses an existing complete content-hash record without uploading or persisting a duplicate', async () => {
+    const contentHash = crypto.createHash('sha256').update(bytes).digest('hex');
+    process.env.R2_PUBLIC_BASE_URL = 'https://bucket.r2.dev';
+    const renditionUrl = (label: string, extension: string) =>
+      `https://bucket.r2.dev/${crypto.createHash('sha256').update(label).digest('hex')}-original.${extension}`;
+    const existing: Media = {
+      id: contentHash.slice(0, 32), filename: 'photo.jpg', type: 'image', orientation: 'square', alt: 'Photo',
+      tags: [], roles: ['gallery'], source: 'local', lifecycleState: 'published', storage: 'r2', contentHash,
+      dimensions: { width: 32, height: 32 },
+      variants: {
+        original: `https://bucket.r2.dev/${contentHash}-original.jpg`,
+        web: renditionUrl('web', 'webp'), webp: renditionUrl('webp', 'webp'),
+        avif: renditionUrl('avif', 'avif'), thumbnail: renditionUrl('thumbnail', 'webp'),
+        blur: renditionUrl('blur', 'webp'), responsive: [],
+      },
+    };
+    jest.mocked(findMediaByContentHash).mockResolvedValue(existing);
+    const response = await ingest();
+    expect(response.status).toBe(200);
+    expect(await response.json()).toMatchObject({ success: true, action: 'existing', mediaId: existing.id, deduplicated: true });
+    expect(uploadToR2).not.toHaveBeenCalled();
+    expect(storeMedia).not.toHaveBeenCalled();
+    expect(lease).toMatchObject({ status: 'SUCCEEDED', mediaId: existing.id });
   });
 });

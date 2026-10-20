@@ -20,6 +20,7 @@ import { Redis } from '@upstash/redis';
 import { getDriveClient } from '@/lib/drive/oauth-manager';
 import { verifyCorpusAuthorization } from '@/lib/drive/corpus-authorization';
 import { getKvNamespace } from '@/lib/environment';
+import { isPublishedMediaAsset } from '@/types/media';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -445,10 +446,23 @@ export async function POST(request: Request) {
       }),
     }));
     const ingested = await ingestResponse.json();
+    if (ingested?.error === 'MATERIALIZATION_IN_PROGRESS') {
+      return NextResponse.json({
+        ...ingested,
+        success: false,
+        retryable: true,
+        retrySameRequest: true,
+        retryAfterMs: 1000,
+        committed: false,
+        requestId,
+      }, { status: 202 });
+    }
     if (!ingestResponse.ok) {
       return NextResponse.json({ ...ingested, requestId, committed: false }, { status: ingestResponse.status });
     }
-    if (!ingested.mediaId || ingested.media?.id !== ingested.mediaId) {
+    if (ingested?.success !== true || !ingested.mediaId || ingested.media?.id !== ingested.mediaId ||
+        !isPublishedMediaAsset(ingested.media) ||
+        !['static', 'blob', 'r2'].includes(ingested.media.storage)) {
       throw new AssignmentBatchError('INVALID_MATERIALIZATION_RESULT',
         'Ingest did not return a canonical published asset.', 502);
     }
