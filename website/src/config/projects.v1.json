@@ -1,6 +1,6 @@
 {
   "version": "1.0.0",
-  "generatedAt": "2026-10-18T12:13:34.960Z",
+  "generatedAt": "2026-10-22T19:20:52.768Z",
   "projects": [
     {
       "id": "fences-001",
@@ -795,26 +795,26 @@
     }
   ],
   "archiveOrder": [
-    "our-work-gallery::fences-001::fences-001-hero",
-    "our-work-gallery::fences-001::fences-001-after",
+    "our-work-gallery::repairs-001::repairs-001-drywall",
     "our-work-gallery::pergolas-001::pergolas-001-hero",
     "our-work-gallery::pergolas-001::876300ab9d29bdc09b18f2c74dd3672f",
+    "our-work-gallery::fences-001::fences-001-hero",
+    "our-work-gallery::fences-001::fences-001-after",
     "our-work-gallery::builtins-001::builtins-001-hero",
     "our-work-gallery::builtins-001::builtins-001-secondary",
-    "our-work-gallery::repairs-001::repairs-001-drywall",
-    "our-work-gallery::repairs-001::repairs-001-hero",
     "our-work-gallery::repairs-001::repairs-001-floor",
     "our-work-gallery::repairs-001::repairs-001-floor0",
+    "our-work-gallery::repairs-001::repairs-001-hero",
     "our-work-gallery::repairs-001::repairs-001-gutter",
-    "our-work-gallery::repairs-001::repairs-001-img0544",
-    "our-work-gallery::repairs-001::repairs-001-img0546",
-    "our-work-gallery::exterior-painting-001::outdoor-living-001-hero",
-    "our-work-gallery::exterior-painting-001::outdoor-living-001-6",
     "our-work-gallery::exterior-painting-001::outdoor-living-001-5",
+    "our-work-gallery::exterior-painting-001::outdoor-living-001-6",
     "our-work-gallery::exterior-painting-001::outdoor-living-001-2",
+    "our-work-gallery::exterior-painting-001::outdoor-living-001-hero",
     "our-work-gallery::exterior-painting-001::outdoor-living-001-4",
     "our-work-gallery::exterior-painting-001::outdoor-living-001-3",
     "our-work-gallery::exterior-painting-001::builtins-001-hero",
+    "our-work-gallery::repairs-001::repairs-001-img0546",
+    "our-work-gallery::repairs-001::repairs-001-img0544",
     "our-work-gallery::bathroom-remodeling-001::bathroom-remodeling-001-hero",
     "our-work-gallery::davis-bathroom-remodel-001::bathroom-remodeling-001-hero",
     "our-work-gallery::johnson-cedar-fence-001::fences-001-hero",
@@ -829,5 +829,5 @@
     "our-work-gallery::wilson-home-repairs-001::repairs-001-floor0",
     "our-work-gallery::wilson-home-repairs-001::repairs-001-hero"
   ],
-  "editorialRevision": 1
+  "editorialRevision": 2
 }
