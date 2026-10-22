@@ -229,14 +229,12 @@
         "hero": "repairs-001-hero",
         "gallery": [
           "repairs-001-hero",
-          "repairs-001-drywall",
-          "repairs-001-floor",
           "repairs-001-floor0",
           "repairs-001-gutter",
           "repairs-001-img0544",
           "repairs-001-img0546"
         ],
-        "galleryRevision": 14
+        "galleryRevision": 15
       },
       "story": {
         "challenge": "Multiple home repair issues needed attention",
@@ -289,6 +287,101 @@
       "updatedAt": "2026-07-18T00:00:00.000Z",
       "hidden": false,
       "order": 3
+    },
+    {
+      "id": "drywall-001",
+      "title": "Precision Drywall Work Around Pipes",
+      "slug": "precision-drywall-around-pipes",
+      "service": "drywall",
+      "services": {
+        "primary": "drywall"
+      },
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "media": {
+        "hero": "repairs-001-drywall",
+        "gallery": [
+          "repairs-001-drywall"
+        ],
+        "galleryRevision": 0
+      },
+      "story": {
+        "challenge": "Multiple pipes pass through a tight section of wall, leaving little room for rough or oversized drywall cuts. Each opening needs to fit the existing pipe layout closely so the surrounding surface can be finished cleanly.",
+        "solution": "Each pipe opening was measured and cut individually, working carefully around the existing pipes rather than forcing the panel into place or leaving unnecessarily wide gaps. This is detail-oriented work where accurate measuring and controlled cuts make the difference.",
+        "outcome": "Clean, close-fitting openings give the wall a more deliberate, professional finish and prepare the area for the next finishing stage. The precision is in the details around every pipe.",
+        "specialFeatures": [
+          "Individually measured pipe openings",
+          "Tight-clearance drywall fitting",
+          "Careful work around existing pipes",
+          "Preparation for subsequent finishing"
+        ]
+      },
+      "tags": [
+        "drywall",
+        "pipe-openings",
+        "corvallis"
+      ],
+      "reviews": [],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "hidden": false,
+      "order": 11,
+      "metaDescription": "Precision drywall fitting around existing pipes, with close-fitting openings prepared for the next finishing stage.",
+      "createdAt": "2026-10-22T00:00:00.000Z",
+      "updatedAt": "2026-10-22T00:00:00.000Z"
+    },
+    {
+      "id": "project-hp011",
+      "title": "Subfloor Replacement & Floor Restoration",
+      "slug": "subfloor-replacement-floor-restoration",
+      "service": "restoration",
+      "services": {
+        "primary": "restoration"
+      },
+      "status": "completed",
+      "location": {
+        "city": "Corvallis",
+        "county": "Benton",
+        "state": "Oregon"
+      },
+      "media": {
+        "hero": "repairs-001-floor",
+        "gallery": [
+          "repairs-001-floor"
+        ],
+        "galleryRevision": 0
+      },
+      "story": {
+        "challenge": "A dependable finished floor starts underneath. When the subfloor needs replacement, the visible finish is only part of the job; the underlying surface must be addressed before the flooring work can be properly completed.",
+        "solution": "Replaced the subfloor and prepared the underlying surface for the next flooring stage. The work focuses on the part of the floor most people never see, but that supports everything above it.",
+        "outcome": "A renewed starting point for the finished floor, with the restoration work beginning where it matters most: beneath the visible surface.",
+        "specialFeatures": [
+          "Subfloor replacement",
+          "Before-and-after project documentation",
+          "Preparation for subsequent finish flooring",
+          "Attention to the underlying surface, not just the visible finish"
+        ]
+      },
+      "tags": [
+        "restoration",
+        "subfloor-replacement",
+        "floor-restoration",
+        "corvallis"
+      ],
+      "reviews": [],
+      "featured": false,
+      "heroEligible": false,
+      "homepageEligible": false,
+      "hidden": false,
+      "order": 12,
+      "metaDescription": "HP011 subfloor replacement and floor restoration, documented before and after preparation for subsequent finish flooring.",
+      "createdAt": "2026-10-22T00:00:00.000Z",
+      "updatedAt": "2026-10-22T00:00:00.000Z"
     },
     {
       "id": "exterior-painting-001",
@@ -801,9 +894,9 @@
     "our-work-gallery::pergolas-001::876300ab9d29bdc09b18f2c74dd3672f",
     "our-work-gallery::builtins-001::builtins-001-hero",
     "our-work-gallery::builtins-001::builtins-001-secondary",
-    "our-work-gallery::repairs-001::repairs-001-drywall",
+    "our-work-gallery::drywall-001::repairs-001-drywall",
     "our-work-gallery::repairs-001::repairs-001-hero",
-    "our-work-gallery::repairs-001::repairs-001-floor",
+    "our-work-gallery::project-hp011::repairs-001-floor",
     "our-work-gallery::repairs-001::repairs-001-floor0",
     "our-work-gallery::repairs-001::repairs-001-gutter",
     "our-work-gallery::repairs-001::repairs-001-img0544",
@@ -829,5 +922,5 @@
     "our-work-gallery::wilson-home-repairs-001::repairs-001-floor0",
     "our-work-gallery::wilson-home-repairs-001::repairs-001-hero"
   ],
-  "editorialRevision": 1
+  "editorialRevision": 2
 }

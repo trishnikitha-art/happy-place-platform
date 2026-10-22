@@ -249,16 +249,16 @@
         "avif": "/images/projects/repairs/DRYWALL-1080.avif",
         "thumbnail": "/images/projects/repairs/DRYWALL-thumb.webp"
       },
-      "alt": "Drywall repair work",
-      "description": "Professional drywall repair and finishing",
-      "service": "repairs",
+      "alt": "Drywall fitted closely around existing pipes, before and after fitting",
+      "description": "Close-fitting drywall openings around existing pipes, prepared for subsequent finishing.",
+      "service": "drywall",
       "city": "Corvallis",
       "county": "Benton",
       "state": "Oregon",
-      "projectId": "repairs-001",
+      "projectId": "drywall-001",
       "tags": [
-        "repairs",
         "drywall",
+        "pipe-openings",
         "corvallis"
       ],
       "roles": [
@@ -295,16 +295,16 @@
         "avif": "/images/projects/repairs/FLOOR-1080.avif",
         "thumbnail": "/images/projects/repairs/FLOOR-thumb.webp"
       },
-      "alt": "Floor repair work",
-      "description": "Professional floor repair and installation",
-      "service": "repairs",
+      "alt": "HP011 subfloor replacement before and after",
+      "description": "Before-and-after subfloor replacement composite from HP011_SubfloorReplacement_Before.jpg and HP011_SubfloorReplacement_After.jpg.",
+      "service": "restoration",
       "city": "Corvallis",
       "county": "Benton",
       "state": "Oregon",
-      "projectId": "repairs-001",
+      "projectId": "project-hp011",
       "tags": [
-        "repairs",
-        "floor",
+        "restoration",
+        "subfloor-replacement",
         "corvallis"
       ],
       "roles": [
