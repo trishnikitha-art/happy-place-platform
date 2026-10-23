@@ -87,30 +87,22 @@ export async function verifyBlobHash(blobUrl: string, expectedContentHash: strin
       return { success: false, errorType: 'BLOB_NOT_FOUND' };
     }
     
-    // Extract the actual bytes from the GetBlobResult
-    // The SDK returns { statusCode, stream, headers, blob }
-    // We need to read the stream to get the bytes
+    // Hash each exact chunk as it arrives rather than retaining and copying
+    // the whole Blob. Additional hashing memory stays bounded by stream chunks.
     const reader = result.stream.getReader();
-    const chunks: Uint8Array[] = [];
-    let totalLength = 0;
-    
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      chunks.push(value);
-      totalLength += value.length;
+    const hasher = crypto.createHash('sha256');
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        hasher.update(value);
+      }
+    } finally {
+      reader.releaseLock();
     }
     
-    // Combine chunks into a single buffer
-    const buffer = new Uint8Array(totalLength);
-    let offset = 0;
-    for (const chunk of chunks) {
-      buffer.set(chunk, offset);
-      offset += chunk.length;
-    }
-    
-    // Compute SHA-256 hash of actual Blob bytes
-    const hash = crypto.createHash('sha256').update(Buffer.from(buffer)).digest('hex');
+    // A digest is returned only after the complete stream reaches EOF.
+    const hash = hasher.digest('hex');
     
     const matches = hash === expectedContentHash;
     

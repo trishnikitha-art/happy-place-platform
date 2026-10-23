@@ -4,6 +4,11 @@
   "framework": "nextjs",
   "installCommand": "npm install --include=optional",
   "devCommand": "npm run dev",
+  "git": {
+    "deploymentEnabled": {
+      "codex/hpp-streaming-hash-ci-20261022": false
+    }
+  },
   "env": {
     "SHARP_IGNORE_GLOBAL_LIBVIPS": "1"
   },
