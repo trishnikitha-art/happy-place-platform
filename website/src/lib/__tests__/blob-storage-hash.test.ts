@@ -84,6 +84,79 @@ describe('Blob byte-hash verification', () => {
     expect(stream.locked).toBe(false);
   });
 
+  it('matches the independent SHA-256 reference for a large input with uneven chunks', async () => {
+    const bytes = Uint8Array.from({ length: 2 * 1024 * 1024 + 37 }, (_, i) => i % 256);
+    const stream = chunksOf(bytes, 131071);
+    serve(stream);
+    expect(await verifyBlobHash(blobUrl, digest(bytes))).toEqual({ success: true });
+    expect(stream.locked).toBe(false);
+  });
+
+  it('verifies identical content on separate calls without reusing stream or hash state', async () => {
+    const bytes = Uint8Array.from([0, 255, 1, 0, 128, 255]);
+    const wanted = digest(bytes);
+    for (const size of [1, 4]) {
+      const stream = chunksOf(bytes, size);
+      serve(stream);
+      expect(await verifyBlobHash(blobUrl, wanted)).toEqual({ success: true });
+      expect(stream.locked).toBe(false);
+    }
+  });
+
+  it.each([0, 3])('rejects stream errors after %i chunks without accepting a partial digest', async (chunkCount) => {
+    const chunk = Uint8Array.from([0, 128, 255]);
+    const received = Uint8Array.from({ length: chunkCount * chunk.length }, (_, i) => chunk[i % chunk.length]);
+    let reads = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (reads++ < chunkCount) controller.enqueue(chunk);
+        else controller.error(new Error('network stream failed'));
+      },
+    }, { highWaterMark: 0 });
+    serve(stream);
+    expect(await verifyBlobHash(blobUrl, digest(received))).toEqual({ success: false, errorType: 'TRANSPORT_ERROR' });
+    expect(stream.locked).toBe(false);
+  });
+
+  it('rejects an abort error after partial bytes and releases its reader', async () => {
+    const chunk = Uint8Array.from([1, 0, 255]);
+    const abort = new DOMException('The operation was aborted', 'AbortError');
+    let reads = 0;
+    const stream = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        if (reads++ === 0) controller.enqueue(chunk);
+        else controller.error(abort);
+      },
+    }, { highWaterMark: 0 });
+    serve(stream);
+    // Node-native errors can cross Jest's realm. Preserve the baseline's
+    // instanceof Error contract, including UNKNOWN_ERROR in that case.
+    expect(await verifyBlobHash(blobUrl, digest(chunk))).toEqual({
+      success: false, errorType: abort instanceof Error ? 'TRANSPORT_ERROR' : 'UNKNOWN_ERROR',
+    });
+    expect(stream.locked).toBe(false);
+  });
+
+  it('preserves failure behavior when the SDK stream lacks the required reader interface', async () => {
+    serve({} as ReadableStream<Uint8Array>);
+    expect(await verifyBlobHash(blobUrl, digest(new Uint8Array(0))))
+      .toEqual({ success: false, errorType: 'TRANSPORT_ERROR' });
+  });
+
+  it('rejects an already-locked stream without releasing another consumer\'s reader', async () => {
+    const stream = chunksOf(Uint8Array.from([1, 2, 3]), 1);
+    const reader = stream.getReader();
+    let lockedError: unknown;
+    try { stream.getReader(); } catch (error) { lockedError = error; }
+    expect(lockedError).toBeDefined();
+    serve(stream);
+    try {
+      expect(await verifyBlobHash(blobUrl, digest(Uint8Array.from([1, 2, 3]))))
+        .toEqual({ success: false, errorType: lockedError instanceof Error ? 'TRANSPORT_ERROR' : 'UNKNOWN_ERROR' });
+      expect(stream.locked).toBe(true);
+    } finally { reader.releaseLock(); }
+  });
+
   it('rejects an interrupted stream even when the bytes received match the expected digest', async () => {
     const prefix = Uint8Array.from([1, 2, 3]);
     let reads = 0;
@@ -109,7 +182,7 @@ describe('Blob byte-hash verification', () => {
     expect(await verifyBlobHash(blobUrl, 'a'.repeat(64))).toEqual({ success: false, errorType });
   });
 
-  it.each([null, {}])('preserves missing-Blob and missing-stream handling for %s', async (result) => {
+  it.each([null, {}, { statusCode: 304, stream: null }])('preserves missing-Blob and missing-stream handling for %s', async (result) => {
     jest.mocked(get).mockResolvedValue(result as Awaited<ReturnType<typeof get>>);
     expect(await verifyBlobHash(blobUrl, 'a'.repeat(64))).toEqual({ success: false, errorType: 'BLOB_NOT_FOUND' });
   });
