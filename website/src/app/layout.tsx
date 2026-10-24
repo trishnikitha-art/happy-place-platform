@@ -28,6 +28,7 @@ export const metadata: Metadata = {
     template: `%s · ${seo.siteName}`,
   },
   description: seo.description,
+  verification: { google: "P9s5Q_KZsabhXAwbOLnAwnEy75XHjFJS2vd9hCMBKT4" },
   keywords: seo.keywords,
   openGraph: {
     type: "website",
