@@ -28,7 +28,12 @@ export const metadata: Metadata = {
     template: `%s · ${seo.siteName}`,
   },
   description: seo.description,
-  verification: { google: "P9s5Q_KZsabhXAwbOLnAwnEy75XHjFJS2vd9hCMBKT4" },
+  verification: {
+    google: [
+      "P9s5Q_KZsabhXAwbOLnAwnEy75XHjFJS2vd9hCMBKT4",
+      "9GfJhTOKiF4Qb9JXQFPkHOFU_y6aVaE780foNAYCY_o",
+    ],
+  },
   keywords: seo.keywords,
   openGraph: {
     type: "website",
