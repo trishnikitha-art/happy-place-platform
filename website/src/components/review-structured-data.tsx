@@ -11,6 +11,7 @@
  */
 
 import type { Review } from "@/types/reviews";
+import { serializeJsonLd } from '@/lib/json-ld';
 
 interface ReviewStructuredDataProps {
   reviews: Review[];
@@ -87,7 +88,7 @@ export function ReviewStructuredData({
     <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{
-        __html: JSON.stringify(structuredData, null, 2),
+        __html: serializeJsonLd(structuredData),
       }}
     />
   );

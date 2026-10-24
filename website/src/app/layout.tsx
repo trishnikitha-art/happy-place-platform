@@ -11,6 +11,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { LenisProvider } from "@/components/lenis-provider";
 import { MotionProvider } from "@/components/motion-provider";
 import { SpeculationRules } from "@/components/speculation-rules";
+import { serializeJsonLd } from '@/lib/json-ld';
 
 const geistSans = Geist({ variable: "--font-geist-sans", subsets: ["latin"] });
 const geistMono = Geist_Mono({ variable: "--font-geist-mono", subsets: ["latin"] });
@@ -96,7 +97,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
         />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(orgJsonLd) }}
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(orgJsonLd) }}
         />
       </head>
       <body className="min-h-full flex flex-col bg-background">
