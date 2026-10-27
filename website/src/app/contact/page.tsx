@@ -4,12 +4,13 @@ import Image from "next/image";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { PhoneLink, EmailLink } from "@/components/tracked-contact";
 import { getCompany } from "@/lib/company";
+import { pageMetadata } from "@/config/seo";
 
-export const metadata: Metadata = {
-  title: "Contact",
-  description: "Talk about your project with Happy Place Carpentry. Serving the Mid-Willamette Valley, Oregon.",
-  alternates: { canonical: "/contact" },
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Talk About Your Home Project",
+  description: "Planning painting, repairs or carpentry? Call or email Happy Place Carpentry. Serving Benton, Linn, Marion and Polk Counties in Oregon.",
+  path: "/contact",
+});
 
 export const dynamic = 'force-dynamic';
 

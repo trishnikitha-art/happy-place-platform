@@ -4,9 +4,9 @@
   "services": [
     {
       "id": "decks",
-      "name": "Decks",
+      "name": "Deck Building & Repair",
       "slug": "decks",
-      "description": "A deck should become part of the way you use your home, not something that only looks good in listing photos.",
+      "description": "New decks, replacements, repairs, and refinishing, built around the way you use your home.",
       "icon": "deck",
       "featured": false,
       "homepageEligible": false,
@@ -187,9 +187,9 @@
     },
     {
       "id": "fences",
-      "name": "Fencing",
+      "name": "Fence Installation & Repair",
       "slug": "fences",
-      "description": "A fence should stay straight, the gate should close without dragging, and it should still look good after a few Oregon winters.",
+      "description": "New fences, replacements, repairs, and staining. A fence should stay straight, and the gate should close without dragging.",
       "icon": "fence",
       "featured": true,
       "homepageEligible": true,
@@ -423,9 +423,9 @@
     },
     {
       "id": "painting",
-      "name": "Painting",
+      "name": "Interior & Exterior Painting",
       "slug": "painting",
-      "description": "Most paint failures start before the first coat goes on. We clean, sand, repair damaged areas, and prime everything first, because good prep is what keeps paint on the house.",
+      "description": "Interior and exterior painting with careful cleaning, sanding, repairs, and priming. Most paint failures start before the first coat goes on.",
       "icon": "paint-brush",
       "featured": true,
       "homepageEligible": true,
@@ -622,9 +622,9 @@
     },
     {
       "id": "repairs",
-      "name": "Repairs",
+      "name": "Home Repairs",
       "slug": "repairs",
-      "description": "Small problems usually tell you about a bigger one. Fix them early and they're repairs. Wait too long and they become replacements.",
+      "description": "Rot, siding, doors, trim, and floor repairs. Fix small problems early, before repairs turn into replacements.",
       "icon": "repair",
       "featured": true,
       "homepageEligible": true,
@@ -795,9 +795,9 @@
     },
     {
       "id": "restoration",
-      "name": "Restoration",
+      "name": "Deck & Fence Restoration",
       "slug": "restoration",
-      "description": "Bring worn surfaces back to life. We refinish fences, decks, and other woodwork to protect your investment and make your home look like new again.",
+      "description": "Bring worn woodwork back to life. We refinish decks, fences, and other wood surfaces with the preparation and finish they need.",
       "icon": "restoration",
       "featured": true,
       "homepageEligible": true,
@@ -833,9 +833,9 @@
     },
     {
       "id": "drywall",
-      "name": "Drywall",
+      "name": "Drywall Repair & Installation",
       "slug": "drywall",
-      "description": "From small hole repairs to full installations, we handle drywall work that's smooth, seamless, and ready for paint.",
+      "description": "From small hole repairs to new installations and texture matching: smooth, seamless drywall, ready for paint.",
       "icon": "wall",
       "featured": true,
       "homepageEligible": true,
@@ -913,5 +913,6 @@
       ],
       "cardMediaId": "repairs-001-hero"
     }
-  ]
+  ],
+  "editorialRevision": 1
 }

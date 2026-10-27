@@ -3,7 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Playfair_Display, Playball } from "next/font/google";
 import "./globals.css";
 import { getCompany } from "@/lib/company";
-import { seo } from "@/config/seo";
+import { pageMetadata, seo } from "@/config/seo";
 import { SiteHeader } from "@/components/site-header";
 import { SiteFooter } from "@/components/site-footer";
 import { getHomepageHero } from "@/lib/brand";
@@ -19,9 +19,10 @@ const playfair = Playfair_Display({ variable: "--font-playfair", subsets: ["lati
 const playball = Playball({ variable: "--font-playball", subsets: ["latin"], weight: "400" });
 
 const company = getCompany();
-const siteUrl = "https://happyplacecarpentry.com";
+const siteUrl = seo.siteUrl;
 
 export const metadata: Metadata = {
+  ...pageMetadata({ title: seo.title, description: seo.description, path: '/', absoluteTitle: true }),
   metadataBase: new URL(siteUrl),
   title: {
     default: seo.title,
@@ -35,21 +36,6 @@ export const metadata: Metadata = {
     ],
   },
   keywords: seo.keywords,
-  openGraph: {
-    type: "website",
-    siteName: seo.siteName,
-    title: seo.title,
-    description: seo.description,
-    url: siteUrl,
-    images: [{ url: seo.ogImage! }],
-  },
-  twitter: {
-    card: "summary_large_image",
-    title: seo.title,
-    description: seo.description,
-    images: [seo.ogImage!],
-  },
-  alternates: { canonical: siteUrl },
   icons: { icon: "/brand/favicon.svg", apple: "/brand/favicon.svg" },
 };
 

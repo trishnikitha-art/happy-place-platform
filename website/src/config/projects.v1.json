@@ -4,7 +4,7 @@
   "projects": [
     {
       "id": "fences-001",
-      "title": "Fence Installation - Willamette Valley",
+      "title": "Fence Installation & Staining — Corvallis",
       "service": "fences",
       "status": "completed",
       "location": {
@@ -66,7 +66,7 @@
       "heroEligible": true,
       "homepageEligible": true,
       "slug": "fence-installation-willamette-valley",
-      "metaDescription": "Professional fence installation and staining in Willamette Valley, Oregon.",
+      "metaDescription": "See a completed fence installation and matching stain finish in Corvallis, Oregon, with project photos and the details behind the work.",
       "createdAt": "2026-07-20T00:00:00.000Z",
       "updatedAt": "2026-07-20T00:00:00.000Z",
       "hidden": false,
@@ -137,7 +137,7 @@
       "heroEligible": true,
       "homepageEligible": false,
       "slug": "custom-pergola-corvallis",
-      "metaDescription": "Steel-framed covered privacy courtyard construction in Corvallis, Oregon. Custom outdoor living spaces.",
+      "metaDescription": "Explore a steel-framed covered privacy courtyard in Corvallis, Oregon, designed to make outdoor space more useful in sun and rain.",
       "createdAt": "2026-07-22T00:00:00.000Z",
       "updatedAt": "2026-07-22T00:00:00.000Z",
       "hidden": false,
@@ -216,7 +216,7 @@
     },
     {
       "id": "repairs-001",
-      "title": "Home Repairs - Willamette Valley",
+      "title": "Home Repairs & Maintenance — Corvallis",
       "service": "repairs",
       "status": "completed",
       "location": {
@@ -284,7 +284,7 @@
       "homepageEligible": false,
       "archived": false,
       "slug": "home-repairs-willamette-valley",
-      "metaDescription": "Professional home repair and maintenance services in Willamette Valley, Oregon.",
+      "metaDescription": "See home repair and maintenance work in Corvallis, Oregon, with project photos and the small fixes that help prevent bigger problems.",
       "createdAt": "2026-07-18T00:00:00.000Z",
       "updatedAt": "2026-07-18T00:00:00.000Z",
       "hidden": false,
@@ -365,7 +365,7 @@
       "heroEligible": true,
       "homepageEligible": true,
       "slug": "exterior-painting-corvallis",
-      "metaDescription": "Professional exterior painting and surface restoration in Corvallis, Oregon.",
+      "metaDescription": "See how surface preparation, repairs, and exterior painting refreshed this Corvallis home, with project photos from Happy Place Carpentry.",
       "createdAt": "2026-07-22T00:00:00.000Z",
       "updatedAt": "2026-07-22T00:00:00.000Z",
       "hidden": false,
@@ -829,5 +829,5 @@
     "our-work-gallery::wilson-home-repairs-001::repairs-001-floor0",
     "our-work-gallery::wilson-home-repairs-001::repairs-001-hero"
   ],
-  "editorialRevision": 2
+  "editorialRevision": 3
 }

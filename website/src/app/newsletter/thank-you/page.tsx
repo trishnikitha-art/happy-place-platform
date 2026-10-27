@@ -5,11 +5,15 @@ import Link from "next/link";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { CTASection } from "@/components/cta-section";
 import { getCompany } from "@/lib/company";
+import { pageMetadata } from "@/config/seo";
 
 export const metadata: Metadata = {
-  title: "Newsletter Subscription Confirmed",
-  description: "You're subscribed to Happy Place Carpentry's homeowner tips and maintenance reminders.",
-  alternates: { canonical: "/newsletter/thank-you" },
+  ...pageMetadata({
+    title: "Newsletter Subscription Confirmed",
+    description: "You're subscribed to Happy Place Carpentry's homeowner tips and maintenance reminders.",
+    path: "/newsletter/thank-you",
+  }),
+  robots: { index: false, follow: true },
 };
 
 export const dynamic = 'force-dynamic';
@@ -27,6 +31,7 @@ export default function NewsletterThankYouPage() {
             </span>
           </div>
           <SectionHeading
+            as="h1"
             eyebrow={<span className="text-honey"><TextCopy textKey="newsletterThanks.copy.1" /></span>}
             title={<span className="text-text-on-dark"><TextCopy textKey="newsletterThanks.copy.2" /></span>}
             description={<span className="text-text-on-dark/90"><TextCopy textKey="newsletterThanks.copy.3" /></span>}
@@ -46,7 +51,7 @@ export default function NewsletterThankYouPage() {
             </ul>
 
             <h3><TextCopy textKey="newsletterThanks.copy.13" /></h3>
-            <p><TextCopy textKey="newsletterThanks.copy.14" /><Link href="/our-work" className="text-honey hover:underline"><TextCopy textKey="newsletterThanks.copy.15" /></Link><TextCopy textKey="newsletterThanks.copy.16" /><Link href="/resources" className="text-honey hover:underline"><TextCopy textKey="newsletterThanks.copy.17" /></Link><TextCopy textKey="newsletterThanks.copy.18" /></p>
+            <p><TextCopy textKey="newsletterThanks.copy.14" /><Link href="/our-work" className="text-honey hover:underline"><TextCopy textKey="newsletterThanks.copy.15" /></Link><TextCopy textKey="newsletterThanks.copy.16" /><Link href="/blog" className="text-honey hover:underline"><TextCopy textKey="newsletterThanks.copy.17" /></Link><TextCopy textKey="newsletterThanks.copy.18" /></p>
 
             <h3><TextCopy textKey="newsletterThanks.copy.19" /></h3>
             <p><TextCopy textKey="newsletterThanks.copy.20" /></p>

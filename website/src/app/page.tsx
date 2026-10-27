@@ -24,6 +24,7 @@ import { getHomepageHero } from "@/lib/brand";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
 import { NewsletterSignup } from "@/components/newsletter-signup";
 import { getOwnerPortrait } from "@/lib/brand";
+import { pageMetadata, seo } from "@/config/seo";
 import { getFeaturedProjects } from "@/lib/projects";
 import { getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib/projects";
 import { VisualSlot } from "@/components/visual-slot";
@@ -31,23 +32,19 @@ import { VisualSlot } from "@/components/visual-slot";
 // dynamic until withdrawal, outage and deployment-version caching are proven.
 export const dynamic = 'force-dynamic';
 
-const siteUrl = "https://happyplacecarpentry.com";
-
 export async function generateMetadata(): Promise<Metadata> {
   const heroBrand = await getHomepageHero();
   // P1 FIX: Use pre-validated resolvedMedia from brand function (passed public media gate)
   // This prevents bypassing the public media gate by calling getMediaById directly
   const heroMedia = heroBrand?.resolvedMedia || null;
-  const ogImageUrl = heroMedia?.variants?.web || `${siteUrl}/brand/logo.png`;
-
-  return {
-    openGraph: {
-      images: [{ url: ogImageUrl.startsWith("http") ? ogImageUrl : `${siteUrl}${ogImageUrl}` }],
-    },
-    twitter: {
-      images: [ogImageUrl.startsWith("http") ? ogImageUrl : `${siteUrl}${ogImageUrl}`],
-    },
-  };
+  return pageMetadata({
+    title: seo.title,
+    description: seo.description,
+    path: '/',
+    absoluteTitle: true,
+    image: heroMedia?.variants?.web || heroMedia?.variants?.original,
+    imageAlt: heroMedia?.alt,
+  });
 }
 
 export default async function HomePage() {

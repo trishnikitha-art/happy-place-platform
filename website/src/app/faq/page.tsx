@@ -4,12 +4,13 @@ import { Container, Section, SectionHeading } from "@/components/section";
 import { CTASection } from "@/components/cta-section";
 import type { TextKey } from "@/lib/text-contract";
 import { getAllFaqs } from "@/lib/faq";
+import { pageMetadata } from "@/config/seo";
 
-export const metadata: Metadata = {
-  title: "FAQ",
-  description: "Common questions about getting started, permits, service area, materials, and warranties.",
-  alternates: { canonical: "/faq" },
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Project Estimates, Permits & Service Area FAQ",
+  description: "Before you start: answers about estimates, permits, materials, warranties and Happy Place Carpentry's Mid-Willamette Valley service area.",
+  path: "/faq",
+});
 
 export const dynamic = 'force-dynamic';
 

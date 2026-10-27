@@ -5,13 +5,14 @@ import type { Metadata } from "next";
 import { getAllProjects, getProjectsWithResolvedMedia } from "@/lib/projects";
 import { getCompany } from "@/lib/company";
 import OurWorkClient from "./OurWorkClient";
+import { pageMetadata } from "@/config/seo";
 
-export const metadata: Metadata = {
-  title: "Our Work",
+export const metadata: Metadata = pageMetadata({
+  title: "Carpentry Project Photos & Local Transformations",
   description:
-    "Featured transformations, recent projects, and the complete archive of Happy Place Carpentry — decks, fences, kitchens, baths, and custom carpentry across the Willamette Valley.",
-  alternates: { canonical: "/our-work" },
-};
+    "See real fence, painting, repair and courtyard projects by Happy Place Carpentry in the Mid-Willamette Valley. Browse photos and project stories.",
+  path: "/our-work",
+});
 
 export const dynamic = 'force-dynamic';
 

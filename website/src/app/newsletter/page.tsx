@@ -1,11 +1,16 @@
 import { TextCopy } from '@/components/text-copy';
 import type { Metadata } from "next";
 import { Container, Section, SectionHeading } from "@/components/section";
+import { pageMetadata } from "@/config/seo";
 
 export const metadata: Metadata = {
-  title: "Newsletter Archive",
-  description: "Archive of Happy Place Carpentry's homeowner tips, maintenance reminders, and project inspiration.",
-  alternates: { canonical: "/newsletter" },
+  ...pageMetadata({
+    title: "Newsletter Archive",
+    description: "Archive of Happy Place Carpentry's homeowner tips, maintenance reminders, and project inspiration.",
+    path: "/newsletter",
+  }),
+  // Keep this unfinished archive out of search until its articles are browsable.
+  robots: { index: false, follow: true },
 };
 
 export const dynamic = 'force-dynamic';
@@ -38,6 +43,7 @@ export default function NewsletterArchivePage() {
       <Section className="bg-deep">
         <Container className="max-w-4xl">
           <SectionHeading
+            as="h1"
             eyebrow={<span className="text-honey"><TextCopy textKey="newsletterArchive.copy.1" /></span>}
             title={<span className="text-text-on-dark"><TextCopy textKey="newsletterArchive.copy.2" /></span>}
             description={<span className="text-text-on-dark/90"><TextCopy textKey="newsletterArchive.copy.3" /></span>}

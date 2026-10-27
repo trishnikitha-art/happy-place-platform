@@ -16,6 +16,7 @@ import { resolvePublicMedia } from "@/lib/media";
 import { VisualSlot } from "@/components/visual-slot";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
 import type { Media } from "@/types/media";
+import { pageMetadata } from "@/config/seo";
 
 interface ServicePageProps {
   params: Promise<{
@@ -40,11 +41,20 @@ export async function generateMetadata({ params }: ServicePageProps): Promise<Me
     };
   }
 
-  return {
-    title: `${service.name} | Happy Place Carpentry`,
+  let media: Media | null = null;
+  try {
+    const assignment = await getServiceCardAssignment(service.slug, 'services-page');
+    if (assignment?.mediaId) media = await resolvePublicMedia(assignment.mediaId);
+  } catch (error) {
+    console.error('[SERVICE_METADATA] Published image unavailable', error);
+  }
+  return pageMetadata({
+    title: `${service.name} – Willamette Valley`,
     description: service.description,
-    alternates: { canonical: `/services/${service.slug}` },
-  };
+    path: `/services/${service.slug}`,
+    image: media?.variants?.web || media?.variants?.original,
+    imageAlt: media?.alt,
+  });
 }
 
 export const dynamic = 'force-dynamic';

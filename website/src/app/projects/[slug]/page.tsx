@@ -13,6 +13,7 @@ import { getAllProjects, getProjectBySlug, getProjectWithResolvedMedia } from "@
 import { getReviewById } from "@/lib/reviews";
 import { Container, Section, SectionHeading } from "@/components/section";
 import type { Media } from "@/types/media";
+import { pageMetadata } from "@/config/seo";
 
 export function generateStaticParams() {
   const projects = getAllProjects();
@@ -33,16 +34,13 @@ export async function generateMetadata({
   const projectWithMedia = await getProjectWithResolvedMedia(project);
   const heroMedia = projectWithMedia.media.heroMedia;
   const ogImagePath = heroMedia?.variants?.web || heroMedia?.variants?.original;
-  return {
+  return pageMetadata({
     title: project.title,
-    description: project.story?.outcome || project.title,
-    alternates: { canonical: `/projects/${project.slug || project.id}` },
-    openGraph: {
-      title: project.title,
-      description: project.story?.outcome || project.title,
-      images: ogImagePath ? [{ url: ogImagePath }] : [],
-    },
-  };
+    description: project.metaDescription?.trim() || project.story?.outcome || project.title,
+    path: `/projects/${project.slug || project.id}`,
+    image: ogImagePath,
+    imageAlt: heroMedia?.alt,
+  });
 }
 
 export default async function ProjectPage({ params }: { params: Promise<{ slug: string }> }) {

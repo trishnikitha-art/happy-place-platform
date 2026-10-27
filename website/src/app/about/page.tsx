@@ -12,12 +12,13 @@ import { getServiceCardAssignment } from "@/lib/assignment-store";
 import { resolvePublicMedia } from "@/lib/media";
 import type { Media } from "@/types/media";
 import { PreviewOnly } from '@/components/workbench/preview-only';
+import { pageMetadata } from "@/config/seo";
 
-export const metadata: Metadata = {
-  title: "About",
-  description: `About Happy Place Carpentry — the family behind Happy Place Carpentry, helping homeowners across the mid-Willamette Valley find their happy place.`,
-  alternates: { canonical: "/about" },
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Meet Taylor & Lanie Happy",
+  description: "Meet the family behind Happy Place Carpentry in Adair Village, Oregon. Craftsmanship and clear communication for your Mid-Willamette Valley home.",
+  path: "/about",
+});
 
 export const dynamic = 'force-dynamic';
 

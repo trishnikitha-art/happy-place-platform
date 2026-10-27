@@ -7,13 +7,14 @@ import { CTASection } from "@/components/cta-section";
 import { getNonArchivedServices } from "@/lib/registries";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
 import { resolvePublicMedia } from "@/lib/media";
+import { pageMetadata } from "@/config/seo";
 
-export const metadata: Metadata = {
-  title: "Services",
+export const metadata: Metadata = pageMetadata({
+  title: "Painting, Repairs & Carpentry Services",
   description:
-    "Painting, repairs, restoration, fences, and drywall by Happy Place Carpentry.",
-  alternates: { canonical: "/services" },
-};
+    "Explore painting, repairs, fencing, decks, restoration and drywall in Oregon's Mid-Willamette Valley. Find the right service for your home.",
+  path: "/services",
+});
 
 export const dynamic = 'force-dynamic';
 

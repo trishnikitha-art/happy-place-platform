@@ -2,12 +2,13 @@ import { TextCopy } from '@/components/text-copy';
 import type { Metadata } from "next";
 import { Container, Section } from "@/components/section";
 import { getCompany } from "@/lib/company";
+import { pageMetadata } from "@/config/seo";
 
-export const metadata: Metadata = {
+export const metadata: Metadata = pageMetadata({
   title: "Privacy Policy",
   description: "How Happy Place Carpentry handles your information.",
-  alternates: { canonical: "/privacy" },
-};
+  path: "/privacy",
+});
 
 export const dynamic = 'force-dynamic';
 

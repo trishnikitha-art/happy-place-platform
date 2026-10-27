@@ -5,17 +5,19 @@ import { notFound } from "next/navigation";
 
 import { Fragment } from 'react';
 import { getBlogCopy } from '@/lib/blog-copy';
+import { pageMetadata } from "@/config/seo";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
   const post = getBlogCopy(slug);
   if (!post) return { title: "Blog Post Not Found" };
 
-  return {
+  return pageMetadata({
     title: post.title,
-    description: post.content.split("\n")[1]?.replace("# ", "") || post.title,
-    alternates: { canonical: `/blog/${slug}` },
-  };
+    description: post.excerpt,
+    path: `/blog/${slug}`,
+    type: 'article',
+  });
 }
 
 export default async function BlogPostPage({ params }: { params: Promise<{ slug: string }> }) {

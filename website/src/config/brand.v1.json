@@ -4,7 +4,7 @@
   "homepageHero": {
     "id": "homepage-hero-canonical",
     "mediaId": "homepage-hero",
-    "alt": "Photograph of a completed deck project showing quality carpentry work with warm wood tones and clean construction",
+    "alt": "Carpenter measuring a wood board on sawhorses beside a fence",
     "fallback": {
       "gradient": true,
       "overlay": true

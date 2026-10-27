@@ -15,8 +15,8 @@
       "revision": 2
     },
     "homepage.hero.description": {
-      "value": "We repair, restore, and improve homes across the Mid-Willamette Valley. The work should look right the day we leave, and still look right years later.",
-      "revision": 0
+      "value": "Decks, fences, painting, and home repairs across the Mid-Willamette Valley. The work should look right the day we leave, and still look right years later.",
+      "revision": 1
     },
     "homepage.hero.primaryAction": {
       "value": "Talk About Your Project",
@@ -27,8 +27,8 @@
       "revision": 0
     },
     "homepage.services.title": {
-      "value": "A few ways we can help",
-      "revision": 0
+      "value": "Carpentry, painting, and repairs",
+      "revision": 1
     },
     "homepage.services.description": {
       "value": "Explore our services and see the work behind them.",
@@ -103,12 +103,12 @@
       "revision": 0
     },
     "services.hero.title": {
-      "value": "Carpentry for your whole home",
-      "revision": 0
+      "value": "Carpentry, painting, and home repairs",
+      "revision": 1
     },
     "services.hero.description": {
-      "value": "Explore what we do, see our work, and tell us what you're planning.",
-      "revision": 0
+      "value": "Decks, fences, restoration, and drywall across the Mid-Willamette Valley. Explore the work, then tell us what your home needs.",
+      "revision": 1
     },
     "services.other.title": {
       "value": "Not seeing what you're looking for?",
@@ -123,8 +123,8 @@
       "revision": 0
     },
     "contact.hero.description": {
-      "value": "Give us a call or email us—whatever's easiest. Tell us what you're planning and where your project is located.",
-      "revision": 0
+      "value": "Tell us the kind of work you need and where your project is located. Call or email—whatever's easiest—and send photos by email if you have them.",
+      "revision": 1
     },
     "contact.details.title": {
       "value": "Tell us what you have in mind",
@@ -163,12 +163,12 @@
       "revision": 0
     },
     "work.archive.title": {
-      "value": "The complete archive",
-      "revision": 0
+      "value": "More details from our projects",
+      "revision": 1
     },
     "work.archive.description": {
-      "value": "Every project, every detail. Future projects simply append here.",
-      "revision": 0
+      "value": "A closer look at the repairs, finishes, and details behind the finished work.",
+      "revision": 1
     },
     "newsletter.title": {
       "value": "Stay Ahead of Home Maintenance",
@@ -187,8 +187,8 @@
       "revision": 0
     },
     "cta.description": {
-      "value": "Whether you're fixing something that's worn out or building something completely new, we'd love to hear about it.",
-      "revision": 0
+      "value": "Tell us the kind of work you need and where your project is located. Photos by email help us see what you have in mind.",
+      "revision": 1
     },
     "cta.primaryAction": {
       "value": "Talk About Your Project",
@@ -495,8 +495,8 @@
       "revision": 0
     },
     "work.copy.2": {
-      "value": "Every project solves a different problem. Here are a few of the homes we've worked on and the decisions behind them.",
-      "revision": 0
+      "value": "See fence installations, exterior painting, and home repairs across the Mid-Willamette Valley, with the work and decisions behind each project.",
+      "revision": 1
     },
     "work.copy.3": {
       "value": "Featured transformations",
@@ -739,12 +739,12 @@
       "revision": 0
     },
     "faq.f2.answer": {
-      "value": "We work across Benton, Linn, and Polk Counties — including Philomath, Albany, Monmouth, Independence, and surrounding communities.",
-      "revision": 0
+      "value": "We serve Benton, Linn, Marion, and Polk Counties in Oregon’s Mid-Willamette Valley, including Philomath, Albany, Monmouth, and Independence. Tell us where your project is located.",
+      "revision": 1
     },
     "faq.f3.question": {
-      "value": "How do I get started?",
-      "revision": 0
+      "value": "How do I request a project estimate?",
+      "revision": 1
     },
     "faq.f3.answer": {
       "value": "Call or email Happy Place Carpentry and tell us what you're planning. Include the kind of work you need and where your project is located. If you have photos, you can share them by email.",
@@ -771,8 +771,8 @@
       "revision": 0
     },
     "faq.f6.answer": {
-      "value": "It depends on scope — a fence might be a few days, a deck one to two weeks, a full kitchen remodel several weeks. We give you a realistic timeline in the written estimate.",
-      "revision": 0
+      "value": "Timing depends on the scope, materials, and site conditions. A fence repair and a full deck replacement need different schedules. We give you a realistic timeline in the written estimate.",
+      "revision": 1
     },
     "faq.f7.question": {
       "value": "Do you offer a warranty?",

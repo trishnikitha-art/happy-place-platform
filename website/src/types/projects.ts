@@ -194,6 +194,7 @@ export interface Project {
   archived?: boolean;
   
   // SEO
+  metaDescription?: string; // Existing editorial field in projects.v1.json and content.v1.
   seo?: ProjectSEO;
   
   // Services

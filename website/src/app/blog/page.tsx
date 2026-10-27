@@ -1,12 +1,13 @@
 import { TextCopy } from '@/components/text-copy';
 import type { Metadata } from "next";
 import { Container, Section, SectionHeading } from "@/components/section";
+import { pageMetadata } from "@/config/seo";
 
-export const metadata: Metadata = {
-  title: "Blog",
+export const metadata: Metadata = pageMetadata({
+  title: "Home Maintenance Tips & Project Ideas",
   description: "Homeowner tips, carpentry advice, and project inspiration from Happy Place Carpentry.",
-  alternates: { canonical: "/blog" },
-};
+  path: "/blog",
+});
 
 export const dynamic = 'force-dynamic';
 
@@ -18,6 +19,7 @@ export default function BlogPage() {
       <Section className="bg-deep">
         <Container className="max-w-4xl">
           <SectionHeading
+            as="h1"
             eyebrow={<span className="text-honey"><TextCopy textKey="blog.copy.1" /></span>}
             title={<span className="text-text-on-dark"><TextCopy textKey="blog.copy.2" /></span>}
             description={<span className="text-text-on-dark/90"><TextCopy textKey="blog.copy.3" /></span>}

@@ -7,12 +7,13 @@ import { CTASection } from "@/components/cta-section";
 import { getAllReviews, getReviewStats } from "@/lib/reviews";
 import { getCompany } from "@/lib/company";
 import { ReviewsFilterClient } from "@/components/reviews-filter-client";
+import { pageMetadata } from "@/config/seo";
 
-export const metadata: Metadata = {
-  title: "Reviews",
-  description: `What homeowners say about Happy Place Carpentry.`,
-  alternates: { canonical: "/reviews" },
-};
+export const metadata: Metadata = pageMetadata({
+  title: "Homeowner Reviews",
+  description: "Read homeowner feedback about Happy Place Carpentry's work in the Mid-Willamette Valley, Oregon.",
+  path: "/reviews",
+});
 
 export const dynamic = 'force-dynamic';
 
@@ -31,6 +32,7 @@ export default async function ReviewsPage() {
             </span>
           </div>
           <SectionHeading
+            as="h1"
             eyebrow={<span className="text-honey"><TextCopy textKey="reviews.copy.2" /></span>}
             title={<span className="text-text-on-dark"><TextCopy textKey="reviews.hero.title" /></span>}
             align="center"
