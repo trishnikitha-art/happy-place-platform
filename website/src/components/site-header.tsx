@@ -17,10 +17,6 @@ import { HappyBrandSignature } from "@/components/happy-brand-signature";
 import { TapeMeasureNav } from "@/components/tape-measure-nav";
 import { MobileSiteNavigation } from "@/components/mobile-site-navigation";
 
-function NavShimmer({ children }: { children: React.ReactNode }) {
-  return <span className="nav-label relative inline-block bg-gradient-to-br from-[#A67C00] via-[#D99A4E] to-[#F0C070] bg-clip-text text-transparent">{children}</span>;
-}
-
 export function SiteHeader() {
   const pathname = usePathname();
   const [open, setOpen] = React.useState(false);
@@ -64,10 +60,10 @@ export function SiteHeader() {
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
                 "site-nav-link relative z-10 inline-flex min-h-11 min-w-11 items-center justify-center whitespace-nowrap px-2 py-2.5 text-xs font-medium tracking-wide transition-colors duration-200 lg:px-3.5 lg:text-sm",
-                isActive(item.href) ? "text-primary nav-shimmer-active" : "text-text hover:text-text hover:bg-surface/50 rounded-md"
+                isActive(item.href) ? "font-semibold text-text" : "text-text hover:text-text hover:bg-surface/50 rounded-md"
               )}
             >
-              {isActive(item.href) ? <NavShimmer>{navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : item.label}</NavShimmer> : navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : item.label}
+              {navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : item.label}
             </Link>
           ))}
         </nav>

@@ -29,26 +29,26 @@ export default function ContactPage() {
             </div>
             <SectionHeading
               as="h1"
-              eyebrow={<span className="text-honey"><TextCopy textKey="contact.copy.1" /></span>}
+              eyebrow={<span className="text-text-on-dark"><TextCopy textKey="contact.copy.1" /></span>}
               title={<span className="text-text-on-dark"><TextCopy textKey="contact.hero.title" /></span>}
               description={<span className="text-text-on-dark/90"><TextCopy textKey="contact.hero.description" /></span>}
               descriptionColor="text-text-on-dark/90"
             />
             <dl className="mt-8 space-y-4 text-text-on-dark">
               <div>
-                <dt className="text-sm font-semibold uppercase text-honey"><TextCopy textKey="contact.copy.2" /></dt>
+                <dt className="text-sm font-semibold uppercase text-text-on-dark"><TextCopy textKey="contact.copy.2" /></dt>
                 <dd><PhoneLink phone={company.phone} className="inline-flex min-h-11 items-center text-lg font-semibold text-text-on-dark underline decoration-honey/60 underline-offset-4">{company.phoneDisplay}</PhoneLink></dd>
               </div>
               <div>
-                <dt className="text-sm font-semibold uppercase text-honey"><TextCopy textKey="contact.copy.3" /></dt>
-                <dd><EmailLink email={company.email} className="inline-flex min-h-11 max-w-full items-center break-all text-lg font-semibold text-text-on-dark underline decoration-honey/60 underline-offset-4">{company.email}</EmailLink></dd>
+                <dt className="text-sm font-semibold uppercase text-text-on-dark"><TextCopy textKey="contact.copy.3" /></dt>
+                <dd><EmailLink email={company.email} className="text-lg font-semibold text-text-on-dark underline decoration-honey/60 underline-offset-4"><span className="min-w-0 [overflow-wrap:anywhere]">{company.email}</span></EmailLink></dd>
               </div>
               <div>
-                <dt className="text-sm font-semibold uppercase text-honey"><TextCopy textKey="contact.copy.4" /></dt>
+                <dt className="text-sm font-semibold uppercase text-text-on-dark"><TextCopy textKey="contact.copy.4" /></dt>
                 <dd className="text-lg text-text-on-dark"><TextCopy textKey="company.serviceArea" /></dd>
               </div>
               <div>
-                <dt className="text-sm font-semibold uppercase text-honey"><TextCopy textKey="contact.copy.5" /></dt>
+                <dt className="text-sm font-semibold uppercase text-text-on-dark"><TextCopy textKey="contact.copy.5" /></dt>
                 <dd className="text-lg text-text-on-dark"><TextCopy textKey="company.businessHours" /></dd>
               </div>
             </dl>

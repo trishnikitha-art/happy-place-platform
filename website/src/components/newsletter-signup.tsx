@@ -5,6 +5,8 @@ import { TextCopy, useTextCopy } from '@/components/text-copy';
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Mail, Loader2 } from "lucide-react";
+import { buttonVariants } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function NewsletterSignup() {
   const router = useRouter();
@@ -13,6 +15,10 @@ export function NewsletterSignup() {
 
   const emailPlaceholder = useTextCopy("newsletter.emailPlaceholder");
   const namePlaceholder = useTextCopy("newsletter.namePlaceholder");
+  const formId = React.useId();
+  const emailId = `${formId}-email`;
+  const nameId = `${formId}-name`;
+  const errorId = `${formId}-error`;
   const [email, setEmail] = React.useState("");
   const [firstName, setFirstName] = React.useState("");
   const [isSubmitting, setIsSubmitting] = React.useState(false);
@@ -58,7 +64,7 @@ export function NewsletterSignup() {
 
   if (isSuccess) {
     return (
-      <div className="rounded-lg bg-honey/10 border border-honey/20 p-6 text-center">
+      <div role="status" className="rounded-lg bg-honey/10 border border-honey/20 p-6 text-center">
         <p className="text-base text-honey font-semibold"><TextCopy textKey="newsletter.submitting" /></p>
       </div>
     );
@@ -73,47 +79,61 @@ export function NewsletterSignup() {
         <TextCopy textKey="newsletter.description" />
       </p>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
+      <form onSubmit={handleSubmit} aria-busy={isSubmitting} aria-describedby={error ? errorId : undefined} className="space-y-4">
+        {/* Publishing verifies the first marked node; keep the input first while the live preview updates both copies. */}
+        <div className="flex flex-col">
           <input
+            id={emailId}
+            name="email"
             type="email"
+            autoComplete="email"
+            aria-describedby={error ? errorId : undefined}
             value={email}
             onChange={(e) => setEmail(e.target.value)}
             placeholder={emailPlaceholder} data-text-key="newsletter.emailPlaceholder" data-text-attribute="placeholder"
             required
             disabled={isSubmitting}
-            className="w-full rounded-lg border border-text-on-dark/30 bg-black/10 px-4 py-3 text-base text-text-on-dark placeholder:text-text-on-dark/50 focus:border-honey focus:outline-none focus:ring-1 focus:ring-honey disabled:opacity-50"
+            className="order-2 w-full rounded-lg border border-text-on-dark/30 bg-black/10 px-4 py-3 text-base text-text-on-dark placeholder:text-text-on-dark/50 focus:border-honey focus:outline-none focus:ring-1 focus:ring-honey disabled:opacity-50"
           />
+          <label htmlFor={emailId} className="order-1 mb-2 block text-sm font-semibold text-text-on-dark">
+            <TextCopy textKey="newsletter.emailPlaceholder" />
+          </label>
         </div>
 
-        <div>
+        <div className="flex flex-col">
           <input
+            id={nameId}
+            name="firstName"
             type="text"
+            autoComplete="given-name"
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
             placeholder={namePlaceholder} data-text-key="newsletter.namePlaceholder" data-text-attribute="placeholder"
             disabled={isSubmitting}
-            className="w-full rounded-lg border border-text-on-dark/30 bg-black/10 px-4 py-3 text-base text-text-on-dark placeholder:text-text-on-dark/50 focus:border-honey focus:outline-none focus:ring-1 focus:ring-honey disabled:opacity-50"
+            className="order-2 w-full rounded-lg border border-text-on-dark/30 bg-black/10 px-4 py-3 text-base text-text-on-dark placeholder:text-text-on-dark/50 focus:border-honey focus:outline-none focus:ring-1 focus:ring-honey disabled:opacity-50"
           />
+          <label htmlFor={nameId} className="order-1 mb-2 block text-sm font-semibold text-text-on-dark">
+            <TextCopy textKey="newsletter.namePlaceholder" />
+          </label>
         </div>
 
         {error && (
-          <p className="text-sm text-red-400">{error}</p>
+          <p id={errorId} role="alert" className="text-sm text-text-on-dark">{error}</p>
         )}
 
         <button
           type="submit"
           disabled={isSubmitting || !email}
-          className="flex w-full items-center justify-center gap-2 rounded-lg bg-honey px-6 py-3 text-base font-semibold text-deep shadow-sm transition-[background-color,box-shadow,transform] duration-200 hover:bg-honey/90 hover:shadow-md motion-safe:hover:-translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+          className={cn(buttonVariants({ size: "md" }), "w-full rounded-lg bg-honey text-honey-foreground shadow-sm hover:bg-honey-hover focus-visible:ring-honey focus-visible:ring-offset-deep disabled:cursor-not-allowed")}
         >
           {isSubmitting ? (
             <>
-              <Loader2 className="h-5 w-5 animate-spin" />
+              <Loader2 className="h-5 w-5" aria-hidden="true" />
               <TextCopy textKey="newsletter.submitting" />
             </>
           ) : (
             <>
-              <Mail className="h-5 w-5" />
+              <Mail className="h-5 w-5" aria-hidden="true" />
               <TextCopy textKey="newsletter.submit" />
             </>
           )}

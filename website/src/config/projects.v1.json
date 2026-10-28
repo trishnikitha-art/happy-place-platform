@@ -94,7 +94,7 @@
       "story": {
         "challenge": "Customer wanted a custom outdoor living space with privacy",
         "solution": "Designed and built a steel-framed covered privacy courtyard structure",
-        "outcome": "An outdoor space that's comfortable in the sun, useful in the rain, and built to become part of everyday life.",
+        "outcome": "A covered, steel-framed courtyard in Corvallis, with a layout designed for privacy and everyday outdoor use.",
         "specialFeatures": [
           "Custom steel-framed design",
           "Quality construction",
@@ -316,8 +316,8 @@
       },
       "story": {
         "challenge": "The home's exterior had years of weather exposure, peeling paint, failing caulk, and worn surfaces that made the entire property look older than it really was.",
-        "solution": "Every durable finish starts with preparation. We pressure washed the exterior, scraped loose paint, sanded rough areas, completed minor repairs, replaced failing caulk, spot-primed exposed wood, and prepared every surface before applying premium exterior coatings.",
-        "outcome": "The home feels refreshed, protected, and ready for many more years of Northwest weather. More importantly, the homeowners can pull into the driveway knowing their home is protected and looks the way they always wanted it to.",
+        "solution": "We pressure washed the exterior, scraped loose paint, sanded rough areas, made minor repairs, replaced failing caulk, and spot-primed exposed wood before applying the exterior coatings.",
+        "outcome": "Surface repairs and a fresh exterior finish for this Corvallis home, with the preparation done before the paint went on.",
         "specialFeatures": [
           "Surface preparation",
           "Premium exterior coatings",
@@ -829,5 +829,5 @@
     "our-work-gallery::wilson-home-repairs-001::repairs-001-floor0",
     "our-work-gallery::wilson-home-repairs-001::repairs-001-hero"
   ],
-  "editorialRevision": 3
+  "editorialRevision": 4
 }

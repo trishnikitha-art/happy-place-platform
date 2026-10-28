@@ -170,13 +170,13 @@ export function PlaceholderSection({
   const content = getPlaceholderContent();
 
   return (
-    <div className={`flex flex-col items-center justify-center py-16 px-4 text-center rounded-lg border ${darkMode ? 'bg-surface-muted border-border text-text-on-dark' : 'bg-stone-50 border-stone-200'}`}>
+    <div className={`flex flex-col items-center justify-center py-16 px-4 text-center rounded-lg border ${darkMode ? 'bg-deep border-border text-text-on-dark' : 'bg-stone-50 border-stone-200'}`}>
       <div className="mb-4">{content.icon}</div>
       <h3 className={`text-2xl font-semibold mb-2 ${darkMode ? 'text-text-on-dark' : 'text-stone-900'}`}>
         {content.title}
       </h3>
       {content.countLabel && (
-        <p className="text-sm font-medium text-amber-600 mb-3">
+        <p className={`mb-3 text-sm font-medium ${darkMode ? 'text-text-on-dark' : 'text-stone-900'}`}>
           {content.countLabel}
         </p>
       )}
@@ -186,7 +186,7 @@ export function PlaceholderSection({
       {action && (
         <a
           href={action.href}
-          className="inline-flex items-center px-6 py-3 bg-amber-600 text-white font-semibold rounded-lg hover:bg-amber-700 transition-colors"
+          className="inline-flex min-h-11 items-center rounded-full bg-honey px-6 py-3 font-semibold text-honey-foreground hover:bg-honey-hover focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-current"
         >
           {action.label}
         </a>

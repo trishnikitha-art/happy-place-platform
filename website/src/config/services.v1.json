@@ -425,7 +425,7 @@
       "id": "painting",
       "name": "Interior & Exterior Painting",
       "slug": "painting",
-      "description": "Interior and exterior painting with careful cleaning, sanding, repairs, and priming. Most paint failures start before the first coat goes on.",
+      "description": "Interior and exterior painting, from walls and cabinets to siding, trim, and doors. Cleaning, sanding, repairs, and priming come before the finish.",
       "icon": "paint-brush",
       "featured": true,
       "homepageEligible": true,
@@ -624,7 +624,7 @@
       "id": "repairs",
       "name": "Home Repairs",
       "slug": "repairs",
-      "description": "Rot, siding, doors, trim, and floor repairs. Fix small problems early, before repairs turn into replacements.",
+      "description": "Rot, siding, doors, windows, trim, drywall, and floor repairs. Tell us what needs attention, whether it's one repair or a list you've been putting off.",
       "icon": "repair",
       "featured": true,
       "homepageEligible": true,
@@ -835,7 +835,7 @@
       "id": "drywall",
       "name": "Drywall Repair & Installation",
       "slug": "drywall",
-      "description": "From small hole repairs to new installations and texture matching: smooth, seamless drywall, ready for paint.",
+      "description": "Small patches, damaged wall sections, new drywall, and texture matching. Repair the surface first, then get it ready for paint.",
       "icon": "wall",
       "featured": true,
       "homepageEligible": true,
@@ -914,5 +914,5 @@
       "cardMediaId": "repairs-001-hero"
     }
   ],
-  "editorialRevision": 1
+  "editorialRevision": 2
 }

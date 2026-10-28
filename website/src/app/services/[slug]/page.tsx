@@ -6,12 +6,11 @@ import { notFound } from "next/navigation";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { ServiceCard } from "@/components/service-card";
 import { CTASection } from "@/components/cta-section";
-import { Icon } from "@/components/icon";
 import { getServiceBySlug, getNonArchivedServices } from "@/lib/registries"; // use filtered services
 import { getServiceGallery } from "@/lib/galleries";
 import { PlaceholderSection } from "@/components/placeholder-section";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
-import { getProjectById, getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib/projects";
+import { getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib/projects";
 import { resolvePublicMedia } from "@/lib/media";
 import { VisualSlot } from "@/components/visual-slot";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
@@ -123,6 +122,9 @@ export default async function ServicePage({ params }: ServicePageProps) {
     }
   }
 
+  const featuredHero = featuredProjectWithMedia?.media.heroMedia;
+  const featuredHeroSrc = featuredHero?.variants?.web || featuredHero?.variants?.original;
+
   return (
     <>
       {/* HERO SECTION */}
@@ -155,12 +157,35 @@ export default async function ServicePage({ params }: ServicePageProps) {
               description={<span className="measure text-text-on-dark/90">{featuredProjectWithMedia?.story?.outcome || featuredProject?.story?.outcome || "See our latest work in this service area."}</span>}
             />
             <div className="mt-8">
-              {featuredProjectWithMedia?.media.beforeMedia && featuredProjectWithMedia?.media.afterMedia && (
+              {featuredProjectWithMedia?.media.beforeMedia && featuredProjectWithMedia?.media.afterMedia ? (
                 <BeforeAfterSlider project={featuredProjectWithMedia} />
-              )}
+              ) : featuredHeroSrc && featuredProjectWithMedia ? (
+                <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-secondary sm:aspect-[16/9]">
+                  <VisualSlot
+                    id={`project-hero-${featuredProjectWithMedia.id}`}
+                    route={`/projects/${featuredProjectWithMedia.slug || featuredProjectWithMedia.id}`}
+                    page="ProjectDetail"
+                    section="Hero"
+                    slotName={`${featuredProjectWithMedia.title} Hero`}
+                    currentMediaId={featuredHero?.id || null}
+                    component="ProjectSpotlight"
+                  >
+                    <Image
+                      src={featuredHeroSrc}
+                      alt={featuredHero?.alt || featuredProjectWithMedia.title}
+                      fill
+                      loading="lazy"
+                      sizes="(max-width: 639px) calc(100vw - 2rem), (max-width: 1023px) calc(100vw - 3rem), (max-width: 1279px) calc(100vw - 4rem), 76rem"
+                      placeholder={featuredHero?.variants?.blur ? "blur" : "empty"}
+                      blurDataURL={featuredHero?.variants?.blur}
+                      className="object-contain"
+                    />
+                  </VisualSlot>
+                </div>
+              ) : null}
               <Link
                 href={`/projects/${featuredProjectWithMedia?.slug || featuredProjectWithMedia?.id || featuredProject?.slug || featuredProject?.id}`}
-                className="inline-flex items-center gap-2 mt-6 text-sm font-semibold text-honey hover:text-honey-hover transition-colors"
+                className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-text-on-dark underline decoration-honey underline-offset-4"
               >
                 View Full Project →
               </Link>

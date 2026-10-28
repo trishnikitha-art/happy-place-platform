@@ -70,12 +70,28 @@ describe('Shared public copy preserves content contracts and design', () => {
     expect(changed).not.toContain('data-text-key="review.success.title"');
   });
 
-  it('edits newsletter placeholders in the original native input while retaining submission requirements and typography', () => {
+  it('edits newsletter labels and placeholders while retaining the native input as the publishing verification anchor', () => {
     const baseline = render(NewsletterSignup);
     const changed = render(NewsletterSignup, 'newsletter.emailPlaceholder', 'Your email');
-    expect(changed).toBe(baseline.replace('placeholder="Email address"', 'placeholder="Your email"'));
-    expect(changed).toMatch(/<input type="email"[^>]*data-text-key="newsletter.emailPlaceholder"[^>]*data-text-attribute="placeholder"[^>]*required=""/);
+    expect(changed).toBe(baseline.replace('>Email address</span>', '>Your email</span>').replace('placeholder="Email address"', 'placeholder="Your email"'));
+    expect(changed).toMatch(/<input[^>]*type="email"[^>]*data-text-key="newsletter.emailPlaceholder"[^>]*data-text-attribute="placeholder"[^>]*required=""/);
+    const anchors = Array.from(changed.matchAll(/<[^>]+data-text-key="newsletter.emailPlaceholder"[^>]*>/g), match => match[0]);
+    expect(anchors).toHaveLength(2);
+    expect(anchors[0]).toMatch(/^<input\b[^>]*placeholder="Your email"[^>]*data-text-attribute="placeholder"/);
+    expect(anchors[1]).toBe('<span data-text-key="newsletter.emailPlaceholder">');
     expect(EDITABLE_SHARED_FIELDS['newsletter.emailPlaceholder'].attribute).toBe('placeholder');
     expect(changed).not.toContain('data-text-key="newsletter.submitting"');
+  });
+
+  it('associates persistent newsletter labels with named autofill controls before hydration', () => {
+    const html = render(NewsletterSignup);
+    for (const [name, type, autoComplete, key, label] of [
+      ['email', 'email', 'email', 'newsletter.emailPlaceholder', catalog.fields['newsletter.emailPlaceholder'].value],
+      ['firstName', 'text', 'given-name', 'newsletter.namePlaceholder', catalog.fields['newsletter.namePlaceholder'].value],
+    ]) {
+      const input = html.match(new RegExp(`<input id="([^"]+)" name="${name}" type="${type}" autoComplete="${autoComplete}"`, 'i'));
+      expect(input).not.toBeNull();
+      expect(html).toMatch(new RegExp(`<label for="${input![1]}"[^>]*><span data-text-key="${key}">${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}</span></label>`));
+    }
   });
 });

@@ -10,6 +10,15 @@ const motionFiles = [
   "src/lib/__tests__/{network-hints,motion-provider,scroll-reveal,motion-surfaces,lenis-lifecycle,content-copy-rendering,homepage-preview-isolation,shared-copy-rendering,services-other-contrast}.test.ts",
 ];
 
+const contactRefinementFiles = [
+  "src/components/{site-footer,tracked-contact,cta-section,newsletter-signup}.tsx",
+  "src/app/contact/page.tsx",
+  "src/app/services/*/page.tsx",
+  "src/app/projects/*/page.tsx",
+  "src/components/placeholder-section.tsx",
+  "src/lib/__tests__/service-project-presentation.test.ts",
+];
+
 const eslintConfig = defineConfig([
   {
     ignores: [
@@ -95,6 +104,7 @@ const eslintConfig = defineConfig([
       "!src/app/workbench/media/page.tsx",
       "!src/app/workbench/explorer/drive/page.tsx",
       ...motionFiles.map(path => "!" + path),
+      ...contactRefinementFiles.map(path => "!" + path),
     ],
   },
   {
@@ -142,14 +152,14 @@ const eslintConfig = defineConfig([
     rules: { "@typescript-eslint/no-explicit-any": "error", "@typescript-eslint/no-unused-vars": "error" },
   },
   {
-    files: motionFiles,
+    files: [...motionFiles, ...contactRefinementFiles],
     languageOptions: { parser: tsParser },
     plugins: { "@typescript-eslint": tsPlugin },
     rules: { "no-unreachable": "error", "no-dupe-keys": "error", "no-unsafe-finally": "error", "no-constant-condition": "error", "no-fallthrough": "error", "valid-typeof": "error", "eqeqeq": "error" },
   },
   {
     // The archive's pre-existing drag payload is outside this motion pass.
-    files: motionFiles.filter(path => path !== "src/app/our-work/OurWorkClient.tsx"),
+    files: [...motionFiles.filter(path => path !== "src/app/our-work/OurWorkClient.tsx"), ...contactRefinementFiles],
     plugins: { "@typescript-eslint": tsPlugin },
     rules: { "@typescript-eslint/no-explicit-any": "error" },
   },

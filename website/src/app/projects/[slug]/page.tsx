@@ -14,6 +14,7 @@ import { getReviewById } from "@/lib/reviews";
 import { Container, Section, SectionHeading } from "@/components/section";
 import type { Media } from "@/types/media";
 import { pageMetadata } from "@/config/seo";
+import { getServiceBySlug } from "@/lib/registries";
 
 export function generateStaticParams() {
   const projects = getAllProjects();
@@ -57,6 +58,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
   // Load customer review if available
   const reviewId = project.reviews?.[0];
   const review = reviewId ? await getReviewById(reviewId) : null;
+  const primaryService = project.services?.primary || project.service;
+  const serviceLabel = getServiceBySlug(primaryService)?.name || primaryService;
+  const durationDays = project.startDate && project.completionDate
+    ? Math.ceil((new Date(project.completionDate).getTime() - new Date(project.startDate).getTime()) / (1000 * 60 * 60 * 24))
+    : null;
+  const hasMaterials = Boolean(project.materials?.primary?.trim() || project.materials?.secondary?.length || project.materials?.customMaterials?.length);
   
   return (
     <>
@@ -70,62 +77,53 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
             title={<span className="text-evergreen">At a glance</span>}
             description={<span className="text-evergreen/80">Everything attached to this project, in one place.</span>}
           />
-          <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mt-8 grid gap-4 sm:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]">
             {/* Services — owned by Project */}
             <CraftCard className="p-5 bg-surface border-evergreen/10">
-              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Services</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen">Services</p>
               <div className="mt-2 space-y-1 text-sm text-evergreen">
-                {project.services?.primary && <p className="font-semibold capitalize">{project.services?.primary}</p>}
+                {serviceLabel && <p className="font-semibold">{serviceLabel}</p>}
                 {project.services?.secondary?.map((service, i) => (
-                  <p key={i} className="text-evergreen/60 capitalize">{service}</p>
+                  <p key={i} className="text-evergreen capitalize">{service}</p>
                 ))}
                 {project.services?.customServices?.map((service, i) => (
-                  <p key={i} className="text-evergreen/60 capitalize">{service}</p>
+                  <p key={i} className="text-evergreen capitalize">{service}</p>
                 ))}
               </div>
             </CraftCard>
 
             {/* Completion Date — owned by Project */}
-            <CraftCard className="p-5 bg-surface border-evergreen/10">
-              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Completed</p>
+            {project.completionDate && <CraftCard className="p-5 bg-surface border-evergreen/10">
+              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen">Completed</p>
               <div className="mt-2 space-y-1 text-sm text-evergreen">
-                {project.completionDate && (
-                  <p className="font-semibold">
-                    {new Date(project.completionDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
-                  </p>
-                )}
-                {!project.completionDate && <p className="text-evergreen/50">—</p>}
+                <p className="font-semibold">
+                  {new Date(project.completionDate).toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+                </p>
               </div>
-            </CraftCard>
+            </CraftCard>}
 
             {/* Location — owned by Project */}
             <CraftCard className="p-5 bg-surface border-evergreen/10">
-              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Location</p>
+              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen">Location</p>
               <div className="mt-2 space-y-1 text-sm text-evergreen">
                 {project.location?.city && <p className="font-semibold">{project.location.city}</p>}
-                {project.location?.county && <p className="text-evergreen/60">{project.location.county} County</p>}
-                {!project.location?.city && <p className="text-evergreen/50">—</p>}
+                {project.location?.county && <p>{project.location.county} County</p>}
               </div>
             </CraftCard>
 
             {/* Duration — owned by Project */}
-            <CraftCard className="p-5 bg-surface border-evergreen/10">
-              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen/50">Duration</p>
+            {durationDays !== null && Number.isFinite(durationDays) && durationDays >= 0 && <CraftCard className="p-5 bg-surface border-evergreen/10">
+              <p className="text-xs font-semibold uppercase tracking-wide text-evergreen">Duration</p>
               <div className="mt-2 space-y-1 text-sm text-evergreen">
-                {project.startDate && project.completionDate && (
-                  <p className="font-semibold">
-                    {Math.ceil((new Date(project.completionDate).getTime() - new Date(project.startDate).getTime()) / (1000 * 60 * 60 * 24))} days
-                  </p>
-                )}
-                {(!project.startDate || !project.completionDate) && <p className="text-evergreen/50">—</p>}
+                <p className="font-semibold">{durationDays} days</p>
               </div>
-            </CraftCard>
+            </CraftCard>}
           </div>
         </Container>
       </Section>
       
       {/* MATERIALS USED SECTION */}
-      {project.materials && (
+      {hasMaterials && project.materials && (
         <ScrollReveal>
           <Section className="relative bg-deep text-text-on-dark">
             <BlueprintGrid gridSize={20} lineColor="rgba(217, 154, 78, 0.04)" />

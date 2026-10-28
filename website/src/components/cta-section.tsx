@@ -1,7 +1,6 @@
 import { TextCopy } from '@/components/text-copy';
 import Link from "next/link";
 import { buttonVariants } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
 import { Container, Section } from "@/components/section";
 
 /** Public call-to-action: opens the published business contact methods. */
@@ -21,10 +20,10 @@ export function CTASection({
         </h2>
         <p className="mt-4 max-w-2xl text-lg text-[#000000]" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>{typeof subtitle === 'string' ? subtitle : subtitle}</p>
         <div className="mt-8 flex flex-wrap justify-center gap-3">
-          <Link href="/contact" className={cn(buttonVariants({ variant: "primary", size: "lg" }), "transition-transform duration-150 active:scale-[0.98]")}>
+          <Link href="/contact" className={buttonVariants({ variant: "primary", size: "lg" })}>
             <TextCopy textKey="cta.primaryAction" />
           </Link>
-          <Link href="/our-work" className={cn(buttonVariants({ variant: "outline", size: "lg" }), "transition-transform duration-150 active:scale-[0.98]")}>
+          <Link href="/our-work" className={buttonVariants({ variant: "outline", size: "lg" })}>
             <TextCopy textKey="cta.secondaryAction" />
           </Link>
         </div>

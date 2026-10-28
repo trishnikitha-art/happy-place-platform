@@ -45,6 +45,8 @@ export function ProjectSpotlight({
 
   // P1 FIX: Use pre-validated galleryMedia from project.media (passed public media gate)
   const galleryMedia = project.media.galleryMedia || [];
+  const additionalMaterials = [...(project.materials?.secondary || []), ...(project.materials?.customMaterials || [])].filter(material => material.trim());
+  const hasMaterials = Boolean(project.materials?.primary?.trim() || additionalMaterials.length);
 
   // Prepare lightbox images
   const lightboxImages = galleryMedia.map(m => ({
@@ -128,13 +130,13 @@ export function ProjectSpotlight({
           </Container>
         </div>
         <Section>
-          <Container className="grid gap-10 lg:grid-cols-3">
-            <div className="space-y-8 lg:col-span-2">
+          <Container className={cn("grid gap-10", hasMaterials && "lg:grid-cols-3")}>
+            <div className={cn("space-y-8", hasMaterials ? "lg:col-span-2" : "max-w-3xl")}>
               {project.story?.challenge && <StoryBlock icon={<Wrench className="h-5 w-5" />} title="The challenge" body={copy("story.challenge",project.story.challenge)} />}
               {project.story?.solution && <StoryBlock icon={<Lightbulb className="h-5 w-5" />} title="Our solution" body={copy("story.solution",project.story.solution)} />}
               {project.story?.outcome && <StoryBlock icon={<CheckCircle2 className="h-5 w-5" />} title="The outcome" body={copy("story.outcome",project.story.outcome)} />}
             </div>
-            <aside>
+            {hasMaterials && <aside>
               <CraftCard className="p-6">
                 <h3 className={`flex items-center gap-2 font-bold ${cardHeadingColor}`}>
                   <Package className="h-5 w-5 text-accent" /> Materials
@@ -146,7 +148,7 @@ export function ProjectSpotlight({
                       {project.materials.primary}
                     </li>
                   )}
-                  {project.materials?.secondary?.map((m: string) => (
+                  {additionalMaterials.map((m: string) => (
                     <li key={m} className="flex items-start gap-2">
                       <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                       {m}
@@ -154,7 +156,7 @@ export function ProjectSpotlight({
                   ))}
                 </ul>
               </CraftCard>
-            </aside>
+            </aside>}
           </Container>
         </Section>
       </article>
@@ -193,12 +195,12 @@ export function ProjectSpotlight({
       </div>
 
       <Section className="bg-deep">
-        <Container className="grid gap-10 lg:grid-cols-3">
-          <div className="space-y-8 lg:col-span-2">
+        <Container className={cn("grid gap-10", hasMaterials && "lg:grid-cols-3")}>
+          <div className={cn("space-y-8", hasMaterials ? "lg:col-span-2" : "max-w-3xl")}>
             {project.story?.challenge && <StoryBlock icon={<Wrench className="h-5 w-5" />} title="The challenge" body={copy("story.challenge",project.story.challenge)} tone="dark" />}
             {project.story?.solution && <StoryBlock icon={<Lightbulb className="h-5 w-5" />} title="The plan" body={copy("story.solution",project.story.solution)} tone="dark" />}
           </div>
-          <aside>
+          {hasMaterials && <aside>
             <CraftCard className="p-6">
               <h3 className={`flex items-center gap-2 font-bold ${cardHeadingColor}`}>
                 <Package className="h-5 w-5 text-accent" /> Materials
@@ -210,7 +212,7 @@ export function ProjectSpotlight({
                     {project.materials.primary}
                   </li>
                 )}
-                {project.materials?.secondary?.map((m: string) => (
+                {additionalMaterials.map((m: string) => (
                   <li key={m} className="flex items-start gap-2">
                     <span className="mt-1 h-1.5 w-1.5 shrink-0 rounded-full bg-primary" />
                     {m}
@@ -218,7 +220,7 @@ export function ProjectSpotlight({
                 ))}
               </ul>
             </CraftCard>
-          </aside>
+          </aside>}
         </Container>
       </Section>
 
