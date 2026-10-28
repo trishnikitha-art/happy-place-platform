@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useSyncExternalStore, ReactNode } from "react";
 import { prefersReducedMotion } from "@/motion/motionTokens";
+import { isConstrainedDevice, subscribeToNetworkHints } from "@/lib/network-hints";
 
 /**
  * Motion Context
@@ -14,12 +15,10 @@ interface MotionContextType {
   isMotionEnabled: boolean;
 }
 
-const MotionContext = createContext<MotionContextType>({
-  prefersReducedMotion: false,
-  isMotionEnabled: true,
-});
+const MotionContext = createContext<MotionContextType | null>(null);
 
 function subscribeToMotionPreference(onChange: () => void) {
+  if (typeof window.matchMedia !== 'function') return () => {};
   const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
   preference.addEventListener('change', onChange);
   return () => preference.removeEventListener('change', onChange);
@@ -27,6 +26,11 @@ function subscribeToMotionPreference(onChange: () => void) {
 
 // Hydration starts with the same snapshot as the server, then reads the browser preference.
 function serverMotionPreference() { return false; }
+function clientIsReady() { return true; }
+function subscribeToHydration() { return () => {}; }
+function currentMotionPreference() {
+  return typeof window !== 'undefined' && typeof window.matchMedia === 'function' && prefersReducedMotion();
+}
 
 /**
  * MotionProvider - Global animation configuration provider
@@ -37,7 +41,10 @@ function serverMotionPreference() { return false; }
  * - Consistent animation behavior across the app
  */
 export function MotionProvider({ children }: { children: ReactNode }) {
-  const reducedMotion = useSyncExternalStore(subscribeToMotionPreference, prefersReducedMotion, serverMotionPreference);
+  const reducedMotion = useSyncExternalStore(subscribeToMotionPreference, currentMotionPreference, serverMotionPreference);
+  const constrainedDevice = useSyncExternalStore(subscribeToNetworkHints, isConstrainedDevice, serverMotionPreference);
+  const hydrated = useSyncExternalStore(subscribeToHydration, clientIsReady, serverMotionPreference);
+  const isMotionEnabled = hydrated && !reducedMotion && !constrainedDevice;
 
   useEffect(() => {
     // Add reduced-motion class to document for CSS fallbacks
@@ -46,13 +53,18 @@ export function MotionProvider({ children }: { children: ReactNode }) {
     } else {
       document.documentElement.classList.remove("reduced-motion");
     }
-  }, [reducedMotion]);
+    document.documentElement.dataset.motion = isMotionEnabled ? 'enabled' : 'disabled';
+    return () => {
+      document.documentElement.classList.remove("reduced-motion");
+      delete document.documentElement.dataset.motion;
+    };
+  }, [reducedMotion, isMotionEnabled]);
 
   return (
     <MotionContext.Provider
       value={{
         prefersReducedMotion: reducedMotion,
-        isMotionEnabled: !reducedMotion,
+        isMotionEnabled,
       }}
     >
       {children}

@@ -3,6 +3,7 @@ import {renderToStaticMarkup} from 'react-dom/server';
 import {ContentCopy,ContentCopyPreviewProvider} from '@/components/content-copy';
 import {ServiceCard} from '@/components/service-card';
 import {ProjectSpotlight} from '@/components/project-spotlight';
+import {MotionProvider} from '@/components/motion-provider';
 import type {Service} from '@/types/registries';
 import type {Project} from '@/types/projects';
 const props={collection:'services' as const,id:'fences',field:'name',value:'Fences',route:'/services/fences'};
@@ -20,9 +21,9 @@ it('does not overlay another collection with the same item ID',()=>{
 it('rejects locked authority fields rather than adding an inline promotion target',()=>expect(()=>renderToStaticMarkup(React.createElement(ContentCopy,{...props,field:'media.hero'}))).toThrow('Unsupported canonical copy field'));
 it('keeps service card typography and navigation while exposing canonical name and description',()=>{
   const service={id:'fences',slug:'fences',name:'Fences',description:'Built to last.',icon:'fence'} as Service;
-  const html=renderToStaticMarkup(React.createElement(ServiceCard,{service}));expect(html).toContain('href="/services/fences"');expect(html).toContain('font-display text-lg');expect(html).toContain('data-content-field="name"');expect(html).toContain('data-content-field="description"');expect(html).toContain('>Built to last.</span>');
+  const html=renderToStaticMarkup(React.createElement(MotionProvider,{children:React.createElement(ServiceCard,{service})}));expect(html).toContain('href="/services/fences"');expect(html).toContain('font-display text-lg');expect(html).toContain('data-content-field="name"');expect(html).toContain('data-content-field="description"');expect(html).toContain('>Built to last.</span>');
 });
 it('exposes complete project title and story text without editing media or formatted labels',()=>{
   const project={id:'fence-1',slug:'fence-story',title:'Cedar fence',location:{},media:{},story:{challenge:'Old fence needed repair.',solution:'Built new cedar panels.',outcome:'A welcoming yard.'}} as Project;
-  const html=renderToStaticMarkup(React.createElement(ProjectSpotlight,{project}));for(const field of ['title','story.challenge','story.solution','story.outcome'])expect(html).toContain(`data-content-field="${field}"`);expect(html).toContain('text-4xl font-bold sm:text-5xl');expect(html).toContain('The challenge');expect(html).toContain('data-content-route="/projects/fence-story"');
+  const html=renderToStaticMarkup(React.createElement(MotionProvider,{children:React.createElement(ProjectSpotlight,{project})}));for(const field of ['title','story.challenge','story.solution','story.outcome'])expect(html).toContain(`data-content-field="${field}"`);expect(html).toContain('text-4xl font-bold sm:text-5xl');expect(html).toContain('The challenge');expect(html).toContain('data-content-route="/projects/fence-story"');
 });

@@ -281,11 +281,11 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
                 <ScrollReveal key={project.id} delay={i * 80}>
                   <Link
                     href={`/projects/${project.slug || project.id}`}
-                    className="group block"
+                    className="craft-card-link group block"
                   >
                     <div className="relative">
                       <div className="relative z-10">
-                        <CraftCard className="overflow-hidden transition-all duration-300 hover:-translate-y-2 hover:shadow-2xl">
+                        <CraftCard interactive className="overflow-hidden">
                           <div className="relative aspect-[16/9] overflow-hidden">
                             <VisualSlot
                               id={`our-work-project-card-${project.id}`}
@@ -300,12 +300,12 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
                                 src={heroSrc}
                                 alt={heroMedia?.alt || project.title}
                                 fill
-                                className="object-cover transition-transform duration-500 group-hover:scale-[1.03]"
+                                className="craft-card-photo object-cover"
                                 sizes="(min-width: 1280px) 592px, (min-width: 768px) calc((100vw - 80px) / 2), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)"
                               />
                             </VisualSlot>
                           </div>
-                          <div className="p-6 transition-transform duration-300 group-hover:translate-y-[-4px]">
+                          <div className="p-6">
                             <div className="flex items-center gap-2 mb-2">
                               <span className="text-xs font-semibold uppercase tracking-wide text-primary">
                                 {(() => {
@@ -384,7 +384,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
                     data-photo-index={photoIndex}
                     role="button"
                     tabIndex={0}
-                    className="group relative block aspect-[4/3] overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                    className="craft-card-link group relative block aspect-[4/3] overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
                     style={pointerSort.cardStyle('archive', slotId)}
                     onDragOver={isWorkbenchMode ? handleProjectDragOver : undefined}
                     onDrop={isWorkbenchMode ? event=>handleProjectDrop(event,project.id) : undefined}
@@ -395,7 +395,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
                     }}
                     aria-label={`View ${photo.alt || project.title} in full screen`}
                   >
-                    <CraftCard className="aspect-[4/3] overflow-hidden">
+                    <CraftCard interactive={!isWorkbenchMode} className="aspect-[4/3] overflow-hidden">
                       <VisualSlot
                         id={`our-work-gallery::${project.id}::${mediaId}`}
                         route="/our-work"
@@ -427,13 +427,13 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
                           srcSet={webpSrcSet || undefined}
                           sizes={webpSrcSet ? gallerySizes : undefined}
                           alt={photo!.alt || `${project.title} photo ${photoIndex + 1}`}
-                          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
+                          className="craft-card-photo h-full w-full object-cover"
                           loading="lazy"
                           decoding="async"
                           draggable={false}
 
                         />
-                        </picture> : <Image src={photo.variants.web || photo.variants.original || src} alt={photo.alt || `${project.title} photo ${photoIndex + 1}`} width={photo.dimensions.width} height={photo.dimensions.height} sizes={gallerySizes} className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" decoding="async" draggable={false} />}
+                        </picture> : <Image src={photo.variants.web || photo.variants.original || src} alt={photo.alt || `${project.title} photo ${photoIndex + 1}`} width={photo.dimensions.width} height={photo.dimensions.height} sizes={gallerySizes} className="craft-card-photo h-full w-full object-cover" loading="lazy" decoding="async" draggable={false} />}
                       </VisualSlot>
                       <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none" />
                       <span className="absolute bottom-2 left-2 text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none">

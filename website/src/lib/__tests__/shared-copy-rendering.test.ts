@@ -11,14 +11,15 @@ import navigation from '@/config/navigation.v1.json';
 import { SiteFooter } from '@/components/site-footer';
 import ContactPage from '@/app/contact/page';
 import { getCompany } from '@/lib/company';
+import { MotionProvider } from '@/components/motion-provider';
 
 jest.mock('next/navigation', () => ({ useRouter: () => ({ push: jest.fn() }) }));
 
 function render(Component: typeof ReviewPage | typeof NewsletterSignup | typeof SiteFooter | typeof ContactPage, key?: TextKey, value = 'Updated homeowner copy') {
-  return renderToStaticMarkup(createElement(TextPreviewProvider, {
+  return renderToStaticMarkup(createElement(MotionProvider, { children: createElement(TextPreviewProvider, {
     draft: key ? { key, value } : null,
     children: createElement(Component),
-  }));
+  }) }));
 }
 
 describe('Shared public copy preserves content contracts and design', () => {

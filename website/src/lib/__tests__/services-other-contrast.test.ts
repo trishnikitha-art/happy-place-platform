@@ -1,4 +1,6 @@
 import { renderToStaticMarkup } from 'react-dom/server';
+import { createElement } from 'react';
+import { MotionProvider } from '@/components/motion-provider';
 import ServicesPage from '@/app/services/page';
 import catalog from '@/config/strings.v1.json';
 
@@ -24,7 +26,7 @@ describe('Services additional-projects panel semantic contrast', () => {
   let panel: string;
 
   beforeAll(async () => {
-    markup = renderToStaticMarkup(await ServicesPage());
+    markup = renderToStaticMarkup(createElement(MotionProvider, { children: await ServicesPage() }));
     panel = otherServicesPanel(markup);
   });
 

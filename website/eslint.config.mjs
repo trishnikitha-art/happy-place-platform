@@ -2,6 +2,14 @@ import { defineConfig } from "eslint/config";
 import tsParser from "@typescript-eslint/parser";
 import tsPlugin from "@typescript-eslint/eslint-plugin";
 
+const motionFiles = [
+  "src/app/our-work/OurWorkClient.tsx",
+  "src/components/{before-after-slider,blueprint-grid,pencil-line,card-light-sweep,motion-provider,scroll-reveal,service-card,site-header,speculation-rules,tape-measure-nav,workshop-atmosphere,lenis-provider,project-spotlight}.tsx",
+  "src/components/ui/{button,card}.tsx",
+  "src/lib/network-hints.ts",
+  "src/lib/__tests__/{network-hints,motion-provider,scroll-reveal,motion-surfaces,lenis-lifecycle,content-copy-rendering,homepage-preview-isolation,shared-copy-rendering,services-other-contrast}.test.ts",
+];
+
 const eslintConfig = defineConfig([
   {
     ignores: [
@@ -86,6 +94,7 @@ const eslintConfig = defineConfig([
       "!src/app/reviews/page.tsx",
       "!src/app/workbench/media/page.tsx",
       "!src/app/workbench/explorer/drive/page.tsx",
+      ...motionFiles.map(path => "!" + path),
     ],
   },
   {
@@ -131,6 +140,18 @@ const eslintConfig = defineConfig([
       "src/lib/drive/reauthorization-identity.ts", "src/lib/media-storage-evidence.ts", "src/lib/media-inventory.ts",
       "scripts/audit-production-media.ts"],
     rules: { "@typescript-eslint/no-explicit-any": "error", "@typescript-eslint/no-unused-vars": "error" },
+  },
+  {
+    files: motionFiles,
+    languageOptions: { parser: tsParser },
+    plugins: { "@typescript-eslint": tsPlugin },
+    rules: { "no-unreachable": "error", "no-dupe-keys": "error", "no-unsafe-finally": "error", "no-constant-condition": "error", "no-fallthrough": "error", "valid-typeof": "error", "eqeqeq": "error" },
+  },
+  {
+    // The archive's pre-existing drag payload is outside this motion pass.
+    files: motionFiles.filter(path => path !== "src/app/our-work/OurWorkClient.tsx"),
+    plugins: { "@typescript-eslint": tsPlugin },
+    rules: { "@typescript-eslint/no-explicit-any": "error" },
   },
   {
     languageOptions: {

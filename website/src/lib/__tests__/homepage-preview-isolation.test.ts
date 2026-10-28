@@ -5,6 +5,11 @@ import PreviewPage from '@/app/workbench/preview/[[...path]]/page';
 import { workbenchSession } from '@/lib/workbench-session';
 import { readTextTransaction } from '@/lib/text-authority';
 import catalog from '@/config/strings.v1.json';
+import { MotionProvider } from '@/components/motion-provider';
+
+function renderInApp(children: React.ReactNode) {
+  return renderToStaticMarkup(React.createElement(MotionProvider, { children }));
+}
 
 jest.mock('next/navigation', () => ({
   usePathname: () => '/',
@@ -41,7 +46,7 @@ beforeEach(() => {
 
 it('renders public homepage copy without reading preview query values, sessions or transactions', async () => {
   const props = new Proxy({}, { get: () => { throw new Error('Public page inspected preview input'); } });
-  const html = renderToStaticMarkup(await Reflect.apply(HomePage, undefined, [props]));
+  const html = renderInApp(await Reflect.apply(HomePage, undefined, [props]));
   for (const key of heroKeys) {
     expect(html).toContain(catalog.fields[key].value.replaceAll('&', '&amp;'));
     expect(html.split(`data-text-key="${key}"`)).toHaveLength(2);
@@ -53,20 +58,20 @@ it('renders public homepage copy without reading preview query values, sessions 
 });
 
 it.each(heroKeys)('uses the existing authenticated preview provider for %s without leaking into public copy', async key => {
-  const baseline = renderToStaticMarkup(await HomePage());
+  const baseline = renderInApp(await HomePage());
   jest.mocked(readTextTransaction).mockResolvedValue(receipt(key) as never);
   const preview = await PreviewPage({
     params: Promise.resolve({}), searchParams: Promise.resolve({ textTransaction: 'staged-text' }),
   });
   // Resolve the async server page while retaining the actual preview provider.
-  const html = renderToStaticMarkup(cloneElement(preview, {}, await HomePage()));
+  const html = renderInApp(cloneElement(preview, {}, await HomePage()));
   expect(html).toContain('Private staged copy');
   expect(html).not.toBe(baseline);
   expect(readTextTransaction).toHaveBeenCalledTimes(1);
   expect(readTextTransaction).toHaveBeenCalledWith('staged-text');
   expect(html).toContain('href="/contact"');
   expect(html).toContain('href="/our-work"');
-  expect(renderToStaticMarkup(await HomePage())).toBe(baseline);
+  expect(renderInApp(await HomePage())).toBe(baseline);
 });
 
 it('redirects anonymous previews before inspecting draft inputs or reading receipts', async () => {

@@ -17,43 +17,8 @@ import { HappyBrandSignature } from "@/components/happy-brand-signature";
 import { TapeMeasureNav } from "@/components/tape-measure-nav";
 import { MobileSiteNavigation } from "@/components/mobile-site-navigation";
 
-function NavShimmer({ children, className }: { children: React.ReactNode; className?: string }) {
-  const [isHovered, setIsHovered] = React.useState(false);
-
-  return (
-    <span
-      className={cn("nav-shimmer relative inline-block", className)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      {/* Base gold text with layered gradients */}
-      <span
-        className={`
-          relative z-10
-          bg-gradient-to-br from-[#A67C00] via-[#D99A4E] via-[#E7AD63] to-[#F0C070]
-          bg-clip-text text-transparent
-          transition-all duration-500 ease-[cubic-bezier(0.22,1,0.36,1)]
-          ${isHovered ? 'scale-[1.01]' : 'scale-100'}
-        `}
-        style={{
-          filter: isHovered ? 'brightness(1.08) saturate(1.1)' : 'brightness(1) saturate(1)',
-        }}
-      >
-        {children}
-      </span>
-      
-      {/* Animated shimmer sweep - warm light traveling left to right */}
-      <span
-        aria-hidden="true"
-        className="nav-shimmer-sweep absolute inset-0 z-20 bg-gradient-to-r from-transparent via-white/15 via-white/10 to-transparent bg-clip-text text-transparent pointer-events-none"
-        style={{
-          backgroundSize: '200% 100%',
-        }}
-      >
-        {children}
-      </span>
-    </span>
-  );
+function NavShimmer({ children }: { children: React.ReactNode }) {
+  return <span className="nav-label relative inline-block bg-gradient-to-br from-[#A67C00] via-[#D99A4E] to-[#F0C070] bg-clip-text text-transparent">{children}</span>;
 }
 
 export function SiteHeader() {
@@ -80,7 +45,7 @@ export function SiteHeader() {
       <div className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-2 px-4 sm:px-6 md:px-4 lg:gap-3 lg:px-8">
         <Link href="/" className="group flex shrink-0 items-center gap-2 lg:gap-2.5" aria-label={`${company.name} home`}>
           {/* Happy Place Carpentry logo */}
-          <span className="relative block h-9 w-auto transition-transform duration-300 group-hover:-rotate-3 lg:h-10">
+          <span className="brand-mark relative block h-9 w-auto lg:h-10">
             <Image src="/brand/logo.png" alt="Happy Place Carpentry logo" width={120} height={40} priority className="h-full w-auto" />
             <CedarCorner className="absolute -left-1 -top-1 h-3 w-3 text-honey" />
           </span>
@@ -98,7 +63,7 @@ export function SiteHeader() {
               href={item.href}
               aria-current={isActive(item.href) ? "page" : undefined}
               className={cn(
-                "relative z-10 inline-flex min-h-11 min-w-11 items-center justify-center whitespace-nowrap px-2 py-2.5 text-xs font-medium tracking-wide transition-all duration-200 lg:px-3.5 lg:text-sm",
+                "site-nav-link relative z-10 inline-flex min-h-11 min-w-11 items-center justify-center whitespace-nowrap px-2 py-2.5 text-xs font-medium tracking-wide transition-colors duration-200 lg:px-3.5 lg:text-sm",
                 isActive(item.href) ? "text-primary nav-shimmer-active" : "text-text hover:text-text hover:bg-surface/50 rounded-md"
               )}
             >

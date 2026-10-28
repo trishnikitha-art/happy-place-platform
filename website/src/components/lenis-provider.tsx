@@ -4,6 +4,7 @@ import { useEffect, createContext, useContext, ReactNode, useState, Suspense } f
 import Lenis from "lenis";
 import { usePathname, useSearchParams } from "next/navigation";
 import { usesNativeScroll } from '@/lib/scroll-policy';
+import { useMotion } from '@/components/motion-provider';
 
 interface LenisContextValue {
   lenis: Lenis | null;
@@ -24,12 +25,12 @@ function SearchObserver({onChange}:{onChange:(search:string)=>void}) {
  * Other public pages retain Lenis, unless reduced motion is requested.
  */
 export function LenisProvider({ children }: { children: ReactNode }) {
+  const { isMotionEnabled } = useMotion();
   const [lenis, setLenis] = useState<Lenis | null>(null);
   const pathname = usePathname();
   const [search,setSearch] = useState('');
 
   useEffect(() => {
-    const motionPreference = window.matchMedia("(prefers-reduced-motion: reduce)");
     let instance: Lenis | null = null;
     let frameId: number | null = null;
 
@@ -50,7 +51,7 @@ export function LenisProvider({ children }: { children: ReactNode }) {
       dispose();
       // popstate fires before React has committed its updated pathname.
       const currentPath = window.location.pathname;
-      if (usesNativeScroll(currentPath, window.location.search) || motionPreference.matches) return;
+      if (usesNativeScroll(currentPath, window.location.search) || !isMotionEnabled) return;
 
       const activeInstance = new Lenis({
         // The provider owns the only animation clock, including disposal.
@@ -71,16 +72,14 @@ export function LenisProvider({ children }: { children: ReactNode }) {
     };
 
     synchronize();
-    motionPreference.addEventListener("change", synchronize);
     // Covers history changes to the preview query on the same pathname.
     window.addEventListener("popstate", synchronize);
 
     return () => {
-      motionPreference.removeEventListener("change", synchronize);
       window.removeEventListener("popstate", synchronize);
       dispose();
     };
-  }, [pathname, search]);
+  }, [pathname, search, isMotionEnabled]);
 
   return <LenisContext.Provider value={{ lenis }}><Suspense fallback={null}><SearchObserver onChange={setSearch}/></Suspense>{children}</LenisContext.Provider>;
 }

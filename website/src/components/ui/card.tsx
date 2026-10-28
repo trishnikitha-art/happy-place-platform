@@ -24,9 +24,9 @@ import { CardLightSweep } from "@/components/card-light-sweep";
  * COLOR PAIRING RULE: Cards ALWAYS use light register (bg-surface).
  * Cards never inherit page background. A card on a dark page still uses light surface.
  */
-export function CraftCard({ className, children, style }: { className?: string; children: React.ReactNode; style?: React.CSSProperties }) {
+export function CraftCard({ className, children, style, interactive = false }: { className?: string; children: React.ReactNode; style?: React.CSSProperties; interactive?: boolean }) {
   return (
-    <CardLightSweep className="block">
+    <CardLightSweep className="block h-full" interactive={interactive}>
       <div 
         className={cn(
           // Base structure - existing tokens only
@@ -39,13 +39,6 @@ export function CraftCard({ className, children, style }: { className?: string; 
           
           // Premium shadow stack - layered depth (from homepage cards)
           "shadow-[--shadow-card]",
-          
-          // Smooth transition with gentle lift
-          "transition-all duration-400 ease-[cubic-bezier(0.22,1,0.36,1)]",
-          
-          // Hover state - slightly richer shadow, subtle lift
-          "hover:shadow-[--shadow-card-hover]",
-          "hover:-translate-y-0.5",
           
           // Only allow layout classes (padding, margin, flex, grid, etc.)
           className

@@ -69,7 +69,7 @@ export function ProjectSpotlight({
     return (
       <Section className="bg-surface-muted">
         <Container className="grid items-center gap-10 lg:grid-cols-2">
-          <CraftCard className="group relative overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
+          <CraftCard className="group relative overflow-hidden">
             <VisualSlot
               id={`project-hero-${project.id}`}
               route={`/projects/${project.slug || project.id}`}
@@ -85,7 +85,7 @@ export function ProjectSpotlight({
                 fill
                 placeholder={heroMedia?.variants?.blur ? "blur" : "empty"}
                 blurDataURL={heroMedia?.variants?.blur}
-                className="h-full w-full object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
+                className="h-full w-full object-cover"
                 sizes="(max-width: 1024px) 100vw, 50vw"
               />
             </VisualSlot>
@@ -230,7 +230,11 @@ export function ProjectSpotlight({
               {galleryMedia.map((media, i) => (
                 <figure 
                   key={i} 
-                  className="overflow-hidden rounded-card border border-border/40 bg-surface cursor-pointer transition-all duration-200 hover:-translate-y-1 hover:shadow-xl group"
+                  className="project-motion-card craft-card-link group overflow-hidden rounded-card border border-border/40 bg-surface cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-honey"
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Open project photo ${i + 1}`}
+                  onKeyDown={event => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); setLightboxIndex(i); setLightboxOpen(true); } }}
                   onClick={() => {
                     setLightboxIndex(i);
                     setLightboxOpen(true);
@@ -253,7 +257,7 @@ export function ProjectSpotlight({
                         loading="lazy"
                         placeholder={media?.variants?.blur ? "blur" : "empty"}
                         blurDataURL={media!.variants?.blur}
-                        className="object-cover transition-all duration-200 ease-out group-hover:scale-[1.05] group-hover:brightness-110"
+                        className="craft-photo object-cover"
                         sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
                       />
                     </VisualSlot>

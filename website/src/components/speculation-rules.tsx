@@ -20,6 +20,11 @@
 
 import { useEffect } from "react";
 import { featureFlags } from "@/config/ui-flags";
+import { isConstrainedDevice } from "@/lib/network-hints";
+
+type AnalyticsWindow = Window & {
+  gtag?: (command: 'event', name: string, parameters: Record<string, string | boolean>) => void;
+};
 
 export function SpeculationRules() {
   useEffect(() => {
@@ -29,27 +34,11 @@ export function SpeculationRules() {
 
     // Phase 7: Performance guardrails
     // Abort speculation if conditions are poor
-    const connection = (navigator as any).connection;
-    if (connection) {
-      // Check for Save-Data mode
-      if (connection.saveData) {
-        return;
-      }
-
-      // Check for slow network (2G or worse)
-      if (connection.effectiveType === '2g' || connection.effectiveType === 'slow-2g') {
-        return;
-      }
-
-      // Check for low device memory (less than 2GB)
-      if ((navigator as any).deviceMemory && (navigator as any).deviceMemory < 2) {
-        return;
-      }
-    }
+    if (isConstrainedDevice()) return;
 
     // Phase 8: Analytics - Track speculation attempt
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'speculation_attempt', {
+    if (typeof window !== 'undefined' && (window as AnalyticsWindow).gtag) {
+      (window as AnalyticsWindow).gtag?.('event', 'speculation_attempt', {
         event_category: 'performance',
         non_interaction: true,
       });
@@ -93,8 +82,8 @@ export function SpeculationRules() {
     document.head.appendChild(script);
 
     // Phase 8: Analytics - Track speculation success
-    if (typeof window !== 'undefined' && (window as any).gtag) {
-      (window as any).gtag('event', 'speculation_success', {
+    if (typeof window !== 'undefined' && (window as AnalyticsWindow).gtag) {
+      (window as AnalyticsWindow).gtag?.('event', 'speculation_success', {
         event_category: 'performance',
         non_interaction: true,
       });

@@ -94,7 +94,7 @@ export default async function HomePage() {
   return (
     <>
       {/* HERO — full-width photograph with text overlay */}
-      <section className="relative isolate overflow-hidden bg-deep text-text-on-dark">
+      <section className="homepage-hero relative isolate overflow-hidden bg-deep text-text-on-dark">
         <WorkshopAtmosphere particleCount={20} />
         <VisualSlot
           id="hero-background"
@@ -125,7 +125,7 @@ export default async function HomePage() {
 
         <Container className="relative z-10 flex min-h-[75svh] sm:min-h-[82svh] lg:min-h-[88svh] flex-col justify-center py-12 sm:py-16 lg:py-20 pointer-events-none">
           <div className="max-w-3xl pointer-events-auto">
-            <p className="font-signature text-xl sm:text-2xl text-text-on-dark tracking-wide">
+            <p className="hero-signature font-signature text-xl sm:text-2xl text-text-on-dark tracking-wide">
               <HappyBrandSignature /> Place Carpentry</p>
             <h1 className="mt-4 sm:mt-5 font-display text-4xl sm:text-5xl lg:text-6xl font-bold text-text-on-dark" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>
               <TextCopy textKey="homepage.hero.title" />
@@ -138,7 +138,7 @@ export default async function HomePage() {
               </Link>
               <Link
                 href="/our-work"
-                className="inline-flex items-center justify-center gap-2 rounded-full border border-text-on-dark/20 bg-text-on-dark/6 px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold text-text-on-dark transition-all duration-250 ease-[cubic-bezier(0.22,1,0.36,1)] hover:bg-text-on-dark/12 hover:border-text-on-dark/30"
+                className="inline-flex items-center justify-center gap-2 rounded-full border border-text-on-dark/20 bg-text-on-dark/6 px-6 py-3 sm:px-8 sm:py-4 text-sm sm:text-base font-semibold text-text-on-dark transition-colors duration-200 hover:bg-text-on-dark/12 hover:border-text-on-dark/30"
               >
                 <TextCopy textKey="homepage.hero.secondaryAction" />
               </Link>
@@ -253,7 +253,7 @@ export default async function HomePage() {
                   <Link 
                     key={project.id} 
                     href={`/projects/${project.slug || project.id}`}
-                    className={`group relative overflow-hidden rounded-lg ${isFeatured ? 'sm:col-span-2 sm:row-span-2' : ''}`}
+                    className={`project-motion-card group relative overflow-hidden rounded-lg ${isFeatured ? 'sm:col-span-2 sm:row-span-2' : ''}`}
                   >
                     <VisualSlot
                       id={`homepage-featured-project-${project.id}`}
@@ -268,7 +268,7 @@ export default async function HomePage() {
                         src={heroSrc}
                         alt={heroMedia?.alt || project.title}
                         fill
-                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        className="craft-photo object-cover"
                         sizes={isFeatured ? '(min-width: 1280px) 600px, (min-width: 1024px) calc((100vw - 80px) / 2), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)' : '(min-width: 1280px) 288px, (min-width: 1024px) calc((100vw - 112px) / 4), (min-width: 640px) calc((100vw - 64px) / 2), calc(100vw - 32px)'}
                         placeholder={heroMedia?.variants?.blur ? 'blur' : 'empty'}
                         blurDataURL={heroMedia?.variants?.blur}
@@ -352,7 +352,7 @@ export default async function HomePage() {
                 <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
                   {topReviews.map((r, i) => (
                     <ScrollReveal key={r.id} delay={i * 100}>
-                      <Card className="p-5 sm:p-6 transition-all duration-200 hover:-translate-y-1 hover:shadow-xl">
+                      <Card className="p-5 sm:p-6">
                         <StarRating rating={r.rating} />
                         {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
                         <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>

@@ -55,8 +55,8 @@ export function ServiceCard({ service, runtimeCardMediaObject, href, imageSizes 
   const cardHref = href || `/services/${service.slug}`;
 
   return (
-    <Link href={cardHref} className="block h-full">
-      <CraftCard className="group flex h-full flex-col overflow-hidden transition-all duration-200 hover:-translate-y-1 hover:shadow-xl" style={{ containerType: 'inline-size' }}>
+    <Link href={cardHref} className="craft-card-link block h-full rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-honey">
+      <CraftCard interactive className="group flex h-full flex-col overflow-hidden" style={{ containerType: 'inline-size' }}>
         <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
           {hasImage && imageSrc ? (
             <>
@@ -68,9 +68,8 @@ export function ServiceCard({ service, runtimeCardMediaObject, href, imageSizes 
                 alt={featuredMedia.alt || service.name}
                 fill
                 sizes={imageSizes}
-                className="object-cover transition-transform duration-200 ease-out group-hover:scale-[1.02]"
+                className="craft-card-photo object-cover"
               />
-              <div className="absolute inset-0 pointer-events-none rounded-t-xl bg-gradient-to-tr from-black/5 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" aria-hidden="true" />
             </>
           ) : (
             <div className="flex h-full w-full items-center justify-center">

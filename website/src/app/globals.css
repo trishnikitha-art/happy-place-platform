@@ -1,5 +1,6 @@
 @import "tailwindcss";
 @import "lenis/dist/lenis.css";
+@import "./motion-polish.css";
 
 /*
  * SEMANTIC DESIGN TOKENS — Pacific Northwest craftsmanship meets modern luxury.
@@ -254,8 +255,8 @@ body {
 }
 
 /* Display type utility */
-.font-display { font-family: var(--font-display); }
-.font-signature { font-family: var(--font-signature); }
+.font-display { font-family: var(--font-playfair, var(--font-display)); }
+.font-signature { font-family: var(--font-playball, var(--font-signature)); }
 
 /* Premium tracking refinement for display headings */
 .tracking-display {
@@ -418,21 +419,6 @@ body {
   opacity: 0.6;
 }
 
-/* barely perceptible lift on hover — calm, confident, not flashy */
-.photo-mounted { will-change: transform; }
-@media (hover: hover) {
-  a:hover .photo-mounted,
-  .photo-mounted:hover {
-    transform: translateY(-4px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.8) inset,
-      0 0 0 1px rgba(250, 251, 252, 0.85),
-      0 1px 2px rgba(53, 36, 35, 0.14) inset,
-      0 30px 60px -30px rgba(53, 36, 35, 0.6),
-      0 6px 18px -10px rgba(0, 0, 0, 0.22);
-  }
-}
-
 /* tiny bevel on the inner edge */
 .photo-mounted > img,
 .photo-mounted > span {
@@ -442,14 +428,8 @@ body {
 /* Image breathing room - refined aspect ratios and crops */
 .photo-breathe {
   padding: 0.5rem; /* 8px breathing room */
-  transition: padding 0.3s ease;
 }
 
-@media (hover: hover) {
-  .photo-breathe:hover {
-    padding: 0.625rem; /* 10px on hover for subtle expansion */
-  }
-}
 
 /* REFINED TYPOGRAPHY HELPERS (magazine editor) */
 .measure {
@@ -542,28 +522,19 @@ a {
   background: var(--color-honey);
   color: var(--color-honey-foreground);
   box-shadow: 0 1px 6px -2px rgba(217, 154, 78, 0.25), 0 0.5px 2px -1px rgba(217, 154, 78, 0.15);
-  transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1), background 0.25s ease;
+  transition: background-color 160ms ease;
 }
 .cta-signature:hover {
-  transform: translateY(-1px);
   background: var(--color-honey-hover);
   box-shadow: 0 3px 12px -4px rgba(217, 154, 78, 0.35), 0 1.5px 4px -2px rgba(217, 154, 78, 0.25);
 }
 
-/* Hero parallax layer — subtle slow drift on the background photo. */
+/* Optional photo feedback follows the shared motion policy. */
 @media (prefers-reduced-motion: no-preference) {
-  .hero-parallax {
-    will-change: transform;
-    animation: heroDrift 37s ease-in-out infinite alternate;
-  }
-  @keyframes heroDrift {
-    from { transform: scale(1.06) translateY(0); }
-    to { transform: scale(1.12) translateY(-2.5%); }
-  }
   /* Editorial micro-motion: images breathe 1–2% while visible. */
   .photo-breathe { transition: transform 0.7s ease-out; }
-  .group:hover .photo-breathe,
-  .photo-breathe:hover { transform: scale(1.03); }
+  html[data-motion="enabled"] .group:hover .photo-breathe,
+  html[data-motion="enabled"] .photo-breathe:hover { transform: scale(1.02); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -618,42 +589,6 @@ a {
   button.cta-signature {
     min-height: 48px;
     padding: 12px 24px;
-  }
-}
-
-/* Keep brand shimmer short and user-triggered. */
-@keyframes shimmer-fast {
-  0% {
-    background-position: -200% 0;
-  }
-  100% {
-    background-position: 200% 0;
-  }
-}
-
-.animate-shimmer-fast {
-  animation: shimmer-fast 1s ease-in-out;
-}
-
-.nav-shimmer-sweep {
-  opacity: 0;
-}
-
-.nav-shimmer:hover .nav-shimmer-sweep,
-.nav-shimmer-active:focus-visible .nav-shimmer-sweep {
-  animation: shimmer-fast 1s ease-in-out forwards;
-  opacity: 1;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .animate-shimmer-fast {
-    animation: none;
-  }
-
-  .nav-shimmer:hover .nav-shimmer-sweep,
-  .nav-shimmer-active:focus-visible .nav-shimmer-sweep {
-    animation: none;
-    opacity: 0;
   }
 }
 

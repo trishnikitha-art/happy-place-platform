@@ -49,11 +49,6 @@ export function BeforeAfterSlider({
   const beforeMedia = project.media.beforeMedia;
   const afterMedia = project.media.afterMedia;
 
-  // Hide if media not found or not validated
-  if (!beforeMedia || !afterMedia) {
-    return null;
-  }
-
   const [pos, setPos] = React.useState(50);
   const containerRef = React.useRef<HTMLDivElement>(null);
   const dragging = React.useRef(false);
@@ -78,9 +73,16 @@ export function BeforeAfterSlider({
   }, [setFromClientX]);
 
   const onKey = (e: React.KeyboardEvent) => {
+    if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(e.key)) return;
+    e.preventDefault();
     if (e.key === "ArrowLeft") setPos((p) => Math.max(0, p - 5));
     if (e.key === "ArrowRight") setPos((p) => Math.min(100, p + 5));
+    if (e.key === "Home") setPos(0);
+    if (e.key === "End") setPos(100);
   };
+
+  // Keep the hook order stable when media resolves, disappears, or is unpublished.
+  if (!beforeMedia || !afterMedia) return null;
 
   const beforeSrc = beforeMedia.variants.original || beforeMedia.variants.webp || beforeMedia.variants.avif;
   const afterSrc = afterMedia.variants.original || afterMedia.variants.webp || afterMedia.variants.avif;
@@ -93,7 +95,7 @@ export function BeforeAfterSlider({
     <CraftCard className={cn("group relative select-none overflow-hidden", className)}>
       <div
         ref={containerRef}
-        className="relative aspect-[4/3] w-full"
+        className="relative aspect-[4/3] w-full touch-pan-y"
         onMouseDown={(e) => {
           dragging.current = true;
           setFromClientX(e.clientX);
@@ -148,7 +150,7 @@ export function BeforeAfterSlider({
         )}
         {/* Handle */}
         <div
-          className="absolute top-0 bottom-0 z-10 w-1 bg-honey shadow-[0_0_12px_rgba(217,154,78,0.7)]"
+          className="absolute top-0 bottom-0 z-10 w-11 touch-none focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-primary"
           style={{ left: `${pos}%`, transform: "translateX(-50%)" }}
           role="slider"
           tabIndex={0}
@@ -156,9 +158,11 @@ export function BeforeAfterSlider({
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(pos)}
+          aria-valuetext={`${Math.round(pos)}% before photo`}
           onKeyDown={onKey}
         >
-          <span className="absolute left-1/2 top-1/2 flex h-9 w-9 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-honey text-honey-foreground shadow-md">
+          <span className="absolute inset-y-0 left-1/2 w-1 -translate-x-1/2 bg-honey" aria-hidden="true" />
+          <span className="absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-honey text-honey-foreground shadow-md" aria-hidden="true">
             <span className="text-xs font-bold">↔</span>
           </span>
         </div>
