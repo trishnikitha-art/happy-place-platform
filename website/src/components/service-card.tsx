@@ -56,7 +56,7 @@ export function ServiceCard({ service, runtimeCardMediaObject, href, imageSizes 
 
   return (
     <Link href={cardHref} className="craft-card-link block h-full rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-honey">
-      <CraftCard interactive className="group flex h-full flex-col overflow-hidden" style={{ containerType: 'inline-size' }}>
+      <CraftCard interactive={Boolean(imageSrc)} className="group flex h-full flex-col overflow-hidden" style={{ containerType: 'inline-size' }}>
         <PhotoMount className="relative aspect-[4/3] overflow-hidden bg-surface-muted">
           {hasImage && imageSrc ? (
             <>

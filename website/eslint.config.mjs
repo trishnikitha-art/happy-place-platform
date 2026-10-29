@@ -7,7 +7,15 @@ const motionFiles = [
   "src/components/{before-after-slider,blueprint-grid,pencil-line,card-light-sweep,motion-provider,scroll-reveal,service-card,site-header,speculation-rules,tape-measure-nav,workshop-atmosphere,lenis-provider,project-spotlight}.tsx",
   "src/components/ui/{button,card}.tsx",
   "src/lib/network-hints.ts",
+  "src/lib/reveal-observer.ts",
+  "src/motion/motionTokens.ts",
+  "src/components/{section,site-footer,project-photos,mobile-site-navigation,project-lightbox,newsletter-signup,reviews-filter,reviews-filter-client}.tsx",
+  "src/app/{page,about/page,newsletter/page,reviews/page,review/page}.tsx",
   "src/lib/__tests__/{network-hints,motion-provider,scroll-reveal,motion-surfaces,lenis-lifecycle,content-copy-rendering,homepage-preview-isolation,shared-copy-rendering,services-other-contrast}.test.ts",
+  "src/lib/__tests__/reveal-observer.test.ts",
+  "src/lib/__tests__/section-motion.test.ts",
+  "src/lib/__tests__/public-seo-metadata.test.ts",
+  "src/lib/__tests__/{photo-card-motion,control-motion-lifecycle,control-accessibility}.test.ts",
 ];
 
 const contactRefinementFiles = [

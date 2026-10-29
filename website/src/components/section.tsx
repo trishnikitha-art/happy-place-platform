@@ -1,5 +1,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 /** Centered max-width content container. */
 export function Container({ className, children }: { className?: string; children: React.ReactNode }) {
@@ -24,9 +25,9 @@ export function Section({
 /** A quiet section separator: thin cedar rule + tiny brass pin. Never obvious. */
 export function CraftDivider({ className }: { className?: string }) {
   return (
-    <div className={cn("flex items-center justify-center", className)} aria-hidden="true">
+    <ScrollReveal variant="accent" className={cn("flex items-center justify-center", className)} aria-hidden="true">
       <div className="craft-rule"><span /></div>
-    </div>
+    </ScrollReveal>
   );
 }
 
@@ -45,11 +46,14 @@ export function SectionHeading({
   descriptionColor?: string;
   as?: "h1" | "h2";
 }) {
-  return (
-    <div className={cn("max-w-2xl", align === "center" && "mx-auto text-center")}>
+  const className = cn("max-w-2xl", align === "center" && "mx-auto text-center");
+  const content = (
+    <>
       {eyebrow && <p className="text-sm font-semibold uppercase tracking-[0.12em] text-accent" style={{ letterSpacing: '0.12em' }}>{eyebrow}</p>}
       <Heading className="mt-4 font-display text-4xl font-bold text-primary sm:text-5xl" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}>{title}</Heading>
       {description && <p className={cn("mt-5 text-lg sm:text-xl", descriptionColor)} style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>{typeof description === 'string' ? description : description}</p>}
-    </div>
+    </>
   );
+  // Page titles keep their stable, immediate rendering; supporting sections unfold below them.
+  return Heading === "h1" ? <div className={className}>{content}</div> : <ScrollReveal variant="sequence" className={className}>{content}</ScrollReveal>;
 }

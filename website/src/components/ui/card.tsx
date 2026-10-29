@@ -25,8 +25,7 @@ import { CardLightSweep } from "@/components/card-light-sweep";
  * Cards never inherit page background. A card on a dark page still uses light surface.
  */
 export function CraftCard({ className, children, style, interactive = false }: { className?: string; children: React.ReactNode; style?: React.CSSProperties; interactive?: boolean }) {
-  return (
-    <CardLightSweep className="block h-full" interactive={interactive}>
+  const content = (
       <div 
         className={cn(
           // Base structure - existing tokens only
@@ -47,8 +46,12 @@ export function CraftCard({ className, children, style, interactive = false }: {
       >
         {children}
       </div>
-    </CardLightSweep>
   );
+
+  // Reading cards need no client motion policy consumer or decorative overlay.
+  return interactive
+    ? <CardLightSweep className="block h-full" interactive>{content}</CardLightSweep>
+    : <div className="block h-full">{content}</div>;
 }
 
 /**

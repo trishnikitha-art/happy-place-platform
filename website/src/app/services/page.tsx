@@ -8,6 +8,7 @@ import { getNonArchivedServices } from "@/lib/registries";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
 import { resolvePublicMedia } from "@/lib/media";
 import { pageMetadata } from "@/config/seo";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 export const metadata: Metadata = pageMetadata({
   title: "Painting, Repairs & Carpentry Services",
@@ -54,13 +55,13 @@ export default async function ServicesPage() {
             description={<span className="text-text-on-dark/90"><TextCopy textKey="services.hero.description" /></span>}
             descriptionColor="text-text-on-dark/90"
           />
-          <div data-service-grid className="mt-10 grid grid-cols-1 gap-5 min-[480px]:grid-cols-2 lg:grid-cols-3">
+          <ScrollReveal variant="sequence" data-motion-group="services-cards" data-service-grid className="mt-10 grid grid-cols-1 gap-5 min-[480px]:grid-cols-2 lg:grid-cols-3">
             {services.map((service) => (
               <ServiceCard key={service.id} service={service}
                 runtimeCardMediaObject={serviceCardMediaMap.get(service.slug) || null} />
             ))}
-          </div>
-          <div className="mt-16 rounded-2xl border border-border-soft bg-deep p-8 text-text-on-dark">
+          </ScrollReveal>
+          <ScrollReveal data-motion-group="services-scope" className="mt-16 rounded-2xl border border-border-soft bg-deep p-8 text-text-on-dark">
             <h3 className="text-xl font-bold" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}><TextCopy textKey="services.other.title" /></h3>
             <p className="mt-3 text-base" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
               <TextCopy textKey="services.other.description" />
@@ -82,7 +83,7 @@ export default async function ServicesPage() {
               <span>·</span>
               <span><TextCopy textKey="services.copy.9" /></span>
             </div>
-          </div>
+          </ScrollReveal>
           <div className="mt-12">
             <Link
               href="/contact"

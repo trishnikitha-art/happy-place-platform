@@ -3,7 +3,7 @@ import { ContentCopy } from '@/components/content-copy';
 ﻿import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
-import { Container, Section, SectionHeading } from "@/components/section";
+import { Container, CraftDivider, Section, SectionHeading } from "@/components/section";
 import { ServiceCard } from "@/components/service-card";
 import { CTASection } from "@/components/cta-section";
 import { StarRating } from "@/components/star-rating";
@@ -169,9 +169,9 @@ export default async function HomePage() {
       <div className="h-2 bg-gradient-to-r from-deep via-primary to-deep/60" aria-hidden="true" />
 
       {/* TRUST STRIP — quiet, confident proof (woven, not a banner) */}
-      <ScrollReveal>
         <section className="relative border-y border-border-soft" style={{ backgroundColor: 'var(--color-happy-light)' }}>
-          <Container className="relative z-10 grid grid-cols-2 gap-x-4 gap-y-5 py-8 sm:gap-x-6 sm:gap-y-6 sm:py-10 text-center sm:grid-cols-4">
+          <Container className="relative z-10">
+            <ScrollReveal variant="sequence" data-motion-group="home-proof" className="grid grid-cols-2 gap-x-4 gap-y-5 py-8 text-center sm:grid-cols-4 sm:gap-x-6 sm:gap-y-6 sm:py-10">
             {[
               ["Oregon CCB #254240", "Licensed, Bonded & Insured", false],
               ["Family-Owned", "Local Craftsmanship", false],
@@ -185,12 +185,11 @@ export default async function HomePage() {
                 <p className="mt-1 text-xs sm:text-sm font-medium uppercase tracking-wide text-primary">{label}</p>
               </div>
             ))}
+            </ScrollReveal>
           </Container>
         </section>
-      </ScrollReveal>
 
       {/* SERVICES — image-dominant cards, less chrome (Directive 034) */}
-      <ScrollReveal>
         <Section className="relative bg-[#F6F4F0] pt-8 sm:pt-10 pb-8 sm:pb-10 section-diagonal-top">
           <BlueprintGrid gridSize={20} lineColor="rgba(22, 43, 41, 0.04)" />
           <div className="absolute inset-0 bg-gradient-to-b from-[#F6F4F0] via-[#F3F0E9] to-[#F0ECE4] opacity-100" aria-hidden="true" />
@@ -201,10 +200,10 @@ export default async function HomePage() {
               description={<TextCopy textKey="homepage.services.description" />}
               descriptionColor="text-primary"
             />
-            <div data-service-grid className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 min-[480px]:grid-cols-2 lg:grid-cols-3">
-              {homepageServices.map((s, i) => (
-                <ScrollReveal key={s.id} delay={i * 100}>
+            <ScrollReveal variant="sequence" data-motion-group="home-services" data-service-grid className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 min-[480px]:grid-cols-2 lg:grid-cols-3">
+              {homepageServices.map((s) => (
                   <VisualSlot
+                    key={s.id}
                     id={`homepage-service-card-slot-${s.slug}`}
                     route="/"
                     page="Homepage"
@@ -215,17 +214,14 @@ export default async function HomePage() {
                   >
                     <ServiceCard service={s} runtimeCardMediaObject={serviceCardAssignments.get(s.slug)?.mediaObject || null} />
                   </VisualSlot>
-                </ScrollReveal>
               ))}
-            </div>
+            </ScrollReveal>
           </Container>
         </Section>
-      </ScrollReveal>
 
       <PencilLine className="py-8" />
 
       {/* FEATURED PROJECTS — bento grid layout */}
-      <ScrollReveal>
         <Section className="relative bg-[#F5F2ED] py-24 sm:py-32 section-curved-bottom">
           <BlueprintGrid gridSize={24} lineColor="rgba(217, 154, 78, 0.05)" />
           <div className="absolute inset-0 bg-gradient-to-br from-[#F5F2ED] via-[#F1EDE6] to-[#EDE9E0] opacity-100" aria-hidden="true" />
@@ -238,7 +234,7 @@ export default async function HomePage() {
               description={<TextCopy textKey="homepage.projects.description" />}
               descriptionColor="text-primary"
             />
-            <div className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 auto-rows-[200px]">
+            <ScrollReveal variant="sequence" data-motion-group="home-projects" className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 auto-rows-[200px]">
               {featuredProjectsWithMedia.slice(0, 4).map((project, i) => {
                 // P0 FIX: Use pre-validated heroMedia from getProjectWithResolvedMedia (passed public media gate)
                 const heroMedia = project.media.heroMedia;
@@ -284,19 +280,18 @@ export default async function HomePage() {
                   </Link>
                 );
               })}
-            </div>
+            </ScrollReveal>
             <div className="mt-8">
               <RouterLink href="/our-work"><TextCopy textKey="home.copy.4" /></RouterLink>
             </div>
           </Container>
         </Section>
-      </ScrollReveal>
 
       {/* THE FAMILY — philosophy first, then people, then portrait (Act II) */}
-      <ScrollReveal>
         <Section className="relative bg-[#F3EFE8]">
           <div className="absolute inset-0 bg-gradient-to-br from-[#F3EFE8] via-[#F0ECE5] to-[#ECE8E0] opacity-100" aria-hidden="true" />
-          <Container className="relative z-10 grid items-center gap-12 lg:grid-cols-2">
+          <Container className="relative z-10">
+            <ScrollReveal variant="story" data-motion-group="home-family" className="grid items-center gap-12 lg:grid-cols-2">
             <div>
               <p className="text-sm font-semibold uppercase tracking-wide text-accent"><TextCopy textKey="homepage.family.eyebrow" /></p>
               <h2 className="mt-3 font-display text-4xl font-bold leading-tight text-primary sm:text-5xl">
@@ -329,37 +324,32 @@ export default async function HomePage() {
               )}
               <CedarCorner className="absolute -left-2 -top-2 h-8 w-8 text-honey" />
             </div>
+            </ScrollReveal>
           </Container>
         </Section>
-      </ScrollReveal>
 
       <PencilLine className="py-8" />
 
       {/* CRAFT RULE separator before reviews */}
-      <div className="py-4 sm:py-6">
-        <div className="craft-rule"><span /></div>
-      </div>
+      <CraftDivider className="py-4 sm:py-6" />
 
       {/* REVIEWS */}
-      <ScrollReveal>
         <Section className="relative bg-[#F2EFE8]">
           <div className="absolute inset-0 bg-gradient-to-b from-[#F2EFE8] via-[#EFECE5] to-[#ECE9E2] opacity-100" aria-hidden="true" />
           <Container className="relative z-10">
             <SectionHeading eyebrow={<TextCopy textKey="home.reviews.eyebrow" />} title={<span className="text-primary"><TextCopy textKey="homepage.reviews.title" /></span>} align="center" description={hasReviews ? <TextCopy textKey="home.reviews.descriptionWithReviews" /> : <TextCopy textKey="home.reviews.descriptionWithoutReviews" />} descriptionColor="text-primary" />
             {hasReviews ? (
               <>
-                <div className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
-                  {topReviews.map((r, i) => (
-                    <ScrollReveal key={r.id} delay={i * 100}>
-                      <Card className="p-5 sm:p-6">
+                <ScrollReveal variant="sequence" data-motion-group="home-reviews" className="mt-8 sm:mt-10 grid grid-cols-1 gap-5 sm:gap-6 md:grid-cols-3">
+                  {topReviews.map((r) => (
+                      <Card key={r.id} className="p-5 sm:p-6">
                         <StarRating rating={r.rating} />
                         {r.title && <h3 className="mt-2 sm:mt-3 font-bold text-text">{r.title}</h3>}
                         <blockquote className="mt-2 text-sm sm:text-base text-text-muted">&ldquo;{r.body}&rdquo;</blockquote>
                         <figcaption className="mt-3 sm:mt-4 text-xs sm:text-sm text-text-muted">{r.reviewer.name} · {r.location ? `${r.location.city}, ${r.location.county}` : 'Willamette Valley'}</figcaption>
                       </Card>
-                    </ScrollReveal>
                   ))}
-                </div>
+                </ScrollReveal>
                 <div className="mt-6 sm:mt-8 text-center">
                   <RouterLink href="/reviews"><TextCopy textKey="home.copy.5" /></RouterLink>
                 </div>
@@ -373,13 +363,12 @@ export default async function HomePage() {
             )}
           </Container>
         </Section>
-      </ScrollReveal>
 
       {/* NEWSLETTER SIGNUP — positioned 2/3 down after visitors see who we are, projects, testimonials, services */}
-      <ScrollReveal>
         <Section className="relative bg-[#F1EDE6]">
           <div className="absolute inset-0 bg-gradient-to-br from-[#F1EDE6] via-[#EDE9E0] to-[#E9E5DC] opacity-100" aria-hidden="true" />
           <Container className="relative z-10 max-w-2xl">
+            <ScrollReveal data-motion-group="home-newsletter">
             <VisualSlot
               id="homepage-newsletter-slot"
               route="/"
@@ -391,11 +380,10 @@ export default async function HomePage() {
             >
               <NewsletterSignup />
             </VisualSlot>
+            </ScrollReveal>
           </Container>
         </Section>
-      </ScrollReveal>
 
-      <ScrollReveal>
         <VisualSlot
           id="homepage-cta-slot"
           route="/"
@@ -407,7 +395,6 @@ export default async function HomePage() {
         >
           <CTASection />
         </VisualSlot>
-      </ScrollReveal>
     </>
   );
 }

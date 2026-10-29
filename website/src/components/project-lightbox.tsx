@@ -5,6 +5,8 @@ import { createPortal } from "react-dom";
 import Image from "next/image";
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useMotion } from "@/components/motion-provider";
+import { distance, duration, easing } from "@/motion/motionTokens";
 
 interface LightboxImage { src: string; alt: string; blurDataURL?: string }
 interface ProjectLightboxProps {
@@ -21,12 +23,16 @@ export function ProjectLightbox({ images, initialIndex = 0, isOpen, onClose }: P
   const [isZoomed, setIsZoomed] = useState(false);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const imageRef = useRef<HTMLDivElement>(null);
+  const imageAnimation = useRef<Animation | null>(null);
+  const previousImage = useRef<string | null>(null);
   const touchStart = useRef<number | null>(null);
   const touchEnd = useRef<number | null>(null);
   const captionId = useId();
   const hasImages = images.length > 0;
   const safeIndex = Math.max(0, Math.min(currentIndex, images.length - 1));
   const currentImage = images[safeIndex];
+  const { isMotionEnabled } = useMotion();
 
   useEffect(() => setMounted(true), []);
   useEffect(() => {
@@ -52,6 +58,24 @@ export function ProjectLightbox({ images, initialIndex = 0, isOpen, onClose }: P
     };
   }, [mounted, isOpen, hasImages]);
 
+  // Changing the photograph is immediate; only the new image's presentation settles.
+  useEffect(() => {
+    const image = imageRef.current;
+    const source = currentImage?.src;
+    imageAnimation.current?.cancel();
+    imageAnimation.current = null;
+    if (!mounted || !isOpen || !source || !image) { previousImage.current = null; return; }
+    const changed = previousImage.current !== source;
+    previousImage.current = source;
+    if (!changed || !isMotionEnabled || !image.animate) return;
+    const animation = image.animate([
+      { opacity: 0.92, transform: `translateX(${distance.tiny}px)` },
+      { opacity: 1, transform: 'none' },
+    ], { duration: duration.fast * 1000, easing: `cubic-bezier(${easing.premium.join(',')})` });
+    imageAnimation.current = animation;
+    return () => animation.cancel();
+  }, [mounted, isOpen, currentImage?.src, isMotionEnabled]);
+
   const goToNext = useCallback(() => {
     if (!images.length) return;
     setCurrentIndex((index) => (Math.max(0, Math.min(index, images.length - 1)) + 1) % images.length);
@@ -64,7 +88,7 @@ export function ProjectLightbox({ images, initialIndex = 0, isOpen, onClose }: P
   }, [images.length]);
 
   if (!mounted || !isOpen || !currentImage) return null;
-  const controlClass = "inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-honey";
+  const controlClass = "motion-control inline-flex min-h-11 min-w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-honey";
 
   return createPortal(
     <dialog
@@ -112,7 +136,7 @@ export function ProjectLightbox({ images, initialIndex = 0, isOpen, onClose }: P
               touchEnd.current = null;
             }}
           >
-            <div className={cn("relative h-full w-full", isZoomed && "h-[150%] w-[150%]")}>
+            <div ref={imageRef} className={cn("lightbox-image-stage relative h-full w-full", isZoomed && "h-[150%] w-[150%]")}>
               <Image key={currentImage.src} src={currentImage.src} alt={currentImage.alt} fill className="object-contain" sizes="(max-width: 640px) calc(100vw - 24px), calc(100vw - 40px)" priority placeholder={currentImage.blurDataURL ? "blur" : "empty"} blurDataURL={currentImage.blurDataURL} />
             </div>
           </div>
@@ -129,7 +153,7 @@ export function ProjectLightbox({ images, initialIndex = 0, isOpen, onClose }: P
                 key={image.src + "-" + index}
                 type="button"
                 onClick={() => { setCurrentIndex(index); setIsZoomed(false); }}
-                className={cn("relative h-12 w-12 shrink-0 overflow-hidden rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-honey", index === safeIndex ? "ring-2 ring-white" : "opacity-60 hover:opacity-100")}
+                className={cn("motion-control relative h-12 w-12 shrink-0 overflow-hidden rounded-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-honey", index === safeIndex ? "ring-2 ring-white" : "opacity-60 hover:opacity-100")}
                 aria-label={"View photo " + (index + 1) + ": " + image.alt}
                 aria-current={index === safeIndex ? "true" : undefined}
               >

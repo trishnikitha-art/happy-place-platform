@@ -255,20 +255,22 @@ export default function ReviewPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-900 mb-2">
+                <div id="review-rating-label" className="block text-sm font-medium text-gray-900 mb-2">
                   <TextCopy textKey="review.ratingLabel" />
-                </label>
-                <div className="flex gap-2">
+                </div>
+                <div className="flex gap-2" role="group" aria-labelledby="review-rating-label">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       type="button"
+                      aria-label={`${star} ${star === 1 ? 'star' : 'stars'}`}
+                      aria-pressed={formData.rating === star}
                       onClick={() => setFormData({ ...formData, rating: star })}
-                      className={`text-3xl transition-transform hover:scale-110 ${
+                      className={`motion-control inline-flex h-11 w-11 items-center justify-center rounded-md text-3xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
                         star <= formData.rating ? 'text-primary' : 'text-gray-300'
                       }`}
                     >
-                      ★
+                      <span aria-hidden="true">★</span>
                     </button>
                   ))}
                 </div>

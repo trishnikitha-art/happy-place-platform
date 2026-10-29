@@ -150,7 +150,7 @@ export function BeforeAfterSlider({
         )}
         {/* Handle */}
         <div
-          className="absolute top-0 bottom-0 z-10 w-11 touch-none focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-primary"
+          className="comparison-control absolute top-0 bottom-0 z-10 w-11 touch-none focus-visible:outline-2 focus-visible:outline-offset-[-3px] focus-visible:outline-primary"
           style={{ left: `${pos}%`, transform: "translateX(-50%)" }}
           role="slider"
           tabIndex={0}
@@ -162,7 +162,7 @@ export function BeforeAfterSlider({
           onKeyDown={onKey}
         >
           <span className="absolute inset-y-0 left-1/2 w-1 -translate-x-1/2 bg-honey" aria-hidden="true" />
-          <span className="absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-honey text-honey-foreground shadow-md" aria-hidden="true">
+          <span className="comparison-handle-grip absolute left-1/2 top-1/2 flex h-11 w-11 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full bg-honey text-honey-foreground shadow-md" aria-hidden="true">
             <span className="text-xs font-bold">↔</span>
           </span>
         </div>

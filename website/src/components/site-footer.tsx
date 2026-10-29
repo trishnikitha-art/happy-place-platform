@@ -14,7 +14,7 @@ export function SiteFooter() {
   const navigation = getNavigation();
   return (
     <footer className="border-t border-border/60 bg-deep text-text-on-dark">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-[1.15fr_0.65fr_0.9fr_1.35fr] lg:px-8">
+      <ScrollReveal variant="sequence" data-motion-group="footer-columns" className="mx-auto grid max-w-7xl gap-10 px-4 py-12 sm:grid-cols-2 sm:px-6 lg:grid-cols-[1.15fr_0.65fr_0.9fr_1.35fr] lg:px-8">
         <div className="min-w-0">
           <Link href="/" className="inline-flex min-h-11 items-center gap-2.5 font-bold text-text-on-dark">
             <span className="relative block h-8 w-auto">
@@ -23,9 +23,7 @@ export function SiteFooter() {
             <span className="text-lg"><HappyBrandSignature /> Place</span>
           </Link>
           <p className="mt-3 text-sm text-text-on-dark">{company.description}</p>
-          <ScrollReveal>
-            <p className="mt-3 text-sm font-semibold text-text-on-dark">{company.ccbNumber}</p>
-          </ScrollReveal>
+          <p className="mt-3 text-sm font-semibold text-text-on-dark">{company.ccbNumber}</p>
           <p className="mt-1 text-xs text-text-on-dark">
             {company.proof.insured ? "Licensed · Insured" : "Licensed"} · {company.proof.yearsInBusiness} · {company.proof.projectsCompleted} projects
           </p>
@@ -71,7 +69,7 @@ export function SiteFooter() {
             <li className="text-text-on-dark"><TextCopy textKey="company.businessHours" /></li>
           </ul>
         </div>
-      </div>
+      </ScrollReveal>
 
       <div className="border-t border-text-on-dark/8 py-6 text-center text-xs text-text-on-dark">
         © {new Date().getFullYear()} {company.legalName}. <TextCopy textKey="footer.tagline" />

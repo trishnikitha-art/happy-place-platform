@@ -16,7 +16,7 @@ jest.mock('@/lib/media', () => ({ resolvePublicMedia: jest.fn(async () => null) 
 function otherServicesPanel(markup: string): string {
   // Scope the assertion to the existing rounded panel, not the dark hero,
   // service cards, following contact link or separate call-to-action section.
-  const panel = markup.match(/<div class="mt-16 [^"]*">[\s\S]*?<\/div><\/div>(?=<div class="mt-12">)/)?.[0];
+  const panel = markup.match(/<div\b[^>]*class="mt-16 [^"]*"[^>]*>[\s\S]*?<\/div><\/div>(?=<div class="mt-12">)/)?.[0];
   expect(panel).toBeDefined();
   return panel!;
 }
@@ -31,7 +31,8 @@ describe('Services additional-projects panel semantic contrast', () => {
   });
 
   it('pairs its explicit dark surface with the existing semantic light foreground', () => {
-    expect(panel).toMatch(/^<div class="mt-16 rounded-2xl border border-border-soft bg-deep p-8 text-text-on-dark">/);
+    expect(panel).toMatch(/^<div\b[^>]*class="mt-16 rounded-2xl border border-border-soft bg-deep p-8 text-text-on-dark"[^>]*>/);
+    expect(panel).toContain('data-reveal="reveal"');
     expect(panel).not.toContain('bg-linen');
     expect(panel).not.toMatch(/#[0-9a-f]{3,8}\b|(?:rgb|hsl|oklch|lab|lch)\(/i);
     expect(panel).not.toMatch(/style="[^"]*\b(?:color|background)(?:-color)?:/);

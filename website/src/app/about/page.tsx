@@ -13,6 +13,7 @@ import { resolvePublicMedia } from "@/lib/media";
 import type { Media } from "@/types/media";
 import { PreviewOnly } from '@/components/workbench/preview-only';
 import { pageMetadata } from "@/config/seo";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 export const metadata: Metadata = pageMetadata({
   title: "Meet Taylor & Lanie Happy",
@@ -114,14 +115,14 @@ export default async function AboutPage() {
       <Section className="bg-surface-2 py-10 sm:py-12">
         <Container>
           <SectionHeading eyebrow={<TextCopy textKey="about.area.eyebrow" />} title={<TextCopy textKey="about.area.title" />} />
-          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <ScrollReveal variant="sequence" data-motion-group="about-area" className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {cities.map((c) => (
               <div key={c.id} className="rounded-2xl border border-border/40 bg-[#F8F6F3] p-5">
                 <h3 className="font-bold text-primary">{c.name}</h3>
                 <p className="mt-2 text-sm text-[#000000]">{c.county}, Oregon</p>
               </div>
             ))}
-          </div>
+          </ScrollReveal>
         </Container>
       </Section>
 
@@ -139,7 +140,7 @@ export default async function AboutPage() {
             component="BottomVisual"
           >
             {bottomVisualMedia && bottomVisualMedia.variants?.web ? (
-              <div className="relative aspect-[16/9] overflow-hidden rounded-card photo-mounted">
+              <ScrollReveal data-motion-group="about-photo" className="relative aspect-[16/9] overflow-hidden rounded-card photo-mounted">
                 <Image
                   src={bottomVisualMedia.variants.web}
                   alt={bottomVisualMedia.alt || "Happy Place Carpentry - Bottom visual"}
@@ -147,7 +148,7 @@ export default async function AboutPage() {
                   sizes="(max-width: 768px) 100vw, (max-width: 1200px) 80vw, 1200px"
                   className="object-cover"
                 />
-              </div>
+              </ScrollReveal>
             ) : (
               <div className="relative aspect-[16/9] overflow-hidden rounded-card photo-muted">
                 {/* No media assigned or media failed public gate */}

@@ -4,9 +4,11 @@ import { TextCopy, useTextCopy } from '@/components/text-copy';
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Mail, Loader2 } from "lucide-react";
+import { CheckCircle2, Mail, Loader2 } from "lucide-react";
 import { buttonVariants } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { useMotion } from "@/components/motion-provider";
+import { distance, duration, easing } from "@/motion/motionTokens";
 
 export function NewsletterSignup() {
   const router = useRouter();
@@ -24,6 +26,23 @@ export function NewsletterSignup() {
   const [isSubmitting, setIsSubmitting] = React.useState(false);
   const [error, setError] = React.useState("");
   const [isSuccess, setIsSuccess] = React.useState(false);
+  const feedbackRef = React.useRef<HTMLParagraphElement>(null);
+  const redirectTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const { isMotionEnabled } = useMotion();
+
+  React.useEffect(() => () => {
+    if (redirectTimer.current) clearTimeout(redirectTimer.current);
+  }, []);
+
+  React.useEffect(() => {
+    const feedback = feedbackRef.current;
+    if ((!error && !isSuccess) || !isMotionEnabled || !feedback?.animate) return;
+    const animation = feedback.animate([
+      { opacity: 0.94, transform: `translateY(${distance.tiny}px)` },
+      { opacity: 1, transform: 'none' },
+    ], { duration: duration.fast * 1000, easing: `cubic-bezier(${easing.premium.join(',')})` });
+    return () => animation.cancel();
+  }, [error, isSuccess, isMotionEnabled]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -52,8 +71,9 @@ export function NewsletterSignup() {
       }
 
       setIsSuccess(true);
+      setIsSubmitting(false);
       // Redirect to thank you page after short delay
-      setTimeout(() => {
+      redirectTimer.current = setTimeout(() => {
         router.push("/newsletter/thank-you");
       }, 500);
     } catch (err) {
@@ -61,14 +81,6 @@ export function NewsletterSignup() {
       setIsSubmitting(false);
     }
   };
-
-  if (isSuccess) {
-    return (
-      <div role="status" className="rounded-lg bg-honey/10 border border-honey/20 p-6 text-center">
-        <p className="text-base text-honey font-semibold"><TextCopy textKey="newsletter.submitting" /></p>
-      </div>
-    );
-  }
 
   return (
     <div className="rounded-lg bg-deep border border-honey/30 border-t-2 border-t-honey/60 p-6 shadow-card">
@@ -79,7 +91,7 @@ export function NewsletterSignup() {
         <TextCopy textKey="newsletter.description" />
       </p>
 
-      <form onSubmit={handleSubmit} aria-busy={isSubmitting} aria-describedby={error ? errorId : undefined} className="space-y-4">
+      <form onSubmit={handleSubmit} aria-busy={isSubmitting} aria-describedby={error || isSuccess ? errorId : undefined} className="space-y-4">
         {/* Publishing verifies the first marked node; keep the input first while the live preview updates both copies. */}
         <div className="flex flex-col">
           <input
@@ -92,7 +104,7 @@ export function NewsletterSignup() {
             onChange={(e) => setEmail(e.target.value)}
             placeholder={emailPlaceholder} data-text-key="newsletter.emailPlaceholder" data-text-attribute="placeholder"
             required
-            disabled={isSubmitting}
+            disabled={isSubmitting || isSuccess}
             className="order-2 w-full rounded-lg border border-text-on-dark/30 bg-black/10 px-4 py-3 text-base text-text-on-dark placeholder:text-text-on-dark/50 focus:border-honey focus:outline-none focus:ring-1 focus:ring-honey disabled:opacity-50"
           />
           <label htmlFor={emailId} className="order-1 mb-2 block text-sm font-semibold text-text-on-dark">
@@ -109,7 +121,7 @@ export function NewsletterSignup() {
             value={firstName}
             onChange={(e) => setFirstName(e.target.value)}
             placeholder={namePlaceholder} data-text-key="newsletter.namePlaceholder" data-text-attribute="placeholder"
-            disabled={isSubmitting}
+            disabled={isSubmitting || isSuccess}
             className="order-2 w-full rounded-lg border border-text-on-dark/30 bg-black/10 px-4 py-3 text-base text-text-on-dark placeholder:text-text-on-dark/50 focus:border-honey focus:outline-none focus:ring-1 focus:ring-honey disabled:opacity-50"
           />
           <label htmlFor={nameId} className="order-1 mb-2 block text-sm font-semibold text-text-on-dark">
@@ -117,16 +129,17 @@ export function NewsletterSignup() {
           </label>
         </div>
 
-        {error && (
-          <p id={errorId} role="alert" className="text-sm text-text-on-dark">{error}</p>
-        )}
-
         <button
           type="submit"
-          disabled={isSubmitting || !email}
+          disabled={isSubmitting || isSuccess || !email}
           className={cn(buttonVariants({ size: "md" }), "w-full rounded-lg bg-honey text-honey-foreground shadow-sm hover:bg-honey-hover focus-visible:ring-honey focus-visible:ring-offset-deep disabled:cursor-not-allowed")}
         >
-          {isSubmitting ? (
+          {isSuccess ? (
+            <>
+              <CheckCircle2 className="h-5 w-5" aria-hidden="true" />
+              <TextCopy textKey="newsletter.submitting" />
+            </>
+          ) : isSubmitting ? (
             <>
               <Loader2 className="h-5 w-5" aria-hidden="true" />
               <TextCopy textKey="newsletter.submitting" />
@@ -139,8 +152,13 @@ export function NewsletterSignup() {
           )}
         </button>
 
-        <p className="text-xs text-text-on-dark/60">
-          <TextCopy textKey="newsletter.privacy" />
+        <p
+          ref={feedbackRef}
+          id={errorId}
+          role={isSuccess ? "status" : error ? "alert" : undefined}
+          className={cn("control-motion-feedback min-h-18", error || isSuccess ? "text-sm text-text-on-dark" : "text-xs text-text-on-dark/80")}
+        >
+          {isSuccess ? <TextCopy textKey="newsletter.submitting" /> : error || <TextCopy textKey="newsletter.privacy" />}
         </p>
       </form>
     </div>

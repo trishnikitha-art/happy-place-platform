@@ -3,6 +3,7 @@
 import type { Media } from "@/types/media";
 import { useState } from "react";
 import { ProjectLightbox } from "@/components/project-lightbox";
+import { ScrollReveal } from "@/components/scroll-reveal";
 import Image from "next/image";
 
 /**
@@ -42,14 +43,14 @@ export function ProjectPhotos({ photos, limit }: ProjectPhotosProps) {
   if (validPhotos.length === 0) {
     return (
       <div className="rounded-lg bg-surface-muted p-8 text-center">
-        <p className="text-text-on-dark">Project photos coming soon</p>
+        <p className="text-text">Project photos coming soon</p>
       </div>
     );
   }
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-4">
+      <ScrollReveal variant="sequence" className="grid grid-cols-2 gap-4">
         {validPhotos.map((photo, index) => {
           const src = photo.variants.web || photo.variants.original || photo.variants.thumbnail;
           if (!src) return null;
@@ -57,7 +58,8 @@ export function ProjectPhotos({ photos, limit }: ProjectPhotosProps) {
           return (
             <button
               key={photo.id}
-              className="relative w-full group cursor-pointer"
+              type="button"
+              className="project-motion-card craft-card-link group relative w-full cursor-pointer rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-honey"
               style={{ aspectRatio: '4/3' }}
               onClick={() => {
                 setLightboxIndex(index);
@@ -71,17 +73,16 @@ export function ProjectPhotos({ photos, limit }: ProjectPhotosProps) {
                   alt={photo.alt}
                   fill
                   sizes="(min-width: 1280px) 600px, (min-width: 640px) calc((100vw - 64px) / 2), calc((100vw - 48px) / 2)"
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  className="craft-photo object-cover"
                   loading="lazy"
                   placeholder={photo.variants?.blur ? "blur" : "empty"}
                   blurDataURL={photo.variants?.blur}
                 />
-                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/5 transition-colors duration-200" />
               </div>
             </button>
           );
         })}
-      </div>
+      </ScrollReveal>
 
       {/* Lightbox */}
       <ProjectLightbox

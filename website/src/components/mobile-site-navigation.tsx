@@ -9,6 +9,8 @@ import { X } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
 import type { NavItem } from "@/types/navigation";
+import { useMotion } from "@/components/motion-provider";
+import { distance, duration, easing } from "@/motion/motionTokens";
 
 interface MobileSiteNavigationProps {
   open: boolean;
@@ -22,7 +24,30 @@ interface MobileSiteNavigationProps {
 export function MobileSiteNavigation({ open, navigation, pathname, openerRef, onClose }: MobileSiteNavigationProps) {
   const dialogRef = React.useRef<HTMLDialogElement>(null);
   const closeRef = React.useRef<HTMLButtonElement>(null);
+  const panelRef = React.useRef<HTMLDivElement>(null);
+  const animationRef = React.useRef<Animation | null>(null);
+  const closingRef = React.useRef(false);
   const headingId = React.useId();
+  const { isMotionEnabled } = useMotion();
+
+  // Only an explicit dismissal has an exit. Link navigation always closes immediately.
+  const dismiss = React.useCallback(() => {
+    if (closingRef.current) return;
+    const panel = panelRef.current;
+    if (!isMotionEnabled || !panel?.animate) { onClose(); return; }
+    animationRef.current?.cancel();
+    closingRef.current = true;
+    const animation = panel.animate([
+      { opacity: 1, transform: 'none' },
+      { opacity: 0.94, transform: `translateX(${distance.normal}px)` },
+    ], { duration: duration.instant * 1000, easing: `cubic-bezier(${easing.easeIn.join(',')})`, fill: 'forwards' });
+    animationRef.current = animation;
+    void animation.finished.then(() => {
+      if (!closingRef.current) return;
+      closingRef.current = false;
+      onClose();
+    }).catch(() => {});
+  }, [isMotionEnabled, onClose]);
 
   React.useEffect(() => {
     const dialog = dialogRef.current;
@@ -40,6 +65,9 @@ export function MobileSiteNavigation({ open, navigation, pathname, openerRef, on
     closeOnDesktop();
 
     return () => {
+      closingRef.current = false;
+      animationRef.current?.cancel();
+      animationRef.current = null;
       desktop.removeEventListener("change", closeOnDesktop);
       if (dialog.open) dialog.close();
       document.body.style.overflow = previousOverflow;
@@ -51,6 +79,22 @@ export function MobileSiteNavigation({ open, navigation, pathname, openerRef, on
     };
   }, [open, openerRef, onClose]);
 
+  React.useEffect(() => {
+    if (!isMotionEnabled) {
+      animationRef.current?.cancel();
+      if (closingRef.current) { closingRef.current = false; onClose(); }
+      return;
+    }
+    const panel = panelRef.current;
+    if (!open || !panel?.animate) return;
+    const animation = panel.animate([
+      { opacity: 0.96, transform: `translateX(${distance.normal}px)` },
+      { opacity: 1, transform: 'none' },
+    ], { duration: duration.fast * 1000, easing: `cubic-bezier(${easing.premium.join(',')})` });
+    animationRef.current = animation;
+    return () => animation.cancel();
+  }, [open, isMotionEnabled, onClose]);
+
   if (!open) return null;
 
   return createPortal(
@@ -61,8 +105,8 @@ export function MobileSiteNavigation({ open, navigation, pathname, openerRef, on
       aria-modal="true"
       data-lenis-prevent
       className="fixed inset-0 m-0 h-dvh max-h-none w-full max-w-none overflow-hidden border-0 bg-transparent p-0 text-text backdrop:bg-black/45"
-      onCancel={(event) => { event.preventDefault(); onClose(); }}
-      onClick={(event) => { if (event.target === event.currentTarget) onClose(); }}
+      onCancel={(event) => { event.preventDefault(); dismiss(); }}
+      onClick={(event) => { if (event.target === event.currentTarget) dismiss(); }}
       onKeyDown={(event) => {
         if (event.key !== "Tab") return;
         const controls = Array.from(event.currentTarget.querySelectorAll<HTMLElement>('a[href], button:not([disabled])')).filter((element) => element.getClientRects().length > 0);
@@ -77,15 +121,15 @@ export function MobileSiteNavigation({ open, navigation, pathname, openerRef, on
         }
       }}
     >
-      <div data-lenis-prevent className="ml-auto flex h-full w-[calc(100%_-_3rem)] max-w-[22rem] flex-col overflow-y-auto overscroll-contain border-l border-border/60 bg-background p-5 shadow-2xl">
+      <div ref={panelRef} data-lenis-prevent className="mobile-navigation-panel ml-auto flex h-full w-[calc(100%_-_3rem)] max-w-[22rem] flex-col overflow-y-auto overscroll-contain border-l border-border/60 bg-background p-5 shadow-2xl">
         <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border/60 pb-4">
           <h2 id={headingId} className="font-display text-xl font-semibold">Happy Place</h2>
           <button
             ref={closeRef}
             type="button"
-            onClick={onClose}
+            onClick={dismiss}
             aria-label="Close menu"
-            className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            className="motion-control inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-surface-muted focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
           >
             <X className="h-6 w-6" aria-hidden="true" />
           </button>
@@ -100,12 +144,12 @@ export function MobileSiteNavigation({ open, navigation, pathname, openerRef, on
                 onClick={onClose}
                 aria-current={active ? "page" : undefined}
                 className={cn(
-                  "flex min-h-11 items-center rounded-lg px-3 py-3 text-base font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
+                  "motion-control flex min-h-11 items-center rounded-lg px-3 py-3 text-base font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary",
                   active ? "bg-primary/10 text-text" : "text-text hover:bg-surface-muted",
                   item.secondary && "mt-3 justify-center bg-honey text-honey-foreground shadow-warm hover:bg-honey-hover",
                 )}
               >
-                {navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : item.label}
+                {navigationTextKey(item.href) ? <TextCopy textKey={navigationTextKey(item.href)!} /> : item.label}
               </Link>
             );
           })}

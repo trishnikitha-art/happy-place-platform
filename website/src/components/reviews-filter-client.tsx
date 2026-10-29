@@ -22,11 +22,10 @@ export function ReviewsFilterClient({ allReviews }: { allReviews: Review[] }) {
       
       {filteredReviews.length > 0 ? (
         <div className="reviews-grid mt-10 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredReviews.map((r, i) => (
+          {filteredReviews.map((r) => (
             <figure
               key={r.id}
-              className="float-card flex flex-col bg-surface p-7 transition-all duration-300 hover:-translate-y-1 hover:shadow-float"
-              style={{ animationDelay: `${i * 60}ms` }}
+              className="float-card flex flex-col bg-surface p-7"
             >
               <div className="flex items-center justify-between">
                 <StarRating rating={r.rating} />

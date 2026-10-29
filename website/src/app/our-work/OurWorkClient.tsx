@@ -237,18 +237,16 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
       <Section className="relative bg-deep">
         <BlueprintGrid gridSize={24} lineColor="rgba(217, 154, 78, 0.06)" />
         <Container>
-          <SectionHeading
-            eyebrow={<span className="text-honey"><TextCopy textKey="work.copy.3" /></span>}
-            title={<span className="text-text-on-dark"><TextCopy textKey="work.transformations.title" /></span>}
-            description={<span className="text-text-on-dark/90"><TextCopy textKey="work.transformations.description" /></span>}
-          />
-          <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
-            {featuredProjects.slice(0, 4).map((project, i) => (
-              <ScrollReveal key={project.id} delay={i * 60}>
-                <BeforeAfterSlider project={project} />
-              </ScrollReveal>
+            <SectionHeading
+              eyebrow={<span className="text-honey"><TextCopy textKey="work.copy.3" /></span>}
+              title={<span className="text-text-on-dark"><TextCopy textKey="work.transformations.title" /></span>}
+              description={<span className="text-text-on-dark/90"><TextCopy textKey="work.transformations.description" /></span>}
+            />
+          <ScrollReveal variant="sequence" className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
+            {featuredProjects.slice(0, 4).map((project) => (
+              <BeforeAfterSlider key={project.id} project={project} />
             ))}
-          </div>
+          </ScrollReveal>
         </Container>
       </Section>
 
@@ -256,13 +254,13 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
       <Section className="relative bg-deep">
         <BlueprintGrid gridSize={20} lineColor="rgba(217, 154, 78, 0.04)" />
         <Container>
-          <SectionHeading
-            eyebrow={<span className="text-honey"><TextCopy textKey="work.copy.4" /></span>}
-            title={<span className="text-text-on-dark"><TextCopy textKey="work.stories.title" /></span>}
-            description={<span className="text-text-on-dark/90"><TextCopy textKey="work.stories.description" /></span>}
-          />
-          <div className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
-            {allProjects.map((project, i) => {
+            <SectionHeading
+              eyebrow={<span className="text-honey"><TextCopy textKey="work.copy.4" /></span>}
+              title={<span className="text-text-on-dark"><TextCopy textKey="work.stories.title" /></span>}
+              description={<span className="text-text-on-dark/90"><TextCopy textKey="work.stories.description" /></span>}
+            />
+          <ScrollReveal variant="sequence" className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
+            {allProjects.map((project) => {
               // P0 FIX: Use pre-validated heroMedia from server-side resolution (passed public media gate)
               // This prevents client-side getMediaById() bypass
               const heroMedia = project.media.heroMedia;
@@ -278,10 +276,10 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
               
               if (!heroSrc) return null;
               return (
-                <ScrollReveal key={project.id} delay={i * 80}>
                   <Link
+                    key={project.id}
                     href={`/projects/${project.slug || project.id}`}
-                    className="craft-card-link group block"
+                    className="craft-card-link group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-honey"
                   >
                     <div className="relative">
                       <div className="relative z-10">
@@ -323,21 +321,20 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
                       </div>
                     </div>
                   </Link>
-                </ScrollReveal>
               );
             })}
-          </div>
+          </ScrollReveal>
         </Container>
       </Section>
 
       {/* BROWSE ALL WORK — continuous gallery grid */}
       <Section className="bg-deep">
         <Container>
-          <SectionHeading
-            eyebrow={<span className="text-honey"><TextCopy textKey="work.copy.5" /></span>}
-            title={<span className="text-text-on-dark"><TextCopy textKey="work.archive.title" /></span>}
-            description={<span className="text-text-on-dark/90"><TextCopy textKey="work.archive.description" /></span>}
-          />
+            <SectionHeading
+              eyebrow={<span className="text-honey"><TextCopy textKey="work.copy.5" /></span>}
+              title={<span className="text-text-on-dark"><TextCopy textKey="work.archive.title" /></span>}
+              description={<span className="text-text-on-dark/90"><TextCopy textKey="work.archive.description" /></span>}
+            />
           {isWorkbenchMode && (
             <p role="status" aria-live="polite" className="mt-4 text-sm text-text-on-dark/90">
               {galleryNotice || 'Drag any photo anywhere in this gallery, or choose its position. Photos keep their project association. Save all moves together.'}
@@ -384,7 +381,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
                     data-photo-index={photoIndex}
                     role="button"
                     tabIndex={0}
-                    className="craft-card-link group relative block aspect-[4/3] overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+                    className="craft-card-link group relative block aspect-[4/3] rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-honey"
                     style={pointerSort.cardStyle('archive', slotId)}
                     onDragOver={isWorkbenchMode ? handleProjectDragOver : undefined}
                     onDrop={isWorkbenchMode ? event=>handleProjectDrop(event,project.id) : undefined}
@@ -435,8 +432,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
                         />
                         </picture> : <Image src={photo.variants.web || photo.variants.original || src} alt={photo.alt || `${project.title} photo ${photoIndex + 1}`} width={photo.dimensions.width} height={photo.dimensions.height} sizes={gallerySizes} className="craft-card-photo h-full w-full object-cover" loading="lazy" decoding="async" draggable={false} />}
                       </VisualSlot>
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none" />
-                      <span className="absolute bottom-2 left-2 text-xs font-semibold text-white opacity-0 transition-opacity group-hover:opacity-100 pointer-events-none">
+                      <span className="gallery-photo-caption pointer-events-none absolute bottom-2 left-2 max-w-[calc(100%_-_1rem)] rounded bg-deep/85 px-2 py-1 text-xs font-semibold text-text-on-dark">
                         {project.title}
                       </span>
                     </CraftCard>

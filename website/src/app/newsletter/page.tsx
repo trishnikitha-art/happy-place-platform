@@ -2,6 +2,7 @@ import { TextCopy } from '@/components/text-copy';
 import type { Metadata } from "next";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { pageMetadata } from "@/config/seo";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 export const metadata: Metadata = {
   ...pageMetadata({
@@ -53,7 +54,7 @@ export default function NewsletterArchivePage() {
 
       <Section>
         <Container className="max-w-4xl">
-          <div className="space-y-6">
+          <ScrollReveal variant="sequence" data-motion-group="newsletter-archive" className="space-y-6">
             {newsletters.map((newsletter) => (
               <article
                 key={newsletter.id}
@@ -73,16 +74,16 @@ export default function NewsletterArchivePage() {
                 </div>
               </article>
             ))}
-          </div>
+          </ScrollReveal>
 
-          <div className="mt-12 rounded-lg bg-surface-muted p-8 text-center">
+          <ScrollReveal data-motion-group="newsletter-prompt" className="mt-12 rounded-lg bg-surface-muted p-8 text-center">
             <h3 className="text-xl font-bold text-text mb-2"><TextCopy textKey="newsletterArchive.copy.5" /></h3>
             <p className="text-text-muted mb-4"><TextCopy textKey="newsletterArchive.copy.6" /></p>
             <a
               href="/#newsletter"
               className="inline-flex items-center justify-center rounded-lg bg-honey px-6 py-3 font-semibold text-deep transition-colors hover:bg-honey/90"
             ><TextCopy textKey="newsletterArchive.copy.7" /></a>
-          </div>
+          </ScrollReveal>
         </Container>
       </Section>
     </>

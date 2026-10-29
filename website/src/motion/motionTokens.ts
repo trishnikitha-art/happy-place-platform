@@ -117,6 +117,14 @@ export const distance = {
   huge: 100,
 } as const;
 
+/** Finite visitor-facing patterns; milliseconds and pixels, never hidden content. */
+export const motionPatterns = {
+  reveal: { duration: 480, distance: 16, opacity: 0.92 },
+  sequence: { duration: 440, distance: 14, opacity: 0.92, stagger: 55, maxDelay: 180 },
+  story: { duration: 560, distance: 12, opacity: 0.94 },
+  accent: { duration: 480, startScale: 0.16, opacity: 0.55 },
+} as const;
+
 /**
  * Scale Tokens
  * Standardized scale values
@@ -225,7 +233,7 @@ export function prefersReducedMotion(): boolean {
 /**
  * Get animation values respecting reduced motion preference
  */
-export function getMotionValues<T extends Record<string, any>>(
+export function getMotionValues<T extends Record<string, unknown>>(
   normal: T,
   reduced: Partial<T>
 ): T {

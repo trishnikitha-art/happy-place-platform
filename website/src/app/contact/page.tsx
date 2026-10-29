@@ -5,6 +5,7 @@ import { Container, Section, SectionHeading } from "@/components/section";
 import { PhoneLink, EmailLink } from "@/components/tracked-contact";
 import { getCompany } from "@/lib/company";
 import { pageMetadata } from "@/config/seo";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 export const metadata: Metadata = pageMetadata({
   title: "Talk About Your Home Project",
@@ -34,6 +35,7 @@ export default function ContactPage() {
               description={<span className="text-text-on-dark/90"><TextCopy textKey="contact.hero.description" /></span>}
               descriptionColor="text-text-on-dark/90"
             />
+            <ScrollReveal data-motion-group="contact-methods">
             <dl className="mt-8 space-y-4 text-text-on-dark">
               <div>
                 <dt className="text-sm font-semibold uppercase text-text-on-dark"><TextCopy textKey="contact.copy.2" /></dt>
@@ -52,14 +54,15 @@ export default function ContactPage() {
                 <dd className="text-lg text-text-on-dark"><TextCopy textKey="company.businessHours" /></dd>
               </div>
             </dl>
+            </ScrollReveal>
           </div>
-          <div className="self-start rounded-2xl bg-[#EDEAE0] p-6 text-[#352423] shadow-warm sm:p-8">
+          <ScrollReveal variant="sequence" data-motion-group="contact-details" className="self-start rounded-2xl bg-[#EDEAE0] p-6 text-[#352423] shadow-warm sm:p-8">
             <h2 className="font-display text-2xl font-bold text-[#352423]" style={{ lineHeight: 'var(--leading-display)', letterSpacing: 'var(--tracking-display)' }}><TextCopy textKey="contact.details.title" /></h2>
             <p className="measure mt-3 text-[#352423]" style={{ lineHeight: 'var(--leading-body)', letterSpacing: 'var(--tracking-body)' }}>
               <TextCopy textKey="contact.details.description" />
             </p>
             <EmailLink email={company.email} className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full bg-honey px-6 py-3 font-semibold text-[#352423] transition-colors hover:bg-honey-hover"><TextCopy textKey="contact.details.action" /></EmailLink>
-          </div>
+          </ScrollReveal>
         </Container>
       </Section>
     </>

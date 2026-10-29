@@ -16,6 +16,7 @@ import { VisualSlot } from "@/components/visual-slot";
 import { getServiceCardAssignment } from "@/lib/assignment-store";
 import type { Media } from "@/types/media";
 import { pageMetadata } from "@/config/seo";
+import { ScrollReveal } from "@/components/scroll-reveal";
 
 interface ServicePageProps {
   params: Promise<{
@@ -156,7 +157,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
               title={<span className="text-text-on-dark">{featuredProjectWithMedia?.title || featuredProject?.title}</span>}
               description={<span className="measure text-text-on-dark/90">{featuredProjectWithMedia?.story?.outcome || featuredProject?.story?.outcome || "See our latest work in this service area."}</span>}
             />
-            <div className="mt-8">
+            <ScrollReveal variant="story" data-motion-group="service-spotlight" className="mt-8">
               {featuredProjectWithMedia?.media.beforeMedia && featuredProjectWithMedia?.media.afterMedia ? (
                 <BeforeAfterSlider project={featuredProjectWithMedia} />
               ) : featuredHeroSrc && featuredProjectWithMedia ? (
@@ -189,7 +190,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
               >
                 View Full Project →
               </Link>
-            </div>
+            </ScrollReveal>
           </Container>
         </Section>
       )}
@@ -204,14 +205,14 @@ export default async function ServicePage({ params }: ServicePageProps) {
           />
           <div className="mt-8">
             {projectsWithResolvedMedia.length > 0 ? (
-              <div className="columns-1 gap-6 space-y-6 sm:columns-2 lg:columns-3">
+              <ScrollReveal variant="sequence" data-motion-group="service-projects" className="columns-1 gap-6 space-y-6 sm:columns-2 lg:columns-3">
                 {projectsWithResolvedMedia.slice(0, 6).map((project) => {
                   // P1 FIX: Use pre-validated heroMedia from getProjectWithResolvedMedia (passed public media gate)
                   const projectHeroMedia = project.media.heroMedia;
                   const projectHeroSrc = projectHeroMedia?.variants?.web || projectHeroMedia?.variants?.original;
                   return (
-                    <Link key={project.id} href={`/projects/${project.slug || project.id}`} className="block break-inside-avoid mb-6">
-                      <div className="group relative aspect-[4/3] overflow-hidden rounded-lg bg-surface">
+                    <Link key={project.id} href={`/projects/${project.slug || project.id}`} className="project-motion-card craft-card-link group mb-6 block break-inside-avoid">
+                      <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-surface">
                         {projectHeroSrc && (
                           <VisualSlot
                             id={`services-${slug}-project-card-${project.id}`}
@@ -226,7 +227,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
                               src={projectHeroSrc}
                               alt={`${project.title} - ${project.location.city}, ${project.location.county}`}
                               fill
-                              className="object-cover transition-transform duration-300 group-hover:scale-105"
+                              className="craft-photo object-cover"
                               loading="lazy"
                             />
                           </VisualSlot>
@@ -240,7 +241,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
                     </Link>
                   );
                 })}
-              </div>
+              </ScrollReveal>
             ) : (
               <PlaceholderSection
                 type="gallery"
@@ -277,7 +278,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
               title={<span className="text-text-on-dark">Explore More</span>}
               description={<span className="text-text-on-dark/90">We offer a full range of carpentry services for your home.</span>}
             />
-            <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            <ScrollReveal variant="sequence" data-motion-group="service-related" className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {relatedServices.map((s) => (
                 <div key={s.id}>
                   <VisualSlot
@@ -297,7 +298,7 @@ export default async function ServicePage({ params }: ServicePageProps) {
                   </VisualSlot>
                 </div>
               ))}
-            </div>
+            </ScrollReveal>
           </Container>
         </Section>
       )}

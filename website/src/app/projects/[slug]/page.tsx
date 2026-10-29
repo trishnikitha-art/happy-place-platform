@@ -77,7 +77,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
             title={<span className="text-evergreen">At a glance</span>}
             description={<span className="text-evergreen/80">Everything attached to this project, in one place.</span>}
           />
-          <div className="mt-8 grid gap-4 sm:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]">
+          <ScrollReveal variant="sequence" data-motion-group="project-overview" className="mt-8 grid gap-4 sm:grid-cols-[repeat(auto-fit,minmax(14rem,1fr))]">
             {/* Services — owned by Project */}
             <CraftCard className="p-5 bg-surface border-evergreen/10">
               <p className="text-xs font-semibold uppercase tracking-wide text-evergreen">Services</p>
@@ -118,13 +118,12 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
                 <p className="font-semibold">{durationDays} days</p>
               </div>
             </CraftCard>}
-          </div>
+          </ScrollReveal>
         </Container>
       </Section>
       
       {/* MATERIALS USED SECTION */}
       {hasMaterials && project.materials && (
-        <ScrollReveal>
           <Section className="relative bg-deep text-text-on-dark">
             <BlueprintGrid gridSize={20} lineColor="rgba(217, 154, 78, 0.04)" />
             <WorkshopAtmosphere particleCount={18} className="opacity-35" />
@@ -134,7 +133,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
                 title={<span className="text-text-on-dark">Quality materials for lasting results</span>}
                 description={<span className="text-text-on-dark/90">The premium materials we used to bring this project to life.</span>}
               />
-              <div className="mt-8 flex flex-wrap gap-3">
+              <ScrollReveal data-motion-group="project-materials" className="mt-8 flex flex-wrap gap-3">
                 {project.materials.primary && (
                   <span className="inline-flex items-center px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-text-on-dark text-sm font-medium">
                     {project.materials.primary}
@@ -156,15 +155,13 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
                     {material}
                   </span>
                 ))}
-              </div>
+              </ScrollReveal>
             </Container>
           </Section>
-        </ScrollReveal>
       )}
       
       {/* CUSTOMER REVIEW SECTION */}
       {review && (
-        <ScrollReveal>
           <Section className="relative bg-deep text-text-on-dark">
             <BlueprintGrid gridSize={20} lineColor="rgba(217, 154, 78, 0.04)" />
             <Container className="relative z-10">
@@ -173,7 +170,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
                 title={<span className="text-text-on-dark">What the homeowner says</span>}
                 description={<span className="text-text-on-dark/90">Real feedback from the homeowner after project completion.</span>}
               />
-              <div className="mt-8">
+              <ScrollReveal data-motion-group="project-review" className="mt-8">
                 <CraftCard className="p-6 sm:p-8 bg-primary/5 border-primary/10">
                   <div className="relative z-10">
                     <div className="flex items-start gap-4">
@@ -193,10 +190,9 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
                     </div>
                   </div>
                 </CraftCard>
-              </div>
+              </ScrollReveal>
             </Container>
           </Section>
-        </ScrollReveal>
       )}
       
       <Section className="bg-deep text-text-on-dark">

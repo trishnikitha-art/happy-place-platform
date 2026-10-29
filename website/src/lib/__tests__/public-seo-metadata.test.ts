@@ -1,5 +1,6 @@
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
+import { MotionProvider } from '@/components/motion-provider';
 import { pageMetadata, seo } from '@/config/seo';
 import { getCompany } from '@/lib/company';
 import { getHomepageHero } from '@/lib/brand';
@@ -123,7 +124,7 @@ it('keeps missing or archived content out of metadata image resolution', async (
 
 it('keeps a single visible H1 on the blog and newsletter indexes with page-specific social URLs', () => {
   for (const Page of [BlogPage, NewsletterPage]) {
-    const html = renderToStaticMarkup(React.createElement(Page));
+    const html = renderToStaticMarkup(React.createElement(MotionProvider, { children: React.createElement(Page) }));
     expect(html.match(/<h1\b/g)).toHaveLength(1);
   }
   expect(blogIndexMetadata).toMatchObject({ openGraph: { url: `${seo.siteUrl}/blog` } });
@@ -137,7 +138,7 @@ it('keeps the unfinished newsletter archive noindex and out of the sitemap until
     openGraph: { url: `${seo.siteUrl}/newsletter` },
   });
   expect(sitemap().some(entry => entry.url === `${seo.siteUrl}/newsletter` || entry.url.startsWith(`${seo.siteUrl}/newsletter/`))).toBe(false);
-  const html = renderToStaticMarkup(React.createElement(NewsletterPage));
+  const html = renderToStaticMarkup(React.createElement(MotionProvider, { children: React.createElement(NewsletterPage) }));
   expect(html.match(/<article\b/g)).toHaveLength(3);
   expect(html.match(/<button\b/g)).toHaveLength(3);
   for (const id of [1, 2, 3]) expect(html).toContain(`data-text-key="newsletterArchive.article.${id}.title"`);
