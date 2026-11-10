@@ -33,7 +33,7 @@ export default async function ReviewsPage() {
           </div>
           <SectionHeading
             as="h1"
-            eyebrow={<span className="text-honey"><TextCopy textKey="reviews.copy.2" /></span>}
+            eyebrow={<span className="text-accent-on-deep"><TextCopy textKey="reviews.copy.2" /></span>}
             title={<span className="text-text-on-dark"><TextCopy textKey="reviews.hero.title" /></span>}
             align="center"
             description={<span className="text-text-on-dark/90">{hasReviews ? `${stats.average} / 5 across ${stats.count} featured reviews from homeowners across the Willamette Valley.` : <TextCopy textKey="reviews.descriptionWithoutReviews" />}</span>}
@@ -46,14 +46,14 @@ export default async function ReviewsPage() {
               href="/review"
               className="inline-flex items-center gap-2 rounded-lg bg-primary px-6 py-3 font-semibold text-primary-foreground transition-colors hover:bg-primary-hover"
             >
-              <StarRating rating={5} /><TextCopy textKey="reviews.copy.3" /></a>
+              <StarRating rating={5} decorative className="text-accent-on-deep" /><TextCopy textKey="reviews.copy.3" /></a>
           </div>
 
           {/* trust emphasis — license + rating, not just stars */}
           <div className="mx-auto mt-6 flex max-w-2xl flex-wrap items-center justify-center gap-x-8 gap-y-3 text-sm">
             {hasReviews && (
-              <span className="flex items-center gap-2 font-semibold text-primary">
-                <StarRating rating={5} /> {stats.average} / 5 average
+              <span className="flex items-center gap-2 font-semibold text-text-on-dark">
+                <StarRating rating={5} decorative className="text-accent-on-deep" /> {stats.average} / 5 average
               </span>
             )}
             <span className="text-text-on-dark">{company.ccbNumber} · Licensed &amp; Insured</span>

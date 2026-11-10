@@ -136,7 +136,7 @@ export default function ReviewPage() {
             </p>
 
             <div className="mt-8 mb-6 flex justify-center">
-              <StarRating rating={5} />
+              <StarRating rating={5} decorative className="text-accent-on-deep" />
             </div>
 
             <div className="mt-8 rounded-2xl bg-white/10 p-6 backdrop-blur-sm">
@@ -177,7 +177,7 @@ export default function ReviewPage() {
       <Container className="py-16 md:py-24">
         <div className="mx-auto max-w-2xl text-center">
           <div className="mb-6 flex justify-center">
-            <StarRating rating={5} />
+            <StarRating rating={5} decorative className="text-accent-on-deep" />
           </div>
           
           <h1 className="font-display text-4xl font-bold text-text-on-dark md:text-5xl">
@@ -258,7 +258,7 @@ export default function ReviewPage() {
                 <div id="review-rating-label" className="block text-sm font-medium text-gray-900 mb-2">
                   <TextCopy textKey="review.ratingLabel" />
                 </div>
-                <div className="flex gap-2" role="group" aria-labelledby="review-rating-label">
+                <div className="flex flex-wrap gap-2" role="group" aria-labelledby="review-rating-label">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
@@ -266,8 +266,9 @@ export default function ReviewPage() {
                       aria-label={`${star} ${star === 1 ? 'star' : 'stars'}`}
                       aria-pressed={formData.rating === star}
                       onClick={() => setFormData({ ...formData, rating: star })}
-                      className={`motion-control inline-flex h-11 w-11 items-center justify-center rounded-md text-3xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary ${
-                        star <= formData.rating ? 'text-primary' : 'text-gray-300'
+                      className={`motion-control inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-md border-2 text-3xl focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-on-paper ${
+                        star <= formData.rating ? 'text-primary' : 'text-gray-400'
+                      } ${star === formData.rating ? 'border-current' : 'border-transparent'
                       }`}
                     >
                       <span aria-hidden="true">★</span>

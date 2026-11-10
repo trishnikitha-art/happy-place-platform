@@ -31,7 +31,7 @@ export function ReviewsFilter({ selectedService, onServiceChange }: ReviewsFilte
         type="button"
         aria-pressed={selectedService === "all"}
         onClick={() => onServiceChange("all")}
-        className={`review-filter-control motion-control min-h-11 min-w-11 rounded-full border px-4 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-honey ${
+        className={`review-filter-control motion-control min-h-11 min-w-11 rounded-full border px-4 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-on-deep ${
           selectedService === "all"
             ? "border-honey bg-honey text-honey-foreground"
             : "border-border bg-surface text-text hover:bg-surface-muted"
@@ -45,7 +45,7 @@ export function ReviewsFilter({ selectedService, onServiceChange }: ReviewsFilte
           type="button"
           aria-pressed={selectedService === service}
           onClick={() => onServiceChange(service)}
-          className={`review-filter-control motion-control min-h-11 min-w-11 rounded-full border px-4 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-honey ${
+          className={`review-filter-control motion-control min-h-11 min-w-11 rounded-full border px-4 py-2 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-on-deep ${
             selectedService === service
               ? "border-honey bg-honey text-honey-foreground"
               : "border-border bg-surface text-text hover:bg-surface-muted"

@@ -1,3 +1,7 @@
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
+import { BlogArticleBody } from '@/components/blog-article-body';
+import { TextPreviewProvider } from '@/components/text-copy';
 import catalog from '@/config/strings.v1.json';
 import faqRecords from '@/config/faq.v1.json';
 import { getAllFaqs, loadFaqManifest } from '@/lib/faq';
@@ -56,4 +60,29 @@ it('reflects canonical blog edits without changing the article slug, date or par
     expect(after.date).toBe(before.date);
     expect(after.content).toBe(before.content);
   } finally { copy.fields[record.titleKey].value = original; }
+});
+
+it('renders actual article structure from the published keys without repeating the title', () => {
+  for (const record of BLOG_COPY_RECORDS) {
+    const html = renderToStaticMarkup(createElement(BlogArticleBody, record));
+    expect(html).toMatch(/<h2\b/);
+    expect(html).toMatch(/<ul\b/);
+    expect(html).toMatch(/<strong\b/);
+    expect(html).not.toContain('data-text-key="' + record.body[1] + '"');
+    expect(html).not.toContain('## ');
+    if (record.slug === 'kitchen-remodeling-trends') expect(html).toMatch(/<ol\b/);
+  }
+});
+
+it('preserves the editable keys and renders safe structured staged values', () => {
+  const record = BLOG_COPY_RECORDS[0];
+  const key = record.body[5];
+  const html = renderToStaticMarkup(createElement(TextPreviewProvider, {
+    draft: { key, value: '## Updated **heading** <example>' },
+    children: createElement(BlogArticleBody, record),
+  }));
+  expect(html).toContain('data-text-key="' + key + '"');
+  expect(html).toContain('Updated <strong>heading</strong> &lt;example&gt;');
+  expect(html).toContain('data-text-key="' + record.body[1] + '"');
+  expect(html).not.toContain('<example>');
 });

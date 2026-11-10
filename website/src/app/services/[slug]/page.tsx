@@ -8,8 +8,8 @@ import { ServiceCard } from "@/components/service-card";
 import { CTASection } from "@/components/cta-section";
 import { getServiceBySlug, getNonArchivedServices } from "@/lib/registries"; // use filtered services
 import { getServiceGallery } from "@/lib/galleries";
-import { PlaceholderSection } from "@/components/placeholder-section";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
+import { hasBeforeAfterPhotos } from "@/lib/project-comparison";
 import { getProjectWithResolvedMedia, getProjectsWithResolvedMedia } from "@/lib/projects";
 import { resolvePublicMedia } from "@/lib/media";
 import { VisualSlot } from "@/components/visual-slot";
@@ -100,181 +100,127 @@ export default async function ServicePage({ params }: ServicePageProps) {
     }
   }
 
-  // P1 FIX: Choose displayed project set first, then resolve only those projects
-  // Select up to 6 projects for gallery, avoiding duplicate resolution
-  const projectsToRender = serviceGallery.projects.slice(0, 6);
-  
-  // P1 FIX: Resolve only the projects that will be rendered
-  const projectsWithResolvedMedia = await getProjectsWithResolvedMedia(projectsToRender);
-  
-  // P1 FIX: Select featured project by actual featured status, with explicit fallback
-  // Choose the first project with featured: true, otherwise use the first project in gallery
-  const featuredProject = serviceGallery.projects.find(p => p.featured) || projectsToRender[0] || null;
-  
-  // P1 FIX: Reuse already-resolved media if featured project is in the rendered set
-  // Otherwise resolve it separately
-  let featuredProjectWithMedia = null;
-  if (featuredProject) {
-    const alreadyResolved = projectsWithResolvedMedia.find(p => p.id === featuredProject.id);
-    if (alreadyResolved) {
-      featuredProjectWithMedia = alreadyResolved;
-    } else {
-      featuredProjectWithMedia = await getProjectWithResolvedMedia(featuredProject);
-    }
-  }
+  const projectsWithResolvedMedia = await getProjectsWithResolvedMedia(serviceGallery.projects.slice(0, 6));
+  const preferredProject = serviceGallery.projects.find(project => project.featured);
+  const preferredProjectWithMedia = preferredProject
+    && (projectsWithResolvedMedia.find(project => project.id === preferredProject.id) ?? await getProjectWithResolvedMedia(preferredProject));
 
-  const featuredHero = featuredProjectWithMedia?.media.heroMedia;
-  const featuredHeroSrc = featuredHero?.variants?.web || featuredHero?.variants?.original;
+  const projectsWithPhotos = projectsWithResolvedMedia.filter(project => project.media.heroMedia);
+  const featuredProject = preferredProjectWithMedia?.media.heroMedia
+    ? preferredProjectWithMedia
+    : projectsWithPhotos[0] ?? preferredProjectWithMedia ?? projectsWithResolvedMedia[0];
+  const moreProjects = projectsWithPhotos.filter(project => project.id !== featuredProject?.id);
+  const featuredHero = featuredProject?.media.heroMedia;
+  const featuredHeroSrc = featuredHero?.variants.web || featuredHero?.variants.original;
+  const showComparison = featuredProject ? hasBeforeAfterPhotos(featuredProject) : false;
 
   return (
     <>
-      {/* HERO SECTION */}
-      <Section className="bg-deep text-text-on-dark">
-        <Container>
-          <SectionHeading
-            as="h1"
-            eyebrow={<span className="text-honey">{service.name}</span>}
-            title={<span className="text-text-on-dark"><ContentCopy collection="services" id={service.id} field="name" value={service.name} route={`/services/${service.slug}`} /></span>}
-            description={<span className="text-text-on-dark/90"><ContentCopy collection="services" id={service.id} field="description" value={service.description} route={`/services/${service.slug}`} /></span>}
-          />
-          <div className="mt-8">
+      <Section size="minor" className="bg-deep text-text-on-dark">
+        <Container className={featuredProject ? "grid items-start gap-10 lg:grid-cols-2" : undefined}>
+          <div>
+            <SectionHeading
+              as="h1"
+              title={<span className="text-text-on-dark"><ContentCopy collection="services" id={service.id} field="name" value={service.name} route={'/services/' + service.slug} /></span>}
+              description={<span className="text-text-on-dark/90"><ContentCopy collection="services" id={service.id} field="description" value={service.description} route={'/services/' + service.slug} /></span>}
+            />
+            {!featuredHeroSrc && !showComparison && <p className="mt-5 text-text-on-dark/90">Tell us what needs work and where the project is located. Photos are welcome if you have them.</p>}
             <Link
               href="/contact"
-              className="cta-signature inline-flex min-h-11 items-center gap-2 rounded-full px-6 py-3 font-semibold"
+              className="cta-signature mt-6 inline-flex min-h-11 items-center gap-2 rounded-full px-6 py-3 font-semibold"
             >
               Talk About Your Project
             </Link>
           </div>
-        </Container>
-      </Section>
 
-      {/* PROJECT SPOTLIGHT */}
-      {featuredProject && (
-        <Section className="bg-deep text-text-on-dark">
-          <Container>
-            <SectionHeading
-              eyebrow={<span className="text-honey">{featuredProject.featured ? "Featured Project" : "Project Spotlight"}</span>}
-              title={<span className="text-text-on-dark">{featuredProjectWithMedia?.title || featuredProject?.title}</span>}
-              description={<span className="measure text-text-on-dark/90">{featuredProjectWithMedia?.story?.outcome || featuredProject?.story?.outcome || "See our latest work in this service area."}</span>}
-            />
-            <ScrollReveal variant="story" data-motion-group="service-spotlight" className="mt-8">
-              {featuredProjectWithMedia?.media.beforeMedia && featuredProjectWithMedia?.media.afterMedia ? (
-                <BeforeAfterSlider project={featuredProjectWithMedia} />
-              ) : featuredHeroSrc && featuredProjectWithMedia ? (
-                <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-secondary sm:aspect-[16/9]">
+          {featuredProject && (
+            <div>
+              {showComparison ? (
+                <BeforeAfterSlider project={featuredProject} />
+              ) : featuredHeroSrc && (
+                <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-secondary">
                   <VisualSlot
-                    id={`project-hero-${featuredProjectWithMedia.id}`}
-                    route={`/projects/${featuredProjectWithMedia.slug || featuredProjectWithMedia.id}`}
+                    id={'project-hero-' + featuredProject.id}
+                    route={'/projects/' + (featuredProject.slug || featuredProject.id)}
                     page="ProjectDetail"
                     section="Hero"
-                    slotName={`${featuredProjectWithMedia.title} Hero`}
+                    slotName={featuredProject.title + ' Hero'}
                     currentMediaId={featuredHero?.id || null}
                     component="ProjectSpotlight"
                   >
                     <Image
                       src={featuredHeroSrc}
-                      alt={featuredHero?.alt || featuredProjectWithMedia.title}
+                      alt={featuredHero?.alt || featuredProject.title}
                       fill
                       loading="lazy"
-                      sizes="(max-width: 639px) calc(100vw - 2rem), (max-width: 1023px) calc(100vw - 3rem), (max-width: 1279px) calc(100vw - 4rem), 76rem"
-                      placeholder={featuredHero?.variants?.blur ? "blur" : "empty"}
-                      blurDataURL={featuredHero?.variants?.blur}
+                      sizes="(min-width: 1280px) 592px, (min-width: 1024px) calc((100vw - 7rem) / 2), calc(100vw - 2rem)"
                       className="object-contain"
                     />
                   </VisualSlot>
                 </div>
-              ) : null}
-              <Link
-                href={`/projects/${featuredProjectWithMedia?.slug || featuredProjectWithMedia?.id || featuredProject?.slug || featuredProject?.id}`}
-                className="mt-6 inline-flex min-h-11 items-center gap-2 text-sm font-semibold text-text-on-dark underline decoration-honey underline-offset-4"
-              >
-                View Full Project →
-              </Link>
-            </ScrollReveal>
-          </Container>
-        </Section>
-      )}
-
-      {/* PROJECT GALLERY (masonry layout) */}
-      <Section className="bg-deep text-text-on-dark">
-        <Container>
-          <SectionHeading
-            eyebrow={<span className="text-honey">Our Work</span>}
-            title={<span className="text-text-on-dark">{`${service.name} Projects`}</span>}
-            description={<span className="text-text-on-dark/90">{`Browse our completed ${service.name.toLowerCase()} projects across the Mid-Willamette Valley.`}</span>}
-          />
-          <div className="mt-8">
-            {projectsWithResolvedMedia.length > 0 ? (
-              <ScrollReveal variant="sequence" data-motion-group="service-projects" className="columns-1 gap-6 space-y-6 sm:columns-2 lg:columns-3">
-                {projectsWithResolvedMedia.slice(0, 6).map((project) => {
-                  // P1 FIX: Use pre-validated heroMedia from getProjectWithResolvedMedia (passed public media gate)
-                  const projectHeroMedia = project.media.heroMedia;
-                  const projectHeroSrc = projectHeroMedia?.variants?.web || projectHeroMedia?.variants?.original;
-                  return (
-                    <Link key={project.id} href={`/projects/${project.slug || project.id}`} className="project-motion-card craft-card-link group mb-6 block break-inside-avoid">
-                      <div className="relative aspect-[4/3] overflow-hidden rounded-lg bg-surface">
-                        {projectHeroSrc && (
-                          <VisualSlot
-                            id={`services-${slug}-project-card-${project.id}`}
-                            route={`/services/${slug}`}
-                            page="ServiceDetail"
-                            section="Project Gallery"
-                            slotName={`${project.title} Project Card`}
-                            currentMediaId={project.media.hero || null}
-                            component="ProjectCard"
-                          >
-                            <Image
-                              src={projectHeroSrc}
-                              alt={`${project.title} - ${project.location.city}, ${project.location.county}`}
-                              fill
-                              className="craft-photo object-cover"
-                              loading="lazy"
-                            />
-                          </VisualSlot>
-                        )}
-                        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
-                        <div className="absolute bottom-4 left-4 right-4">
-                          <h3 className="text-white font-semibold text-lg">{project.title}</h3>
-                          <p className="text-white/80 text-sm">{project.location.city}, {project.location.county}</p>
-                        </div>
-                      </div>
-                    </Link>
-                  );
-                })}
-              </ScrollReveal>
-            ) : (
-              <PlaceholderSection
-                type="gallery"
-                title={`Ask About ${service.name}`}
-                description="There are no project photos published here yet. Get in touch to talk about the work you're planning."
-                count={0}
-                darkMode={true}
-                action={{
-                  label: "Contact Happy Place Carpentry",
-                  href: "/contact",
-                }}
-              />
-            )}
-          </div>
-          {serviceGallery.projects.length > 6 && (
-            <div className="mt-8 text-center">
-              <Link
-                href="/our-work"
-                className="inline-flex items-center gap-2 text-sm font-semibold text-honey hover:text-honey-hover transition-colors"
-              >
-                View All Projects →
-              </Link>
+              )}
+              <h2 className="mt-4 text-xl font-semibold text-text-on-dark">
+                <Link href={'/projects/' + (featuredProject.slug || featuredProject.id)} className="inline-flex min-h-11 items-center underline decoration-honey underline-offset-4">
+                  {featuredProject.title}
+                </Link>
+              </h2>
+              {featuredProject.story?.outcome && <p className="mt-1 text-text-on-dark/90">{featuredProject.story.outcome}</p>}
             </div>
           )}
         </Container>
       </Section>
+
+      {moreProjects.length > 0 && (
+        <Section size="minor" className="bg-deep text-text-on-dark">
+          <Container>
+            <SectionHeading title={<span className="text-text-on-dark">More projects</span>} />
+            <ScrollReveal variant="sequence" data-motion-group="service-projects" className="mt-8 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+              {moreProjects.map(project => {
+                const hero = project.media.heroMedia;
+                const src = hero?.variants.web || hero?.variants.original;
+                return (
+                  <Link key={project.id} href={'/projects/' + (project.slug || project.id)} className="project-motion-card craft-card-link group block overflow-hidden rounded-lg bg-surface text-text">
+                    {src && (
+                      <div className="relative aspect-[4/3] overflow-hidden">
+                        <VisualSlot
+                          id={'services-' + slug + '-project-card-' + project.id}
+                          route={'/services/' + slug}
+                          page="ServiceDetail"
+                          section="Project Gallery"
+                          slotName={project.title + ' Project Card'}
+                          currentMediaId={hero?.id || null}
+                          component="ProjectCard"
+                        >
+                          <Image
+                            src={src}
+                            alt={hero?.alt || project.title}
+                            fill
+                            sizes="(min-width: 1280px) 392px, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                            className="craft-photo object-cover"
+                          />
+                        </VisualSlot>
+                      </div>
+                    )}
+                    <h3 className="p-4 text-lg font-semibold underline underline-offset-4">{project.title}</h3>
+                  </Link>
+                );
+              })}
+            </ScrollReveal>
+            {serviceGallery.projects.length > 6 && (
+              <Link href="/our-work" className="mt-8 inline-flex min-h-11 items-center font-semibold text-text-on-dark underline decoration-honey underline-offset-4">
+                View All Projects
+              </Link>
+            )}
+          </Container>
+        </Section>
+      )}
 
       {/* RELATED SERVICES */}
       {relatedServices.length > 0 && (
         <Section className="bg-deep text-text-on-dark">
           <Container>
             <SectionHeading
-              eyebrow={<span className="text-honey">Other Services</span>}
+              eyebrow={<span className="text-accent-on-deep">Other Services</span>}
               title={<span className="text-text-on-dark">Explore More</span>}
               description={<span className="text-text-on-dark/90">We offer a full range of carpentry services for your home.</span>}
             />

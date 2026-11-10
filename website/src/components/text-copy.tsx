@@ -5,11 +5,11 @@ import { decodeTextCatalog, type TextKey } from '@/lib/text-contract';
 import type { TextPreviewDraft } from '@/lib/text-preview-bridge';
 
 const text = decodeTextCatalog(catalog);
-const PreviewCopy = createContext<TextPreviewDraft | null>(null);
+const PreviewCopy = createContext<{ draft: TextPreviewDraft | null } | null>(null);
 
 // Only the authenticated preview route supplies a verified staged mutation.
 export function TextPreviewProvider({ draft, children }: { draft: TextPreviewDraft | null; children: ReactNode }) {
-  return <PreviewCopy.Provider value={draft}>{children}</PreviewCopy.Provider>;
+  return <PreviewCopy.Provider value={{ draft }}>{children}</PreviewCopy.Provider>;
 }
 
 // Inherits the actual field's font, responsive size, color and line-height.
@@ -19,6 +19,14 @@ export function TextCopy({ textKey }: { textKey: TextKey }) {
 }
 
 export function useTextCopy(textKey: TextKey): string {
+  return readText(textKey, useContext(PreviewCopy)?.draft);
+}
+
+function readText(key: TextKey, draft: TextPreviewDraft | null | undefined) {
+  return draft?.key === key ? draft.value : text.fields[key].value;
+}
+
+export function useTextCopySource() {
   const preview = useContext(PreviewCopy);
-  return preview?.key === textKey ? preview.value : text.fields[textKey].value;
+  return { read: (key: TextKey) => readText(key, preview?.draft), isPreview: preview !== null };
 }

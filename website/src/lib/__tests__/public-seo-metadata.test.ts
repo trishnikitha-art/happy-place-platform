@@ -131,7 +131,7 @@ it('keeps a single visible H1 on the blog and newsletter indexes with page-speci
   expect(newsletterMetadata).toMatchObject({ openGraph: { url: `${seo.siteUrl}/newsletter` } });
 });
 
-it('keeps the unfinished newsletter archive noindex and out of the sitemap until its existing article placeholders are browsable', () => {
+it('keeps the unfinished newsletter archive noindex and exposes only real destinations', () => {
   expect(newsletterMetadata).toMatchObject({
     robots: { index: false, follow: true },
     alternates: { canonical: '/newsletter' },
@@ -139,9 +139,10 @@ it('keeps the unfinished newsletter archive noindex and out of the sitemap until
   });
   expect(sitemap().some(entry => entry.url === `${seo.siteUrl}/newsletter` || entry.url.startsWith(`${seo.siteUrl}/newsletter/`))).toBe(false);
   const html = renderToStaticMarkup(React.createElement(MotionProvider, { children: React.createElement(NewsletterPage) }));
-  expect(html.match(/<article\b/g)).toHaveLength(3);
-  expect(html.match(/<button\b/g)).toHaveLength(3);
-  for (const id of [1, 2, 3]) expect(html).toContain(`data-text-key="newsletterArchive.article.${id}.title"`);
+  expect(html).not.toMatch(/<(?:article|button)\b/);
+  expect(html).toContain('Past issues are not available here yet.');
+  expect(html).toContain('href="/blog"');
+  expect(html).toContain('href="/#newsletter"');
   expect(html).not.toMatch(/href="\/newsletter\//);
 });
 

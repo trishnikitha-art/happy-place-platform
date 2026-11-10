@@ -239,14 +239,14 @@ export const EDITABLE_PAGE_FIELDS = {
     "classification": "editable copy"
   },
   "newsletterArchive.copy.3": {
-    "label": "Browse our archive of practical homeowner advice, maintenance …",
+    "label": "Newsletter archive status",
     "route": "/newsletter",
     "maxLength": 285,
     "source": "src/app/newsletter/page.tsx",
     "classification": "editable copy"
   },
   "newsletterArchive.copy.4": {
-    "label": "Read full newsletter →",
+    "label": "Homeowner article link",
     "route": "/newsletter",
     "maxLength": 180,
     "source": "src/app/newsletter/page.tsx",

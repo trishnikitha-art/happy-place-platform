@@ -3,7 +3,8 @@ import type { Metadata } from "next";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { notFound } from "next/navigation";
 
-import { Fragment } from 'react';
+import Link from "next/link";
+import { BlogArticleBody } from "@/components/blog-article-body";
 import { getBlogCopy } from '@/lib/blog-copy';
 import { pageMetadata } from "@/config/seo";
 
@@ -33,7 +34,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
       <Section className="bg-deep">
         <Container className="max-w-4xl">
           <div className="mb-4">
-            <span className="inline-block px-3 py-1 bg-honey/10 text-honey rounded text-sm font-semibold">
+            <span className="inline-block px-3 py-1 bg-honey/10 text-accent-on-deep rounded text-sm font-semibold">
               <TextCopy textKey={post.categoryKey} />
             </span>
           </div>
@@ -52,16 +53,17 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
 
       <Section>
         <Container className="max-w-4xl">
-          <article className="prose prose-lg max-w-none">
-            <div className="whitespace-pre-line">{post.body.map((key,index)=><Fragment key={index}>{index>0?'\n':''}{key&&<TextCopy textKey={key} />}</Fragment>)}</div>
-          </article>
+          <Link href="/blog" className="mb-6 inline-flex min-h-11 items-center font-semibold text-accent-on-paper underline underline-offset-4">
+            Back to homeowner articles
+          </Link>
+          <BlogArticleBody titleKey={post.titleKey} body={post.body} />
 
           <div className="mt-12 pt-8 border-t border-border-soft">
-            <h3 className="text-xl font-bold text-text mb-4"><TextCopy textKey="blogPost.copy.1" /></h3>
+            <h2 className="text-xl font-bold text-text mb-4"><TextCopy textKey="blogPost.copy.1" /></h2>
             <p className="text-text-muted mb-6"><TextCopy textKey="blogPost.copy.2" /></p>
             <a
               href="/contact"
-              className="inline-flex items-center justify-center rounded-lg bg-honey px-6 py-3 font-semibold text-deep transition-colors hover:bg-honey/90"
+              className="inline-flex items-center justify-center rounded-lg bg-honey px-6 py-3 font-semibold text-honey-foreground transition-colors hover:bg-honey/90"
             ><TextCopy textKey="blogPost.copy.3" /></a>
           </div>
         </Container>

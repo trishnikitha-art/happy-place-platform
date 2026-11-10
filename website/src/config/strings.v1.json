@@ -123,20 +123,20 @@
       "revision": 0
     },
     "contact.hero.description": {
-      "value": "Tell us the kind of work you need and where your project is located. Call or email—whatever's easiest—and send photos by email if you have them.",
-      "revision": 1
+      "value": "Call or email us about the work you have in mind.",
+      "revision": 2
     },
     "contact.details.title": {
-      "value": "Tell us what you have in mind",
-      "revision": 0
-    },
-    "contact.details.description": {
-      "value": "A few details help us understand your project: the kind of work you need, your location, and anything you would like us to take a closer look at. You can include photos in your email.",
+      "value": "What to include",
       "revision": 1
     },
+    "contact.details.description": {
+      "value": "A few details help us understand your project.",
+      "revision": 2
+    },
     "contact.details.action": {
-      "value": "Email Happy Place Carpentry",
-      "revision": 0
+      "value": "Email",
+      "revision": 1
     },
     "reviews.hero.title": {
       "value": "Helping neighbors find their happy place",
@@ -543,12 +543,12 @@
       "revision": 0
     },
     "newsletterArchive.copy.3": {
-      "value": "Browse our archive of practical homeowner advice, maintenance reminders, and project showcases.",
-      "revision": 0
+      "value": "Past issues are not available here yet.",
+      "revision": 1
     },
     "newsletterArchive.copy.4": {
-      "value": "Read full newsletter →",
-      "revision": 0
+      "value": "Browse homeowner articles",
+      "revision": 1
     },
     "newsletterArchive.copy.5": {
       "value": "Don't miss future newsletters",

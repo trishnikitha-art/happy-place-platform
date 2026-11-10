@@ -1,13 +1,13 @@
 import { TextCopy } from '@/components/text-copy';
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Container, Section, SectionHeading } from "@/components/section";
 import { pageMetadata } from "@/config/seo";
-import { ScrollReveal } from "@/components/scroll-reveal";
 
 export const metadata: Metadata = {
   ...pageMetadata({
     title: "Newsletter Archive",
-    description: "Archive of Happy Place Carpentry's homeowner tips, maintenance reminders, and project inspiration.",
+    description: "Read homeowner articles from Happy Place Carpentry and sign up for future newsletters.",
     path: "/newsletter",
   }),
   // Keep this unfinished archive out of search until its articles are browsable.
@@ -16,74 +16,32 @@ export const metadata: Metadata = {
 
 export const dynamic = 'force-dynamic';
 
-// Placeholder newsletter data - will be replaced with actual content system
-const newsletters = [
-  {
-    id: 1,
-    titleKey: "newsletterArchive.article.1.title",
-    date: "2024-03-15",
-    excerptKey: "newsletterArchive.article.1.excerpt",
-  },
-  {
-    id: 2,
-    titleKey: "newsletterArchive.article.2.title",
-    date: "2024-02-20",
-    excerptKey: "newsletterArchive.article.2.excerpt",
-  },
-  {
-    id: 3,
-    titleKey: "newsletterArchive.article.3.title",
-    date: "2024-01-10",
-    excerptKey: "newsletterArchive.article.3.excerpt",
-  },
-] as const;
-
 export default function NewsletterArchivePage() {
   return (
     <>
-      <Section className="bg-deep">
+      <Section size="minor" className="bg-deep">
         <Container className="max-w-4xl">
           <SectionHeading
             as="h1"
-            eyebrow={<span className="text-honey"><TextCopy textKey="newsletterArchive.copy.1" /></span>}
+            eyebrow={<span className="text-accent-on-deep"><TextCopy textKey="newsletterArchive.copy.1" /></span>}
             title={<span className="text-text-on-dark"><TextCopy textKey="newsletterArchive.copy.2" /></span>}
             description={<span className="text-text-on-dark/90"><TextCopy textKey="newsletterArchive.copy.3" /></span>}
           />
         </Container>
       </Section>
 
-      <Section>
+      <Section size="minor">
         <Container className="max-w-4xl">
-          <ScrollReveal variant="sequence" data-motion-group="newsletter-archive" className="space-y-6">
-            {newsletters.map((newsletter) => (
-              <article
-                key={newsletter.id}
-                className="rounded-lg border border-border-soft bg-surface p-6 transition-shadow hover:shadow-md"
-              >
-                <div className="mb-3 text-sm text-muted-foreground">
-                  {new Date(newsletter.date).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </div>
-                <h3 className="mb-2 text-xl font-bold text-text"><TextCopy textKey={newsletter.titleKey} /></h3>
-                <p className="text-text-muted"><TextCopy textKey={newsletter.excerptKey} /></p>
-                <div className="mt-4">
-                  <button className="text-honey hover:underline font-medium"><TextCopy textKey="newsletterArchive.copy.4" /></button>
-                </div>
-              </article>
-            ))}
-          </ScrollReveal>
-
-          <ScrollReveal data-motion-group="newsletter-prompt" className="mt-12 rounded-lg bg-surface-muted p-8 text-center">
-            <h3 className="text-xl font-bold text-text mb-2"><TextCopy textKey="newsletterArchive.copy.5" /></h3>
-            <p className="text-text-muted mb-4"><TextCopy textKey="newsletterArchive.copy.6" /></p>
-            <a
-              href="/#newsletter"
-              className="inline-flex items-center justify-center rounded-lg bg-honey px-6 py-3 font-semibold text-deep transition-colors hover:bg-honey/90"
-            ><TextCopy textKey="newsletterArchive.copy.7" /></a>
-          </ScrollReveal>
+          <Link href="/blog" className="inline-flex min-h-11 items-center font-semibold text-accent-on-paper underline underline-offset-4">
+            <TextCopy textKey="newsletterArchive.copy.4" />
+          </Link>
+          <div className="mt-6 rounded-lg bg-surface p-6 sm:p-8">
+            <h2 className="mb-2 text-xl font-bold text-text"><TextCopy textKey="newsletterArchive.copy.5" /></h2>
+            <p className="mb-4 text-text-muted"><TextCopy textKey="newsletterArchive.copy.6" /></p>
+            <Link href="/#newsletter" className="inline-flex min-h-11 items-center rounded-lg bg-honey px-5 py-3 font-semibold text-honey-foreground hover:bg-honey-hover">
+              <TextCopy textKey="newsletterArchive.copy.7" />
+            </Link>
+          </div>
         </Container>
       </Section>
     </>

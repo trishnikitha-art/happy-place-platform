@@ -15,6 +15,7 @@ import * as React from "react";
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import type { Project } from "@/types/projects";
+import { comparisonSource } from "@/lib/project-comparison";
 import { CraftCard } from "@/components/ui/card";
 import { VisualSlot } from "@/components/visual-slot";
 
@@ -82,10 +83,9 @@ export function BeforeAfterSlider({
   };
 
   // Keep the hook order stable when media resolves, disappears, or is unpublished.
-  if (!beforeMedia || !afterMedia) return null;
-
-  const beforeSrc = beforeMedia.variants.original || beforeMedia.variants.webp || beforeMedia.variants.avif;
-  const afterSrc = afterMedia.variants.original || afterMedia.variants.webp || afterMedia.variants.avif;
+  const beforeSrc = comparisonSource(beforeMedia);
+  const afterSrc = comparisonSource(afterMedia);
+  if (!beforeMedia || !afterMedia || !beforeSrc || !afterSrc) return null;
 
   // Card text colors - always light register (cards are always light surfaces)
   const titleColor = "text-text";

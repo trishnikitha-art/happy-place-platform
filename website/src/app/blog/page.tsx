@@ -20,7 +20,7 @@ export default function BlogPage() {
         <Container className="max-w-4xl">
           <SectionHeading
             as="h1"
-            eyebrow={<span className="text-honey"><TextCopy textKey="blog.copy.1" /></span>}
+            eyebrow={<span className="text-accent-on-deep"><TextCopy textKey="blog.copy.1" /></span>}
             title={<span className="text-text-on-dark"><TextCopy textKey="blog.copy.2" /></span>}
             description={<span className="text-text-on-dark/90"><TextCopy textKey="blog.copy.3" /></span>}
           />
@@ -36,7 +36,7 @@ export default function BlogPage() {
                 className="rounded-lg border border-border-soft bg-surface p-6 transition-shadow hover:shadow-md"
               >
                 <div className="mb-3 flex items-center gap-3 text-sm text-muted-foreground">
-                  <span className="inline-block px-2 py-1 bg-honey/10 text-honey rounded text-xs font-semibold">
+                  <span className="inline-block px-2 py-1 bg-honey/10 text-accent-on-paper rounded text-xs font-semibold">
                     <TextCopy textKey={post.categoryKey} />
                   </span>
                   <span>·</span>
@@ -52,7 +52,7 @@ export default function BlogPage() {
                 <p className="text-text-muted mb-4"><TextCopy textKey={post.excerptKey} /></p>
                 <a
                   href={`/blog/${post.slug}`}
-                  className="text-honey hover:underline font-medium"
+                  className="font-medium text-accent-on-paper underline underline-offset-4"
                 ><TextCopy textKey="blog.copy.4" /></a>
               </article>
             ))}

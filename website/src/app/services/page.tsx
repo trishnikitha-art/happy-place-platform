@@ -50,7 +50,7 @@ export default async function ServicesPage() {
         <Container>
           <SectionHeading
             as="h1"
-            eyebrow={<span className="text-honey"><TextCopy textKey="services.copy.1" /></span>}
+            eyebrow={<span className="text-accent-on-deep"><TextCopy textKey="services.copy.1" /></span>}
             title={<span className="text-text-on-dark"><TextCopy textKey="services.hero.title" /></span>}
             description={<span className="text-text-on-dark/90"><TextCopy textKey="services.hero.description" /></span>}
             descriptionColor="text-text-on-dark/90"
@@ -87,7 +87,7 @@ export default async function ServicesPage() {
           <div className="mt-12">
             <Link
               href="/contact"
-              className="inline-flex items-center gap-1 text-base font-semibold text-text-on-dark hover:text-honey hover:underline"
+              className="inline-flex items-center gap-1 text-base font-semibold text-text-on-dark hover:text-accent-on-deep underline underline-offset-4"
             ><TextCopy textKey="services.copy.10" /></Link>
           </div>
         </Container>

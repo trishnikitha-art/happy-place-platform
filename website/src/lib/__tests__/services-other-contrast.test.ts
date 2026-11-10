@@ -60,14 +60,14 @@ describe('Services additional-projects panel semantic contrast', () => {
     expect([...panel.matchAll(/data-text-key="services\.copy\.\d+"/g)]).toHaveLength(8);
   });
 
-  it('keeps surrounding section boundaries and their existing content and styles', () => {
+  it('keeps the surrounding sections and a visible, underlined contact link', () => {
     expect(panel).not.toContain('data-service-grid');
     expect(panel).not.toContain('services.copy.10');
     expect(panel).not.toContain('cta.title');
     expect(markup).toContain('data-service-grid="true"');
     expect(markup).toMatch(/<h3 class="[^"]*\btext-text"[^>]*>/);
     expect(markup).toContain('Synthetic service');
-    expect(markup).toContain('<div class="mt-12"><a class="inline-flex items-center gap-1 text-base font-semibold text-text-on-dark hover:text-honey hover:underline" href="/contact">');
+    expect(markup).toContain('<div class="mt-12"><a class="inline-flex items-center gap-1 text-base font-semibold text-text-on-dark hover:text-accent-on-deep underline underline-offset-4" href="/contact">');
     expect(markup).toContain('data-text-key="cta.title"');
   });
 });

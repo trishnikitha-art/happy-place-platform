@@ -10,6 +10,7 @@ import { Container, Section, SectionHeading } from "@/components/section";
 import { CTASection } from "@/components/cta-section";
 import { ScrollReveal } from "@/components/scroll-reveal";
 import { BeforeAfterSlider } from "@/components/before-after-slider";
+import { hasBeforeAfterPhotos } from "@/lib/project-comparison";
 import { CraftCard } from "@/components/ui/card";
 import { getServiceBySlug } from "@/lib/registries";
 import { ProjectLightbox } from "@/components/project-lightbox";
@@ -32,6 +33,88 @@ interface OurWorkClientProps {
   archiveOrder: string[];
   allProjects: Project[];
   featuredProjects: Project[];
+}
+
+function projectHeroSource(project: Project) {
+  const media = project.media.heroMedia;
+  return media?.variants.responsive?.at(-1)?.webp || media?.variants.web || media?.variants.original;
+}
+
+function ProjectCard({ project, lead = false }: { project: Project; lead?: boolean }) {
+  const hero = project.media.heroMedia;
+  const src = projectHeroSource(project);
+  const href = '/projects/' + (project.slug || project.id);
+  const service = getServiceBySlug(project.service);
+  const sizes = "(min-width: 1280px) 592px, (min-width: 768px) calc((100vw - 80px) / 2), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)";
+  const variants = lead ? hero?.variants.responsive : undefined;
+  const webpSrcSet = variants?.filter(variant => variant.width > 0 && variant.webp)
+    .map(variant => variant.webp.replaceAll(' ', '%20') + ' ' + variant.width + 'w').join(', ');
+  const avifSrcSet = variants?.filter(variant => variant.width > 0 && variant.avif)
+    .map(variant => variant.avif!.replaceAll(' ', '%20') + ' ' + variant.width + 'w').join(', ');
+  const leadAvif = lead ? avifSrcSet || hero?.variants.avif?.replaceAll(' ', '%20') : undefined;
+  const storyField = project.story?.outcome ? 'story.outcome' : project.story?.solution ? 'story.solution' : 'title';
+
+  const optimizedPhoto = src && (
+    <Image
+      src={src}
+      alt={hero?.alt || project.title}
+      fill
+      className="craft-card-photo object-cover"
+      sizes={sizes}
+      loading={lead ? "eager" : "lazy"}
+    />
+  );
+
+  return (
+    <Link href={href} className="craft-card-link group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-on-deep">
+      <CraftCard interactive className="overflow-hidden">
+        {src && (
+          <div className="relative aspect-[16/9] overflow-hidden">
+            <VisualSlot
+              id={'our-work-project-card-' + project.id}
+              route="/our-work"
+              page="OurWork"
+              section="Recent Projects"
+              slotName={project.title + ' Project Card'}
+              currentMediaId={hero?.id || null}
+              component="ProjectCard"
+            >
+              {leadAvif || webpSrcSet ? (
+                <picture className="block h-full w-full">
+                  {leadAvif && <source type="image/avif" media={avifSrcSet ? undefined : "(min-width: 768px)"} srcSet={leadAvif} sizes={avifSrcSet ? sizes : undefined} />}
+                  {webpSrcSet ? (
+                    <img
+                      src={src}
+                      srcSet={webpSrcSet}
+                      sizes={sizes}
+                      alt={hero?.alt || project.title}
+                      className="craft-card-photo h-full w-full object-cover"
+                      fetchPriority="high"
+                      decoding="async"
+                    />
+                  ) : optimizedPhoto}
+                </picture>
+              ) : optimizedPhoto}
+            </VisualSlot>
+          </div>
+        )}
+        <div className="p-6">
+          <p className="mb-2 flex flex-wrap items-center gap-2 text-xs text-text-muted">
+            <span className="font-semibold uppercase tracking-wide text-primary">{service?.name || project.service}</span>
+            {project.location.city && <><span aria-hidden="true">·</span>{project.location.city}</>}
+          </p>
+          <h2 className="text-xl font-bold text-text">
+            <ContentCopy collection="projects" id={project.id} field="title" value={project.title} route={href} />
+          </h2>
+          {lead ? <span className="mt-3 inline-block text-sm font-semibold text-primary underline underline-offset-4">View project</span> : (
+            <p className="mt-2 line-clamp-2 text-sm text-text-muted">
+              <ContentCopy collection="projects" id={project.id} field={storyField} value={project.story?.outcome || project.story?.solution || project.title} route={href} />
+            </p>
+          )}
+        </div>
+      </CraftCard>
+    </Link>
+  );
 }
 
 export default function OurWorkClient({ company, allProjects, featuredProjects, archiveOrder }: OurWorkClientProps) {
@@ -219,119 +302,63 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
     if (index >= 0) openLightbox(images, index);
   };
 
+  const leadProject = allProjects.find(projectHeroSource);
+  const remainingProjects = allProjects.filter(project => project !== leadProject);
+  const comparisonProjects = featuredProjects.filter(hasBeforeAfterPhotos).slice(0, 4);
+
   return (
     <>
       {/* HERO */}
       <section className="relative overflow-hidden bg-deep text-text-on-dark">
         <div className="absolute inset-0 bg-[radial-gradient(120%_120%_at_80%_-10%,rgba(217,154,78,0.18),transparent_55%),radial-gradient(90%_90%_at_10%_110%,rgba(31,63,60,0.6),transparent_60%)]" aria-hidden="true" />
-        <Container className="relative py-24">
-          <p className="text-sm font-semibold uppercase tracking-wide text-honey">
+        <Container className="relative grid gap-8 py-12 md:grid-cols-2 md:items-center md:py-16">
+          <div>
+            <p className="text-sm font-semibold uppercase tracking-wide text-accent-on-deep">
             {company.proof.projectsCompleted} projects · {company.ccbNumber}
-          </p>
-          <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-tight text-text-on-dark sm:text-6xl"><TextCopy textKey="work.copy.1" /></h1>
-          <p className="mt-5 max-w-xl text-lg text-text-on-dark"><TextCopy textKey="work.copy.2" /></p>
+            </p>
+            <h1 className="mt-3 max-w-3xl text-4xl font-bold leading-tight text-text-on-dark sm:text-6xl"><TextCopy textKey="work.copy.1" /></h1>
+            <p className="mt-5 max-w-xl text-lg text-text-on-dark"><TextCopy textKey="work.copy.2" /></p>
+          </div>
+          {leadProject && <ProjectCard project={leadProject} lead />}
         </Container>
       </section>
 
-      {/* FEATURED TRANSFORMATIONS — the emotional open */}
-      <Section className="relative bg-deep">
+      {comparisonProjects.length > 0 && <Section className="relative bg-deep">
         <BlueprintGrid gridSize={24} lineColor="rgba(217, 154, 78, 0.06)" />
         <Container>
             <SectionHeading
-              eyebrow={<span className="text-honey"><TextCopy textKey="work.copy.3" /></span>}
+              eyebrow={<span className="text-accent-on-deep"><TextCopy textKey="work.copy.3" /></span>}
               title={<span className="text-text-on-dark"><TextCopy textKey="work.transformations.title" /></span>}
               description={<span className="text-text-on-dark/90"><TextCopy textKey="work.transformations.description" /></span>}
             />
           <ScrollReveal variant="sequence" className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
-            {featuredProjects.slice(0, 4).map((project) => (
+            {comparisonProjects.map((project) => (
               <BeforeAfterSlider key={project.id} project={project} />
             ))}
           </ScrollReveal>
         </Container>
-      </Section>
+      </Section>}
 
       {/* RECENT PROJECTS — photo-led project stories */}
-      <Section className="relative bg-deep">
+      {remainingProjects.length > 0 && <Section className="relative bg-deep">
         <BlueprintGrid gridSize={20} lineColor="rgba(217, 154, 78, 0.04)" />
         <Container>
             <SectionHeading
-              eyebrow={<span className="text-honey"><TextCopy textKey="work.copy.4" /></span>}
+              eyebrow={<span className="text-accent-on-deep"><TextCopy textKey="work.copy.4" /></span>}
               title={<span className="text-text-on-dark"><TextCopy textKey="work.stories.title" /></span>}
               description={<span className="text-text-on-dark/90"><TextCopy textKey="work.stories.description" /></span>}
             />
           <ScrollReveal variant="sequence" className="mt-10 grid grid-cols-1 gap-8 md:grid-cols-2">
-            {allProjects.map((project) => {
-              // P0 FIX: Use pre-validated heroMedia from server-side resolution (passed public media gate)
-              // This prevents client-side getMediaById() bypass
-              const heroMedia = project.media.heroMedia;
-              
-              // Use responsive variants if available to select best quality
-              const responsiveVariants = heroMedia?.variants?.responsive;
-              const hasResponsiveVariants = responsiveVariants && responsiveVariants.length > 0;
-              const heroSrc = heroMedia 
-                ? (hasResponsiveVariants 
-                    ? responsiveVariants[responsiveVariants.length - 1].webp 
-                    : (heroMedia.variants?.web || heroMedia.variants?.original))
-                : null;
-              
-              if (!heroSrc) return null;
-              return (
-                  <Link
-                    key={project.id}
-                    href={`/projects/${project.slug || project.id}`}
-                    className="craft-card-link group block rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-honey"
-                  >
-                    <div className="relative">
-                      <div className="relative z-10">
-                        <CraftCard interactive className="overflow-hidden">
-                          <div className="relative aspect-[16/9] overflow-hidden">
-                            <VisualSlot
-                              id={`our-work-project-card-${project.id}`}
-                              route="/our-work"
-                              page="OurWork"
-                              section="Recent Projects"
-                              slotName={`${project.title} Project Card`}
-                              currentMediaId={heroMedia?.id || null}
-                              component="ProjectCard"
-                            >
-                              <Image
-                                src={heroSrc}
-                                alt={heroMedia?.alt || project.title}
-                                fill
-                                className="craft-card-photo object-cover"
-                                sizes="(min-width: 1280px) 592px, (min-width: 768px) calc((100vw - 80px) / 2), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)"
-                              />
-                            </VisualSlot>
-                          </div>
-                          <div className="p-6">
-                            <div className="flex items-center gap-2 mb-2">
-                              <span className="text-xs font-semibold uppercase tracking-wide text-primary">
-                                {(() => {
-                                  const service = getServiceBySlug(project.service);
-                                  return service?.name || project.service;
-                                })()}
-                              </span>
-                              <span className="text-primary/30">·</span>
-                              <span className="text-xs text-text-muted">{project.location.city}</span>
-                            </div>
-                            <h2 className="text-xl font-bold text-text"><ContentCopy collection="projects" id={project.id} field="title" value={project.title} route={`/projects/${project.slug}`} /></h2>
-                            <p className="mt-2 line-clamp-2 text-sm text-text-muted"><ContentCopy collection="projects" id={project.id} field={project.story?.outcome?'story.outcome':project.story?.solution?'story.solution':'title'} value={project.story?.outcome || project.story?.solution || project.title} route={`/projects/${project.slug}`} /></p>
-                          </div>
-                        </CraftCard>
-                      </div>
-                    </div>
-                  </Link>
-              );
-            })}
+            {remainingProjects.map(project => <ProjectCard key={project.id} project={project} />)}
           </ScrollReveal>
         </Container>
-      </Section>
+      </Section>}
 
       {/* BROWSE ALL WORK — continuous gallery grid */}
-      <Section className="bg-deep">
+      {(galleryPhotos.length > 0 || isWorkbenchMode) && <Section className="bg-deep">
         <Container>
             <SectionHeading
-              eyebrow={<span className="text-honey"><TextCopy textKey="work.copy.5" /></span>}
+              eyebrow={<span className="text-accent-on-deep"><TextCopy textKey="work.copy.5" /></span>}
               title={<span className="text-text-on-dark"><TextCopy textKey="work.archive.title" /></span>}
               description={<span className="text-text-on-dark/90"><TextCopy textKey="work.archive.description" /></span>}
             />
@@ -381,7 +408,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
                     data-photo-index={photoIndex}
                     role="button"
                     tabIndex={0}
-                    className="craft-card-link group relative block aspect-[4/3] rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-honey"
+                    className="craft-card-link group relative block aspect-[4/3] rounded-lg focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-on-deep"
                     style={pointerSort.cardStyle('archive', slotId)}
                     onDragOver={isWorkbenchMode ? handleProjectDragOver : undefined}
                     onDrop={isWorkbenchMode ? event=>handleProjectDrop(event,project.id) : undefined}
@@ -462,7 +489,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
             })}
           </div>
         </Container>
-      </Section>
+      </Section>}
 
       {pointerSort.drag && createPortal(
         <div ref={pointerSort.ghostRef} aria-hidden="true" data-gallery-drag-ghost
@@ -485,6 +512,7 @@ export default function OurWorkClient({ company, allProjects, featuredProjects, 
       />
 
       <CTASection
+          showWorkLink={false}
         title="Ready to love coming home again?"
         subtitle="Let's start building your happy place."
       />

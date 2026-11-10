@@ -7,9 +7,11 @@ import { Container, Section } from "@/components/section";
 export function CTASection({
   title = <TextCopy textKey="cta.title" />,
   subtitle = <TextCopy textKey="cta.description" />,
+  showWorkLink = true,
 }: {
   title?: React.ReactNode;
   subtitle?: React.ReactNode;
+  showWorkLink?: boolean;
 }) {
   return (
     <Section className="relative bg-[#EFECE5]">
@@ -23,9 +25,9 @@ export function CTASection({
           <Link href="/contact" className={buttonVariants({ variant: "primary", size: "lg" })}>
             <TextCopy textKey="cta.primaryAction" />
           </Link>
-          <Link href="/our-work" className={buttonVariants({ variant: "outline", size: "lg" })}>
+          {showWorkLink && <Link href="/our-work" className={buttonVariants({ variant: "outline", size: "lg" })}>
             <TextCopy textKey="cta.secondaryAction" />
-          </Link>
+          </Link>}
         </div>
       </Container>
     </Section>

@@ -14,7 +14,7 @@ export function PreviewTextBridge() {
     let pendingFocus: HTMLElement | null = null, editable: HTMLElement | null = null;
     let editVersion=0,resetVersion=-1,selectedKey='';
     let composing=false;
-    const originals = new Map<HTMLElement, string>();
+    const originals = new Map<HTMLElement, string | ChildNode[]>();
     const inputValues = new Map<HTMLInputElement,string>();
     const attributes = new Map<HTMLElement, Record<string, string | null>>();
     const names = ['tabindex', 'aria-label', 'contenteditable', 'spellcheck'];
@@ -25,10 +25,17 @@ export function PreviewTextBridge() {
     const placeholder=(node:HTMLElement):node is HTMLInputElement=>node.dataset.textAttribute==='placeholder' && (node.tagName==='INPUT' || node.tagName==='TEXTAREA');
     const read=(node:HTMLElement)=>placeholder(node) ? node.getAttribute('placeholder') ?? '' : node.textContent ?? '';
     const write=(node:HTMLElement,value:string)=>{if(placeholder(node))node.setAttribute('placeholder',value);else node.textContent=value;};
+    function rememberText(node: HTMLElement) {
+      if (originals.has(node)) return;
+      originals.set(node, node.dataset.formattedText !== undefined ? [...node.childNodes].map(child => child.cloneNode(true) as ChildNode) : read(node));
+    }
     function restoreText(except?: Set<HTMLElement>) {
       originals.forEach((text, node) => {
         if (except?.has(node)) return;
-        if (node.isConnected) write(node,text);
+        if (node.isConnected) {
+          if (typeof text === 'string') write(node, text);
+          else node.replaceChildren(...text);
+        }
         originals.delete(node);
       });
     }
@@ -71,7 +78,7 @@ export function PreviewTextBridge() {
           .map(node => ({node,value:item.value}))) ?? [];
       restoreText(new Set([...matching,...queuedNodes.map(({node})=>node)]));
       queuedNodes.forEach(({node,value})=>{
-        if(!originals.has(node))originals.set(node,read(node));
+        rememberText(node);
         if(read(node)!==value)write(node,value);
       });
       if (!enabled) restoreControls();
@@ -89,10 +96,10 @@ export function PreviewTextBridge() {
         if(enabled)node.setAttribute('spellcheck', 'true');
       });
       if (draft && selected) {
-        matching.forEach(node=>{if(!originals.has(node))originals.set(node,read(node));});
+        matching.forEach(node=>{rememberText(node);});
         // Equal echoes must preserve the text node and caret while typing.
         const acknowledged=rawDraft?.editVersion ?? 0;
-        if (!composing && (reset || acknowledged>=editVersion)) matching.forEach(node=>{if(read(node)!==draft.value)write(node,draft.value);});
+        if (!composing && (reset || acknowledged>=editVersion)) matching.forEach(node=>{if(read(node)!==draft.value || (node===editable && node.dataset.formattedText!==undefined && node.childElementCount>0))write(node,draft.value);});
         if(placeholder(selected) && editable===selected) {
           if(!inputValues.has(selected))inputValues.set(selected,selected.value);
           if(!composing && (reset || acknowledged>=editVersion) && selected.value!==draft.value)selected.value=draft.value;

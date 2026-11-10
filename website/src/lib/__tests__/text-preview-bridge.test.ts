@@ -152,3 +152,19 @@ it('rejects nonregistered, duplicate, excessive and overlength queued draft entr
   }
   expect(parseTextPreviewDraft({...state.draft,queued:[{key:'homepage.hero.description',value:'Safe copy',selector:'body'}]})).toEqual({...state.draft,queued:[{key:'homepage.hero.description',value:'Safe copy'}]});
 });
+
+it('restores formatted children when leaving plain-text source editing', () => {
+  const formatted = { cloneNode: jest.fn(() => ({ tagName: 'STRONG' })) };
+  const replaceChildren = jest.fn();
+  Object.assign(node, {
+    textContent: 'Original headline',
+    dataset: { textKey: 'homepage.hero.title', formattedText: '' },
+    childNodes: [formatted],
+    childElementCount: 1,
+    replaceChildren,
+  });
+  receive({ ...state, draft: { ...state.draft, value: '**Original headline**', editable: true } });
+  expect(node.textContent).toBe('**Original headline**');
+  receive({ ...state, enabled: false });
+  expect(replaceChildren).toHaveBeenCalledWith({ tagName: 'STRONG' });
+});

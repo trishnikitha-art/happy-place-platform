@@ -93,14 +93,28 @@ it.each([false, true])('shows the validated hero with lazy responsive delivery w
   expect(spotlight).toContain('src="/published-fence.webp"');
   expect(spotlight).toContain(`alt="${publishedHero.alt}"`);
   expect(spotlight).toContain('loading="lazy"');
-  expect(spotlight).toMatch(/sizes="\(max-width: 639px\) calc\(100vw - 2rem\)[^"]+76rem"/);
+  expect(spotlight).toContain('sizes="(min-width: 1280px) 592px, (min-width: 1024px) calc((100vw - 7rem) / 2), calc(100vw - 2rem)"');
+  expect(html.match(/\/published-fence\.webp/g)).toHaveLength(1);
+  expect(html).not.toContain('More projects');
+  expect(html).not.toContain('data-comparison-project');
+});
+
+it('falls back to the validated hero when a comparison has no displayable image', async () => {
+  const html = await renderService({
+    ...sourceProject.media, heroMedia: publishedHero,
+    beforeMedia: { ...publishedHero, id: 'published-before', variants: { thumbnail: '/before-thumbnail.webp' } },
+    afterMedia: { ...publishedHero, id: 'published-after' },
+  });
+  expect(html).toContain('data-test-slot="project-hero-fence-example"');
   expect(html).not.toContain('data-comparison-project');
 });
 
 it('keeps the project link without substituting an image when the public resolver supplies no hero', async () => {
   const html = await renderService(sourceProject.media);
   expect(html).toContain('href="/projects/fence-example"');
-  expect(html).toContain('View Full Project');
+  expect(html).toContain('Cedar fence');
+  expect(html).toContain('Tell us what needs work');
+  expect(html).not.toContain('0 Projects');
   expect(html).not.toContain('<img');
   expect(html).not.toContain('source-only-hero-reference');
   expect(html).not.toContain('data-comparison-project');

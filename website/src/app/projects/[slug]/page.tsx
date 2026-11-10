@@ -73,7 +73,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
       <Section className="bg-linen">
         <Container>
           <SectionHeading
-            eyebrow={<span className="text-honey">Project Overview</span>}
+            eyebrow={<span className="text-accent-on-paper">Project Overview</span>}
             title={<span className="text-evergreen">At a glance</span>}
             description={<span className="text-evergreen/80">Everything attached to this project, in one place.</span>}
           />
@@ -129,7 +129,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
             <WorkshopAtmosphere particleCount={18} className="opacity-35" />
             <Container className="relative z-10">
               <SectionHeading
-                eyebrow={<span className="text-honey">Materials Used</span>}
+                eyebrow={<span className="text-accent-on-deep">Materials Used</span>}
                 title={<span className="text-text-on-dark">Quality materials for lasting results</span>}
                 description={<span className="text-text-on-dark/90">The premium materials we used to bring this project to life.</span>}
               />
@@ -166,7 +166,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
             <BlueprintGrid gridSize={20} lineColor="rgba(217, 154, 78, 0.04)" />
             <Container className="relative z-10">
               <SectionHeading
-                eyebrow={<span className="text-honey">Customer Review</span>}
+                eyebrow={<span className="text-accent-on-deep">Customer Review</span>}
                 title={<span className="text-text-on-dark">What the homeowner says</span>}
                 description={<span className="text-text-on-dark/90">Real feedback from the homeowner after project completion.</span>}
               />
@@ -176,7 +176,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
                     <div className="flex items-start gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-4">
-                          <StarRating rating={review.rating} />
+                          <StarRating rating={review.rating} className="text-accent-on-deep" />
                           {review.title && <h3 className="text-lg font-bold text-text-on-dark">{review.title}</h3>}
                         </div>
                         <blockquote className="measure text-base sm:text-lg text-text-on-dark/90 leading-relaxed">
@@ -198,7 +198,7 @@ export default async function ProjectPage({ params }: { params: Promise<{ slug: 
       <Section className="bg-deep text-text-on-dark">
         <Container>
           <SectionHeading
-            eyebrow={<span className="text-honey">Project Photos</span>}
+            eyebrow={<span className="text-accent-on-deep">Project Photos</span>}
             title={<span className="text-text-on-dark">Project Gallery</span>}
             description={<span className="text-text-on-dark/90">Photos from this project</span>}
           />

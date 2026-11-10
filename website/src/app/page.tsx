@@ -145,7 +145,7 @@ export default async function HomePage() {
             <div className="mt-6 sm:mt-9 flex flex-wrap items-center gap-x-4 gap-y-2 text-xs sm:text-sm text-text-on-dark/90">
               {hasReviews && (
                 <span className="inline-flex items-center gap-2">
-                  <StarRating rating={5} />
+                  <StarRating rating={5} decorative className="text-accent-on-deep" />
                   {stats.average} / 5 · {company.proof.projectsCompleted} projects
                 </span>
               )}

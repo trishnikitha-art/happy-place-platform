@@ -53,6 +53,8 @@
   --color-honey: #d99a4e;
   --color-honey-hover: #e7ad63;
   --color-honey-foreground: #1c1917;
+  --color-accent-on-deep: #f0bd7f;
+  --color-accent-on-paper: #77420f;
 
   /* Accent — Charcoal (borders, icons, labels) */
   --color-accent: #432E2D;
@@ -204,6 +206,7 @@
   --color-text-subtle: #8B8983;
   --color-primary: #2F1F1E;
   --color-primary-hover: #352423;
+  --color-accent-on-paper: var(--color-accent-on-deep);
 }
 
 /*
@@ -261,12 +264,6 @@ body {
 /* Premium tracking refinement for display headings */
 .tracking-display {
   letter-spacing: -0.02em;
-}
-
-/* Accessible focus ring for keyboard users */
-:focus-visible {
-  outline: 2px solid var(--color-honey);
-  outline-offset: 2px;
 }
 
 /* Cedar-grain divider — subtle warm planks (Directive 032). Low-opacity texture
@@ -446,12 +443,15 @@ body {
   overflow: hidden;
 }
 
-/* Refined focus ring (calm, confident) */
+/* Dark ink on paper, with a light accent ring on deep surfaces. */
 :focus-visible {
-  outline: 2px solid var(--color-honey);
+  outline: 2px solid var(--focus-outline, var(--color-accent-on-paper));
   outline-offset: 3px;
   border-radius: 4px;
-  box-shadow: 0 0 0 4px rgba(217, 154, 78, 0.05);
+}
+
+.bg-deep, .bg-deep-2 {
+  --focus-outline: var(--color-accent-on-deep);
 }
 
 /* Smooth link transitions */

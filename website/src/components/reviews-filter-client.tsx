@@ -31,12 +31,12 @@ export function ReviewsFilterClient({ allReviews }: { allReviews: Review[] }) {
                 <StarRating rating={r.rating} />
                 <div className="flex items-center gap-2">
                   {r.featured && (
-                    <span className="rounded-full bg-honey/10 px-2.5 py-1 text-xs font-semibold text-honey">
+                    <span className="rounded-full bg-honey/10 px-2.5 py-1 text-xs font-semibold text-accent-on-paper">
                       Featured
                     </span>
                   )}
                   {r.verified && (
-                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                    <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-text">
                       ✓ Verified
                     </span>
                   )}
