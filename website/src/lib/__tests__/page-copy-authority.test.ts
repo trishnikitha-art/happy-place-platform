@@ -59,7 +59,27 @@ it('reflects canonical blog edits without changing the article slug, date or par
     expect(after.slug).toBe(before.slug);
     expect(after.date).toBe(before.date);
     expect(after.content).toBe(before.content);
+    const html = renderToStaticMarkup(createElement(BlogArticleBody, record));
+    expect(html).not.toContain('data-text-key="' + record.body[1] + '"');
+    expect(html).toContain('data-text-key="' + record.body[5] + '"');
   } finally { copy.fields[record.titleKey].value = original; }
+});
+
+it('keeps the source title editable as a paragraph when either title is staged independently', () => {
+  const record = BLOG_COPY_RECORDS[0];
+  const sourceTitleKey = record.body[1];
+  for (const draft of [
+    { key: record.titleKey, value: 'A new article title' },
+    { key: sourceTitleKey, value: '# An independently edited source title' },
+  ]) {
+    const html = renderToStaticMarkup(createElement(TextPreviewProvider, {
+      draft,
+      children: createElement(BlogArticleBody, record),
+    }));
+    expect(html).toContain('<p><span data-text-key="' + sourceTitleKey + '"');
+    expect(html).not.toMatch(new RegExp('<h2[^>]*><span data-text-key="' + sourceTitleKey + '"'));
+    expect(html).toContain('data-text-key="' + record.body[5] + '"');
+  }
 });
 
 it('renders actual article structure from the published keys without repeating the title', () => {

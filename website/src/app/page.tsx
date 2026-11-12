@@ -100,7 +100,7 @@ export default async function HomePage() {
   const leadService = allServices.find(service => service.slug === leadProject?.service);
   const remainingProjectSizes = remainingProjectCards.length === 1
     ? '(min-width: 768px) 768px, calc(100vw - 32px)'
-    : '(min-width: 1280px) 288px, (min-width: 1024px) calc((100vw - 112px) / 4), (min-width: 640px) calc((100vw - 64px) / 2), calc(100vw - 32px)';
+    : '(min-width: 1280px) 592px, (min-width: 640px) calc((100vw - 64px) / 2), calc(100vw - 32px)';
   return (
     <>
       {/* HERO — full-width photograph with text overlay */}
@@ -234,7 +234,7 @@ export default async function HomePage() {
                   <ContentCopy collection="projects" id={leadProject.id} field="title" value={leadProject.title} route={'/projects/' + (leadProject.slug || leadProject.id)} />
                 </h2>
                 <p className="mt-3 text-sm text-text-muted">{[leadService?.name, leadProject.location.city].filter(Boolean).join(' · ')}</p>
-                <span className="mt-4 inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4">View project →</span>
+                <span className="mt-4 inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"><TextCopy textKey="home.projects.action" /> <span aria-hidden="true">→</span></span>
               </div>
             </Link>
             {remainingProjectCards.length === 0 && (
@@ -296,24 +296,22 @@ export default async function HomePage() {
               data-motion-group="home-projects"
               className={remainingProjectCards.length === 1
                 ? "mt-12 grid max-w-3xl grid-cols-1"
-                : "mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 auto-rows-[200px]"}
+                : "mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2"}
             >
-              {remainingProjectCards.map((project, i) => {
+              {remainingProjectCards.map((project) => {
                 // P0 FIX: Use pre-validated heroMedia from getProjectWithResolvedMedia (passed public media gate)
                 const heroMedia = project.media.heroMedia;
                 const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original;
                 if (!heroSrc) return null;
                 
-                // Bento grid spans: first item spans 2 cols, 2 rows on desktop
-                const isFeatured = i === 0 && remainingProjectCards.length > 1;
                 
                 return (
                   <Link 
                     key={project.id} 
                     href={`/projects/${project.slug || project.id}`}
-                    className={`project-motion-card group relative overflow-hidden rounded-lg ${isFeatured ? 'sm:col-span-2 sm:row-span-2' : ''}`}
+                    className="project-motion-card group relative overflow-hidden rounded-lg bg-deep focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-on-paper"
                   >
-                    <div className={remainingProjectCards.length === 1 ? "relative aspect-[4/3] bg-deep" : "absolute inset-0"}>
+                    <div className="relative aspect-[4/3] bg-deep">
                     <VisualSlot
                       id={`homepage-featured-project-${project.id}`}
                       route="/"
@@ -327,16 +325,15 @@ export default async function HomePage() {
                         src={heroSrc}
                         alt={heroMedia?.alt || project.title}
                         fill
-                        className={remainingProjectCards.length === 1 ? "craft-photo object-contain" : "craft-photo object-cover"}
-                        sizes={isFeatured ? '(min-width: 1280px) 600px, (min-width: 1024px) calc((100vw - 80px) / 2), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)' : remainingProjectSizes}
+                        className="craft-photo object-contain"
+                        sizes={remainingProjectSizes}
                         placeholder={heroMedia?.variants?.blur ? 'blur' : 'empty'}
                         blurDataURL={heroMedia?.variants?.blur}
                       />
                     </VisualSlot>
                     </div>
-                    {remainingProjectCards.length > 1 && <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />}
-                    <div className={remainingProjectCards.length === 1 ? "bg-deep p-4 sm:p-6" : "absolute bottom-0 left-0 right-0 p-4 sm:p-6"}>
-                      <span className="inline-block px-2 py-1 mb-2 text-xs font-semibold bg-honey/90 text-white rounded">
+                    <div className="bg-deep p-4 sm:p-6">
+                      <span className="inline-block px-2 py-1 mb-2 text-xs font-semibold bg-honey/90 text-honey-foreground rounded">
                         {project.location.county || 'Willamette Valley'}
                       </span>
                       <h3 className="text-white font-bold text-lg sm:text-xl"><ContentCopy collection="projects" id={project.id} field="title" value={project.title} route={`/projects/${project.slug}`} /></h3>

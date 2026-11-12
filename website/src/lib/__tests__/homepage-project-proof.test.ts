@@ -28,7 +28,7 @@ jest.mock('@/lib/registries', () => ({
 jest.mock('@/lib/homepage-service-media', () => ({ getHomepageServiceMedia: jest.fn(async () => new Map()) }));
 jest.mock('@/components/service-card', () => ({ ServiceCard: () => createElement('div', { 'data-test-services': true }) }));
 jest.mock('@/components/scroll-reveal', () => ({
-  ScrollReveal: ({ children }: { children: ReactNode }) => createElement('div', null, children),
+  ScrollReveal: ({ children, className }: { children: ReactNode; className?: string }) => createElement('div', { className }, children),
 }));
 jest.mock('@/components/workshop-atmosphere', () => ({ WorkshopAtmosphere: () => null }));
 jest.mock('@/components/newsletter-signup', () => ({ NewsletterSignup: () => null }));
@@ -100,4 +100,18 @@ it('keeps selection within the four featured tiles the homepage already presente
     project('one', false), project('two', false), project('three', false), project('four', false), project('fifth'),
   ]);
   expect(html).not.toContain('homepage-featured-project-fifth');
+});
+
+it.each([3, 4])('keeps %i published projects readable without empty bento tracks or cropped work', async (count) => {
+  const projects = Array.from({ length: count }, (_, index) => project('work-' + index));
+  const html = await render(projects);
+  for (const item of projects) {
+    expect(html.match(new RegExp('href="/projects/' + item.id + '"', 'g'))).toHaveLength(1);
+    expect(html).toContain('data-test-media="' + item.id + '-photo"');
+  }
+  expect(html).toContain('mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2');
+  expect(html).not.toContain('auto-rows-[200px]');
+  expect(html).not.toContain('sm:row-span-2');
+  expect(html).toContain('data-text-key="home.projects.action">View project');
+  expect(html.match(/craft-photo object-contain/g)).toHaveLength(count);
 });
