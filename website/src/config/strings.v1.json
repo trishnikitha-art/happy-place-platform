@@ -674,6 +674,10 @@
       "value": "Talk About Your Project",
       "revision": 0
     },
+    "home.projects.action": {
+      "value": "View project",
+      "revision": 0
+    },
     "home.projects.eyebrow": {
       "value": "Featured projects",
       "revision": 0

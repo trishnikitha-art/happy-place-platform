@@ -91,6 +91,16 @@ export default async function HomePage() {
   
   // Get exterior painting project for featured transformation (has before/after media)
   const paintingProject = featuredProjectsWithMedia.find(p => p.id === 'exterior-painting-001');
+  const homepageProjectCards = featuredProjectsWithMedia.slice(0, 4).filter(project =>
+    project.media.heroMedia?.variants.web || project.media.heroMedia?.variants.original
+  );
+  const [leadProject, ...remainingProjectCards] = homepageProjectCards;
+  const leadMedia = leadProject?.media.heroMedia;
+  const leadSrc = leadMedia?.variants.web || leadMedia?.variants.original;
+  const leadService = allServices.find(service => service.slug === leadProject?.service);
+  const remainingProjectSizes = remainingProjectCards.length === 1
+    ? '(min-width: 768px) 768px, calc(100vw - 32px)'
+    : '(min-width: 1280px) 592px, (min-width: 640px) calc((100vw - 64px) / 2), calc(100vw - 32px)';
   return (
     <>
       {/* HERO — full-width photograph with text overlay */}
@@ -189,6 +199,53 @@ export default async function HomePage() {
           </Container>
         </section>
 
+      {leadProject && leadMedia && leadSrc && (
+        <Section className="bg-[#F5F2ED] py-8 sm:py-10">
+          <Container>
+            <Link
+              href={'/projects/' + (leadProject.slug || leadProject.id)}
+              className="craft-card-link group grid overflow-hidden rounded-2xl bg-surface shadow-warm focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-on-paper md:grid-cols-2"
+            >
+              <div className="relative aspect-[16/9] bg-secondary">
+                <VisualSlot
+                  id={'homepage-featured-project-' + leadProject.id}
+                  route="/"
+                  page="Homepage"
+                  section="Featured Projects"
+                  slotName={leadProject.title + ' Featured Project'}
+                  currentMediaId={leadMedia.id}
+                  component="ProjectCard"
+                >
+                  <Image
+                    src={leadSrc}
+                    alt={leadMedia.alt || leadProject.title}
+                    fill
+                    loading="lazy"
+                    className="craft-photo object-contain"
+                    sizes="(min-width: 1280px) 592px, (min-width: 768px) calc((100vw - 80px) / 2), calc(100vw - 32px)"
+                    placeholder={leadMedia.variants.blur ? 'blur' : 'empty'}
+                    blurDataURL={leadMedia.variants.blur}
+                  />
+                </VisualSlot>
+              </div>
+              <div className="min-w-0 self-center p-5 sm:p-6">
+                <p className="text-xs font-semibold uppercase tracking-wide text-primary"><TextCopy textKey="home.projects.eyebrow" /></p>
+                <h2 className="mt-2 font-display text-2xl font-bold text-primary sm:text-3xl">
+                  <ContentCopy collection="projects" id={leadProject.id} field="title" value={leadProject.title} route={'/projects/' + (leadProject.slug || leadProject.id)} />
+                </h2>
+                <p className="mt-3 text-sm text-text-muted">{[leadService?.name, leadProject.location.city].filter(Boolean).join(' · ')}</p>
+                <span className="mt-4 inline-flex min-h-11 items-center font-semibold text-primary underline underline-offset-4"><TextCopy textKey="home.projects.action" /> <span aria-hidden="true">→</span></span>
+              </div>
+            </Link>
+            {remainingProjectCards.length === 0 && (
+              <div className="mt-5">
+                <RouterLink href="/our-work"><TextCopy textKey="home.copy.4" /></RouterLink>
+              </div>
+            )}
+          </Container>
+        </Section>
+      )}
+
       {/* SERVICES — image-dominant cards, less chrome (Directive 034) */}
         <Section className="relative bg-[#F6F4F0] pt-8 sm:pt-10 pb-8 sm:pb-10 section-diagonal-top">
           <BlueprintGrid gridSize={20} lineColor="rgba(22, 43, 41, 0.04)" />
@@ -222,7 +279,7 @@ export default async function HomePage() {
       <PencilLine className="py-8" />
 
       {/* FEATURED PROJECTS — bento grid layout */}
-        <Section className="relative bg-[#F5F2ED] py-24 sm:py-32 section-curved-bottom">
+      {(!leadProject || remainingProjectCards.length > 0) && <Section className="relative bg-[#F5F2ED] py-24 sm:py-32 section-curved-bottom">
           <BlueprintGrid gridSize={24} lineColor="rgba(217, 154, 78, 0.05)" />
           <div className="absolute inset-0 bg-gradient-to-br from-[#F5F2ED] via-[#F1EDE6] to-[#EDE9E0] opacity-100" aria-hidden="true" />
           <div className="absolute inset-0 bg-[radial-gradient(ellipse_80%_50%_at_50%_0%,rgba(255,255,255,0.4),transparent_70%)]" aria-hidden="true" />
@@ -234,22 +291,27 @@ export default async function HomePage() {
               description={<TextCopy textKey="homepage.projects.description" />}
               descriptionColor="text-primary"
             />
-            <ScrollReveal variant="sequence" data-motion-group="home-projects" className="mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 auto-rows-[200px]">
-              {featuredProjectsWithMedia.slice(0, 4).map((project, i) => {
+            <ScrollReveal
+              variant="sequence"
+              data-motion-group="home-projects"
+              className={remainingProjectCards.length === 1
+                ? "mt-12 grid max-w-3xl grid-cols-1"
+                : "mt-12 grid grid-cols-1 gap-4 sm:grid-cols-2"}
+            >
+              {remainingProjectCards.map((project) => {
                 // P0 FIX: Use pre-validated heroMedia from getProjectWithResolvedMedia (passed public media gate)
                 const heroMedia = project.media.heroMedia;
                 const heroSrc = heroMedia?.variants?.web || heroMedia?.variants?.original;
                 if (!heroSrc) return null;
                 
-                // Bento grid spans: first item spans 2 cols, 2 rows on desktop
-                const isFeatured = i === 0;
                 
                 return (
                   <Link 
                     key={project.id} 
                     href={`/projects/${project.slug || project.id}`}
-                    className={`project-motion-card group relative overflow-hidden rounded-lg ${isFeatured ? 'sm:col-span-2 sm:row-span-2' : ''}`}
+                    className="project-motion-card group relative overflow-hidden rounded-lg bg-deep focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-accent-on-paper"
                   >
+                    <div className="relative aspect-[4/3] bg-deep">
                     <VisualSlot
                       id={`homepage-featured-project-${project.id}`}
                       route="/"
@@ -263,15 +325,15 @@ export default async function HomePage() {
                         src={heroSrc}
                         alt={heroMedia?.alt || project.title}
                         fill
-                        className="craft-photo object-cover"
-                        sizes={isFeatured ? '(min-width: 1280px) 600px, (min-width: 1024px) calc((100vw - 80px) / 2), (min-width: 640px) calc(100vw - 48px), calc(100vw - 32px)' : '(min-width: 1280px) 288px, (min-width: 1024px) calc((100vw - 112px) / 4), (min-width: 640px) calc((100vw - 64px) / 2), calc(100vw - 32px)'}
+                        className="craft-photo object-contain"
+                        sizes={remainingProjectSizes}
                         placeholder={heroMedia?.variants?.blur ? 'blur' : 'empty'}
                         blurDataURL={heroMedia?.variants?.blur}
                       />
                     </VisualSlot>
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                    <div className="absolute bottom-0 left-0 right-0 p-4 sm:p-6">
-                      <span className="inline-block px-2 py-1 mb-2 text-xs font-semibold bg-honey/90 text-white rounded">
+                    </div>
+                    <div className="bg-deep p-4 sm:p-6">
+                      <span className="inline-block px-2 py-1 mb-2 text-xs font-semibold bg-honey/90 text-honey-foreground rounded">
                         {project.location.county || 'Willamette Valley'}
                       </span>
                       <h3 className="text-white font-bold text-lg sm:text-xl"><ContentCopy collection="projects" id={project.id} field="title" value={project.title} route={`/projects/${project.slug}`} /></h3>
@@ -285,7 +347,7 @@ export default async function HomePage() {
               <RouterLink href="/our-work"><TextCopy textKey="home.copy.4" /></RouterLink>
             </div>
           </Container>
-        </Section>
+        </Section>}
 
       {/* THE FAMILY — philosophy first, then people, then portrait (Act II) */}
         <Section className="relative bg-[#F3EFE8]">

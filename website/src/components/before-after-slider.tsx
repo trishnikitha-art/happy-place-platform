@@ -93,6 +93,7 @@ export function BeforeAfterSlider({
 
   return (
     <CraftCard className={cn("group relative select-none overflow-hidden", className)}>
+      <figure className="m-0">
       <div
         ref={containerRef}
         className="relative aspect-[4/3] w-full touch-pan-y"
@@ -127,7 +128,7 @@ export function BeforeAfterSlider({
         )}
         {/* BEFORE (clipped) */}
         {beforeSrc && (
-          <div className="absolute inset-0 overflow-hidden" style={{ width: `${pos}%` }}>
+          <div className="absolute inset-0 overflow-hidden" style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}>
             <VisualSlot
               id={`slider-left-${project.id}`}
               route="/"
@@ -174,6 +175,7 @@ export function BeforeAfterSlider({
         <span className={`font-semibold ${titleColor}`}>{project.title}</span>
         {project.location.county && <span className={subtitleColor}>{project.location.county}</span>}
       </figcaption>
+      </figure>
     </CraftCard>
   );
 }

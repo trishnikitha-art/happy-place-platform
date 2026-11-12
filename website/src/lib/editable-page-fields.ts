@@ -469,6 +469,13 @@ export const EDITABLE_PAGE_FIELDS = {
     "source": "src/app/blog/[slug]/page.tsx",
     "classification": "editable copy"
   },
+  "home.projects.action": {
+    "label": "Featured project link",
+    "route": "/",
+    "maxLength": 80,
+    "source": "src/app/page.tsx",
+    "classification": "editable copy"
+  },
   "home.projects.eyebrow": {
     "label": "Featured projects",
     "route": "/",

@@ -16,9 +16,8 @@ function formattedText({ key, text }: Line) {
   );
 }
 
-export function BlogArticleBody({ titleKey, body }: { titleKey: TextKey; body: readonly (TextKey | null)[] }) {
+export function BlogArticleBody({ body }: { titleKey: TextKey; body: readonly (TextKey | null)[] }) {
   const { read, isPreview } = useTextCopySource();
-  const title = read(titleKey);
   const blocks: Block[] = [];
   let activeList: Block | undefined;
   let firstLine = true;
@@ -29,10 +28,12 @@ export function BlogArticleBody({ titleKey, body }: { titleKey: TextKey; body: r
       continue;
     }
     const text = read(key).trim();
-    if (firstLine && text === "# " + title) {
+    // The leading source heading and page title are independently editable.
+    const sourceTitle = firstLine ? /^#\s+(.+)$/.exec(text) : null;
+    if (sourceTitle) {
       firstLine = false;
       // Keep the separately editable source title available in Workbench.
-      if (isPreview) blocks.push({ kind: "p", lines: [{ key, text: text.slice(2) }] });
+      if (isPreview) blocks.push({ kind: "p", lines: [{ key, text: sourceTitle[1] }] });
       continue;
     }
     firstLine = false;

@@ -85,6 +85,9 @@ describe('before/after static rendering', () => {
     expect(html).toContain('role="slider"');
     expect(html).toContain('tabindex="0"');
     expect(html).toContain('aria-valuenow="50"');
+    expect(html).toContain('clip-path:inset(0 50% 0 0)');
+    expect(html).not.toContain('style="width:50%"');
+    expect(html).toMatch(/<figure\b[^>]*>[\s\S]*<figcaption\b[^>]*>[\s\S]*<\/figcaption><\/figure>/);
   });
 
   it('omits an incomplete pair instead of showing unvalidated media', () => {
